@@ -1,12 +1,18 @@
 struct Bisection <: AbstractBracketingAlgorithm
 end
 
+mutable struct BisectionCache{uType}
+  state::UInt8
+  left::uType
+  right::uType
+end
+
 function alg_cache(alg::Bisection, left, right, p, ::Val{true})
-  nothing
+  BisectionCache(UInt8(0), left, right)
 end
 
 function alg_cache(alg::Bisection, left, right, p, ::Val{false})
-  nothing
+  BisectionCache(UInt8(0), left, right)
 end
 
 """
@@ -84,30 +90,62 @@ end
 function perform_step!(solver, alg::Bisection, cache)
   @unpack f, p, left, right, fl, fr = solver
 
-  fzero = zero(fl)
-  fl * fr > fzero && error("Bracket became non-containing in between iterations. This could mean that "
-  + "input function crosses the x axis multiple times. Bisection is not the right method to solve this.")
+  if cache.state == 0
+    fzero = zero(fl)
+    fl * fr > fzero && error("Bracket became non-containing in between iterations. This could mean that "
+    + "input function crosses the x axis multiple times. Bisection is not the right method to solve this.")
 
-  mid = (left + right) / 2.0
-  
-  if right == mid || right == mid
-    solver.force_stop = true
-    solver.retcode = :FloatingPointLimit
-    return
-  end
-  
-  fm = f(mid, p)
+    mid = (left + right) / 2.0
+    
+    if left == mid || right == mid
+      solver.force_stop = true
+      solver.retcode = :FloatingPointLimit
+      return
+    end
+    
+    fm = f(mid, p)
 
-  if iszero(fm)
-    # todo: phase 2 bisection similar to the raw method
-    solver.force_stop = true
-    solver.left = mid
-    solver.fl = fm
-    solver.retcode = :ExactSolutionAtLeft
-  else
-    if sign(fm) == sign(fl)
+    if iszero(fm)
+      cache.state = 1
+      cache.right = mid
+      cache.left = mid
+    else
+      if sign(fm) == sign(fl)
+        solver.left = mid
+        solver.fl = fm
+      else
+        solver.right = mid
+        solver.fr = fm
+      end
+    end
+  elseif cache.state == 1
+    mid = (left + cache.right) / 2.0
+    
+    if cache.right == mid || left == mid
+      cache.state = 2
+      return
+    end
+    
+    fm = f(mid, p)
+
+    if iszero(fm)
+      cache.right = mid
+    else
       solver.left = mid
       solver.fl = fm
+    end
+  else
+    mid = (cache.left + right) / 2.0
+    
+    if right == mid || cache.left == mid
+      solver.force_stop = true
+      return
+    end
+    
+    fm = f(mid, p)
+
+    if iszero(fm)
+      cache.left = mid
     else
       solver.right = mid
       solver.fr = fm
