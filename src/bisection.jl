@@ -1,4 +1,10 @@
 struct Bisection <: AbstractBracketingAlgorithm
+  exact_left::Bool
+  exact_right::Bool
+end
+
+function Bisection(;exact_left=false, exact_right=false)
+  Bisection(exact_left, exact_right)
 end
 
 mutable struct BisectionCache{uType}
@@ -95,7 +101,7 @@ function perform_step!(solver, alg::Bisection, cache)
     fl * fr > fzero && error("Bracket became non-containing in between iterations. This could mean that "
     + "input function crosses the x axis multiple times. Bisection is not the right method to solve this.")
 
-    mid = (left + right) / 2.0
+    mid = (left + right) / 2
     
     if left == mid || right == mid
       solver.force_stop = true
@@ -106,9 +112,22 @@ function perform_step!(solver, alg::Bisection, cache)
     fm = f(mid, p)
 
     if iszero(fm)
-      cache.state = 1
-      cache.right = mid
-      cache.left = mid
+      if alg.exact_left
+        cache.state = 1
+        cache.right = mid
+        cache.left = mid
+      elseif alg.exact_right
+        solver.left = prevfloat_tdir(mid, left, right)
+        sync_residuals!(solver)
+        cache.state = 2
+        cache.left = mid
+      else
+        solver.left = prevfloat_tdir(mid, left, right)
+        solver.right = nextfloat_tdir(mid, left, right)
+        sync_residuals!(solver)
+        solver.force_stop = true
+        return
+      end
     else
       if sign(fm) == sign(fl)
         solver.left = mid
@@ -119,11 +138,18 @@ function perform_step!(solver, alg::Bisection, cache)
       end
     end
   elseif cache.state == 1
-    mid = (left + cache.right) / 2.0
+    mid = (left + cache.right) / 2
     
     if cache.right == mid || left == mid
-      cache.state = 2
-      return
+      if alg.exact_right
+        cache.state = 2
+        return
+      else
+        solver.right = nextfloat_tdir(mid, left, right)
+        sync_residuals!(solver)
+        solver.force_stop = true
+        return
+      end
     end
     
     fm = f(mid, p)
@@ -135,7 +161,7 @@ function perform_step!(solver, alg::Bisection, cache)
       solver.fl = fm
     end
   else
-    mid = (cache.left + right) / 2.0
+    mid = (cache.left + right) / 2
     
     if right == mid || cache.left == mid
       solver.force_stop = true
