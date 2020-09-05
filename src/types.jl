@@ -1,4 +1,4 @@
-mutable struct BracketingSolver{fType, algType, uType, resType, pType, cacheType, solType}
+mutable struct BracketingSolver{fType, algType, uType, resType, pType, cacheType, solType} <: AbstractNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -11,6 +11,21 @@ mutable struct BracketingSolver{fType, algType, uType, resType, pType, cacheType
     force_stop::Bool
     maxiters::Int
     retcode::Symbol
+    sol::solType
+end
+
+mutable struct NewtonSolver{fType, algType, uType, resType, pType, cacheType, tolType, solType} <: AbstractNonlinearSolver
+    iter::Int
+    f::fType
+    alg::algType
+    u::uType
+    fu::resType
+    p::pType
+    cache::cacheType
+    force_stop::Bool
+    maxiters::Int
+    retcode::Symbol
+    tol::tolType
     sol::solType
 end
 
@@ -33,3 +48,13 @@ end
 function build_solution(u_prototype, ::Val{false})
     return BracketingSolution(zero(u_prototype), zero(u_prototype), :Default)
 end
+
+mutable struct NewtonSolution{uType}
+    u::uType
+    retcode::Symbol
+end
+
+function build_newton_solution(u_prototype, ::Val{iip}) where iip
+    return NewtonSolution(zero(u_prototype), :Default)
+end
+

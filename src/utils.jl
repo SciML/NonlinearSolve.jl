@@ -10,3 +10,6 @@ end
 function nextfloat_tdir(x::T, x0::T, x1::T)::T where {T}
   x1 > x0 ? nextfloat(x) : prevfloat(x)
 end
+
+alg_autodiff(alg::AbstractNewtonAlgorithm{CS,AD}) where {CS,AD} = AD
+alg_autodiff(alg) = false

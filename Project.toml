@@ -5,5 +5,7 @@ version = "0.1.0"
 
 [deps]
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
+FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"

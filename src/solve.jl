@@ -32,16 +32,34 @@ function DiffEqBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractBrac
   return BracketingSolver(1, f, alg, left, right, fl, fr, p, cache, false, maxiters, :Default, sol)
 end
 
-function DiffEqBase.solve!(solver::BracketingSolver)
+function DiffEqBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
+    alias_u0 = false,
+    maxiters = 1000,
+    tol = 1e-6,
+    kwargs...
+  ) where {uType, iip}
+
+  if alias_u0
+    u = prob.u0
+  else
+    u = deepcopy(prob.u0)
+  end
+  f = prob.f
+  p = prob.p
+  fu = f(u, p)
+
+  cache = alg_cache(alg, f, u, p, Val(iip))
+
+  sol = build_newton_solution(u, Val(iip))
+  return NewtonSolver(1, f, alg, u, fu, p, cache, false, maxiters, :Default, tol, sol)
+end
+
+function DiffEqBase.solve!(solver::AbstractNonlinearSolver)
   # sync_residuals!(solver)
   mic_check!(solver)
   while !solver.force_stop && solver.iter < solver.maxiters
-    if check_for_exact_solution!(solver)
-      break
-    else
-      perform_step!(solver, solver.alg, solver.cache)
-      solver.iter += 1
-    end
+    perform_step!(solver, solver.alg, solver.cache)
+    solver.iter += 1
     # sync_residuals!(solver)
   end
   if solver.iter == solver.maxiters
@@ -66,6 +84,10 @@ function mic_check!(solver::BracketingSolver)
   nothing
 end
 
+function mic_check!(solver::NewtonSolver)
+  nothing
+end
+
 function check_for_exact_solution!(solver::BracketingSolver)
   @unpack fl, fr = solver
   fzero = zero(fl)
@@ -79,8 +101,13 @@ function check_for_exact_solution!(solver::BracketingSolver)
   return false
 end
 
-function set_solution!(solver)
+function set_solution!(solver::BracketingSolver)
   solver.sol.left = solver.left
   solver.sol.right = solver.right
+  solver.sol.retcode = solver.retcode
+end
+
+function set_solution!(solver::NewtonSolver)
+  solver.sol.u = solver.u
   solver.sol.retcode = solver.retcode
 end
