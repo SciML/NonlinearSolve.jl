@@ -13,3 +13,14 @@ end
 
 alg_autodiff(alg::AbstractNewtonAlgorithm{CS,AD}) where {CS,AD} = AD
 alg_autodiff(alg) = false
+
+"""
+  value_derivative(f, x)
+
+Compute `f(x), d/dx f(x)` in the most efficient way.
+"""
+function value_derivative(f::F, x::R) where {F,R}
+    T = typeof(ForwardDiff.Tag(f, R))
+    out = f(ForwardDiff.Dual{T}(x, one(x)))
+    ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+end

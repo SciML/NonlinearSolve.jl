@@ -1,12 +1,12 @@
-function DiffEqBase.__solve(prob::NonlinearProblem,
-                            alg::AbstractNonlinearSolveAlgorithm, args...;
-                            kwargs...)
-  solver = DiffEqBase.__init(prob, alg, args...; kwargs...)
+function DiffEqBase.solve(prob::NonlinearProblem,
+                          alg::AbstractNonlinearSolveAlgorithm, args...;
+                          kwargs...)
+  solver = DiffEqBase.init(prob, alg, args...; kwargs...)
   solve!(solver)
   return solver.sol
 end
 
-function DiffEqBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
+function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
     kwargs...
@@ -32,7 +32,7 @@ function DiffEqBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractBrac
   return BracketingSolver(1, f, alg, left, right, fl, fr, p, cache, false, maxiters, :Default, sol)
 end
 
-function DiffEqBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
+function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
     tol = 1e-6,
