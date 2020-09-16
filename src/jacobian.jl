@@ -23,3 +23,23 @@ function jacobian(f, x, solver)
     end
     return J
 end
+
+function calc_J!(J, solver, cache)
+    @unpack f, u, p, alg = solver
+    @unpack du1, uf, jac_config = cache
+
+    uf.f = f
+    uf.p = p
+
+    jacobian!(J, uf, u, du1, solver, jac_config)
+end
+
+function jacobian!(J, f, x, fx, solver, jac_config)
+    alg = solver.alg
+    if alg_autodiff(alg)
+        ForwardDiff.jacobian!(J, f, fx, x, jac_config)
+    else
+        FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config)
+    end
+    nothing
+end

@@ -36,6 +36,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
     alias_u0 = false,
     maxiters = 1000,
     tol = 1e-6,
+    internalnorm = Base.Fix2(DiffEqBase.ODE_DEFAULT_NORM, nothing),
     kwargs...
   ) where {uType, iip}
 
@@ -46,12 +47,17 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
   end
   f = prob.f
   p = prob.p
-  fu = f(u, p)
+  if iip
+    fu = zero(u)
+    f(fu, u, p)
+  else
+    fu = f(u, p)
+  end
 
   cache = alg_cache(alg, f, u, p, Val(iip))
 
   sol = build_newton_solution(u, Val(iip))
-  return NewtonSolver(1, f, alg, u, fu, p, cache, false, maxiters, :Default, tol, sol)
+  return NewtonSolver(1, f, alg, u, fu, p, cache, false, maxiters, internalnorm, :Default, tol, sol)
 end
 
 function DiffEqBase.solve!(solver::AbstractNonlinearSolver)
