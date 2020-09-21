@@ -29,6 +29,6 @@ sol = benchmark_mutable(f, u0)
 sol = benchmark_scalar(sf, su0)
 @test sol * sol - 2 < 1e-9
 
-@test_broken (@ballocated benchmark_immutable($f, $u0)) == 0
-@test_broken (@ballocated benchmark_mutable($f, $u0)) == 0
+@test (@ballocated benchmark_immutable($f, $u0)) == 0
+@test (@ballocated benchmark_mutable($f, $u0)) < 200
 @test (@ballocated benchmark_scalar($sf, $su0)) == 0
