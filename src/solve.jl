@@ -12,7 +12,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracke
     immutable = (prob.u0 isa StaticArray || prob.u0 isa Number),
     kwargs...
   ) where {uType, iip}
-  
+
   if !(prob.u0 isa Tuple)
     error("You need to pass a tuple of u0 in bracketing algorithms.")
   end

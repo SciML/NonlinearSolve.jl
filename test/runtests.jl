@@ -17,7 +17,7 @@ end
 
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, ScalarNewton()))
+    sol = (solve(probN, NewtonRaphson()))
 end
 
 f, u0 = (u,p) -> u .* u .- 2, @SVector[1.0, 1.0]
