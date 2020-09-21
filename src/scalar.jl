@@ -8,18 +8,18 @@ function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, arg
   xo = oftype(x, Inf)
   for i in 1:maxiters
     fx, dfx = value_derivative(f, x)
-    iszero(fx) && return x
+    iszero(fx) && return NewtonSolution(x, :Default)
     Δx = dfx \ fx
     x -= Δx
     if isapprox(x, xo, atol=atol, rtol=rtol)
-        return x
+        return NewtonSolution(x, :Default)
     end
     xo = x
   end
-  return oftype(x, NaN)
+  return NewtonSolution(x, :MaxitersExceeded)
 end
 
-function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::Bisection, args...; maxiters = 1000, kwargs...)
+function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)

@@ -9,6 +9,7 @@ end
 function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
+    # bracketing algorithms only solve scalar problems
     immutable = (prob.u0 isa StaticArray || prob.u0 isa Number),
     kwargs...
   ) where {uType, iip}
