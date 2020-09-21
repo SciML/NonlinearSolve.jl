@@ -15,7 +15,7 @@ mutable struct NewtonRaphsonCache{ufType, L, jType, uType, JC}
     jac_config::JC
 end
 
-mutable struct NewtonRaphsonConstantCache{ufType}
+struct NewtonRaphsonConstantCache{ufType}
     uf::ufType
 end
 
@@ -48,7 +48,7 @@ function perform_step!(solver, alg::NewtonRaphson, cache::NewtonRaphsonConstantC
     J = calc_J(solver, cache)
     solver.u = u - J \ fu
     solver.fu = f(solver.u, p)
-    if iszero(solver.fu) || abs(solver.fu) < solver.tol
+    if iszero(solver.fu) || solver.internalnorm(solver.fu) < solver.tol
         solver.force_stop = true
     end
 end
@@ -64,4 +64,16 @@ function perform_step!(solver, alg::NewtonRaphson, cache::NewtonRaphsonCache)
     if solver.internalnorm(solver.fu) < solver.tol
         solver.force_stop = true
     end
+end
+
+function perform_step(solver, alg::NewtonRaphson)
+    @unpack u, fu, f, p = solver
+    J = calc_J(solver, ImmutableJacobianWrapper(f, p))
+    @set! solver.u = u - J \ fu
+    fu = f(solver.u, p)
+    @set! solver.fu = fu
+    if iszero(solver.fu) || solver.internalnorm(solver.fu) < solver.tol
+        @set! solver.force_stop = true
+    end
+    return solver
 end

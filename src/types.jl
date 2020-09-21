@@ -14,7 +14,40 @@ mutable struct BracketingSolver{fType, algType, uType, resType, pType, cacheType
     sol::solType
 end
 
+struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType, solType} <: AbstractImmutableNonlinearSolver
+    iter::Int
+    f::fType
+    alg::algType
+    left::uType
+    right::uType
+    fl::resType
+    fr::resType
+    p::pType
+    cache::cacheType
+    force_stop::Bool
+    maxiters::Int
+    retcode::Symbol
+    sol::solType
+end
+
+
 mutable struct NewtonSolver{fType, algType, uType, resType, pType, cacheType, INType, tolType, solType} <: AbstractNonlinearSolver
+    iter::Int
+    f::fType
+    alg::algType
+    u::uType
+    fu::resType
+    p::pType
+    cache::cacheType
+    force_stop::Bool
+    maxiters::Int
+    internalnorm::INType
+    retcode::Symbol
+    tol::tolType
+    sol::solType
+end
+
+struct NewtonImmutableSolver{fType, algType, uType, resType, pType, cacheType, INType, tolType, solType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType

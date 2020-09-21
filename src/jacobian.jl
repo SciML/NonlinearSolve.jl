@@ -6,6 +6,13 @@ end
 (uf::JacobianWrapper)(u) = uf.f(u, uf.p)
 (uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
 
+mutable struct ImmutableJacobianWrapper{fType, pType}
+    f::fType
+    p::pType
+end
+
+(uf::ImmutableJacobianWrapper)(u) = uf.f(u, uf.p)
+
 function calc_J(solver, cache)
     @unpack u, f, p, alg = solver
     @unpack uf = cache
@@ -15,9 +22,17 @@ function calc_J(solver, cache)
     return J
 end
 
+function calc_J(solver, uf::ImmutableJacobianWrapper)
+    @unpack u, f, p, alg = solver
+    @set! uf.f = f
+    @set! uf.p = p
+    J = jacobian(uf, u, solver)
+    return J
+end
+
 function jacobian(f, x, solver)
     if alg_autodiff(solver.alg)
-        J = ForwardDiff.derivative(f, x)
+        J = ForwardDiff.jacobian(f, Ref(x)[])
     else
         J = FiniteDiff.finite_difference_derivative(f, x, solver.alg.diff_type, eltype(x))
     end

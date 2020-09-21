@@ -4,11 +4,14 @@ module NonlinearSolve
   @reexport using DiffEqBase
   using UnPack: @unpack
   using FiniteDiff, ForwardDiff
+  using Setfield
+  using StaticArrays
 
   abstract type AbstractNonlinearSolveAlgorithm end
   abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
   abstract type AbstractNewtonAlgorithm{CS,AD} <: AbstractNonlinearSolveAlgorithm end
   abstract type AbstractNonlinearSolver end
+  abstract type AbstractImmutableNonlinearSolver <: AbstractNonlinearSolver end
 
   include("jacobian.jl")
   include("types.jl")
@@ -25,4 +28,6 @@ module NonlinearSolve
   # DiffEq styled algorithms
   export Bisection, Falsi, NewtonRaphson
   export ScalarBisection, ScalarNewton
+
+  export reinit!
 end # module
