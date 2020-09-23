@@ -83,7 +83,7 @@ function build_solution(u_prototype, ::Val{false})
     return BracketingSolution(zero(u_prototype), zero(u_prototype), :Default)
 end
 
-mutable struct NewtonSolution{uType}
+struct NewtonSolution{uType}
     u::uType
     retcode::Symbol
 end

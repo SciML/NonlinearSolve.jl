@@ -27,7 +27,6 @@ module NonlinearSolve
 
   # DiffEq styled algorithms
   export Bisection, Falsi, NewtonRaphson
-  export ScalarBisection, ScalarNewton
 
   export reinit!
 end # module

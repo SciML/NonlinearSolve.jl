@@ -1,11 +1,4 @@
-"""
-ScalarNewton
-
-Fast Newton Raphson for scalar problems.
-"""
-struct ScalarNewton <: AbstractNonlinearSolveAlgorithm end
-
-function DiffEqBase.solve(prob::NonlinearProblem{uType, false}, ::ScalarNewton, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...) where {uType}
+function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   T = typeof(x)
@@ -15,26 +8,18 @@ function DiffEqBase.solve(prob::NonlinearProblem{uType, false}, ::ScalarNewton, 
   xo = oftype(x, Inf)
   for i in 1:maxiters
     fx, dfx = value_derivative(f, x)
-    iszero(fx) && return x
+    iszero(fx) && return NewtonSolution(x, :Default)
     Δx = dfx \ fx
     x -= Δx
     if isapprox(x, xo, atol=atol, rtol=rtol)
-        return x
+        return NewtonSolution(x, :Default)
     end
     xo = x
   end
-  return oftype(x, NaN)
+  return NewtonSolution(x, :MaxitersExceeded)
 end
 
-"""
-  ScalarBisection
-
-Fast Bisection for scalar problems. Note that it doesn't returns exact solution, but returns
-the best left limit of the exact solution.
-"""
-struct ScalarBisection <: AbstractNonlinearSolveAlgorithm end
-
-function DiffEqBase.solve(prob::NonlinearProblem{uType, false}, ::ScalarBisection, args...; maxiters = 1000, kwargs...) where {uType}
+function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)

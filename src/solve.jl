@@ -9,10 +9,11 @@ end
 function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
+    # bracketing algorithms only solve scalar problems
     immutable = (prob.u0 isa StaticArray || prob.u0 isa Number),
     kwargs...
   ) where {uType, iip}
-  
+
   if !(prob.u0 isa Tuple)
     error("You need to pass a tuple of u0 in bracketing algorithms.")
   end
@@ -60,7 +61,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
     fu = f(u, p)
   end
 
-  
+
   sol = build_newton_solution(u, Val(iip))
   if immutable
     return NewtonImmutableSolver(1, f, alg, u, fu, p, nothing, false, maxiters, internalnorm, :Default, tol, sol)
@@ -81,7 +82,7 @@ function DiffEqBase.solve!(solver::AbstractNonlinearSolver)
   if solver.iter == solver.maxiters
     solver.retcode = :MaxitersExceeded
   end
-  set_solution!(solver)
+  solver = set_solution(solver)
   return solver.sol
 end
 
@@ -151,19 +152,25 @@ function check_for_exact_solution!(solver::BracketingSolver)
   return false
 end
 
-function set_solution!(solver::BracketingSolver)
-  solver.sol.left = solver.left
-  solver.sol.right = solver.right
-  solver.sol.retcode = solver.retcode
+function set_solution(solver::BracketingSolver)
+  sol = solver.sol
+  @set! sol.left = solver.left
+  @set! sol.right = solver.right
+  @set! sol.retcode = solver.retcode
+  @set! solver.sol = sol
+  return solver
 end
 
 function get_solution(solver::BracketingImmutableSolver)
   return (left = solver.left, right = solver.right, retcode = solver.retcode)
 end
 
-function set_solution!(solver::NewtonSolver)
-  solver.sol.u = solver.u
-  solver.sol.retcode = solver.retcode
+function set_solution(solver::NewtonSolver)
+  sol = solver.sol
+  @set! sol.u = solver.u
+  @set! sol.retcode = solver.retcode
+  @set! solver.sol = sol
+  return solver
 end
 
 function get_solution(solver::NewtonImmutableSolver)
