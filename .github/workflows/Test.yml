@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: arctic4
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
