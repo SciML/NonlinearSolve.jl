@@ -35,3 +35,36 @@ sol = benchmark_scalar(sf, su0)
 @test (@ballocated benchmark_immutable($f, $u0)) == 0
 @test (@ballocated benchmark_mutable($f, $u0)) < 200
 @test (@ballocated benchmark_scalar($sf, $su0)) == 0
+
+# AD Tests
+using ForwardDiff
+
+# Immutable
+f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, NewtonRaphson(), immutable = true, tol = 1e-9)
+    return sol.u[end]
+end
+
+for p in 1.0:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+end
+
+# Scalar
+f, u0 = (u, p) -> u * u - p, 1.0
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, NewtonRaphson())
+    return sol.u
+end
+
+@test_broken ForwardDiff.derivative(g, 1.0) ≈ 0.5
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+end

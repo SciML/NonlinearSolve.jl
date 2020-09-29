@@ -2,8 +2,8 @@ function DiffEqBase.solve(prob::NonlinearProblem,
                           alg::AbstractNonlinearSolveAlgorithm, args...;
                           kwargs...)
   solver = DiffEqBase.init(prob, alg, args...; kwargs...)
-  solve!(solver)
-  return solver.sol
+  sol = solve!(solver)
+  return sol
 end
 
 function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
