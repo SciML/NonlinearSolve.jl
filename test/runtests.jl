@@ -68,3 +68,68 @@ for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
     @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
 end
+
+# Error Checks
+
+f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
+probN = NonlinearProblem(f, u0)
+
+@test solve(probN, NewtonRaphson()).u[end] ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(); immutable = false).u[end] ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(;autodiff=false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u[end] ≈ sqrt(2.0)
+
+f, u0 = (u, p) -> u .* u .- 2.0, 1.0
+probN = NonlinearProblem(f, u0)
+
+@test solve(probN, NewtonRaphson()).u ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(); immutable = false).u ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(;autodiff=false)).u ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u ≈ sqrt(2.0)
+
+
+# Bisection Tests
+f, u0 = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
+probB = NonlinearProblem(f, u0)
+
+# this should call the fast scalar overload
+@test solve(probB, Bisection()).left ≈ sqrt(2.0)
+
+# these should call the iterator version
+solver = init(probB, Bisection())
+@test solver isa NonlinearSolve.BracketingImmutableSolver
+# Question: Do we need BracketingImmutableSolver? We have fast scalar overload and 
+# Bracketing solvers work only for scalars.
+
+solver = init(probB, Bisection(); immutable = false)
+@test solver isa NonlinearSolve.BracketingSolver
+@test solve!(solver).left ≈ sqrt(2.0)
+
+# Garuntee Tests for Bisection
+f = function (u, p)
+    if u < 2.0
+        return u - 2.0
+    elseif u > 3.0
+        return u - 3.0
+    else
+        return 0.0
+    end
+end
+probB = NonlinearProblem(f, (0.0, 4.0))
+
+solver = init(probB, Bisection(;exact_left = true); immutable = false)
+sol = solve!(solver)
+@test f(sol.left, nothing) < 0.0
+@test f(nextfloat(sol.left), nothing) >= 0.0
+
+solver = init(probB, Bisection(;exact_right = true); immutable = false)
+sol = solve!(solver)
+@test f(sol.right, nothing) > 0.0
+@test f(prevfloat(sol.right), nothing) <= 0.0
+
+solver = init(probB, Bisection(;exact_left = true, exact_right = true); immutable = false)
+sol = solve!(solver)
+@test f(sol.left, nothing) < 0.0
+@test f(nextfloat(sol.left), nothing) >= 0.0
+@test f(sol.right, nothing) > 0.0
+@test f(prevfloat(sol.right), nothing) <= 0.0

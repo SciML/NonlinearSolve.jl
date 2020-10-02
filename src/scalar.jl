@@ -25,14 +25,14 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
   fl, fr = f(left), f(right)
 
   if iszero(fl)
-    return fl
+    return BracketingSolution(left, right, :ExactSolutionAtLeft)
   end
 
   i = 1
   if !iszero(fr)
     while i < maxiters
       mid = (left + right) / 2
-      (mid == left || mid == right) && return left
+      (mid == left || mid == right) && return BracketingSolution(left, right, :FloatingPointLimit)
       fm = f(mid)
       if iszero(fm)
         right = mid
@@ -51,7 +51,7 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
 
   while i < maxiters
     mid = (left + right) / 2
-    (mid == left || mid == right) && return left
+    (mid == left || mid == right) && return BracketingSolution(left, right, :FloatingPointLimit)
     fm = f(mid)
     if iszero(fm)
       right = mid
@@ -63,5 +63,5 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
     i += 1
   end
 
-  return left
+  return BracketingSolution(left, right, :MaxitersExceeded)
 end

@@ -10,12 +10,16 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracke
     alias_u0 = false,
     maxiters = 1000,
     # bracketing algorithms only solve scalar problems
-    immutable = (prob.u0 isa StaticArray || prob.u0 isa Number),
+    immutable = (eltype(prob.u0) <: Number),
     kwargs...
   ) where {uType, iip}
 
   if !(prob.u0 isa Tuple)
     error("You need to pass a tuple of u0 in bracketing algorithms.")
+  end
+
+  if eltype(prob.u0) isa AbstractArray
+    error("Bracketing Algorithms work for scalar arguments only")
   end
 
   if alias_u0
@@ -28,13 +32,11 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracke
   fl = f(left, p)
   fr = f(right, p)
 
-  cache = alg_cache(alg, left, right, p, Val(iip))
-
-  sol = build_solution(left, Val(iip))
   if immutable
-    return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, cache, false, maxiters, :Default, sol)
+    return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, :Default)
   else
-    return BracketingSolver(1, f, alg, left, right, fl, fr, p, cache, false, maxiters, :Default, sol)
+    cache = alg_cache(alg, left, right, p, Val(iip))
+    return BracketingSolver(1, f, alg, left, right, fl, fr, p, cache, false, maxiters, :Default)
   end
 end
 
@@ -61,38 +63,32 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
     fu = f(u, p)
   end
 
-
-  sol = build_newton_solution(u, Val(iip))
   if immutable
-    return NewtonImmutableSolver(1, f, alg, u, fu, p, nothing, false, maxiters, internalnorm, :Default, tol, sol)
+    return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, :Default, tol)
   else
     cache = alg_cache(alg, f, u, p, Val(iip))
-    return NewtonSolver(1, f, alg, u, fu, p, cache, false, maxiters, internalnorm, :Default, tol, sol)
+    return NewtonSolver(1, f, alg, u, fu, p, cache, false, maxiters, internalnorm, :Default, tol)
   end
 end
 
 function DiffEqBase.solve!(solver::AbstractNonlinearSolver)
-  # sync_residuals!(solver)
   mic_check!(solver)
   while !solver.force_stop && solver.iter < solver.maxiters
     perform_step!(solver, solver.alg, solver.cache)
     solver.iter += 1
-    # sync_residuals!(solver)
   end
   if solver.iter == solver.maxiters
     solver.retcode = :MaxitersExceeded
   end
-  solver = set_solution(solver)
-  return solver.sol
+  sol = get_solution(solver)
+  return sol
 end
 
 function DiffEqBase.solve!(solver::AbstractImmutableNonlinearSolver)
-  # sync_residuals!(solver)
   solver = mic_check(solver)
   while !solver.force_stop && solver.iter < solver.maxiters
     solver = perform_step(solver, solver.alg)
     @set! solver.iter += 1
-    # sync_residuals!(solver)
   end
   if solver.iter == solver.maxiters
     @set! solver.retcode = :MaxitersExceeded
@@ -101,6 +97,12 @@ function DiffEqBase.solve!(solver::AbstractImmutableNonlinearSolver)
   return sol
 end
 
+"""
+  mic_check(solver::AbstractImmutableNonlinearSolver)
+  mic_check!(solver::AbstractNonlinearSolver)
+
+Checks before running main solving iterations.
+"""
 function mic_check!(solver::BracketingSolver)
   @unpack f, fl, fr = solver
   flr = fl * fr
@@ -139,52 +141,35 @@ function mic_check(solver::NewtonImmutableSolver)
   solver
 end
 
-function check_for_exact_solution!(solver::BracketingSolver)
-  @unpack fl, fr = solver
-  fzero = zero(fl)
-  if fl == fzero
-    solver.retcode = :ExactSolutionAtLeft
-    return true
-  elseif fr == fzero
-    solver.retcode = :ExactSolutionAtRight
-    return true
-  end
-  return false
+"""
+  get_solution(solver::Union{BracketingImmutableSolver, BracketingSolver})
+  get_solution(solver::Union{NewtonImmutableSolver, NewtonSolver})
+
+Form solution object from solver types
+"""
+function get_solution(solver::Union{BracketingImmutableSolver, BracketingSolver})
+  return BracketingSolution(solver.left, solver.right, solver.retcode)
 end
 
-function set_solution(solver::BracketingSolver)
-  sol = solver.sol
-  @set! sol.left = solver.left
-  @set! sol.right = solver.right
-  @set! sol.retcode = solver.retcode
-  @set! solver.sol = sol
-  return solver
+function get_solution(solver::Union{NewtonImmutableSolver, NewtonSolver})
+  return NewtonSolution(solver.u, solver.retcode)
 end
 
-function get_solution(solver::BracketingImmutableSolver)
-  return (left = solver.left, right = solver.right, retcode = solver.retcode)
-end
+"""
+  reinit!(solver, prob)
 
-function set_solution(solver::NewtonSolver)
-  sol = solver.sol
-  @set! sol.u = solver.u
-  @set! sol.retcode = solver.retcode
-  @set! solver.sol = sol
-  return solver
-end
-
-function get_solution(solver::NewtonImmutableSolver)
-  return (u = solver.u, retcode = solver.retcode)
-end
-
+Reinitialize solver to the original starting conditions
+"""
 function reinit!(solver::NewtonSolver, prob::NonlinearProblem{uType, true}) where {uType}
   @. solver.u = prob.u0
   solver.iter = 1
   solver.force_stop = false
+  return solver
 end
 
 function reinit!(solver::NewtonSolver, prob::NonlinearProblem{uType, false}) where {uType}
   solver.u = prob.u0
   solver.iter = 1
   solver.force_stop = false
+  return solver
 end
