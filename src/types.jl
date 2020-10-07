@@ -1,19 +1,4 @@
-mutable struct BracketingSolver{fType, algType, uType, resType, pType, cacheType} <: AbstractNonlinearSolver
-    iter::Int
-    f::fType
-    alg::algType
-    left::uType
-    right::uType
-    fl::resType
-    fr::resType
-    p::pType
-    cache::cacheType
-    force_stop::Bool
-    maxiters::Int
-    retcode::Symbol
-end
-
-struct BracketingImmutableSolver{fType, algType, uType, resType, pType} <: AbstractImmutableNonlinearSolver
+struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -25,25 +10,16 @@ struct BracketingImmutableSolver{fType, algType, uType, resType, pType} <: Abstr
     force_stop::Bool
     maxiters::Int
     retcode::Symbol
-end
-
-
-mutable struct NewtonSolver{fType, algType, uType, resType, pType, cacheType, INType, tolType} <: AbstractNonlinearSolver
-    iter::Int
-    f::fType
-    alg::algType
-    u::uType
-    fu::resType
-    p::pType
     cache::cacheType
-    force_stop::Bool
-    maxiters::Int
-    internalnorm::INType
-    retcode::Symbol
-    tol::tolType
+    iip::Bool
 end
 
-struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType} <: AbstractImmutableNonlinearSolver
+# function BracketingImmutableSolver(iip, iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
+#     BracketingImmutableSolver{iip, typeof(f), typeof(alg), 
+#         typeof(left), typeof(fl), typeof(p), typeof(cache)}(iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
+# end
+
+struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -55,7 +31,14 @@ struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolT
     internalnorm::INType
     retcode::Symbol
     tol::tolType
+    cache::cacheType
+    iip::Bool
 end
+
+# function NewtonImmutableSolver{iip}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache) where iip
+#     NewtonImmutableSolver{iip, typeof(f), typeof(alg), typeof(u), 
+#         typeof(fu), typeof(p), typeof(internalnorm), typeof(tol), typeof(cache)}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache)
+# end
 
 struct BracketingSolution{uType}
     left::uType
@@ -68,8 +51,8 @@ struct NewtonSolution{uType}
     retcode::Symbol
 end
 
-function sync_residuals!(solver::BracketingSolver)
-    solver.fl = solver.f(solver.left, solver.p)
-    solver.fr = solver.f(solver.right, solver.p)
-    nothing
+function sync_residuals!(solver::BracketingImmutableSolver)
+    @set! solver.fl = solver.f(solver.left, solver.p)
+    @set! solver.fr = solver.f(solver.right, solver.p)
+    solver
 end

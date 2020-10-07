@@ -7,22 +7,22 @@ function Bisection(;exact_left=false, exact_right=false)
   Bisection(exact_left, exact_right)
 end
 
-mutable struct BisectionCache{uType}
-  state::UInt8
+struct BisectionCache{uType}
+  state::Int
   left::uType
   right::uType
 end
 
 function alg_cache(alg::Bisection, left, right, p, ::Val{true})
-  BisectionCache(UInt8(0), left, right)
+  BisectionCache(0, left, right)
 end
 
 function alg_cache(alg::Bisection, left, right, p, ::Val{false})
-  BisectionCache(UInt8(0), left, right)
+  BisectionCache(0, left, right)
 end
 
-function perform_step!(solver, alg::Bisection, cache)
-  @unpack f, p, left, right, fl, fr = solver
+function perform_step(solver::BracketingImmutableSolver, alg::Bisection, cache)
+  @unpack f, p, left, right, fl, fr, cache = solver
 
   if cache.state == 0
     fzero = zero(fl)
@@ -32,37 +32,39 @@ function perform_step!(solver, alg::Bisection, cache)
     mid = (left + right) / 2
     
     if left == mid || right == mid
-      solver.force_stop = true
-      solver.retcode = :FloatingPointLimit
-      return
+      @set! solver.force_stop = true
+      @set! solver.retcode = :FloatingPointLimit
+      return solver
     end
     
     fm = f(mid, p)
 
     if iszero(fm)
       if alg.exact_left
-        cache.state = 1
-        cache.right = mid
-        cache.left = mid
+        @set! cache.state = 1
+        @set! cache.right = mid
+        @set! cache.left = mid
+        @set! solver.cache = cache
       elseif alg.exact_right
-        solver.left = prevfloat_tdir(mid, left, right)
-        sync_residuals!(solver)
-        cache.state = 2
-        cache.left = mid
+        @set! solver.left = prevfloat_tdir(mid, left, right)
+        solver = sync_residuals!(solver)
+        @set! cache.state = 2
+        @set! cache.left = mid
+        @set! solver.cache = cache
       else
-        solver.left = prevfloat_tdir(mid, left, right)
-        solver.right = nextfloat_tdir(mid, left, right)
-        sync_residuals!(solver)
-        solver.force_stop = true
-        return
+        @set! solver.left = prevfloat_tdir(mid, left, right)
+        @set! solver.right = nextfloat_tdir(mid, left, right)
+        solver = sync_residuals!(solver)
+        @set! solver.force_stop = true
+        return solver
       end
     else
       if sign(fm) == sign(fl)
-        solver.left = mid
-        solver.fl = fm
+        @set! solver.left = mid
+        @set! solver.fl = fm
       else
-        solver.right = mid
-        solver.fr = fm
+        @set! solver.right = mid
+        @set! solver.fr = fm
       end
     end
   elseif cache.state == 1
@@ -70,39 +72,43 @@ function perform_step!(solver, alg::Bisection, cache)
     
     if cache.right == mid || left == mid
       if alg.exact_right
-        cache.state = 2
-        return
+        @set! cache.state = 2
+        @set! solver.cache = cache
+        return solver
       else
-        solver.right = nextfloat_tdir(mid, left, right)
-        sync_residuals!(solver)
-        solver.force_stop = true
-        return
+        @set! solver.right = nextfloat_tdir(mid, left, right)
+        solver = sync_residuals!(solver)
+        @set! solver.force_stop = true
+        return solver
       end
     end
     
     fm = f(mid, p)
 
     if iszero(fm)
-      cache.right = mid
+      @set! cache.right = mid
+      @set! solver.cache = cache
     else
-      solver.left = mid
-      solver.fl = fm
+      @set! solver.left = mid
+      @set! solver.fl = fm
     end
   else
     mid = (cache.left + right) / 2
     
     if right == mid || cache.left == mid
-      solver.force_stop = true
-      return
+      @set! solver.force_stop = true
+      return solver
     end
     
     fm = f(mid, p)
 
     if iszero(fm)
-      cache.left = mid
+      @set! cache.left = mid
+      @set! solver.cache = cache
     else
-      solver.right = mid
-      solver.fr = fm
+      @set! solver.right = mid
+      @set! solver.fr = fm
     end
   end
+  solver
 end

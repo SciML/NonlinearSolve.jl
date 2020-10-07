@@ -5,7 +5,7 @@ using Test
 
 function benchmark_immutable(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, NewtonRaphson(), immutable = true, tol = 1e-9)
+    solver = init(probN, NewtonRaphson(), tol = 1e-9)
     sol = solve!(solver)
 end
 
@@ -92,6 +92,11 @@ probN = NonlinearProblem(f, u0)
 f, u0 = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
 probB = NonlinearProblem(f, u0)
 
+# Falsi
+solver = init(probB, Falsi())
+sol = solve!(solver)
+@test sol.left ≈ sqrt(2.0)
+
 # this should call the fast scalar overload
 @test solve(probB, Bisection()).left ≈ sqrt(2.0)
 
@@ -102,7 +107,7 @@ solver = init(probB, Bisection())
 # Bracketing solvers work only for scalars.
 
 solver = init(probB, Bisection(); immutable = false)
-@test solver isa NonlinearSolve.BracketingSolver
+# @test solver isa NonlinearSolve.BracketingSolver
 @test solve!(solver).left ≈ sqrt(2.0)
 
 # Garuntee Tests for Bisection
