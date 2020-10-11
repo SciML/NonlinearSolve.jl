@@ -30,7 +30,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracke
   fl = f(left, p)
   fr = f(right, p)
   cache = alg_cache(alg, left, right,p, Val(iip))
-  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, :Default, cache, iip)
+  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip)
 end
 
 function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
@@ -55,7 +55,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
     fu = f(u, p)
   end
   cache = alg_cache(alg, f, u, p, Val(iip))
-  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, :Default, tol, cache, iip)
+  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip)
 end
 
 function DiffEqBase.solve!(solver::AbstractImmutableNonlinearSolver)
@@ -65,7 +65,7 @@ function DiffEqBase.solve!(solver::AbstractImmutableNonlinearSolver)
     @set! solver.iter += 1
   end
   if solver.iter == solver.maxiters
-    @set! solver.retcode = :MaxitersExceeded
+    @set! solver.retcode = MAXITERS_EXCEED
   end
   sol = get_solution(solver)
   return sol
@@ -84,10 +84,10 @@ function mic_check(solver::BracketingImmutableSolver)
   (flr > fzero) && error("Non bracketing interval passed in bracketing method.")
   if fl == fzero
     @set! solver.force_stop = true
-    @set! solver.retcode = :ExactSolutionAtLeft
+    @set! solver.retcode = EXACT_SOLUTION_LEFT
   elseif fr == fzero
     @set! solver.force_stop = true
-    @set! solver.retcode = :ExactSolutionAtRight
+    @set! solver.retcode = EXACT_SOLUTION_RIGHT
   end
   solver
 end

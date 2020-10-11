@@ -1,3 +1,11 @@
+@enum Retcode::Int begin
+    DEFAULT
+    EXACT_SOLUTION_LEFT
+    EXACT_SOLUTION_RIGHT
+    MAXITERS_EXCEED
+    FLOATING_POINT_LIMIT
+end
+
 struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
@@ -9,7 +17,7 @@ struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheTyp
     p::pType
     force_stop::Bool
     maxiters::Int
-    retcode::Symbol
+    retcode::Retcode
     cache::cacheType
     iip::Bool
 end
@@ -29,7 +37,7 @@ struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolT
     force_stop::Bool
     maxiters::Int
     internalnorm::INType
-    retcode::Symbol
+    retcode::Retcode
     tol::tolType
     cache::cacheType
     iip::Bool
@@ -43,12 +51,12 @@ end
 struct BracketingSolution{uType}
     left::uType
     right::uType
-    retcode::Symbol
+    retcode::Retcode
 end
 
 struct NewtonSolution{uType}
     u::uType
-    retcode::Symbol
+    retcode::Retcode
 end
 
 function sync_residuals!(solver::BracketingImmutableSolver)
