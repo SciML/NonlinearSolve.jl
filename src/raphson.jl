@@ -15,10 +15,6 @@ mutable struct NewtonRaphsonCache{ufType, L, jType, uType, JC}
     jac_config::JC
 end
 
-struct NewtonRaphsonConstantCache{ufType}
-    uf::ufType
-end
-
 function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
     uf = JacobianWrapper(f,p)
     linsolve = alg.linsolve(Val{:init}, f, u)
@@ -39,22 +35,11 @@ function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
 end
 
 function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{false})
-    uf = JacobianWrapper(f,p)
-    NewtonRaphsonConstantCache(uf)
+    nothing
 end
 
-function perform_step!(solver, alg::NewtonRaphson, cache::NewtonRaphsonConstantCache)
-    @unpack u, fu, f, p = solver
-    J = calc_J(solver, cache)
-    solver.u = u - J \ fu
-    solver.fu = f(solver.u, p)
-    if iszero(solver.fu) || solver.internalnorm(solver.fu) < solver.tol
-        solver.force_stop = true
-    end
-end
-
-function perform_step!(solver, alg::NewtonRaphson, cache::NewtonRaphsonCache)
-    @unpack u, fu, f, p = solver
+function perform_step(solver::NewtonImmutableSolver, alg::NewtonRaphson, ::Val{true})
+    @unpack u, fu, f, p, cache = solver
     @unpack J, linsolve, du1 = cache
     calc_J!(J, solver, cache)
     # u = u - J \ fu
@@ -62,11 +47,12 @@ function perform_step!(solver, alg::NewtonRaphson, cache::NewtonRaphsonCache)
     @. u = u - du1
     f(fu, u, p)
     if solver.internalnorm(solver.fu) < solver.tol
-        solver.force_stop = true
+        @set! solver.force_stop = true
     end
+    return solver
 end
 
-function perform_step(solver, alg::NewtonRaphson)
+function perform_step(solver::NewtonImmutableSolver, alg::NewtonRaphson, ::Val{false})
     @unpack u, fu, f, p = solver
     J = calc_J(solver, ImmutableJacobianWrapper(f, p))
     @set! solver.u = u - J \ fu

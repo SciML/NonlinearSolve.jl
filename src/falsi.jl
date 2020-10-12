@@ -9,7 +9,7 @@ function alg_cache(alg::Falsi, left, right, p, ::Val{false})
   nothing
 end
 
-function perform_step!(solver, alg::Falsi, cache)
+function perform_step(solver, alg::Falsi, cache)
   @unpack f, p, left, right, fl, fr = solver
 
   fzero = zero(fl)
@@ -19,27 +19,27 @@ function perform_step!(solver, alg::Falsi, cache)
   mid = (fr * left - fl * right) / (fr - fl)
   
   if right == mid || right == mid
-    solver.force_stop = true
-    solver.retcode = :FloatingPointLimit
-    return nothing
+    @set! solver.force_stop = true
+    @set! solver.retcode = FLOATING_POINT_LIMIT
+    return solver
   end
   
   fm = f(mid, p)
 
   if iszero(fm)
     # todo: phase 2 bisection similar to the raw method
-    solver.force_stop = true
-    solver.left = mid
-    solver.fl = fm
-    solver.retcode = :ExactSolutionAtLeft
+    @set! solver.force_stop = true
+    @set! solver.left = mid
+    @set! solver.fl = fm
+    @set! solver.retcode = EXACT_SOLUTION_LEFT
   else
     if sign(fm) == sign(fl)
-      solver.left = mid
-      solver.fl = fm
+      @set! solver.left = mid
+      @set! solver.fl = fm
     else
-      solver.right = mid
-      solver.fr = fm
+      @set! solver.right = mid
+      @set! solver.fr = fm
     end
   end
-  return nothing
+  return solver
 end

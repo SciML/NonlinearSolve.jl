@@ -8,15 +8,15 @@ function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, arg
   xo = oftype(x, Inf)
   for i in 1:maxiters
     fx, dfx = value_derivative(f, x)
-    iszero(fx) && return NewtonSolution(x, :Default)
+    iszero(fx) && return NewtonSolution(x, DEFAULT)
     Δx = dfx \ fx
     x -= Δx
     if isapprox(x, xo, atol=atol, rtol=rtol)
-        return NewtonSolution(x, :Default)
+        return NewtonSolution(x, DEFAULT)
     end
     xo = x
   end
-  return NewtonSolution(x, :MaxitersExceeded)
+  return NewtonSolution(x, MAXITERS_EXCEED)
 end
 
 function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
@@ -25,14 +25,14 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
   fl, fr = f(left), f(right)
 
   if iszero(fl)
-    return fl
+    return BracketingSolution(left, right, EXACT_SOLUTION_LEFT)
   end
 
   i = 1
   if !iszero(fr)
     while i < maxiters
       mid = (left + right) / 2
-      (mid == left || mid == right) && return left
+      (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
       fm = f(mid)
       if iszero(fm)
         right = mid
@@ -51,7 +51,7 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
 
   while i < maxiters
     mid = (left + right) / 2
-    (mid == left || mid == right) && return left
+    (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
     fm = f(mid)
     if iszero(fm)
       right = mid
@@ -63,5 +63,5 @@ function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters
     i += 1
   end
 
-  return left
+  return BracketingSolution(left, right, MAXITERS_EXCEED)
 end
