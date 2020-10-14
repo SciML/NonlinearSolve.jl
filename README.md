@@ -3,7 +3,7 @@
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
 
 ```julia
-using NonlinearSolve
+using NonlinearSolve, StaticArrays
 
 f(u,p) = u .* u .- 2
 u0 = @SVector[1.0, 1.0]
@@ -41,8 +41,10 @@ f(u, p) = u .* u .- 2.0
 u0 = (1.0, 2.0) # brackets
 probB = NonlinearProblem(f, u0)
 solver = init(probB, Falsi()) # Can iterate the solver object
-solve!(solver)
+solver = solve!(solver)
 ```
+
+Note that the `solver` object is actually immutable since we want to make it live on the stack for the sake of performance.
 
 ## Roadmap
 
