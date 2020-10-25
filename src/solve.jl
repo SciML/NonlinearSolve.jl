@@ -1,12 +1,12 @@
-function DiffEqBase.solve(prob::NonlinearProblem,
+function solve(prob::NonlinearProblem,
                           alg::AbstractNonlinearSolveAlgorithm, args...;
                           kwargs...)
-  solver = DiffEqBase.init(prob, alg, args...; kwargs...)
+  solver = init(prob, alg, args...; kwargs...)
   sol = solve!(solver)
   return sol
 end
 
-function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
+function init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
     kwargs...
@@ -33,11 +33,11 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracke
   return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip)
 end
 
-function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
+function init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
     alias_u0 = false,
     maxiters = 1000,
     tol = 1e-6,
-    internalnorm = Base.Fix2(DiffEqBase.ODE_DEFAULT_NORM, nothing),
+    internalnorm = DEFAULT_NORM,
     kwargs...
   ) where {uType, iip}
 
@@ -58,7 +58,7 @@ function DiffEqBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewton
   return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip)
 end
 
-function DiffEqBase.solve!(solver::AbstractImmutableNonlinearSolver)
+function solve!(solver::AbstractImmutableNonlinearSolver)
   solver = mic_check(solver)
   while !solver.force_stop && solver.iter < solver.maxiters
     solver = perform_step(solver, solver.alg, Val(solver.iip))
