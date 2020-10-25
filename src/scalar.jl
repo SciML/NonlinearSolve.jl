@@ -1,4 +1,4 @@
-function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
+function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   T = typeof(x)
@@ -19,7 +19,7 @@ function DiffEqBase.solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, arg
   return NewtonSolution(x, MAXITERS_EXCEED)
 end
 
-function DiffEqBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
+function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)

@@ -1,3 +1,17 @@
+struct NullParameters end
+
+struct NonlinearProblem{uType,isinplace,P,F,K} <: AbstractNonlinearProblem{uType,isinplace}
+    f::F
+    u0::uType
+    p::P
+    kwargs::K
+    @add_kwonly function NonlinearProblem{iip}(f,u0,p=NullParameters();kwargs...) where iip
+        new{typeof(u0),iip,typeof(p),typeof(f),typeof(kwargs)}(f,u0,p,kwargs)
+    end
+end
+
+NonlinearProblem(f,u0,args...;kwargs...) = NonlinearProblem{isinplace(f, 3)}(f,u0,args...;kwargs...)
+
 @enum Retcode::Int begin
     DEFAULT
     EXACT_SOLUTION_LEFT
