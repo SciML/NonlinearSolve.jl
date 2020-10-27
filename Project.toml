@@ -12,6 +12,15 @@ Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
+[compat]
+FiniteDiff = "2"
+ForwardDiff = "0.10.3"
+RecursiveArrayTools = "2"
+Reexport = "0.2"
+Setfield = "0.7"
+StaticArrays = "0.11, 0.12"
+UnPack = "0.1, 1.0"
+
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
