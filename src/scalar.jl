@@ -19,6 +19,39 @@ function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol
   return NewtonSolution(x, MAXITERS_EXCEED)
 end
 
+function solve(prob::NonlinearProblem{uType, iip, <:ForwardDiff.Dual{T,V,P}}, alg::Bisection, args...; kwargs...) where {uType, iip, T, V, P}
+  prob_nodual = NonlinearProblem(prob.f, prob.u0, ForwardDiff.value(prob.p); prob.kwargs...)
+  sol = solve(prob_nodual, alg, args...; kwargs...)
+  # f, x and p always satisfy
+  # f(x, p) = 0
+  # dx * f_x(x, p) + dp * f_p(x, p) = 0
+  # dx / dp = - f_p(x, p) / f_x(x, p)
+  f_p = (p) -> prob.f(sol.left, p)
+  f_x = (x) -> prob.f(x, ForwardDiff.value(prob.p))
+  d_p = ForwardDiff.derivative(f_p, ForwardDiff.value(prob.p))
+  d_x = ForwardDiff.derivative(f_x, sol.left)
+  partials = - d_p / d_x * ForwardDiff.partials(prob.p)
+  return BracketingSolution(ForwardDiff.Dual{T,V,P}(sol.left, partials), ForwardDiff.Dual{T,V,P}(sol.right, partials), sol.retcode)
+end
+
+# still WIP
+function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:ForwardDiff.Dual{T,V,P}, N}}, alg::Bisection, args...; kwargs...) where {uType, iip, T, V, P, N}
+  p_nodual = ForwardDiff.value.(prob.p)
+  prob_nodual = NonlinearProblem(prob.f, prob.u0, p_nodual; prob.kwargs...)
+  sol = solve(prob_nodual, alg, args...; kwargs...)
+  # f, x and p always satisfy
+  # f(x, p) = 0
+  # dx * f_x(x, p) + dp * f_p(x, p) = 0
+  # dx / dp = - f_p(x, p) / f_x(x, p)
+  f_p = (p) -> [ prob.f(sol.left, p) ]
+  f_x = (x) -> prob.f(x, p_nodual)
+  d_p = ForwardDiff.jacobian(f_p, p_nodual)
+  d_x = ForwardDiff.derivative(f_x, sol.left)
+  @. d_p =  - d_p / d_x
+  @show ForwardDiff.partials.(prob.p)
+  return ForwardDiff.Dual{T,V,P}(sol.left, d_p * ForwardDiff.partials.(prob.p))
+end
+
 function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0

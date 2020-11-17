@@ -69,6 +69,23 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
 end
 
+f, u0 = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
+t = (p) -> [sqrt(p[2] / p[1])]
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, Bisection())
+    return [sol.left]
+end
+
+for p1 in 1.0:1.0:100.0
+    for p2 in 1.0:1.0:100.0
+        p = [p1, p2]
+        @show p
+        @test g(p) ≈ [sqrt(p[2] / p[1])]
+        @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
+    end
+end
+
 # Error Checks
 
 f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
