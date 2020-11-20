@@ -19,6 +19,18 @@ function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol
   return NewtonSolution(x, MAXITERS_EXCEED)
 end
 
+function solve(prob::NonlinearProblem{<:Number, iip, <:ForwardDiff.Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {uType, iip, T, V, P}
+  f = prob.f
+  p = ForwardDiff.value(prob.p)
+  u0 = ForwardDiff.value(prob.u0)
+  newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
+  sol = solve(newprob, alg, args...; kwargs...)
+  f_p = ForwardDiff.derivative(Base.Fix1(f, sol.u), p)
+  f_x = ForwardDiff.derivative(Base.Fix2(f, p), sol.u)
+  partials = (-f_p / f_x) * ForwardDiff.partials(prob.p)
+  return NewtonSolution(ForwardDiff.Dual{T,V,P}(sol.u, partials), sol.retcode)
+end
+
 function solve(prob::NonlinearProblem{uType, iip, <:ForwardDiff.Dual{T,V,P}}, alg::Bisection, args...; kwargs...) where {uType, iip, T, V, P}
   prob_nodual = NonlinearProblem(prob.f, prob.u0, ForwardDiff.value(prob.p); prob.kwargs...)
   sol = solve(prob_nodual, alg, args...; kwargs...)

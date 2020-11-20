@@ -57,12 +57,12 @@ end
 f, u0 = (u, p) -> u * u - p, 1.0
 
 g = function (p)
-    probN = NonlinearProblem{false}(f, u0, p)
+    probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, NewtonRaphson())
     return sol.u
 end
 
-@test_broken ForwardDiff.derivative(g, 1.0) ≈ 0.5
+@test ForwardDiff.derivative(g, 1.0) ≈ 0.5
 
 for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
