@@ -3,6 +3,7 @@ module NonlinearSolve
   using Reexport
   using UnPack: @unpack
   using FiniteDiff, ForwardDiff
+  using ForwardDiff: Dual
   using Setfield
   using StaticArrays
   using RecursiveArrayTools

@@ -19,49 +19,49 @@ function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol
   return NewtonSolution(x, MAXITERS_EXCEED)
 end
 
-function solve(prob::NonlinearProblem{<:Number, iip, <:ForwardDiff.Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {uType, iip, T, V, P}
+function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   f = prob.f
-  p = ForwardDiff.value(prob.p)
-  u0 = ForwardDiff.value(prob.u0)
+  p = value(prob.p)
+  u0 = value(prob.u0)
+
   newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
   sol = solve(newprob, alg, args...; kwargs...)
-  f_p = ForwardDiff.derivative(Base.Fix1(f, sol.u), p)
-  f_x = ForwardDiff.derivative(Base.Fix2(f, p), sol.u)
-  partials = (-f_p / f_x) * ForwardDiff.partials(prob.p)
-  return NewtonSolution(ForwardDiff.Dual{T,V,P}(sol.u, partials), sol.retcode)
+
+  uu = getsolution(sol)
+  if p isa Number
+    f_p = ForwardDiff.derivative(Base.Fix1(f, uu), p)
+  else
+    f_p = ForwardDiff.gradient(Base.Fix1(f, uu), p)
+  end
+
+  f_x = ForwardDiff.derivative(Base.Fix2(f, p), uu)
+  pp = prob.p
+  sumfun = let f_x′ = -f_x
+    ((fp, p),) -> (fp / f_x′) * ForwardDiff.partials(p)
+  end
+  partials = sum(sumfun, zip(f_p, pp))
+  return sol, partials
 end
 
-function solve(prob::NonlinearProblem{uType, iip, <:ForwardDiff.Dual{T,V,P}}, alg::Bisection, args...; kwargs...) where {uType, iip, T, V, P}
-  prob_nodual = NonlinearProblem(prob.f, prob.u0, ForwardDiff.value(prob.p); prob.kwargs...)
-  sol = solve(prob_nodual, alg, args...; kwargs...)
-  # f, x and p always satisfy
-  # f(x, p) = 0
-  # dx * f_x(x, p) + dp * f_p(x, p) = 0
-  # dx / dp = - f_p(x, p) / f_x(x, p)
-  f_p = (p) -> prob.f(sol.left, p)
-  f_x = (x) -> prob.f(x, ForwardDiff.value(prob.p))
-  d_p = ForwardDiff.derivative(f_p, ForwardDiff.value(prob.p))
-  d_x = ForwardDiff.derivative(f_x, sol.left)
-  partials = - d_p / d_x * ForwardDiff.partials(prob.p)
-  return BracketingSolution(ForwardDiff.Dual{T,V,P}(sol.left, partials), ForwardDiff.Dual{T,V,P}(sol.right, partials), sol.retcode)
+function solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+  sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+  return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
+end
+function solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+  sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+  return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
 end
 
-# still WIP
-function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:ForwardDiff.Dual{T,V,P}, N}}, alg::Bisection, args...; kwargs...) where {uType, iip, T, V, P, N}
-  p_nodual = ForwardDiff.value.(prob.p)
-  prob_nodual = NonlinearProblem(prob.f, prob.u0, p_nodual; prob.kwargs...)
-  sol = solve(prob_nodual, alg, args...; kwargs...)
-  # f, x and p always satisfy
-  # f(x, p) = 0
-  # dx * f_x(x, p) + dp * f_p(x, p) = 0
-  # dx / dp = - f_p(x, p) / f_x(x, p)
-  f_p = (p) -> [ prob.f(sol.left, p) ]
-  f_x = (x) -> prob.f(x, p_nodual)
-  d_p = ForwardDiff.jacobian(f_p, p_nodual)
-  d_x = ForwardDiff.derivative(f_x, sol.left)
-  @. d_p =  - d_p / d_x
-  @show ForwardDiff.partials.(prob.p)
-  return ForwardDiff.Dual{T,V,P}(sol.left, d_p * ForwardDiff.partials.(prob.p))
+# avoid ambiguities
+for Alg in [Bisection, Falsi]
+  @eval function solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
+  end
+  @eval function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
+  end
 end
 
 function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)

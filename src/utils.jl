@@ -234,3 +234,7 @@ function value_derivative(f::F, x::R) where {F,R}
     out = f(ForwardDiff.Dual{T}(x, one(x)))
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
+
+value(x) = x
+value(x::Dual) = ForwardDiff.value(x)
+value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
