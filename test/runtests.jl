@@ -71,20 +71,26 @@ end
 
 f, u0 = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
-g = function (p)
-    probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, Bisection())
-    return [sol.left]
+p = [0.9, 50.0]
+for alg in [Bisection(), Falsi()]
+    global g, p
+    g = function (p)
+        probN = NonlinearProblem{false}(f, u0, p)
+        sol = solve(probN, Bisection())
+        return [sol.left]
+    end
+
+    @test g(p) ≈ [sqrt(p[2] / p[1])]
+    @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
 end
 
-for p1 in 1.0:1.0:100.0
-    for p2 in 1.0:1.0:100.0
-        p = [p1, p2]
-        @show p
-        @test g(p) ≈ [sqrt(p[2] / p[1])]
-        @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
-    end
+gnewton = function (p)
+    probN = NonlinearProblem{false}(f, 0.5, p)
+    sol = solve(probN, NewtonRaphson())
+    return [sol.u]
 end
+@test gnewton(p) ≈ [sqrt(p[2] / p[1])]
+@test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
 
 # Error Checks
 
