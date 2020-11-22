@@ -78,3 +78,6 @@ function sync_residuals!(solver::BracketingImmutableSolver)
     @set! solver.fr = solver.f(solver.right, solver.p)
     solver
 end
+
+getsolution(sol::NewtonSolution) = sol.u
+getsolution(sol::BracketingSolution) = sol.left

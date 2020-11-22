@@ -216,7 +216,7 @@ Move `x` one floating point towards x0.
 function prevfloat_tdir(x::T, x0::T, x1::T)::T where {T}
   x1 > x0 ? prevfloat(x) : nextfloat(x)
 end
-  
+
 function nextfloat_tdir(x::T, x0::T, x1::T)::T where {T}
   x1 > x0 ? nextfloat(x) : prevfloat(x)
 end
@@ -234,3 +234,7 @@ function value_derivative(f::F, x::R) where {F,R}
     out = f(ForwardDiff.Dual{T}(x, one(x)))
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
+
+value(x) = x
+value(x::Dual) = ForwardDiff.value(x)
+value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
