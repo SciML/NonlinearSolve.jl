@@ -102,14 +102,16 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, NewtonRaphson(;autodiff=false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u[end] ≈ sqrt(2.0)
 
-f, u0 = (u, p) -> u .* u .- 2.0, 1.0
-probN = NonlinearProblem(f, u0)
+for u0 in [1.0, [1, 1.0]]
+  f = (u, p) -> u .* u .- 2.0
+  probN = NonlinearProblem(f, u0)
+  sol = sqrt(2) * u0
 
-@test solve(probN, NewtonRaphson()).u ≈ sqrt(2.0)
-@test solve(probN, NewtonRaphson(); immutable = false).u ≈ sqrt(2.0)
-@test solve(probN, NewtonRaphson(;autodiff=false)).u ≈ sqrt(2.0)
-@test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u ≈ sqrt(2.0)
-
+  @test solve(probN, NewtonRaphson()).u ≈ sol
+  @test solve(probN, NewtonRaphson(); immutable = false).u ≈ sol
+  @test solve(probN, NewtonRaphson(;autodiff=false)).u ≈ sol
+  @test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u ≈ sol
+end
 
 # Bisection Tests
 f, u0 = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
