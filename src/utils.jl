@@ -213,11 +213,11 @@ const DEFAULT_LINSOLVE = DefaultLinSolve()
 
 Move `x` one floating point towards x0.
 """
-function prevfloat_tdir(x::T, x0::T, x1::T)::T where {T}
+function prevfloat_tdir(x::T, x0::T2, x1::T2)::T where {T, T2}
   x1 > x0 ? prevfloat(x) : nextfloat(x)
 end
 
-function nextfloat_tdir(x::T, x0::T, x1::T)::T where {T}
+function nextfloat_tdir(x::T, x0::T2, x1::T2)::T where {T, T2}
   x1 > x0 ? nextfloat(x) : prevfloat(x)
 end
 
