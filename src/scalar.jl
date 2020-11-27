@@ -21,15 +21,13 @@ end
 
 function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   f = prob.f
-  p = value.(prob.p)
+  p = value(prob.p)
   u0 = value.(prob.u0)
 
   newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
   sol = solve(newprob, alg, args...; kwargs...)
-  # @show sol
 
   uu = getsolution(sol)
-  # @show (uu, p)
   if p isa Number
     f_p = value(FiniteDiff.finite_difference_derivative(Base.Fix1(f, uu), p))
   else
@@ -37,19 +35,13 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   end
 
   f_x = value(FiniteDiff.finite_difference_derivative(Base.Fix2(f, p), uu))
-  # @show f_p
-  # @show f_x
-  # @show uu
-  # @show u0
-  # @show p
+
   pp = prob.p
-  # @show ForwardDiff.partials(pp)
   sumfun = let f_x′ = -f_x
     ((fp, p),) -> (fp / f_x′) * ForwardDiff.partials(p)
   end
   partials = sum(sumfun, zip(f_p, pp))
-  # @show partials
-  return value(sol.left), value(sol.right), sol.retcode, partials
+  return value(sol), partials
 end
 
 function solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
@@ -64,12 +56,12 @@ end
 # avoid ambiguities
 for Alg in [Bisection, Falsi]
   @eval function solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
-    left, right, retcode, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return BracketingSolution(Dual{T,V,P}(left, partials), Dual{T,V,P}(right, partials), retcode)
+    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
   end
   @eval function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
-    left, right, retcode, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return BracketingSolution(Dual{T,V,P}(left, partials), Dual{T,V,P}(right, partials), retcode)
+    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
   end
 end
 

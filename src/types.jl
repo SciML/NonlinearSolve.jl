@@ -81,3 +81,7 @@ end
 
 getsolution(sol::NewtonSolution) = sol.u
 getsolution(sol::BracketingSolution) = sol.left
+
+
+value(x::BracketingSolution{<:Dual}) = BracketingSolution(value(x.left), value(x.right), x.retcode)
+value(x::NewtonSolution{<:Dual}) = NewtonSolution(value(x.u), x.retcode)
