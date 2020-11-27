@@ -137,6 +137,9 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
         return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
       end
       mid = (fr * left - fl * right) / (fr - fl)
+      for i in 1:10
+        mid = prevfloat_tdir(mid, prob.u0...)
+      end
       fm = f(mid)
       if iszero(fm)
         right = mid
@@ -170,16 +173,18 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
   end
 
   while i < maxiters
-    # println("$i second")
     mid = (left + right) / 2
     (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
     fm = f(mid)
     if iszero(fm)
       right = mid
       fr = fm
-    else
+    elseif sign(fm) == sign(fl)
       left = mid
       fl = fm
+    else
+      right = mid
+      fr = fm
     end
     i += 1
   end
