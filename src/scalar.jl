@@ -130,29 +130,16 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
       end
       mid = (fr * left - fl * right) / (fr - fl)
       for i in 1:10
-        mid = prevfloat_tdir(mid, prob.u0...)
+        mid = max(left, prevfloat_tdir(mid, prob.u0...))
+      end
+      if mid == right || mid == left
+        break
       end
       fm = f(mid)
       if iszero(fm)
         right = mid
         break
       end
-      if mid == right
-        # mid_prev = prevfloat_tdir(mid, prob.u0...)
-        # fm_prev = f(mid_prev)
-        # if sign(fm_prev) != sign(fm)
-        #   return BracketingSolution(mid_prev, mid, DEFAULT)
-        # end
-        break
-      elseif mid == left
-        # mid_next = nextfloat_tdir(mid, prob.u0...)
-        # fm_next = f(mid_next)
-        # if sign(fm_next) != sign(fm)
-        #   return BracketingSolution(mid, mid_next, DEFAULT)
-        # end
-        break
-      end
-      # println("$i first = $mid")
       if sign(fl) == sign(fm)
         fl = fm
         left = mid
