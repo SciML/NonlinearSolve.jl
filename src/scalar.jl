@@ -53,7 +53,7 @@ function solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,
 end
 
 # avoid ambiguities
-for Alg in [Bisection, Falsi]
+for Alg in [Bisection]
   @eval function solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
@@ -104,6 +104,64 @@ function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kw
     else
       left = mid
       fl = fm
+    end
+    i += 1
+  end
+
+  return BracketingSolution(left, right, MAXITERS_EXCEED)
+end
+
+function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs...)
+  f = Base.Fix2(prob.f, prob.p)
+  left, right = prob.u0
+  fl, fr = f(left), f(right)
+
+  if iszero(fl)
+    return BracketingSolution(left, right, EXACT_SOLUTION_LEFT)
+  end
+
+  i = 1
+  if !iszero(fr)
+    while i < maxiters
+      if nextfloat_tdir(left, prob.u0...) == right
+        return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+      end
+      mid = (fr * left - fl * right) / (fr - fl)
+      for i in 1:10
+        mid = max(left, prevfloat_tdir(mid, prob.u0...))
+      end
+      if mid == right || mid == left
+        break
+      end
+      fm = f(mid)
+      if iszero(fm)
+        right = mid
+        break
+      end
+      if sign(fl) == sign(fm)
+        fl = fm
+        left = mid
+      else
+        fr = fm
+        right = mid
+      end
+      i += 1
+    end
+  end
+
+  while i < maxiters
+    mid = (left + right) / 2
+    (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+    fm = f(mid)
+    if iszero(fm)
+      right = mid
+      fr = fm
+    elseif sign(fm) == sign(fl)
+      left = mid
+      fl = fm
+    else
+      right = mid
+      fr = fm
     end
     i += 1
   end
