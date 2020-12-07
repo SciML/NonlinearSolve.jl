@@ -56,6 +56,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 
+# NewtonRaphson
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, NewtonRaphson())
@@ -63,6 +64,19 @@ g = function (p)
 end
 
 @test ForwardDiff.derivative(g, 1.0) ≈ 0.5
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+end
+
+u0 = (1.0, 20.0)
+# Falsi
+g = function (p)
+    probN = NonlinearProblem{false}(f, typeof(p).(u0), p)
+    sol = solve(probN, Falsi())
+    return sol.left
+end
 
 for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)

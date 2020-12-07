@@ -18,7 +18,7 @@ ForwardDiff = "0.10.3"
 RecursiveArrayTools = "2"
 Reexport = "0.2"
 Setfield = "0.7"
-StaticArrays = "1.0"
+StaticArrays = "0.12,1.0"
 UnPack = "1.0"
 julia = "1"
 
