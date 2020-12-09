@@ -221,6 +221,10 @@ function nextfloat_tdir(x::T, x0::T, x1::T)::T where {T}
   x1 > x0 ? nextfloat(x) : prevfloat(x)
 end
 
+function max_tdir(a::T, b::T, x0::T1, x1::T1)::T where {T, T1}
+  x1 > x0 ? max(a, b) : min(a, b)
+end
+
 alg_autodiff(alg::AbstractNewtonAlgorithm{CS,AD}) where {CS,AD} = AD
 alg_autodiff(alg) = false
 

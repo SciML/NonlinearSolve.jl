@@ -128,7 +128,7 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
       end
       mid = (fr * left - fl * right) / (fr - fl)
       for i in 1:10
-        mid = max(left, prevfloat_tdir(mid, prob.u0...))
+        mid = max_tdir(left, prevfloat_tdir(mid, prob.u0...), prob.u0...)
       end
       if mid == right || mid == left
         break
