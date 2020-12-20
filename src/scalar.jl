@@ -1,4 +1,4 @@
-function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
+function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   T = typeof(x)
@@ -7,7 +7,12 @@ function solve(prob::NonlinearProblem{<:Number}, ::NewtonRaphson, args...; xatol
 
   xo = oftype(x, Inf)
   for i in 1:maxiters
-    fx, dfx = value_derivative(f, x)
+    if alg_autodiff(alg)
+      fx, dfx = value_derivative(f, x)
+    else
+      fx = f(x)
+      dfx = FiniteDiff.finite_difference_derivative(f, x, alg.diff_type, eltype(x), fx)
+    end
     iszero(fx) && return NewtonSolution(x, DEFAULT)
     Δx = dfx \ fx
     x -= Δx
