@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["Kanav Gupta <kanav0610@gmail.com>"]
-version = "0.3.3"
+version = "0.3.4"
 
 [deps]
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
@@ -16,7 +16,7 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 RecursiveArrayTools = "2"
-Reexport = "0.2"
+Reexport = "0.2, 1"
 Setfield = "0.7"
 StaticArrays = "0.12,1.0"
 UnPack = "1.0"
