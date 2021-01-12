@@ -1,9 +1,9 @@
-function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
+function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   T = typeof(x)
-  atol = xatol !== nothing ? xatol : oneunit(T) * (eps(one(T)))^(4//5)
-  rtol = xrtol !== nothing ? xrtol : eps(one(T))^(4//5)
+  atol = abstol !== nothing ? abstol : oneunit(T) * (eps(one(T)))^(4//5)
+  rtol = reltol !== nothing ? reltol : eps(one(T))^(4//5)
 
   xo = oftype(x, Inf)
   for i in 1:maxiters
