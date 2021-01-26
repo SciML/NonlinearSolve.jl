@@ -1,4 +1,4 @@
-function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   T = typeof(x)
@@ -48,28 +48,28 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return sol, partials
 end
 
-function solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
 end
-function solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
 end
 
 # avoid ambiguities
 for Alg in [Bisection]
-  @eval function solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+  @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
   end
-  @eval function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+  @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
   end
 end
 
-function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)
@@ -116,7 +116,7 @@ function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kw
   return BracketingSolution(left, right, MAXITERS_EXCEED)
 end
 
-function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)
