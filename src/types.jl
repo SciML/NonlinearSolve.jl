@@ -1,17 +1,3 @@
-struct NullParameters end
-
-struct NonlinearProblem{uType,isinplace,P,F,K} <: AbstractNonlinearProblem{uType,isinplace}
-    f::F
-    u0::uType
-    p::P
-    kwargs::K
-    @add_kwonly function NonlinearProblem{iip}(f,u0,p=NullParameters();kwargs...) where iip
-        new{typeof(u0),iip,typeof(p),typeof(f),typeof(kwargs)}(f,u0,p,kwargs)
-    end
-end
-
-NonlinearProblem(f,u0,args...;kwargs...) = NonlinearProblem{isinplace(f, 3)}(f,u0,args...;kwargs...)
-
 @enum Retcode::Int begin
     DEFAULT
     EXACT_SOLUTION_LEFT
@@ -37,7 +23,7 @@ struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheTyp
 end
 
 # function BracketingImmutableSolver(iip, iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
-#     BracketingImmutableSolver{iip, typeof(f), typeof(alg), 
+#     BracketingImmutableSolver{iip, typeof(f), typeof(alg),
 #         typeof(left), typeof(fl), typeof(p), typeof(cache)}(iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
 # end
 
@@ -58,7 +44,7 @@ struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolT
 end
 
 # function NewtonImmutableSolver{iip}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache) where iip
-#     NewtonImmutableSolver{iip, typeof(f), typeof(alg), typeof(u), 
+#     NewtonImmutableSolver{iip, typeof(f), typeof(alg), typeof(u),
 #         typeof(fu), typeof(p), typeof(internalnorm), typeof(tol), typeof(cache)}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache)
 # end
 

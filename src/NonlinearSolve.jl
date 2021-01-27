@@ -8,6 +8,8 @@ using Setfield
 using StaticArrays
 using RecursiveArrayTools
 
+@reexport using SciMLBase
+
 abstract type AbstractNonlinearProblem{uType,isinplace} end
 abstract type AbstractNonlinearSolveAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
@@ -26,11 +28,5 @@ include("scalar.jl")
 
 # DiffEq styled algorithms
 export Bisection, Falsi, NewtonRaphson
-
-export NonlinearProblem
-
-export solve, init, solve!
-
-export reinit!
 
 end # module
