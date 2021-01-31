@@ -3,7 +3,15 @@ function SciMLBase.solve(prob::NonlinearProblem,
                          kwargs...)
   solver = init(prob, alg, args...; kwargs...)
   sol = solve!(solver)
-  return sol
+  if typeof(sol) <: NewtonSolution
+    resid = zero(prob.u0)
+    if isinplace(prob)
+      prob.f(resid,sol.u,prob.p)
+    else
+      resid = prob.f(sol.u,prob.p)
+    end
+    return SciMLBase.build_solution(prob, alg, sol.u, resid;retcode=:Success)
+  end
 end
 
 function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
