@@ -2,9 +2,11 @@ function SciMLBase.solve(prob::NonlinearProblem,
                          alg::AbstractNonlinearSolveAlgorithm, args...;
                          kwargs...)
   solver = init(prob, alg, args...; kwargs...)
-  sol, resid = solve!(solver)
+  sol = solve!(solver)
   if typeof(sol) <: NewtonSolution
-    return SciMLBase.build_solution(prob, alg, sol.u, resid;retcode=:Success)
+    SciMLBase.build_solution(prob, alg, getsolution(sol), sol.resid;retcode=Symbol(sol.retcode))
+  else
+    SciMLBase.build_solution(prob, alg, get_solution(sol),sol.resid;retcode=Symbol(sol.retcode),left = sol.left,right = sol.right)
   end
 end
 
@@ -70,7 +72,7 @@ function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
     @set! solver.retcode = MAXITERS_EXCEED
   end
   sol = get_solution(solver)
-  return sol, solver.fu
+  return sol
 end
 
 """
@@ -105,11 +107,11 @@ end
 Form solution object from solver types
 """
 function get_solution(solver::BracketingImmutableSolver)
-  return BracketingSolution(solver.left, solver.right, solver.retcode)
+  return BracketingSolution(solver.left, solver.right, solver.retcode, solver.fl)
 end
 
 function get_solution(solver::NewtonImmutableSolver)
-  return NewtonSolution(solver.u, solver.retcode)
+  return NewtonSolution(solver.u, solver.retcode, solver.fu)
 end
 
 """

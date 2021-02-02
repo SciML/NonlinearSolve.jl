@@ -48,15 +48,17 @@ end
 #         typeof(fu), typeof(p), typeof(internalnorm), typeof(tol), typeof(cache)}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache)
 # end
 
-struct BracketingSolution{uType}
+struct BracketingSolution{uType,resType}
     left::uType
     right::uType
     retcode::Retcode
+    resid::resType
 end
 
-struct NewtonSolution{uType}
+struct NewtonSolution{uType,resType}
     u::uType
     retcode::Retcode
+    resid::resType
 end
 
 function sync_residuals!(solver::BracketingImmutableSolver)
