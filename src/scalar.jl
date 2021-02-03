@@ -52,12 +52,11 @@ end
 function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
-  #return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode, sol.resid)
+  
 end
 function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
-  #return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode, sol.resid)
 end
 
 # avoid ambiguities

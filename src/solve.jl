@@ -66,11 +66,10 @@ function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
   if solver.iter == solver.maxiters
     @set! solver.retcode = MAXITERS_EXCEED
   end
-  sol = get_solution(solver)
-  if typeof(sol) <: NewtonSolution
-    SciMLBase.build_solution(solver.prob, solver.alg, getsolution(sol), sol.resid;retcode=Symbol(sol.retcode))
+  if typeof(solver) <: NewtonImmutableSolver
+    SciMLBase.build_solution(solver.prob, solver.alg, solver.u, solver.fu;retcode=Symbol(solver.retcode))
   else
-    SciMLBase.build_solution(solver.prob, solver.alg, getsolution(sol),sol.resid;retcode=Symbol(sol.retcode),left = sol.left,right = sol.right)
+    SciMLBase.build_solution(solver.prob, solver.alg, solver.left,solver.fl;retcode=Symbol(solver.retcode),left = solver.left,right = solver.right)
   end
 end
 
@@ -97,20 +96,6 @@ end
 
 function mic_check(solver::NewtonImmutableSolver)
   solver
-end
-
-"""
-  get_solution(solver::Union{BracketingImmutableSolver, BracketingSolver})
-  get_solution(solver::Union{NewtonImmutableSolver, NewtonSolver})
-
-Form solution object from solver types
-"""
-function get_solution(solver::BracketingImmutableSolver)
-  return BracketingSolution(solver.left, solver.right, solver.retcode, solver.fl)
-end
-
-function get_solution(solver::NewtonImmutableSolver)
-  return NewtonSolution(solver.u, solver.retcode, solver.fu)
 end
 
 """
