@@ -6,7 +6,7 @@
     FLOATING_POINT_LIMIT
 end
 
-struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType} <: AbstractImmutableNonlinearSolver
+struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType, probType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -20,6 +20,7 @@ struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheTyp
     retcode::Retcode
     cache::cacheType
     iip::Bool
+    prob::probType
 end
 
 # function BracketingImmutableSolver(iip, iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
@@ -27,7 +28,7 @@ end
 #         typeof(left), typeof(fl), typeof(p), typeof(cache)}(iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
 # end
 
-struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType} <: AbstractImmutableNonlinearSolver
+struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType, probType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -41,6 +42,7 @@ struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolT
     tol::tolType
     cache::cacheType
     iip::Bool
+    prob::probType
 end
 
 # function NewtonImmutableSolver{iip}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache) where iip
