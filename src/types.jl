@@ -6,7 +6,7 @@
     FLOATING_POINT_LIMIT
 end
 
-struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType} <: AbstractImmutableNonlinearSolver
+struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType, probType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -20,6 +20,7 @@ struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheTyp
     retcode::Retcode
     cache::cacheType
     iip::Bool
+    prob::probType
 end
 
 # function BracketingImmutableSolver(iip, iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
@@ -27,7 +28,7 @@ end
 #         typeof(left), typeof(fl), typeof(p), typeof(cache)}(iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
 # end
 
-struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType} <: AbstractImmutableNonlinearSolver
+struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType, probType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -41,6 +42,7 @@ struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolT
     tol::tolType
     cache::cacheType
     iip::Bool
+    prob::probType
 end
 
 # function NewtonImmutableSolver{iip}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache) where iip
@@ -48,22 +50,9 @@ end
 #         typeof(fu), typeof(p), typeof(internalnorm), typeof(tol), typeof(cache)}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache)
 # end
 
-struct BracketingSolution{uType}
-    left::uType
-    right::uType
-    retcode::Retcode
-end
-
-struct NewtonSolution{uType}
-    u::uType
-    retcode::Retcode
-end
 
 function sync_residuals!(solver::BracketingImmutableSolver)
     @set! solver.fl = solver.f(solver.left, solver.p)
     @set! solver.fr = solver.f(solver.right, solver.p)
     solver
 end
-
-getsolution(sol::NewtonSolution) = sol.u
-getsolution(sol::BracketingSolution) = sol.left

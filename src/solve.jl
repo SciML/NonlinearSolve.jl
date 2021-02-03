@@ -3,7 +3,6 @@ function SciMLBase.solve(prob::NonlinearProblem,
                          kwargs...)
   solver = init(prob, alg, args...; kwargs...)
   sol = solve!(solver)
-  return sol
 end
 
 function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
@@ -30,7 +29,7 @@ function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracket
   fl = f(left, p)
   fr = f(right, p)
   cache = alg_cache(alg, left, right,p, Val(iip))
-  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip)
+  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip,prob)
 end
 
 function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
@@ -55,7 +54,7 @@ function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonA
     fu = f(u, p)
   end
   cache = alg_cache(alg, f, u, p, Val(iip))
-  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip)
+  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip, prob)
 end
 
 function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
@@ -67,8 +66,11 @@ function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
   if solver.iter == solver.maxiters
     @set! solver.retcode = MAXITERS_EXCEED
   end
-  sol = get_solution(solver)
-  return sol
+  if typeof(solver) <: NewtonImmutableSolver
+    SciMLBase.build_solution(solver.prob, solver.alg, solver.u, solver.fu;retcode=Symbol(solver.retcode))
+  else
+    SciMLBase.build_solution(solver.prob, solver.alg, solver.left,solver.fl;retcode=Symbol(solver.retcode),left = solver.left,right = solver.right)
+  end
 end
 
 """
@@ -94,20 +96,6 @@ end
 
 function mic_check(solver::NewtonImmutableSolver)
   solver
-end
-
-"""
-  get_solution(solver::Union{BracketingImmutableSolver, BracketingSolver})
-  get_solution(solver::Union{NewtonImmutableSolver, NewtonSolver})
-
-Form solution object from solver types
-"""
-function get_solution(solver::BracketingImmutableSolver)
-  return BracketingSolution(solver.left, solver.right, solver.retcode)
-end
-
-function get_solution(solver::NewtonImmutableSolver)
-  return NewtonSolution(solver.u, solver.retcode)
 end
 
 """
