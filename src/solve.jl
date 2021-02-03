@@ -3,11 +3,6 @@ function SciMLBase.solve(prob::NonlinearProblem,
                          kwargs...)
   solver = init(prob, alg, args...; kwargs...)
   sol = solve!(solver)
-  if typeof(sol) <: NewtonSolution
-    SciMLBase.build_solution(prob, alg, getsolution(sol), sol.resid;retcode=Symbol(sol.retcode))
-  else
-    SciMLBase.build_solution(prob, alg, get_solution(sol),sol.resid;retcode=Symbol(sol.retcode),left = sol.left,right = sol.right)
-  end
 end
 
 function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracketingAlgorithm, args...;
@@ -34,7 +29,7 @@ function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractBracket
   fl = f(left, p)
   fr = f(right, p)
   cache = alg_cache(alg, left, right,p, Val(iip))
-  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip)
+  return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters, DEFAULT, cache, iip,prob)
 end
 
 function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm, args...;
@@ -59,7 +54,7 @@ function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonA
     fu = f(u, p)
   end
   cache = alg_cache(alg, f, u, p, Val(iip))
-  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip)
+  return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm, DEFAULT, tol, cache, iip, prob)
 end
 
 function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
@@ -72,7 +67,11 @@ function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
     @set! solver.retcode = MAXITERS_EXCEED
   end
   sol = get_solution(solver)
-  return sol
+  if typeof(sol) <: NewtonSolution
+    SciMLBase.build_solution(solver.prob, solver.alg, getsolution(sol), sol.resid;retcode=Symbol(sol.retcode))
+  else
+    SciMLBase.build_solution(solver.prob, solver.alg, getsolution(sol),sol.resid;retcode=Symbol(sol.retcode),left = sol.left,right = sol.right)
+  end
 end
 
 """
