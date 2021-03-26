@@ -13,3 +13,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ssh: ${{ secrets.DOCUMENTER_KEY }}
+          registry: JuliaComputing/JuliaSimRegistry
+          registry_ssh: ${{ secrets.JULIASIM_REGISTRY_SSH_KEY }}
+          
