@@ -1,4 +1,4 @@
-struct NewtonRaphson{CS, AD, DT, L} <: AbstractNewtonAlgorithm{CS,AD} 
+struct NewtonRaphson{CS, AD, DT, L} <: AbstractNewtonAlgorithm{CS,AD}
     diff_type::DT
     linsolve::L
 end

@@ -7,6 +7,12 @@ using ForwardDiff: Dual
 using Setfield
 using StaticArrays
 using RecursiveArrayTools
+using LinearAlgebra
+import ArrayInterface
+import IterativeSolvers
+import RecursiveFactorization
+
+@reexport using SciMLBase
 
 abstract type AbstractNonlinearProblem{uType,isinplace} end
 abstract type AbstractNonlinearSolveAlgorithm end
@@ -26,11 +32,5 @@ include("scalar.jl")
 
 # DiffEq styled algorithms
 export Bisection, Falsi, NewtonRaphson
-
-export NonlinearProblem
-
-export solve, init, solve!
-
-export reinit!
 
 end # module

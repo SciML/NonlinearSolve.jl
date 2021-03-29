@@ -23,13 +23,13 @@ end
 f, u0 = (u,p) -> u .* u .- 2, @SVector[1.0, 1.0]
 sf, su0 = (u,p) -> u * u - 2, 1.0
 sol = benchmark_immutable(f, u0)
-@test sol.retcode === NonlinearSolve.DEFAULT
+@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_mutable(f, u0)
-@test sol.retcode === NonlinearSolve.DEFAULT
+@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_scalar(sf, su0)
-@test sol.retcode === NonlinearSolve.DEFAULT
+@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test sol.u * sol.u - 2 < 1e-9
 
 @test (@ballocated benchmark_immutable($f, $u0)) == 0
@@ -117,6 +117,7 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, NewtonRaphson(;autodiff=false); immutable = false).u[end] ≈ sqrt(2.0)
 
 for u0 in [1.0, [1, 1.0]]
+  local f, probN, sol
   f = (u, p) -> u .* u .- 2.0
   probN = NonlinearProblem(f, u0)
   sol = sqrt(2) * u0
