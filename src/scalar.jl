@@ -1,6 +1,7 @@
-function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; abstol = nothing, abstol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
+  fx = float(prob.u0)
   T = typeof(x)
   atol = abstol !== nothing ? abstol : oneunit(T) * (eps(one(T)))^(4//5)
   rtol = reltol !== nothing ? reltol : eps(one(T))^(4//5)
@@ -13,15 +14,15 @@ function solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; ab
       fx = f(x)
       dfx = FiniteDiff.finite_difference_derivative(f, x, alg.diff_type, eltype(x), fx)
     end
-    iszero(fx) && return NewtonSolution(x, DEFAULT)
+    iszero(fx) && return SciMLBase.build_solution(prob, alg, x, fx; retcode=Symbol(DEFAULT))
     Δx = dfx \ fx
     x -= Δx
     if isapprox(x, xo, atol=atol, rtol=rtol)
-        return NewtonSolution(x, DEFAULT)
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode=Symbol(DEFAULT))
     end
     xo = x
   end
-  return NewtonSolution(x, MAXITERS_EXCEED)
+  return SciMLBase.build_solution(prob, alg, x, fx; retcode=Symbol(MAXITERS_EXCEED))
 end
 
 function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
@@ -32,7 +33,7 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
   sol = solve(newprob, alg, args...; kwargs...)
 
-  uu = getsolution(sol)
+  uu = sol.u
   if p isa Number
     f_p = ForwardDiff.derivative(Base.Fix1(f, uu), p)
   else
@@ -48,41 +49,44 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return sol, partials
 end
 
-function solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-  return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
+  return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
+  
 end
-function solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-  return NewtonSolution(Dual{T,V,P}(sol.u, partials), sol.retcode)
+  return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
 end
 
 # avoid ambiguities
 for Alg in [Bisection]
-  @eval function solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+  @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip, <:Dual{T,V,P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
+    return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode,left = Dual{T,V,P}(sol.left, partials), right = Dual{T,V,P}(sol.right, partials))
+    #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
   end
-  @eval function solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
+  @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode)
+    return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode,left = Dual{T,V,P}(sol.left, partials), right = Dual{T,V,P}(sol.right, partials))
+    #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
   end
 end
 
-function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem, alg::Bisection, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)
 
   if iszero(fl)
-    return BracketingSolution(left, right, EXACT_SOLUTION_LEFT)
+    return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(EXACT_SOLUTION_LEFT), left = left, right = right)
   end
 
   i = 1
   if !iszero(fr)
     while i < maxiters
       mid = (left + right) / 2
-      (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+      (mid == left || mid == right) && return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(FLOATING_POINT_LIMIT), left = left, right = right)
       fm = f(mid)
       if iszero(fm)
         right = mid
@@ -101,7 +105,7 @@ function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kw
 
   while i < maxiters
     mid = (left + right) / 2
-    (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+    (mid == left || mid == right) && return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(FLOATING_POINT_LIMIT), left = left, right = right)
     fm = f(mid)
     if iszero(fm)
       right = mid
@@ -113,23 +117,23 @@ function solve(prob::NonlinearProblem, ::Bisection, args...; maxiters = 1000, kw
     i += 1
   end
 
-  return BracketingSolution(left, right, MAXITERS_EXCEED)
+  return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(MAXITERS_EXCEED), left = left, right = right)
 end
 
-function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   left, right = prob.u0
   fl, fr = f(left), f(right)
 
   if iszero(fl)
-    return BracketingSolution(left, right, EXACT_SOLUTION_LEFT)
+    return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(EXACT_SOLUTION_LEFT), left = left, right = right)
   end
 
   i = 1
   if !iszero(fr)
     while i < maxiters
       if nextfloat_tdir(left, prob.u0...) == right
-        return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+        return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(FLOATING_POINT_LIMIT), left = left, right = right)
       end
       mid = (fr * left - fl * right) / (fr - fl)
       for i in 1:10
@@ -156,7 +160,7 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
 
   while i < maxiters
     mid = (left + right) / 2
-    (mid == left || mid == right) && return BracketingSolution(left, right, FLOATING_POINT_LIMIT)
+    (mid == left || mid == right) && return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(FLOATING_POINT_LIMIT), left = left, right = right)
     fm = f(mid)
     if iszero(fm)
       right = mid
@@ -171,5 +175,5 @@ function solve(prob::NonlinearProblem, ::Falsi, args...; maxiters = 1000, kwargs
     i += 1
   end
 
-  return BracketingSolution(left, right, MAXITERS_EXCEED)
+  return SciMLBase.build_solution(prob, alg, left, fl; retcode=Symbol(MAXITERS_EXCEED), left = left, right = right)
 end

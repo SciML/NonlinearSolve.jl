@@ -1,22 +1,31 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["Kanav Gupta <kanav0610@gmail.com>"]
-version = "0.3.4"
+version = "0.3.8"
 
 [deps]
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
+RecursiveFactorization = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [compat]
+ArrayInterface = "2, 3"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
+IterativeSolvers = "0.9"
 RecursiveArrayTools = "2"
+RecursiveFactorization = "0.1"
 Reexport = "0.2, 1"
+SciMLBase = "1"
 Setfield = "0.7"
 StaticArrays = "0.12,1.0"
 UnPack = "1.0"
