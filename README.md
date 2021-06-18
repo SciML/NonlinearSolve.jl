@@ -1,6 +1,19 @@
 # NonlinearSolve.jl
 
+[![Github Action CI](https://github.com/SciML/NonlinearSolve.jl/workflows/CI/badge.svg)](https://github.com/SciML/NonlinearSolve.jl/actions)
+[![Coverage Status](https://coveralls.io/repos/github/SciML/NonlinearSolve.jl/badge.svg?branch=master)](https://coveralls.io/github/SciML/NonlinearSolve.jl?branch=master)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://nlsolve.sciml.ai/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://nlsolve.sciml.ai/dev/)
+[![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
+
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
+
+For information on using the package,
+[see the stable documentation](https://mtk.sciml.ai/stable/). Use the
+[in-development documentation](https://mtk.sciml.ai/dev/) for the version of
+the documentation which contains the unreleased features.
+
+## High Level Examples
 
 ```julia
 using NonlinearSolve, StaticArrays
@@ -17,37 +30,3 @@ u0 = (1.0, 2.0) # brackets
 probB = NonlinearProblem(f, u0)
 sol = solve(probB, Falsi())
 ```
-
-## Current Algorithms 
-
-### Non-Bracketing
-
-- `NewtonRaphson()`
-
-### Bracketing
-
-- `Falsi()`
-- `Bisection()`
-
-## Features
-
-Performance is key: the current methods are made to be highly performant on scalar and statically sized small
-problems. If you run into any performance issues, please file an issue.
-
-There is an iterator form of the nonlinear solver which mirrors the DiffEq integrator interface:
-
-```julia
-f(u, p) = u .* u .- 2.0
-u0 = (1.0, 2.0) # brackets
-probB = NonlinearProblem(f, u0)
-solver = init(probB, Falsi()) # Can iterate the solver object
-solver = solve!(solver)
-```
-
-Note that the `solver` object is actually immutable since we want to make it live on the stack for the sake of performance.
-
-## Roadmap
-
-The current algorithms should support automatic differentiation, though improved adjoint overloads are planned
-to be added in the current update (which will make use of the `f(u,p)` form). Future updates will include
-standard methods for larger scale nonlinear solving like Newton-Krylov methods.
