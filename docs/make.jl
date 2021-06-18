@@ -7,7 +7,7 @@ makedocs(
     clean=true,doctest=false,
     format = Documenter.HTML(#analytics = "UA-90474609-3",
                              assets = ["assets/favicon.ico"],
-                             canonical="https://nlsolve.sciml.ai/stable/"),
+                             canonical="https://nonlinearsolve.sciml.ai/stable/"),
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
