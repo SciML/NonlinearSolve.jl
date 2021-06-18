@@ -2,8 +2,8 @@
 
 [![Github Action CI](https://github.com/SciML/NonlinearSolve.jl/workflows/CI/badge.svg)](https://github.com/SciML/NonlinearSolve.jl/actions)
 [![Coverage Status](https://coveralls.io/repos/github/SciML/NonlinearSolve.jl/badge.svg?branch=master)](https://coveralls.io/github/SciML/NonlinearSolve.jl?branch=master)
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://nlsolve.sciml.ai/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://nlsolve.sciml.ai/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://nonlinearsolve.sciml.ai/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://nonlinearsolve.sciml.ai/dev/)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
