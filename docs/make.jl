@@ -15,7 +15,6 @@ makedocs(
         ],
         "Basics" => Any[
             "basics/NonlinearProblem.md",
-            "basics/NonlinearSolvers.md",
             "basics/NonlinearFunctions.md",
             "basics/FAQ.md"
         ],
