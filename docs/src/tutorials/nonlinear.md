@@ -16,12 +16,12 @@ solver = solve(probN, NewtonRaphson(), tol = 1e-9)
 
 where `u0` is the initial condition for the rootfind. Native NonlinearSolve.jl
 solvers use the given type of `u0` to determine the type used within the solver
-and the return. Note that the parameters `p` can be any type, but most be an
+and the return. Note that the parameters `p` can be any type, but most are an
 AbstractArray for automatic differentiation.
 
 ## Using Bracketing Methods
 
-For scalar rootfinding problems, bracketing methods exist. In this case one passes
+For scalar rootfinding problems, bracketing methods exist. In this case, one passes
 a bracket instead of an initial condition, for example:
 
 ```julia
