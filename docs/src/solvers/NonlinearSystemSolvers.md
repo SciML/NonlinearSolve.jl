@@ -1,4 +1,4 @@
-# Nonlinear System Solvers
+# [Nonlinear System Solvers]((@id nonlinearsystemsolvers))
 
 `solve(prob::NonlinearProblem,alg;kwargs)`
 
@@ -13,11 +13,11 @@ This page is solely focused on the methods for nonlinear systems.
 static arrays and thus really well-optimized for small systems, while for large
 systems it can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. That said, as a classic Newton
-method, it's stability region can be smaller than other methods. `NLSolveJL`'s
+method, its stability region can be smaller than other methods. `NLSolveJL`'s
 `:trust_region` method can be a good choice for high stability, along with
 `CMINPACK`.
 
-For a system which is very non-stiff (i.e. the condition number of the Jacobian
+For a system which is very non-stiff (i.e., the condition number of the Jacobian
 is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
 then `NLSolveJL`'s `:anderson` can be a good choice.
 
@@ -34,7 +34,7 @@ These are the core solvers.
 
 ### SciMLNLSolve.jl
 
-This is a wrapper package to import solvers from other packages into this interface.
+This is a wrapper package for importing solvers from other packages into this interface.
 Note that these solvers do not come by default, and thus one needs to install
 the package before using these solvers:
 
@@ -64,13 +64,13 @@ NLSolveJL(;
 
 Choices for methods in `NLSolveJL`:
 
-- `:fixedpoint`: fixed point iteration
-- `:anderson`: Anderson accelerated fixed point iteration
+- `:fixedpoint`: Fixed-point iteration
+- `:anderson`: Anderson-accelerated fixed-point iteration
 - `:newton`: Classical Newton method with an optional line search
-- `:trust_region`: Trust region Newton method. The default
+- `:trust_region`: Trust region Newton method (the default choice)
 
 For more information on these arguments, consult the
-[NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl)
+[NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
 
 ### Sundials.jl
 
@@ -96,22 +96,22 @@ KINSOL(;
 
 The choices for the linear solver are:
 
-- `:Dense` - A dense linear solver.
-- `:Band` - A solver specialized for banded Jacobians. If used, you must set the
+- `:Dense`: A dense linear solver
+- `:Band`: A solver specialized for banded Jacobians. If used, you must set the
   position of the upper and lower non-zero diagonals via `jac_upper` and
   `jac_lower`.
-- `:LapackDense` - A version of the dense linear solver that uses the Julia-provided
+- `:LapackDense`: A version of the dense linear solver that uses the Julia-provided
   OpenBLAS-linked LAPACK for multithreaded operations. This will be faster than
-  `:Dense` on larger systems but has noticable overhead on smaller (<100 ODE) systems.
-- `:LapackBand` - A version of the banded linear solver that uses the Julia-provided
+  `:Dense` on larger systems but has noticeable overhead on smaller (<100 ODE) systems.
+- `:LapackBand`: A version of the banded linear solver that uses the Julia-provided
   OpenBLAS-linked LAPACK for multithreaded operations. This will be faster than
-  `:Band` on larger systems but has noticable overhead on smaller (<100 ODE) systems.
-- `:Diagonal` - This method is specialized for diagonal Jacobians.
-- `:GMRES` - A GMRES method. Recommended first choice Krylov method
-- `:BCG` - A Biconjugate gradient method.
-- `:PCG` - A preconditioned conjugate gradient method. Only for symmetric
+  `:Band` on larger systems but has noticeable overhead on smaller (<100 ODE) systems.
+- `:Diagonal`: This method is specialized for diagonal Jacobians.
+- `:GMRES`: A GMRES method. Recommended first choice Krylov method.
+- `:BCG`: A biconjugate gradient method
+- `:PCG`: A preconditioned conjugate gradient method. Only for symmetric
   linear systems.
-- `:TFQMR` - A TFQMR method.
-- `:KLU` - A sparse factorization method. Requires that the user specifies a
+- `:TFQMR`: A TFQMR method.
+- `:KLU`: A sparse factorization method. Requires that the user specify a
   Jacobian. The Jacobian must be set as a sparse matrix in the `ODEProblem`
   type.

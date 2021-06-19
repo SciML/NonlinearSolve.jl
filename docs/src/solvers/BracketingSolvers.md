@@ -16,5 +16,5 @@ less stable than `Bisection`.
 
 ### NonlinearSolve.jl
 
-- `Falsi` : A non-allocating regula falsi method
+- `Falsi`: A non-allocating regula falsi method
 - `Bisection`: A common bisection method
