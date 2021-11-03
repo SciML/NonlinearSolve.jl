@@ -9,8 +9,8 @@
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
 
 For information on using the package,
-[see the stable documentation](https://mtk.sciml.ai/stable/). Use the
-[in-development documentation](https://mtk.sciml.ai/dev/) for the version of
+[see the stable documentation](https://nonlinearsolve.sciml.ai/stable/). Use the
+[in-development documentation](https://nonlinearsolve.sciml.ai/dev/) for the version of
 the documentation which contains the unreleased features.
 
 ## High Level Examples
