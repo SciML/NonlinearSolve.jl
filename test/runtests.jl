@@ -20,21 +20,28 @@ function benchmark_scalar(f, u0)
     sol = (solve(probN, NewtonRaphson()))
 end
 
-f, u0 = (u,p) -> u .* u .- 2, @SVector[1.0, 1.0]
-sf, su0 = (u,p) -> u * u - 2, 1.0
-sol = benchmark_immutable(f, u0)
+function ff(u,p)
+    u .* u .- 2
+end
+const cu0 = @SVector[1.0, 1.0]
+function sf(u,p)
+    u * u - 2
+end
+const csu0 = 1.0
+
+sol = benchmark_immutable(ff, cu0)
 @test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
-sol = benchmark_mutable(f, u0)
+sol = benchmark_mutable(ff, cu0)
 @test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
-sol = benchmark_scalar(sf, su0)
+sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
 @test sol.u * sol.u - 2 < 1e-9
 
-@test (@ballocated benchmark_immutable($f, $u0)) == 0
-@test (@ballocated benchmark_mutable($f, $u0)) < 200
-@test (@ballocated benchmark_scalar($sf, $su0)) == 0
+@test (@ballocated benchmark_immutable(ff, cu0)) == 0
+@test (@ballocated benchmark_mutable(ff, cu0)) < 200
+@test (@ballocated benchmark_scalar(sf, csu0)) == 0
 
 # AD Tests
 using ForwardDiff
@@ -143,7 +150,7 @@ sol = solve!(solver)
 # these should call the iterator version
 solver = init(probB, Bisection())
 @test solver isa NonlinearSolve.BracketingImmutableSolver
-# Question: Do we need BracketingImmutableSolver? We have fast scalar overload and 
+# Question: Do we need BracketingImmutableSolver? We have fast scalar overload and
 # Bracketing solvers work only for scalars.
 
 solver = init(probB, Bisection(); immutable = false)
