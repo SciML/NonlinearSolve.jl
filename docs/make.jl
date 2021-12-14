@@ -11,7 +11,8 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
-            "tutorials/nonlinear.md"
+            "tutorials/nonlinear.md",
+            "tutorials/iterator_interface.md"
         ],
         "Basics" => Any[
             "basics/NonlinearProblem.md",
