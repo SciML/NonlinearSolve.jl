@@ -15,6 +15,9 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}}, alg::N
   for i in 1:maxiters
     if alg_autodiff(alg)
       fx, dfx = value_derivative(f, x)
+    elseif x isa AbstractArray
+      fx = f(x)
+      dfx = FiniteDiff.finite_difference_jacobian(f, x, alg.diff_type, eltype(x), fx)
     else
       fx = f(x)
       dfx = FiniteDiff.finite_difference_derivative(f, x, alg.diff_type, eltype(x), fx)
@@ -54,12 +57,12 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return sol, partials
 end
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
 
 end
-function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
 end
