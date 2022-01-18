@@ -224,6 +224,9 @@ function value_derivative(f::F, x::R) where {F,R}
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
 
+# Todo: improve this dispatch
+value_derivative(f::F, x::SVector) where F = f(x),ForwardDiff.jacobian(f, x)
+
 value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)

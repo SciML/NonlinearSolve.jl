@@ -1,15 +1,23 @@
-function SciMLBase.solve(prob::NonlinearProblem{<:Number}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}}, alg::NewtonRaphson, args...; xatol = nothing, xrtol = nothing, maxiters = 1000, kwargs...)
   f = Base.Fix2(prob.f, prob.p)
   x = float(prob.u0)
   fx = float(prob.u0)
   T = typeof(x)
-  atol = xatol !== nothing ? xatol : oneunit(T) * (eps(one(T)))^(4//5)
-  rtol = xrtol !== nothing ? xrtol : eps(one(T))^(4//5)
+  atol = xatol !== nothing ? xatol : oneunit(eltype(T)) * (eps(one(eltype(T))))^(4//5)
+  rtol = xrtol !== nothing ? xrtol : eps(one(eltype(T)))^(4//5)
 
-  xo = oftype(x, Inf)
+  if typeof(x) <: Number
+    xo = oftype(one(eltype(x)), Inf)
+  else
+    xo = map(x->oftype(one(eltype(x)), Inf),x)
+  end
+
   for i in 1:maxiters
     if alg_autodiff(alg)
       fx, dfx = value_derivative(f, x)
+    elseif x isa AbstractArray
+      fx = f(x)
+      dfx = FiniteDiff.finite_difference_jacobian(f, x, alg.diff_type, eltype(x), fx)
     else
       fx = f(x)
       dfx = FiniteDiff.finite_difference_derivative(f, x, alg.diff_type, eltype(x), fx)
@@ -49,12 +57,12 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return sol, partials
 end
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}, iip, <:Dual{T,V,P}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
-  
+
 end
-function SciMLBase.solve(prob::NonlinearProblem{<:Number, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number,SVector}, iip, <:AbstractArray{<:Dual{T,V,P}}}, alg::NewtonRaphson, args...; kwargs...) where {iip, T, V, P}
   sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
   return SciMLBase.build_solution(prob, alg, Dual{T,V,P}(sol.u, partials), sol.resid; retcode=sol.retcode)
 end
