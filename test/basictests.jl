@@ -50,7 +50,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 g = function (p)
-    probN = NonlinearProblem{false}(f, u0, p)
+    probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, NewtonRaphson(), tol = 1e-9)
     return sol.u[end]
 end

@@ -11,3 +11,5 @@ if GROUP == "All" || GROUP == "Interface"
   #@time @safetestset "Linear Solver Tests" begin include("interface/linear_solver_test.jl") end
   @time @safetestset "Basic Tests + Some AD" begin include("basictests.jl") end
 end
+
+end
