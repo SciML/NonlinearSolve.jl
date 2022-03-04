@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["Kanav Gupta <kanav0610@gmail.com>"]
-version = "0.3.14"
+version = "0.3.15"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
