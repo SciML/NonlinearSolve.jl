@@ -27,7 +27,7 @@ function perform_step(solver::BracketingImmutableSolver, alg::Bisection, cache)
   if cache.state == 0
     fzero = zero(fl)
     fl * fr > fzero && error("Bracket became non-containing in between iterations. This could mean that "
-    + "input function crosses the x axis multiple times. Bisection is not the right method to solve this.")
+    * "input function crosses the x axis multiple times. Bisection is not the right method to solve this.")
 
     mid = (left + right) / 2
     
