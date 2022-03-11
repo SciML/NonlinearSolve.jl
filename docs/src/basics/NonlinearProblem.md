@@ -38,7 +38,7 @@ page.
 
 ### Fields
 
-* `f`: The function in the ODE.
+* `f`: The function in the problem.
 * `u0`: The initial guess for the steady state.
 * `p`: The parameters for the problem. Defaults to `NullParameters`.
 * `kwargs`: The keyword arguments passed on to the solvers.
