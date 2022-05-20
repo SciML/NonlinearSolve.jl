@@ -3,7 +3,7 @@ using Documenter, NonlinearSolve
 makedocs(
     sitename="NonlinearSolve.jl",
     authors="Chris Rackauckas",
-    modules=[NonlinearSolve],
+    modules=[NonlinearSolve,NonlinearSolve.SciMLBase],
     clean=true,doctest=false,
     format = Documenter.HTML(analytics = "UA-90474609-3",
                              assets = ["assets/favicon.ico"],
