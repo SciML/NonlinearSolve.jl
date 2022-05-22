@@ -4,7 +4,7 @@ authors = ["Kanav Gupta <kanav0610@gmail.com>"]
 version = "0.3.16"
 
 [deps]
-ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
+ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
@@ -18,7 +18,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [compat]
-ArrayInterface = "3, 4, 5"
+ArrayInterfaceCore = "0.1.1"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 IterativeSolvers = "0.9"
