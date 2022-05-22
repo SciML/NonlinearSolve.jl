@@ -128,7 +128,7 @@ function (p::DefaultLinSolve)(x,A,b,update_matrix=false;tol=nothing, kwargs...)
       #
       # RecursiveFactorization seems to be consistantly winning below 100
       # https://discourse.julialang.org/t/ann-recursivefactorization-jl/39213
-      if ArrayInterface.can_setindex(x) && (size(A,1) <= 100 || ((blasvendor === :openblas || blasvendor === :openblas64) && size(A,1) <= 500))
+      if ArrayInterfaceCore.can_setindex(x) && (size(A,1) <= 100 || ((blasvendor === :openblas || blasvendor === :openblas64) && size(A,1) <= 500))
         p.A = RecursiveFactorization.lu!(A)
       else
         p.A = lu!(A)
@@ -141,7 +141,7 @@ function (p::DefaultLinSolve)(x,A,b,update_matrix=false;tol=nothing, kwargs...)
       p.A = bunchkaufman!(A)
     elseif typeof(A) <: SparseMatrixCSC
       p.A = lu(A)
-    elseif ArrayInterface.isstructured(A)
+    elseif ArrayInterfaceCore.isstructured(A)
       p.A = factorize(A)
     elseif !(typeof(A) <: AbstractDiffEqOperator)
       # Most likely QR is the one that is overloaded
@@ -156,7 +156,7 @@ function (p::DefaultLinSolve)(x,A,b,update_matrix=false;tol=nothing, kwargs...)
   # Missing a little bit of efficiency in a rare case
   #elseif typeof(A) <: DiffEqArrayOperator
   #  ldiv!(x,p.A,b)
-  elseif ArrayInterface.isstructured(A) || A isa SparseMatrixCSC
+  elseif ArrayInterfaceCore.isstructured(A) || A isa SparseMatrixCSC
     ldiv!(x,p.A,b)
   elseif typeof(A) <: AbstractDiffEqOperator
     # No good starting guess, so guess zero

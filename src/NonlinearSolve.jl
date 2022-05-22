@@ -8,7 +8,7 @@ using Setfield
 using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
-import ArrayInterface
+import ArrayInterfaceCore
 import IterativeSolvers
 import RecursiveFactorization
 
