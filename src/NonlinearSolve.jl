@@ -14,12 +14,10 @@ import RecursiveFactorization
 
 @reexport using SciMLBase
 
-abstract type AbstractNonlinearProblem{uType,isinplace} end
-abstract type AbstractNonlinearSolveAlgorithm end
+abstract type AbstractNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS,AD} <: AbstractNonlinearSolveAlgorithm end
-abstract type AbstractNonlinearSolver end
-abstract type AbstractImmutableNonlinearSolver <: AbstractNonlinearSolver end
+abstract type AbstractImmutableNonlinearSolver <: AbstractNonlinearSolveAlgorithm end
 
 include("utils.jl")
 include("jacobian.jl")
