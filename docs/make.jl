@@ -1,5 +1,7 @@
 using Documenter, NonlinearSolve
 
+include("pages.jl")
+
 makedocs(
     sitename="NonlinearSolve.jl",
     authors="Chris Rackauckas",
@@ -8,22 +10,7 @@ makedocs(
     format = Documenter.HTML(analytics = "UA-90474609-3",
                              assets = ["assets/favicon.ico"],
                              canonical="https://nonlinearsolve.sciml.ai/stable/"),
-    pages=[
-        "Home" => "index.md",
-        "Tutorials" => Any[
-            "tutorials/nonlinear.md",
-            "tutorials/iterator_interface.md"
-        ],
-        "Basics" => Any[
-            "basics/NonlinearProblem.md",
-            "basics/NonlinearFunctions.md",
-            "basics/FAQ.md"
-        ],
-        "Solvers" => Any[
-            "solvers/NonlinearSystemSolvers.md",
-            "solvers/BracketingSolvers.md"
-        ]
-    ]
+    pages=pages
 )
 
 deploydocs(
