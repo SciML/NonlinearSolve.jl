@@ -20,11 +20,11 @@ function benchmark_scalar(f, u0)
     sol = (solve(probN, NewtonRaphson()))
 end
 
-function ff(u,p)
+function ff(u, p)
     u .* u .- 2
 end
 const cu0 = @SVector[1.0, 1.0]
-function sf(u,p)
+function sf(u, p)
     u * u - 2
 end
 const csu0 = 1.0
@@ -57,7 +57,7 @@ end
 
 for p in 1.0:0.1:100.0
     @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
 # Scalar
@@ -74,7 +74,7 @@ end
 
 for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
 u0 = (1.0, 20.0)
@@ -87,7 +87,7 @@ end
 
 for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1/(2*sqrt(p))
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
 f, u0 = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
@@ -120,18 +120,18 @@ probN = NonlinearProblem(f, u0)
 
 @test solve(probN, NewtonRaphson()).u[end] ≈ sqrt(2.0)
 @test solve(probN, NewtonRaphson(); immutable = false).u[end] ≈ sqrt(2.0)
-@test solve(probN, NewtonRaphson(;autodiff=false)).u[end] ≈ sqrt(2.0)
-@test solve(probN, NewtonRaphson(;autodiff=false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, NewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
 
 for u0 in [1.0, [1, 1.0]]
-  local f, probN, sol
-  f = (u, p) -> u .* u .- 2.0
-  probN = NonlinearProblem(f, u0)
-  sol = sqrt(2) * u0
+    local f, probN, sol
+    f = (u, p) -> u .* u .- 2.0
+    probN = NonlinearProblem(f, u0)
+    sol = sqrt(2) * u0
 
-  @test solve(probN, NewtonRaphson()).u ≈ sol
-  @test solve(probN, NewtonRaphson()).u ≈ sol
-  @test solve(probN, NewtonRaphson(;autodiff=false)).u ≈ sol
+    @test solve(probN, NewtonRaphson()).u ≈ sol
+    @test solve(probN, NewtonRaphson()).u ≈ sol
+    @test solve(probN, NewtonRaphson(; autodiff = false)).u ≈ sol
 end
 
 # Bisection Tests
@@ -163,17 +163,17 @@ f = function (u, p)
 end
 probB = NonlinearProblem(f, (0.0, 4.0))
 
-solver = init(probB, Bisection(;exact_left = true))
+solver = init(probB, Bisection(; exact_left = true))
 sol = solve!(solver)
 @test f(sol.left, nothing) < 0.0
 @test f(nextfloat(sol.left), nothing) >= 0.0
 
-solver = init(probB, Bisection(;exact_right = true))
+solver = init(probB, Bisection(; exact_right = true))
 sol = solve!(solver)
 @test f(sol.right, nothing) > 0.0
 @test f(prevfloat(sol.right), nothing) <= 0.0
 
-solver = init(probB, Bisection(;exact_left = true, exact_right = true); immutable = false)
+solver = init(probB, Bisection(; exact_left = true, exact_right = true); immutable = false)
 sol = solve!(solver)
 @test f(sol.left, nothing) < 0.0
 @test f(nextfloat(sol.left), nothing) >= 0.0

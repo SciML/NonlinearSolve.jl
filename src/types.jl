@@ -6,7 +6,8 @@
     FLOATING_POINT_LIMIT
 end
 
-struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType, probType} <: AbstractImmutableNonlinearSolver
+struct BracketingImmutableSolver{fType, algType, uType, resType, pType, cacheType, probType
+                                 } <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -28,7 +29,8 @@ end
 #         typeof(left), typeof(fl), typeof(p), typeof(cache)}(iter, f, alg, left, right, fl, fr, p, force_stop, maxiters, retcode, cache)
 # end
 
-struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType, cacheType, probType} <: AbstractImmutableNonlinearSolver
+struct NewtonImmutableSolver{fType, algType, uType, resType, pType, INType, tolType,
+                             cacheType, probType} <: AbstractImmutableNonlinearSolver
     iter::Int
     f::fType
     alg::algType
@@ -49,7 +51,6 @@ end
 #     NewtonImmutableSolver{iip, typeof(f), typeof(alg), typeof(u),
 #         typeof(fu), typeof(p), typeof(internalnorm), typeof(tol), typeof(cache)}(iter, f, alg, u, fu, p, force_stop, maxiters, internalnorm, retcode, tol, cache)
 # end
-
 
 function sync_residuals!(solver::BracketingImmutableSolver)
     @set! solver.fl = solver.f(solver.left, solver.p)
