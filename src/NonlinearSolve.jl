@@ -8,9 +8,9 @@ using Setfield
 using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
-import ArrayInterfaceCore
-import IterativeSolvers
-import RecursiveFactorization
+using ArrayInterfaceCore: ArrayInterfaceCore
+using IterativeSolvers: IterativeSolvers
+using RecursiveFactorization: RecursiveFactorization
 
 @reexport using SciMLBase
 

@@ -1,4 +1,4 @@
-mutable struct JacobianWrapper{fType, pType}
+mutable struct JacobianWrapper{fType,pType}
     f::fType
     p::pType
 end
@@ -6,7 +6,7 @@ end
 (uf::JacobianWrapper)(u) = uf.f(u, uf.p)
 (uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
 
-struct ImmutableJacobianWrapper{fType, pType}
+struct ImmutableJacobianWrapper{fType,pType}
     f::fType
     p::pType
 end
@@ -44,7 +44,7 @@ function calc_J!(J, solver, cache)
     uf.f = f
     uf.p = p
 
-    jacobian!(J, uf, u, du1, solver, jac_config)
+    return jacobian!(J, uf, u, du1, solver, jac_config)
 end
 
 function jacobian!(J, f, x, fx, solver, jac_config)
@@ -54,5 +54,5 @@ function jacobian!(J, f, x, fx, solver, jac_config)
     else
         FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config)
     end
-    nothing
+    return nothing
 end

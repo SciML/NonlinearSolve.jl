@@ -1,13 +1,15 @@
-struct NewtonRaphson{CS, AD, DT, L} <: AbstractNewtonAlgorithm{CS,AD}
+struct NewtonRaphson{CS,AD,DT,L} <: AbstractNewtonAlgorithm{CS,AD}
     diff_type::DT
     linsolve::L
 end
 
-function NewtonRaphson(;autodiff=true,chunk_size=12,diff_type=Val{:forward},linsolve=DEFAULT_LINSOLVE)
-    NewtonRaphson{chunk_size, autodiff, typeof(diff_type), typeof(linsolve)}(diff_type, linsolve)
+function NewtonRaphson(; autodiff = true, chunk_size = 12, diff_type = Val{:forward},
+                       linsolve = DEFAULT_LINSOLVE)
+    return NewtonRaphson{chunk_size,autodiff,typeof(diff_type),typeof(linsolve)}(diff_type,
+                                                                                 linsolve)
 end
 
-mutable struct NewtonRaphsonCache{ufType, L, jType, uType, JC}
+mutable struct NewtonRaphsonCache{ufType,L,jType,uType,JC}
     uf::ufType
     linsolve::L
     J::jType
@@ -16,7 +18,7 @@ mutable struct NewtonRaphsonCache{ufType, L, jType, uType, JC}
 end
 
 function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
-    uf = JacobianWrapper(f,p)
+    uf = JacobianWrapper(f, p)
     linsolve = alg.linsolve(Val{:init}, f, u)
     J = false .* u .* u'
     du1 = zero(u)
@@ -28,14 +30,16 @@ function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
             du2 = zero(u)
             jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg.diff_type)
         else
-            jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),Complex{eltype(du1)}.(du1),nothing,alg.diff_type,eltype(u))
+            jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),
+                                                  Complex{eltype(du1)}.(du1), nothing,
+                                                  alg.diff_type, eltype(u))
         end
     end
-    NewtonRaphsonCache(uf, linsolve, J, du1, jac_config)
+    return NewtonRaphsonCache(uf, linsolve, J, du1, jac_config)
 end
 
 function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{false})
-    nothing
+    return nothing
 end
 
 function perform_step(solver::NewtonImmutableSolver, alg::NewtonRaphson, ::Val{true})
