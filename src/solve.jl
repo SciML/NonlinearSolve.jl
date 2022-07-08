@@ -1,15 +1,15 @@
-function SciMLBase.solve(prob::NonlinearProblem,
-                         alg::AbstractNonlinearSolveAlgorithm, args...;
-                         kwargs...)
+function SciMLBase.__solve(prob::NonlinearProblem,
+                           alg::AbstractNonlinearSolveAlgorithm, args...;
+                           kwargs...)
     solver = init(prob, alg, args...; kwargs...)
     sol = solve!(solver)
 end
 
-function SciMLBase.init(prob::NonlinearProblem{uType, iip},
-                        alg::AbstractBracketingAlgorithm, args...;
-                        alias_u0 = false,
-                        maxiters = 1000,
-                        kwargs...) where {uType, iip}
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
+                          alg::AbstractBracketingAlgorithm, args...;
+                          alias_u0 = false,
+                          maxiters = 1000,
+                          kwargs...) where {uType, iip}
     if !(prob.u0 isa Tuple)
         error("You need to pass a tuple of u0 in bracketing algorithms.")
     end
@@ -32,13 +32,13 @@ function SciMLBase.init(prob::NonlinearProblem{uType, iip},
                                      DEFAULT, cache, iip, prob)
 end
 
-function SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm,
-                        args...;
-                        alias_u0 = false,
-                        maxiters = 1000,
-                        tol = 1e-6,
-                        internalnorm = DEFAULT_NORM,
-                        kwargs...) where {uType, iip}
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm,
+                          args...;
+                          alias_u0 = false,
+                          maxiters = 1000,
+                          tol = 1e-6,
+                          internalnorm = DEFAULT_NORM,
+                          kwargs...) where {uType, iip}
     if alias_u0
         u = prob.u0
     else
