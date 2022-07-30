@@ -1,5 +1,5 @@
 # Nonlinear Problems
 
 ```@docs
-NonlinearProblem
+SciMLBase.NonlinearProblem
 ```
