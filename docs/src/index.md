@@ -1,6 +1,6 @@
-# NonlinearSolve.jl: High-Performance Unified Nonlinear Solvers
+# Overview
 
-NonlinearSolve.jl is a unified interface for the nonlinear solving packages of
+NonlinearSolve.jl is a high-performance unified interface for the nonlinear solving packages of
 Julia. It includes its own high-performance nonlinear solvers which include the
 ability to swap out to fast direct and iterative linear solvers, along with the
 ability to use sparse automatic differentiation for Jacobian construction and
@@ -30,12 +30,15 @@ Pkg.add("NonlinearSolve")
 
 - Please refer to the
   [SciML ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://github.com/SciML/ColPrac/blob/master/README.md)
-  for guidance on PRs, issues, and other matters relating to contributing to ModelingToolkit.
+  for guidance on PRs, issues, and other matters relating to contributing to SciML.
+- See the [SciML Style Guide](https://github.com/SciML/SciMLStyle) for common coding practices and other style decisions.
 - There are a few community forums:
-    - the #diffeq-bridged channel in the [Julia Slack](https://julialang.org/slack/)
-    - [JuliaDiffEq](https://gitter.im/JuliaDiffEq/Lobby) on Gitter
-    - on the Julia Discourse forums (look for the [modelingtoolkit tag](https://discourse.julialang.org/tag/modelingtoolkit)
-    - see also [SciML Community page](https://sciml.ai/community/)
+    - The #diffeq-bridged and #sciml-bridged channels in the
+      [Julia Slack](https://julialang.org/slack/)
+    - The #diffeq-bridged and #sciml-bridged channels in the
+      [Julia Zulip](https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged)
+    - On the [Julia Discourse forums](https://discourse.julialang.org)
+    - See also [SciML Community page](https://sciml.ai/community/)
 
 ## Roadmap
 
