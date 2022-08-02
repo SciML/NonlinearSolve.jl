@@ -1,6 +1,6 @@
-# Overview
+# NonlinearSolve.jl: High-Performance Unified Nonlinear Solvers
 
-NonlinearSolve.jl is a high-performance unified interface for the nonlinear solving packages of
+NonlinearSolve.jl is a unified interface for the nonlinear solving packages of
 Julia. It includes its own high-performance nonlinear solvers which include the
 ability to swap out to fast direct and iterative linear solvers, along with the
 ability to use sparse automatic differentiation for Jacobian construction and
