@@ -1,7 +1,6 @@
 # Put in a separate page so it can be used by SciMLDocs.jl
 
-pages = [
-    "Overview" => "index.md",
+pages = ["index.md",
     "Tutorials" => Any["tutorials/nonlinear.md",
                        "tutorials/iterator_interface.md"],
     "Basics" => Any["basics/NonlinearProblem.md",
