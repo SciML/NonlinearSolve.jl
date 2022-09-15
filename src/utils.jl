@@ -151,3 +151,6 @@ value_derivative(f::F, x::SVector) where {F} = f(x), ForwardDiff.jacobian(f, x)
 value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+
+_unwrap_val(::Val{B}) where {B} = B
+_unwrap_val(B) = B
