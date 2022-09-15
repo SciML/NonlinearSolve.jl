@@ -1,14 +1,15 @@
-struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <: AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
+struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:
+       AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
     precs::P
 end
 
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
-    standardtag = Val{true}(), concrete_jac = nothing,
-    diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
+                       standardtag = Val{true}(), concrete_jac = nothing,
+                       diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
     NewtonRaphson{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
-    typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-    _unwrap_val(concrete_jac)}(linsolve, precs)
+                  typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
+                  _unwrap_val(concrete_jac)}(linsolve, precs)
 end
 
 mutable struct NewtonRaphsonCache{ufType, L, jType, uType, JC}
@@ -22,7 +23,7 @@ end
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
                     du = nothing, u = nothing, p = nothing, t = nothing,
                     weight = nothing, solverdata = nothing,
-                    reltol = nothing) where P
+                    reltol = nothing) where {P}
     A !== nothing && (linsolve = LinearSolve.set_A(linsolve, A))
     b !== nothing && (linsolve = LinearSolve.set_b(linsolve, b))
     linu !== nothing && (linsolve = LinearSolve.set_u(linsolve, linu))
@@ -33,7 +34,7 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
              linsolve.Pr
 
     _Pl, _Pr = precs(linsolve.A, du, u, p, nothing, A !== nothing, Plprev, Prprev,
-                          solverdata)
+                     solverdata)
     if (_Pl !== nothing || _Pr !== nothing)
         _weight = weight === nothing ?
                   (linsolve.Pr isa Diagonal ? linsolve.Pr.diag : linsolve.Pr.inner.diag) :
@@ -68,7 +69,7 @@ function wrapprecs(_Pl, _Pr, weight)
 end
 
 function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
-    uf = JacobianWrapper(f,p)
+    uf = JacobianWrapper(f, p)
     J = false .* u .* u'
 
     linprob = LinearProblem(W, _vec(zero(u)); u0 = _vec(zero(u)))
@@ -103,12 +104,12 @@ function perform_step(solver::NewtonImmutableSolver, alg::NewtonRaphson, ::Val{t
     @unpack J, linsolve, du1 = cache
     calc_J!(J, solver, cache)
     # u = u - J \ fu
-    linsolve = dolinsolve(alg.precs, solver.linsolve, A = J, b = fu, u = du1, 
+    linsolve = dolinsolve(alg.precs, solver.linsolve, A = J, b = fu, u = du1,
                           p = p, reltol = solver.tol)
-    @set! cache.linsolve = linsolve            
+    @set! cache.linsolve = linsolve
     @. u = u - du1
     f(fu, u, p)
-    
+
     if solver.internalnorm(solver.fu) < solver.tol
         @set! solver.force_stop = true
     end
