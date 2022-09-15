@@ -9,8 +9,6 @@ using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
 import ArrayInterfaceCore
-import IterativeSolvers
-import RecursiveFactorization
 
 @reexport using SciMLBase
 
