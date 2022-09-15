@@ -9,14 +9,13 @@ using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
 import ArrayInterfaceCore
-import IterativeSolvers
-import RecursiveFactorization
 
 @reexport using SciMLBase
 
 abstract type AbstractNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
-abstract type AbstractNewtonAlgorithm{CS, AD} <: AbstractNonlinearSolveAlgorithm end
+abstract type AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ} <:
+              AbstractNonlinearSolveAlgorithm end
 abstract type AbstractImmutableNonlinearSolver <: AbstractNonlinearSolveAlgorithm end
 
 include("utils.jl")
