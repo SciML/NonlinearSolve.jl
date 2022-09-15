@@ -11,7 +11,6 @@ using LinearAlgebra
 import ArrayInterfaceCore
 
 @reexport using SciMLBase
-import SciMLBase: _vec
 
 abstract type AbstractNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end

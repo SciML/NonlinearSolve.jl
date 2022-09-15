@@ -74,7 +74,7 @@ function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
     J = false .* u .* u'
 
-    linprob = LinearProblem(W, _vec(zero(u)); u0 = _vec(zero(u)))
+    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     Pl, Pr = wrapprecs(alg.precs(W, nothing, u, p, nothing, nothing, nothing, nothing,
                                  nothing)..., weight)
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
