@@ -4,6 +4,8 @@ struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:
     precs::P
 end
 
+DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, solverdata) = nothing, nothing
+
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
                        standardtag = Val{true}(), concrete_jac = nothing,
                        diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
