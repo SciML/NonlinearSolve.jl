@@ -154,3 +154,7 @@ value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
 
 _unwrap_val(::Val{B}) where {B} = B
 _unwrap_val(B) = B
+
+_vec(v) = vec(v)
+_vec(v::Number) = v
+_vec(v::AbstractVector) = v
