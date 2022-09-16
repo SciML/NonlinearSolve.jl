@@ -109,7 +109,7 @@ function perform_step(solver::NewtonImmutableSolver, alg::NewtonRaphson, ::Val{t
     @unpack J, linsolve, du1 = cache
     calc_J!(J, solver, cache)
     # u = u - J \ fu
-    linsolve = dolinsolve(alg.precs, solver.linsolve, A = J, b = fu, u = du1,
+    linsolve = dolinsolve(alg.precs, linsolve, A = J, b = fu, u = du1,
                           p = p, reltol = solver.tol)
     @set! cache.linsolve = linsolve
     @. u = u - du1
