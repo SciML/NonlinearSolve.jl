@@ -9,6 +9,7 @@ using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
 import ArrayInterfaceCore
+import LinearSolve
 
 @reexport using SciMLBase
 
