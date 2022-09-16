@@ -75,6 +75,9 @@ function alg_cache(alg::NewtonRaphson, f, u, p, ::Val{true})
     J = false .* u .* u'
 
     linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
+    weight = similar(u)
+    recursivefill!(weight, false)
+
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
                                  nothing)..., weight)
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
