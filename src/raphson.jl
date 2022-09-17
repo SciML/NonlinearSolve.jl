@@ -4,6 +4,11 @@ struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:
     precs::P
 end
 
+function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
+                        ) where {CS, AD, FDT, ST, CJ}
+    FDT
+end
+
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, solverdata) = nothing, nothing
 
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
@@ -46,7 +51,7 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
     end
 
     linres = if reltol === nothing
-        solve(linsolve; reltol)
+        solve(linsolve)
     else
         solve(linsolve; reltol)
     end
