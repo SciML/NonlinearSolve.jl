@@ -32,7 +32,7 @@ function jacobian(f, x, solver)
     if alg_autodiff(solver.alg)
         J = ForwardDiff.jacobian(f, x)
     else
-        J = FiniteDiff.finite_difference_jacobian(f, x, alg_difftype(alg), eltype(x))
+        J = FiniteDiff.finite_difference_jacobian(f, x, alg_difftype(solver.alg), eltype(x))
     end
     return J
 end
