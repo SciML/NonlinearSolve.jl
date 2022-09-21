@@ -8,6 +8,8 @@ using Setfield
 using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
+using LinearSolve
+using LinearSolve: _unwrap_val
 import ArrayInterfaceCore
 
 @reexport using SciMLBase
