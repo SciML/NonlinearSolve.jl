@@ -35,4 +35,4 @@ MATLAB 2022a achieves 1.66s. Try this code yourself: we receive 0.06 seconds, or
 This example is still not optimized in the Julia code and we expect an improvement in a near
 future version.
 
-For more information on performance of SciML, see the [SciMLBenchmarks](https://github.com/SciML/SciMLBenchmarks.jl)
+For more information on performance of SciML, see the [SciMLBenchmarks](https://docs.sciml.ai/SciMLBenchmarksOutput/stable/)
