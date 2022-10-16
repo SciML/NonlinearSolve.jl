@@ -7,7 +7,7 @@ ability to use sparse automatic differentiation for Jacobian construction and
 Jacobian-vector products. It interfaces with other packages of the Julia ecosystem
 to make it easy to test alternative solver packages and pass small types to
 control algorithm swapping. It also interfaces with the
-[ModelingToolkit.jl](https://mtk.sciml.ai/dev/) world of symbolic modeling to
+[ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/stable/) world of symbolic modeling to
 allow for automatically generating high-performance code.
 
 Performance is key: the current methods are made to be highly performant on
