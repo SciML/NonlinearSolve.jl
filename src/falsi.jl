@@ -21,7 +21,7 @@ function perform_step(solver, alg::Falsi, cache)
 
     if right == mid || right == mid
         @set! solver.force_stop = true
-        @set! solver.retcode = FLOATING_POINT_LIMIT
+        @set! solver.retcode = ReturnCode.Success
         return solver
     end
 
@@ -32,7 +32,7 @@ function perform_step(solver, alg::Falsi, cache)
         @set! solver.force_stop = true
         @set! solver.left = mid
         @set! solver.fl = fm
-        @set! solver.retcode = EXACT_SOLUTION_LEFT
+        @set! solver.retcode = ReturnCode.Success
     else
         if sign(fm) == sign(fl)
             @set! solver.left = mid

@@ -29,7 +29,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
     fr = f(right, p)
     cache = alg_cache(alg, left, right, p, Val(iip))
     return BracketingImmutableSolver(1, f, alg, left, right, fl, fr, p, false, maxiters,
-                                     DEFAULT, cache, iip, prob)
+                                     ReturnCode.Default, cache, iip, prob)
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewtonAlgorithm,
@@ -54,7 +54,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::AbstractNewto
     end
     cache = alg_cache(alg, f, u, p, Val(iip))
     return NewtonImmutableSolver(1, f, alg, u, fu, p, false, maxiters, internalnorm,
-                                 DEFAULT, tol, cache, iip, prob)
+                                 Retcode.Default, tol, cache, iip, prob)
 end
 
 function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
@@ -64,14 +64,14 @@ function SciMLBase.solve!(solver::AbstractImmutableNonlinearSolver)
         @set! solver.iter += 1
     end
     if solver.iter == solver.maxiters
-        @set! solver.retcode = MAXITERS_EXCEED
+        @set! solver.retcode = ReturnCode.MaxIters
     end
     if typeof(solver) <: NewtonImmutableSolver
         SciMLBase.build_solution(solver.prob, solver.alg, solver.u, solver.fu;
-                                 retcode = Symbol(solver.retcode))
+                                 retcode = solver.retcode)
     else
         SciMLBase.build_solution(solver.prob, solver.alg, solver.left, solver.fl;
-                                 retcode = Symbol(solver.retcode), left = solver.left,
+                                 retcode = solver.retcode, left = solver.left,
                                  right = solver.right)
     end
 end
@@ -89,10 +89,10 @@ function mic_check(solver::BracketingImmutableSolver)
     (flr > fzero) && error("Non bracketing interval passed in bracketing method.")
     if fl == fzero
         @set! solver.force_stop = true
-        @set! solver.retcode = EXACT_SOLUTION_LEFT
+        @set! solver.retcode = Retcode.Success
     elseif fr == fzero
         @set! solver.force_stop = true
-        @set! solver.retcode = EXACT_SOLUTION_RIGHT
+        @set! solver.retcode = Retcode.Success
     end
     solver
 end
