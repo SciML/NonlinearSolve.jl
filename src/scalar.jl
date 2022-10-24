@@ -109,7 +109,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Bisection, args...; maxite
 
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
-                                        retcode = ReturnCode.Success, left = left,
+                                        retcode = ReturnCode.ExactSolutionLeft, left = left,
                                         right = right)
     end
 
@@ -119,7 +119,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Bisection, args...; maxite
             mid = (left + right) / 2
             (mid == left || mid == right) &&
                 return SciMLBase.build_solution(prob, alg, left, fl;
-                                                retcode = ReturnCode.Success,
+                                                retcode = ReturnCode.FloatingPointLimit,
                                                 left = left, right = right)
             fm = f(mid)
             if iszero(fm)
@@ -141,7 +141,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Bisection, args...; maxite
         mid = (left + right) / 2
         (mid == left || mid == right) &&
             return SciMLBase.build_solution(prob, alg, left, fl;
-                                            retcode = ReturnCode.Success,
+                                            retcode = ReturnCode.FloatingPointLimit,
                                             left = left, right = right)
         fm = f(mid)
         if iszero(fm)
@@ -166,7 +166,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters =
 
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
-                                        retcode = ReturnCode.Success, left = left,
+                                        retcode = ReturnCode.ExactSolutionLeft, left = left,
                                         right = right)
     end
 
@@ -175,7 +175,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters =
         while i < maxiters
             if nextfloat_tdir(left, prob.u0...) == right
                 return SciMLBase.build_solution(prob, alg, left, fl;
-                                                retcode = ReturnCode.Success,
+                                                retcode = ReturnCode.FloatingPointLimit,
                                                 left = left, right = right)
             end
             mid = (fr * left - fl * right) / (fr - fl)
@@ -205,7 +205,7 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters =
         mid = (left + right) / 2
         (mid == left || mid == right) &&
             return SciMLBase.build_solution(prob, alg, left, fl;
-                                            retcode = ReturnCode.Success,
+                                            retcode = ReturnCode.FloatingPointLimit,
                                             left = left, right = right)
         fm = f(mid)
         if iszero(fm)

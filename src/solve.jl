@@ -89,10 +89,10 @@ function mic_check(solver::BracketingImmutableSolver)
     (flr > fzero) && error("Non bracketing interval passed in bracketing method.")
     if fl == fzero
         @set! solver.force_stop = true
-        @set! solver.retcode = Retcode.Success
+        @set! solver.retcode = Retcode.ExactSolutionLeft
     elseif fr == fzero
         @set! solver.force_stop = true
-        @set! solver.retcode = Retcode.Success
+        @set! solver.retcode = Retcode.ExactionSolutionRight
     end
     solver
 end
