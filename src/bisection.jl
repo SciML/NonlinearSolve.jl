@@ -35,7 +35,7 @@ function perform_step(solver::BracketingImmutableSolver, alg::Bisection, cache)
 
         if left == mid || right == mid
             @set! solver.force_stop = true
-            @set! solver.retcode = FLOATING_POINT_LIMIT
+            @set! solver.retcode = ReturnCode.FloatingPointLimit
             return solver
         end
 

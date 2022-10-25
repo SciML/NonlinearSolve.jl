@@ -30,13 +30,13 @@ end
 const csu0 = 1.0
 
 sol = benchmark_immutable(ff, cu0)
-@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
+@test sol.retcode === ReturnCode.Default
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_mutable(ff, cu0)
-@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
+@test sol.retcode === ReturnCode.Default
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === Symbol(NonlinearSolve.DEFAULT)
+@test sol.retcode === ReturnCode.Default
 @test sol.u * sol.u - 2 < 1e-9
 
 @test (@ballocated benchmark_immutable(ff, cu0)) == 0
