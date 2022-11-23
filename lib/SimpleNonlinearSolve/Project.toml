@@ -1,0 +1,38 @@
+name = "SimpleNonlinearSolve"
+uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+authors = ["Kanav Gupta <kanav0610@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
+FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
+[compat]
+ArrayInterfaceCore = "0.1.1"
+FiniteDiff = "2"
+ForwardDiff = "0.10.3"
+RecursiveArrayTools = "2"
+Reexport = "0.2, 1"
+SciMLBase = "1.32"
+Setfield = "0.7, 0.8, 1"
+StaticArrays = "0.12,1.0"
+UnPack = "1.0"
+julia = "1.6"
+
+[extras]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff"]
