@@ -1,6 +1,6 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
-authors = ["Kanav Gupta <kanav0610@gmail.com>"]
+authors = ["SciML"]
 version = "0.1.0"
 
 [deps]
@@ -21,7 +21,7 @@ FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 RecursiveArrayTools = "2"
 Reexport = "0.2, 1"
-SciMLBase = "1.32"
+SciMLBase = "1.73"
 Setfield = "0.7, 0.8, 1"
 StaticArrays = "0.12,1.0"
 UnPack = "1.0"

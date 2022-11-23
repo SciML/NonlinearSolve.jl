@@ -1,9 +1,10 @@
 struct Falsi <: AbstractBracketingAlgorithm end
 
-function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters = 1000,
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
+                         maxiters = 1000,
                          kwargs...)
     f = Base.Fix2(prob.f, prob.p)
-    left, right = prob.u0
+    left, right = prob.tspan
     fl, fr = f(left), f(right)
 
     if iszero(fl)
@@ -15,14 +16,14 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::Falsi, args...; maxiters =
     i = 1
     if !iszero(fr)
         while i < maxiters
-            if nextfloat_tdir(left, prob.u0...) == right
+            if nextfloat_tdir(left, prob.tspan...) == right
                 return SciMLBase.build_solution(prob, alg, left, fl;
                                                 retcode = ReturnCode.FloatingPointLimit,
                                                 left = left, right = right)
             end
             mid = (fr * left - fl * right) / (fr - fl)
             for i in 1:10
-                mid = max_tdir(left, prevfloat_tdir(mid, prob.u0...), prob.u0...)
+                mid = max_tdir(left, prevfloat_tdir(mid, prob.tspan...), prob.tspan...)
             end
             if mid == right || mid == left
                 break

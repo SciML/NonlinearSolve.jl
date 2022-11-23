@@ -57,10 +57,10 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
-u0 = (1.0, 20.0)
+tspan = (1.0, 20.0)
 # Falsi
 g = function (p)
-    probN = NonlinearProblem{false}(f, typeof(p).(u0), p)
+    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
     sol = solve(probN, Falsi())
     return sol.left
 end
@@ -70,13 +70,13 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
-f, u0 = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
+f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
 for alg in [Bisection(), Falsi()]
     global g, p
     g = function (p)
-        probN = NonlinearProblem{false}(f, u0, p)
+        probN = IntervalNonlinearProblem{false}(f, tspan, p)
         sol = solve(probN, Bisection())
         return [sol.left]
     end
@@ -115,8 +115,8 @@ for u0 in [1.0, [1, 1.0]]
 end
 
 # Bisection Tests
-f, u0 = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
-probB = NonlinearProblem(f, u0)
+f, tspan = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
+probB = IntervalNonlinearProblem(f, tspan)
 
 # Falsi
 sol = solve(probB, Falsi())
@@ -135,7 +135,7 @@ f = function (u, p)
         return 0.0
     end
 end
-probB = NonlinearProblem(f, (0.0, 4.0))
+probB = IntervalNonlinearProblem(f, (0.0, 4.0))
 
 sol = solve(probB, Bisection(; exact_left = true))
 @test f(sol.left, nothing) < 0.0

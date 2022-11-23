@@ -1,9 +1,15 @@
 function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     f = prob.f
     p = value(prob.p)
-    u0 = value(prob.u0)
 
-    newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
+    if prob isa IntervalNonlinearProblem
+        tspan = value(prob.tspan)
+        newprob = IntervalNonlinearProblem(f, tspan, p; prob.kwargs...)
+    else
+        u0 = value(prob.u0)
+        newprob = NonlinearProblem(f, u0, p; prob.kwargs...)
+    end
+
     sol = solve(newprob, alg, args...; kwargs...)
 
     uu = sol.u
@@ -39,7 +45,8 @@ end
 
 # avoid ambiguities
 for Alg in [Bisection]
-    @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip, <:Dual{T, V, P}},
+    @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
+                                                                  <:Dual{T, V, P}},
                                    alg::$Alg, args...;
                                    kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
@@ -49,8 +56,12 @@ for Alg in [Bisection]
                                         right = Dual{T, V, P}(sol.right, partials))
         #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
     end
-    @eval function SciMLBase.solve(prob::NonlinearProblem{uType, iip,
-                                                          <:AbstractArray{<:Dual{T, V, P}}},
+    @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
+                                                                  <:AbstractArray{
+                                                                                  <:Dual{T,
+                                                                                         V,
+                                                                                         P}
+                                                                                  }},
                                    alg::$Alg, args...;
                                    kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)

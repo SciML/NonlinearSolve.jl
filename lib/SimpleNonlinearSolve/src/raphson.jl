@@ -1,13 +1,14 @@
 struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     function SimpleNewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                                   diff_type = Val{:forward})
+                                 diff_type = Val{:forward})
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
-        SciMLBase._unwrap_val(diff_type)}()
+            SciMLBase._unwrap_val(diff_type)}()
     end
 end
 
 function SciMLBase.solve(prob::NonlinearProblem,
-                         alg::SimpleNewtonRaphson, args...; xatol = nothing, xrtol = nothing,
+                         alg::SimpleNewtonRaphson, args...; xatol = nothing,
+                         xrtol = nothing,
                          maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)

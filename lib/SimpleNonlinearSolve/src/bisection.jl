@@ -7,10 +7,11 @@ function Bisection(; exact_left = false, exact_right = false)
     Bisection(exact_left, exact_right)
 end
 
-function SciMLBase.solve(prob::NonlinearProblem, alg::Bisection, args...; maxiters = 1000,
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
+                         maxiters = 1000,
                          kwargs...)
     f = Base.Fix2(prob.f, prob.p)
-    left, right = prob.u0
+    left, right = prob.tspan
     fl, fr = f(left), f(right)
 
     if iszero(fl)
