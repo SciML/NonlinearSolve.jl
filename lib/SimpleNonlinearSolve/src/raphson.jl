@@ -7,8 +7,8 @@ struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
 end
 
 function SciMLBase.solve(prob::NonlinearProblem,
-                         alg::SimpleNewtonRaphson, args...; xatol = nothing,
-                         xrtol = nothing,
+                         alg::SimpleNewtonRaphson, args...; abstol = nothing,
+                         reltol = nothing,
                          maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
@@ -19,8 +19,8 @@ function SciMLBase.solve(prob::NonlinearProblem,
         error("SimpleNewtonRaphson currently only supports out-of-place nonlinear problems")
     end
 
-    atol = xatol !== nothing ? xatol : oneunit(eltype(T)) * (eps(one(eltype(T))))^(4 // 5)
-    rtol = xrtol !== nothing ? xrtol : eps(one(eltype(T)))^(4 // 5)
+    atol = abstol !== nothing ? abstol : oneunit(eltype(T)) * (eps(one(eltype(T))))^(4 // 5)
+    rtol = reltol !== nothing ? reltol : eps(one(eltype(T)))^(4 // 5)
 
     if typeof(x) <: Number
         xo = oftype(one(eltype(x)), Inf)
