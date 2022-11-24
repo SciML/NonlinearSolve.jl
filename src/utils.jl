@@ -158,3 +158,59 @@ _unwrap_val(B) = B
 _vec(v) = vec(v)
 _vec(v::Number) = v
 _vec(v::AbstractVector) = v
+
+
+function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
+                        ) where {CS, AD, FDT, ST, CJ}
+    FDT
+end
+
+DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
+
+function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
+                    du = nothing, u = nothing, p = nothing, t = nothing,
+                    weight = nothing, cachedata = nothing,
+                    reltol = nothing) where {P}
+    A !== nothing && (linsolve = LinearSolve.set_A(linsolve, A))
+    b !== nothing && (linsolve = LinearSolve.set_b(linsolve, b))
+    linu !== nothing && (linsolve = LinearSolve.set_u(linsolve, linu))
+
+    Plprev = linsolve.Pl isa LinearSolve.ComposePreconditioner ? linsolve.Pl.outer :
+             linsolve.Pl
+    Prprev = linsolve.Pr isa LinearSolve.ComposePreconditioner ? linsolve.Pr.outer :
+             linsolve.Pr
+
+    _Pl, _Pr = precs(linsolve.A, du, u, p, nothing, A !== nothing, Plprev, Prprev,
+                     cachedata)
+    if (_Pl !== nothing || _Pr !== nothing)
+        _weight = weight === nothing ?
+                  (linsolve.Pr isa Diagonal ? linsolve.Pr.diag : linsolve.Pr.inner.diag) :
+                  weight
+        Pl, Pr = wrapprecs(_Pl, _Pr, _weight)
+        linsolve = LinearSolve.set_prec(linsolve, Pl, Pr)
+    end
+
+    linres = if reltol === nothing
+        solve(linsolve)
+    else
+        solve(linsolve; reltol)
+    end
+
+    return linres
+end
+
+function wrapprecs(_Pl, _Pr, weight)
+    if _Pl !== nothing
+        Pl = LinearSolve.ComposePreconditioner(LinearSolve.InvPreconditioner(Diagonal(_vec(weight))),
+                                               _Pl)
+    else
+        Pl = LinearSolve.InvPreconditioner(Diagonal(_vec(weight)))
+    end
+
+    if _Pr !== nothing
+        Pr = LinearSolve.ComposePreconditioner(Diagonal(_vec(weight)), _Pr)
+    else
+        Pr = Diagonal(_vec(weight))
+    end
+    Pl, Pr
+end

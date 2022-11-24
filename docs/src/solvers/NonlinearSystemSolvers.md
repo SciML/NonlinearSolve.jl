@@ -9,13 +9,15 @@ This page is solely focused on the methods for nonlinear systems.
 
 ## Recommended Methods
 
-`NewtonRaphson` is a good choice for most problems. It is non-allocating on
-static arrays and thus really well-optimized for small systems, while for large
+`NewtonRaphson` is a good choice for most problems.  For large
 systems it can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. That said, as a classic Newton
-method, its stability region can be smaller than other methods. `NLSolveJL`'s
+method, its stability region can be smaller than other methods. Meanwhile, `SimpleNewtonRaphson`
+is an implementation which is specialized for small equations. It is non-allocating on
+static arrays and thus really well-optimized for small systems, thus usually outperforming
+the other methods when such types are used for `u0`. `NLSolveJL`'s
 `:trust_region` method can be a good choice for high stability, along with
-`CMINPACK`.
+`CMINPACK`.s
 
 For a system which is very non-stiff (i.e., the condition number of the Jacobian
 is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
@@ -29,8 +31,17 @@ These are the core solvers.
 
 - `NewtonRaphson(;autodiff=true,chunk_size=12,diff_type=Val{:forward},linsolve=DEFAULT_LINSOLVE)`:
   A Newton-Raphson method with swappable nonlinear solvers and autodiff methods
-  for high performance on large and sparse systems. When used on objects like
-  static arrays, this method is non-allocating.
+  for high performance on large and sparse systems.
+
+### SimpleNonlinearSolve.jl
+
+These methods are included with NonlinearSolve.jl by default, though SimpleNonlinearSolve.jl
+can be used directly to reduce dependencies and improve load times.
+
+- `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method. Has the
+  property that when used with states `u` as a `Number` or `StaticArray`, the solver is
+  very efficient and non-allocating. Thus this implmentation is well-suited for small
+  systems of equations.
 
 ### SciMLNLSolve.jl
 

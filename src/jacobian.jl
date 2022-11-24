@@ -28,6 +28,15 @@ function calc_J(solver, uf::ImmutableJacobianWrapper)
     return J
 end
 
+function jacobian(f, x::Number, solver)
+    if alg_autodiff(solver.alg)
+        J = ForwardDiff.derivative(f, x)
+    else
+        J = FiniteDiff.finite_difference_derivative(f, x, alg_difftype(solver.alg), eltype(x))
+    end
+    return J
+end
+
 function jacobian(f, x, solver)
     if alg_autodiff(solver.alg)
         J = ForwardDiff.jacobian(f, x)

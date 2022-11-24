@@ -9,5 +9,6 @@ of pre-computed functions to speed up the calculations. This is offered via the
 ## Function Type Definitions
 
 ```@docs
+SciMLBase.IntervalNonlinearFunction
 SciMLBase.NonlinearFunction
 ```
