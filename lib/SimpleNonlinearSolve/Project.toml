@@ -9,6 +9,7 @@ FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [compat]
@@ -17,6 +18,7 @@ FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 Reexport = "0.2, 1"
 SciMLBase = "1.73"
+SnoopPrecompile = "1"
 StaticArraysCore = "1.4"
 julia = "1.6"
 
