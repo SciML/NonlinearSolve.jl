@@ -1,4 +1,4 @@
-# NonlinearSolve.jl
+# SimpleNonlinearSolve.jl
 
 [![Join the chat at https://julialang.zulipchat.com #sciml-bridged](https://img.shields.io/static/v1?label=Zulip&message=chat&color=9558b2&labelColor=389826)](https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged)
 [![Global Docs](https://img.shields.io/badge/docs-SciML-blue.svg)](https://docs.sciml.ai/NonlinearSolve/stable/)
@@ -11,7 +11,8 @@
 
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
 SimpleNonlinearSolve.jl focuses on low-dependency implementations of very fast methods for
-very small and simple problems. For the full set of solvers, see NonlinearSolve.jl, of which
+very small and simple problems. For the full set of solvers, see 
+[NonlinearSolve.jl](https://github.com/SciML/NonlinearSolve.jl), of which
 SimpleNonlinearSolve.jl is just one solver set.
 
 For information on using the package,
