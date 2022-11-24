@@ -18,6 +18,8 @@ jobs:
         os: [ubuntu-latest]
         package:
           - {user: SciML, repo: ModelingToolkit.jl, group: All}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Interface}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression}
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1

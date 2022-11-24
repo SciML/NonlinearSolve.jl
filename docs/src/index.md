@@ -12,8 +12,7 @@ allow for automatically generating high-performance code.
 
 Performance is key: the current methods are made to be highly performant on
 scalar and statically sized small problems, with options for large-scale systems.
-If you run into any performance issues, please file an issue. Note that this
-package is distinct from [SciMLNLSolve.jl](https://github.com/SciML/SciMLNLSolve.jl).
+If you run into any performance issues, please file an issue.
 Consult the [NonlinearSystemSolvers](@ref nonlinearsystemsolvers) page for
 information on how to import solvers from different packages.
 
@@ -79,7 +78,7 @@ Pkg.status(;mode = PKGMODE_MANIFEST) # hide
 </details>
 ```
 ```@raw html
-You can also download the 
+You can also download the
 <a href="
 ```
 ```@eval

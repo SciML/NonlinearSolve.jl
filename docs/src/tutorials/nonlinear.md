@@ -27,6 +27,6 @@ a bracket instead of an initial condition, for example:
 ```julia
 f(u, p) = u .* u .- 2.0
 u0 = (1.0, 2.0) # brackets
-probB = NonlinearProblem(f, u0)
+probB = IntervalNonlinearProblem(f, u0)
 sol = solve(probB, Falsi())
 ```

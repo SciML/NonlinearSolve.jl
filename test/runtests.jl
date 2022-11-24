@@ -7,7 +7,6 @@ const is_APPVEYOR = Sys.iswindows() && haskey(ENV, "APPVEYOR")
 
 @time begin
 
-if GROUP == "All" || GROUP == "Interface"
-    #@time @safetestset "Linear Solver Tests" begin include("interface/linear_solver_test.jl") end
+if GROUP == "All" || GROUP == "Core"
     @time @safetestset "Basic Tests + Some AD" begin include("basictests.jl") end
 end end

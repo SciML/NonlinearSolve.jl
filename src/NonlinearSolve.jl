@@ -9,25 +9,28 @@ using StaticArrays
 using RecursiveArrayTools
 using LinearAlgebra
 import ArrayInterfaceCore
+import LinearSolve
+using DiffEqBase
 
 @reexport using SciMLBase
+@reexport using SimpleNonlinearSolve
 
 abstract type AbstractNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
-abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ} <:
               AbstractNonlinearSolveAlgorithm end
-abstract type AbstractImmutableNonlinearSolver <: AbstractNonlinearSolveAlgorithm end
+
+function SciMLBase.__solve(prob::NonlinearProblem,
+                           alg::AbstractNonlinearSolveAlgorithm, args...;
+                           kwargs...)
+    cache = init(prob, alg, args...; kwargs...)
+    sol = solve!(cache)
+end
 
 include("utils.jl")
 include("jacobian.jl")
-include("types.jl")
-include("solve.jl")
-include("bisection.jl")
-include("falsi.jl")
 include("raphson.jl")
-include("scalar.jl")
+include("ad.jl")
 
-# DiffEq styled algorithms
-export Bisection, Falsi, NewtonRaphson
+export NewtonRaphson
 
 end # module
