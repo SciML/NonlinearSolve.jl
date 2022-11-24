@@ -66,7 +66,7 @@ f, u0 = (u, p) -> u * u - p, 1.0
 # NewtonRaphson
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-    sol = solve(probN, NewtonRaphson(), abstol=1e-10)
+    sol = solve(probN, NewtonRaphson(), abstol = 1e-10)
     return sol.u
 end
 

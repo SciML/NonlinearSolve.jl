@@ -159,9 +159,8 @@ _vec(v) = vec(v)
 _vec(v::Number) = v
 _vec(v::AbstractVector) = v
 
-
-function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
-                        ) where {CS, AD, FDT, ST, CJ}
+function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
+                                                                                ST, CJ}
     FDT
 end
 

@@ -12,7 +12,8 @@ function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
                   _unwrap_val(concrete_jac)}(linsolve, precs)
 end
 
-mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
+mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
+                                  INType, tolType,
                                   probType, ufType, L, jType, JC}
     f::fType
     alg::algType
@@ -32,21 +33,24 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     abstol::tolType
     prob::probType
 
-    function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
-        uf::ufType, linsolve::L, J::jType, du1::duType, jac_config::JC, iter::Int,
-        force_stop::Bool, maxiters::Int, internalnorm::INType,
-        retcode::SciMLBase.ReturnCode.T, abstol::tolType, prob::probType) where {
-             iip, fType, algType, uType, duType, resType, pType, INType, tolType,
-             probType, ufType, L, jType, JC}
+    function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
+                                     p::pType,
+                                     uf::ufType, linsolve::L, J::jType, du1::duType,
+                                     jac_config::JC, iter::Int,
+                                     force_stop::Bool, maxiters::Int, internalnorm::INType,
+                                     retcode::SciMLBase.ReturnCode.T, abstol::tolType,
+                                     prob::probType) where {
+                                                            iip, fType, algType, uType,
+                                                            duType, resType, pType, INType,
+                                                            tolType,
+                                                            probType, ufType, L, jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
-        probType, ufType, L, jType, JC}(f, alg, u, fu, p,
-        uf, linsolve, J, du1, jac_config, iter,
-        force_stop, maxiters, internalnorm,
-        retcode, abstol, prob)
+            probType, ufType, L, jType, JC}(f, alg, u, fu, p,
+                                            uf, linsolve, J, du1, jac_config, iter,
+                                            force_stop, maxiters, internalnorm,
+                                            retcode, abstol, prob)
     end
-
 end
-
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
@@ -105,8 +109,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
     return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
-                              1, false, maxiters, internalnorm,
-                              ReturnCode.Default, abstol, prob)
+                                   1, false, maxiters, internalnorm,
+                                   ReturnCode.Default, abstol, prob)
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -139,7 +143,6 @@ function perform_step!(cache::NewtonRaphsonCache{false})
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
-
     while !cache.force_stop && cache.iter < cache.maxiters
         perform_step!(cache)
         cache.iter += 1
@@ -150,5 +153,5 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-                                 retcode = cache.retcode)
+                             retcode = cache.retcode)
 end
