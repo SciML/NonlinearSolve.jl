@@ -4,7 +4,10 @@
 @inline function DEFAULT_NORM(u::Array{T}) where {T <: Union{AbstractFloat, Complex}}
     sqrt(real(sum(abs2, u)) / length(u))
 end
-@inline function DEFAULT_NORM(u::StaticArraysCore.StaticArray{T}) where {T <: Union{AbstractFloat, Complex}}
+@inline function DEFAULT_NORM(u::StaticArraysCore.StaticArray{T}) where {
+                                                                         T <: Union{
+                                                                               AbstractFloat,
+                                                                               Complex}}
     sqrt(real(sum(abs2, u)) / length(u))
 end
 @inline function DEFAULT_NORM(u::RecursiveArrayTools.AbstractVectorOfArray)
@@ -28,7 +31,9 @@ function value_derivative(f::F, x::R) where {F, R}
 end
 
 # Todo: improve this dispatch
-value_derivative(f::F, x::StaticArraysCore.SVector) where {F} = f(x), ForwardDiff.jacobian(f, x)
+function value_derivative(f::F, x::StaticArraysCore.SVector) where {F}
+    f(x), ForwardDiff.jacobian(f, x)
+end
 
 value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
