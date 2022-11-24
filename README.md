@@ -26,13 +26,13 @@ using NonlinearSolve, StaticArrays
 
 f(u,p) = u .* u .- 2
 u0 = @SVector[1.0, 1.0]
-probN = NonlinearProblem{false}(f, u0)
+probN = NonlinearProblem(f, u0)
 solver = solve(probN, NewtonRaphson(), tol = 1e-9)
 
 ## Bracketing Methods
 
 f(u, p) = u .* u .- 2.0
 u0 = (1.0, 2.0) # brackets
-probB = NonlinearProblem(f, u0)
+probB = IntervalNonlinearProblem(f, u0)
 sol = solve(probB, Falsi())
 ```
