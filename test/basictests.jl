@@ -30,18 +30,33 @@ end
 const csu0 = 1.0
 
 sol = benchmark_immutable(ff, cu0)
-@test sol.retcode === ReturnCode.Default
+@test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_mutable(ff, cu0)
-@test sol.retcode === ReturnCode.Default
+@test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Default
+@test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
 @test (@ballocated benchmark_immutable(ff, cu0)) < 200
 @test (@ballocated benchmark_mutable(ff, cu0)) < 200
 @test (@ballocated benchmark_scalar(sf, csu0)) < 400
+
+function benchmark_inplace(f, u0)
+    probN = NonlinearProblem{true}(f, u0)
+    solver = init(probN, NewtonRaphson(), abstol = 1e-9)
+    sol = solve!(solver)
+end
+
+function ffiip(du, u, p)
+    du .= u .* u .- 2
+end
+u0 = [1.0, 1.0]
+
+sol = benchmark_inplace(ffiip, u0)
+@test sol.retcode === ReturnCode.Success
+@test all(sol.u .* sol.u .- 2 .< 1e-9)
 
 # AD Tests
 using ForwardDiff
