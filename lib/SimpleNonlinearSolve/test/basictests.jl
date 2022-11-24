@@ -18,7 +18,7 @@ end
 const csu0 = 1.0
 
 sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Default
+@test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
 @test (@ballocated benchmark_scalar(sf, csu0)) == 0

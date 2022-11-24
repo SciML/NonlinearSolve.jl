@@ -40,11 +40,11 @@ function SciMLBase.solve(prob::NonlinearProblem,
                                                           fx)
         end
         iszero(fx) &&
-            return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Default)
+            return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
         Δx = dfx \ fx
         x -= Δx
         if isapprox(x, xo, atol = atol, rtol = rtol)
-            return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Default)
+            return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
         end
         xo = x
     end
