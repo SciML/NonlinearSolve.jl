@@ -1,13 +1,9 @@
 module SimpleNonlinearSolve
 
 using Reexport
-using UnPack: @unpack
 using FiniteDiff, ForwardDiff
 using ForwardDiff: Dual
-using Setfield
-using StaticArrays
-using RecursiveArrayTools
-using LinearAlgebra
+using StaticArraysCore
 import ArrayInterfaceCore
 
 @reexport using SciMLBase
