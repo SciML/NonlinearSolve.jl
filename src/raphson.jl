@@ -114,13 +114,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, fu, f, p, cache = cache
+    @unpack u, fu, f, p, alg = cache
     @unpack J, linsolve, du1 = cache
     calc_J!(J, cache, cache)
+
     # u = u - J \ fu
-    linsolve = dolinsolve(alg.precs, linsolve, A = J, b = fu, u = du1,
-                          p = p, reltol = cache.abstol)
-    cache.linsolve = linsolve
+    linres = dolinsolve(alg.precs, linsolve, A = J, b = fu, linu = du1,
+                        p = p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
     @. u = u - du1
     f(fu, u, p)
 
@@ -150,6 +151,8 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
 
     if cache.iter == cache.maxiters
         cache.retcode = ReturnCode.MaxIters
+    else
+        cache.retcode = ReturnCode.Success
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
