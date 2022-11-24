@@ -41,7 +41,7 @@ sol = benchmark_scalar(sf, csu0)
 
 @test (@ballocated benchmark_immutable(ff, cu0)) < 200
 @test (@ballocated benchmark_mutable(ff, cu0)) < 200
-@test (@ballocated benchmark_scalar(sf, csu0)) == 0
+@test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
 # AD Tests
 using ForwardDiff
