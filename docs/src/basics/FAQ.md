@@ -22,7 +22,7 @@ end
 
 function f2(out, levels, u0)
     for i in 1:N
-        out[i] = solve(NonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
+        out[i] = solve(NonlinearProblem{false}(NonlinearFunction{false}(myfun),
                 u0, levels[i]), SimpleNewtonRaphson()).u
     end
 end
