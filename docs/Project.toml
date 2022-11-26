@@ -2,6 +2,7 @@
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Documenter = "0.27"
