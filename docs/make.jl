@@ -9,8 +9,15 @@ makedocs(sitename = "NonlinearSolve.jl",
          authors = "Chris Rackauckas",
          modules = [NonlinearSolve, NonlinearSolve.SciMLBase],
          clean = true, doctest = false,
-         format = Documenter.HTML(analytics = "UA-90474609-3",
-                                  assets = ["assets/favicon.ico"],
+         strict = [
+             :doctest,
+             :linkcheck,
+             :parse_error,
+             :example_block,
+             # Other available options are
+             # :autodocs_block, :cross_references, :docs_block, :eval_block, :example_block, :footnote, :meta_block, :missing_docs, :setup_block
+         ],
+         format = Documenter.HTML(assets = ["assets/favicon.ico"],
                                   canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
          pages = pages)
 

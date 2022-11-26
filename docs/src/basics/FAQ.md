@@ -5,7 +5,7 @@
 This is addressed in a [Twitter thread with the author of the improved fzero](https://twitter.com/ChrisRackauckas/status/1544743542094020615).
 On the test example:
 
-```julia
+```@example
 using NonlinearSolve, BenchmarkTools
 
 N = 100_000;
@@ -22,7 +22,7 @@ end
 
 function f2(out, levels, u0)
     for i in 1:N
-        out[i] = solve(IntervalNonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
+        out[i] = solve(NonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
                 u0, levels[i]), SimpleNewtonRaphson()).u
     end
 end
