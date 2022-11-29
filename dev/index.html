@@ -3,15 +3,15 @@
 Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><ul><li>Please refer to the <a href="https://github.com/SciML/ColPrac/blob/master/README.md">SciML ColPrac: Contributor&#39;s Guide on Collaborative Practices for Community Packages</a> for guidance on PRs, issues, and other matters relating to contributing to SciML.</li><li>See the <a href="https://github.com/SciML/SciMLStyle">SciML Style Guide</a> for common coding practices and other style decisions.</li><li>There are a few community forums:<ul><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.org/slack/">Julia Slack</a></li><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged">Julia Zulip</a></li><li>On the <a href="https://discourse.julialang.org">Julia Discourse forums</a></li><li>See also <a href="https://sciml.ai/community/">SciML Community page</a></li></ul></li></ul><h2 id="Roadmap"><a class="docs-heading-anchor" href="#Roadmap">Roadmap</a><a id="Roadmap-1"></a><a class="docs-heading-anchor-permalink" href="#Roadmap" title="Permalink"></a></h2><p>The current algorithms should support automatic differentiation, though improved adjoint overloads are planned to be added in the current update (which will make use of the <code>f(u,p)</code> form). Future updates will include standard methods for larger scale nonlinear solving like Newton-Krylov methods.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Project.toml`
   [6e4b80f9] BenchmarkTools v1.3.2
   [e30172f5] Documenter v0.27.23
-  [8913a72c] NonlinearSolve v1.0.0 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
-  [90137ffa] StaticArrays v1.5.10</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.8.3
+  [8913a72c] NonlinearSolve v1.0.1 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
+  [90137ffa] StaticArrays v1.5.11</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.8.3
 Commit 0434deb161e (2022-11-14 20:14 UTC)
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+  CPU: 2 × Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-13.0.1 (ORCJIT, icelake-server)
+  LLVM: libLLVM-13.0.1 (ORCJIT, skylake-avx512)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Manifest.toml`
   [a4c015fc] ANSIColoredPrinters v0.0.1
   [79e6a3ab] Adapt v3.4.0
@@ -29,7 +29,7 @@ Platform Info:
   [fb6a15b2] CloseOpenIntervals v0.1.11
   [38540f10] CommonSolve v0.2.3
   [bbf7d656] CommonSubexpressions v0.3.0
-  [34da2185] Compat v4.4.0
+  [34da2185] Compat v4.5.0
   [187b0558] ConstructionBase v1.4.1
   [adafc99b] CpuId v0.3.1
   [9a962f9c] DataAPI v1.13.0
@@ -64,10 +64,10 @@ Platform Info:
   [692b3bcd] JLLWrappers v1.4.1
   [682c06a0] JSON v0.21.3
   [ef3ab10e] KLU v0.4.0
-⌅ [ba0b0d4f] Krylov v0.8.4
+  [ba0b0d4f] Krylov v0.9.0
   [0b1a1467] KrylovKit v0.6.0
   [10f19ff3] LayoutPointers v0.1.12
-  [7ed4a6bd] LinearSolve v1.29.1
+  [7ed4a6bd] LinearSolve v1.31.0
   [2ab3a3ac] LogExpFunctions v0.3.19
   [bdcacae8] LoopVectorization v0.12.141
   [1914dd2f] MacroTools v0.5.10
@@ -75,7 +75,7 @@ Platform Info:
   [e1d29d7a] Missings v1.0.2
   [46d2c3a1] MuladdMacro v0.2.4
   [77ba4419] NaNMath v1.0.1
-  [8913a72c] NonlinearSolve v1.0.0 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
+  [8913a72c] NonlinearSolve v1.0.1 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
   [6fe1bfb0] OffsetArrays v1.12.8
   [bac558e1] OrderedCollections v1.4.1
   [90014a1f] PDMats v0.11.16
@@ -86,7 +86,7 @@ Platform Info:
   [21216c6a] Preferences v1.3.0
   [1fd47b50] QuadGK v2.6.0
   [3cdcf5f2] RecipesBase v1.3.1
-  [731186ca] RecursiveArrayTools v2.32.2
+  [731186ca] RecursiveArrayTools v2.32.3
   [f2c3362d] RecursiveFactorization v0.2.12
   [189a3867] Reexport v1.2.2
   [ae029012] Requires v1.3.0
@@ -95,14 +95,14 @@ Platform Info:
   [3cdde19b] SIMDDualNumbers v0.1.1
   [94e857df] SIMDTypes v0.1.0
   [476501e8] SLEEFPirates v0.6.37
-  [0bca4576] SciMLBase v1.75.0
+  [0bca4576] SciMLBase v1.76.1
   [efcf1570] Setfield v1.1.1
   [727e6d20] SimpleNonlinearSolve v0.1.2
   [66db9d55] SnoopPrecompile v1.0.1
   [a2af1166] SortingAlgorithms v1.1.0
   [276daf66] SpecialFunctions v2.1.7
   [aedffcd0] Static v0.8.2
-  [90137ffa] StaticArrays v1.5.10
+  [90137ffa] StaticArrays v1.5.11
   [1e83bf80] StaticArraysCore v1.4.0
   [82ae8749] StatsAPI v1.5.0
   [2913bbd2] StatsBase v0.33.21
@@ -164,5 +164,5 @@ Platform Info:
   [8e850ede] nghttp2_jll v1.48.0+0
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the
-<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.0.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.0.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/nonlinear/">Solving Nonlinear Systems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Saturday 26 November 2022 18:14">Saturday 26 November 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.0.1/assets/Manifest.toml">manifest</a> file and the
+<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.0.1/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/nonlinear/">Solving Nonlinear Systems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 29 November 2022 13:02">Tuesday 29 November 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
