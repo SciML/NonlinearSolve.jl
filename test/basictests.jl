@@ -39,9 +39,9 @@ sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
-@test (@ballocated benchmark_immutable(ff, cu0)) < 200
-@test (@ballocated benchmark_mutable(ff, cu0)) < 200
-@test (@ballocated benchmark_scalar(sf, csu0)) < 400
+#@test (@ballocated benchmark_immutable(ff, cu0)) < 200
+#@test (@ballocated benchmark_mutable(ff, cu0)) < 200
+#@test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
 function benchmark_inplace(f, u0)
     probN = NonlinearProblem{true}(f, u0)
