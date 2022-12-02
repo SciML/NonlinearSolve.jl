@@ -54,7 +54,7 @@ end
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
-    J = false .* u .* u'
+    J = ArrayInterfaceCore.undefmatrix(u)
 
     linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     weight = similar(u)
