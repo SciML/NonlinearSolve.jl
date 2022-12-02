@@ -65,20 +65,10 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
                     Pl = Pl, Pr = Pr)
 
-    du1 = zero(u)
+    du1 = zero(u); du2 = zero(u)
     tmp = zero(u)
-    if alg_autodiff(alg)
-        jac_config = ForwardDiff.JacobianConfig(uf, du1, u)
-    else
-        if alg.diff_type != Val{:complex}
-            du2 = zero(u)
-            jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg.diff_type)
-        else
-            jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),
-                                                  Complex{eltype(du1)}.(du1), nothing,
-                                                  alg.diff_type, eltype(u))
-        end
-    end
+    jac_config = build_jac_config(alg, f, uf, du1, u, tmp, du2)
+
     uf, linsolve, J, du1, jac_config
 end
 

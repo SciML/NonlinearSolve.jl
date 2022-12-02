@@ -10,6 +10,7 @@ using RecursiveArrayTools
 import ArrayInterfaceCore
 import LinearSolve
 using DiffEqBase
+using SparseDiffTools
 
 @reexport using SciMLBase
 @reexport using SimpleNonlinearSolve
