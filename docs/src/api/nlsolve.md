@@ -12,5 +12,5 @@ using SciMLNLSolve
 ## Solver API
 
 ```@docs
-NLsolveJL
+NLSolveJL
 ```
