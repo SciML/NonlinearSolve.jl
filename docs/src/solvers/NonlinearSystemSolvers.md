@@ -70,9 +70,6 @@ Submethod choices for this algorithm include:
 - `:newton`: Classical Newton method with an optional line search
 - `:trust_region`: Trust region Newton method (the default choice)
 
-For more information on these arguments, consult the
-[NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
-
 ### MINPACK.jl
 
 MINPACK.jl methods are good for medium-sized nonlinear solves. It does not scale due to
