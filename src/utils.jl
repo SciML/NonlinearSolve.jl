@@ -49,17 +49,18 @@ function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {
 end
 
 function concrete_jac(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
-    ST, CJ}
-CJ
+                                                                                ST, CJ}
+    CJ
 end
 
-function get_chunksize(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
-    ST, CJ}
+function get_chunksize(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD,
+                                                                                 FDT,
+                                                                                 ST, CJ}
     Val(CS)
 end
 
 function standardtag(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
-    ST, CJ}
+                                                                               ST, CJ}
     ST
 end
 

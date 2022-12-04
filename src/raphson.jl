@@ -65,7 +65,8 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
                     Pl = Pl, Pr = Pr)
 
-    du1 = zero(u); du2 = zero(u)
+    du1 = zero(u)
+    du2 = zero(u)
     tmp = zero(u)
     jac_config = build_jac_config(alg, f, uf, du1, u, tmp, du2)
 
@@ -73,7 +74,7 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
 end
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
-    JacobianWrapper(f,p), nothing, nothing, nothing, nothing
+    JacobianWrapper(f, p), nothing, nothing, nothing, nothing
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson,

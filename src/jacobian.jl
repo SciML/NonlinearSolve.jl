@@ -109,7 +109,7 @@ function jacobian_finitediff(f, x::AbstractArray, ::Type{diff_type}, dir, colorv
                                               jac_prototype = jac_prototype)
     return J, _nfcount(maximum(colorvec), diff_type)
 end
-function jacobian(cache, f::F) where F
+function jacobian(cache, f::F) where {F}
     x = cache.u
     alg = cache.alg
     uf = cache.uf
@@ -136,7 +136,8 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
     maxcolor = maximum(colorvec)
     chunk_size = get_chunksize(alg) === Val(0) ? nothing : get_chunksize(alg)
     num_of_chunks = chunk_size === nothing ?
-                    Int(ceil(maxcolor / SparseDiffTools.getsize(ForwardDiff.pickchunksize(maxcolor)))) :
+                    Int(ceil(maxcolor /
+                             SparseDiffTools.getsize(ForwardDiff.pickchunksize(maxcolor)))) :
                     Int(ceil(maxcolor / _unwrap_val(chunk_size)))
     (forwarddiff_color_jacobian(f, x, colorvec = colorvec, sparsity = sparsity,
                                 jac_prototype = jac_prototype, chunksize = chunk_size),
