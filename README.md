@@ -42,10 +42,10 @@ sol = solve(probB, Falsi())
 
 v1.0 has been released for NonlinearSolve.jl, making it a decentralized solver library
 akin to DifferentialEquations.jl. For simple implementations of nonlinear solvers,
-you can now use SimpleNonlinearSolve.jl. `Falsi`, `Bisection`, and `NewtonRahpson`
+you can now use SimpleNonlinearSolve.jl. `Falsi`, `Bisection`, and `NewtonRaphson`
 implementations designed for scalar and static vector inputs have all moved to the
 lower dependency version. NonlinearSolve.jl is thus designed for the larger scale
-more complex implementations, with `NewtonRahpson` now sporting support for
+more complex implementations, with `NewtonRaphson` now sporting support for
 LinearSolve.jl and soon SparseDiffTools.jl to allow for preconditioned Newton-Krylov and
 exploitation of sparsity. The two pieces will continue to grow in this direction,
 with NonlinearSolve.jl gaining more and more wrapped solver libraries and support
