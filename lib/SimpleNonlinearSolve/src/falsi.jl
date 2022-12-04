@@ -1,3 +1,6 @@
+"""
+`Falsi`: A non-allocating regula falsi method
+"""
 struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
