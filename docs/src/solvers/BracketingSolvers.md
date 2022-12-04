@@ -5,8 +5,6 @@
 Solves for ``f(t)=0`` in the problem defined by `prob` using the algorithm
 `alg`. If no algorithm is given, a default algorithm will be chosen.
 
-This page is solely focused on the bracketing methods for scalar nonlinear equations.
-
 ## Recommended Methods
 
 `Falsi()` can have a faster convergence and is discretely differentiable, but is

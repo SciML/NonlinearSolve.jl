@@ -7,8 +7,8 @@ ability to use sparse automatic differentiation for Jacobian construction and
 Jacobian-vector products. It interfaces with other packages of the Julia ecosystem
 to make it easy to test alternative solver packages and pass small types to
 control algorithm swapping. It also interfaces with the
-[ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/stable/) world of symbolic modeling to
-allow for automatically generating high-performance code.
+[ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/stable/) world of symbolic
+modeling to allow for automatically generating high-performance code.
 
 Performance is key: the current methods are made to be highly performant on
 scalar and statically sized small problems, with options for large-scale systems.
@@ -39,14 +39,8 @@ Pkg.add("NonlinearSolve")
     - On the [Julia Discourse forums](https://discourse.julialang.org)
     - See also [SciML Community page](https://sciml.ai/community/)
 
-## Roadmap
-
-The current algorithms should support automatic differentiation, though improved
-adjoint overloads are planned to be added in the current update (which will make
-use of the `f(u,p)` form). Future updates will include standard methods for
-larger scale nonlinear solving like Newton-Krylov methods.
-
 ## Reproducibility
+
 ```@raw html
 <details><summary>The documentation of this SciML package was built using these direct dependencies,</summary>
 ```
