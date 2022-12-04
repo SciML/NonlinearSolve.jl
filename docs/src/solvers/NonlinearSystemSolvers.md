@@ -29,9 +29,17 @@ then `NLSolveJL`'s `:anderson` can be a good choice.
 
 These are the core solvers.
 
-- `NewtonRaphson(;autodiff=true,chunk_size=12,diff_type=Val{:forward},linsolve=DEFAULT_LINSOLVE)`:
+- `NewtonRaphson()`:
   A Newton-Raphson method with swappable nonlinear solvers and autodiff methods
   for high performance on large and sparse systems.
+
+#### Details on Controlling NonlinearSolve.jl Solvers
+
+```julia
+NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
+                standardtag = Val{true}(), concrete_jac = nothing,
+                diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
+```
 
 ### SimpleNonlinearSolve.jl
 

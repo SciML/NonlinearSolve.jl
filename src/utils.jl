@@ -48,6 +48,22 @@ function alg_difftype(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {
     FDT
 end
 
+function concrete_jac(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
+                                                                                ST, CJ}
+    CJ
+end
+
+function get_chunksize(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD,
+                                                                                 FDT,
+                                                                                 ST, CJ}
+    Val(CS)
+end
+
+function standardtag(alg::AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}) where {CS, AD, FDT,
+                                                                               ST, CJ}
+    ST
+end
+
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
@@ -96,4 +112,15 @@ function wrapprecs(_Pl, _Pr, weight)
         Pr = Diagonal(_vec(weight))
     end
     Pl, Pr
+end
+
+function _nfcount(N, ::Type{diff_type}) where {diff_type}
+    if diff_type === Val{:complex}
+        tmp = N
+    elseif diff_type === Val{:forward}
+        tmp = N + 1
+    else
+        tmp = 2N
+    end
+    tmp
 end

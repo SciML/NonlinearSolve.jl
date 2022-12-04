@@ -9,4 +9,5 @@ const is_APPVEYOR = Sys.iswindows() && haskey(ENV, "APPVEYOR")
 
 if GROUP == "All" || GROUP == "Core"
     @time @safetestset "Basic Tests + Some AD" begin include("basictests.jl") end
+    @time @safetestset "Sparsity Tests" begin include("sparse.jl") end
 end end
