@@ -1,4 +1,5 @@
-using Documenter, NonlinearSolve
+using Documenter, NonlinearSolve, SimpleNonlinearSolve, Sundials, SciMLNLSolve,
+      NonlinearSolveMINPACK, SteadyStateDiffEq
 
 cp("./docs/Manifest.toml", "./docs/src/assets/Manifest.toml", force = true)
 cp("./docs/Project.toml", "./docs/src/assets/Project.toml", force = true)
@@ -7,7 +8,8 @@ include("pages.jl")
 
 makedocs(sitename = "NonlinearSolve.jl",
          authors = "Chris Rackauckas",
-         modules = [NonlinearSolve, NonlinearSolve.SciMLBase],
+         modules = [NonlinearSolve, NonlinearSolve.SciMLBase, SimpleNonlinearSolve,
+         Sundials, SciMLNLSolve, NonlinearSolveMINPACK, SteadyStateDiffEq],
          clean = true, doctest = false,
          strict = [
              :doctest,
