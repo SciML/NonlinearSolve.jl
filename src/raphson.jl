@@ -110,7 +110,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     jacobian!(J, cache)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve, A = J, b = fu, linu = du1,
+    linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
                         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. u = u - du1

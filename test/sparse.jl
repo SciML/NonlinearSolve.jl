@@ -1,4 +1,4 @@
-using NonlinearSolve, LinearAlgebra, SparseArrays
+using NonlinearSolve, LinearAlgebra, SparseArrays, Symbolics
 
 const N = 32
 const xyd_brusselator = range(0,stop=1,length=N)
@@ -34,10 +34,16 @@ u0 = init_brusselator_2d(xyd_brusselator)
 prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop,u0,p)
 sol = solve(prob_brusselator_2d, NewtonRaphson())
 
-using Symbolics
 du0 = copy(u0)
 jac_sparsity = Symbolics.jacobian_sparsity((du,u)->brusselator_2d_loop(du,u,p),du0,u0)
 
-f = NonlinearFunction(brusselator_2d_loop;jac_prototype=float.(jac_sparsity))
-prob_brusselator_2d = NonlinearProblem(f,u0,p)
+ff = NonlinearFunction(brusselator_2d_loop;jac_prototype=float.(jac_sparsity))
+prob_brusselator_2d = NonlinearProblem(ff,u0,p)
 sol = solve(prob_brusselator_2d, NewtonRaphson())
+@test norm(sol.resid) < 1e-8
+
+sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff=false))
+@test norm(sol.resid) < 1e-6
+
+cache = init(prob_brusselator_2d, NewtonRaphson())
+@test maximum(cache.jac_config.colorvec) == 12

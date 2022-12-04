@@ -38,15 +38,14 @@ function jacobian!(J::AbstractMatrix{<:Number}, cache)
     else
         isforward = alg_difftype(alg) === Val{:forward}
         if isforward
-            forwardcache = get_tmp_cache(cache, alg, unwrap_cache(cache, true))[2]
-            uf(forwardcache, x)
+            uf(fx, x)
             #cache.destats.nf += 1
-            tmp = jacobian_finitediff_forward!(J, uf, x, jac_config, forwardcache,
+            tmp = jacobian_finitediff_forward!(J, uf, x, jac_config, fx,
                                                cache)
         else # not forward difference
             tmp = jacobian_finitediff!(J, uf, x, jac_config, cache)
         end
-        cache.destats.nf += tmp
+        #cache.destats.nf += tmp
     end
     nothing
 end
