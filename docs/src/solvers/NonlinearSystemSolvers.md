@@ -17,7 +17,7 @@ is an implementation which is specialized for small equations. It is non-allocat
 static arrays and thus really well-optimized for small systems, thus usually outperforming
 the other methods when such types are used for `u0`. `NLSolveJL`'s
 `:trust_region` method can be a good choice for high stability, along with
-`CMINPACK`.s
+`DynamicSS`.
 
 For a system which is very non-stiff (i.e., the condition number of the Jacobian
 is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
@@ -51,9 +51,48 @@ can be used directly to reduce dependencies and improve load times.
   very efficient and non-allocating. Thus this implmentation is well-suited for small
   systems of equations.
 
+### SteadyStateDiffEq.jl
+
+Note that these solvers do not come by default, and thus one needs to install
+the package before using these solvers:
+
+```julia
+]add SteadyStateDiffEq
+using SteadyStateDiffEq
+```
+
+SteadyStateDiffEq.jl uses ODE solvers to iteratively approach the steady state. It is a
+very stable method for solving nonlinear systems, though in many cases can be more
+computationally expensive than direct methods.
+
+- `DynamicSS` : Uses an ODE solver to find the steady state. Automatically
+  terminates when close to the steady state.
+  `DynamicSS(alg;abstol=1e-8,reltol=1e-6,tspan=Inf)` requires that an
+  ODE algorithm is given as the first argument.  The absolute and
+  relative tolerances specify the termination conditions on the
+  derivative's closeness to zero.  This internally uses the
+  `TerminateSteadyState` callback from the Callback Library.  The
+  simulated time for which given ODE is solved can be limited by
+  `tspan`.  If `tspan` is a number, it is equivalent to passing
+  `(zero(tspan), tspan)`.
+
+Example usage:
+
+```julia
+using NonlinearSolve, SteadyStateDiffEq, OrdinaryDiffEq
+sol = solve(prob,DynamicSS(Tsit5()))
+
+using Sundials
+sol = solve(prob,DynamicSS(CVODE_BDF()),dt=1.0)
+```
+
+!!! note
+
+    If you use `CVODE_BDF` you may need to give a starting `dt` via `dt=....`.*
+
 ### SciMLNLSolve.jl
 
-This is a wrapper package for importing solvers from other packages into this interface.
+This is a wrapper package for importing solvers from NLsolve.jl into this interface.
 Note that these solvers do not come by default, and thus one needs to install
 the package before using these solvers:
 
@@ -62,7 +101,6 @@ the package before using these solvers:
 using SciMLNLSolve
 ```
 
-- `CMINPACK()`: A wrapper for using the classic MINPACK method through [MINPACK.jl](https://github.com/sglyon/MINPACK.jl)
 - `NLSolveJL()`: A wrapper for [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl)
 
 ```julia
@@ -134,3 +172,34 @@ The choices for the linear solver are:
 - `:KLU`: A sparse factorization method. Requires that the user specify a
   Jacobian. The Jacobian must be set as a sparse matrix in the `ODEProblem`
   type.
+
+### NonlinearSolveMINPACK
+
+This is a wrapper package for importing solvers from MINPACK.jl into this interface.
+Note that these solvers do not come by default, and thus one needs to install
+the package before using these solvers:
+
+```julia
+]add NonlinearSolveMINPACK
+using NonlinearSolveMINPACK
+```
+
+- `CMINPACK()`: A wrapper for using the classic MINPACK method through [MINPACK.jl](https://github.com/sglyon/MINPACK.jl)
+
+```julia
+CMINPACK(;show_trace::Bool=false, tracing::Bool=false, method::Symbol=:hybr,
+          io::IO=stdout)
+```
+
+The keyword argument `method` can take on different value depending on which method of `fsolve` you are calling. The standard choices of `method` are:
+
+- `:hybr`: Modified version of Powell's algorithm. Uses MINPACK routine [`hybrd1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd1.c)
+- `:lm`: Levenberg-Marquardt. Uses MINPACK routine [`lmdif1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif1.c)
+- `:lmdif`: Advanced Levenberg-Marquardt (more options available with `;kwargs...`). See MINPACK routine [`lmdif`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif.c) for more information
+- `:hybrd`: Advacned modified version of Powell's algorithm (more options available with `;kwargs...`). See MINPACK routine [`hybrd`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd.c) for more information
+
+If a Jacobian is supplied as part of the [`NonlinearFunction`](@ref nonlinearfunctions),
+then the following methods are allowed:
+
+- `:hybr`: Advacned modified version of Powell's algorithm with user supplied Jacobian. Additional arguments are available via `;kwargs...`. See MINPACK routine [`hybrj`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrj.c) for more information
+- `:lm`: Advanced Levenberg-Marquardt with user supplied Jacobian. Additional arguments are available via `;kwargs...`. See MINPACK routine [`lmder`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c) for more information
