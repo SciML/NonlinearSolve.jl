@@ -73,7 +73,7 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
 end
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
-    nothing, nothing, nothing, nothing, nothing
+    JacobianWrapper(f,p), nothing, nothing, nothing, nothing
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson,
@@ -106,7 +106,7 @@ end
 function perform_step!(cache::NewtonRaphsonCache{true})
     @unpack u, fu, f, p, alg = cache
     @unpack J, linsolve, du1 = cache
-    calc_J!(J, cache, cache)
+    jacobian!(J, cache)
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve, A = J, b = fu, linu = du1,
@@ -123,10 +123,9 @@ end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
     @unpack u, fu, f, p = cache
-    J = calc_J(cache, ImmutableJacobianWrapper(f, p))
+    J = jacobian(cache, f)
     cache.u = u - J \ fu
-    fu = f(cache.u, p)
-    cache.fu = fu
+    cache.fu = f(cache.u, p)
     if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
     end
