@@ -9,7 +9,7 @@ the package before using these solvers:
 using Sundials
 ```
 
-These methods can be used independently of the rest of NonlinearSolve.jl
+These methods can be used independently of the rest of NonlinearSolve.jl.
 
 ## Solver API
 
