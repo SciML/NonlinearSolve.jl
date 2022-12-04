@@ -9,7 +9,7 @@ include("pages.jl")
 makedocs(sitename = "NonlinearSolve.jl",
          authors = "Chris Rackauckas",
          modules = [NonlinearSolve, NonlinearSolve.SciMLBase, SimpleNonlinearSolve,
-         Sundials, SciMLNLSolve, NonlinearSolveMINPACK, SteadyStateDiffEq],
+             Sundials, SciMLNLSolve, NonlinearSolveMINPACK, SteadyStateDiffEq],
          clean = true, doctest = false,
          strict = [
              :doctest,

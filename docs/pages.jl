@@ -7,16 +7,13 @@ pages = ["index.md",
                     "basics/NonlinearFunctions.md",
                     "basics/NonlinearSolution.md",
                     "basics/FAQ.md"],
-    "Solver Summaries and Recommendations" => Any[
-                     "solvers/NonlinearSystemSolvers.md",
-                     "solvers/BracketingSolvers.md",
-                     "solvers/SteadyStateSolvers.md"],
-    "Detailed Solver APIs" => Any[
-        "nonlinearsolve.md",
-        "simplenonlinearsolve.md",
-        "minpack.md",
-        "nlsolve.md",
-        "sundials.md",
-        "steadystatediffeq.md"
-    ]
+    "Solver Summaries and Recommendations" => Any["solvers/NonlinearSystemSolvers.md",
+                                                  "solvers/BracketingSolvers.md",
+                                                  "solvers/SteadyStateSolvers.md"],
+    "Detailed Solver APIs" => Any["api/nonlinearsolve.md",
+                                  "api/simplenonlinearsolve.md",
+                                  "api/minpack.md",
+                                  "api/nlsolve.md",
+                                  "api/sundials.md",
+                                  "api/steadystatediffeq.md"],
 ]
