@@ -5,6 +5,7 @@
 
 [![codecov](https://codecov.io/gh/SciML/NonlinearSolve.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SciML/NonlinearSolve.jl)
 [![Build Status](https://github.com/SciML/NonlinearSolve.jl/workflows/CI/badge.svg)](https://github.com/SciML/NonlinearSolve.jl/actions?query=workflow%3ACI)
+[![Build status](https://badge.buildkite.com/413dc8df7d555cc14c262aba066503a9e7a42023f9cfb75a55.svg)](https://buildkite.com/julialang/nonlinearsolve-dot-jl)
 
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
@@ -45,7 +46,7 @@ you can now use SimpleNonlinearSolve.jl. `Falsi`, `Bisection`, and `NewtonRahpso
 implementations designed for scalar and static vector inputs have all moved to the
 lower dependency version. NonlinearSolve.jl is thus designed for the larger scale
 more complex implementations, with `NewtonRahpson` now sporting support for
-LinearSolve.jl and soon SparseDiffTools.jl to allow for preconditioned Newton-Krylov and 
+LinearSolve.jl and soon SparseDiffTools.jl to allow for preconditioned Newton-Krylov and
 exploitation of sparsity. The two pieces will continue to grow in this direction,
 with NonlinearSolve.jl gaining more and more wrapped solver libraries and support
 for more complex methods, while SimpleNonlinearSolve.jl will keep a lower dependency
