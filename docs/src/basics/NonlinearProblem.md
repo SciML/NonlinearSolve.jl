@@ -6,7 +6,7 @@ NonlinearSolve.jl tackles three related types of nonlinear systems:
 
 1. Interval rootfinding problems. I.e., find the ``t \in [t_0, t_f]`` such that ``f(t) = 0``.
 2. Systems of nonlinear equations, i.e. find the ``u`` such that ``f(u) = 0``.
-3. Steady state problems, i.e. find the `u` such that `u' = f(u,t)` has reached steady state,
+3. Steady state problems, i.e. find the ``u`` such that ``u' = f(u,t)`` has reached steady state,
    i.e. ``0 = f(u, ∞)``.
 
 The first is for solving scalar rootfinding problems, i.e. finding a single number, and
