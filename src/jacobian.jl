@@ -32,7 +32,9 @@ function jacobian!(J::AbstractMatrix{<:Number}, cache)
     jac_config = cache.jac_config
     alg = cache.alg
 
-    if alg_autodiff(alg)
+    if SciMLBase.has_jac(f)
+        f.jac(J, x, cache.p)
+    elseif alg_autodiff(alg)
         forwarddiff_color_jacobian!(J, uf, x, jac_config)
         #cache.destats.nf += 1
     else
