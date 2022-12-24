@@ -49,7 +49,8 @@ function SciMLBase.solve(prob::NonlinearProblem,
         error("SimpleNewtonRaphson currently only supports out-of-place nonlinear problems")
     end
 
-    atol = abstol !== nothing ? abstol : real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
+    atol = abstol !== nothing ? abstol :
+           real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
     rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
 
     if typeof(x) <: Number
@@ -78,5 +79,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
         end
         xo = x
     end
+
+    @show x, fx
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
