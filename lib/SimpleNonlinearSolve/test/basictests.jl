@@ -77,7 +77,7 @@ for alg in [Bisection(), Falsi()]
     global g, p
     g = function (p)
         probN = IntervalNonlinearProblem{false}(f, tspan, p)
-        sol = solve(probN, Bisection())
+        sol = solve(probN, Bisection())  # TODO check if "alg" should replace "Bisection()"
         return [sol.left]
     end
 
@@ -102,6 +102,7 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, SimpleNewtonRaphson(); immutable = false).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
+# TODO check why the 2 lines above are identical
 
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
@@ -109,6 +110,7 @@ for u0 in [1.0, [1, 1.0]]
     probN = NonlinearProblem(f, u0)
     sol = sqrt(2) * u0
 
+    # TODO check why the two lines below are identical
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u ≈ sol

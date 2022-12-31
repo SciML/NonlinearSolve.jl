@@ -4,6 +4,7 @@ using Reexport
 using FiniteDiff, ForwardDiff
 using ForwardDiff: Dual
 using StaticArraysCore
+using LinearAlgebra # TODO check if it is ok to add this
 import ArrayInterfaceCore
 
 @reexport using SciMLBase
@@ -18,12 +19,13 @@ include("bisection.jl")
 include("falsi.jl")
 include("raphson.jl")
 include("ad.jl")
+include("broyden.jl")
 
 import SnoopPrecompile
 
 SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-    for alg in (SimpleNewtonRaphson,)
+    for alg in (SimpleNewtonRaphson, Broyden)
         solve(prob_no_brack, alg(), tol = T(1e-2))
     end
 
@@ -44,6 +46,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 # DiffEq styled algorithms
-export Bisection, Falsi, SimpleNewtonRaphson
+export Bisection, Broyden, Falsi, SimpleNewtonRaphson
 
 end # module
