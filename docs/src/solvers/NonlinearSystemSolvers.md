@@ -54,7 +54,7 @@ SteadyStateDiffEq.jl uses ODE solvers to iteratively approach the steady state. 
 very stable method for solving nonlinear systems, though in many cases can be more
 computationally expensive than direct methods.
 
-- `DynamicSS` : Uses an ODE solver to find the steady state. Automatically
+- `DynamicSS()` : Uses an ODE solver to find the steady state. Automatically
   terminates when close to the steady state.
 
 ### SciMLNLSolve.jl
