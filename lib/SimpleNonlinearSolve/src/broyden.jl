@@ -16,11 +16,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     x = float(prob.u0)
     fₙ = f(x)
     T = eltype(x)
-    if length(x) > 1
-        J⁻¹ = Matrix{T}(I, length(x), length(x))
-    else
-        J⁻¹ = 1
-    end
+    J⁻¹ = ArrayInterfaceCore.zeromatrix(x)
 
     if SciMLBase.isinplace(prob)
         error("Broyden currently only supports out-of-place nonlinear problems")
