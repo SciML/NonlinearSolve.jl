@@ -6,7 +6,6 @@ Broyden()
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
 """
-
 struct Broyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.solve(prob::NonlinearProblem,
