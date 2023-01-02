@@ -52,7 +52,5 @@ function SciMLBase.solve(prob::NonlinearProblem,
         fₙ₋₁ = fₙ
     end
 
-    @show xₙ, fₙ
-
     return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
 end
