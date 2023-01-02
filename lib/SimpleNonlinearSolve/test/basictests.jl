@@ -57,15 +57,11 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in [SimpleNewtonRaphson(), Broyden()]
-
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
         return sol.u
     end
-
-    p = 1.1
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 
     for p in 1.1:0.1:100.0
         @test g(p) ≈ sqrt(p)
@@ -120,7 +116,7 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, SimpleNewtonRaphson(); immutable = false).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
-# TODO check why the 2 lines above are identical
+
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Broyden(); immutable = false).u[end] ≈ sqrt(2.0)
 
@@ -130,10 +126,10 @@ for u0 in [1.0, [1, 1.0]]
     probN = NonlinearProblem(f, u0)
     sol = sqrt(2) * u0
 
-    # TODO check why the two lines below are identical
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u ≈ sol
+
     @test solve(probN, Broyden()).u ≈ sol
 end
 

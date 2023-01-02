@@ -1,14 +1,18 @@
-# TODO add docstrings
+"""
+```julia
+Broyden()
+```
 
-# TODO check what the supertype should be
-# TODO check if this should be defined as in raphson.jl
+A low-overhead implementation of Broyden. This method is non-allocating on scalar
+and static array problems.
+"""
+
 struct Broyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.solve(prob::NonlinearProblem,
-    alg::Broyden, args...; abstol = nothing,
-    reltol = nothing,
-    maxiters = 1000, kwargs...)
-
+                         alg::Broyden, args...; abstol = nothing,
+                         reltol = nothing,
+                         maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fₙ = f(x)
@@ -30,8 +34,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     xₙ = x
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
-    for n in 1:maxiters
-
+    for _ in 1:maxiters
         xₙ = xₙ₋₁ - J⁻¹ * fₙ₋₁
         fₙ = f(xₙ)
         Δxₙ = xₙ - xₙ₋₁

@@ -4,7 +4,7 @@ using Reexport
 using FiniteDiff, ForwardDiff
 using ForwardDiff: Dual
 using StaticArraysCore
-using LinearAlgebra # TODO check if it is ok to add this
+using LinearAlgebra
 import ArrayInterfaceCore
 
 @reexport using SciMLBase
