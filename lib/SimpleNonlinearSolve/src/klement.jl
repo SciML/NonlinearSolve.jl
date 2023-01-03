@@ -5,8 +5,6 @@ Klement()
 
 A low-overhead implementation of [Klement](https://jatm.com.br/jatm/article/view/373).
 This method is non-allocating on scalar and static array problems.
-
-
 """
 struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
 
@@ -32,7 +30,6 @@ function SciMLBase.solve(prob::NonlinearProblem,
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
     for _ in 1:maxiters
-
         xₙ = xₙ₋₁ - inv(J) * fₙ₋₁
         fₙ = f(xₙ)
         Δxₙ = xₙ - xₙ₋₁
