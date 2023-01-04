@@ -12,12 +12,12 @@ for large-scale and numerically-difficult nonlinear systems.
 ### Keyword Arguments
 
 - `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
-  system. This allows for multiple derivative columns to be computed simultaniously,
+  system. This allows for multiple derivative columns to be computed simultaneously,
   improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
   default chunk size mechanism. For more details, see the documentation for
   [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
 - `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
-  Note that this argument is ignored if an analytical Jacobian is passed as that will be
+  Note that this argument is ignored if an analytical Jacobian is passed, as that will be
   used instead. Defaults to `Val{true}`, which means ForwardDiff.jl via
   SparseDiffTools.jl is used by default. If `Val{false}`, then FiniteDiff.jl is used for
   finite differencing.
@@ -35,17 +35,17 @@ for large-scale and numerically-difficult nonlinear systems.
   `Val{:forward}` for forward finite differences. For more details on the choices, see the
   [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
 - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-  linear solves within the Newton method. Defaults to `nothing`, which menans it uses the
+  linear solves within the Newton method. Defaults to `nothing`, which means it uses the
   LinearSolve.jl default algorithm choice. For more information on available algorithm
-  choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/)
+  choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
   preconditioners. For more information on specifying preconditioners for LinearSolve
   algorithms, consult the
-  [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/)
+  [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 
 !!! note
 
-    Currently the linear solver and chunk size choice only applies to in-place defined
+    Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
 struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:

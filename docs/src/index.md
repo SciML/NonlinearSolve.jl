@@ -1,10 +1,10 @@
 # NonlinearSolve.jl: High-Performance Unified Nonlinear Solvers
 
 NonlinearSolve.jl is a unified interface for the nonlinear solving packages of
-Julia. It includes its own high-performance nonlinear solvers which include the
+Julia. The package includes its own high-performance nonlinear solvers which include the
 ability to swap out to fast direct and iterative linear solvers, along with the
 ability to use sparse automatic differentiation for Jacobian construction and
-Jacobian-vector products. It interfaces with other packages of the Julia ecosystem
+Jacobian-vector products. NonlinearSolve.jl interfaces with other packages of the Julia ecosystem
 to make it easy to test alternative solver packages and pass small types to
 control algorithm swapping. It also interfaces with the
 [ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/stable/) world of symbolic
