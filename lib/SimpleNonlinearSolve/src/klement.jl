@@ -16,7 +16,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     x = float(prob.u0)
     fₙ = f(x)
     T = eltype(x)
-    J = ArrayInterfaceCore.zeromatrix(x) + I
+    J = init_J(x)
 
     if SciMLBase.isinplace(prob)
         error("Klement currently only supports out-of-place nonlinear problems")
@@ -30,21 +30,9 @@ function SciMLBase.solve(prob::NonlinearProblem,
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
     for _ in 1:maxiters
-        xₙ = xₙ₋₁ - inv(J) * fₙ₋₁
+        tmp = J \ fₙ₋₁
+        xₙ = xₙ₋₁ - tmp
         fₙ = f(xₙ)
-        Δxₙ = xₙ - xₙ₋₁
-        Δfₙ = fₙ - fₙ₋₁
-
-        # Prevent division by 0
-        denominator = max.(J' .^ 2 * Δxₙ .^ 2, 1e-9)
-
-        k = (Δfₙ - J * Δxₙ) ./ denominator
-        J += (k * Δxₙ' .* J) * J
-
-        # Prevent inverting singular matrix
-        if det(J) ≈ 0
-            J = ArrayInterfaceCore.zeromatrix(x) + I
-        end
 
         iszero(fₙ) &&
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
@@ -54,6 +42,21 @@ function SciMLBase.solve(prob::NonlinearProblem,
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
                                             retcode = ReturnCode.Success)
         end
+
+        Δxₙ = xₙ - xₙ₋₁
+        Δfₙ = fₙ - fₙ₋₁
+
+        # Prevent division by 0
+        denominator = max.(J' .^ 2 * Δxₙ .^ 2, 1e-9)
+
+        k = (Δfₙ - J * Δxₙ) ./ denominator
+        J += (k * Δxₙ' .* J) * J
+
+        # Singularity test
+        if cond(J) > 1e9
+            J = init_J(xₙ)
+        end
+
         xₙ₋₁ = xₙ
         fₙ₋₁ = fₙ
     end

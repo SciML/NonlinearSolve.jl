@@ -33,3 +33,13 @@ value_derivative(f::F, x::AbstractArray) where {F} = f(x), ForwardDiff.jacobian(
 value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+
+function init_J(x)
+    J = ArrayInterfaceCore.zeromatrix(x)
+    if ismutable(x)
+        J[diagind(J)] .= one(eltype(x))
+    else
+        J += I
+    end
+    return J
+end
