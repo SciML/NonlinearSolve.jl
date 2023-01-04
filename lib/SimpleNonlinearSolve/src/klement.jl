@@ -4,7 +4,7 @@ Klement()
 ```
 
 A low-overhead implementation of [Klement](https://jatm.com.br/jatm/article/view/373).
-This method is non-allocating on scalar and static array problems.
+This method is non-allocating on scalar problems.
 """
 struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
 
@@ -16,7 +16,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     x = float(prob.u0)
     fₙ = f(x)
     T = eltype(x)
-    J = init_J(x)
+    singular_tol = 1e-9
 
     if SciMLBase.isinplace(prob)
         error("Klement currently only supports out-of-place nonlinear problems")
@@ -29,36 +29,78 @@ function SciMLBase.solve(prob::NonlinearProblem,
     xₙ = x
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
-    for _ in 1:maxiters
-        tmp = J \ fₙ₋₁
-        xₙ = xₙ₋₁ - tmp
-        fₙ = f(xₙ)
 
-        iszero(fₙ) &&
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
+    # x is scalar
+    if isa(x, Number)
+        J = 1.0
+        for _ in 1:maxiters
 
-        if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
+            xₙ = xₙ₋₁ - fₙ₋₁/J
+            fₙ = f(xₙ)
+
+            iszero(fₙ) &&
+                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
+                                                retcode = ReturnCode.Success)
+
+            if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
+                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
+                                                retcode = ReturnCode.Success)
+            end
+
+            Δxₙ = xₙ - xₙ₋₁
+            Δfₙ = fₙ - fₙ₋₁
+
+            # Prevent division by 0
+            denominator = max(J ^ 2 * Δxₙ ^ 2, 1e-9)
+
+            k = (Δfₙ - J * Δxₙ) / denominator
+            J += (k * Δxₙ * J) * J
+
+            # Singularity test
+            if J < singular_tol
+                J = 1.0
+            end
+
+            xₙ₋₁ = xₙ
+            fₙ₋₁ = fₙ
         end
+    # x is a vector
+    else
+        J = init_J(x)
+        F = lu(J, check = false)
+        for _ in 1:maxiters
+            tmp = F \ fₙ₋₁
+            xₙ = xₙ₋₁ - tmp
+            fₙ = f(xₙ)
 
-        Δxₙ = xₙ - xₙ₋₁
-        Δfₙ = fₙ - fₙ₋₁
+            iszero(fₙ) &&
+                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
+                                                retcode = ReturnCode.Success)
 
-        # Prevent division by 0
-        denominator = max.(J' .^ 2 * Δxₙ .^ 2, 1e-9)
+            if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
+                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
+                                                retcode = ReturnCode.Success)
+            end
 
-        k = (Δfₙ - J * Δxₙ) ./ denominator
-        J += (k * Δxₙ' .* J) * J
+            Δxₙ = xₙ - xₙ₋₁
+            Δfₙ = fₙ - fₙ₋₁
 
-        # Singularity test
-        if cond(J) > 1e9
-            J = init_J(xₙ)
+            # Prevent division by 0
+            denominator = max.(J' .^ 2 * Δxₙ .^ 2, 1e-9)
+
+            k = (Δfₙ - J * Δxₙ) ./ denominator
+            J += (k * Δxₙ' .* J) * J
+            F = lu(J, check = false)
+
+            # Singularity test
+            if any(abs.(F.U[diagind(F.U)]) .< singular_tol)
+                J = init_J(xₙ)
+                F = lu(J, check = false)
+            end
+
+            xₙ₋₁ = xₙ
+            fₙ₋₁ = fₙ
         end
-
-        xₙ₋₁ = xₙ
-        fₙ₋₁ = fₙ
     end
 
     return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
