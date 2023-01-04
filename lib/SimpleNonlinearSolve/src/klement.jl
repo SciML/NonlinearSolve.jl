@@ -66,8 +66,15 @@ function SciMLBase.solve(prob::NonlinearProblem,
         # x is a vector
     else
         J = init_J(x)
-        F = lu(J, check = false)
         for _ in 1:maxiters
+            F = lu(J, check = false)
+
+            # Singularity test
+            if any(abs.(F.U[diagind(F.U)]) .< singular_tol)
+                J = init_J(xₙ)
+                F = lu(J, check = false)
+            end
+
             tmp = F \ fₙ₋₁
             xₙ = xₙ₋₁ - tmp
             fₙ = f(xₙ)
@@ -89,13 +96,6 @@ function SciMLBase.solve(prob::NonlinearProblem,
 
             k = (Δfₙ - J * Δxₙ) ./ denominator
             J += (k * Δxₙ' .* J) * J
-            F = lu(J, check = false)
-
-            # Singularity test
-            if any(abs.(F.U[diagind(F.U)]) .< singular_tol)
-                J = init_J(xₙ)
-                F = lu(J, check = false)
-            end
 
             xₙ₋₁ = xₙ
             fₙ₋₁ = fₙ
