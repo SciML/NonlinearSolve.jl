@@ -34,8 +34,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     if isa(x, Number)
         J = 1.0
         for _ in 1:maxiters
-
-            xₙ = xₙ₋₁ - fₙ₋₁/J
+            xₙ = xₙ₋₁ - fₙ₋₁ / J
             fₙ = f(xₙ)
 
             iszero(fₙ) &&
@@ -51,7 +50,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
             Δfₙ = fₙ - fₙ₋₁
 
             # Prevent division by 0
-            denominator = max(J ^ 2 * Δxₙ ^ 2, 1e-9)
+            denominator = max(J^2 * Δxₙ^2, 1e-9)
 
             k = (Δfₙ - J * Δxₙ) / denominator
             J += (k * Δxₙ * J) * J
@@ -64,7 +63,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
             xₙ₋₁ = xₙ
             fₙ₋₁ = fₙ
         end
-    # x is a vector
+        # x is a vector
     else
         J = init_J(x)
         F = lu(J, check = false)
