@@ -31,7 +31,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     fₙ₋₁ = fₙ
 
     # x is scalar
-    if isa(x, Number)
+    if x isa Number
         J = 1.0
         for _ in 1:maxiters
             xₙ = xₙ₋₁ - fₙ₋₁ / J
