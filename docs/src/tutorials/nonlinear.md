@@ -14,7 +14,7 @@ probN = NonlinearProblem{false}(f, u0, p)
 solver = solve(probN, NewtonRaphson(), reltol = 1e-9)
 ```
 
-where `u0` is the initial condition for the rootfind. Native NonlinearSolve.jl
+where `u0` is the initial condition for the rootfinder. Native NonlinearSolve.jl
 solvers use the given type of `u0` to determine the type used within the solver
 and the return. Note that the parameters `p` can be any type, but most are an
 AbstractArray for automatic differentiation.
