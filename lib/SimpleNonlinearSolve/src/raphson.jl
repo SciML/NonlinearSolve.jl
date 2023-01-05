@@ -10,18 +10,18 @@ and static array problems.
 !!! note
 
     As part of the decreased overhead, this method omits some of the higher level error
-    catching of the other methods. Thus to see better error messages, use one of the other
+    catching of the other methods. Thus, to see better error messages, use one of the other
     methods like `NewtonRaphson`
 
 ### Keyword Arguments
 
 - `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
-  system. This allows for multiple derivative columns to be computed simultaniously,
+  system. This allows for multiple derivative columns to be computed simultaneously,
   improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
   default chunk size mechanism. For more details, see the documentation for
   [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
 - `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
-  Note that this argument is ignored if an analytical Jacobian is passed as that will be
+  Note that this argument is ignored if an analytical Jacobian is passed; as that will be
   used instead. Defaults to `Val{true}`, which means ForwardDiff.jl is used by default.
   If `Val{false}`, then FiniteDiff.jl is used for finite differencing.
 - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
