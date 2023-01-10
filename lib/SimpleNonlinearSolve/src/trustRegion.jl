@@ -30,9 +30,9 @@ solver
 """
 struct TrustRegion{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     max_trust_radius::Number
-    function TrustRegion(max_turst_radius::Number; chunk_size = Val{0}(),
-                                            autodiff = Val{true}(),
-                                            diff_type = Val{:forward})
+    function TrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
+                         autodiff = Val{true}(),
+                         diff_type = Val{:forward})
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
             SciMLBase._unwrap_val(diff_type)}(max_trust_radius)
     end
@@ -46,8 +46,8 @@ function SciMLBase.solve(prob::NonlinearProblem,
     x = float(prob.u0)
     T = typeof(x)
     Δₘₐₓ = float(alg.max_trust_radius)  # The maximum trust region radius.
-    Δ = Δₘₐₓ / 5  # Initial trust region radius.
-    η₁ = 0.1   # Threshold for taking a step.
+    Δ = Δₘₐₓ / 11  # Initial trust region radius.
+    η₁ = 0.0   # Threshold for taking a step.
     η₂ = 0.25  # Threshold for shrinking the trust region.
     η₃ = 0.75  # Threshold for expanding the trust region.
     t₁ = 0.25  # Factor to shrink the trust region with.
@@ -88,38 +88,44 @@ function SciMLBase.solve(prob::NonlinearProblem,
 
         # Update the trust region radius.
         if r < η₂
-            Δ *= t₁
-        if r > η₁
-            if isapprox(x̂, x, atol = atol, rtol = rtol)
+            Δ = t₁ * Δ
+
+            if Δ < 1e-10
                 return SciMLBase.build_solution(prob, alg, x, F;
                                                 retcode = ReturnCode.Success)
             end
-
+        end
+        if r > η₁
+            if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)
+                return SciMLBase.build_solution(prob, alg, xₖ₊₁, Fₖ₊₁;
+                                                retcode = ReturnCode.Success)
+            end
+            # Take the step.
             x = xₖ₊₁
             F = Fₖ₊₁
             if alg_autodiff(alg)
                 F, ∇f = value_derivative(f, x)
             elseif x isa AbstractArray
                 ∇f = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x),
-                                                            F)
+                                                           F)
             else
                 ∇f = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg),
-                                                              eltype(x),
-                                                              F)
+                                                             eltype(x),
+                                                             F)
             end
 
             iszero(F) &&
                 return SciMLBase.build_solution(prob, alg, x, F;
                                                 retcode = ReturnCode.Success)
+
             # Update the trust region radius.
             if r > η₃ && norm(δ) ≈ Δ
                 Δ = min(t₂ * Δ, Δₘₐₓ)
             end
-            fₖ = f̂
+            fₖ = fₖ₊₁
             H = ∇f * ∇f
             g = ∇f * F
         end
     end
-
     return SciMLBase.build_solution(prob, alg, x, F; retcode = ReturnCode.MaxIters)
 end

@@ -31,7 +31,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
         solve(prob_no_brack, alg(), tol = T(1e-2))
     end
 
-    for alg in (TrustRegion(1.0),)
+    for alg in (TrustRegion(10.0),)
         solve(prob_no_brack, alg, tol = T(1e-2))
     end
 
