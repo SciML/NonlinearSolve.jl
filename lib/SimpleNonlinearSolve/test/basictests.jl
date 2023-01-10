@@ -46,13 +46,24 @@ sol = benchmark_scalar(sf, csu0)
 @test sol.u * sol.u - 2 < 1e-9
 @test (@ballocated benchmark_scalar(sf, csu0)) == 0
 
+# SimpleNewtonRaphsonTrustRegion
+function benchmark_scalar(f, u0)
+    probN = NonlinearProblem{false}(f, u0)
+    sol = (solve(probN, SimpleNewtonRaphsonTrustRegion(1.0)))
+end
+
+sol = benchmark_scalar(sf, csu0)
+@test sol.retcode === ReturnCode.Success
+@test sol.u * sol.u - 2 < 1e-9
+
 # AD Tests
 using ForwardDiff
 
 # Immutable
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement()]
+for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
+            SimpleNewtonRaphsonTrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, tol = 1e-9)
@@ -67,7 +78,8 @@ end
 
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement()]
+for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
+            SimpleNewtonRaphsonTrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -108,7 +120,8 @@ for alg in [Bisection(), Falsi()]
     @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
 end
 
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement()]
+for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
+            SimpleNewtonRaphsonTrustRegion(1.0)]
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -128,6 +141,11 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
 
+@test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0)).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0); immutable = false).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0; autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0; autodiff = false)).u[end] ≈ sqrt(2.0)
+
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Broyden(); immutable = false).u[end] ≈ sqrt(2.0)
 
@@ -143,6 +161,10 @@ for u0 in [1.0, [1, 1.0]]
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u ≈ sol
+
+    @test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0)).u ≈ sol
+    @test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0)).u ≈ sol
+    @test solve(probN, SimpleNewtonRaphsonTrustRegion(1.0; autodiff = false)).u ≈ sol
 
     @test solve(probN, Broyden()).u ≈ sol
 
