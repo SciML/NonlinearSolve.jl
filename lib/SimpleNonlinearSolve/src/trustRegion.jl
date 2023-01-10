@@ -47,7 +47,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     T = typeof(x)
     Δₘₐₓ = float(alg.max_trust_radius)  # The maximum trust region radius.
     Δ = Δₘₐₓ / 11  # Initial trust region radius.
-    η₁ = 0.0   # Threshold for taking a step.
+    η₁ = 0.1   # Threshold for taking a step.
     η₂ = 0.25  # Threshold for shrinking the trust region.
     η₃ = 0.75  # Threshold for expanding the trust region.
     t₁ = 0.25  # Factor to shrink the trust region with.
