@@ -74,6 +74,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     fₖ = 0.5 * norm(F)^2
     H = ∇f * ∇f
     g = ∇f * F
+    counter = 0
 
     for k in 1:maxiters
         # Solve the trust region subproblem.
@@ -89,11 +90,13 @@ function SciMLBase.solve(prob::NonlinearProblem,
         # Update the trust region radius.
         if r < η₂
             Δ = t₁ * Δ
-
-            if Δ < 1e-10
+            counter += 1
+            if counter > 32
                 return SciMLBase.build_solution(prob, alg, x, F;
                                                 retcode = ReturnCode.Success)
             end
+        else
+            counter = 0
         end
         if r > η₁
             if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)
