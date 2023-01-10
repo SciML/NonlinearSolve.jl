@@ -52,7 +52,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 # DiffEq styled algorithms
-export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson,
-       TrustRegion
+export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson, TrustRegion
 
 end # module
