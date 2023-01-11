@@ -8,8 +8,7 @@ A low-overhead implementation of a
 [trust-region](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
 solver
 
-
-### Keyword Arguments
+### Arguments
 - `max_trust_radius`: the maximum radius of the trust region. The step size in the algorithm
   will change dynamically. However, it will never be greater than the `max_trust_radius`.
 
@@ -27,14 +26,54 @@ solver
 - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
   `Val{:forward}` for forward finite differences. For more details on the choices, see the
   [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+- `initial_trust_radius`: the initial trust region radius. Defaults to
+  `max_trust_radius / 11`.
+- `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
+  compared with a value `r`, which is the actual reduction in the objective function divided
+  by the predicted reduction. If `step_threshold > r` the model is not a good approximation,
+  and the step is rejected. Defaults to `0.1`. For more details, see
+  [Trust-region methods](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
+- `shrink_threshold`: the threshold for shrinking the trust region radius. In every
+  iteration, the threshold is compared with a value `r` which is the actual reduction in the
+  objective function divided by the predicted reduction. If `shrink_threshold > r` the trust
+  region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details, see
+  [Trust-region methods](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
+- `expand_threshold`: the threshold for expanding the trust region radius. If a step is
+  taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is also
+  made to see if `expand_threshold < r`. If that is true, the trust region radius is
+  expanded by `expand_factor`. Defaults to `0.75`.
+- `shrink_factor`: the factor to shrink the trust region radius with if
+  `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
+- `expand_factor`: the factor to expand the trust region radius with if
+  `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
+- `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
+  row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
 """
 struct TrustRegion{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     max_trust_radius::Number
+    initial_trust_radius::Number
+    step_threshold::Number
+    shrink_threshold::Number
+    expand_threshold::Number
+    shrink_factor::Number
+    expand_factor::Number
+    max_shrink_times::Int
     function TrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
                          autodiff = Val{true}(),
-                         diff_type = Val{:forward})
+                         diff_type = Val{:forward},
+                         initial_trust_radius::Number = max_trust_radius / 11,
+                         step_threshold::Number = 0.1,
+                         shrink_threshold::Number = 0.25,
+                         expand_threshold::Number = 0.75,
+                         shrink_factor::Number = 0.25,
+                         expand_factor::Number = 2.0,
+                         max_shrink_times::Int = 32)
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
-            SciMLBase._unwrap_val(diff_type)}(max_trust_radius)
+            SciMLBase._unwrap_val(diff_type)}(max_trust_radius, initial_trust_radius,
+                                              step_threshold,
+                                              shrink_threshold, expand_threshold,
+                                              shrink_factor,
+                                              expand_factor, max_shrink_times)
     end
 end
 
@@ -45,13 +84,14 @@ function SciMLBase.solve(prob::NonlinearProblem,
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     T = typeof(x)
-    Δₘₐₓ = float(alg.max_trust_radius)  # The maximum trust region radius.
-    Δ = Δₘₐₓ / 11  # Initial trust region radius.
-    η₁ = 0.1   # Threshold for taking a step.
-    η₂ = 0.25  # Threshold for shrinking the trust region.
-    η₃ = 0.75  # Threshold for expanding the trust region.
-    t₁ = 0.25  # Factor to shrink the trust region with.
-    t₂ = 2.0   # Factor to expand the trust region with.
+    Δₘₐₓ = float(alg.max_trust_radius)
+    Δ = float(alg.initial_trust_radius)
+    η₁ = float(alg.step_threshold)
+    η₂ = float(alg.shrink_threshold)
+    η₃ = float(alg.expand_threshold)
+    t₁ = float(alg.shrink_factor)
+    t₂ = float(alg.expand_factor)
+    max_shrink_times = alg.max_shrink_times
 
     if SciMLBase.isinplace(prob)
         error("TrustRegion currently only supports out-of-place nonlinear problems")
@@ -74,7 +114,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
     fₖ = 0.5 * norm(F)^2
     H = ∇f * ∇f
     g = ∇f * F
-    counter = 0
+    shrink_counter = 0
 
     for k in 1:maxiters
         # Solve the trust region subproblem.
@@ -85,18 +125,18 @@ function SciMLBase.solve(prob::NonlinearProblem,
 
         # Compute the ratio of the actual to predicted reduction.
         model = -(δ' * g + 0.5 * δ' * H * δ)
-        r = (fₖ - fₖ₊₁) / model
+        r = model \ (fₖ - fₖ₊₁)
 
         # Update the trust region radius.
         if r < η₂
             Δ = t₁ * Δ
-            counter += 1
-            if counter > 32
+            shrink_counter += 1
+            if shrink_counter > max_shrink_times
                 return SciMLBase.build_solution(prob, alg, x, F;
                                                 retcode = ReturnCode.Success)
             end
         else
-            counter = 0
+            shrink_counter = 0
         end
         if r > η₁
             if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)

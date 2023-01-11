@@ -63,7 +63,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-            TrustRegion(10.0)]
+    TrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, tol = 1e-9)
@@ -79,7 +79,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-            TrustRegion(10.0)]
+    TrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -121,7 +121,7 @@ for alg in [Bisection(), Falsi()]
 end
 
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-            TrustRegion(10.0)]
+    TrustRegion(10.0)]
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -207,3 +207,54 @@ sol = solve(probB, Bisection(; exact_left = true, exact_right = true); immutable
 @test f(nextfloat(sol.left), nothing) >= 0.0
 @test f(sol.right, nothing) >= 0.0
 @test f(prevfloat(sol.right), nothing) <= 0.0
+
+# Test that `TrustRegion` passes a test that `SimpleNewtonRaphson` fails on.
+u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+global g, f
+f = (u, p) -> 0.010000000000000002 .+
+              10.000000000000002 ./ (1 .+
+               (0.21640425613334457 .+
+                216.40425613334457 ./ (1 .+
+                 (0.21640425613334457 .+
+                  216.40425613334457 ./
+                  (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
+              0.0011552453009332421u
+.-p
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, TrustRegion(100.0))
+    return sol.u
+end
+p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+u = g(p)
+f(u, p)
+@test all(f(u, p) .< 1e-10)
+
+# Test kwars in `TrustRegion`
+max_trust_radius = [10.0, 100.0, 1000.0]
+initial_trust_radius = [10.0, 1.0, 0.1]
+step_threshold = [0.0, 0.01, 0.25]
+shrink_threshold = [0.25, 0.3, 0.5]
+expand_threshold = [0.5, 0.8, 0.9]
+shrink_factor = [0.1, 0.3, 0.5]
+expand_factor = [1.5, 2.0, 3.0]
+max_shrink_times = [10, 20, 30]
+
+list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
+                      shrink_threshold, expand_threshold, shrink_factor,
+                      expand_factor, max_shrink_times)
+for options in list_of_options
+    local probN, sol, alg
+    alg = TrustRegion(options[1];
+                      initial_trust_radius = options[2],
+                      step_threshold = options[3],
+                      shrink_threshold = options[4],
+                      expand_threshold = options[5],
+                      shrink_factor = options[6],
+                      expand_factor = options[7],
+                      max_shrink_times = options[8])
+
+    probN = NonlinearProblem(f, u0, p)
+    sol = solve(probN, alg)
+    @test all(f(u, p) .< 1e-10)
+end
