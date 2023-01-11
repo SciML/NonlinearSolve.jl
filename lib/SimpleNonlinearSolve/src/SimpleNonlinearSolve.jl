@@ -21,6 +21,7 @@ include("raphson.jl")
 include("ad.jl")
 include("broyden.jl")
 include("klement.jl")
+include("trustRegion.jl")
 
 import SnoopPrecompile
 
@@ -28,6 +29,10 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
     for alg in (SimpleNewtonRaphson, Broyden, Klement)
         solve(prob_no_brack, alg(), tol = T(1e-2))
+    end
+
+    for alg in (TrustRegion(10.0),)
+        solve(prob_no_brack, alg, tol = T(1e-2))
     end
 
     #=
@@ -47,6 +52,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 # DiffEq styled algorithms
-export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson
+export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson, TrustRegion
 
 end # module

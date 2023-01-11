@@ -43,3 +43,28 @@ function init_J(x)
     end
     return J
 end
+
+function dogleg_method(H, g, Δ)
+    # Compute the Newton step.
+    δN = -H \ g
+    # Test if the full step is within the trust region.
+    if norm(δN) ≤ Δ
+        return δN
+    end
+
+    # Calcualte Cauchy point, optimum along the steepest descent direction.
+    δsd = -g
+    norm_δsd = norm(δsd)
+    if norm_δsd ≥ Δ
+        return δsd .* Δ / norm_δsd
+    end
+
+    # Find the intersection point on the boundary.
+    δN_δsd = δN - δsd
+    dot_δN_δsd = dot(δN_δsd, δN_δsd)
+    dot_δsd_δN_δsd = dot(δsd, δN_δsd)
+    dot_δsd = dot(δsd, δsd)
+    fact = dot_δsd_δN_δsd^2 - dot_δN_δsd * (dot_δsd - Δ^2)
+    tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
+    return δsd + tau * δN_δsd
+end
