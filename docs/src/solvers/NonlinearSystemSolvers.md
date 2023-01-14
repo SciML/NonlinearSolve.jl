@@ -11,10 +11,10 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 systems, it can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. That said, as a classic Newton
 method, its stability region can be smaller than other methods. Meanwhile,
-`SimpleNewtonRaphson` is an implementation which is specialized for small equations. It is
-non-allocating on static arrays and thus really well-optimized for small systems, thus
-usually outperforming the other methods when such types are used for `u0`. `NLSolveJL`'s
-`:trust_region` method can be a good choice for high stability, along with `DynamicSS`.
+`SimpleNewtonRaphson` and `TrustRegion` are implementations which are specialized for 
+small equations. It is non-allocating on static arrays and thus really well-optimized 
+for small systems, thus usually outperforming the other methods when such types are 
+used for `u0`. `DynamicSS` can be a good choice for high stability.
 
 For a system which is very non-stiff (i.e., the condition number of the Jacobian
 is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
@@ -43,8 +43,18 @@ These methods are included with NonlinearSolve.jl by default, though SimpleNonli
 can be used directly to reduce dependencies and improve load times. SimpleNonlinearSolve.jl's
 methods excel at small problems and problems defined with static arrays.
 
-- `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method. When used with states `u` as a `Number` or `StaticArray`, the solver is
-  very efficient and non-allocating. This implementation is thus well-suited for small
+- `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method.
+- `Broyden()`: the classic Broyden's quasi-Newton method.
+- `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
+  than Broyden's method, and it seems to be in the cases that have been tried but more
+  benchmarking is required.
+- `TrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
+  for more robust fitting over basic Newton methods, though potentially with a cost.
+
+!!! note
+
+  When used with states `u` as a `Number` or `StaticArray`, these solvers are
+  very efficient and non-allocating. These implementations are thus well-suited for small
   systems of equations.
 
 ### SteadyStateDiffEq.jl
