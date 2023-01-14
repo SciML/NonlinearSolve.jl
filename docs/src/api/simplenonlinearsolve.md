@@ -8,4 +8,7 @@ These methods can be used independently of the rest of NonlinearSolve.jl
 Bisection
 Falsi
 SimpleNewtonRaphson
+Broyden
+Klement
+TrustRegion
 ```
