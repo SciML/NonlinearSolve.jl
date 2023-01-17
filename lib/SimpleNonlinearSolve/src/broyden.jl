@@ -9,9 +9,9 @@ and static array problems.
 struct Broyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-                         alg::Broyden, args...; abstol = nothing,
-                         reltol = nothing,
-                         maxiters = 1000, kwargs...)
+                           alg::Broyden, args...; abstol = nothing,
+                           reltol = nothing,
+                           maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fₙ = f(x)
