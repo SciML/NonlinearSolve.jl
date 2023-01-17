@@ -151,6 +151,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
     fu_new::resType
     make_new_J::Bool
     r::Real
+    δN::uType
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType, du1::duType,
@@ -175,7 +176,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
               abstol, prob, trust_r, max_trust_r, loss,
               loss_new, H, g, shrink_counter,
               step_size, u_new, fu_new,
-              make_new_J, r)
+              make_new_J, r, δN)
     end
 end
 
@@ -244,7 +245,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
                                  max_trust_radius, loss, loss, H, fu, 0, u, u, fu, true,
-                                 0.0)
+                                 0.0, u)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -260,7 +261,7 @@ function perform_step!(cache::TrustRegionCache{true})
                         linu = _vec(du1),
                         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    cache.du1 .= -1 .* du1
+    cache.δN .= -1 .* du1
     dogleg!(cache)
 
     # Compute the potentially new u
@@ -282,7 +283,7 @@ function perform_step!(cache::TrustRegionCache{false})
 
     @unpack g, H = cache
     # Compute the Newton step.
-    cache.du1 = -H \ g
+    cache.δN = -H \ g
     dogleg!(cache)
 
     # Compute the potentially new u
@@ -332,11 +333,11 @@ function trust_region_step!(cache::TrustRegionCache)
 end
 
 function dogleg!(cache::TrustRegionCache)
-    @unpack du1, trust_r = cache
+    @unpack δN, trust_r = cache
 
     # Test if the full step is within the trust region.
-    if norm(du1) ≤ trust_r
-        cache.step_size = du1
+    if norm(δN) ≤ trust_r
+        cache.step_size = δN
         return
     end
 
@@ -349,7 +350,7 @@ function dogleg!(cache::TrustRegionCache)
     end
 
     # Find the intersection point on the boundary.
-    N_sd = du1 - δsd
+    N_sd = δN - δsd
     dot_N_sd = dot(N_sd, N_sd)
     dot_sd_N_sd = dot(δsd, N_sd)
     dot_sd = dot(δsd, δsd)
