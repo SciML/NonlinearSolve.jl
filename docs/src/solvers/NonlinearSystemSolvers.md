@@ -53,9 +53,9 @@ methods excel at small problems and problems defined with static arrays.
 
 !!! note
 
-  When used with states `u` as a `Number` or `StaticArray`, these solvers are
-  very efficient and non-allocating. These implementations are thus well-suited for small
-  systems of equations.
+    When used with states `u` as a `Number` or `StaticArray`, these solvers are
+    very efficient and non-allocating. These implementations are thus well-suited for small
+    systems of equations.
 
 ### SteadyStateDiffEq.jl
 
