@@ -32,7 +32,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
         solve(prob_no_brack, alg(), abstol = T(1e-2))
     end
 
-    for alg in (TrustRegion(10.0),)
+    for alg in (SimpleTrustRegion(10.0),)
         solve(prob_no_brack, alg, abstol = T(1e-2))
     end
 
@@ -53,6 +53,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 # DiffEq styled algorithms
-export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson, TrustRegion
+export Bisection, Broyden, Falsi, Klement, SimpleNewtonRaphson, SimpleTrustRegion
 
 end # module

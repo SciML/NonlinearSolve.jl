@@ -97,7 +97,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     max_shrink_times = alg.max_shrink_times
 
     if SciMLBase.isinplace(prob)
-        error("TrustRegion currently only supports out-of-place nonlinear problems")
+        error("SimpleTrustRegion currently only supports out-of-place nonlinear problems")
     end
 
     atol = abstol !== nothing ? abstol :
