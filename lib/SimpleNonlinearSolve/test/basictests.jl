@@ -22,7 +22,9 @@ sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
-@test (@ballocated benchmark_scalar(sf, csu0)) == 0
+if VERSION >= v"1.7"
+    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
+end
 
 # Broyden
 function benchmark_scalar(f, u0)
@@ -33,7 +35,9 @@ end
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
-@test (@ballocated benchmark_scalar(sf, csu0)) == 0
+if VERSION >= v"1.7"
+    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
+end
 
 # Klement
 function benchmark_scalar(f, u0)
@@ -44,7 +48,9 @@ end
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
-@test (@ballocated benchmark_scalar(sf, csu0)) == 0
+if VERSION >= v"1.7"
+    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
+end
 
 # TrustRegion
 function benchmark_scalar(f, u0)
