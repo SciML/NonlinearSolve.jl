@@ -151,6 +151,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
     fu_new::resType
     make_new_J::Bool
     r::Real
+    δN::uType
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType, du1::duType,
@@ -163,7 +164,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
                                    shrink_counter::Int, step_size::uType, u_new::uType,
                                    fu_new::resType,
                                    make_new_J::Bool,
-                                   r::Real) where {iip, fType, algType, uType,
+                                   r::Real, δN::uType) where {iip, fType, algType, uType,
                                                    duType, resType, pType, INType,
                                                    tolType, probType, ufType, L,
                                                    jType, JC}
@@ -175,7 +176,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
               abstol, prob, trust_r, max_trust_r, loss,
               loss_new, H, g, shrink_counter,
               step_size, u_new, fu_new,
-              make_new_J, r)
+              make_new_J, r, δN)
     end
 end
 
@@ -242,12 +243,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
-                                 max_trust_radius, loss, loss, J, fu, 0, u, u, fu, true,
-                                 0.0)
+                                 max_trust_radius, loss, loss, copy(J), fu, 0, u, u, fu, true,
+                                 0.0, u)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
-    @unpack make_new_J, J, fu, f, u, p, trust_r, du1, alg, linsolve = cache
+    @unpack make_new_J, J, fu, f, u, p, du1, alg, linsolve = cache
     if cache.make_new_J
         jacobian!(J, cache)
         mul!(cache.H, J, J)
@@ -259,7 +260,8 @@ function perform_step!(cache::TrustRegionCache{true})
                         linu = _vec(du1),
                         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    dogleg!(-du1, trust_r, cache)
+    cache.δN = -du1
+    dogleg!(cache)
 
     # Compute the potentially new u
     cache.u_new .= u .+ cache.step_size
@@ -270,7 +272,7 @@ function perform_step!(cache::TrustRegionCache{true})
 end
 
 function perform_step!(cache::TrustRegionCache{false})
-    @unpack make_new_J, fu, f, u, p, trust_r = cache
+    @unpack make_new_J, fu, f, u, p = cache
 
     if make_new_J
         J = jacobian(cache, f)
@@ -280,8 +282,8 @@ function perform_step!(cache::TrustRegionCache{false})
 
     @unpack g, H = cache
     # Compute the Newton step.
-    δN = -H \ g
-    dogleg!(δN, trust_r, cache)
+    cache.δN = -H \ g
+    dogleg!(cache)
 
     # Compute the potentially new u
     cache.u_new = u .+ cache.step_size
@@ -329,7 +331,8 @@ function trust_region_step!(cache::TrustRegionCache)
     end
 end
 
-function dogleg!(δN, trust_r, cache::TrustRegionCache)
+function dogleg!(cache::TrustRegionCache)
+    @unpack δN, trust_r = cache
 
     # Test if the full step is within the trust region.
     if norm(δN) ≤ trust_r
