@@ -221,7 +221,6 @@ end
 @test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
 
 # Error Checks
-
 f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
 
