@@ -66,7 +66,7 @@ for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
     TrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
-        sol = solve(probN, alg, tol = 1e-9)
+        sol = solve(probN, alg, abstol = 1e-9)
         return sol.u[end]
     end
 
@@ -137,20 +137,11 @@ f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
 
 @test solve(probN, SimpleNewtonRaphson()).u[end] ≈ sqrt(2.0)
-@test solve(probN, SimpleNewtonRaphson(); immutable = false).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
-@test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
-
 @test solve(probN, TrustRegion(10.0)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(10.0); immutable = false).u[end] ≈ sqrt(2.0)
 @test solve(probN, TrustRegion(10.0; autodiff = false)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(10.0; autodiff = false)).u[end] ≈ sqrt(2.0)
-
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
-@test solve(probN, Broyden(); immutable = false).u[end] ≈ sqrt(2.0)
-
 @test solve(probN, Klement()).u[end] ≈ sqrt(2.0)
-@test solve(probN, Klement(); immutable = false).u[end] ≈ sqrt(2.0)
 
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
