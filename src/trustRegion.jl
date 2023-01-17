@@ -249,8 +249,8 @@ function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, trust_r, du1, alg, linsolve = cache
     if cache.make_new_J
         jacobian!(J, cache)
-        cache.H = J * J
-        cache.g = J * fu
+        mul!(cache.H,J,J)
+        mul!(cache.g,J,fu)
     end
 
     # u = u - J \ fu
