@@ -1,8 +1,9 @@
 """
 ```julia
-TrustRegion(max_trust_radius::Number; chunk_size = Val{0}(), autodiff = Val{true}(),
+TrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
                 standardtag = Val{true}(), concrete_jac = nothing,
                 diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
+                max_trust_radius::Number = nothing,
                 initial_trust_radius::Number = max_trust_radius / 11,
                 step_threshold::Number = 0.1,
                 shrink_threshold::Number = 0.25,
@@ -49,6 +50,7 @@ for large-scale and numerically-difficult nonlinear systems.
   preconditioners. For more information on specifying preconditioners for LinearSolve
   algorithms, consult the
   [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+- `max_trust_radius`: the maximal trust region radius. Defaults to nothing.
 - `initial_trust_radius`: the initial trust region radius. Defaults to
   `max_trust_radius / 11`.
 - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
@@ -77,41 +79,43 @@ for large-scale and numerically-difficult nonlinear systems.
     Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
-struct TrustRegion{CS, AD, FDT, L, P, ST, CJ} <:
+struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
     precs::P
-    max_trust_radius::Number
-    initial_trust_radius::Number
-    step_threshold::Number
-    shrink_threshold::Number
-    expand_threshold::Number
-    shrink_factor::Number
-    expand_factor::Number
+    max_trust_radius::MTR
+    initial_trust_radius::MTR
+    step_threshold::MTR
+    shrink_threshold::MTR
+    expand_threshold::MTR
+    shrink_factor::MTR
+    expand_factor::MTR
     max_shrink_times::Int
 end
 
-function TrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
+function TrustRegion(; chunk_size = Val{0}(),
                      autodiff = Val{true}(),
                      standardtag = Val{true}(), concrete_jac = nothing,
                      diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                     initial_trust_radius::Number = max_trust_radius / 11,
-                     step_threshold::Number = 0.1,
-                     shrink_threshold::Number = 0.25,
-                     expand_threshold::Number = 0.75,
-                     shrink_factor::Number = 0.25,
-                     expand_factor::Number = 2.0,
+                     max_trust_radius::Real = 0.0,
+                     initial_trust_radius::Real = 0.0,
+                     step_threshold::Real = 0.1,
+                     shrink_threshold::Real = 0.25,
+                     expand_threshold::Real = 0.75,
+                     shrink_factor::Real = 0.25,
+                     expand_factor::Real = 2.0,
                      max_shrink_times::Int = 32)
     TrustRegion{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
                 typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-                _unwrap_val(concrete_jac)}(linsolve, precs, max_trust_radius::Number,
-                                           initial_trust_radius::Number,
-                                           step_threshold::Number,
-                                           shrink_threshold::Number,
-                                           expand_threshold::Number,
-                                           shrink_factor::Number,
-                                           expand_factor::Number,
-                                           max_shrink_times::Int)
+                _unwrap_val(concrete_jac), typeof(max_trust_radius)
+                }(linsolve, precs, max_trust_radius,
+                  initial_trust_radius,
+                  step_threshold,
+                  shrink_threshold,
+                  expand_threshold,
+                  shrink_factor,
+                  expand_factor,
+                  max_shrink_times)
 end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pType,
@@ -135,6 +139,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
     abstol::tolType
     prob::probType
     trust_r::Number
+    max_trust_r::Number
     loss::Number
     loss_new::Number
     H::jType
@@ -144,29 +149,32 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
     u_new::uType
     fu_new::resType
     make_new_J::Bool
+    r::Real
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType, du1::duType,
                                    jac_config::JC, iter::Int,
                                    force_stop::Bool, maxiters::Int, internalnorm::INType,
                                    retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                   prob::probType, trust_r::Number, loss::Number,
+                                   prob::probType, trust_r::Number, max_trust_r::Number,
+                                   loss::Number,
                                    loss_new::Number, H::jType, g::resType,
                                    shrink_counter::Int, step_size::uType, u_new::uType,
                                    fu_new::resType,
-                                   make_new_J::Bool) where {iip, fType, algType, uType,
-                                                            duType, resType, pType, INType,
-                                                            tolType, probType, ufType, L,
-                                                            jType, JC}
+                                   make_new_J::Bool,
+                                   r::Real) where {iip, fType, algType, uType,
+                                                     duType, resType, pType, INType,
+                                                     tolType, probType, ufType, L,
+                                                     jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC
             }(f, alg, u, fu, p, uf, linsolve, J,
               du1, jac_config, iter, force_stop,
               maxiters, internalnorm, retcode,
-              abstol, prob, trust_r, loss,
+              abstol, prob, trust_r, max_trust_r, loss,
               loss_new, H, g, shrink_counter,
               step_size, u_new, fu_new,
-              make_new_J)
+              make_new_J, r)
     end
 end
 
@@ -220,24 +228,40 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     loss = get_loss(fu)
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
+    # Set default trust region radius if not specified
+    max_trust_radius = alg.max_trust_radius
+    initial_trust_radius = alg.initial_trust_radius
+    if max_trust_radius == 0.0
+        max_trust_radius = max(norm(fu), maximum(u) - minimum(u))
+    end
+    if initial_trust_radius == 0.0
+        initial_trust_radius = max_trust_radius / 11
+    end
+
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
                                  1, false, maxiters, internalnorm,
-                                 ReturnCode.Default, abstol, prob, alg.initial_trust_radius,
-                                 loss, loss, J, fu, 0, u, u, fu, true)
+                                 ReturnCode.Default, abstol, prob, initial_trust_radius,
+                                 max_trust_radius, loss, loss, J, fu, 0, u, u, fu, true,
+                                 0.0)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
-    @unpack make_new_J, J, fu, f, u, p = cache
+    @unpack make_new_J, J, fu, f, u, p, trust_r, du1, alg, linsolve = cache
     if cache.make_new_J
         jacobian!(J, cache)
         cache.H = J * J
         cache.g = J * fu
     end
 
-    dogleg!(cache)
+    # u = u - J \ fu
+    linres = dolinsolve(alg.precs, linsolve, A = cache.H, b = _vec(cache.g),
+                        linu = _vec(du1),
+                        p = p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    dogleg!(-du1, trust_r, cache)
 
     # Compute the potentially new u
-    cache.u_new = u .+ cache.step_size
+    cache.u_new .= u .+ cache.step_size
     f(cache.fu_new, cache.u_new, p)
 
     trust_region_step!(cache)
@@ -245,14 +269,18 @@ function perform_step!(cache::TrustRegionCache{true})
 end
 
 function perform_step!(cache::TrustRegionCache{false})
-    @unpack make_new_J, fu, f, u, p = cache
+    @unpack make_new_J, fu, f, u, p, trust_r = cache
 
     if make_new_J
         J = jacobian(cache, f)
         cache.H = J * J
         cache.g = J * fu
     end
-    dogleg!(cache)
+
+    @unpack g, H = cache
+    # Compute the Newton step.
+    δN = -H \ g
+    dogleg!(δN, trust_r, cache)
 
     # Compute the potentially new u
     cache.u_new = u .+ cache.step_size
@@ -263,12 +291,12 @@ function perform_step!(cache::TrustRegionCache{false})
 end
 
 function trust_region_step!(cache::TrustRegionCache)
-    @unpack fu_new, u_new, step_size, g, H, loss, alg = cache
+    @unpack fu_new, u_new, step_size, g, H, loss, alg, max_trust_r = cache
     cache.loss_new = get_loss(fu_new)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
-    model = -(step_size' * g + 0.5 * step_size' * H * step_size)
-    r = (loss - cache.loss_new) / model
+    cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
+    @unpack r = cache
 
     # Update the trust region radius.
     if r < alg.shrink_threshold
@@ -286,7 +314,7 @@ function trust_region_step!(cache::TrustRegionCache)
 
         # Update the trust region radius.
         if r > alg.expand_threshold
-            cache.trust_r = min(alg.expand_factor * cache.trust_r, alg.max_trust_radius)
+            cache.trust_r = min(alg.expand_factor * cache.trust_r, max_trust_r)
         end
 
         cache.make_new_J = true
@@ -300,10 +328,8 @@ function trust_region_step!(cache::TrustRegionCache)
     end
 end
 
-function dogleg!(cache::TrustRegionCache)
-    @unpack g, H, trust_r = cache
-    # Compute the Newton step.
-    δN = -H \ g
+function dogleg!(δN, trust_r, cache::TrustRegionCache)
+
     # Test if the full step is within the trust region.
     if norm(δN) ≤ trust_r
         cache.step_size = δN
@@ -311,7 +337,7 @@ function dogleg!(cache::TrustRegionCache)
     end
 
     # Calcualte Cauchy point, optimum along the steepest descent direction.
-    δsd = -g
+    δsd = -cache.g
     norm_δsd = norm(δsd)
     if norm_δsd ≥ trust_r
         cache.step_size = δsd .* trust_r / norm_δsd

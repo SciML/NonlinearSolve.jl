@@ -126,5 +126,5 @@ function _nfcount(N, ::Type{diff_type}) where {diff_type}
 end
 
 function get_loss(fu)
-    return 0.5 * norm(fu)^2
+    return norm(fu)^2 / 2
 end
