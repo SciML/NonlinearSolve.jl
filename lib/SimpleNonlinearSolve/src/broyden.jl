@@ -8,7 +8,7 @@ and static array problems.
 """
 struct Broyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.solve(prob::NonlinearProblem,
+function SciMLBase.__solve(prob::NonlinearProblem,
                          alg::Broyden, args...; abstol = nothing,
                          reltol = nothing,
                          maxiters = 1000, kwargs...)

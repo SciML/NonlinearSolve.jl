@@ -36,7 +36,7 @@ struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     end
 end
 
-function SciMLBase.solve(prob::NonlinearProblem,
+function SciMLBase.__solve(prob::NonlinearProblem,
                          alg::SimpleNewtonRaphson, args...; abstol = nothing,
                          reltol = nothing,
                          maxiters = 1000, kwargs...)

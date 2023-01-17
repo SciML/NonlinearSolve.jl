@@ -8,7 +8,7 @@ This method is non-allocating on scalar problems.
 """
 struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.solve(prob::NonlinearProblem,
+function SciMLBase.__solve(prob::NonlinearProblem,
                          alg::Klement, args...; abstol = nothing,
                          reltol = nothing,
                          maxiters = 1000, kwargs...)
