@@ -188,8 +188,7 @@ g = function (p)
     return sol.u[end]
 end
 
-# TODO look into the the forward diff failure when p = 100.0
-for p in 1.1:0.1:99.9
+for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
@@ -205,8 +204,7 @@ end
 
 @test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
 
-# TODO look into the the forward diff failure when p = 100.0
-for p in 1.1:0.1:99.9
+for p in 1.1:0.1:100.0
     @test g(p) ≈ sqrt(p)
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
