@@ -59,22 +59,24 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     expand_factor::T
     max_shrink_times::Int
     function SimpleTrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
-                         autodiff = Val{true}(),
-                         diff_type = Val{:forward},
-                         initial_trust_radius::Number = max_trust_radius / 11,
-                         step_threshold::Number = 0.1,
-                         shrink_threshold::Number = 0.25,
-                         expand_threshold::Number = 0.75,
-                         shrink_factor::Number = 0.25,
-                         expand_factor::Number = 2.0,
-                         max_shrink_times::Int = 32)
-        new{typeof(initial_trust_radius), SciMLBase._unwrap_val(chunk_size), 
-            SciMLBase._unwrap_val(autodiff), SciMLBase._unwrap_val(diff_type)}(
-                                              max_trust_radius, initial_trust_radius,
-                                              step_threshold,
-                                              shrink_threshold, expand_threshold,
-                                              shrink_factor,
-                                              expand_factor, max_shrink_times)
+                               autodiff = Val{true}(),
+                               diff_type = Val{:forward},
+                               initial_trust_radius::Number = max_trust_radius / 11,
+                               step_threshold::Number = 0.1,
+                               shrink_threshold::Number = 0.25,
+                               expand_threshold::Number = 0.75,
+                               shrink_factor::Number = 0.25,
+                               expand_factor::Number = 2.0,
+                               max_shrink_times::Int = 32)
+        new{typeof(initial_trust_radius), SciMLBase._unwrap_val(chunk_size),
+            SciMLBase._unwrap_val(autodiff), SciMLBase._unwrap_val(diff_type)}(max_trust_radius,
+                                                                               initial_trust_radius,
+                                                                               step_threshold,
+                                                                               shrink_threshold,
+                                                                               expand_threshold,
+                                                                               shrink_factor,
+                                                                               expand_factor,
+                                                                               max_shrink_times)
     end
 end
 

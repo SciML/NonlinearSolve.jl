@@ -243,13 +243,13 @@ list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
 for options in list_of_options
     local probN, sol, alg
     alg = SimpleTrustRegion(options[1];
-                      initial_trust_radius = options[2],
-                      step_threshold = options[3],
-                      shrink_threshold = options[4],
-                      expand_threshold = options[5],
-                      shrink_factor = options[6],
-                      expand_factor = options[7],
-                      max_shrink_times = options[8])
+                            initial_trust_radius = options[2],
+                            step_threshold = options[3],
+                            shrink_threshold = options[4],
+                            expand_threshold = options[5],
+                            shrink_factor = options[6],
+                            expand_factor = options[7],
+                            max_shrink_times = options[8])
 
     probN = NonlinearProblem(f, u0, p)
     sol = solve(probN, alg)
