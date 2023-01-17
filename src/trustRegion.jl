@@ -3,13 +3,13 @@
 TrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
                 standardtag = Val{true}(), concrete_jac = nothing,
                 diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                max_trust_radius::Number = nothing,
-                initial_trust_radius::Number = max_trust_radius / 11,
-                step_threshold::Number = 0.1,
-                shrink_threshold::Number = 0.25,
-                expand_threshold::Number = 0.75,
-                shrink_factor::Number = 0.25,
-                expand_factor::Number = 2.0,
+                max_trust_radius::Real = 0.0,
+                initial_trust_radius::Real = 0.0,
+                step_threshold::Real = 0.1,
+                shrink_threshold::Real = 0.25,
+                expand_threshold::Real = 0.75,
+                shrink_factor::Real = 0.25,
+                expand_factor::Real = 2.0,
                 max_shrink_times::Int = 32)
 ```
 
@@ -50,7 +50,8 @@ for large-scale and numerically-difficult nonlinear systems.
   preconditioners. For more information on specifying preconditioners for LinearSolve
   algorithms, consult the
   [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-- `max_trust_radius`: the maximal trust region radius. Defaults to nothing.
+- `max_trust_radius`: the maximal trust region radius.
+  Defaults to `max(norm(fu), maximum(u) - minimum(u))`.
 - `initial_trust_radius`: the initial trust region radius. Defaults to
   `max_trust_radius / 11`.
 - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
@@ -163,9 +164,9 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, duType, resType, pTy
                                    fu_new::resType,
                                    make_new_J::Bool,
                                    r::Real) where {iip, fType, algType, uType,
-                                                     duType, resType, pType, INType,
-                                                     tolType, probType, ufType, L,
-                                                     jType, JC}
+                                                   duType, resType, pType, INType,
+                                                   tolType, probType, ufType, L,
+                                                   jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC
             }(f, alg, u, fu, p, uf, linsolve, J,
@@ -249,8 +250,8 @@ function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, trust_r, du1, alg, linsolve = cache
     if cache.make_new_J
         jacobian!(J, cache)
-        mul!(cache.H,J,J)
-        mul!(cache.g,J,fu)
+        mul!(cache.H, J, J)
+        mul!(cache.g, J, fu)
     end
 
     # u = u - J \ fu
