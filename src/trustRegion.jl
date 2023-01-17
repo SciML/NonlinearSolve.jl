@@ -241,11 +241,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     end
     H = ArrayInterfaceCore.undefmatrix(u)
 
+
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
                                  max_trust_radius, loss, loss, H, fu, 0, u, u, fu, true,
-                                 0.0, u)
+                                 0.0, copy(u))
 end
 
 function perform_step!(cache::TrustRegionCache{true})
