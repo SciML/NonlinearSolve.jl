@@ -8,10 +8,10 @@ This method is non-allocating on scalar problems.
 """
 struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.solve(prob::NonlinearProblem,
-                         alg::Klement, args...; abstol = nothing,
-                         reltol = nothing,
-                         maxiters = 1000, kwargs...)
+function SciMLBase.__solve(prob::NonlinearProblem,
+                           alg::Klement, args...; abstol = nothing,
+                           reltol = nothing,
+                           maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fₙ = f(x)

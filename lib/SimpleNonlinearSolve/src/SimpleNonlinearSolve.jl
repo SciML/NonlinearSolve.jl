@@ -6,6 +6,7 @@ using ForwardDiff: Dual
 using StaticArraysCore
 using LinearAlgebra
 import ArrayInterfaceCore
+using DiffEqBase
 
 @reexport using SciMLBase
 
@@ -28,11 +29,11 @@ import SnoopPrecompile
 SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
     for alg in (SimpleNewtonRaphson, Broyden, Klement)
-        solve(prob_no_brack, alg(), tol = T(1e-2))
+        solve(prob_no_brack, alg(), abstol = T(1e-2))
     end
 
     for alg in (TrustRegion(10.0),)
-        solve(prob_no_brack, alg, tol = T(1e-2))
+        solve(prob_no_brack, alg, abstol = T(1e-2))
     end
 
     #=
@@ -47,7 +48,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 
     prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p, T.((0.0, 2.0)), T(2))
     for alg in (Bisection, Falsi)
-        solve(prob_brack, alg(), tol = T(1e-2))
+        solve(prob_brack, alg(), abstol = T(1e-2))
     end
 end end
 

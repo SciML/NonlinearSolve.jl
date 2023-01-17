@@ -36,10 +36,10 @@ struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     end
 end
 
-function SciMLBase.solve(prob::NonlinearProblem,
-                         alg::SimpleNewtonRaphson, args...; abstol = nothing,
-                         reltol = nothing,
-                         maxiters = 1000, kwargs...)
+function SciMLBase.__solve(prob::NonlinearProblem,
+                           alg::SimpleNewtonRaphson, args...; abstol = nothing,
+                           reltol = nothing,
+                           maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fx = float(prob.u0)
