@@ -52,10 +52,10 @@ if VERSION >= v"1.7"
     @test (@ballocated benchmark_scalar(sf, csu0)) == 0
 end
 
-# TrustRegion
+# SimpleTrustRegion
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, TrustRegion(10.0)))
+    sol = (solve(probN, SimpleTrustRegion(10.0)))
 end
 
 sol = benchmark_scalar(sf, csu0)
@@ -69,7 +69,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    TrustRegion(10.0)]
+    SimpleTrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, abstol = 1e-9)
@@ -85,7 +85,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    TrustRegion(10.0)]
+    SimpleTrustRegion(10.0)]
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -127,7 +127,7 @@ for alg in [Bisection(), Falsi()]
 end
 
 for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    TrustRegion(10.0)]
+    SimpleTrustRegion(10.0)]
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -144,8 +144,8 @@ probN = NonlinearProblem(f, u0)
 
 @test solve(probN, SimpleNewtonRaphson()).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(10.0)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(10.0; autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleTrustRegion(10.0)).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleTrustRegion(10.0; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Klement()).u[end] ≈ sqrt(2.0)
 
@@ -159,9 +159,9 @@ for u0 in [1.0, [1, 1.0]]
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u ≈ sol
 
-    @test solve(probN, TrustRegion(10.0)).u ≈ sol
-    @test solve(probN, TrustRegion(10.0)).u ≈ sol
-    @test solve(probN, TrustRegion(10.0; autodiff = false)).u ≈ sol
+    @test solve(probN, SimpleTrustRegion(10.0)).u ≈ sol
+    @test solve(probN, SimpleTrustRegion(10.0)).u ≈ sol
+    @test solve(probN, SimpleTrustRegion(10.0; autodiff = false)).u ≈ sol
 
     @test solve(probN, Broyden()).u ≈ sol
 
@@ -205,7 +205,7 @@ sol = solve(probB, Bisection(; exact_left = true, exact_right = true); immutable
 @test f(sol.right, nothing) >= 0.0
 @test f(prevfloat(sol.right), nothing) <= 0.0
 
-# Test that `TrustRegion` passes a test that `SimpleNewtonRaphson` fails on.
+# Test that `SimpleTrustRegion` passes a test that `SimpleNewtonRaphson` fails on.
 u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
 global g, f
 f = (u, p) -> 0.010000000000000002 .+
@@ -219,7 +219,7 @@ f = (u, p) -> 0.010000000000000002 .+
 .-p
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, TrustRegion(100.0))
+    sol = solve(probN, SimpleTrustRegion(100.0))
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -227,7 +227,7 @@ u = g(p)
 f(u, p)
 @test all(f(u, p) .< 1e-10)
 
-# Test kwars in `TrustRegion`
+# Test kwars in `SimpleTrustRegion`
 max_trust_radius = [10.0, 100.0, 1000.0]
 initial_trust_radius = [10.0, 1.0, 0.1]
 step_threshold = [0.0, 0.01, 0.25]
@@ -242,14 +242,14 @@ list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
                       expand_factor, max_shrink_times)
 for options in list_of_options
     local probN, sol, alg
-    alg = TrustRegion(options[1];
-                      initial_trust_radius = options[2],
-                      step_threshold = options[3],
-                      shrink_threshold = options[4],
-                      expand_threshold = options[5],
-                      shrink_factor = options[6],
-                      expand_factor = options[7],
-                      max_shrink_times = options[8])
+    alg = SimpleTrustRegion(options[1];
+                            initial_trust_radius = options[2],
+                            step_threshold = options[3],
+                            shrink_threshold = options[4],
+                            expand_threshold = options[5],
+                            shrink_factor = options[6],
+                            expand_factor = options[7],
+                            max_shrink_times = options[8])
 
     probN = NonlinearProblem(f, u0, p)
     sol = solve(probN, alg)
