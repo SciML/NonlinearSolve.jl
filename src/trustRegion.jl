@@ -249,8 +249,8 @@ function perform_step!(cache::TrustRegionCache{false})
 
     if make_new_J
         J = jacobian(cache, f)
-        cache.H = J * J
-        cache.g = J * fu
+        mul!(cache.H,J,J)
+        mul!(cache.g,J,fu)
     end
     dogleg!(cache)
 
