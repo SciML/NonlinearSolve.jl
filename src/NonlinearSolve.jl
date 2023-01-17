@@ -31,22 +31,23 @@ end
 include("utils.jl")
 include("jacobian.jl")
 include("raphson.jl")
+include("trustRegion.jl")
 include("ad.jl")
 
 import SnoopPrecompile
 
 SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-    for alg in (NewtonRaphson,)
-        solve(prob, alg(), abstol = T(1e-2))
+    for alg in (NewtonRaphson(), TrustRegion(T(10.0)))
+        solve(prob, alg, abstol = T(1e-2))
     end
 
     prob = NonlinearProblem{true}((du, u, p) -> du[1] = u[1] * u[1] - p[1], T[0.1], T[2])
-    for alg in (NewtonRaphson,)
-        solve(prob, alg(), abstol = T(1e-2))
+    for alg in (NewtonRaphson(), TrustRegion(T(10.0)))
+        solve(prob, alg, abstol = T(1e-2))
     end
 end end
 
-export NewtonRaphson
+export NewtonRaphson, TrustRegion
 
 end # module

@@ -28,7 +28,7 @@ using NonlinearSolve, StaticArrays
 f(u,p) = u .* u .- 2
 u0 = @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
-solver = solve(probN, NewtonRaphson(), tol = 1e-9)
+solver = solve(probN, NewtonRaphson(), abstol = 1e-9)
 
 ## Bracketing Methods
 

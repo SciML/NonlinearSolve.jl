@@ -124,3 +124,31 @@ function _nfcount(N, ::Type{diff_type}) where {diff_type}
     end
     tmp
 end
+
+function dogleg!(cache)
+    @unpack g, H, trust_r = cache
+    # Compute the Newton step.
+    δN = -H \ g
+    # Test if the full step is within the trust region.
+    if norm(δN) ≤ trust_r
+        cache.step_size = δN
+        return
+    end
+
+    # Calcualte Cauchy point, optimum along the steepest descent direction.
+    δsd = -g
+    norm_δsd = norm(δsd)
+    if norm_δsd ≥ trust_r
+        cache.step_size = δsd .* trust_r / norm_δsd
+        return
+    end
+
+    # Find the intersection point on the boundary.
+    N_sd = δN - δsd
+    dot_N_sd = dot(N_sd, N_sd)
+    dot_sd_N_sd = dot(δsd, N_sd)
+    dot_sd = dot(δsd, δsd)
+    fact = dot_sd_N_sd^2 - dot_N_sd * (dot_sd - trust_r^2)
+    τ = (-dot_sd_N_sd + sqrt(fact)) / dot_N_sd
+    cache.step_size = δsd + τ * N_sd
+end
