@@ -7,11 +7,11 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
-`NewtonRaphson` is a good choice for most problems. For large
+`TrustRegion` is a good choice for most problems. For large
 systems, it can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. That said, as a classic Newton
 method, its stability region can be smaller than other methods. Meanwhile,
-`SimpleNewtonRaphson` and `TrustRegion` are implementations which are specialized for 
+`SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which are specialized for 
 small equations. It is non-allocating on static arrays and thus really well-optimized 
 for small systems, thus usually outperforming the other methods when such types are 
 used for `u0`. `DynamicSS` can be a good choice for high stability.
@@ -36,6 +36,8 @@ features, but have a bit of overhead on very small problems.
 
 - `NewtonRaphson()`:A Newton-Raphson method with swappable nonlinear solvers and autodiff
     methods for high performance on large and sparse systems.
+- `TrustRegion()`: A Newton Trust Region dogleg method with swappable nonlinear solvers and 
+    autodiff methods for high performance on large and sparse systems.
 
 ### SimpleNonlinearSolve.jl
 
@@ -48,7 +50,7 @@ methods excel at small problems and problems defined with static arrays.
 - `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
   than Broyden's method, and it seems to be in the cases that have been tried but more
   benchmarking is required.
-- `TrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
+- `SimpleTrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
   for more robust fitting over basic Newton methods, though potentially with a cost.
 
 !!! note
