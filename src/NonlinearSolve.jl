@@ -31,6 +31,7 @@ end
 include("utils.jl")
 include("jacobian.jl")
 include("raphson.jl")
+include("trustRegion.jl")
 include("ad.jl")
 
 import SnoopPrecompile
@@ -47,6 +48,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     end
 end end
 
-export NewtonRaphson
+export NewtonRaphson, TrustRegion
 
 end # module
