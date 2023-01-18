@@ -55,7 +55,7 @@ end
 # SimpleTrustRegion
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, SimpleTrustRegion(10.0)))
+    sol = (solve(probN, SimpleTrustRegion()))
 end
 
 sol = benchmark_scalar(sf, csu0)
@@ -68,8 +68,7 @@ using ForwardDiff
 # Immutable
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    SimpleTrustRegion(10.0)]
+for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion())
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, abstol = 1e-9)
@@ -84,8 +83,7 @@ end
 
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    SimpleTrustRegion(10.0)]
+for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion())
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -126,8 +124,7 @@ for alg in [Bisection(), Falsi()]
     @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
 end
 
-for alg in [SimpleNewtonRaphson(), Broyden(), Klement(),
-    SimpleTrustRegion(10.0)]
+for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion())
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -144,8 +141,8 @@ probN = NonlinearProblem(f, u0)
 
 @test solve(probN, SimpleNewtonRaphson()).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u[end] ≈ sqrt(2.0)
-@test solve(probN, SimpleTrustRegion(10.0)).u[end] ≈ sqrt(2.0)
-@test solve(probN, SimpleTrustRegion(10.0; autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleTrustRegion()).u[end] ≈ sqrt(2.0)
+@test solve(probN, SimpleTrustRegion(; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Klement()).u[end] ≈ sqrt(2.0)
 
@@ -159,9 +156,9 @@ for u0 in [1.0, [1, 1.0]]
     @test solve(probN, SimpleNewtonRaphson()).u ≈ sol
     @test solve(probN, SimpleNewtonRaphson(; autodiff = false)).u ≈ sol
 
-    @test solve(probN, SimpleTrustRegion(10.0)).u ≈ sol
-    @test solve(probN, SimpleTrustRegion(10.0)).u ≈ sol
-    @test solve(probN, SimpleTrustRegion(10.0; autodiff = false)).u ≈ sol
+    @test solve(probN, SimpleTrustRegion()).u ≈ sol
+    @test solve(probN, SimpleTrustRegion()).u ≈ sol
+    @test solve(probN, SimpleTrustRegion(; autodiff = false)).u ≈ sol
 
     @test solve(probN, Broyden()).u ≈ sol
 
@@ -215,17 +212,16 @@ f = (u, p) -> 0.010000000000000002 .+
                  (0.21640425613334457 .+
                   216.40425613334457 ./
                   (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-              0.0011552453009332421u
-.-p
+              0.0011552453009332421u .- p
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, SimpleTrustRegion(100.0))
+    sol = solve(probN, SimpleTrustRegion())
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 u = g(p)
 f(u, p)
-@test all(f(u, p) .< 1e-10)
+@test all(abs.(f(u, p)) .< 1e-10)
 
 # Test kwars in `SimpleTrustRegion`
 max_trust_radius = [10.0, 100.0, 1000.0]
@@ -242,7 +238,7 @@ list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
                       expand_factor, max_shrink_times)
 for options in list_of_options
     local probN, sol, alg
-    alg = SimpleTrustRegion(options[1];
+    alg = SimpleTrustRegion(max_trust_radius = options[1],
                             initial_trust_radius = options[2],
                             step_threshold = options[3],
                             shrink_threshold = options[4],
@@ -253,5 +249,5 @@ for options in list_of_options
 
     probN = NonlinearProblem(f, u0, p)
     sol = solve(probN, alg)
-    @test all(f(u, p) .< 1e-10)
+    @test all(abs.(f(u, p)) .< 1e-10)
 end

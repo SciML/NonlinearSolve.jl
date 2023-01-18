@@ -19,21 +19,17 @@ include("utils.jl")
 include("bisection.jl")
 include("falsi.jl")
 include("raphson.jl")
-include("ad.jl")
 include("broyden.jl")
 include("klement.jl")
 include("trustRegion.jl")
+include("ad.jl")
 
 import SnoopPrecompile
 
 SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-    for alg in (SimpleNewtonRaphson, Broyden, Klement)
+    for alg in (SimpleNewtonRaphson, Broyden, Klement, SimpleTrustRegion)
         solve(prob_no_brack, alg(), abstol = T(1e-2))
-    end
-
-    for alg in (SimpleTrustRegion(10.0),)
-        solve(prob_no_brack, alg, abstol = T(1e-2))
     end
 
     #=
