@@ -36,6 +36,8 @@ features, but have a bit of overhead on very small problems.
 
 - `NewtonRaphson()`:A Newton-Raphson method with swappable nonlinear solvers and autodiff
     methods for high performance on large and sparse systems.
+- `TrustRegion()`: A Newton Trust Region dogleg method with swappable nonlinear solvers and 
+    autodiff methods for high performance on large and sparse systems.
 
 ### SimpleNonlinearSolve.jl
 
@@ -48,7 +50,7 @@ methods excel at small problems and problems defined with static arrays.
 - `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
   than Broyden's method, and it seems to be in the cases that have been tried but more
   benchmarking is required.
-- `TrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
+- `SimpleTrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
   for more robust fitting over basic Newton methods, though potentially with a cost.
 
 !!! note
