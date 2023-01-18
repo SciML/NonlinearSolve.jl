@@ -41,9 +41,9 @@ sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
-#@test (@ballocated benchmark_immutable(ff, cu0)) < 200
-#@test (@ballocated benchmark_mutable(ff, cu0)) < 200
-#@test (@ballocated benchmark_scalar(sf, csu0)) < 400
+# @test (@ballocated benchmark_immutable(ff, cu0)) < 200
+# @test (@ballocated benchmark_mutable(ff, cu0)) < 200
+# @test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
 function benchmark_inplace(f, u0)
     probN = NonlinearProblem{true}(f, u0)
@@ -127,19 +127,19 @@ end
 # --- TrustRegion tests ---
 
 function benchmark_immutable(f, u0)
-    probN = NonlinearProblem(f, u0)
+    probN = NonlinearProblem{false}(f, u0)
     solver = init(probN, TrustRegion(), abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_mutable(f, u0)
-    probN = NonlinearProblem(f, u0)
+    probN = NonlinearProblem{false}(f, u0)
     solver = init(probN, TrustRegion(), abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_scalar(f, u0)
-    probN = NonlinearProblem(f, u0)
+    probN = NonlinearProblem{false}(f, u0)
     sol = (solve(probN, TrustRegion()))
 end
 
@@ -160,6 +160,10 @@ sol = benchmark_mutable(ff, cu0)
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
+
+@test (@ballocated benchmark_immutable(ff, cu0)) < 400
+@test (@ballocated benchmark_mutable(ff, cu0)) < 400
+@test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
 function benchmark_inplace(f, u0)
     probN = NonlinearProblem(f, u0)

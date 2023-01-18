@@ -120,7 +120,8 @@ function TrustRegion(; chunk_size = Val{0}(),
 end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
-                                INType, tolType, probType, ufType, L, jType, JC
+                                INType, tolType, probType, ufType, L, jType, JC, floatType,
+                                trustType
                                 }
     f::fType
     alg::algType
@@ -138,10 +139,10 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     retcode::SciMLBase.ReturnCode.T
     abstol::tolType
     prob::probType
-    trust_r::Number
-    max_trust_r::Number
-    loss::Number
-    loss_new::Number
+    trust_r::trustType
+    max_trust_r::trustType
+    loss::floatType
+    loss_new::floatType
     H::jType
     g::resType
     shrink_counter::Int
@@ -149,25 +150,24 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     u_tmp::uType
     fu_new::resType
     make_new_J::Bool
-    r::Real
+    r::floatType
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType,
                                    jac_config::JC, iter::Int,
                                    force_stop::Bool, maxiters::Int, internalnorm::INType,
                                    retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                   prob::probType, trust_r::Number, max_trust_r::Number,
-                                   loss::Number,
-                                   loss_new::Number, H::jType, g::resType,
+                                   prob::probType, trust_r::trustType,
+                                   max_trust_r::trustType, loss::floatType,
+                                   loss_new::floatType, H::jType, g::resType,
                                    shrink_counter::Int, step_size::uType, u_tmp::uType,
-                                   fu_new::resType,
-                                   make_new_J::Bool,
-                                   r::Real) where {iip, fType, algType, uType,
-                                                   resType, pType, INType,
-                                                   tolType, probType, ufType, L,
-                                                   jType, JC}
+                                   fu_new::resType, make_new_J::Bool,
+                                   r::floatType) where {iip, fType, algType, uType,
+                                                        resType, pType, INType,
+                                                        tolType, probType, ufType, L,
+                                                        jType, JC, floatType, trustType}
         new{iip, fType, algType, uType, resType, pType,
-            INType, tolType, probType, ufType, L, jType, JC
+            INType, tolType, probType, ufType, L, jType, JC, floatType, trustType
             }(f, alg, u, fu, p, uf, linsolve, J,
               jac_config, iter, force_stop,
               maxiters, internalnorm, retcode,
@@ -243,7 +243,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
                                  max_trust_radius, loss, loss, H, fu, 0, u, u_tmp, fu, true,
-                                 0.0)
+                                 loss)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
