@@ -30,11 +30,12 @@ function sf(u, p)
     u * u - 2
 end
 const csu0 = 1.0
+u0 = [1.0, 1.0]
 
 sol = benchmark_immutable(ff, cu0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
-sol = benchmark_mutable(ff, cu0)
+sol = benchmark_mutable(ff, u0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
@@ -59,6 +60,11 @@ u0 = [1.0, 1.0]
 sol = benchmark_inplace(ffiip, u0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
+
+u0 = [1.0, 1.0]
+probN = NonlinearProblem{true}(ffiip, u0)
+solver = init(probN, NewtonRaphson(), abstol = 1e-9)
+@test (@ballocated solve!(solver)) < 50
 
 # AD Tests
 using ForwardDiff
@@ -150,23 +156,20 @@ end
 function sf(u, p)
     u * u - 2
 end
+u0 = [1.0, 1.0]
 
 sol = benchmark_immutable(ff, cu0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
-sol = benchmark_mutable(ff, cu0)
+sol = benchmark_mutable(ff, u0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test sol.u * sol.u - 2 < 1e-9
 
-@test (@ballocated benchmark_immutable(ff, cu0)) < 400
-@test (@ballocated benchmark_mutable(ff, cu0)) < 400
-@test (@ballocated benchmark_scalar(sf, csu0)) < 400
-
 function benchmark_inplace(f, u0)
-    probN = NonlinearProblem(f, u0)
+    probN = NonlinearProblem{true}(f, u0)
     solver = init(probN, TrustRegion(), abstol = 1e-9)
     sol = solve!(solver)
 end
@@ -180,6 +183,11 @@ sol = benchmark_inplace(ffiip, u0)
 @test sol.retcode === ReturnCode.Success
 @test all(sol.u .* sol.u .- 2 .< 1e-9)
 
+u0 = [1.0, 1.0]
+probN = NonlinearProblem{true}(ffiip, u0)
+solver = init(probN, TrustRegion(), abstol = 1e-9)
+@test (@ballocated solve!(solver)) < 120
+
 # AD Tests
 using ForwardDiff
 
@@ -187,7 +195,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 g = function (p)
-    probN = NonlinearProblem(f, csu0, p)
+    probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(), abstol = 1e-9)
     return sol.u[end]
 end
@@ -201,7 +209,7 @@ end
 f, u0 = (u, p) -> u * u - p, 1.0
 
 g = function (p)
-    probN = NonlinearProblem(f, oftype(p, u0), p)
+    probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, TrustRegion(), abstol = 1e-10)
     return sol.u
 end
@@ -217,7 +225,7 @@ f = (u, p) -> p[1] * u * u - p[2]
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
 gnewton = function (p)
-    probN = NonlinearProblem(f, 0.5, p)
+    probN = NonlinearProblem{false}(f, 0.5, p)
     sol = solve(probN, TrustRegion())
     return [sol.u]
 end
