@@ -1,16 +1,21 @@
 """
 ```julia
-SimpleTrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
-                               autodiff = Val{true}(), diff_type = Val{:forward})
+SimpleTrustRegion(; chunk_size = Val{0}(),
+                    autodiff = Val{true}(),
+                    diff_type = Val{:forward},
+                    max_trust_radius::Real = 0.0,
+                    initial_trust_radius::Real = 0.0,
+                    step_threshold::Real = 0.1,
+                    shrink_threshold::Real = 0.25,
+                    expand_threshold::Real = 0.75,
+                    shrink_factor::Real = 0.25,
+                    expand_factor::Real = 2.0,
+                    max_shrink_times::Int = 32
 ```
 
 A low-overhead implementation of a
 [trust-region](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
 solver
-
-### Arguments
-- `max_trust_radius`: the maximum radius of the trust region. The step size in the algorithm
-  will change dynamically. However, it will never be greater than the `max_trust_radius`.
 
 ### Keyword Arguments
 
@@ -26,6 +31,8 @@ solver
 - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
   `Val{:forward}` for forward finite differences. For more details on the choices, see the
   [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+- `max_trust_radius`: the maximum radius of the trust region. Defaults to
+  `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
 - `initial_trust_radius`: the initial trust region radius. Defaults to
   `max_trust_radius / 11`.
 - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
@@ -58,25 +65,28 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     shrink_factor::T
     expand_factor::T
     max_shrink_times::Int
-    function SimpleTrustRegion(max_trust_radius::Number; chunk_size = Val{0}(),
+    function SimpleTrustRegion(; chunk_size = Val{0}(),
                                autodiff = Val{true}(),
                                diff_type = Val{:forward},
-                               initial_trust_radius::Number = max_trust_radius / 11,
-                               step_threshold::Number = 0.1,
-                               shrink_threshold::Number = 0.25,
-                               expand_threshold::Number = 0.75,
-                               shrink_factor::Number = 0.25,
-                               expand_factor::Number = 2.0,
+                               max_trust_radius::Real = 0.0,
+                               initial_trust_radius::Real = 0.0,
+                               step_threshold::Real = 0.1,
+                               shrink_threshold::Real = 0.25,
+                               expand_threshold::Real = 0.75,
+                               shrink_factor::Real = 0.25,
+                               expand_factor::Real = 2.0,
                                max_shrink_times::Int = 32)
-        new{typeof(initial_trust_radius), SciMLBase._unwrap_val(chunk_size),
-            SciMLBase._unwrap_val(autodiff), SciMLBase._unwrap_val(diff_type)}(max_trust_radius,
-                                                                               initial_trust_radius,
-                                                                               step_threshold,
-                                                                               shrink_threshold,
-                                                                               expand_threshold,
-                                                                               shrink_factor,
-                                                                               expand_factor,
-                                                                               max_shrink_times)
+        new{typeof(initial_trust_radius),
+            SciMLBase._unwrap_val(chunk_size),
+            SciMLBase._unwrap_val(autodiff),
+            SciMLBase._unwrap_val(diff_type)}(max_trust_radius,
+                                              initial_trust_radius,
+                                              step_threshold,
+                                              shrink_threshold,
+                                              expand_threshold,
+                                              shrink_factor,
+                                              expand_factor,
+                                              max_shrink_times)
     end
 end
 
@@ -112,6 +122,14 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     else
         F = f(x)
         ∇f = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x), F)
+    end
+
+    # Set default trust region radius if not specified by user.
+    if Δₘₐₓ == 0.0
+        Δₘₐₓ = max(norm(F), maximum(x) - minimum(x))
+    end
+    if Δ == 0.0
+        Δ = Δₘₐₓ / 11
     end
 
     fₖ = 0.5 * norm(F)^2
