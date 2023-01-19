@@ -307,7 +307,6 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.shrink_counter = 0
     end
     if r > alg.step_threshold
-
         take_step!(cache)
         cache.loss = cache.loss_new
 
