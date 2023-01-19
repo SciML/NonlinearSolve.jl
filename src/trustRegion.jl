@@ -309,8 +309,8 @@ function trust_region_step!(cache::TrustRegionCache)
     if r > alg.step_threshold
 
         # Take the step.
-        cache.u = copy(u_tmp)
-        cache.fu = copy(fu_new)
+        take_step!(cache)
+
         cache.loss = cache.loss_new
 
         # Update the trust region radius.
@@ -354,6 +354,16 @@ function dogleg!(cache::TrustRegionCache)
     fact = dot_sd_N_sd^2 - dot_N_sd * (dot_sd - trust_r^2)
     τ = (-dot_sd_N_sd + sqrt(fact)) / dot_N_sd
     cache.step_size = δsd + τ * N_sd
+end
+
+function take_step!(cache::TrustRegionCache{true})
+    cache.u = copy(cache.u_tmp)
+    cache.fu = copy(cache.fu_new)
+end
+
+function take_step!(cache::TrustRegionCache{false})
+    cache.u = cache.u_tmp
+    cache.fu = cache.fu_new
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)

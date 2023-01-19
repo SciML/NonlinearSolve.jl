@@ -23,3 +23,10 @@ docs/site/
 # environment.
 Manifest.toml
 docs/src/assets/Project.toml
+
+.vscode
+TEST1.jl
+TEST2.jl
+TEST3.jl
+trustRegion copy.jl
+trustRegionHOLDER.jl
