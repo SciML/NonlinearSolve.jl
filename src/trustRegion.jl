@@ -309,8 +309,8 @@ function trust_region_step!(cache::TrustRegionCache)
     if r > alg.step_threshold
 
         # Take the step.
-        cache.u = u_tmp
-        cache.fu = fu_new
+        cache.u = copy(u_tmp)
+        cache.fu = copy(fu_new)
         cache.loss = cache.loss_new
 
         # Update the trust region radius.
@@ -324,7 +324,7 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.make_new_J = false
     end
 
-    if iszero(cache.fu) || cache.internalnorm(cache.step_size) < cache.abstol
+    if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
     end
 end

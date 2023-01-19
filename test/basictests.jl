@@ -34,13 +34,13 @@ u0 = [1.0, 1.0]
 
 sol = benchmark_immutable(ff, cu0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 sol = benchmark_mutable(ff, u0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
+@test abs(sol.u * sol.u - 2) < 1e-9
 
 # @test (@ballocated benchmark_immutable(ff, cu0)) < 200
 # @test (@ballocated benchmark_mutable(ff, cu0)) < 200
@@ -59,7 +59,7 @@ u0 = [1.0, 1.0]
 
 sol = benchmark_inplace(ffiip, u0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
@@ -160,13 +160,13 @@ u0 = [1.0, 1.0]
 
 sol = benchmark_immutable(ff, cu0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 sol = benchmark_mutable(ff, u0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
+@test abs(sol.u * sol.u - 2) < 1e-9
 
 function benchmark_inplace(f, u0)
     probN = NonlinearProblem{true}(f, u0)
@@ -181,7 +181,7 @@ u0 = [1.0, 1.0]
 
 sol = benchmark_inplace(ffiip, u0)
 @test sol.retcode === ReturnCode.Success
-@test all(sol.u .* sol.u .- 2 .< 1e-9)
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
@@ -263,7 +263,7 @@ f = (u, p) -> 0.010000000000000002 .+
               0.0011552453009332421u .- p
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, TrustRegion())
+    sol = solve(probN, TrustRegion(), abstol = 1e-10)
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -295,7 +295,7 @@ for options in list_of_options
                       expand_factor = options[7],
                       max_shrink_times = options[8])
 
-    probN = NonlinearProblem(f, u0, p)
-    sol = solve(probN, alg)
-    @test all(f(u, p) .< 1e-10)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, alg, abstol = 1e-10)
+    @test all(abs.(f(u, p)) .< 1e-10)
 end
