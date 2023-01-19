@@ -242,7 +242,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
-                                 max_trust_radius, loss, loss, H, fu, 0, u, u_tmp, fu, true,
+                                 max_trust_radius, loss, loss, H, zero(fu), 0, zero(u), u_tmp, zero(fu), true,
                                  loss)
 end
 
