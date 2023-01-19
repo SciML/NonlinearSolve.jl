@@ -242,7 +242,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
-                                 max_trust_radius, loss, loss, H, fu, 0, u, u_tmp, fu, true,
+                                 max_trust_radius, loss, loss, H, zero(fu), 0, zero(u),
+                                 u_tmp, zero(fu), true,
                                  loss)
 end
 
@@ -307,10 +308,7 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.shrink_counter = 0
     end
     if r > alg.step_threshold
-
-        # Take the step.
-        cache.u = u_tmp
-        cache.fu = fu_new
+        take_step!(cache)
         cache.loss = cache.loss_new
 
         # Update the trust region radius.
@@ -324,7 +322,7 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.make_new_J = false
     end
 
-    if iszero(cache.fu) || cache.internalnorm(cache.step_size) < cache.abstol
+    if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
     end
 end
@@ -354,6 +352,16 @@ function dogleg!(cache::TrustRegionCache)
     fact = dot_sd_N_sd^2 - dot_N_sd * (dot_sd - trust_r^2)
     τ = (-dot_sd_N_sd + sqrt(fact)) / dot_N_sd
     cache.step_size = δsd + τ * N_sd
+end
+
+function take_step!(cache::TrustRegionCache{true})
+    cache.u .= cache.u_tmp
+    cache.fu .= cache.fu_new
+end
+
+function take_step!(cache::TrustRegionCache{false})
+    cache.u = cache.u_tmp
+    cache.fu = cache.fu_new
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)
