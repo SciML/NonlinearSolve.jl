@@ -12,7 +12,7 @@ systems, it can make use of sparsity patterns for sparse automatic differentiati
 and sparse linear solving of very large systems. That said, as a classic Newton
 method, its stability region can be smaller than other methods. Meanwhile,
 `SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which are specialized for 
-small equations. It is non-allocating on static arrays and thus really well-optimized 
+small equations. They are non-allocating on static arrays and thus really well-optimized 
 for small systems, thus usually outperforming the other methods when such types are 
 used for `u0`. `DynamicSS` can be a good choice for high stability.
 
@@ -48,16 +48,16 @@ methods excel at small problems and problems defined with static arrays.
 - `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method.
 - `Broyden()`: the classic Broyden's quasi-Newton method.
 - `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
-  than Broyden's method, and it seems to be in the cases that have been tried but more
+  than Broyden's method, and it seems to be in the cases that have been tried, but more
   benchmarking is required.
 - `SimpleTrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
   for more robust fitting over basic Newton methods, though potentially with a cost.
 
 !!! note
 
-    When used with states `u` as a `Number` or `StaticArray`, these solvers are
-    very efficient and non-allocating. These implementations are thus well-suited for small
-    systems of equations.
+    When used with certain types for the states `u` such as a `Number` or `StaticArray`,
+    these solvers are very efficient and non-allocating. These implementations are thus
+    well-suited for small systems of equations.
 
 ### SteadyStateDiffEq.jl
 
