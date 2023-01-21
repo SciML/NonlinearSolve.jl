@@ -45,7 +45,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
         (NewtonRaphson(),)
     end
 
-    
     for alg in precompile_algs
         solve(prob, alg, abstol = T(1e-2))
     end
