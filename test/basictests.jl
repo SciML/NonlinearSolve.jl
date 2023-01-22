@@ -19,7 +19,7 @@ end
 
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, NewtonRaphson()))
+    sol = (solve(probN, NewtonRaphson(), abstol = 1e-9))
 end
 
 function ff(u, p)
@@ -146,7 +146,7 @@ end
 
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, TrustRegion()))
+    sol = (solve(probN, TrustRegion(), abstol = 1e-9))
 end
 
 function ff(u, p)
@@ -316,7 +316,7 @@ end
 
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, LevenbergMarquardt()))
+    sol = (solve(probN, LevenbergMarquardt(), abstol = 1e-9))
 end
 
 function ff(u, p)
@@ -338,25 +338,25 @@ sol = benchmark_scalar(sf, csu0)
 @test sol.retcode === ReturnCode.Success
 @test abs(sol.u * sol.u - 2) < 1e-9
 
-# function benchmark_inplace(f, u0)
-#     probN = NonlinearProblem{true}(f, u0)
-#     solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-#     sol = solve!(solver)
-# end
+function benchmark_inplace(f, u0)
+    probN = NonlinearProblem{true}(f, u0)
+    solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
+    sol = solve!(solver)
+end
 
-# function ffiip(du, u, p)
-#     du .= u .* u .- 2
-# end
-# u0 = [1.0, 1.0]
+function ffiip(du, u, p)
+    du .= u .* u .- 2
+end
+u0 = [1.0, 1.0]
 
-# sol = benchmark_inplace(ffiip, u0)
-# @test sol.retcode === ReturnCode.Success
-# @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+sol = benchmark_inplace(ffiip, u0)
+@test sol.retcode === ReturnCode.Success
+@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-# u0 = [1.0, 1.0]
-# probN = NonlinearProblem{true}(ffiip, u0)
-# solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-# @test (@ballocated solve!(solver)) < 120
+u0 = [1.0, 1.0]
+probN = NonlinearProblem{true}(ffiip, u0)
+solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
+@test (@ballocated solve!(solver)) < 120
 
 # AD Tests
 using ForwardDiff
@@ -442,30 +442,29 @@ f(u, p)
 @test all(abs.(f(u, p)) .< 1e-10)
 
 # # Test kwars in `LevenbergMarquardt`
-# max_trust_radius = [10.0, 100.0, 1000.0]
-# initial_trust_radius = [10.0, 1.0, 0.1]
-# step_threshold = [0.0, 0.01, 0.25]
-# shrink_threshold = [0.25, 0.3, 0.5]
-# expand_threshold = [0.5, 0.8, 0.9]
-# shrink_factor = [0.1, 0.3, 0.5]
-# expand_factor = [1.5, 2.0, 3.0]
-# max_shrink_times = [10, 20, 30]
+damping_initial = [0.5, 2.0, 5.0]
+damping_increase_factor = [1.5, 3.0, 10.0]
+damping_decrease_factor = [2, 5, 10]
+finite_diff_step_geodesic = [0.02, 0.2, 0.3]
+α_geodesic = [0.6, 0.8, 0.9]
+b_uphill = [0, 1, 2]
+min_damping_D = [1e-12, 1e-9, 1e-4]
 
-# list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-#                       shrink_threshold, expand_threshold, shrink_factor,
-#                       expand_factor, max_shrink_times)
-# for options in list_of_options
-#     local probN, sol, alg
-#     alg = LevenbergMarquardt(max_trust_radius = options[1],
-#                       initial_trust_radius = options[2],
-#                       step_threshold = options[3],
-#                       shrink_threshold = options[4],
-#                       expand_threshold = options[5],
-#                       shrink_factor = options[6],
-#                       expand_factor = options[7],
-#                       max_shrink_times = options[8])
+list_of_options = zip(damping_initial, damping_increase_factor, damping_decrease_factor,
+                      finite_diff_step_geodesic, α_geodesic, b_uphill,
+                      min_damping_D)
+for options in list_of_options
+    local probN, sol, alg
+    alg = LevenbergMarquardt(damping_initial = options[1],
+                      damping_increase_factor = options[2],
+                      damping_decrease_factor = options[3],
+                      finite_diff_step_geodesic = options[4],
+                      α_geodesic = options[5],
+                      b_uphill = options[6],
+                      min_damping_D = options[7])
 
-#     probN = NonlinearProblem{false}(f, u0, p)
-#     sol = solve(probN, alg, abstol = 1e-10)
-#     @test all(abs.(f(u, p)) .< 1e-10)
-# end
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, alg, abstol = 1e-10)
+    @test all(abs.(f(u, p)) .< 1e-10)
+
+end
