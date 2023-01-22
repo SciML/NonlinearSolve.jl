@@ -17,10 +17,8 @@ LevenbergMarquardt(; chunk_size = Val{0}(),
 
 An advanced Levenberg-Marquardt implementation with the improvements suggested in the
 [paper](https://arxiv.org/abs/1201.5885) "Improvements to the Levenberg-Marquardt
-algorithm for nonlinear least-squares minimization". This implementation is designed with
-support for efficient handling of sparse matrices via colored automatic differentiation and
-preconditioned linear solvers. Designed for large-scale and numerically-difficult nonlinear
-systems.
+algorithm for nonlinear least-squares minimization". Designed for large-scale and
+numerically-difficult nonlinear systems.
 
 
 ### Keyword Arguments
@@ -56,31 +54,49 @@ systems.
   preconditioners. For more information on specifying preconditioners for LinearSolve
   algorithms, consult the
   [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-- `damping_initial`: the initial damping factor. The damping is proportional to the inverse
-  of the step size and is changed dynamically in each iteration. Defaults to `1.0`. For more
-  details, see section 2.1 of [this paper](https://arxiv.org/abs/1201.5885).
-- `damping_increase_factor`: the factor by which the damping is increased if a step isn't
-  accepted i.e. how much smaller the next step size should be if a step is rejected.
-  Defaults to `2.0`. For more details, see section 2.1 of
+- `damping_initial`: the starting value for the damping factor. The damping factor is
+  inversely proportional to the step size. The damping factor is adjusted during each
+  iteration. Defaults to `1.0`. For more details, see section 2.1 of
+  [this paper](https://arxiv.org/abs/1201.5885).
+- `damping_increase_factor`: the factor by which the damping is increased if a step is
+  rejected. Defaults to `2.0`. For more details, see section 2.1 of
   [this paper](https://arxiv.org/abs/1201.5885).
 - `damping_decrease_factor`: the factor by which the damping is decreased if a step is
-  accepted i.e. how much larger the next step size should be if a step is accepted.
-  Defaults to `3.0`. For more details, see section 2.1 of
+  accepted. Defaults to `3.0`. For more details, see section 2.1 of
   [this paper](https://arxiv.org/abs/1201.5885).
-- `finite_diff_step_geodesic`: the finite differencing step size used for the geodesic
-  acceleration method. Defaults to `0.1` which means thats the step is about 10% of the
-  first order step. For more details, see section 3 of
+- `finite_diff_step_geodesic`: the step size used for finite differencing used to calculate
+  the geodesic acceleration. Defaults to `0.1` which means that the step size is
+  approximately 10% of the first-order step. For more details, see section 3 of
   [this paper](https://arxiv.org/abs/1201.5885).
-- `α_geodesic`: a factor that determines if a step is accepted or rejected.
-  In order to utilize the geodesic acceleration as an addition to the Levenberg-Marquardt
-  algorithm, it is necessary to make one small addition. To require acceptable steps to
-  satisfy the condition ... continue to document this...
-
-# TODO documentation and cleanup of code & che
-
-  α_geodesic::Real = 0.75,
-  b_uphill::Real = 1.0,
-  min_damping_D::AbstractFloat = 1e-8
+- `α_geodesic`: a factor that determines if a step is accepted or rejected. To incorporate
+  geodesic acceleration as an addition to the Levenberg-Marquardt algorithm, it is necessary
+  that acceptable steps meet the condition
+  ``\\frac{2||a||}{||v||} \\le \\alpha_{\\text{geodesic}}``, where ``a`` is the geodesic
+  acceleration, ``v`` is the Levenberg-Marquardt algorithm's step (velocity along a geodesic
+  path) and `α_geodesic` is some number of order `1`. For most problems `α_geodesic = 0.75`
+  is a good value but for problems where convergence is difficult `α_geodesic = 0.1` is an
+  effective choice. Defaults to `0.75`. For more details, see section 3, equation (15) of
+  [this paper](https://arxiv.org/abs/1201.5885).
+- `b_uphill`: a factor that determines if a step is accepted or rejected. The standard
+  choice in the Levenberg-Marquardt method is to accept all steps that decrease the cost
+  and reject all steps that increase the cost. Although this is a natural and safe choice,
+  it is often not the most efficient. Therefore downhill moves are always accepted, but
+  uphill moves are only conditionally accepted. To decide whether an uphill move will be
+  accepted at each iteration ``i``, we compute
+  ``\\beta_i = \\cos(v_{\\text{new}}, v_{\\text{old}})``, which denotes the cosine angle
+  between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
+  step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
+  specify, uphill moves are accepted if
+  ``(1-\\beta_i)^(b_{\\text{uphill}})C_{i+1} \\le C_i``, where ``C_i`` is the cost at
+  iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
+  allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
+  will be accepted. Defaults to `1.0`. For more details, see section 4 of
+  [this paper](https://arxiv.org/abs/1201.5885).
+- `min_damping_D`: the minimum value of the damping terms in the diagonal damping matrix
+  `DᵀD`, where `DᵀD` is given by the largest diagonal entries of `JᵀJ` yet encountered,
+  where `J` is the Jacobian. It is suggested by
+  [this paper](https://arxiv.org/abs/1201.5885) to use a minimum value of the elements in
+  `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
 
 
 !!! note
@@ -117,20 +133,20 @@ function LevenbergMarquardt(; chunk_size = Val{0}(),
                             min_damping_D::AbstractFloat = 1e-8)
     LevenbergMarquardt{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
                        typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-                       _unwrap_val(concrete_jac), typeof(min_damping_D)}(linsolve, precs,
-                                                                         damping_initial,
-                                                                         damping_increase_factor,
-                                                                         damping_decrease_factor,
-                                                                         finite_diff_step_geodesic,
-                                                                         α_geodesic,
-                                                                         b_uphill,
-                                                                         min_damping_D)
+                       _unwrap_val(concrete_jac),
+                       typeof(min_damping_D)}(linsolve, precs,
+                                              damping_initial,
+                                              damping_increase_factor,
+                                              damping_decrease_factor,
+                                              finite_diff_step_geodesic,
+                                              α_geodesic,
+                                              b_uphill,
+                                              min_damping_D)
 end
 
 mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resType, pType,
-                                       INType, tolType,
-                                       probType, ufType, L, jType, JC, DᵀDType,
-                                       floatType
+                                       INType, tolType, probType, ufType, L, jType, JC,
+                                       DᵀDType, λType, lossType
                                        }
     f::fType
     alg::algType
@@ -151,15 +167,15 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     prob::probType
     DᵀD::DᵀDType
     JᵀJ::jType
-    λ::floatType
-    λ_factor::floatType
+    λ::λType
+    λ_factor::λType
     v::uType
     a::uType
     tmp_vec::uType
     v_old::uType
-    norm_v_old::floatType
+    norm_v_old::lossType
     δ::uType
-    loss_old::floatType
+    loss_old::lossType
     make_new_J::Bool
     fu_tmp::resType
 
@@ -170,26 +186,26 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                           internalnorm::INType,
                                           retcode::SciMLBase.ReturnCode.T, abstol::tolType,
                                           prob::probType, DᵀD::DᵀDType, JᵀJ::jType,
-                                          λ::floatType, λ_factor::floatType, v::uType,
+                                          λ::λType, λ_factor::λType, v::uType,
                                           a::uType, tmp_vec::uType, v_old::uType,
-                                          norm_v_old::floatType, δ::uType,
-                                          loss_old::floatType,
-                                          make_new_J::Bool,
+                                          norm_v_old::lossType, δ::uType,
+                                          loss_old::lossType, make_new_J::Bool,
                                           fu_tmp::resType) where {
                                                                   iip, fType, algType,
                                                                   uType, duType, resType,
                                                                   pType, INType, tolType,
                                                                   probType, ufType, L,
                                                                   jType, JC, DᵀDType,
-                                                                  floatType
+                                                                  λType, lossType
                                                                   }
         new{iip, fType, algType, uType, duType, resType,
             pType, INType, tolType, probType, ufType, L,
-            jType, JC, DᵀDType, floatType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
-                                           jac_config, iter, force_stop, maxiters,
-                                           internalnorm, retcode, abstol, prob, DᵀD,
-                                           JᵀJ, λ, λ_factor, v, a, tmp_vec, v_old,
-                                           norm_v_old, δ, loss_old, make_new_J, fu_tmp)
+            jType, JC, DᵀDType, λType, lossType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
+                                                 jac_config, iter, force_stop, maxiters,
+                                                 internalnorm, retcode, abstol, prob, DᵀD,
+                                                 JᵀJ, λ, λ_factor, v, a, tmp_vec, v_old,
+                                                 norm_v_old, δ, loss_old, make_new_J,
+                                                 fu_tmp)
     end
 end
 
@@ -283,12 +299,11 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     # Usual Levenberg-Marquardt step ("velocity").
     cache.v = -(JᵀJ .+ λ .* DᵀD) \ mul!(cache.du_tmp, J', fu)
 
+    # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, alg = cache
     h = alg.finite_diff_step_geodesic
-    # Geodesic acceleration (step_size = v + a / 2).
     f(cache.fu_tmp, u .+ h .* v, p)
-    cache.a = -J \ ((2 / h) .*
-                    ((cache.fu_tmp .- fu) ./ h .- mul!(cache.du_tmp, J, v)))
+    cache.a = -J \ ((2 / h) .* ((cache.fu_tmp .- fu) ./ h .- mul!(cache.du_tmp, J, v)))
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
@@ -344,12 +359,12 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     @unpack v, alg = cache
     h = alg.finite_diff_step_geodesic
     # Geodesic acceleration (step_size = v + a / 2).
-    cache.a = -J \ ((2 / h) .* ((f(u .+ h * v, p) .- fu) ./ h .- J * v))
+    cache.a = -J \ ((2 / h) .* ((f(u .+ h .* v, p) .- fu) ./ h .- J * v))
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
     if (2 * norm(cache.a) / norm_v) < alg.α_geodesic
-        cache.δ = v + cache.a / 2
+        cache.δ = v .+ cache.a ./ 2
         @unpack δ, loss_old, norm_v_old, v_old = cache
         fu_new = f(u .+ δ, p)
         loss = cache.internalnorm(fu_new)
