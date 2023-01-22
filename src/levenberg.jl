@@ -87,7 +87,7 @@ numerically-difficult nonlinear systems.
   between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
   step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
   specify, uphill moves are accepted if
-  ``(1-\\beta_i)^(b_{\\text{uphill}})C_{i+1} \\le C_i``, where ``C_i`` is the cost at
+  ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
   iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
   allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
   will be accepted. Defaults to `1.0`. For more details, see section 4 of
@@ -178,6 +178,7 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     loss_old::lossType
     make_new_J::Bool
     fu_tmp::resType
+    mat_tmp::jType
 
     function LevenbergMarquardtCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
                                           p::pType, uf::ufType, linsolve::L, J::jType,
@@ -190,14 +191,15 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                           a::uType, tmp_vec::uType, v_old::uType,
                                           norm_v_old::lossType, δ::uType,
                                           loss_old::lossType, make_new_J::Bool,
-                                          fu_tmp::resType) where {
-                                                                  iip, fType, algType,
-                                                                  uType, duType, resType,
-                                                                  pType, INType, tolType,
-                                                                  probType, ufType, L,
-                                                                  jType, JC, DᵀDType,
-                                                                  λType, lossType
-                                                                  }
+                                          fu_tmp::resType,
+                                          mat_tmp::jType) where {
+                                                                 iip, fType, algType,
+                                                                 uType, duType, resType,
+                                                                 pType, INType, tolType,
+                                                                 probType, ufType, L,
+                                                                 jType, JC, DᵀDType,
+                                                                 λType, lossType
+                                                                 }
         new{iip, fType, algType, uType, duType, resType,
             pType, INType, tolType, probType, ufType, L,
             jType, JC, DᵀDType, λType, lossType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
@@ -205,7 +207,7 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                                  internalnorm, retcode, abstol, prob, DᵀD,
                                                  JᵀJ, λ, λ_factor, v, a, tmp_vec, v_old,
                                                  norm_v_old, δ, loss_old, make_new_J,
-                                                 fu_tmp)
+                                                 fu_tmp, mat_tmp)
     end
 end
 
@@ -273,6 +275,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     δ = zero(u)
     make_new_J = true
     fu_tmp = zero(fu)
+    mat_tmp = zero(J)
 
     return LevenbergMarquardtCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
                                         jac_config,
@@ -280,7 +283,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
                                         ReturnCode.Default, abstol, prob, DᵀD, JᵀJ,
                                         alg.damping_initial, alg.damping_increase_factor,
                                         v, a, tmp_vec, v_old, loss, δ, loss, make_new_J,
-                                        fu_tmp)
+                                        fu_tmp, mat_tmp)
 end
 function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack fu, f, make_new_J = cache
@@ -294,16 +297,28 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
         cache.make_new_J = false
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J = cache
+    @unpack u, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
-    cache.v = -(JᵀJ .+ λ .* DᵀD) \ mul!(cache.du_tmp, J', fu)
+    # The following lines do: cache.v = -cache.mat_tmp \ cache.fu_tmp
+    mul!(cache.fu_tmp, J', fu)
+    @. cache.mat_tmp = JᵀJ + λ * DᵀD
+    linres = dolinsolve(alg.precs, linsolve, A = cache.mat_tmp, b = _vec(cache.fu_tmp),
+                        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    cache.v .= -cache.du_tmp
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, alg = cache
     h = alg.finite_diff_step_geodesic
     f(cache.fu_tmp, u .+ h .* v, p)
-    cache.a = -J \ ((2 / h) .* ((cache.fu_tmp .- fu) ./ h .- mul!(cache.du_tmp, J, v)))
+
+    # The following lines do: cache.a = -J \ cache.fu_tmp
+    cache.fu_tmp .= (2 / h) .* ((cache.fu_tmp .- fu) ./ h .- mul!(cache.du_tmp, J, v))
+    linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(cache.fu_tmp),
+                        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    cache.a .= -cache.du_tmp
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)

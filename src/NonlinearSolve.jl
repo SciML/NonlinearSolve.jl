@@ -41,7 +41,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
     precompile_algs = if VERSION >= v"1.7"
-        (NewtonRaphson(),)
+        (NewtonRaphson(), LevenbergMarquardt())
     else
         (NewtonRaphson(),)
     end
