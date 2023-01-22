@@ -6,7 +6,8 @@ Note that these solvers do not come by default, and thus one needs to install
 the package before using these solvers:
 
 ```julia
-]add SteadyStateDiffEq
+using Pkg
+Pkg.add("SteadyStateDiffEq")
 using SteadyStateDiffEq
 ```
 
