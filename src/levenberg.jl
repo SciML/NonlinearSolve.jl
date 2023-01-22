@@ -306,7 +306,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     linres = dolinsolve(alg.precs, linsolve, A = cache.mat_tmp, b = _vec(cache.fu_tmp),
                         linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    cache.v .= -cache.du_tmp
+    @. cache.v = -cache.du_tmp
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, alg = cache
@@ -319,7 +319,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(cache.fu_tmp),
                         linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    cache.a .= -cache.du_tmp
+    @. cache.a = -cache.du_tmp
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
