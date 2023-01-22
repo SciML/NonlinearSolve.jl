@@ -315,7 +315,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
     mul!(cache.du_tmp, J, v)
-    cache.fu_tmp .= (2 / h) .* ((cache.fu_tmp .- fu) ./ h .- cache.du_tmp)
+    @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu) / h - cache.du_tmp)
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(cache.fu_tmp),
                         linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
