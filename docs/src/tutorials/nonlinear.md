@@ -7,7 +7,7 @@ the vector equation $$f(u) = u^2 - p$$ for a vector of equations:
 ```@example
 using NonlinearSolve, StaticArrays
 
-f(u,p) = u .* u .- p
+f(u, p) = u .* u .- p
 u0 = @SVector[1.0, 1.0]
 p = 2.0
 probN = NonlinearProblem{false}(f, u0, p)
@@ -26,7 +26,7 @@ a bracket instead of an initial condition, for example:
 
 ```@example
 using NonlinearSolve
-f(u, p) = u*u - 2.0
+f(u, p) = u * u - 2.0
 uspan = (1.0, 2.0) # brackets
 probB = IntervalNonlinearProblem(f, uspan)
 sol = solve(probB, Falsi())

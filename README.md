@@ -7,11 +7,8 @@
 [![Build Status](https://github.com/SciML/NonlinearSolve.jl/workflows/CI/badge.svg)](https://github.com/SciML/NonlinearSolve.jl/actions?query=workflow%3ACI)
 [![Build status](https://badge.buildkite.com/413dc8df7d555cc14c262aba066503a9e7a42023f9cfb75a55.svg)](https://buildkite.com/julialang/nonlinearsolve-dot-jl)
 
-[![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
+[![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor%27s%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
-
-
-
 
 Fast implementations of root finding algorithms in Julia that satisfy the SciML common interface.
 
@@ -25,7 +22,7 @@ the documentation which contains the unreleased features.
 ```julia
 using NonlinearSolve, StaticArrays
 
-f(u,p) = u .* u .- 2
+f(u, p) = u .* u .- 2
 u0 = @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
 solver = solve(probN, NewtonRaphson(), abstol = 1e-9)

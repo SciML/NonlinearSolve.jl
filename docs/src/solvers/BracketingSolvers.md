@@ -17,5 +17,5 @@ less stable than `Bisection`.
 These methods are automatically included as part of NonlinearSolve.jl. Though, one can use
 SimpleNonlinearSolve.jl directly to decrease the dependencies and improve load time.
 
-- `Falsi`: A non-allocating regula falsi method
-- `Bisection`: A common bisection method
+  - `Falsi`: A non-allocating regula falsi method
+  - `Bisection`: A common bisection method
