@@ -3,13 +3,13 @@
 TrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
             standardtag = Val{true}(), concrete_jac = nothing,
             diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-            max_trust_radius::Real = 0.0,
-            initial_trust_radius::Real = 0.0,
-            step_threshold::Real = 0.1,
-            shrink_threshold::Real = 0.25,
-            expand_threshold::Real = 0.75,
-            shrink_factor::Real = 0.25,
-            expand_factor::Real = 2.0,
+            max_trust_radius::Real = 0 // 1,
+            initial_trust_radius::Real = 0 // 1,
+            step_threshold::Real = 1 // 10,
+            shrink_threshold::Real = 1 // 4,
+            expand_threshold::Real = 3 // 4,
+            shrink_factor::Real = 1 // 4,
+            expand_factor::Real = 2 // 1,
             max_shrink_times::Int = 32)
 ```
 
