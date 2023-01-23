@@ -121,8 +121,7 @@ end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                 INType, tolType, probType, ufType, L, jType, JC, floatType,
-                                trustType
-                                }
+                                trustType, suType, tmpType}
     f::fType
     alg::algType
     u::uType
@@ -146,8 +145,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     H::jType
     g::resType
     shrink_counter::Int
-    step_size::uType
-    u_tmp::uType
+    step_size::suType
+    u_tmp::tmpType
     fu_new::resType
     make_new_J::Bool
     r::floatType
@@ -160,21 +159,22 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    prob::probType, trust_r::trustType,
                                    max_trust_r::trustType, loss::floatType,
                                    loss_new::floatType, H::jType, g::resType,
-                                   shrink_counter::Int, step_size::uType, u_tmp::uType,
+                                   shrink_counter::Int, step_size::suType, u_tmp::tmpType,
                                    fu_new::resType, make_new_J::Bool,
                                    r::floatType) where {iip, fType, algType, uType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
-                                                        jType, JC, floatType, trustType}
+                                                        jType, JC, floatType, trustType,
+                                                        suType, tmpType}
         new{iip, fType, algType, uType, resType, pType,
-            INType, tolType, probType, ufType, L, jType, JC, floatType, trustType
-            }(f, alg, u, fu, p, uf, linsolve, J,
-              jac_config, iter, force_stop,
-              maxiters, internalnorm, retcode,
-              abstol, prob, trust_r, max_trust_r, loss,
-              loss_new, H, g, shrink_counter,
-              step_size, u_tmp, fu_new,
-              make_new_J, r)
+            INType, tolType, probType, ufType, L, jType, JC, floatType,
+            trustType, suType, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+                                        jac_config, iter, force_stop,
+                                        maxiters, internalnorm, retcode,
+                                        abstol, prob, trust_r, max_trust_r, loss,
+                                        loss_new, H, g, shrink_counter,
+                                        step_size, u_tmp, fu_new,
+                                        make_new_J, r)
     end
 end
 
