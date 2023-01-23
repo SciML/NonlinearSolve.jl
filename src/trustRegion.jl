@@ -229,14 +229,16 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
     # Set default trust region radius if not specified
-    max_trust_radius = alg.max_trust_radius
-    initial_trust_radius = alg.initial_trust_radius
-    if max_trust_radius == 0.0
+    u_elType = uType <: Number ? uType : eltype(u)
+    max_trust_radius = u_elType(alg.max_trust_radius)
+    initial_trust_radius = u_elType(alg.initial_trust_radius)
+    if iszero(max_trust_radius)
         max_trust_radius = max(norm(fu), maximum(u) - minimum(u))
     end
-    if initial_trust_radius == 0.0
+    if iszero(initial_trust_radius)
         initial_trust_radius = max_trust_radius / 11
     end
+
     H = ArrayInterfaceCore.undefmatrix(u)
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
