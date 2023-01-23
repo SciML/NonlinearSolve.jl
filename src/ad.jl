@@ -26,7 +26,7 @@ end
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
                                                 iip,
                                                 <:Dual{T, V, P}},
-                         alg::Union{NewtonRaphson, TrustRegion},
+                         alg::AbstractNewtonAlgorithm,
                          args...; kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
@@ -35,7 +35,8 @@ end
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
                                                 iip,
                                                 <:AbstractArray{<:Dual{T, V, P}}},
-                         alg::Union{NewtonRaphson, TrustRegion}, args...;
+                         alg::AbstractNewtonAlgorithm,
+                         args...;
                          kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;

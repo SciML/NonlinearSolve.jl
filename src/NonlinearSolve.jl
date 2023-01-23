@@ -32,6 +32,7 @@ include("utils.jl")
 include("jacobian.jl")
 include("raphson.jl")
 include("trustRegion.jl")
+include("levenberg.jl")
 include("ad.jl")
 
 import SnoopPrecompile
@@ -40,7 +41,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
     precompile_algs = if VERSION >= v"1.7"
-        (NewtonRaphson(), TrustRegion())
+        (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
     else
         (NewtonRaphson(),)
     end
@@ -55,6 +56,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     end
 end end
 
-export NewtonRaphson, TrustRegion
+export NewtonRaphson, TrustRegion, LevenbergMarquardt
 
 end # module
