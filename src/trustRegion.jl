@@ -232,19 +232,27 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     max_trust_radius = alg.max_trust_radius
     initial_trust_radius = alg.initial_trust_radius
     if max_trust_radius == 0.0
-        max_trust_radius = max(norm(fu), maximum(u) - minimum(u))
+        max_trust_radius = convert(typeof(max_trust_radius),
+                                   max(norm(fu), maximum(u) - minimum(u)))
     end
     if initial_trust_radius == 0.0
         initial_trust_radius = max_trust_radius / 11
     end
+
+    loss_new = loss
     H = ArrayInterfaceCore.undefmatrix(u)
+    g = zero(fu)
+    shrink_counter = 0
+    step_size = zero(u)
+    fu_new = zero(fu)
+    make_new_J = true
+    r = loss
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, initial_trust_radius,
-                                 max_trust_radius, loss, loss, H, zero(fu), 0, zero(u),
-                                 u_tmp, zero(fu), true,
-                                 loss)
+                                 max_trust_radius, loss, loss_new, H, g, shrink_counter,
+                                 step_size, u_tmp, fu_new, make_new_J, r)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -293,7 +301,7 @@ function perform_step!(cache::TrustRegionCache{false})
 end
 
 function trust_region_step!(cache::TrustRegionCache)
-    @unpack fu_new, u_tmp, step_size, g, H, loss, alg, max_trust_r = cache
+    @unpack fu_new, step_size, g, H, loss, alg, max_trust_r = cache
     cache.loss_new = get_loss(fu_new)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
