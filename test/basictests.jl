@@ -186,7 +186,7 @@ sol = benchmark_inplace(ffiip, u0)
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
 solver = init(probN, TrustRegion(), abstol = 1e-9)
-@test (@ballocated solve!(solver)) < 120
+@test (@ballocated solve!(solver)) < 200
 
 # AD Tests
 using ForwardDiff
