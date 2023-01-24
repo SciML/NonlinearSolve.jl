@@ -140,7 +140,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     prob::probType
     trust_r::trustType
     max_trust_r::trustType
-    step_threshold::trustType
+    step_threshold::suType
     shrink_threshold::trustType
     expand_threshold::trustType
     shrink_factor::trustType
