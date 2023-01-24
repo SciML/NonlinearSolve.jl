@@ -169,6 +169,12 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     JᵀJ::jType
     λ::λType
     λ_factor::λType
+    damping_increase_factor::λType
+    damping_decrease_factor::λType
+    h::λType
+    α_geodesic::λType
+    b_uphill::λType
+    min_damping_D::λType
     v::uType
     a::uType
     tmp_vec::uType
@@ -187,7 +193,11 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                           internalnorm::INType,
                                           retcode::SciMLBase.ReturnCode.T, abstol::tolType,
                                           prob::probType, DᵀD::DᵀDType, JᵀJ::jType,
-                                          λ::λType, λ_factor::λType, v::uType,
+                                          λ::λType, λ_factor::λType,
+                                          damping_increase_factor::λType,
+                                          damping_decrease_factor::λType, h::λType,
+                                          α_geodesic::λType, b_uphill::λType,
+                                          min_damping_D::λType, v::uType,
                                           a::uType, tmp_vec::uType, v_old::uType,
                                           norm_v_old::lossType, δ::uType,
                                           loss_old::lossType, make_new_J::Bool,
@@ -205,7 +215,11 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
             jType, JC, DᵀDType, λType, lossType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
                                                  jac_config, iter, force_stop, maxiters,
                                                  internalnorm, retcode, abstol, prob, DᵀD,
-                                                 JᵀJ, λ, λ_factor, v, a, tmp_vec, v_old,
+                                                 JᵀJ, λ, λ_factor,
+                                                 damping_increase_factor,
+                                                 damping_decrease_factor, h,
+                                                 α_geodesic, b_uphill, min_damping_D,
+                                                 v, a, tmp_vec, v_old,
                                                  norm_v_old, δ, loss_old, make_new_J,
                                                  fu_tmp, mat_tmp)
     end
@@ -258,11 +272,20 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     end
     uf, linsolve, J, du_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
+    λ = convert(eltype(u), alg.damping_initial)
+    λ_factor = convert(eltype(u), alg.damping_increase_factor)
+    damping_increase_factor = convert(eltype(u), alg.damping_increase_factor)
+    damping_decrease_factor = convert(eltype(u), alg.damping_decrease_factor)
+    h = convert(eltype(u), alg.finite_diff_step_geodesic)
+    α_geodesic = convert(eltype(u), alg.α_geodesic)
+    b_uphill = convert(eltype(u), alg.b_uphill)
+    min_damping_D = convert(eltype(u), alg.min_damping_D)
+
     if u isa Number
-        DᵀD = alg.min_damping_D
+        DᵀD = min_damping_D
     else
         d = similar(u)
-        d .= alg.min_damping_D
+        d .= min_damping_D
         DᵀD = Diagonal(d)
     end
 
@@ -281,7 +304,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
                                         jac_config,
                                         1, false, maxiters, internalnorm,
                                         ReturnCode.Default, abstol, prob, DᵀD, JᵀJ,
-                                        alg.damping_initial, alg.damping_increase_factor,
+                                        λ, λ_factor, damping_increase_factor,
+                                        damping_decrease_factor, h,
+                                        α_geodesic, b_uphill, min_damping_D,
                                         v, a, tmp_vec, v_old, loss, δ, loss, make_new_J,
                                         fu_tmp, mat_tmp)
 end
@@ -309,8 +334,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     @. cache.v = -cache.du_tmp
 
     # Geodesic acceleration (step_size = v + a / 2).
-    @unpack v, alg = cache
-    h = alg.finite_diff_step_geodesic
+    @unpack v, α_geodesic, h = cache
     f(cache.fu_tmp, u .+ h .* v, p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
@@ -323,15 +347,15 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
-    if (2 * norm(cache.a) / norm_v) < alg.α_geodesic
+    if (2 * norm(cache.a) / norm_v) < α_geodesic
         @. cache.δ = v + cache.a / 2
-        @unpack δ, loss_old, norm_v_old, v_old = cache
+        @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
         loss = cache.internalnorm(cache.fu_tmp)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
         β = dot(v, v_old) / (norm_v * norm_v_old)
-        if (1 - β)^alg.b_uphill * loss ≤ loss_old
+        if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
             if loss < cache.abstol
@@ -342,12 +366,12 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
             cache.v_old .= v
             cache.norm_v_old = norm_v
             cache.loss_old = loss
-            cache.λ_factor = 1 / alg.damping_decrease_factor
+            cache.λ_factor = 1 / cache.damping_decrease_factor
             cache.make_new_J = true
         end
     end
     cache.λ *= cache.λ_factor
-    cache.λ_factor = alg.damping_increase_factor
+    cache.λ_factor = cache.damping_increase_factor
     return nothing
 end
 
@@ -372,22 +396,21 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     # Usual Levenberg-Marquardt step ("velocity").
     cache.v = -(JᵀJ + λ * DᵀD) \ (J' * fu)
 
-    @unpack v, alg = cache
-    h = alg.finite_diff_step_geodesic
+    @unpack v, h, α_geodesic = cache
     # Geodesic acceleration (step_size = v + a / 2).
     cache.a = -J \ ((2 / h) .* ((f(u .+ h .* v, p) .- fu) ./ h .- J * v))
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
-    if (2 * norm(cache.a) / norm_v) < alg.α_geodesic
+    if (2 * norm(cache.a) / norm_v) < α_geodesic
         cache.δ = v .+ cache.a ./ 2
-        @unpack δ, loss_old, norm_v_old, v_old = cache
+        @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
         loss = cache.internalnorm(fu_new)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
         β = dot(v, v_old) / (norm_v * norm_v_old)
-        if (1 - β)^alg.b_uphill * loss ≤ loss_old
+        if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u += δ
             if loss < cache.abstol
@@ -398,12 +421,12 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
             cache.v_old = v
             cache.norm_v_old = norm_v
             cache.loss_old = loss
-            cache.λ_factor = 1 / alg.damping_decrease_factor
+            cache.λ_factor = 1 / cache.damping_decrease_factor
             cache.make_new_J = true
         end
     end
     cache.λ *= cache.λ_factor
-    cache.λ_factor = alg.damping_increase_factor
+    cache.λ_factor = cache.damping_increase_factor
     return nothing
 end
 
