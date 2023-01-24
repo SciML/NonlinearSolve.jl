@@ -121,8 +121,7 @@ end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                 INType, tolType, probType, ufType, L, jType, JC, floatType,
-                                trustType
-                                }
+                                trustType, suType, tmpType}
     f::fType
     alg::algType
     u::uType
@@ -151,8 +150,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     H::jType
     g::resType
     shrink_counter::Int
-    step_size::uType
-    u_tmp::uType
+    step_size::suType
+    u_tmp::tmpType
     fu_new::resType
     make_new_J::Bool
     r::floatType
@@ -172,7 +171,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    r::floatType) where {iip, fType, algType, uType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
-                                                        jType, JC, floatType, trustType}
+                                                        jType, JC, floatType, trustType,
+                                                        suType, tmpType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType, trustType
             }(f, alg, u, fu, p, uf, linsolve, J,
