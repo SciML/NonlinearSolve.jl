@@ -121,7 +121,7 @@ end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                 INType, tolType, probType, ufType, L, jType, JC, floatType,
-                                trustType, suType, tmpType}
+                                trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
     u::uType
@@ -140,7 +140,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     prob::probType
     trust_r::trustType
     max_trust_r::trustType
-    step_threshold::trustType
+    step_threshold::suType
     shrink_threshold::trustType
     expand_threshold::trustType
     shrink_factor::trustType
@@ -150,7 +150,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     H::jType
     g::resType
     shrink_counter::Int
-    step_size::suType
+    step_size::su2Type
     u_tmp::tmpType
     fu_new::resType
     make_new_J::Bool
@@ -166,16 +166,16 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    shrink_threshold::trustType, expand_threshold::trustType,
                                    shrink_factor::trustType, expand_factor::trustType,
                                    loss::floatType, loss_new::floatType, H::jType,
-                                   g::resType, shrink_counter::Int, step_size::uType,
+                                   g::resType, shrink_counter::Int, step_size::su2Type,
                                    u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
                                    r::floatType) where {iip, fType, algType, uType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
                                                         jType, JC, floatType, trustType,
-                                                        suType, tmpType}
+                                                        suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
-            INType, tolType, probType, ufType, L, jType, JC, floatType, trustType,
-            suType, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+        INType, tolType, probType, ufType, L, jType, JC, floatType,
+        trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
               jac_config, iter, force_stop,
               maxiters, internalnorm, retcode,
               abstol, prob, trust_r, max_trust_r,
