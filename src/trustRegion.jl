@@ -174,17 +174,17 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                                         jType, JC, floatType, trustType,
                                                         suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
-        INType, tolType, probType, ufType, L, jType, JC, floatType,
-        trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
-              jac_config, iter, force_stop,
-              maxiters, internalnorm, retcode,
-              abstol, prob, trust_r, max_trust_r,
-              step_threshold, shrink_threshold,
-              expand_threshold, shrink_factor,
-              expand_factor, loss,
-              loss_new, H, g, shrink_counter,
-              step_size, u_tmp, fu_new,
-              make_new_J, r)
+            INType, tolType, probType, ufType, L, jType, JC, floatType,
+            trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+                                                 jac_config, iter, force_stop,
+                                                 maxiters, internalnorm, retcode,
+                                                 abstol, prob, trust_r, max_trust_r,
+                                                 step_threshold, shrink_threshold,
+                                                 expand_threshold, shrink_factor,
+                                                 expand_factor, loss,
+                                                 loss_new, H, g, shrink_counter,
+                                                 step_size, u_tmp, fu_new,
+                                                 make_new_J, r)
     end
 end
 
