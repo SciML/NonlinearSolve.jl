@@ -13,16 +13,16 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
 Commit 17cfb8e65ea (2023-01-08 06:45 UTC)
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+  CPU: 2 × Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-13.0.1 (ORCJIT, icelake-server)
+  LLVM: libLLVM-13.0.1 (ORCJIT, skylake-avx512)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Manifest.toml`
   [a4c015fc] ANSIColoredPrinters v0.0.1
   [79e6a3ab] Adapt v3.5.0
   [ec485272] ArnoldiMethod v0.2.0
-  [4fba245c] ArrayInterface v6.0.24
-  [30b0a656] ArrayInterfaceCore v0.1.28
+  [4fba245c] ArrayInterface v6.0.25
+  [30b0a656] ArrayInterfaceCore v0.1.29
   [015c0d05] ArrayInterfaceOffsetArrays v0.1.7
   [b0d46f97] ArrayInterfaceStaticArrays v0.1.5
   [dd5226c6] ArrayInterfaceStaticArraysCore v0.1.3
@@ -43,7 +43,7 @@ Platform Info:
   [864edb3b] DataStructures v0.18.13
   [e2d170a0] DataValueInterfaces v1.0.0
   [b429d917] DensityInterface v0.4.0
-  [2b5f629d] DiffEqBase v6.114.1
+  [2b5f629d] DiffEqBase v6.114.2
   [459566f4] DiffEqCallbacks v2.24.3
   [163ba53b] DiffResults v1.1.0
   [b552c78f] DiffRules v1.12.2
@@ -56,7 +56,7 @@ Platform Info:
   [e2ba6199] ExprTools v0.1.8
   [7034ab61] FastBroadcast v0.2.4
   [29a986be] FastLapackInterface v1.2.8
-  [1a297f60] FillArrays v0.13.6
+  [1a297f60] FillArrays v0.13.7
   [6a86dc24] FiniteDiff v2.17.0
   [f6369f11] ForwardDiff v0.10.34
   [069b7b12] FunctionWrappers v1.1.3
@@ -79,9 +79,9 @@ Platform Info:
   [0b1a1467] KrylovKit v0.6.0
   [10f19ff3] LayoutPointers v0.1.12
   [d3d80556] LineSearches v7.2.0
-  [7ed4a6bd] LinearSolve v1.33.1
+  [7ed4a6bd] LinearSolve v1.34.1
   [2ab3a3ac] LogExpFunctions v0.3.19
-  [bdcacae8] LoopVectorization v0.12.147
+  [bdcacae8] LoopVectorization v0.12.148
   [4854310b] MINPACK v1.1.1
   [1914dd2f] MacroTools v0.5.10
   [d125e4d3] ManualMemory v0.1.8
@@ -111,7 +111,7 @@ Platform Info:
   [7e49a35a] RuntimeGeneratedFunctions v0.5.5
   [3cdde19b] SIMDDualNumbers v0.1.1
   [94e857df] SIMDTypes v0.1.0
-  [476501e8] SLEEFPirates v0.6.37
+  [476501e8] SLEEFPirates v0.6.38
   [0bca4576] SciMLBase v1.81.0
   [e9a6253c] SciMLNLSolve v0.1.3
   [efcf1570] Setfield v1.1.1
@@ -135,10 +135,10 @@ Platform Info:
   [3783bdb8] TableTraits v1.0.1
   [bd369af6] Tables v1.10.0
   [8290d209] ThreadingUtilities v0.5.0
-  [d5829a12] TriangularSolve v0.1.17
+  [d5829a12] TriangularSolve v0.1.19
   [410a4b4d] Tricks v0.1.6
   [3a884ed6] UnPack v1.0.2
-  [3d5dd08c] VectorizationBase v0.21.57
+  [3d5dd08c] VectorizationBase v0.21.58
   [19fa3120] VertexSafeGraphs v0.2.0
   [700de1a5] ZygoteRules v0.2.2
   [efe28fd5] OpenSpecFun_jll v0.5.5+0
@@ -192,4 +192,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the
 <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.2.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.2.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/nonlinear/">Solving Nonlinear Systems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 24 January 2023 10:41">Tuesday 24 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v1.2.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/nonlinear/">Solving Nonlinear Systems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Wednesday 25 January 2023 15:57">Wednesday 25 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
