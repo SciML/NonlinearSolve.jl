@@ -199,7 +199,6 @@ tspan = (0.0, sqrt(2.0))
 probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Ridder())
 @test sol.left ≈ sqrt(2.0)
-probB = IntervalNonlinearProblem(f, tspan)
 
 # Garuntee Tests for Bisection
 f = function (u, p)
