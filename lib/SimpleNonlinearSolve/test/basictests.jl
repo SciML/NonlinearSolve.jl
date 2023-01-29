@@ -109,10 +109,22 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
+# Ridder
+g = function (p)
+    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
+    sol = solve(probN, Ridder())
+    return sol.left
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
 f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
-for alg in [Bisection(), Falsi()]
+for alg in [Bisection(), Falsi(), Ridder()]
     global g, p
     g = function (p)
         probN = IntervalNonlinearProblem{false}(f, tspan, p)
@@ -171,6 +183,10 @@ probB = IntervalNonlinearProblem(f, tspan)
 
 # Falsi
 sol = solve(probB, Falsi())
+@test sol.left ≈ sqrt(2.0)
+
+# Ridder
+sol = solve(probB, Ridder())
 @test sol.left ≈ sqrt(2.0)
 
 sol = solve(probB, Bisection())
