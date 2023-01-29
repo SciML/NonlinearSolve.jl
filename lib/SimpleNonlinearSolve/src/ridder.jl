@@ -69,12 +69,9 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
         if iszero(fm)
             right = mid
             fr = fm
-        elseif sign(fm) == sign(fl)
+        else
             left = mid
             fl = fm
-        else
-            right = mid
-            fr = fm
         end
         i += 1
     end
