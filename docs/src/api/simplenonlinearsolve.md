@@ -11,4 +11,5 @@ SimpleNewtonRaphson
 Broyden
 Klement
 TrustRegion
+Ridder
 ```

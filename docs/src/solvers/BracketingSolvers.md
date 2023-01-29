@@ -19,3 +19,4 @@ SimpleNonlinearSolve.jl directly to decrease the dependencies and improve load t
 
   - `Falsi`: A non-allocating regula falsi method
   - `Bisection`: A common bisection method
+  - `Ridder`: A non-allocating Ridder method
