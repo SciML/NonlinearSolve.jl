@@ -12,6 +12,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     fa, fb = f(a), f(b)
+    ϵ = eps(convert(typeof(fa), 1.0))
 
     if iszero(fa)
         return SciMLBase.build_solution(prob, alg, a, fa;
@@ -46,8 +47,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
             if (s < min((3 * a + b) / 4, b) || s > max((3 * a + b) / 4, b)) ||
                (cond && abs(s - b) ≥ abs(b - c) / 2) ||
                (!cond && abs(s - b) ≥ abs(c - d) / 2) ||
-               (cond && abs(b - c) ≤ eps(a)) ||
-               (!cond && abs(c - d) ≤ eps(a))
+               (cond && abs(b - c) ≤ ϵ) ||
+               (!cond && abs(c - d) ≤ ϵ)
                 # Bisection method
                 s = (a + b) / 2
                 (s == a || s == b) &&
@@ -60,8 +61,12 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
             end
             fs = f(s)
             if iszero(fs)
-                a = b
+                if b < a
+                    a = b
+                    fa = fb
+                end
                 b = s
+                fb = fs
                 break
             end
             if fa * fs < 0
@@ -103,7 +108,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
         end
         i += 1
     end
-    
+
     return SciMLBase.build_solution(prob, alg, a, fa; retcode = ReturnCode.MaxIters,
                                     left = a, right = b)
 end
