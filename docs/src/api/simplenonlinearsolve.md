@@ -12,4 +12,5 @@ Broyden
 Klement
 TrustRegion
 Ridder
+Brent
 ```
