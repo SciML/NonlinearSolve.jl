@@ -121,10 +121,22 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
+# Brent
+g = function (p)
+    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
+    sol = solve(probN, Brent())
+    return sol.left
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
 f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
-for alg in [Bisection(), Falsi(), Ridder()]
+for alg in [Bisection(), Falsi(), Ridder(), Brent()]
     global g, p
     g = function (p)
         probN = IntervalNonlinearProblem{false}(f, tspan, p)
@@ -198,6 +210,18 @@ sol = solve(probB, Ridder())
 tspan = (0.0, sqrt(2.0))
 probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Ridder())
+@test sol.left ≈ sqrt(2.0)
+
+# Brent
+sol = solve(probB, Brent())
+@test sol.left ≈ sqrt(2.0)
+tspan = (sqrt(2.0), 10.0)
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Brent())
+@test sol.left ≈ sqrt(2.0)
+tspan = (0.0, sqrt(2.0))
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Brent())
 @test sol.left ≈ sqrt(2.0)
 
 # Garuntee Tests for Bisection
