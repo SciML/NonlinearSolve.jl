@@ -31,16 +31,16 @@ end
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
                                                 iip,
                                                 <:Dual{T, V, P}},
-                         alg::Union{SimpleNewtonRaphson, SimpleTrustRegion},
+                         alg::Union{SimpleNewtonRaphson, SimpleTrustRegion, SimpleDFSane}, # TODO make this to one variable
                          args...; kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
                                     retcode = sol.retcode)
 end
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector}, # TODO make this to one variable
                                                 iip,
                                                 <:AbstractArray{<:Dual{T, V, P}}},
-                         alg::Union{SimpleNewtonRaphson, SimpleTrustRegion}, args...;
+                         alg::Union{SimpleNewtonRaphson, SimpleTrustRegion, SimpleDFSane}, args...;
                          kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
