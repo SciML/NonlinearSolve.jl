@@ -160,7 +160,8 @@ for alg in [Bisection(), Falsi(), Ridder(), Brent()]
     @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
 end
 
-for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion(), SimpleDFSane())
+for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion(),
+            SimpleDFSane())
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -313,45 +314,57 @@ for options in list_of_options
     @test all(abs.(f(u, p)) .< 1e-10)
 end
 
-# # Test that `SimpleDFSane` passes a test that `SimpleNewtonRaphson` fails on.
-# u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-# global g, f
-# f = (u, p) -> 0.010000000000000002 .+
-#               10.000000000000002 ./ (1 .+
-#                (0.21640425613334457 .+
-#                 216.40425613334457 ./ (1 .+
-#                  (0.21640425613334457 .+
-#                   216.40425613334457 ./
-#                   (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-#               0.0011552453009332421u .- p
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, u0, p)
-#     sol = solve(probN, SimpleDFSane())
-#     return sol.u
-# end
-# p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-# u = g(p)
-# f(u, p)
-# @test all(abs.(f(u, p)) .< 1e-10)
+# Test that `SimpleDFSane` passes a test that `SimpleNewtonRaphson` fails on.
+u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+global g, f
+f = (u, p) -> 0.010000000000000002 .+
+              10.000000000000002 ./ (1 .+
+               (0.21640425613334457 .+
+                216.40425613334457 ./ (1 .+
+                 (0.21640425613334457 .+
+                  216.40425613334457 ./
+                  (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
+              0.0011552453009332421u .- p
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, SimpleDFSane())
+    return sol.u
+end
+p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+u = g(p)
+f(u, p)
+@test all(abs.(f(u, p)) .< 1e-10)
 
-# # Test kwars in `SimpleDFSane`
+# Test kwars in `SimpleDFSane`
+σ_min = [1e-10, 1e-5, 1e-4]
+σ_max = [1e10, 1e5, 1e4]
+σ_1 = [1.0, 0.5, 2.0]
+M = [10, 1, 100]
+γ = [1e-4, 1e-3, 1e-5]
+τ_min = [0.1, 0.2, 0.3]
+τ_max = [0.5, 0.8, 0.9]
+nexp = [2, 1, 2]
+η_strategy = [
+    (f_1, k, x, F) -> f_1 / k^2,
+    (f_1, k, x, F) -> f_1 / k^3,
+    (f_1, k, x, F) -> f_1 / k^4,
+]
 
+list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
+                      η_strategy)
+for options in list_of_options
+    local probN, sol, alg
+    alg = SimpleDFSane(σ_min = options[1],
+                       σ_max = options[2],
+                       σ_1 = options[3],
+                       M = options[4],
+                       γ = options[5],
+                       τ_min = options[6],
+                       τ_max = options[7],
+                       nexp = options[8],
+                       η_strategy = options[9])
 
-# list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-#                       shrink_threshold, expand_threshold, shrink_factor,
-#                       expand_factor, max_shrink_times)
-# for options in list_of_options
-#     local probN, sol, alg
-#     alg = SimpleDFSane(max_trust_radius = options[1],
-#                             initial_trust_radius = options[2],
-#                             step_threshold = options[3],
-#                             shrink_threshold = options[4],
-#                             expand_threshold = options[5],
-#                             shrink_factor = options[6],
-#                             expand_factor = options[7],
-#                             max_shrink_times = options[8])
-
-#     probN = NonlinearProblem(f, u0, p)
-#     sol = solve(probN, alg)
-#     @test all(abs.(f(u, p)) .< 1e-10)
-# end
+    probN = NonlinearProblem(f, u0, p)
+    sol = solve(probN, alg)
+    @test all(abs.(f(u, p)) .< 1e-10)
+end
