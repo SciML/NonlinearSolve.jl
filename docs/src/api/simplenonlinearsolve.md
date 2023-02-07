@@ -10,7 +10,8 @@ Falsi
 SimpleNewtonRaphson
 Broyden
 Klement
-TrustRegion
+SimpleTrustRegion
 Ridder
 Brent
+SimpleDFSane
 ```
