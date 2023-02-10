@@ -1,3 +1,9 @@
+"""
+    LBroyden(threshold::Int = 27)
+
+A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
+Broyden's method.
+"""
 Base.@kwdef struct LBroyden <: AbstractSimpleNonlinearSolveAlgorithm
     threshold::Int = 27
 end
@@ -57,7 +63,7 @@ end
 
         vᵀ = _rmatvec(_U, _Vᵀ, Δxₙ)
         mvec = _matvec(_U, _Vᵀ, Δfₙ)
-        Δxₙ = (Δxₙ .- mvec) ./ (sum(vᵀ .* Δfₙ) .+ eps(T))
+        Δxₙ = (Δxₙ .- mvec) ./ (sum(vᵀ .* Δfₙ) .+ convert(T, 1e-5))
 
         Vᵀ[:, mod1(i, threshold)] .= vᵀ
         U[mod1(i, threshold), :] .= Δxₙ

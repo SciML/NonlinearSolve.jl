@@ -78,7 +78,7 @@ using ForwardDiff
 # Immutable
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
-for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion(),
+for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrustRegion(),
             SimpleDFSane())
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
@@ -94,7 +94,7 @@ end
 
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
-for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion(),
+for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrustRegion(),
             SimpleDFSane())
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
@@ -160,7 +160,7 @@ for alg in [Bisection(), Falsi(), Ridder(), Brent()]
     @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
 end
 
-for alg in (SimpleNewtonRaphson(), Broyden(), Klement(), SimpleTrustRegion(),
+for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrustRegion(),
             SimpleDFSane())
     global g, p
     g = function (p)
@@ -181,6 +181,7 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, SimpleTrustRegion()).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleTrustRegion(; autodiff = false)).u[end] ≈ sqrt(2.0)
 @test solve(probN, Broyden()).u[end] ≈ sqrt(2.0)
+@test solve(probN, LBroyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Klement()).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleDFSane()).u[end] ≈ sqrt(2.0)
 
@@ -199,6 +200,7 @@ for u0 in [1.0, [1, 1.0]]
     @test solve(probN, SimpleTrustRegion(; autodiff = false)).u ≈ sol
 
     @test solve(probN, Broyden()).u ≈ sol
+    @test solve(probN, LBroyden()).u ≈ sol
     @test solve(probN, Klement()).u ≈ sol
     @test solve(probN, SimpleDFSane()).u ≈ sol
 end
