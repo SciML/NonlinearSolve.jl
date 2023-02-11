@@ -166,7 +166,7 @@ for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrust
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
         sol = solve(probN, alg)
-        return [sol.u]
+        return [abs(sol.u)]
     end
     @test g(p) ≈ [sqrt(p[2] / p[1])]
     @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
