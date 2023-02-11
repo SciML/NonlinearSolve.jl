@@ -20,6 +20,7 @@ include("bisection.jl")
 include("falsi.jl")
 include("raphson.jl")
 include("broyden.jl")
+include("lbroyden.jl")
 include("klement.jl")
 include("trustRegion.jl")
 include("ridder.jl")
@@ -52,7 +53,7 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 # DiffEq styled algorithms
-export Bisection, Brent, Broyden, SimpleDFSane, Falsi, Klement, Ridder, SimpleNewtonRaphson,
-       SimpleTrustRegion
+export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Klement,
+       Ridder, SimpleNewtonRaphson, SimpleTrustRegion
 
 end # module
