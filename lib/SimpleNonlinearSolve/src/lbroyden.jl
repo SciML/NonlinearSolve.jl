@@ -8,10 +8,9 @@ Base.@kwdef struct LBroyden <: AbstractSimpleNonlinearSolveAlgorithm
     threshold::Int = 27
 end
 
-@views function SciMLBase.__solve(prob::NonlinearProblem,
-                                  alg::LBroyden, args...; abstol = nothing,
-                                  reltol = nothing,
-                                  maxiters = 1000, kwargs...)
+@views function SciMLBase.__solve(prob::NonlinearProblem, alg::LBroyden, args...;
+                                  abstol = nothing, reltol = nothing, maxiters = 1000,
+                                  batch = false, kwargs...)
     threshold = min(maxiters, alg.threshold)
     x = float(prob.u0)
 
