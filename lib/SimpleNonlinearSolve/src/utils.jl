@@ -34,17 +34,14 @@ value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
 
-function init_J(x; batch = false)
-    x_ = batch ? x[:, 1] : x
-
-    J = ArrayInterfaceCore.zeromatrix(x_)
-    if ismutable(x_)
-        J[diagind(J)] .= one(eltype(x_))
+function init_J(x)
+    J = ArrayInterfaceCore.zeromatrix(x)
+    if ismutable(x)
+        J[diagind(J)] .= one(eltype(x))
     else
         J += I
     end
-
-    return batch ? repeat(J, 1, 1, size(x, 2)) : J
+    return J
 end
 
 function dogleg_method(H, g, Δ)
@@ -70,19 +67,4 @@ function dogleg_method(H, g, Δ)
     fact = dot_δsd_δN_δsd^2 - dot_δN_δsd * (dot_δsd - Δ^2)
     tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
     return δsd + tau * δN_δsd
-end
-
-_batched_mul(x, y, batch) = x * y
-function _batched_mul(x::AbstractArray{T, 3}, y::AbstractMatrix, batch) where {T}
-    !batch && return x * y
-    return dropdims(batched_mul(x, reshape(y, size(y, 1), 1, size(y, 2))); dims = 2)
-end
-function _batched_mul(x::AbstractMatrix, y::AbstractArray{T, 3}, batch) where {T}
-    !batch && return x * y
-    return batched_mul(reshape(x, size(x, 1), 1, size(x, 2)), y)
-end
-function _batched_mul(x::AbstractArray{T1, 3}, y::AbstractArray{T2, 3},
-                      batch) where {T1, T2}
-    !batch && return x * y
-    return batched_mul(x, y)
 end

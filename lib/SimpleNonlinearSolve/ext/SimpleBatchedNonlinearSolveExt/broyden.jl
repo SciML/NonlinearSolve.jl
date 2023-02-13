@@ -1,26 +1,15 @@
-"""
-    Broyden()
-
-A low-overhead implementation of Broyden. This method is non-allocating on scalar
-and static array problems.
-"""
-struct Broyden{batched} <: AbstractSimpleNonlinearSolveAlgorithm
-    Broyden(batched = false) = new{batched}()
-end
-
-function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
+function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
                            abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
 
-    # if batch && ndims(x) != 2
-    #     error("`batch` mode works only if `ndims(prob.u0) == 2`")
-    # end
+    if ndims(x) != 2
+        error("`batch` mode works only if `ndims(prob.u0) == 2`")
+    end
 
     fₙ = f(x)
     T = eltype(x)
-    # J⁻¹ = init_J(x; batch)
-    J⁻¹ = init_J(x)
+    J⁻¹ = _init_J_batched(x)
 
     if SciMLBase.isinplace(prob)
         error("Broyden currently only supports out-of-place nonlinear problems")
@@ -34,12 +23,14 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
     for _ in 1:maxiters
-        xₙ = xₙ₋₁ - J⁻¹ * fₙ₋₁
+        xₙ = xₙ₋₁ .- _batched_mul(J⁻¹, fₙ₋₁, batch)
         fₙ = f(xₙ)
-        Δxₙ = xₙ - xₙ₋₁
-        Δfₙ = fₙ - fₙ₋₁
-        J⁻¹Δfₙ = J⁻¹ * Δfₙ
-        J⁻¹ += ((Δxₙ .- J⁻¹Δfₙ) ./ (Δxₙ' * J⁻¹Δfₙ)) * (Δxₙ' * J⁻¹)
+        Δxₙ = xₙ .- xₙ₋₁
+        Δfₙ = fₙ .- fₙ₋₁
+        J⁻¹Δfₙ = _batched_mul(J⁻¹, Δfₙ, batch)
+        J⁻¹ += _batched_mul(((Δxₙ .- J⁻¹Δfₙ, batch) ./
+                             (_batched_mul(_batch_transpose(Δxₙ, batch), J⁻¹Δfₙ, batch))),
+                            _batched_mul(_batch_transpose(Δxₙ, batch), J⁻¹, batch), batch)
 
         iszero(fₙ) &&
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ;

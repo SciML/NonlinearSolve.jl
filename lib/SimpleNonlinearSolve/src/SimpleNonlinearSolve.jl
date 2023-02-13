@@ -7,7 +7,6 @@ using StaticArraysCore
 using LinearAlgebra
 import ArrayInterfaceCore
 using DiffEqBase
-using NNlib  # Batched Matrix Multiplication
 
 @reexport using SciMLBase
 
