@@ -1,11 +1,11 @@
 """
-    Broyden()
+    Broyden(; batched = false)
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
 """
 struct Broyden{batched} <: AbstractSimpleNonlinearSolveAlgorithm
-    Broyden(batched = false) = new{batched}()
+    Broyden(; batched = false) = new{batched}()
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
@@ -13,13 +13,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
 
-    # if batch && ndims(x) != 2
-    #     error("`batch` mode works only if `ndims(prob.u0) == 2`")
-    # end
-
     fₙ = f(x)
     T = eltype(x)
-    # J⁻¹ = init_J(x; batch)
     J⁻¹ = init_J(x)
 
     if SciMLBase.isinplace(prob)

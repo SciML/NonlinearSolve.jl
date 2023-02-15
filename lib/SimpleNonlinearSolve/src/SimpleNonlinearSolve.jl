@@ -10,6 +10,18 @@ using DiffEqBase
 
 @reexport using SciMLBase
 
+if !isdefined(Base, :get_extension)
+    using Requires
+end
+
+function __init__()
+    @static if !isdefined(Base, :get_extension)
+        @require NNlib="872c559c-99b0-510c-b3b7-b6c96a88d5cd" begin
+            include("../ext/SimpleBatchedNonlinearSolveExt.jl")
+        end
+    end
+end
+
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
