@@ -1,19 +1,23 @@
 """
-```julia
-Broyden()
-```
+    Broyden(; batched = false)
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
-"""
-struct Broyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.__solve(prob::NonlinearProblem,
-                           alg::Broyden, args...; abstol = nothing,
-                           reltol = nothing,
-                           maxiters = 1000, kwargs...)
+!!! note
+
+    To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
+    `import NNlib` must be present in your code.
+"""
+struct Broyden{batched} <: AbstractSimpleNonlinearSolveAlgorithm
+    Broyden(; batched = false) = new{batched}()
+end
+
+function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
+                           abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
+
     fₙ = f(x)
     T = eltype(x)
     J⁻¹ = init_J(x)
@@ -34,7 +38,8 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         fₙ = f(xₙ)
         Δxₙ = xₙ - xₙ₋₁
         Δfₙ = fₙ - fₙ₋₁
-        J⁻¹ += ((Δxₙ - J⁻¹ * Δfₙ) ./ (Δxₙ' * J⁻¹ * Δfₙ)) * (Δxₙ' * J⁻¹)
+        J⁻¹Δfₙ = J⁻¹ * Δfₙ
+        J⁻¹ += ((Δxₙ .- J⁻¹Δfₙ) ./ (Δxₙ' * J⁻¹Δfₙ)) * (Δxₙ' * J⁻¹)
 
         iszero(fₙ) &&
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ;

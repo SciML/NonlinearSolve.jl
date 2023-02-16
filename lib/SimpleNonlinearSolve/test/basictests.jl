@@ -370,3 +370,15 @@ for options in list_of_options
     sol = solve(probN, alg)
     @test all(abs.(f(u, p)) .< 1e-10)
 end
+
+# Batched Broyden
+using NNlib
+
+f, u0 = (u, p) -> u .* u .- p, randn(1, 3)
+
+p = [2.0 1.0 5.0];
+probN = NonlinearProblem{false}(f, u0, p);
+
+sol = solve(probN, Broyden(batched = true))
+
+@test abs.(sol.u) ≈ sqrt.(p)
