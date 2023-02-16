@@ -13,9 +13,7 @@ SimpleTrustRegion(; chunk_size = Val{0}(),
                     max_shrink_times::Int = 32
 ```
 
-A low-overhead implementation of a
-[trust-region](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
-solver
+A low-overhead implementation of a trust-region solver.
 
 ### Keyword Arguments
 
@@ -39,12 +37,12 @@ solver
   compared with a value `r`, which is the actual reduction in the objective function divided
   by the predicted reduction. If `step_threshold > r` the model is not a good approximation,
   and the step is rejected. Defaults to `0.1`. For more details, see
-  [Trust-region methods](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
+  [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
 - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
   iteration, the threshold is compared with a value `r` which is the actual reduction in the
   objective function divided by the predicted reduction. If `shrink_threshold > r` the trust
   region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details, see
-  [Trust-region methods](https://optimization.mccormick.northwestern.edu/index.php/Trust-region_methods)
+  [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
 - `expand_threshold`: the threshold for expanding the trust region radius. If a step is
   taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is also
   made to see if `expand_threshold < r`. If that is true, the trust region radius is
