@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "0.1.12"
+version = "0.1.13"
 
 [deps]
 ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
