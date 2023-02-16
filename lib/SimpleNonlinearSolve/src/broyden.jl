@@ -3,6 +3,11 @@
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
+
+!!! note
+
+    To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
+    `import NNlib` must be present in your code.
 """
 struct Broyden{batched} <: AbstractSimpleNonlinearSolveAlgorithm
     Broyden(; batched = false) = new{batched}()

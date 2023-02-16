@@ -1,6 +1,6 @@
 module SimpleBatchedNonlinearSolveExt
 
-using SimpleNonlinearSolve, SciMLBase
+using ArrayInterfaceCore, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
 isdefined(Base, :get_extension) ? (using NNlib) : (using ..NNlib)
 
 _batch_transpose(x) = reshape(x, 1, size(x)...)
@@ -53,15 +53,15 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
     xₙ = x
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
-    for _ in 1:maxiters
-        xₙ = xₙ₋₁ .- _batched_mul(J⁻¹, fₙ₋₁, batch)
+    for i in 1:maxiters
+        xₙ = xₙ₋₁ .- _batched_mul(J⁻¹, fₙ₋₁)
         fₙ = f(xₙ)
         Δxₙ = xₙ .- xₙ₋₁
         Δfₙ = fₙ .- fₙ₋₁
-        J⁻¹Δfₙ = _batched_mul(J⁻¹, Δfₙ, batch)
-        J⁻¹ += _batched_mul(((Δxₙ .- J⁻¹Δfₙ, batch) ./
-                             (_batched_mul(_batch_transpose(Δxₙ, batch), J⁻¹Δfₙ, batch))),
-                            _batched_mul(_batch_transpose(Δxₙ, batch), J⁻¹, batch), batch)
+        J⁻¹Δfₙ = _batched_mul(J⁻¹, Δfₙ)
+        J⁻¹ += _batched_mul(((Δxₙ .- J⁻¹Δfₙ) ./
+                             (_batched_mul(_batch_transpose(Δxₙ), J⁻¹Δfₙ) .+ T(1e-5))),
+                            _batched_mul(_batch_transpose(Δxₙ), J⁻¹))
 
         iszero(fₙ) &&
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
@@ -77,6 +77,5 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
 
     return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
 end
-
 
 end
