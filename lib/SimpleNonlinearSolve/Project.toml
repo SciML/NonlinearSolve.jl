@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "0.1.11"
+version = "0.1.12"
 
 [deps]
 ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
@@ -23,7 +23,7 @@ SimpleBatchedNonlinearSolveExt = "NNlib"
 
 [compat]
 ArrayInterfaceCore = "0.1.1"
-DiffEqBase = "6.114"
+DiffEqBase = "6.118.1"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 NNlib = "0.8"
@@ -43,4 +43,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["BenchmarkTools", "SafeTestsets", "Pkg", "Test", "StaticArrays", "NNlib"]
+test = ["BenchmarkTools", "SafeTestsets", "Pkg", "Test", "StaticArrays", "NNlib", "DiffEqBase"]
