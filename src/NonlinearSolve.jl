@@ -10,7 +10,7 @@ using ForwardDiff: Dual
 using LinearAlgebra
 using StaticArraysCore
 using RecursiveArrayTools
-import ArrayInterfaceCore
+import ArrayInterface
 import LinearSolve
 using DiffEqBase
 using SparseDiffTools

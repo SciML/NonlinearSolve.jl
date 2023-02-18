@@ -190,7 +190,7 @@ end
 
 function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
-    J = ArrayInterfaceCore.undefmatrix(u)
+    J = ArrayInterface.undefmatrix(u)
 
     linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     weight = similar(u)
@@ -210,7 +210,7 @@ function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{true})
 end
 
 function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{false})
-    J = ArrayInterfaceCore.undefmatrix(u)
+    J = ArrayInterface.undefmatrix(u)
     JacobianWrapper(f, p), nothing, J, zero(u), nothing
 end
 
@@ -254,7 +254,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     end
 
     loss_new = loss
-    H = ArrayInterfaceCore.undefmatrix(u)
+    H = ArrayInterface.undefmatrix(u)
     g = zero(fu)
     shrink_counter = 0
     step_size = zero(u)

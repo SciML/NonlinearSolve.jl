@@ -227,7 +227,7 @@ end
 
 function jacobian_caches(alg::LevenbergMarquardt, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
-    J = ArrayInterfaceCore.undefmatrix(u)
+    J = ArrayInterface.undefmatrix(u)
 
     linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     weight = similar(u)
@@ -247,7 +247,7 @@ function jacobian_caches(alg::LevenbergMarquardt, f, u, p, ::Val{true})
 end
 
 function jacobian_caches(alg::LevenbergMarquardt, f, u, p, ::Val{false})
-    JacobianWrapper(f, p), nothing, ArrayInterfaceCore.undefmatrix(u), nothing, nothing
+    JacobianWrapper(f, p), nothing, ArrayInterface.undefmatrix(u), nothing, nothing
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
