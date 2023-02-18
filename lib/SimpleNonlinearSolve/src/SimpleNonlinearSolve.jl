@@ -5,7 +5,7 @@ using FiniteDiff, ForwardDiff
 using ForwardDiff: Dual
 using StaticArraysCore
 using LinearAlgebra
-import ArrayInterfaceCore
+import ArrayInterface
 using DiffEqBase
 
 @reexport using SciMLBase

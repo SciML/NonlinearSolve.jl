@@ -35,7 +35,7 @@ value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
 
 function init_J(x)
-    J = ArrayInterfaceCore.zeromatrix(x)
+    J = ArrayInterface.zeromatrix(x)
     if ismutable(x)
         J[diagind(J)] .= one(eltype(x))
     else

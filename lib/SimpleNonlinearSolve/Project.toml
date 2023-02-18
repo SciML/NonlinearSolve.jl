@@ -4,7 +4,7 @@ authors = ["SciML"]
 version = "0.1.11"
 
 [deps]
-ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -22,7 +22,7 @@ NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 SimpleBatchedNonlinearSolveExt = "NNlib"
 
 [compat]
-ArrayInterfaceCore = "0.1.1"
+ArrayInterface = "7"
 DiffEqBase = "6.114"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"

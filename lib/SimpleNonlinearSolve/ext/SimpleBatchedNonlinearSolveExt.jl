@@ -1,6 +1,6 @@
 module SimpleBatchedNonlinearSolveExt
 
-using ArrayInterfaceCore, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
+using ArrayInterface, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
 isdefined(Base, :get_extension) ? (using NNlib) : (using ..NNlib)
 
 _batch_transpose(x) = reshape(x, 1, size(x)...)
@@ -20,7 +20,7 @@ function _batched_mul(x::AbstractArray{T1, 3}, y::AbstractArray{T2, 3}) where {T
 end
 
 function _init_J_batched(x::AbstractMatrix{T}) where {T}
-    J = ArrayInterfaceCore.zeromatrix(x[:, 1])
+    J = ArrayInterface.zeromatrix(x[:, 1])
     if ismutable(x)
         J[diagind(J)] .= one(eltype(x))
     else
