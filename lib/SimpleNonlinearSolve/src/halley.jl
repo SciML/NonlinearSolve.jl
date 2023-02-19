@@ -78,7 +78,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = (2*dfx^2 - fx*d2fx) \ 2fx*dfx
+        Δx = (2*dfx^2 - fx*d2fx) \ (2fx*dfx)
         x -= Δx
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
