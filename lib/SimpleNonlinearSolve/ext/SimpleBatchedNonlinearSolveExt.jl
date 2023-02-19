@@ -1,6 +1,7 @@
 module SimpleBatchedNonlinearSolveExt
 
-using ArrayInterface, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
+using ArrayInterface, DiffEqBase, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
+
 isdefined(Base, :get_extension) ? (using NNlib) : (using ..NNlib)
 
 _batch_transpose(x) = reshape(x, 1, size(x)...)
@@ -31,6 +32,8 @@ end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
                            abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+    tc = alg.termination_condition
+    mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
 
@@ -47,8 +50,17 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
     end
 
     atol = abstol !== nothing ? abstol :
-           real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
-    rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
+           (tc.abstol !== nothing ? tc.abstol :
+            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
+    rtol = reltol !== nothing ? reltol :
+           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
+
+    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
+        error("Broyden currently doesn't support SAFE_BEST termination modes")
+    end
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? Dict() : nothing
+    termination_condition = tc(storage)
 
     xₙ = x
     xₙ₋₁ = x
@@ -63,14 +75,10 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
                              (_batched_mul(_batch_transpose(Δxₙ), J⁻¹Δfₙ) .+ T(1e-5))),
                             _batched_mul(_batch_transpose(Δxₙ), J⁻¹))
 
-        iszero(fₙ) &&
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
-
-        if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
+        if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
+            return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
         end
+
         xₙ₋₁ = xₙ
         fₙ₋₁ = fₙ
     end

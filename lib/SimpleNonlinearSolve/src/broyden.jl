@@ -1,5 +1,7 @@
 """
-    Broyden(; batched = false)
+    Broyden(; batched = false,
+            termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+                                                                abstol = nothing, reltol = nothing))
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
@@ -9,12 +11,22 @@ and static array problems.
     To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
     `import NNlib` must be present in your code.
 """
-struct Broyden{batched} <: AbstractSimpleNonlinearSolveAlgorithm
-    Broyden(; batched = false) = new{batched}()
+struct Broyden{batched, TC <: NLSolveTerminationCondition} <:
+       AbstractSimpleNonlinearSolveAlgorithm
+    termination_condition::TC
+
+    function Broyden(; batched = false,
+                     termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+                                                                         abstol = nothing,
+                                                                         reltol = nothing))
+        return new{batched, typeof(termination_condition)}(termination_condition)
+    end
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
                            abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+    tc = alg.termination_condition
+    mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
 
@@ -27,8 +39,17 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
     end
 
     atol = abstol !== nothing ? abstol :
-           real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
-    rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
+           (tc.abstol !== nothing ? tc.abstol :
+            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
+    rtol = reltol !== nothing ? reltol :
+           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
+
+    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
+        error("Broyden currently doesn't support SAFE_BEST termination modes")
+    end
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? Dict() : nothing
+    termination_condition = tc(storage)
 
     xₙ = x
     xₙ₋₁ = x
@@ -41,14 +62,10 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
         J⁻¹Δfₙ = J⁻¹ * Δfₙ
         J⁻¹ += ((Δxₙ .- J⁻¹Δfₙ) ./ (Δxₙ' * J⁻¹Δfₙ)) * (Δxₙ' * J⁻¹)
 
-        iszero(fₙ) &&
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
-
-        if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                            retcode = ReturnCode.Success)
+        if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
+            return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
         end
+
         xₙ₋₁ = xₙ
         fₙ₋₁ = fₙ
     end
