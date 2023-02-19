@@ -214,7 +214,6 @@ probN = NonlinearProblem(f, u0)
 
 @test solve(probN, Halley()).u ≈ sqrt(2.0)
 
-
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
     f = (u, p) -> u .* u .- 2.0

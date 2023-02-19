@@ -30,7 +30,7 @@ and static array problems.
 """
 struct Halley{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     function Halley(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                                 diff_type = Val{:forward})
+                    diff_type = Val{:forward})
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
             SciMLBase._unwrap_val(diff_type)}()
     end
@@ -73,12 +73,13 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             fx = f(x)
             dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x),
                                                           fx)
-            d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f, x),
+            d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f,
+                                                                                                        x),
                                                            x, diff_type(alg), eltype(x), fx)
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = (2*dfx^2 - fx*d2fx) \ (2fx*dfx)
+        Δx = (2 * dfx^2 - fx * d2fx) \ (2fx * dfx)
         x -= Δx
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)

@@ -43,7 +43,8 @@ import SnoopPrecompile
 
 SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-    for alg in (SimpleNewtonRaphson, Halley, Broyden, Klement, SimpleTrustRegion, SimpleDFSane)
+    for alg in (SimpleNewtonRaphson, Halley, Broyden, Klement, SimpleTrustRegion,
+                SimpleDFSane)
         solve(prob_no_brack, alg(), abstol = T(1e-2))
     end
 
