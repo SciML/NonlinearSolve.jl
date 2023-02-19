@@ -21,7 +21,7 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [compat]
-ArrayInterface = "7"
+ArrayInterface = "6, 7"
 DiffEqBase = "6"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
