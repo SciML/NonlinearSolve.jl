@@ -26,6 +26,29 @@ if VERSION >= v"1.7"
     @test (@ballocated benchmark_scalar(sf, csu0)) == 0
 end
 
+# Halley
+function benchmark_scalar(f, u0)
+    probN = NonlinearProblem{false}(f, u0)
+    sol = (solve(probN, Halley()))
+end
+
+# function ff(u, p)
+#     u .* u .- 2
+# end
+# const cu0 = @SVector[1.0, 1.0]
+function sf(u, p)
+    u * u - 2
+end
+const csu0 = 1.0
+
+sol = benchmark_scalar(sf, csu0)
+@test sol.retcode === ReturnCode.Success
+@test sol.u * sol.u - 2 < 1e-9
+
+if VERSION >= v"1.7"
+    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
+end
+
 # Broyden
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
@@ -95,7 +118,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrustRegion(),
-            SimpleDFSane())
+            SimpleDFSane(), Halley())
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -161,7 +184,7 @@ for alg in [Bisection(), Falsi(), Ridder(), Brent()]
 end
 
 for alg in (SimpleNewtonRaphson(), Broyden(), LBroyden(), Klement(), SimpleTrustRegion(),
-            SimpleDFSane())
+            SimpleDFSane(), Halley())
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -184,6 +207,13 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, LBroyden()).u[end] ≈ sqrt(2.0)
 @test solve(probN, Klement()).u[end] ≈ sqrt(2.0)
 @test solve(probN, SimpleDFSane()).u[end] ≈ sqrt(2.0)
+
+# Separate Error check for Halley; will be included in above error checks for the improved Halley
+f, u0 = (u, p) -> u * u - 2.0, 1.0
+probN = NonlinearProblem(f, u0)
+
+@test solve(probN, Halley()).u ≈ sqrt(2.0)
+
 
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
