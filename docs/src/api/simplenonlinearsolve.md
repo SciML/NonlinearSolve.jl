@@ -14,4 +14,5 @@ SimpleTrustRegion
 Ridder
 Brent
 SimpleDFSane
+LBroyden
 ```
