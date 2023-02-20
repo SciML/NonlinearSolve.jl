@@ -42,10 +42,28 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                            maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
-    fx = f(x)
-    # fx = float(prob.u0)
-    if !isa(fx, Number) || !isa(x, Number)
-        error("Halley currently only supports scalar-valued single-variable functions")
+    # Defining all derivative expressions in one place before the iterations
+    if isa(x, AbstractArray)
+        if alg_autodiff(alg)
+            n = length(x)
+            a_dfdx(x) = ForwardDiff.jacobian(f, x)
+            a_d2fdx(x) = ForwardDiff.jacobian(a_dfdx, x)
+            A = Array{Union{Nothing, Number}}(nothing, n, n)
+            #fx = f(x)
+        else
+            n = length(x)
+            f_dfdx(x) = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x))
+            f_d2fdx(x) = FiniteDiff.finite_difference_jacobian(f_dfdx, x, diff_type(alg), eltype(x))
+            A = Array{Union{Nothing, Number}}(nothing, n, n)
+        end
+    elseif isa(x, Number)
+        if alg_autodiff(alg)
+            sa_dfdx(x) = ForwardDiff.derivative(f, x)
+            sa_d2fdx(x) = ForwardDiff.derivative(sa_dfdx, x)
+        else
+            sf_dfdx(x) = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x))
+            sf_d2fdx(x) = FiniteDiff.finite_difference_derivative(sf_dfdx, x, diff_type(alg), eltype(x))
+        end
     end
     T = typeof(x)
 
@@ -65,22 +83,49 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
     for i in 1:maxiters
         if alg_autodiff(alg)
-            fx = f(x)
-            dfdx(x) = ForwardDiff.derivative(f, x)
-            dfx = dfdx(x)
-            d2fx = ForwardDiff.derivative(dfdx, x)
+            if isa(x, Number)
+                fx = f(x)
+                dfx = sa_dfdx(x)
+                d2fx = sa_d2fdx(x)
+            else
+                fx = f(x)
+                dfx = a_dfdx(x)
+                d2fx = reshape(a_d2fdx(x), (n,n,n)) # A 3-dim Hessian Tensor
+                ai = -(dfx \ fx)
+                for j in 1:n
+                    tmp = transpose(d2fx[:, :, j] * ai)
+                    A[j, :] = tmp
+                end
+                bi = (dfx) \ (A * ai)
+                ci = (ai .* ai) ./ (ai .+ (0.5 .* bi))
+            end
         else
-            fx = f(x)
-            dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x),
-                                                          fx)
-            d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f,
-                                                                                                        x),
-                                                           x, diff_type(alg), eltype(x), fx)
+            if isa(x, Number)
+                fx = f(x)
+                dfx = sf_dfdx(x)
+                d2fx = sf_d2fdx(x)
+            else
+                fx = f(x)
+                dfx = f_dfdx(x)
+                d2fx = reshape(f_d2fdx(x), (n,n,n)) # A 3-dim Hessian Tensor
+                ai = -(dfx \ fx)
+                for j in 1:n
+                    tmp = transpose(d2fx[:, :, j] * ai)
+                    A[j, :] = tmp
+                end
+                bi = (dfx) \ (A * ai)
+                ci = (ai .* ai) ./ (ai .+ (0.5 .* bi))
+            end
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = (2 * dfx^2 - fx * d2fx) \ (2fx * dfx)
-        x -= Δx
+        if isa(x, Number)
+            Δx = (2 * dfx^2 - fx * d2fx) \ (2fx * dfx)
+            x -= Δx
+        else
+            Δx = ci
+            x += Δx
+        end
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
         end
