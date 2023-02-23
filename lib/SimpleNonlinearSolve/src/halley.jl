@@ -42,6 +42,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                            maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
+    fx = f(x)
     if isa(x, AbstractArray)
         n = length(x)
     end
@@ -70,7 +71,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             else
                 fx = f(x)
                 dfx = ForwardDiff.jacobian(f, x)
-                d2fx = ForwardDiff.jacobian(x -> ForwardDiff.jacobian(f, x), x) #  n^2 by n matrix
+                d2fx = ForwardDiff.jacobian(x -> ForwardDiff.jacobian(f, x), x)
                 ai = -(dfx \ fx)
                 A = reshape(d2fx * ai, (n, n))
                 bi = (dfx) \ (A * ai)
