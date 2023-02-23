@@ -43,9 +43,8 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fx = f(x)
-    # fx = float(prob.u0)
-    if !isa(fx, Number) || !isa(x, Number)
-        error("Halley currently only supports scalar-valued single-variable functions")
+    if isa(x, AbstractArray)
+        n = length(x)
     end
     T = typeof(x)
 
@@ -65,22 +64,45 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
     for i in 1:maxiters
         if alg_autodiff(alg)
-            fx = f(x)
-            dfdx(x) = ForwardDiff.derivative(f, x)
-            dfx = dfdx(x)
-            d2fx = ForwardDiff.derivative(dfdx, x)
+            if isa(x, Number)
+                fx = f(x)
+                dfx = ForwardDiff.derivative(f, x)
+                d2fx = ForwardDiff.derivative(x -> ForwardDiff.derivative(f, x), x)
+            else
+                fx = f(x)
+                dfx = ForwardDiff.jacobian(f, x)
+                d2fx = ForwardDiff.jacobian(x -> ForwardDiff.jacobian(f, x), x)
+                ai = -(dfx \ fx)
+                A = reshape(d2fx * ai, (n, n))
+                bi = (dfx) \ (A * ai)
+                ci = (ai .* ai) ./ (ai .+ (0.5 .* bi))
+            end
         else
-            fx = f(x)
-            dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x),
-                                                          fx)
-            d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f,
-                                                                                                        x),
-                                                           x, diff_type(alg), eltype(x), fx)
+            if isa(x, Number)
+                fx = f(x)
+                dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x))
+                d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f, x), x,
+                                                                                            diff_type(alg), eltype(x))
+            else
+                fx = f(x)
+                dfx = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x))
+                d2fx = FiniteDiff.finite_difference_jacobian(x -> FiniteDiff.finite_difference_jacobian(f, x), x, 
+                                                                        diff_type(alg), eltype(x))
+                ai = -(dfx \ fx)
+                A = reshape(d2fx * ai, (n, n))
+                bi = (dfx) \ (A * ai)
+                ci = (ai .* ai) ./ (ai .+ (0.5 .* bi))
+            end
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = (2 * dfx^2 - fx * d2fx) \ (2fx * dfx)
-        x -= Δx
+        if isa(x, Number)
+            Δx = (2 * dfx^2 - fx * d2fx) \ (2fx * dfx)
+            x -= Δx
+        else
+            Δx = ci
+            x += Δx
+        end
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
         end
