@@ -80,10 +80,11 @@ for large-scale and numerically-difficult nonlinear systems.
     Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
-struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
+struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR, RUS} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
     precs::P
+    radius_update_scheme::RUS
     max_trust_radius::MTR
     initial_trust_radius::MTR
     step_threshold::MTR
@@ -98,6 +99,7 @@ function TrustRegion(; chunk_size = Val{0}(),
                      autodiff = Val{true}(),
                      standardtag = Val{true}(), concrete_jac = nothing,
                      diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
+                     radius_update_scheme = nothing,
                      max_trust_radius::Real = 0 // 1,
                      initial_trust_radius::Real = 0 // 1,
                      step_threshold::Real = 1 // 10,
@@ -108,8 +110,8 @@ function TrustRegion(; chunk_size = Val{0}(),
                      max_shrink_times::Int = 32)
     TrustRegion{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
                 typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-                _unwrap_val(concrete_jac), typeof(max_trust_radius)
-                }(linsolve, precs, max_trust_radius,
+                _unwrap_val(concrete_jac), typeof(max_trust_radius), typeof(radius_update_scheme)
+                }(linsolve, precs, radius_update_scheme, max_trust_radius,
                   initial_trust_radius,
                   step_threshold,
                   shrink_threshold,
@@ -238,6 +240,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
+    #radius_update_scheme = alg.radius_update_scheme
     max_trust_radius = convert(eltype(u), alg.max_trust_radius)
     initial_trust_radius = convert(eltype(u), alg.initial_trust_radius)
     step_threshold = convert(eltype(u), alg.step_threshold)
@@ -314,6 +317,44 @@ function perform_step!(cache::TrustRegionCache{false})
 
     trust_region_step!(cache)
     return nothing
+end
+
+function trust_region_step!(cache::TrustRegionCache)
+  ## MODIFIED SCHEME GOES HERE
+
+
+  # @unpack fu_new, step_size, g, H, loss, max_trust_r = cache
+  # cache.loss_new = get_loss(fu_new)
+
+  # # Compute the ratio of the actual reduction to the predicted reduction.
+  # cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
+  # @unpack r = cache
+
+  # # Update the trust region radius.
+  # if r < cache.shrink_threshold
+  #     cache.trust_r *= cache.shrink_factor
+  #     cache.shrink_counter += 1
+  # else
+  #     cache.shrink_counter = 0
+  # end
+  # if r > cache.step_threshold
+  #     take_step!(cache)
+  #     cache.loss = cache.loss_new
+
+  #     # Update the trust region radius.
+  #     if r > cache.expand_threshold
+  #         cache.trust_r = min(cache.expand_factor * cache.trust_r, max_trust_r)
+  #     end
+
+  #     cache.make_new_J = true
+  # else
+  #     # No need to make a new J, no step was taken, so we try again with a smaller trust_r
+  #     cache.make_new_J = false
+  # end
+
+  # if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
+  #     cache.force_stop = true
+  # end
 end
 
 function trust_region_step!(cache::TrustRegionCache)
