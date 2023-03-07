@@ -121,7 +121,7 @@ function TrustRegion(; chunk_size = Val{0}(),
                      autodiff = Val{true}(),
                      standardtag = Val{true}(), concrete_jac = nothing,
                      diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                     radius_update_scheme = RadiusUpdate(simple = true),
+                     radius_update_scheme = RadiusUpdate(simple = true), #defaults to conventional radius update
                      max_trust_radius::Real = 0 // 1,
                      initial_trust_radius::Real = 0 // 1,
                      step_threshold::Real = 1 // 10,
