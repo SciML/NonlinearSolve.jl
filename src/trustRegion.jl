@@ -95,11 +95,33 @@ struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR, RUS} <:
     max_shrink_times::Int
 end
 
+struct RadiusUpdate{B}
+    simple::B
+    hei::B
+    yuan::B
+    bastin::B
+end
+
+function RadiusUpdate(;simple::Bool = Val{true}(),  # 3 different radius update schemes
+                      hei::Bool = Val{false}(),
+                      yuan::Bool = Val{false}(),
+                      bastin::Bool = Val{false}())
+    if simple
+      return RadiusUpdate{Bool}(true, false, false, false)
+    elseif hei
+      return RadiusUpdate{Bool}(false, true, false, false)
+    elseif yuan
+      return RadiusUpdate{Bool}(false, false, true, false)
+    elseif bastin
+      return RadiusUpdate{Bool}(false, false, false, true)
+    end
+end
+
 function TrustRegion(; chunk_size = Val{0}(),
                      autodiff = Val{true}(),
                      standardtag = Val{true}(), concrete_jac = nothing,
                      diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                     radius_update_scheme = nothing,
+                     radius_update_scheme = RadiusUpdate(simple = true),
                      max_trust_radius::Real = 0 // 1,
                      initial_trust_radius::Real = 0 // 1,
                      step_threshold::Real = 1 // 10,
@@ -122,7 +144,7 @@ function TrustRegion(; chunk_size = Val{0}(),
 end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
-                                INType, tolType, probType, ufType, L, jType, JC, floatType,
+                                INType, tolType, probType, ufType, L, jType, JC, floatType, radType,
                                 trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
@@ -140,6 +162,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     retcode::SciMLBase.ReturnCode.T
     abstol::tolType
     prob::probType
+    radius_update_scheme::radType
     trust_r::trustType
     max_trust_r::trustType
     step_threshold::suType
@@ -163,7 +186,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    jac_config::JC, iter::Int,
                                    force_stop::Bool, maxiters::Int, internalnorm::INType,
                                    retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                   prob::probType, trust_r::trustType,
+                                   prob::probType, radius_update_scheme::radType, trust_r::trustType,
                                    max_trust_r::trustType, step_threshold::suType,
                                    shrink_threshold::trustType, expand_threshold::trustType,
                                    shrink_factor::trustType, expand_factor::trustType,
@@ -174,13 +197,13 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
                                                         jType, JC, floatType, trustType,
-                                                        suType, su2Type, tmpType}
+                                                        suType, su2Type, tmpType, radType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType,
-            trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+            radType, trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
                                                  jac_config, iter, force_stop,
                                                  maxiters, internalnorm, retcode,
-                                                 abstol, prob, trust_r, max_trust_r,
+                                                 abstol, prob, radius_update_scheme, trust_r, max_trust_r,
                                                  step_threshold, shrink_threshold,
                                                  expand_threshold, shrink_factor,
                                                  expand_factor, loss,
@@ -240,7 +263,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
-    #radius_update_scheme = alg.radius_update_scheme
+    radius_update_scheme = alg.radius_update_scheme
     max_trust_radius = convert(eltype(u), alg.max_trust_radius)
     initial_trust_radius = convert(eltype(u), alg.initial_trust_radius)
     step_threshold = convert(eltype(u), alg.step_threshold)
@@ -267,7 +290,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
-                                 ReturnCode.Default, abstol, prob, initial_trust_radius,
+                                 ReturnCode.Default, abstol, prob, radius_update_scheme, initial_trust_radius,
                                  max_trust_radius, step_threshold, shrink_threshold,
                                  expand_threshold, shrink_factor, expand_factor, loss,
                                  loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
@@ -293,7 +316,16 @@ function perform_step!(cache::TrustRegionCache{true})
     cache.u_tmp .= u .+ cache.step_size
     f(cache.fu_new, cache.u_tmp, p)
 
-    trust_region_step!(cache)
+    @unpack radius_update_scheme = cache
+    if radius_update_scheme.simple
+      trust_region_step!(cache)
+    elseif radius_update_scheme.hei
+
+    elseif radius_update_scheme.yuan
+
+    elseif radius_update_scheme.bastin
+
+    end
     return nothing
 end
 
@@ -315,7 +347,16 @@ function perform_step!(cache::TrustRegionCache{false})
     cache.u_tmp = u .+ cache.step_size
     cache.fu_new = f(cache.u_tmp, p)
 
-    trust_region_step!(cache)
+    @unpack radius_update_scheme = cache
+    if radius_update_scheme.simple
+      trust_region_step!(cache)
+    elseif radius_update_scheme.hei
+
+    elseif radius_update_scheme.yuan
+
+    elseif radius_update_scheme.bastin
+
+    end
     return nothing
 end
 
