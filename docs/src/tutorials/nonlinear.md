@@ -10,7 +10,7 @@ using NonlinearSolve, StaticArrays
 f(u, p) = u .* u .- p
 u0 = @SVector[1.0, 1.0]
 p = 2.0
-probN = NonlinearProblem{false}(f, u0, p)
+probN = NonlinearProblem(f, u0, p)
 solver = solve(probN, NewtonRaphson(), reltol = 1e-9)
 ```
 
