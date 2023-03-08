@@ -80,14 +80,19 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         else
             if isa(x, Number)
                 fx = f(x)
-                dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x))
-                d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f, x), x,
-                                                                                            diff_type(alg), eltype(x))
+                dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg),
+                                                              eltype(x))
+                d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f,
+                                                                                                            x),
+                                                               x,
+                                                               diff_type(alg), eltype(x))
             else
                 fx = f(x)
                 dfx = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x))
-                d2fx = FiniteDiff.finite_difference_jacobian(x -> FiniteDiff.finite_difference_jacobian(f, x), x, 
-                                                                        diff_type(alg), eltype(x))
+                d2fx = FiniteDiff.finite_difference_jacobian(x -> FiniteDiff.finite_difference_jacobian(f,
+                                                                                                        x),
+                                                             x,
+                                                             diff_type(alg), eltype(x))
                 ai = -(dfx \ fx)
                 A = reshape(d2fx * ai, (n, n))
                 bi = (dfx) \ (A * ai)
