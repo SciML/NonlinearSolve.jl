@@ -80,6 +80,20 @@ for large-scale and numerically-difficult nonlinear systems.
     Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
+EnumX.@enumx RadiusUpdateSchemes begin
+    Simple
+    Hei
+    Yuan
+    Bastin
+end
+
+struct RadiusUpdate
+    simple::Bool
+    hei::Bool
+    yuan::Bool
+    bastin::Bool
+end
+
 struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR, RUS} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
@@ -95,12 +109,25 @@ struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR, RUS} <:
     max_shrink_times::Int
 end
 
+function RadiusUpdate(;hei::Bool = false,
+                        yuan::Bool = false,
+                        bastin::Bool = false)
+    if !(hei || yuan || bastin)
+      return RadiusUpdate(true, false, false, false)
+    elseif hei
+      return RadiusUpdate(false, true, false, false)
+    elseif yuan
+      return RadiusUpdate(false, false, true, false)
+    elseif bastin
+      return RadiusUpdate(false, false, false, true)
+    end
+end
 
 function TrustRegion(; chunk_size = Val{0}(),
                      autodiff = Val{true}(),
                      standardtag = Val{true}(), concrete_jac = nothing,
                      diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                     radius_update_scheme = :simple, #defaults to conventional radius update
+                     radius_update_scheme = RadiusUpdate(), #defaults to conventional radius update
                      max_trust_radius::Real = 0 // 1,
                      initial_trust_radius::Real = 0 // 1,
                      step_threshold::Real = 1 // 10,
@@ -296,7 +323,15 @@ function perform_step!(cache::TrustRegionCache{true})
     f(cache.fu_new, cache.u_tmp, p)
 
     @unpack radius_update_scheme = cache
-    trust_region_step!(cache, Val(radius_update_scheme))
+    if radius_update_scheme.simple
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Simple)))
+    elseif radius_update_scheme.hei
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Hei)))
+    elseif radius_update_scheme.yuan
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Yuan)))
+    elseif radius_update_scheme.bastin
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Bastin)))
+    end
     return nothing
 end
 
@@ -319,11 +354,19 @@ function perform_step!(cache::TrustRegionCache{false})
     cache.fu_new = f(cache.u_tmp, p)
 
     @unpack radius_update_scheme = cache
-    trust_region_step!(cache, Val(radius_update_scheme))
+    if radius_update_scheme.simple
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Simple)))
+    elseif radius_update_scheme.hei
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Hei)))
+    elseif radius_update_scheme.yuan
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Yuan)))
+    elseif radius_update_scheme.bastin
+      trust_region_step!(cache, Val(Int(RadiusUpdateSchemes.Bastin)))
+    end
     return nothing
 end
 
-function trust_region_step!(cache::TrustRegionCache, ::Val{:simple})
+function trust_region_step!(cache::TrustRegionCache, ::Val{0}) # conventional radius update scheme 
     @unpack fu_new, step_size, g, H, loss, max_trust_r = cache
     cache.loss_new = get_loss(fu_new)
 
@@ -358,8 +401,7 @@ function trust_region_step!(cache::TrustRegionCache, ::Val{:simple})
     end
 end
 
-function trust_region_step!(cache::TrustRegionCache, ::Val{:hei})
-    ## Hei's method of updating radius 
+function trust_region_step!(cache::TrustRegionCache, ::Val{1}) # hei's radius update scheme
 
     # @unpack fu_new, step_size, g, H, loss, max_trust_r = cache
     # cache.loss_new = get_loss(fu_new)
@@ -395,7 +437,7 @@ function trust_region_step!(cache::TrustRegionCache, ::Val{:hei})
     # end
 end
 
-function trust_region_step!(cache::TrustRegionCache, ::Val{:yuan})
+function trust_region_step!(cache::TrustRegionCache, ::Val{2}) # yuan's radius update scheme
   # @unpack fu_new, step_size, g, H, loss, max_trust_r = cache
   # cache.loss_new = get_loss(fu_new)
 
@@ -430,7 +472,7 @@ function trust_region_step!(cache::TrustRegionCache, ::Val{:yuan})
   # end
 end
 
-function trust_region_step!(cache::TrustRegionCache, ::Val{:bastin})
+function trust_region_step!(cache::TrustRegionCache, ::Val{3}) # bastin's radius update scheme
   # @unpack fu_new, step_size, g, H, loss, max_trust_r = cache
   # cache.loss_new = get_loss(fu_new)
 
