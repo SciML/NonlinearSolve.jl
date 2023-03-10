@@ -60,6 +60,8 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     end
 end end
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, RadiusUpdateSchemes
+export RadiusUpdateSchemes
+
+export NewtonRaphson, TrustRegion, LevenbergMarquardt
 
 end # module
