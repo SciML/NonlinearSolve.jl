@@ -10,6 +10,7 @@ using ForwardDiff: Dual
 using LinearAlgebra
 using StaticArraysCore
 using RecursiveArrayTools
+import EnumX
 import ArrayInterface
 import LinearSolve
 using DiffEqBase
@@ -59,6 +60,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     end
 end end
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, RadiusUpdateSchemes
 
 end # module
