@@ -337,7 +337,7 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
     @unpack r = cache
 
-    if radius_update_scheme == RadiusUpdateSchemes.Simple 
+    if radius_update_scheme === RadiusUpdateSchemes.Simple 
       # Update the trust region radius.
       if r < cache.shrink_threshold
           cache.trust_r *= cache.shrink_factor
