@@ -364,13 +364,13 @@ function trust_region_step!(cache::TrustRegionCache)
           cache.force_stop = true
       end
     
-    elseif radius_update_scheme == RadiusUpdateSchemes.Hei
+    elseif radius_update_scheme === RadiusUpdateSchemes.Hei
 
 
-    elseif radius_update_scheme == RadiusUpdateSchemes.Yuan
+    elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
 
 
-    elseif radius_update_scheme == RadiusUpdateSchemes.Bastin
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
 
 
     end
