@@ -363,8 +363,21 @@ function trust_region_step!(cache::TrustRegionCache)
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
           cache.force_stop = true
       end
-    
+      
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
+      if r > c1 # parameters to be defined
+          take_step!(cache)
+          cache.loss = cache.loss_new
+          cache.make_new_J = true
+      else  
+          cache.make_new_J = false
+      end
+      # Hei's radius update scheme
+      cache.trust_r = rfunc(r, c2, M, γ1, γ2, β) * cache.internalnorm(step_size) # parameters to be defined
+
+      if iszero(fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < ϵ # parameters to be defined
+          cache.force_stop = true
+      end
 
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
