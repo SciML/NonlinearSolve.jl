@@ -27,7 +27,7 @@ then `NLSolveJL`'s `:anderson` can be a good choice.
 ## Full List of Methods
 
 !!! note
-
+    
     For the full details on the capabilities and constructors of the different solvers,
     see the Detailed Solver APIs section!
 
@@ -60,7 +60,7 @@ methods excel at small problems and problems defined with static arrays.
     large-scale nonlinear systems of equations.
 
 !!! note
-
+    
     When used with certain types for the states `u` such as a `Number` or `StaticArray`,
     these solvers are very efficient and non-allocating. These implementations are thus
     well-suited for small systems of equations.
