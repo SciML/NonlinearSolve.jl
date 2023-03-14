@@ -283,6 +283,10 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     r = loss
 
     # Parameters for the Schemes
+    p1 = 0
+    p2 = 0
+    p3 = 0
+    p4 = 0
     ϵ = 1e-8
     if radius_update_scheme === RadiusUpdateSchemes.Hei
       step_threshold = 0
