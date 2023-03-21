@@ -24,6 +24,7 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 [compat]
 ArrayInterface = "6.0.24, 7"
 DiffEqBase = "6"
+EnumX = "1"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 LinearSolve = "1"
