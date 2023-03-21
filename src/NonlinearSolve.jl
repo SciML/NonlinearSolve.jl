@@ -10,6 +10,7 @@ using ForwardDiff: Dual
 using LinearAlgebra
 using StaticArraysCore
 using RecursiveArrayTools
+import EnumX
 import ArrayInterface
 import LinearSolve
 using DiffEqBase
@@ -58,6 +59,8 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
         solve(prob, alg, abstol = T(1e-2))
     end
 end end
+
+export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt
 
