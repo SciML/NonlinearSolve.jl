@@ -7,18 +7,22 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
-`TrustRegion` is a good choice for most problems. For large
+`NewtonRaphson` is a good choice for most problems. For large
 systems, it can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. That said, as a classic Newton
 method, its stability region can be smaller than other methods. Meanwhile,
-`SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which are specialized for
-small equations. They are non-allocating on static arrays and thus really well-optimized
+`SimpleNewtonRaphson` is an implementation which is specialized for
+small equations. It is non-allocating on static arrays and thus really well-optimized
 for small systems, thus usually outperforming the other methods when such types are
 used for `u0`. `DynamicSS` can be a good choice for high stability.
 
 For a system which is very non-stiff (i.e., the condition number of the Jacobian
 is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
 then `NLSolveJL`'s `:anderson` can be a good choice.
+
+!!! note
+
+    `TrustRegion` and `SimpleTrustRegion` are still in development.
 
 ## Full List of Methods
 
