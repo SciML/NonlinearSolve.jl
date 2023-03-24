@@ -417,9 +417,7 @@ function trust_region_step!(cache::TrustRegionCache)
       elseif r >= cache.expand_threshold && cache.internalnorm(step_size) > cache.trust_r / 2
         cache.p1 = cache.p3 * cache.p1
       end
-      @unpack p1, fu, f, J = cache
-      #cache.trust_r = p1 * cache.internalnorm(jacobian!(J, cache) * fu) # we need the gradient at the new (k+1)th point  WILL THIS BECOME ALLOCATING?
-
+      
       if r > cache.step_threshold
         take_step!(cache)
         cache.loss = cache.loss_new
@@ -427,7 +425,10 @@ function trust_region_step!(cache::TrustRegionCache)
       else
         cache.make_new_J = false
       end
-      
+
+      @unpack p1= cache
+      cache.trust_r = p1 * cache.internalnorm(jvp(cache)) # we need the gradient at the new (k+1)th point  WILL THIS BECOME ALLOCATING?
+
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
         cache.force_stop = true
       end
