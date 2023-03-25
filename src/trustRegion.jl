@@ -403,9 +403,9 @@ function trust_region_step!(cache::TrustRegionCache)
       if rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) < cache.trust_r
         cache.shrink_counter += 1
       end
-      cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) # parameters to be defined
+      cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) 
 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
+      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ 
           cache.force_stop = true
       end
 
@@ -427,9 +427,8 @@ function trust_region_step!(cache::TrustRegionCache)
       end
 
       @unpack p1= cache
-      cache.trust_r = p1 * cache.internalnorm(jvp(cache)) # we need the gradient at the new (k+1)th point  WILL THIS BECOME ALLOCATING?
-
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
+      cache.trust_r = p1 * cache.internalnorm(jvp(cache)) 
+      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ 
         cache.force_stop = true
       end
 
@@ -472,6 +471,17 @@ end
 function take_step!(cache::TrustRegionCache{false})
     cache.u = cache.u_tmp
     cache.fu = cache.fu_new
+end
+
+function jvp(cache::TrustRegionCache{false})
+  @unpack f, u, fu = cache
+  auto_jacvec(f, u, fu)
+end
+
+function jvp(cache::TrustRegionCache{true})
+  @unpack g, f, u, fu = cache
+  auto_jacvec!(g, f, u, fu)
+  g
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)

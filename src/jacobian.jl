@@ -145,13 +145,4 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
      num_of_chunks)
 end
 
-function jvp(cache::TrustRegionCache{false})
-    @unpack f, u, fu = cache
-    auto_jacvec(f, u, fu)
-end
 
-function jvp(cache::TrustRegionCache{true})
-    @unpack g, f, u, fu = cache
-    auto_jacvec!(g, f, u, fu)
-    g
-end
