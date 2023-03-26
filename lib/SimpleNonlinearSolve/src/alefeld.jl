@@ -17,8 +17,9 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                                         right = b)
     end
     a, b, d = _bracket(f, a, b, c)
-    e = 0   # Set e as 0 before interation to avoid a non-value f(e)
+    e = 0   # Set e as 0 before iteration to avoid a non-value f(e)
 
+    # Begin algorithm iteration
     for i in 2:maxiters
         # The first bracketing block
         f₁, f₂, f₃, f₄ = f(a), f(b), f(d), f(e)
