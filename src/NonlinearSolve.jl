@@ -61,7 +61,6 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
 end end
 
 export RadiusUpdateSchemes
-export auto_jacvec, auto_jacvec!
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt
 

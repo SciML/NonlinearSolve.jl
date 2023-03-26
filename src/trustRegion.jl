@@ -301,7 +301,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p2 = convert(eltype(u), 1/6) # c5
       p3 = convert(eltype(u), 6.0) # c6
       p4 = convert(eltype(u), 0.0)
-     end
+    end
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
