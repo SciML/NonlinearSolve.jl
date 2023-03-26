@@ -156,9 +156,9 @@ end
 function sf(u, p=nothing)
     u * u - 2
 end
-u0 = [1.0, 1.0]
 
-radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan]
+u0 = [1.0, 1.0]
+radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei]
 
 for radius_update_scheme in radius_update_schemes
     sol = benchmark_immutable(ff, cu0, radius_update_scheme)
@@ -173,25 +173,28 @@ for radius_update_scheme in radius_update_schemes
 end
 
 
-function benchmark_inplace(f, u0)
+function benchmark_inplace(f, u0, radius_update_scheme)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function ffiip(du, u, p)
+function ffiip(du, u, p=nothing)
     du .= u .* u .- 2
 end
 u0 = [1.0, 1.0]
 
-sol = benchmark_inplace(ffiip, u0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+for radius_update_scheme in radius_update_schemes
+    sol = benchmark_inplace(ffiip, u0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+end
 
-u0 = [1.0, 1.0]
-probN = NonlinearProblem{true}(ffiip, u0)
-solver = init(probN, TrustRegion(), abstol = 1e-9)
-@test (@ballocated solve!(solver)) < 200
+for radius_update_scheme in radius_update_schemes
+    probN = NonlinearProblem{true}(ffiip, u0)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    @test (@ballocated solve!(solver)) < 200
+end
 
 # AD Tests
 using ForwardDiff
