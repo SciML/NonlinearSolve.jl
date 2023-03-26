@@ -132,41 +132,46 @@ end
 
 # --- TrustRegion tests ---
 
-function benchmark_immutable(f, u0)
+function benchmark_immutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function benchmark_mutable(f, u0)
+function benchmark_mutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function benchmark_scalar(f, u0)
+function benchmark_scalar(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, TrustRegion(), abstol = 1e-9))
+    sol = (solve(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9))
 end
 
-function ff(u, p)
+function ff(u, p=nothing)
     u .* u .- 2
 end
 
-function sf(u, p)
+function sf(u, p=nothing)
     u * u - 2
 end
 u0 = [1.0, 1.0]
 
-sol = benchmark_immutable(ff, cu0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-sol = benchmark_mutable(ff, u0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test abs(sol.u * sol.u - 2) < 1e-9
+radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan]
+
+for radius_update_scheme in radius_update_schemes
+    sol = benchmark_immutable(ff, cu0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    sol = benchmark_mutable(ff, u0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    sol = benchmark_scalar(sf, csu0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test abs(sol.u * sol.u - 2) < 1e-9
+end
+
 
 function benchmark_inplace(f, u0)
     probN = NonlinearProblem{true}(f, u0)
