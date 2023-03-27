@@ -1,10 +1,15 @@
-'''
-# add annotation here
-'''
+"""
+`Alefeld()` 
+
+An implementation of algorithm 4.2 from [Alefeld](https://dl.acm.org/doi/10.1145/210089.210111).
+
+The paper brought up two new algorithms. Here choose to implement algorithm 4.2 rather than 
+algorithm 4.1 because, in certain sense, the second algorithm(4.2) is an optimal procedure.
+"""
 
 struct Alefeld <: AbstractBracketingAlgorithm end
 
-function SciMLBase.__solve(prob::NonlinearProblem,
+function SciMLBase.solve(prob::NonlinearProblem,
                             alg::Alefeld, args...; abstol = nothing,
                             reltol = nothing,
                             maxiters = 1000, kwargs...)
@@ -23,7 +28,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     a, b, d = _bracket(f, a, b, c)
     e = 0   # Set e as 0 before iteration to avoid a non-value f(e)
 
-    # Begin algorithm iteration
+    # Begin of algorithm iteration
     for i in 2:maxiters
         # The first bracketing block
         f₁, f₂, f₃, f₄ = f(a), f(b), f(d), f(e)

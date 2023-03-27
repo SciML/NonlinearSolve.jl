@@ -38,6 +38,7 @@ include("brent.jl")
 include("dfsane.jl")
 include("ad.jl")
 include("halley.jl")
+include("alefeld.jl")
 
 import SnoopPrecompile
 
@@ -59,13 +60,13 @@ SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
     =#
 
     prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p, T.((0.0, 2.0)), T(2))
-    for alg in (Bisection, Falsi, Ridder, Brent)
+    for alg in (Bisection, Falsi, Ridder, Brent, Alefeld)
         solve(prob_brack, alg(), abstol = T(1e-2))
     end
 end end
 
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
-       Ridder, SimpleNewtonRaphson, SimpleTrustRegion
+       Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld
 
 end # module
