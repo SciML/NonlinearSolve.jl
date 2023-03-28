@@ -198,3 +198,22 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
                              retcode = cache.retcode)
 end
+
+function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u0; p = cache.p,
+                           abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(cache.u, u0)
+        cache.f(cache.fu, cache.u, p)
+    else
+        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
+        cache.u = u0
+        cache.fu = cache.f(cache.u, p)
+    end
+    cache.abstol = abstol
+    cache.maxiters = maxiters
+    cache.iter = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    return cache
+end
