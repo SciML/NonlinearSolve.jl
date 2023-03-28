@@ -111,6 +111,37 @@ end
 @test gnewton(p) ≈ [sqrt(p[2] / p[1])]
 @test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
 
+# Iterator interface
+f = (u, p) -> u * u - p
+g = function (p_range)
+    probN = NonlinearProblem{false}(f, 0.5, p_range[begin])
+    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol=1e-10)
+    sols = zeros(length(p_range))
+    for (i, p) in enumerate(p_range)
+        reinit!(cache, cache.u; p = p)
+        sol = solve!(cache)
+        sols[i] = sol.u
+    end
+    return sols
+end
+p = range(0.01, 2, length = 200)
+@test g(p) ≈ sqrt.(p)
+
+f = (res, u, p) -> (res[begin] = u[1] * u[1] - p)
+g = function (p_range)
+    probN = NonlinearProblem{true}(f, [0.5], p_range[begin])
+    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol=1e-10)
+    sols = zeros(length(p_range))
+    for (i, p) in enumerate(p_range)
+        reinit!(cache, [cache.u[1]]; p = p)
+        sol = solve!(cache)
+        sols[i] = sol.u[1]
+    end
+    return sols
+end
+p = range(0.01, 2, length = 200)
+@test g(p) ≈ sqrt.(p)
+
 # Error Checks
 
 f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
