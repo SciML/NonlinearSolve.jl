@@ -213,6 +213,28 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
+g = function (p)
+    probN = NonlinearProblem{false}(f, csu0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei), abstol = 1e-9)
+    return sol.u[end]
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, csu0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-9)
+    return sol.u[end]
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 
