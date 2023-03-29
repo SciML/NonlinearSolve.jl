@@ -363,7 +363,7 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
     @unpack r = cache
 
-    if radius_update_scheme === RadiusUpdateSchemes.Simple 
+    if radius_update_scheme === RadiusUpdateSchemes.Simple
       # Update the trust region radius.
       if r < cache.shrink_threshold
           cache.trust_r *= cache.shrink_factor
@@ -389,13 +389,13 @@ function trust_region_step!(cache::TrustRegionCache)
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
           cache.force_stop = true
       end
-      
+
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
-      if r > cache.step_threshold 
+      if r > cache.step_threshold
           take_step!(cache)
           cache.loss = cache.loss_new
           cache.make_new_J = true
-      else  
+      else
           cache.make_new_J = false
       end
       # Hei's radius update scheme
@@ -427,7 +427,7 @@ function trust_region_step!(cache::TrustRegionCache)
       else
         cache.make_new_J = false
       end
-      
+
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
         cache.force_stop = true
       end
@@ -488,4 +488,30 @@ function SciMLBase.solve!(cache::TrustRegionCache)
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
                              retcode = cache.retcode)
+end
+
+function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
+                           abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(cache.u, u0)
+        cache.f(cache.fu, cache.u, p)
+    else
+        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
+        cache.u = u0
+        cache.fu = cache.f(cache.u, p)
+    end
+    cache.abstol = abstol
+    cache.maxiters = maxiters
+    cache.iter = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    cache.make_new_J = true
+    cache.loss = get_loss(cache.fu)
+    cache.shrink_counter = 0
+    cache.trust_r = convert(eltype(cache.u), cache.alg.initial_trust_radius)
+    if iszero(cache.trust_r)
+        cache.trust_r = convert(eltype(cache.u), cache.max_trust_r / 11)
+    end
+    return cache
 end
