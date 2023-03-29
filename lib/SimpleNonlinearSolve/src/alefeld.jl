@@ -150,7 +150,7 @@ function _newton_quadratic(f::Function, a, b, d, k)
 end
 
 # Define subrotine function ipzero, also return the approximation of zero
-function _ipzero(f::Function, a, b, c, d)
+function _ipzero(f::F, a, b, c, d) where F
     Q₁₁ = (c - d) * f(c) / (f(d) - f(c))
     Q₂₁ = (b - c) * f(b) / (f(c) - f(b))
     Q₃₁ = (a - b) * f(a) / (f(b) - f(a))
