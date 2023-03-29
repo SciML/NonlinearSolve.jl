@@ -85,6 +85,7 @@ EnumX.@enumx RadiusUpdateSchemes begin
     Hei
     Yuan
     Bastin
+    Fan
 end
 
 struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
@@ -402,6 +403,8 @@ function trust_region_step!(cache::TrustRegionCache)
       @unpack shrink_threshold, p1, p2, p3, p4 = cache
       if rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) < cache.trust_r
         cache.shrink_counter += 1
+      else
+        cache.shrink_counter = 0
       end
       cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) 
 
@@ -416,6 +419,7 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.shrink_counter += 1
       elseif r >= cache.expand_threshold && cache.internalnorm(step_size) > cache.trust_r / 2
         cache.p1 = cache.p3 * cache.p1
+        cache.shrink_counter = 0
       end
       
       if r > cache.step_threshold
@@ -428,7 +432,7 @@ function trust_region_step!(cache::TrustRegionCache)
 
       @unpack p1= cache
       cache.trust_r = p1 * cache.internalnorm(jvp(cache)) 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol # || cache.internalnorm(g) < cache.ϵ 
+      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
         cache.force_stop = true
       end
 
