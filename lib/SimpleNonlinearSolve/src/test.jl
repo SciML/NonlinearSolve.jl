@@ -1,39 +1,28 @@
-"""
-`Alefeld()` 
+using SimpleNonlinearSolve
+using StaticArrays
+using BenchmarkTools
+using DiffEqBase
+using Test
 
-An implementation of algorithm 4.2 from [Alefeld](https://dl.acm.org/doi/10.1145/210089.210111).
-
-The paper brought up two new algorithms. Here choose to implement algorithm 4.2 rather than 
-algorithm 4.1 because, in certain sense, the second algorithm(4.2) is an optimal procedure.
-"""
-struct Alefeld <: AbstractBracketingAlgorithm end
-
-function SciMLBase.solve(prob::IntervalNonlinearProblem,
-                            alg::Alefeld, args...; abstol = nothing,
-                            reltol = nothing,
-                            maxiters = 1000, kwargs...)
-                            
-    f = Base.Fix2(prob.f, prob.p)
-    a, b = prob.tspan
+function test(f::Function, a, b) 
     c = a - (b - a) / (f(b) - f(a)) * f(a)
-    @show c
+    println("0  ", c)
     
     fc = f(c)
     if iszero(fc)
-        return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+        return c
     end
     a, b, d = _bracket(f, a, b, c)
+    println("a   ", a, "b   ", b, "d   ", d)
     e = 0   # Set e as 0 before iteration to avoid a non-value f(e)
 
     # Begin of algorithm iteration
-    for i in 2:maxiters
+    for i in 2:1000
         # The first bracketing block
         f₁, f₂, f₃, f₄ = f(a), f(b), f(d), f(e)
         if i == 2 || (f₁ == f₂ || f₁ == f₃ || f₁ == f₄ || f₂ == f₃ || f₂ == f₄ || f₃ == f₄)
             c = _newton_quadratic(f, a, b, d, 2)
+            println("1 ", "a   ", a, "b   ", b, "c   ", c)
         else 
             c = _ipzero(f, a, b, d, e)
             if (c - a) * (c - b) ≥ 0
@@ -42,10 +31,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         end 
         ē, fc = d, f(c)   
         iszero(fc) &&
-            return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+            return c
         ā, b̄, d̄ = _bracket(f, a, b, c) 
 
         # The second bracketing block
@@ -60,10 +46,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         end
         fc = f(c)
         iszero(fc) &&
-            return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+            return c
         ā, b̄, d̄ = _bracket(f, ā, b̄, c) 
 
         # The third bracketing block
@@ -78,10 +61,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         end
         fc = f(c)
         iszero(fc) &&
-            return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+            return c
         ā, b̄, d = _bracket(f, ā, b̄, c) 
 
         # The last bracketing block
@@ -92,12 +72,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
             c = 0.5 * (ā + b̄)
             fc = f(c)
             iszero(fc) &&
-            return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+            return c
             a, b, d = _bracket(f, ā, b̄, c)
         end
+        println("i   ", i)
     end
 
     # Reassign the value a, b, and c
@@ -109,8 +87,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
     fc = f(c)
 
     # Reuturn solution when run out of max interation
-    return SciMLBase.build_solution(prob, alg, c, fc; retcode = ReturnCode.MaxIters,
-                                    left = a, right = b)
+    return c
 end
 
 # Define subrotine function bracket, check fc before bracket to return solution
@@ -132,13 +109,16 @@ end
 function _newton_quadratic(f::F, a, b, d, k) where F
     A = ((f(d) - f(b)) / (d - b) - (f(b) - f(a)) / (b - a)) / (d - a) 
     B = (f(b) - f(a)) / (b - a)
+    println("A   ", A)
+    println("B   ", B)
+
 
     if iszero(A)
         return a - (1 / B) * f(a)
     elseif A * f(a) > 0
         rᵢ₋₁ = a 
     else 
-        rᵢ₋₁ = b
+        rᵢ₋₁ = b    
     end 
 
     for i in 1:k
@@ -163,3 +143,26 @@ function _ipzero(f::F, a, b, c, d) where F
 
     return a + Q₃₁ + Q₃₂ + Q₃₃
 end
+
+
+
+
+
+
+function f0(x)
+    return x^2 - 1.1
+end
+
+a = 1.0
+b = 20.0
+
+#= global i = 0
+for p in 1:100
+    println(i)
+    test(f0, a, b)
+    #@test g(p) ≈ sqrt(p)
+    #@test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+    global i += 1
+end =#
+
+test(f0, a, b)
