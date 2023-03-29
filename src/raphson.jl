@@ -199,7 +199,7 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
                              retcode = cache.retcode)
 end
 
-function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u0; p = cache.p,
+function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
                            abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
