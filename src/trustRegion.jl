@@ -363,7 +363,7 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
     @unpack r = cache
 
-    if radius_update_scheme === RadiusUpdateSchemes.Simple
+    if radius_update_scheme === RadiusUpdateSchemes.Simple 
       # Update the trust region radius.
       if r < cache.shrink_threshold
           cache.trust_r *= cache.shrink_factor
@@ -389,13 +389,13 @@ function trust_region_step!(cache::TrustRegionCache)
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
           cache.force_stop = true
       end
-
+      
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
-      if r > cache.step_threshold
+      if r > cache.step_threshold 
           take_step!(cache)
           cache.loss = cache.loss_new
           cache.make_new_J = true
-      else
+      else  
           cache.make_new_J = false
       end
       # Hei's radius update scheme
@@ -427,7 +427,7 @@ function trust_region_step!(cache::TrustRegionCache)
       else
         cache.make_new_J = false
       end
-
+      
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
         cache.force_stop = true
       end
