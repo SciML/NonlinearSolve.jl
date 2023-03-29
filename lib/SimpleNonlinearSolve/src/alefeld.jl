@@ -114,7 +114,7 @@ function SciMLBase.solve(prob::NonlinearProblem,
 end
 
 # Define subrotine function bracket, check fc before bracket to return solution
-function _bracket(f::Function, a, b, c)
+function _bracket(f::F, a, b, c) where F
     if iszero(f(c))
         ā, b̄, d = a, b, c
     else
@@ -129,7 +129,7 @@ function _bracket(f::Function, a, b, c)
 end
 
 # Define subrotine function newton quadratic, return the approximation of zero
-function _newton_quadratic(f::Function, a, b, d, k)
+function _newton_quadratic(f::F, a, b, d, k) where F
     A = ((f(b) - f(d)) / (b - d) - (f(a) - f(b)) / (a - b)) / (d - a) 
     B = (f(b) - f(a)) / (b - a)
 
