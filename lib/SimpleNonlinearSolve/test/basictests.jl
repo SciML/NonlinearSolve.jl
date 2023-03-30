@@ -210,6 +210,18 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
+# Alefeld
+g = function (p)
+    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
+    sol = solve(probN, Alefeld())
+    return sol.u
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
 f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
