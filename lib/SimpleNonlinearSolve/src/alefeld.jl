@@ -25,7 +25,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
                                         right = b)
     end
     a, b, d = _bracket(f, a, b, c)
-    e = zero(a)    # Set e as 0 before iteration to avoid a non-value f(e)
+    e = zero(a)   # Set e as 0 before iteration to avoid a non-value f(e)
 
     # Begin of algorithm iteration
     for i in 2:maxiters
