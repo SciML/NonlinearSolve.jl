@@ -16,7 +16,6 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     c = a - (b - a) / (f(b) - f(a)) * f(a)
-    @show c
     
     fc = f(c)
     if iszero(fc)
@@ -26,7 +25,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
                                         right = b)
     end
     a, b, d = _bracket(f, a, b, c)
-    e = 0   # Set e as 0 before iteration to avoid a non-value f(e)
+    e = zero(a)    # Set e as 0 before iteration to avoid a non-value f(e)
 
     # Begin of algorithm iteration
     for i in 2:maxiters
@@ -40,7 +39,12 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
                 c = _newton_quadratic(f, a, b, d, 2)
             end
         end 
-        ē, fc = d, f(c)   
+        ē, fc = d, f(c)
+        (a == c || b == c) && 
+            return SciMLBase.build_solution(prob, alg, c, fc;
+                                            retcode = ReturnCode.FloatingPointLimit,
+                                            left = a, 
+                                            right = b)   
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
                                         retcode = ReturnCode.Success, 
@@ -59,11 +63,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
             end
         end
         fc = f(c)
+        (ā == c || b̄ == c) && 
+            return SciMLBase.build_solution(prob, alg, c, fc;
+                                            retcode = ReturnCode.FloatingPointLimit,
+                                            left = ā, 
+                                            right = b̄)
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
                                         retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+                                        left = ā,
+                                        right = b̄)
         ā, b̄, d̄ = _bracket(f, ā, b̄, c) 
 
         # The third bracketing block
@@ -77,11 +86,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
             c = 0.5 * (ā + b̄)
         end
         fc = f(c)
+        (ā == c || b̄ == c) && 
+            return SciMLBase.build_solution(prob, alg, c, fc;
+                                            retcode = ReturnCode.FloatingPointLimit,
+                                            left = ā, 
+                                            right = b̄)
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
                                         retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+                                        left = ā, 
+                                        right = b̄)
         ā, b̄, d = _bracket(f, ā, b̄, c) 
 
         # The last bracketing block
@@ -91,11 +105,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
             e = d
             c = 0.5 * (ā + b̄)
             fc = f(c)
+            (ā == c || b̄ == c) && 
+                return SciMLBase.build_solution(prob, alg, c, fc;
+                                                retcode = ReturnCode.FloatingPointLimit,
+                                                left = ā, 
+                                                right = b̄)
             iszero(fc) &&
-            return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success, 
-                                        left = a,
-                                        right = b)
+                return SciMLBase.build_solution(prob, alg, c, fc;
+                                                retcode = ReturnCode.Success, 
+                                                left = ā,
+                                                right = b̄)
             a, b, d = _bracket(f, ā, b̄, c)
         end
     end
@@ -142,7 +161,7 @@ function _newton_quadratic(f::F, a, b, d, k) where F
     end 
 
     for i in 1:k
-        rᵢ = rᵢ₋₁ - B * rᵢ₋₁ / (B + A * (2 * rᵢ₋₁ - a - b))
+        rᵢ = rᵢ₋₁ - (f(a) + B * (rᵢ₋₁ - a) + A * (rᵢ₋₁ - a) * (rᵢ₋₁ - b)) / (B + A * (2 * rᵢ₋₁ - a - b))
         rᵢ₋₁ = rᵢ
     end
 
