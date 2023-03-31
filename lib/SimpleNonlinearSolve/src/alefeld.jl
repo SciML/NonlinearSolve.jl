@@ -18,12 +18,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
     c = a - (b - a) / (f(b) - f(a)) * f(a)
     
     fc = f(c)
-    if iszero(fc)
+    (a == c || b == c) && 
+        return SciMLBase.build_solution(prob, alg, c, fc;
+                                        retcode = ReturnCode.FloatingPointLimit,
+                                        left = a, 
+                                        right = b)
+    iszero(fc) &&
         return SciMLBase.build_solution(prob, alg, c, fc;
                                         retcode = ReturnCode.Success, 
                                         left = a,
                                         right = b)
-    end
     a, b, d = _bracket(f, a, b, c)
     e = zero(a)   # Set e as 0 before iteration to avoid a non-value f(e)
 

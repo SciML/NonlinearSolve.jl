@@ -225,6 +225,18 @@ end
 f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
+g = function (p)
+    probN = IntervalNonlinearProblem{false}(f, tspan, p)
+    sol = solve(probN, Alefeld())
+    return [sol.u]
+end
+
+@test g(p) ≈ [sqrt(p[2] / p[1])]
+@test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
+
+f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
+t = (p) -> [sqrt(p[2] / p[1])]
+p = [0.9, 50.0]
 for alg in [Bisection(), Falsi(), Ridder(), Brent()]
     global g, p
     g = function (p)
@@ -288,6 +300,7 @@ probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Falsi())
 @test sol.left ≈ sqrt(2.0)
 
+# Bisection
 sol = solve(probB, Bisection())
 @test sol.left ≈ sqrt(2.0)
 
@@ -314,6 +327,18 @@ tspan = (0.0, sqrt(2.0))
 probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Brent())
 @test sol.left ≈ sqrt(2.0)
+
+# Alefeld
+sol = solve(probB, Alefeld())
+@test sol.u ≈ sqrt(2.0)
+tspan = (sqrt(2.0), 10.0)
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Alefeld())
+@test sol.u ≈ sqrt(2.0)
+tspan = (0.0, sqrt(2.0))
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Alefeld())
+@test sol.u ≈ sqrt(2.0)
 
 # Garuntee Tests for Bisection
 f = function (u, p)
