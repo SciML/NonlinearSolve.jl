@@ -445,7 +445,7 @@ function dogleg!(cache::TrustRegionCache)
 
     # Test if the full step is within the trust region.
     if norm(u_tmp) ≤ trust_r
-        cache.step_size = u_tmp
+        cache.step_size = deepcopy(u_tmp)
         return
     end
 
