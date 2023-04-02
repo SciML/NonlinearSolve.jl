@@ -431,7 +431,7 @@ function trust_region_step!(cache::TrustRegionCache)
       end
 
       @unpack p1= cache
-      cache.trust_r = p1 * cache.internalnorm(jvp(cache)) 
+      cache.trust_r = p1 * cache.internalnorm(jvp!(cache)) 
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
         cache.force_stop = true
       end
@@ -477,20 +477,20 @@ function take_step!(cache::TrustRegionCache{false})
     cache.fu = cache.fu_new
 end
 
-function jvp(cache::TrustRegionCache{false})
-  @unpack f, u, fu = cache
+function jvp!(cache::TrustRegionCache{false})
+  @unpack f, u, fu, p = cache
   if isa(u, Number)
-    return value_derivative(f, u)
+    return value_derivative(x -> f(x, p), u)
   end
-  return auto_jacvec(f, u, fu)
+  return auto_jacvec(x -> f(x, p), u, fu)
 end
 
-function jvp(cache::TrustRegionCache{true})
-  @unpack g, f, u, fu = cache
+function jvp!(cache::TrustRegionCache{true})
+  @unpack g, f, u, fu, p = cache
   if isa(u, Number)
-    return value_derivative(f, u)
+    return value_derivative(x -> f(x, p), u)
   end
-  return auto_jacvec!(g, f, u, fu)
+  return auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
   g
 end
 

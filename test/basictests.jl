@@ -225,16 +225,16 @@ for p in 1.1:0.1:100.0
 end
 
 ## FAIL BECAUSE JVP CANNOT ACCEPT PARAMETERS IN FUNCTIONS
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, csu0, p)
-#     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-9)
-#     return sol.u[end]
-# end
+g = function (p)
+    probN = NonlinearProblem{false}(f, csu0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-9)
+    return sol.u[end]
+end
 
-# for p in 1.1:0.1:100.0
-#     @test g(p) ≈ sqrt(p)
-#     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-# end
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
 
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
@@ -265,18 +265,18 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-#     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-10)
-#     return sol.u
-# end
+g = function (p)
+    probN = NonlinearProblem{false}(f, oftype(p, u0), p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-10)
+    return sol.u
+end
 
-# @test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
+@test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
 
-# for p in 1.1:0.1:100.0
-#     @test g(p) ≈ sqrt(p)
-#     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-# end
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
 
 f = (u, p) -> p[1] * u * u - p[2]
 t = (p) -> [sqrt(p[2] / p[1])]
