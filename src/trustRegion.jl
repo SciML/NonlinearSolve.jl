@@ -235,7 +235,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                           args...;
                           alias_u0 = false,
                           maxiters = 1000,
-                          abstol = 1e-6,
+                          abstol = 1e-8,
                           internalnorm = DEFAULT_NORM,
                           kwargs...) where {uType, iip}
     if alias_u0
