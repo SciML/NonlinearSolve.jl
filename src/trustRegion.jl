@@ -85,6 +85,7 @@ EnumX.@enumx RadiusUpdateSchemes begin
     Hei
     Yuan
     Bastin
+    Fan
 end
 
 struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
@@ -234,7 +235,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                           args...;
                           alias_u0 = false,
                           maxiters = 1000,
-                          abstol = 1e-6,
+                          abstol = 1e-8,
                           internalnorm = DEFAULT_NORM,
                           kwargs...) where {uType, iip}
     if alias_u0
@@ -301,7 +302,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p2 = convert(eltype(u), 1/6) # c5
       p3 = convert(eltype(u), 6.0) # c6
       p4 = convert(eltype(u), 0.0)
-     end
+    end
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
@@ -402,10 +403,12 @@ function trust_region_step!(cache::TrustRegionCache)
       @unpack shrink_threshold, p1, p2, p3, p4 = cache
       if rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) < cache.trust_r
         cache.shrink_counter += 1
+      else
+        cache.shrink_counter = 0
       end
-      cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) # parameters to be defined
+      cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) 
 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
+      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ 
           cache.force_stop = true
       end
 
@@ -416,10 +419,9 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.shrink_counter += 1
       elseif r >= cache.expand_threshold && cache.internalnorm(step_size) > cache.trust_r / 2
         cache.p1 = cache.p3 * cache.p1
+        cache.shrink_counter = 0
       end
-      @unpack p1, fu, f, J = cache
-      #cache.trust_r = p1 * cache.internalnorm(jacobian!(J, cache) * fu) # we need the gradient at the new (k+1)th point  WILL THIS BECOME ALLOCATING?
-
+      
       if r > cache.step_threshold
         take_step!(cache)
         cache.loss = cache.loss_new
@@ -427,8 +429,10 @@ function trust_region_step!(cache::TrustRegionCache)
       else
         cache.make_new_J = false
       end
-      
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ # parameters to be defined
+
+      @unpack p1= cache
+      cache.trust_r = p1 * cache.internalnorm(jvp!(cache)) 
+      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
         cache.force_stop = true
       end
 
@@ -441,7 +445,7 @@ function dogleg!(cache::TrustRegionCache)
 
     # Test if the full step is within the trust region.
     if norm(u_tmp) ≤ trust_r
-        cache.step_size = u_tmp
+        cache.step_size = deepcopy(u_tmp)
         return
     end
 
@@ -471,6 +475,23 @@ end
 function take_step!(cache::TrustRegionCache{false})
     cache.u = cache.u_tmp
     cache.fu = cache.fu_new
+end
+
+function jvp!(cache::TrustRegionCache{false})
+  @unpack f, u, fu, p = cache
+  if isa(u, Number)
+    return value_derivative(x -> f(x, p), u)
+  end
+  return auto_jacvec(x -> f(x, p), u, fu)
+end
+
+function jvp!(cache::TrustRegionCache{true})
+  @unpack g, f, u, fu, p = cache
+  if isa(u, Number)
+    return value_derivative(x -> f(x, p), u)
+  end
+  return auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
+  g
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)

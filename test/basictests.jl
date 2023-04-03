@@ -163,61 +163,69 @@ end
 
 # --- TrustRegion tests ---
 
-function benchmark_immutable(f, u0)
+function benchmark_immutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function benchmark_mutable(f, u0)
+function benchmark_mutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function benchmark_scalar(f, u0)
+function benchmark_scalar(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, TrustRegion(), abstol = 1e-9))
+    sol = (solve(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9))
 end
 
-function ff(u, p)
+function ff(u, p=nothing)
     u .* u .- 2
 end
 
-function sf(u, p)
+function sf(u, p=nothing)
     u * u - 2
 end
+
 u0 = [1.0, 1.0]
+radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan]
 
-sol = benchmark_immutable(ff, cu0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-sol = benchmark_mutable(ff, u0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test abs(sol.u * sol.u - 2) < 1e-9
+for radius_update_scheme in radius_update_schemes
+    sol = benchmark_immutable(ff, cu0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    sol = benchmark_mutable(ff, u0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    sol = benchmark_scalar(sf, csu0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test abs(sol.u * sol.u - 2) < 1e-9
+end
 
-function benchmark_inplace(f, u0)
+
+function benchmark_inplace(f, u0, radius_update_scheme)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, TrustRegion(), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function ffiip(du, u, p)
+function ffiip(du, u, p=nothing)
     du .= u .* u .- 2
 end
 u0 = [1.0, 1.0]
 
-sol = benchmark_inplace(ffiip, u0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+for radius_update_scheme in radius_update_schemes
+    sol = benchmark_inplace(ffiip, u0, radius_update_scheme)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+end
 
-u0 = [1.0, 1.0]
-probN = NonlinearProblem{true}(ffiip, u0)
-solver = init(probN, TrustRegion(), abstol = 1e-9)
-@test (@ballocated solve!(solver)) < 200
+for radius_update_scheme in radius_update_schemes
+    probN = NonlinearProblem{true}(ffiip, u0)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    @test (@ballocated solve!(solver)) < 200
+end
 
 # AD Tests
 using ForwardDiff
@@ -228,6 +236,29 @@ f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(), abstol = 1e-9)
+    return sol.u[end]
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, csu0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei), abstol = 1e-9)
+    return sol.u[end]
+end
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
+## FAIL BECAUSE JVP CANNOT ACCEPT PARAMETERS IN FUNCTIONS
+g = function (p)
+    probN = NonlinearProblem{false}(f, csu0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -252,12 +283,46 @@ for p in 1.1:0.1:100.0
     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
 end
 
+g = function (p)
+    probN = NonlinearProblem{false}(f, oftype(p, u0), p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei), abstol = 1e-10)
+    return sol.u
+end
+
+@test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, oftype(p, u0), p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-10)
+    return sol.u
+end
+
+@test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
+
+for p in 1.1:0.1:100.0
+    @test g(p) ≈ sqrt(p)
+    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
+end
+
 f = (u, p) -> p[1] * u * u - p[2]
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
 gnewton = function (p)
     probN = NonlinearProblem{false}(f, 0.5, p)
     sol = solve(probN, TrustRegion())
+    return [sol.u]
+end
+@test gnewton(p) ≈ [sqrt(p[2] / p[1])]
+@test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
+
+gnewton = function (p)
+    probN = NonlinearProblem{false}(f, 0.5, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei))
     return [sol.u]
 end
 @test gnewton(p) ≈ [sqrt(p[2] / p[1])]
@@ -295,11 +360,17 @@ p = range(0.01, 2, length = 200)
 @test g(p) ≈ sqrt.(p)
 
 # Error Checks
-f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
+f, u0 = (u, p) -> u .* u .- 2, @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
 
 @test solve(probN, TrustRegion()).u[end] ≈ sqrt(2.0)
 @test solve(probN, TrustRegion(; autodiff = false)).u[end] ≈ sqrt(2.0)
+
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Hei, autodiff = false)).u[end] ≈ sqrt(2.0)
+
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Yuan, autodiff = false)).u[end] ≈ sqrt(2.0)
 
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
