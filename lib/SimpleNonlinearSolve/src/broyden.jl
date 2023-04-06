@@ -48,7 +48,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
         error("Broyden currently doesn't support SAFE_BEST termination modes")
     end
 
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? Dict() : nothing
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
     termination_condition = tc(storage)
 
     xₙ = x
