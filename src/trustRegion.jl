@@ -294,6 +294,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p2 = convert(eltype(u), 0.1) # β
       p3 = convert(eltype(u), 0.15) # γ1
       p4 = convert(eltype(u), 0.15) # γ2
+      initial_trust_radius = convert(eltype(u), 1.0)
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
       step_threshold = convert(eltype(u), 0.0001)
       shrink_threshold = convert(eltype(u), 0.25)
@@ -302,6 +303,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p2 = convert(eltype(u), 1/6) # c5
       p3 = convert(eltype(u), 6.0) # c6
       p4 = convert(eltype(u), 0.0)
+      if iip
+        J = ForwardDiff.jacobian(f, fu, u)
+      else
+        J = ForwardDiff.jacobian(f, u)
+      end
+      initial_trust_radius = convert(eltype(u), p1 * norm(J * fu))
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
       step_threshold = convert(eltype(u), 0.0001)
       shrink_threshold = convert(eltype(u), 0.25)
@@ -310,6 +317,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p2 = convert(eltype(u), 1/4) # c5
       p3 = convert(eltype(u), 12) # c6
       p4 = convert(eltype(u), 1.0e18) # M
+      initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
     end
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
