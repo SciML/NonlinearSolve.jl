@@ -304,11 +304,15 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p3 = convert(eltype(u), 6.0) # c6
       p4 = convert(eltype(u), 0.0)
       if iip
-        J = ForwardDiff.jacobian(f, fu, u)
+        auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
       else
-        J = ForwardDiff.jacobian(f, u)
+        if isa(u, Number)
+          g = ForwardDiff.derivative(x -> f(x, p), u)
+        else
+          g = auto_jacvec(x -> f(x, p), u, fu)
+        end
       end
-      initial_trust_radius = convert(eltype(u), p1 * norm(J * fu))
+      initial_trust_radius = convert(eltype(u), p1 * norm(g))
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
       step_threshold = convert(eltype(u), 0.0001)
       shrink_threshold = convert(eltype(u), 0.25)
@@ -527,7 +531,7 @@ function jvp!(cache::TrustRegionCache{true})
   if isa(u, Number)
     return value_derivative(x -> f(x, p), u)
   end
-  return auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
+  auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
   g
 end
 

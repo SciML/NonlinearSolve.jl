@@ -352,6 +352,22 @@ end
 @test gnewton(p) ≈ [sqrt(p[2] / p[1])]
 @test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
 
+gnewton = function (p)
+    probN = NonlinearProblem{false}(f, 0.5, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan))
+    return [sol.u]
+end
+@test gnewton(p) ≈ [sqrt(p[2] / p[1])]
+@test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
+
+gnewton = function (p)
+    probN = NonlinearProblem{false}(f, 0.5, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan))
+    return [sol.u]
+end
+@test gnewton(p) ≈ [sqrt(p[2] / p[1])]
+@test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
+
 # Iterator interface
 f = (u, p) -> u * u - p
 g = function (p_range)
@@ -396,6 +412,9 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan)).u[end] ≈ sqrt(2.0)
 @test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Yuan, autodiff = false)).u[end] ≈ sqrt(2.0)
 
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan, autodiff = false)).u[end] ≈ sqrt(2.0)
+
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
     f = (u, p) -> u .* u .- 2.0
@@ -421,6 +440,16 @@ f = (u, p) -> 0.010000000000000002 .+
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
     sol = solve(probN, TrustRegion(), abstol = 1e-10)
+    return sol.u
+end
+p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+u = g(p)
+f(u, p)
+@test all(abs.(f(u, p)) .< 1e-10)
+
+g = function (p)
+    probN = NonlinearProblem{false}(f, u0, p)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan), abstol = 1e-10)
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
