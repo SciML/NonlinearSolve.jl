@@ -171,6 +171,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     p3::floatType
     p4::floatType
     ϵ::floatType
+    iter_arr::SVector{5, Float64} #can be modified to take variable length input
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType,
@@ -185,7 +186,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    g::resType, shrink_counter::Int, step_size::su2Type,
                                    u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
                                    r::floatType, p1::floatType, p2::floatType, p3::floatType,
-                                   p4::floatType, ϵ::floatType) where {iip, fType, algType, uType,
+                                   p4::floatType, ϵ::floatType, iter_arr::SVector{5, Float64}) where {iip, fType, algType, uType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
                                                         jType, JC, floatType, trustType,
@@ -201,7 +202,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                                  expand_factor, loss,
                                                  loss_new, H, g, shrink_counter,
                                                  step_size, u_tmp, fu_new,
-                                                 make_new_J, r, p1, p2, p3, p4, ϵ)
+                                                 make_new_J, r, p1, p2, p3, p4, ϵ, iter_arr)
     end
 end
 
@@ -323,6 +324,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p4 = convert(eltype(u), 1.0e18) # M
       initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
     end
+    iter_arr = zeros(SVector{5})
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
@@ -330,7 +332,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                                  max_trust_radius, step_threshold, shrink_threshold,
                                  expand_threshold, shrink_factor, expand_factor, loss,
                                  loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
-                                 make_new_J, r, p1, p2, p3, p4, ϵ)
+                                 make_new_J, r, p1, p2, p3, p4, ϵ, iter_arr)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -539,6 +541,9 @@ function SciMLBase.solve!(cache::TrustRegionCache)
     while !cache.force_stop && cache.iter < cache.maxiters &&
               cache.shrink_counter < cache.alg.max_shrink_times
         perform_step!(cache)
+        if cache.iter <= 5
+          cache.iter_arr[cache.iter] = cache.u[end]
+        end
         cache.iter += 1
     end
 
