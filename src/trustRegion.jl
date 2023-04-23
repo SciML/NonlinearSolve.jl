@@ -324,6 +324,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
     end
 
+
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, radius_update_scheme, initial_trust_radius,
