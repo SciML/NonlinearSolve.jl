@@ -331,7 +331,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
                                  max_trust_radius, step_threshold, shrink_threshold,
                                  expand_threshold, shrink_factor, expand_factor, loss,
                                  loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
-                                 make_new_J, r, p1, p2, p3, p4, ϵ, iter_arr)
+                                 make_new_J, r, p1, p2, p3, p4, ϵ)
 end
 
 function perform_step!(cache::TrustRegionCache{true})

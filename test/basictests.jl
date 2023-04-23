@@ -486,6 +486,42 @@ for options in list_of_options
     @test all(abs.(f(u, p)) .< 1e-10)
 end
 
+# Testing consistency of iip vs oop iterations
+
+maxiterations = [2, 3, 4, 5]
+u0 = [1.0, 1.0]
+function iip_oop(f, fip, u0, radius_update_scheme, maxiters)
+    prob_iip = NonlinearProblem{true}(fip, u0)
+    solver = init(prob_iip, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9, maxiters = maxiters)
+    sol_iip = solve!(solver)
+
+    prob_oop = NonlinearProblem{false}(f, u0)
+    solver = init(prob_oop, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9, maxiters = maxiters)
+    sol_oop = solve!(solver)
+
+    return sol_iip.u[end], sol_oop.u[end]
+end
+
+for maxiters in maxiterations
+    iip, oop = iip_oop(ff, ffiip, u0, RadiusUpdateSchemes.Simple, maxiters)
+    @test iip == oop
+end
+
+for maxiters in maxiterations
+    iip, oop = iip_oop(ff, ffiip, u0, RadiusUpdateSchemes.Hei, maxiters)
+    @test iip == oop
+end
+
+for maxiters in maxiterations
+    iip, oop = iip_oop(ff, ffiip, u0, RadiusUpdateSchemes.Yuan, maxiters)
+    @test iip == oop
+end
+
+for maxiters in maxiterations
+    iip, oop = iip_oop(ff, ffiip, u0, RadiusUpdateSchemes.Fan, maxiters)
+    @test iip == oop
+end
+
 # --- LevenbergMarquardt tests ---
 
 function benchmark_immutable(f, u0)
