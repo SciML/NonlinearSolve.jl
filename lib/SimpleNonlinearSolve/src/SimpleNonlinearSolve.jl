@@ -40,9 +40,9 @@ include("ad.jl")
 include("halley.jl")
 include("alefeld.jl")
 
-import SnoopPrecompile
+import PrecompileTools
 
-SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
+PrecompileTools.@compile_workload begin for T in (Float32, Float64)
     prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
     for alg in (SimpleNewtonRaphson, Halley, Broyden, Klement, SimpleTrustRegion,
                 SimpleDFSane)
