@@ -89,6 +89,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
                                      jac_config::JC, iter::Int,
                                      force_stop::Bool, maxiters::Int, internalnorm::INType,
                                      retcode::SciMLBase.ReturnCode.T, abstol::tolType,
+                                     reltol::tolType, termination_condition::TC,
                                      prob::probType) where {
                                                             iip, fType, algType, uType,
                                                             duType, resType, pType, INType,
