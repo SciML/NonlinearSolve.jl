@@ -322,6 +322,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
       p3 = convert(eltype(u), 12) # c6
       p4 = convert(eltype(u), 1.0e18) # M
       initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
     end
 
 
@@ -479,6 +480,8 @@ function trust_region_step!(cache::TrustRegionCache)
       if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
         cache.force_stop = true
       end
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
+
     end
 end
 
