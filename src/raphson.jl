@@ -157,7 +157,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
              (!isnothing(tc.reltol) ? tc.reltol : eps(real(one(ueltype)))^(4 // 5))
 
     mode = DiffEqBase.get_termination_mode(tc)
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? Dict() : nothing
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() : nothing
     termination_condition = tc(storage)
 
     if alias_u0
