@@ -39,9 +39,9 @@ include("trustRegion.jl")
 include("levenberg.jl")
 include("ad.jl")
 
-import SnoopPrecompile
+import PrecompileTools
 
-SnoopPrecompile.@precompile_all_calls begin for T in (Float32, Float64)
+PrecompileTools.@compile_workload begin for T in (Float32, Float64)
     prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
     precompile_algs = if VERSION >= v"1.7"
