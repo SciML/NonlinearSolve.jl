@@ -2,6 +2,7 @@ using SimpleNonlinearSolve
 using StaticArrays
 using BenchmarkTools
 using DiffEqBase
+using LinearAlgebra
 using Test
 
 const BATCHED_BROYDEN_SOLVERS = Broyden[]
@@ -489,3 +490,17 @@ for alg in (BATCHED_BROYDEN_SOLVERS..., BATCHED_LBROYDEN_SOLVERS...)
     @test sol.retcode == ReturnCode.Success
     @test abs.(sol.u) ≈ sqrt.(p)
 end
+
+## Specified Jacobian
+
+f, u0 = (u, p) -> u .* u .- p, randn(3)
+
+f_jac(u, p) = begin diagm(2 * u) end
+
+p = [2.0, 1.0, 5.0];
+
+probN = NonlinearProblem(NonlinearFunction(f, jac = f_jac), u0, p)
+
+sol = solve(probN, SimpleNewtonRaphson())
+
+@test abs.(sol.u) ≈ sqrt.(p)
