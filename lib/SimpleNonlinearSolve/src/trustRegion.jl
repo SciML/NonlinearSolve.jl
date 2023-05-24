@@ -112,7 +112,11 @@ function SciMLBase.__solve(prob::NonlinearProblem,
            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
     rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
 
-    if alg_autodiff(alg)
+
+    if DiffEqBase.has_jac(prob.f)
+        ∇f = prob.f.jac(x, prob.p)
+        F = f(x)
+    elseif alg_autodiff(alg)
         F, ∇f = value_derivative(f, x)
     elseif x isa AbstractArray
         F = f(x)

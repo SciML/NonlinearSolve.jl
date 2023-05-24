@@ -491,7 +491,7 @@ for alg in (BATCHED_BROYDEN_SOLVERS..., BATCHED_LBROYDEN_SOLVERS...)
     @test abs.(sol.u) ≈ sqrt.(p)
 end
 
-## Specified Jacobian
+## User specified Jacobian
 
 f, u0 = (u, p) -> u .* u .- p, randn(3)
 
@@ -501,6 +501,7 @@ p = [2.0, 1.0, 5.0];
 
 probN = NonlinearProblem(NonlinearFunction(f, jac = f_jac), u0, p)
 
-sol = solve(probN, SimpleNewtonRaphson())
-
-@test abs.(sol.u) ≈ sqrt.(p)
+for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
+    sol = solve(probN, alg)
+    @test abs.(sol.u) ≈ sqrt.(p)
+end
