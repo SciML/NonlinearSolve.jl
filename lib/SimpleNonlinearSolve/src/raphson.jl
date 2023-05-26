@@ -60,7 +60,10 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     end
 
     for i in 1:maxiters
-        if alg_autodiff(alg)
+        if DiffEqBase.has_jac(prob.f)
+            dfx = prob.f.jac(x, prob.p)
+            fx = f(x)
+        elseif alg_autodiff(alg)
             fx, dfx = value_derivative(f, x)
         elseif x isa AbstractArray
             fx = f(x)
