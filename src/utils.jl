@@ -70,9 +70,9 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
                     du = nothing, u = nothing, p = nothing, t = nothing,
                     weight = nothing, cachedata = nothing,
                     reltol = nothing) where {P}
-    A !== nothing && (linsolve = LinearSolve.set_A(linsolve, A))
-    b !== nothing && (linsolve = LinearSolve.set_b(linsolve, b))
-    linu !== nothing && (linsolve = LinearSolve.set_u(linsolve, linu))
+    A !== nothing && (linsolve.A = A)
+    b !== nothing && (linsolve.b = b)
+    linu !== nothing && (linsolve.u = linu)
 
     Plprev = linsolve.Pl isa LinearSolve.ComposePreconditioner ? linsolve.Pl.outer :
              linsolve.Pl
@@ -86,13 +86,14 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
                   (linsolve.Pr isa Diagonal ? linsolve.Pr.diag : linsolve.Pr.inner.diag) :
                   weight
         Pl, Pr = wrapprecs(_Pl, _Pr, _weight)
-        linsolve = LinearSolve.set_prec(linsolve, Pl, Pr)
+        linsolve.Pl = Pl 
+        linsolve.Pr = Pr
     end
 
     linres = if reltol === nothing
-        solve(linsolve)
+        solve!(linsolve)
     else
-        solve(linsolve; reltol)
+        solve!(linsolve; reltol)
     end
 
     return linres
