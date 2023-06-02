@@ -86,7 +86,7 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
                   (linsolve.Pr isa Diagonal ? linsolve.Pr.diag : linsolve.Pr.inner.diag) :
                   weight
         Pl, Pr = wrapprecs(_Pl, _Pr, _weight)
-        linsolve.Pl = Pl 
+        linsolve.Pl = Pl
         linsolve.Pr = Pr
     end
 

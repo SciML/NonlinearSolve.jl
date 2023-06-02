@@ -177,15 +177,19 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                    jac_config::JC, iter::Int,
                                    force_stop::Bool, maxiters::Int, internalnorm::INType,
                                    retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                   prob::probType, radius_update_scheme::RadiusUpdateSchemes.T, trust_r::trustType,
+                                   prob::probType,
+                                   radius_update_scheme::RadiusUpdateSchemes.T,
+                                   trust_r::trustType,
                                    max_trust_r::trustType, step_threshold::suType,
                                    shrink_threshold::trustType, expand_threshold::trustType,
                                    shrink_factor::trustType, expand_factor::trustType,
                                    loss::floatType, loss_new::floatType, H::jType,
                                    g::resType, shrink_counter::Int, step_size::su2Type,
                                    u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
-                                   r::floatType, p1::floatType, p2::floatType, p3::floatType,
-                                   p4::floatType, ϵ::floatType) where {iip, fType, algType, uType,
+                                   r::floatType, p1::floatType, p2::floatType,
+                                   p3::floatType,
+                                   p4::floatType,
+                                   ϵ::floatType) where {iip, fType, algType, uType,
                                                         resType, pType, INType,
                                                         tolType, probType, ufType, L,
                                                         jType, JC, floatType, trustType,
@@ -195,7 +199,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
             trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
                                                  jac_config, iter, force_stop,
                                                  maxiters, internalnorm, retcode,
-                                                 abstol, prob, radius_update_scheme, trust_r, max_trust_r,
+                                                 abstol, prob, radius_update_scheme,
+                                                 trust_r, max_trust_r,
                                                  step_threshold, shrink_threshold,
                                                  expand_threshold, shrink_factor,
                                                  expand_factor, loss,
@@ -287,47 +292,47 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     p4 = convert(eltype(u), 0.0)
     ϵ = convert(eltype(u), 1.0e-8)
     if radius_update_scheme === RadiusUpdateSchemes.Hei
-      step_threshold = convert(eltype(u), 0.0)
-      shrink_threshold = convert(eltype(u), 0.25)
-      expand_threshold = convert(eltype(u), 0.25)
-      p1 = convert(eltype(u), 5.0) # M
-      p2 = convert(eltype(u), 0.1) # β
-      p3 = convert(eltype(u), 0.15) # γ1
-      p4 = convert(eltype(u), 0.15) # γ2
-      initial_trust_radius = convert(eltype(u), 1.0)
+        step_threshold = convert(eltype(u), 0.0)
+        shrink_threshold = convert(eltype(u), 0.25)
+        expand_threshold = convert(eltype(u), 0.25)
+        p1 = convert(eltype(u), 5.0) # M
+        p2 = convert(eltype(u), 0.1) # β
+        p3 = convert(eltype(u), 0.15) # γ1
+        p4 = convert(eltype(u), 0.15) # γ2
+        initial_trust_radius = convert(eltype(u), 1.0)
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
-      step_threshold = convert(eltype(u), 0.0001)
-      shrink_threshold = convert(eltype(u), 0.25)
-      expand_threshold = convert(eltype(u), 0.25)
-      p1 = convert(eltype(u), 2.0) # μ
-      p2 = convert(eltype(u), 1/6) # c5
-      p3 = convert(eltype(u), 6.0) # c6
-      p4 = convert(eltype(u), 0.0)
-      if iip
-        auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
-      else
-        if isa(u, Number)
-          g = ForwardDiff.derivative(x -> f(x, p), u)
+        step_threshold = convert(eltype(u), 0.0001)
+        shrink_threshold = convert(eltype(u), 0.25)
+        expand_threshold = convert(eltype(u), 0.25)
+        p1 = convert(eltype(u), 2.0) # μ
+        p2 = convert(eltype(u), 1 / 6) # c5
+        p3 = convert(eltype(u), 6.0) # c6
+        p4 = convert(eltype(u), 0.0)
+        if iip
+            auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
         else
-          g = auto_jacvec(x -> f(x, p), u, fu)
+            if isa(u, Number)
+                g = ForwardDiff.derivative(x -> f(x, p), u)
+            else
+                g = auto_jacvec(x -> f(x, p), u, fu)
+            end
         end
-      end
-      initial_trust_radius = convert(eltype(u), p1 * norm(g))
+        initial_trust_radius = convert(eltype(u), p1 * norm(g))
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
-      step_threshold = convert(eltype(u), 0.0001)
-      shrink_threshold = convert(eltype(u), 0.25)
-      expand_threshold = convert(eltype(u), 0.75)
-      p1 = convert(eltype(u), 0.1) # μ
-      p2 = convert(eltype(u), 1/4) # c5
-      p3 = convert(eltype(u), 12) # c6
-      p4 = convert(eltype(u), 1.0e18) # M
-      initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
+        step_threshold = convert(eltype(u), 0.0001)
+        shrink_threshold = convert(eltype(u), 0.25)
+        expand_threshold = convert(eltype(u), 0.75)
+        p1 = convert(eltype(u), 0.1) # μ
+        p2 = convert(eltype(u), 1 / 4) # c5
+        p3 = convert(eltype(u), 12) # c6
+        p4 = convert(eltype(u), 1.0e18) # M
+        initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
     end
-
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
-                                 ReturnCode.Default, abstol, prob, radius_update_scheme, initial_trust_radius,
+                                 ReturnCode.Default, abstol, prob, radius_update_scheme,
+                                 initial_trust_radius,
                                  max_trust_radius, step_threshold, shrink_threshold,
                                  expand_threshold, shrink_factor, expand_factor, loss,
                                  loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
@@ -385,100 +390,105 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
     @unpack r = cache
 
-    if radius_update_scheme === RadiusUpdateSchemes.Simple 
-      # Update the trust region radius.
-      if r < cache.shrink_threshold
-          cache.trust_r *= cache.shrink_factor
-          cache.shrink_counter += 1
-      else
-          cache.shrink_counter = 0
-      end
-      if r > cache.step_threshold
-          take_step!(cache)
-          cache.loss = cache.loss_new
+    if radius_update_scheme === RadiusUpdateSchemes.Simple
+        # Update the trust region radius.
+        if r < cache.shrink_threshold
+            cache.trust_r *= cache.shrink_factor
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+        end
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
 
-          # Update the trust region radius.
-          if r > cache.expand_threshold
-              cache.trust_r = min(cache.expand_factor * cache.trust_r, max_trust_r)
-          end
+            # Update the trust region radius.
+            if r > cache.expand_threshold
+                cache.trust_r = min(cache.expand_factor * cache.trust_r, max_trust_r)
+            end
 
-          cache.make_new_J = true
-      else
-          # No need to make a new J, no step was taken, so we try again with a smaller trust_r
-          cache.make_new_J = false
-      end
+            cache.make_new_J = true
+        else
+            # No need to make a new J, no step was taken, so we try again with a smaller trust_r
+            cache.make_new_J = false
+        end
 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
-          cache.force_stop = true
-      end
-      
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
+            cache.force_stop = true
+        end
+
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
-      if r > cache.step_threshold 
-          take_step!(cache)
-          cache.loss = cache.loss_new
-          cache.make_new_J = true
-      else  
-          cache.make_new_J = false
-      end
-      # Hei's radius update scheme
-      @unpack shrink_threshold, p1, p2, p3, p4 = cache
-      if rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) < cache.trust_r
-        cache.shrink_counter += 1
-      else
-        cache.shrink_counter = 0
-      end
-      cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) 
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+        else
+            cache.make_new_J = false
+        end
+        # Hei's radius update scheme
+        @unpack shrink_threshold, p1, p2, p3, p4 = cache
+        if rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(step_size) <
+           cache.trust_r
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+        end
+        cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) *
+                        cache.internalnorm(step_size)
 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol || cache.internalnorm(g) < cache.ϵ 
-          cache.force_stop = true
-      end
-
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol ||
+           cache.internalnorm(g) < cache.ϵ
+            cache.force_stop = true
+        end
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
-      if r < cache.shrink_threshold
-        cache.p1 = cache.p2 * cache.p1
-        cache.shrink_counter += 1
-      elseif r >= cache.expand_threshold && cache.internalnorm(step_size) > cache.trust_r / 2
-        cache.p1 = cache.p3 * cache.p1
-        cache.shrink_counter = 0
-      end
-      
-      if r > cache.step_threshold
-        take_step!(cache)
-        cache.loss = cache.loss_new
-        cache.make_new_J = true
-      else
-        cache.make_new_J = false
-      end
+        if r < cache.shrink_threshold
+            cache.p1 = cache.p2 * cache.p1
+            cache.shrink_counter += 1
+        elseif r >= cache.expand_threshold &&
+               cache.internalnorm(step_size) > cache.trust_r / 2
+            cache.p1 = cache.p3 * cache.p1
+            cache.shrink_counter = 0
+        end
 
-      @unpack p1= cache
-      cache.trust_r = p1 * cache.internalnorm(jvp!(cache)) 
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
-        cache.force_stop = true
-      end
-    #Fan's update scheme
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+        else
+            cache.make_new_J = false
+        end
+
+        @unpack p1 = cache
+        cache.trust_r = p1 * cache.internalnorm(jvp!(cache))
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol ||
+           cache.internalnorm(g) < cache.ϵ
+            cache.force_stop = true
+        end
+        #Fan's update scheme
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
-      if r < cache.shrink_threshold
-        cache.p1 *= cache.p2
-        cache.shrink_counter += 1
-      elseif r > cache.expand_threshold
-        cache.p1 = min(cache.p1*cache.p3, cache.p4)
-        cache.shrink_counter = 0
-      end
+        if r < cache.shrink_threshold
+            cache.p1 *= cache.p2
+            cache.shrink_counter += 1
+        elseif r > cache.expand_threshold
+            cache.p1 = min(cache.p1 * cache.p3, cache.p4)
+            cache.shrink_counter = 0
+        end
 
-      if r > cache.step_threshold
-        take_step!(cache)
-        cache.loss = cache.loss_new
-        cache.make_new_J = true
-      else
-        cache.make_new_J = false
-      end
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+        else
+            cache.make_new_J = false
+        end
 
-      @unpack p1 = cache
-      cache.trust_r = p1 * (cache.internalnorm(cache.fu)^0.99)
-      if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol  || cache.internalnorm(g) < cache.ϵ 
-        cache.force_stop = true
-      end
+        @unpack p1 = cache
+        cache.trust_r = p1 * (cache.internalnorm(cache.fu)^0.99)
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol ||
+           cache.internalnorm(g) < cache.ϵ
+            cache.force_stop = true
+        end
     end
 end
 
@@ -520,20 +530,20 @@ function take_step!(cache::TrustRegionCache{false})
 end
 
 function jvp!(cache::TrustRegionCache{false})
-  @unpack f, u, fu, p = cache
-  if isa(u, Number)
-    return value_derivative(x -> f(x, p), u)
-  end
-  return auto_jacvec(x -> f(x, p), u, fu)
+    @unpack f, u, fu, p = cache
+    if isa(u, Number)
+        return value_derivative(x -> f(x, p), u)
+    end
+    return auto_jacvec(x -> f(x, p), u, fu)
 end
 
 function jvp!(cache::TrustRegionCache{true})
-  @unpack g, f, u, fu, p = cache
-  if isa(u, Number)
-    return value_derivative(x -> f(x, p), u)
-  end
-  auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
-  g
+    @unpack g, f, u, fu, p = cache
+    if isa(u, Number)
+        return value_derivative(x -> f(x, p), u)
+    end
+    auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
+    g
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)

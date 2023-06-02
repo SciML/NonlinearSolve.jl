@@ -144,5 +144,3 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
                                 jac_prototype = jac_prototype, chunksize = chunk_size),
      num_of_chunks)
 end
-
-

@@ -115,7 +115,7 @@ end
 f = (u, p) -> u * u - p
 g = function (p_range)
     probN = NonlinearProblem{false}(f, 0.5, p_range[begin])
-    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol=1e-10)
+    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol = 1e-10)
     sols = zeros(length(p_range))
     for (i, p) in enumerate(p_range)
         reinit!(cache, cache.u; p = p)
@@ -130,7 +130,7 @@ p = range(0.01, 2, length = 200)
 f = (res, u, p) -> (res[begin] = u[1] * u[1] - p)
 g = function (p_range)
     probN = NonlinearProblem{true}(f, [0.5], p_range[begin])
-    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol=1e-10)
+    cache = init(probN, NewtonRaphson(); maxiters = 100, abstol = 1e-10)
     sols = zeros(length(p_range))
     for (i, p) in enumerate(p_range)
         reinit!(cache, [cache.u[1]]; p = p)
@@ -165,32 +165,36 @@ end
 
 function benchmark_immutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_mutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_scalar(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9))
+    sol = (solve(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
+                 abstol = 1e-9))
 end
 
-function ff(u, p=nothing)
+function ff(u, p = nothing)
     u .* u .- 2
 end
 
-function sf(u, p=nothing)
+function sf(u, p = nothing)
     u * u - 2
 end
 
 u0 = [1.0, 1.0]
-radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
-                            RadiusUpdateSchemes.Fan]
+radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei,
+    RadiusUpdateSchemes.Yuan,
+    RadiusUpdateSchemes.Fan]
 
 for radius_update_scheme in radius_update_schemes
     sol = benchmark_immutable(ff, cu0, radius_update_scheme)
@@ -204,14 +208,14 @@ for radius_update_scheme in radius_update_schemes
     @test abs(sol.u * sol.u - 2) < 1e-9
 end
 
-
 function benchmark_inplace(f, u0, radius_update_scheme)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9)
     sol = solve!(solver)
 end
 
-function ffiip(du, u, p=nothing)
+function ffiip(du, u, p = nothing)
     du .= u .* u .- 2
 end
 u0 = [1.0, 1.0]
@@ -224,7 +228,8 @@ end
 
 for radius_update_scheme in radius_update_schemes
     probN = NonlinearProblem{true}(ffiip, u0)
-    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9)
+    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9)
     @test (@ballocated solve!(solver)) < 200
 end
 
@@ -247,7 +252,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei), abstol = 1e-9)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei),
+                abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -258,7 +264,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-9)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan),
+                abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -269,7 +276,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan), abstol = 1e-9)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
+                abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -296,7 +304,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei), abstol = 1e-10)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei),
+                abstol = 1e-10)
     return sol.u
 end
 
@@ -309,7 +318,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan), abstol = 1e-10)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan),
+                abstol = 1e-10)
     return sol.u
 end
 
@@ -322,7 +332,8 @@ end
 
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan), abstol = 1e-10)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
+                abstol = 1e-10)
     return sol.u
 end
 
@@ -372,7 +383,7 @@ end
 f = (u, p) -> u * u - p
 g = function (p_range)
     probN = NonlinearProblem{false}(f, 0.5, p_range[begin])
-    cache = init(probN, TrustRegion(); maxiters = 100, abstol=1e-10)
+    cache = init(probN, TrustRegion(); maxiters = 100, abstol = 1e-10)
     sols = zeros(length(p_range))
     for (i, p) in enumerate(p_range)
         reinit!(cache, cache.u; p = p)
@@ -387,7 +398,7 @@ p = range(0.01, 2, length = 200)
 f = (res, u, p) -> (res[begin] = u[1] * u[1] - p)
 g = function (p_range)
     probN = NonlinearProblem{true}(f, [0.5], p_range[begin])
-    cache = init(probN, TrustRegion(); maxiters = 100, abstol=1e-10)
+    cache = init(probN, TrustRegion(); maxiters = 100, abstol = 1e-10)
     sols = zeros(length(p_range))
     for (i, p) in enumerate(p_range)
         reinit!(cache, [cache.u[1]]; p = p)
@@ -406,14 +417,20 @@ probN = NonlinearProblem(f, u0)
 @test solve(probN, TrustRegion()).u[end] ≈ sqrt(2.0)
 @test solve(probN, TrustRegion(; autodiff = false)).u[end] ≈ sqrt(2.0)
 
-@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Hei, autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei)).u[end] ≈
+      sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Hei, autodiff = false)).u[end] ≈
+      sqrt(2.0)
 
-@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Yuan, autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan)).u[end] ≈
+      sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Yuan, autodiff = false)).u[end] ≈
+      sqrt(2.0)
 
-@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan)).u[end] ≈ sqrt(2.0)
-@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan, autodiff = false)).u[end] ≈ sqrt(2.0)
+@test solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan)).u[end] ≈
+      sqrt(2.0)
+@test solve(probN, TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan, autodiff = false)).u[end] ≈
+      sqrt(2.0)
 
 for u0 in [1.0, [1, 1.0]]
     local f, probN, sol
@@ -449,7 +466,8 @@ f(u, p)
 
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan), abstol = 1e-10)
+    sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
+                abstol = 1e-10)
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -492,11 +510,13 @@ maxiterations = [2, 3, 4, 5]
 u0 = [1.0, 1.0]
 function iip_oop(f, fip, u0, radius_update_scheme, maxiters)
     prob_iip = NonlinearProblem{true}(fip, u0)
-    solver = init(prob_iip, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9, maxiters = maxiters)
+    solver = init(prob_iip, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9, maxiters = maxiters)
     sol_iip = solve!(solver)
 
     prob_oop = NonlinearProblem{false}(f, u0)
-    solver = init(prob_oop, TrustRegion(radius_update_scheme = radius_update_scheme), abstol = 1e-9, maxiters = maxiters)
+    solver = init(prob_oop, TrustRegion(radius_update_scheme = radius_update_scheme),
+                  abstol = 1e-9, maxiters = maxiters)
     sol_oop = solve!(solver)
 
     return sol_iip.u[end], sol_oop.u[end]
