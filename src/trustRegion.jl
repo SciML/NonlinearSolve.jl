@@ -489,6 +489,7 @@ function trust_region_step!(cache::TrustRegionCache)
            cache.internalnorm(g) < cache.ϵ
             cache.force_stop = true
         end
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
     end
 end
 
