@@ -17,6 +17,7 @@ using DiffEqBase
 using SparseDiffTools
 
 @reexport using SciMLBase
+using SciMLBase: NLStats
 @reexport using SimpleNonlinearSolve
 
 import SciMLBase: _unwrap_val
@@ -26,8 +27,8 @@ abstract type AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ} <:
               AbstractNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-                           alg::AbstractNonlinearSolveAlgorithm, args...;
-                           kwargs...)
+    alg::AbstractNonlinearSolveAlgorithm, args...;
+    kwargs...)
     cache = init(prob, alg, args...; kwargs...)
     sol = solve!(cache)
 end
@@ -56,7 +57,7 @@ PrecompileTools.@compile_workload begin
         end
 
         prob = NonlinearProblem{true}((du, u, p) -> du[1] = u[1] * u[1] - p[1], T[0.1],
-                                      T[2])
+            T[2])
         for alg in precompile_algs
             solve(prob, alg, abstol = T(1e-2))
         end
