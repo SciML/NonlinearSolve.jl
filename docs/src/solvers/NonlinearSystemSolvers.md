@@ -21,7 +21,7 @@ is small, or the eigenvalues of the Jacobian are within a few orders of magnitud
 then `NLSolveJL`'s `:anderson` can be a good choice.
 
 !!! note
-
+    
     `TrustRegion` and `SimpleTrustRegion` are still in development.
 
 ## Full List of Methods
