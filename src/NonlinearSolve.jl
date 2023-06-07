@@ -17,6 +17,7 @@ using DiffEqBase
 using SparseDiffTools
 
 @reexport using SciMLBase
+using SciMLBase: NLStats
 @reexport using SimpleNonlinearSolve
 
 import SciMLBase: _unwrap_val

@@ -75,30 +75,28 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     J::jType
     du1::duType
     jac_config::JC
-    iter::Int
     force_stop::Bool
     maxiters::Int
     internalnorm::INType
     retcode::SciMLBase.ReturnCode.T
     abstol::tolType
     prob::probType
+    stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-                                     p::pType,
-                                     uf::ufType, linsolve::L, J::jType, du1::duType,
-                                     jac_config::JC, iter::Int,
-                                     force_stop::Bool, maxiters::Int, internalnorm::INType,
+                                     p::pType, uf::ufType, linsolve::L, J::jType, du1::duType,
+                                     jac_config::JC, force_stop::Bool, maxiters::Int, internalnorm::INType,
                                      retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                     prob::probType) where {
+                                     prob::probType, stats::NLStats) where {
                                                             iip, fType, algType, uType,
                                                             duType, resType, pType, INType,
                                                             tolType,
                                                             probType, ufType, L, jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
             probType, ufType, L, jType, JC}(f, alg, u, fu, p,
-                                            uf, linsolve, J, du1, jac_config, iter,
+                                            uf, linsolve, J, du1, jac_config,
                                             force_stop, maxiters, internalnorm,
-                                            retcode, abstol, prob)
+                                            retcode, abstol, prob, stats)
     end
 end
 
@@ -150,8 +148,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
     return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
-                                   1, false, maxiters, internalnorm,
-                                   ReturnCode.Default, abstol, prob)
+                                   false, maxiters, internalnorm,
+                                   ReturnCode.Default, abstol, prob, NLStats(1,0,0,0,0))
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -169,6 +167,10 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
     end
+    cache.stats.nf += 1
+    cache.stats.njacs += 1
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
     return nothing
 end
 
@@ -180,23 +182,27 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
     end
+    cache.stats.nf += 1
+    cache.stats.njacs += 1
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
     return nothing
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
-    while !cache.force_stop && cache.iter < cache.maxiters
+    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
         perform_step!(cache)
-        cache.iter += 1
+        cache.stats.nsteps += 1
     end
 
-    if cache.iter == cache.maxiters
+    if cache.stats.nsteps == cache.maxiters
         cache.retcode = ReturnCode.MaxIters
     else
         cache.retcode = ReturnCode.Success
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-                             retcode = cache.retcode)
+                             retcode = cache.retcode, stats = cache.stats)
 end
 
 function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
@@ -212,7 +218,8 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
     end
     cache.abstol = abstol
     cache.maxiters = maxiters
-    cache.iter = 1
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     return cache

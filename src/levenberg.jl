@@ -158,7 +158,6 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     J::jType
     du_tmp::duType
     jac_config::JC
-    iter::Int
     force_stop::Bool
     maxiters::Int
     internalnorm::INType
@@ -185,10 +184,11 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     make_new_J::Bool
     fu_tmp::resType
     mat_tmp::jType
+    stats::NLStats
 
     function LevenbergMarquardtCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
                                           p::pType, uf::ufType, linsolve::L, J::jType,
-                                          du_tmp::duType, jac_config::JC, iter::Int,
+                                          du_tmp::duType, jac_config::JC,
                                           force_stop::Bool, maxiters::Int,
                                           internalnorm::INType,
                                           retcode::SciMLBase.ReturnCode.T, abstol::tolType,
@@ -202,7 +202,7 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                           norm_v_old::lossType, δ::uType,
                                           loss_old::lossType, make_new_J::Bool,
                                           fu_tmp::resType,
-                                          mat_tmp::jType) where {
+                                          mat_tmp::jType, stats::NLStats) where {
                                                                  iip, fType, algType,
                                                                  uType, duType, resType,
                                                                  pType, INType, tolType,
@@ -213,7 +213,7 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
         new{iip, fType, algType, uType, duType, resType,
             pType, INType, tolType, probType, ufType, L,
             jType, JC, DᵀDType, λType, lossType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
-                                                 jac_config, iter, force_stop, maxiters,
+                                                 jac_config, force_stop, maxiters,
                                                  internalnorm, retcode, abstol, prob, DᵀD,
                                                  JᵀJ, λ, λ_factor,
                                                  damping_increase_factor,
@@ -221,7 +221,7 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
                                                  α_geodesic, b_uphill, min_damping_D,
                                                  v, a, tmp_vec, v_old,
                                                  norm_v_old, δ, loss_old, make_new_J,
-                                                 fu_tmp, mat_tmp)
+                                                 fu_tmp, mat_tmp, stats)
     end
 end
 
@@ -301,14 +301,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     mat_tmp = zero(J)
 
     return LevenbergMarquardtCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
-                                        jac_config,
-                                        1, false, maxiters, internalnorm,
+                                        jac_config, false, maxiters, internalnorm,
                                         ReturnCode.Default, abstol, prob, DᵀD, JᵀJ,
                                         λ, λ_factor, damping_increase_factor,
                                         damping_decrease_factor, h,
                                         α_geodesic, b_uphill, min_damping_D,
                                         v, a, tmp_vec, v_old, loss, δ, loss, make_new_J,
-                                        fu_tmp, mat_tmp)
+                                        fu_tmp, mat_tmp, NLStats(1,0,0,0,0))
 end
 function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack fu, f, make_new_J = cache
@@ -321,6 +320,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         mul!(cache.JᵀJ, cache.J', cache.J)
         cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
         cache.make_new_J = false
+        cache.stats.njacs += 1
     end
     @unpack u, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
 
@@ -344,6 +344,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
                         linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.a = -cache.du_tmp
+    cache.stats.nsolve += 2
+    cache.stats.nfactors += 2
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
@@ -351,6 +353,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         @. cache.δ = v + cache.a / 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
+        cache.stats.nf += 1
         loss = cache.internalnorm(cache.fu_tmp)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
@@ -390,6 +393,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
             cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
         end
         cache.make_new_J = false
+        cache.stats.njacs += 1
     end
     @unpack u, p, λ, JᵀJ, DᵀD, J = cache
 
@@ -399,6 +403,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     @unpack v, h, α_geodesic = cache
     # Geodesic acceleration (step_size = v + a / 2).
     cache.a = -J \ ((2 / h) .* ((f(u .+ h .* v, p) .- fu) ./ h .- J * v))
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
@@ -406,6 +412,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         cache.δ = v .+ cache.a ./ 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
+        cache.stats.nf += 1
         loss = cache.internalnorm(fu_new)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
@@ -431,17 +438,17 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
 end
 
 function SciMLBase.solve!(cache::LevenbergMarquardtCache)
-    while !cache.force_stop && cache.iter < cache.maxiters
+    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
         perform_step!(cache)
-        cache.iter += 1
+        cache.stats.nsteps += 1
     end
 
-    if cache.iter == cache.maxiters
+    if cache.stats.nsteps == cache.maxiters
         cache.retcode = ReturnCode.MaxIters
     else
         cache.retcode = ReturnCode.Success
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-                             retcode = cache.retcode)
+                             retcode = cache.retcode, stats = cache.stats)
 end

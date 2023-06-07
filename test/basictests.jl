@@ -64,7 +64,7 @@ sol = benchmark_inplace(ffiip, u0)
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
 solver = init(probN, NewtonRaphson(), abstol = 1e-9)
-@test (@ballocated solve!(solver)) < 50
+@test (@ballocated solve!(solver)) <= 64
 
 # AD Tests
 using ForwardDiff
