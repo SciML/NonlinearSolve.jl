@@ -64,34 +64,34 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     expand_factor::T
     max_shrink_times::Int
     function SimpleTrustRegion(; chunk_size = Val{0}(),
-                               autodiff = Val{true}(),
-                               diff_type = Val{:forward},
-                               max_trust_radius::Real = 0.0,
-                               initial_trust_radius::Real = 0.0,
-                               step_threshold::Real = 0.1,
-                               shrink_threshold::Real = 0.25,
-                               expand_threshold::Real = 0.75,
-                               shrink_factor::Real = 0.25,
-                               expand_factor::Real = 2.0,
-                               max_shrink_times::Int = 32)
+        autodiff = Val{true}(),
+        diff_type = Val{:forward},
+        max_trust_radius::Real = 0.0,
+        initial_trust_radius::Real = 0.0,
+        step_threshold::Real = 0.1,
+        shrink_threshold::Real = 0.25,
+        expand_threshold::Real = 0.75,
+        shrink_factor::Real = 0.25,
+        expand_factor::Real = 2.0,
+        max_shrink_times::Int = 32)
         new{typeof(initial_trust_radius),
             SciMLBase._unwrap_val(chunk_size),
             SciMLBase._unwrap_val(autodiff),
             SciMLBase._unwrap_val(diff_type)}(max_trust_radius,
-                                              initial_trust_radius,
-                                              step_threshold,
-                                              shrink_threshold,
-                                              expand_threshold,
-                                              shrink_factor,
-                                              expand_factor,
-                                              max_shrink_times)
+            initial_trust_radius,
+            step_threshold,
+            shrink_threshold,
+            expand_threshold,
+            shrink_factor,
+            expand_factor,
+            max_shrink_times)
     end
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-                           alg::SimpleTrustRegion, args...; abstol = nothing,
-                           reltol = nothing,
-                           maxiters = 1000, kwargs...)
+    alg::SimpleTrustRegion, args...; abstol = nothing,
+    reltol = nothing,
+    maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     T = typeof(x)
@@ -111,7 +111,6 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     atol = abstol !== nothing ? abstol :
            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
     rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
-
 
     if DiffEqBase.has_jac(prob.f)
         ∇f = prob.f.jac(x, prob.p)
@@ -156,7 +155,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             shrink_counter += 1
             if shrink_counter > max_shrink_times
                 return SciMLBase.build_solution(prob, alg, x, F;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
             end
         else
             shrink_counter = 0
@@ -164,7 +163,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         if r > η₁
             if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)
                 return SciMLBase.build_solution(prob, alg, xₖ₊₁, Fₖ₊₁;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
             end
             # Take the step.
             x = xₖ₊₁
@@ -173,16 +172,16 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                 F, ∇f = value_derivative(f, x)
             elseif x isa AbstractArray
                 ∇f = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x),
-                                                           F)
+                    F)
             else
                 ∇f = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg),
-                                                             eltype(x),
-                                                             F)
+                    eltype(x),
+                    F)
             end
 
             iszero(F) &&
                 return SciMLBase.build_solution(prob, alg, x, F;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
 
             # Update the trust region radius.
             if r > η₃ && norm(δ) ≈ Δ

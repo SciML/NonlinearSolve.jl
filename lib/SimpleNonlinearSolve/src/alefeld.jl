@@ -9,9 +9,9 @@ algorithm 4.1 because, in certain sense, the second algorithm(4.2) is an optimal
 struct Alefeld <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem,
-                         alg::Alefeld, args...; abstol = nothing,
-                         reltol = nothing,
-                         maxiters = 1000, kwargs...)
+    alg::Alefeld, args...; abstol = nothing,
+    reltol = nothing,
+    maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     c = a - (b - a) / (f(b) - f(a)) * f(a)
@@ -19,14 +19,14 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
     fc = f(c)
     (a == c || b == c) &&
         return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.FloatingPointLimit,
-                                        left = a,
-                                        right = b)
+            retcode = ReturnCode.FloatingPointLimit,
+            left = a,
+            right = b)
     iszero(fc) &&
         return SciMLBase.build_solution(prob, alg, c, fc;
-                                        retcode = ReturnCode.Success,
-                                        left = a,
-                                        right = b)
+            retcode = ReturnCode.Success,
+            left = a,
+            right = b)
     a, b, d = _bracket(f, a, b, c)
     e = zero(a)   # Set e as 0 before iteration to avoid a non-value f(e)
 
@@ -45,14 +45,14 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         ē, fc = d, f(c)
         (a == c || b == c) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.FloatingPointLimit,
-                                            left = a,
-                                            right = b)
+                retcode = ReturnCode.FloatingPointLimit,
+                left = a,
+                right = b)
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.Success,
-                                            left = a,
-                                            right = b)
+                retcode = ReturnCode.Success,
+                left = a,
+                right = b)
         ā, b̄, d̄ = _bracket(f, a, b, c)
 
         # The second bracketing block
@@ -68,14 +68,14 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         fc = f(c)
         (ā == c || b̄ == c) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.FloatingPointLimit,
-                                            left = ā,
-                                            right = b̄)
+                retcode = ReturnCode.FloatingPointLimit,
+                left = ā,
+                right = b̄)
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.Success,
-                                            left = ā,
-                                            right = b̄)
+                retcode = ReturnCode.Success,
+                left = ā,
+                right = b̄)
         ā, b̄, d̄ = _bracket(f, ā, b̄, c)
 
         # The third bracketing block
@@ -91,14 +91,14 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
         fc = f(c)
         (ā == c || b̄ == c) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.FloatingPointLimit,
-                                            left = ā,
-                                            right = b̄)
+                retcode = ReturnCode.FloatingPointLimit,
+                left = ā,
+                right = b̄)
         iszero(fc) &&
             return SciMLBase.build_solution(prob, alg, c, fc;
-                                            retcode = ReturnCode.Success,
-                                            left = ā,
-                                            right = b̄)
+                retcode = ReturnCode.Success,
+                left = ā,
+                right = b̄)
         ā, b̄, d = _bracket(f, ā, b̄, c)
 
         # The last bracketing block
@@ -110,14 +110,14 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
             fc = f(c)
             (ā == c || b̄ == c) &&
                 return SciMLBase.build_solution(prob, alg, c, fc;
-                                                retcode = ReturnCode.FloatingPointLimit,
-                                                left = ā,
-                                                right = b̄)
+                    retcode = ReturnCode.FloatingPointLimit,
+                    left = ā,
+                    right = b̄)
             iszero(fc) &&
                 return SciMLBase.build_solution(prob, alg, c, fc;
-                                                retcode = ReturnCode.Success,
-                                                left = ā,
-                                                right = b̄)
+                    retcode = ReturnCode.Success,
+                    left = ā,
+                    right = b̄)
             a, b, d = _bracket(f, ā, b̄, c)
         end
     end
@@ -132,7 +132,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem,
 
     # Reuturn solution when run out of max interation
     return SciMLBase.build_solution(prob, alg, c, fc; retcode = ReturnCode.MaxIters,
-                                    left = a, right = b)
+        left = a, right = b)
 end
 
 # Define subrotine function bracket, check fc before bracket to return solution

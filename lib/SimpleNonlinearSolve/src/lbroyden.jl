@@ -18,16 +18,16 @@ struct LBroyden{batched, TC <: NLSolveTerminationCondition} <:
     threshold::Int
 
     function LBroyden(; batched = false, threshold::Int = 27,
-                      termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-                                                                          abstol = nothing,
-                                                                          reltol = nothing))
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
         return new{batched, typeof(termination_condition)}(termination_condition, threshold)
     end
 end
 
 @views function SciMLBase.__solve(prob::NonlinearProblem, alg::LBroyden{batched}, args...;
-                                  abstol = nothing, reltol = nothing, maxiters = 1000,
-                                  kwargs...) where {batched}
+    abstol = nothing, reltol = nothing, maxiters = 1000,
+    kwargs...) where {batched}
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
     threshold = min(maxiters, alg.threshold)
@@ -93,7 +93,7 @@ end
         selectdim(U, 1, mod1(i, threshold)) .= u
 
         update = -_matvec(selectdim(U, 1, 1:min(threshold, i + 1)),
-                          selectdim(Vᵀ, 2, 1:min(threshold, i + 1)), fₙ)
+            selectdim(Vᵀ, 2, 1:min(threshold, i + 1)), fₙ)
 
         xₙ₋₁ = xₙ
         fₙ₋₁ = fₙ
@@ -116,26 +116,26 @@ function _init_lbroyden_state(batched::Bool, x, threshold)
 end
 
 function _rmatvec(U::AbstractMatrix, Vᵀ::AbstractMatrix,
-                  x::Union{<:AbstractVector, <:Number})
+    x::Union{<:AbstractVector, <:Number})
     length(U) == 0 && return x
     return -x .+ vec((x' * Vᵀ) * U)
 end
 
 function _rmatvec(U::AbstractArray{T1, 3}, Vᵀ::AbstractArray{T2, 3},
-                  x::AbstractMatrix) where {T1, T2}
+    x::AbstractMatrix) where {T1, T2}
     length(U) == 0 && return x
     Vᵀx = sum(Vᵀ .* reshape(x, size(x, 1), 1, size(x, 2)); dims = 1)
     return -x .+ _drdims_sum(U .* permutedims(Vᵀx, (2, 1, 3)); dims = 1)
 end
 
 function _matvec(U::AbstractMatrix, Vᵀ::AbstractMatrix,
-                 x::Union{<:AbstractVector, <:Number})
+    x::Union{<:AbstractVector, <:Number})
     length(U) == 0 && return x
     return -x .+ vec(Vᵀ * (U * x))
 end
 
 function _matvec(U::AbstractArray{T1, 3}, Vᵀ::AbstractArray{T2, 3},
-                 x::AbstractMatrix) where {T1, T2}
+    x::AbstractMatrix) where {T1, T2}
     length(U) == 0 && return x
     xUᵀ = sum(reshape(x, size(x, 1), 1, size(x, 2)) .* permutedims(U, (2, 1, 3)); dims = 1)
     return -x .+ _drdims_sum(xUᵀ .* Vᵀ; dims = 2)

@@ -16,15 +16,15 @@ struct Broyden{batched, TC <: NLSolveTerminationCondition} <:
     termination_condition::TC
 
     function Broyden(; batched = false,
-                     termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-                                                                         abstol = nothing,
-                                                                         reltol = nothing))
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
         return new{batched, typeof(termination_condition)}(termination_condition)
     end
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
-                           abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+    abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)

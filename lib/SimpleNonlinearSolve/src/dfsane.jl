@@ -52,15 +52,15 @@ struct SimpleDFSane{T} <: AbstractSimpleNonlinearSolveAlgorithm
     η_strategy::Function
 
     function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-                          M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
-                          nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 / k^2)
+        M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 / k^2)
         new{typeof(σ_min)}(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp, η_strategy)
     end
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane,
-                           args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-                           kwargs...)
+    args...; abstol = nothing, reltol = nothing, maxiters = 1000,
+    kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     T = eltype(x)
@@ -96,7 +96,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane,
     for k in 1:maxiters
         iszero(F_k) &&
             return SciMLBase.build_solution(prob, alg, x, F_k;
-                                            retcode = ReturnCode.Success)
+                retcode = ReturnCode.Success)
 
         # Spectral parameter range check
         if abs(σ_k) > σ_max
@@ -136,7 +136,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane,
 
         if isapprox(x_new, x, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x_new, F_new;
-                                            retcode = ReturnCode.Success)
+                retcode = ReturnCode.Success)
         end
         # Update spectral parameter
         s_k = x_new - x

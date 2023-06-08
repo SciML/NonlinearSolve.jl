@@ -7,8 +7,8 @@ A non-allocating Brent method
 struct Brent <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
-                         maxiters = 1000,
-                         kwargs...)
+    maxiters = 1000,
+    kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     fa, fb = f(a), f(b)
@@ -16,8 +16,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
 
     if iszero(fa)
         return SciMLBase.build_solution(prob, alg, a, fa;
-                                        retcode = ReturnCode.ExactSolutionLeft, left = a,
-                                        right = b)
+            retcode = ReturnCode.ExactSolutionLeft, left = a,
+            right = b)
     end
     if abs(fa) < abs(fb)
         c = b
@@ -53,8 +53,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
                 s = (a + b) / 2
                 (s == a || s == b) &&
                     return SciMLBase.build_solution(prob, alg, a, fa;
-                                                    retcode = ReturnCode.FloatingPointLimit,
-                                                    left = a, right = b)
+                        retcode = ReturnCode.FloatingPointLimit,
+                        left = a, right = b)
                 cond = true
             else
                 cond = false
@@ -95,8 +95,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
         c = (a + b) / 2
         if (c == a || c == b)
             return SciMLBase.build_solution(prob, alg, a, fa;
-                                            retcode = ReturnCode.FloatingPointLimit,
-                                            left = a, right = b)
+                retcode = ReturnCode.FloatingPointLimit,
+                left = a, right = b)
         end
         fc = f(c)
         if iszero(fc)
@@ -110,5 +110,5 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     end
 
     return SciMLBase.build_solution(prob, alg, a, fa; retcode = ReturnCode.MaxIters,
-                                    left = a, right = b)
+        left = a, right = b)
 end

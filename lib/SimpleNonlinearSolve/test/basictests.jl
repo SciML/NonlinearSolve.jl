@@ -18,7 +18,7 @@ for mode in instances(NLSolveTerminationMode.T)
     end
 
     termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-                                                        reltol = nothing)
+        reltol = nothing)
     push!(BROYDEN_SOLVERS, Broyden(; batched = false, termination_condition))
     push!(BATCHED_BROYDEN_SOLVERS, Broyden(; batched = true, termination_condition))
     push!(LBROYDEN_SOLVERS, LBroyden(; batched = false, termination_condition))
@@ -131,7 +131,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 for alg in (SimpleNewtonRaphson(), LBroyden(), Klement(), SimpleTrustRegion(),
-            SimpleDFSane(), Halley(), BROYDEN_SOLVERS...)
+    SimpleDFSane(), Halley(), BROYDEN_SOLVERS...)
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, abstol = 1e-9)
@@ -154,7 +154,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-            SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+    SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -251,7 +251,7 @@ for alg in [Bisection(), Falsi(), Ridder(), Brent()]
 end
 
 for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-            SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+    SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -267,10 +267,10 @@ f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
 probN = NonlinearProblem(f, u0)
 
 for alg in (SimpleNewtonRaphson(), SimpleNewtonRaphson(; autodiff = false),
-            SimpleTrustRegion(),
-            SimpleTrustRegion(; autodiff = false), Halley(), Halley(; autodiff = false),
-            Klement(), SimpleDFSane(),
-            BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+    SimpleTrustRegion(),
+    SimpleTrustRegion(; autodiff = false), Halley(), Halley(; autodiff = false),
+    Klement(), SimpleDFSane(),
+    BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     sol = solve(probN, alg)
 
     @test sol.retcode == ReturnCode.Success
@@ -284,8 +284,8 @@ for u0 in [1.0, [1, 1.0]]
     sol = sqrt(2) * u0
 
     for alg in (SimpleNewtonRaphson(), SimpleNewtonRaphson(; autodiff = false),
-                SimpleTrustRegion(), SimpleTrustRegion(; autodiff = false), Klement(),
-                SimpleDFSane(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+        SimpleTrustRegion(), SimpleTrustRegion(; autodiff = false), Klement(),
+        SimpleDFSane(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
         sol2 = solve(probN, alg)
 
         @test sol2.retcode == ReturnCode.Success
@@ -399,18 +399,18 @@ expand_factor = [1.5, 2.0, 3.0]
 max_shrink_times = [10, 20, 30]
 
 list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-                      shrink_threshold, expand_threshold, shrink_factor,
-                      expand_factor, max_shrink_times)
+    shrink_threshold, expand_threshold, shrink_factor,
+    expand_factor, max_shrink_times)
 for options in list_of_options
     local probN, sol, alg
     alg = SimpleTrustRegion(max_trust_radius = options[1],
-                            initial_trust_radius = options[2],
-                            step_threshold = options[3],
-                            shrink_threshold = options[4],
-                            expand_threshold = options[5],
-                            shrink_factor = options[6],
-                            expand_factor = options[7],
-                            max_shrink_times = options[8])
+        initial_trust_radius = options[2],
+        step_threshold = options[3],
+        shrink_threshold = options[4],
+        expand_threshold = options[5],
+        shrink_factor = options[6],
+        expand_factor = options[7],
+        max_shrink_times = options[8])
 
     probN = NonlinearProblem(f, u0, p)
     sol = solve(probN, alg)
@@ -454,18 +454,18 @@ nexp = [2, 1, 2]
 ]
 
 list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
-                      η_strategy)
+    η_strategy)
 for options in list_of_options
     local probN, sol, alg
     alg = SimpleDFSane(σ_min = options[1],
-                       σ_max = options[2],
-                       σ_1 = options[3],
-                       M = options[4],
-                       γ = options[5],
-                       τ_min = options[6],
-                       τ_max = options[7],
-                       nexp = options[8],
-                       η_strategy = options[9])
+        σ_max = options[2],
+        σ_1 = options[3],
+        M = options[4],
+        γ = options[5],
+        τ_min = options[6],
+        τ_max = options[7],
+        nexp = options[8],
+        η_strategy = options[9])
 
     probN = NonlinearProblem(f, u0, p)
     sol = solve(probN, alg)
@@ -495,7 +495,9 @@ end
 
 f, u0 = (u, p) -> u .* u .- p, randn(3)
 
-f_jac(u, p) = begin diagm(2 * u) end
+f_jac(u, p) = begin
+    diagm(2 * u)
+end
 
 p = [2.0, 1.0, 5.0];
 

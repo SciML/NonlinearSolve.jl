@@ -30,16 +30,16 @@ and static array problems.
 """
 struct Halley{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     function Halley(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                    diff_type = Val{:forward})
+        diff_type = Val{:forward})
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
             SciMLBase._unwrap_val(diff_type)}()
     end
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-                           alg::Halley, args...; abstol = nothing,
-                           reltol = nothing,
-                           maxiters = 1000, kwargs...)
+    alg::Halley, args...; abstol = nothing,
+    reltol = nothing,
+    maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fx = f(x)
@@ -81,18 +81,18 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             if isa(x, Number)
                 fx = f(x)
                 dfx = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg),
-                                                              eltype(x))
+                    eltype(x))
                 d2fx = FiniteDiff.finite_difference_derivative(x -> FiniteDiff.finite_difference_derivative(f,
-                                                                                                            x),
-                                                               x,
-                                                               diff_type(alg), eltype(x))
+                        x),
+                    x,
+                    diff_type(alg), eltype(x))
             else
                 fx = f(x)
                 dfx = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x))
                 d2fx = FiniteDiff.finite_difference_jacobian(x -> FiniteDiff.finite_difference_jacobian(f,
-                                                                                                        x),
-                                                             x,
-                                                             diff_type(alg), eltype(x))
+                        x),
+                    x,
+                    diff_type(alg), eltype(x))
                 ai = -(dfx \ fx)
                 A = reshape(d2fx * ai, (n, n))
                 bi = (dfx) \ (A * ai)

@@ -20,16 +20,16 @@ function Bisection(; exact_left = false, exact_right = false)
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
-                         maxiters = 1000,
-                         kwargs...)
+    maxiters = 1000,
+    kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
-                                        retcode = ReturnCode.ExactSolutionLeft, left = left,
-                                        right = right)
+            retcode = ReturnCode.ExactSolutionLeft, left = left,
+            right = right)
     end
 
     i = 1
@@ -38,8 +38,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
             mid = (left + right) / 2
             (mid == left || mid == right) &&
                 return SciMLBase.build_solution(prob, alg, left, fl;
-                                                retcode = ReturnCode.FloatingPointLimit,
-                                                left = left, right = right)
+                    retcode = ReturnCode.FloatingPointLimit,
+                    left = left, right = right)
             fm = f(mid)
             if iszero(fm)
                 right = mid
@@ -60,8 +60,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
         mid = (left + right) / 2
         (mid == left || mid == right) &&
             return SciMLBase.build_solution(prob, alg, left, fl;
-                                            retcode = ReturnCode.FloatingPointLimit,
-                                            left = left, right = right)
+                retcode = ReturnCode.FloatingPointLimit,
+                left = left, right = right)
         fm = f(mid)
         if iszero(fm)
             right = mid
@@ -74,5 +74,5 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
     end
 
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-                                    left = left, right = right)
+        left = left, right = right)
 end
