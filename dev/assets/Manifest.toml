@@ -538,7 +538,7 @@ version = "1.2.0"
 deps = ["ArrayInterface", "DiffEqBase", "EnumX", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "PrecompileTools", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "UnPack"]
 path = "/home/runner/work/NonlinearSolve.jl/NonlinearSolve.jl"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "1.7.0"
+version = "1.8.0"
 
 [[deps.NonlinearSolveMINPACK]]
 deps = ["MINPACK", "Reexport", "SciMLBase"]
