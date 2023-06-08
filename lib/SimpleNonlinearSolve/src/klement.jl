@@ -9,9 +9,9 @@ This method is non-allocating on scalar problems.
 struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-                           alg::Klement, args...; abstol = nothing,
-                           reltol = nothing,
-                           maxiters = 1000, kwargs...)
+    alg::Klement, args...; abstol = nothing,
+    reltol = nothing,
+    maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fₙ = f(x)
@@ -39,11 +39,11 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
             iszero(fₙ) &&
                 return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
 
             if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
                 return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
             end
 
             Δxₙ = xₙ - xₙ₋₁
@@ -81,11 +81,11 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
             iszero(fₙ) &&
                 return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
 
             if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
                 return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                                                retcode = ReturnCode.Success)
+                    retcode = ReturnCode.Success)
             end
 
             Δxₙ = xₙ - xₙ₋₁

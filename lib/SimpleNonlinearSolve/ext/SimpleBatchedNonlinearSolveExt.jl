@@ -31,7 +31,7 @@ function _init_J_batched(x::AbstractMatrix{T}) where {T}
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
-                           abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+    abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)
@@ -74,7 +74,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
         J⁻¹Δfₙ = _batched_mul(J⁻¹, Δfₙ)
         J⁻¹ += _batched_mul(((Δxₙ .- J⁻¹Δfₙ) ./
                              (_batched_mul(_batch_transpose(Δxₙ), J⁻¹Δfₙ) .+ T(1e-5))),
-                            _batched_mul(_batch_transpose(Δxₙ), J⁻¹))
+            _batched_mul(_batch_transpose(Δxₙ), J⁻¹))
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
