@@ -134,7 +134,9 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                 trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
+    u_prev::uType
     u::uType
+    fu_prev::resType
     fu::resType
     p::pType
     uf::ufType
@@ -248,6 +250,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         u = deepcopy(prob.u0)
     end
+    u_prev = deepcopy(u)
     f = prob.f
     p = prob.p
     if iip
@@ -256,6 +259,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         fu = f(u, p)
     end
+    fu_prev = deepcopy(fu)
 
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
@@ -331,6 +335,11 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         step_threshold = convert(eltype(u), 0.05)
         shrink_threshold = convert(eltype(u), 0.05)
         expand_threshold = convert(eltype(u), 0.9)
+        p1 = convert(eltype(u), 2,5)  #alpha_1
+        p2 = convert(eltype(u), 0.25) # alpha_2
+        p3 = convert(eltype(u), 0) # not required
+        p4 = convert(eltype(u), 0) # not required
+        initial_trust_radius = convert(eltype(u), 1.0)
     end
 
     return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
@@ -384,6 +393,28 @@ function perform_step!(cache::TrustRegionCache{false})
     cache.fu_new = f(cache.u_tmp, p)
     trust_region_step!(cache)
     return nothing
+end
+
+function retrospective_step!(cache::TrustRegionCache{true})
+    @unpack J, fu_prev, fu, u_prev, u = cache
+    jacobian!(J, cache)
+    mul!(cache.H, J, J)
+    mul!(cache.g, J, fu)
+    @unpack H, g, step_size = cache
+
+    -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
+
+end
+
+function retrospective_step!(cache::TrustRegionCache{false})
+    @unpack J, fu_prev, fu, u_prev, u = cache
+    J = jacobian(cache, f)
+    cache.H = J * J
+    cache.g = J * fu
+    @unpack H, g, step_size = cache
+
+    -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
+
 end
 
 function trust_region_step!(cache::TrustRegionCache)
@@ -498,8 +529,13 @@ function trust_region_step!(cache::TrustRegionCache)
             take_step!(cache)
             cache.loss = cache.loss_new
             cache.make_new_J = true
+            if retrospective_step!(cache) >= cache.expand_threshold
+                cache.trust_r = max(p1 * cache.internalnorm(step_size), cache.trust_r)
+            end
+        
         else
             cache.make_new_J = false
+            cache.trust_r *= p2
         end
 
     end
@@ -533,12 +569,16 @@ function dogleg!(cache::TrustRegionCache)
 end
 
 function take_step!(cache::TrustRegionCache{true})
+    cache.u_prev .= cache.u
     cache.u .= cache.u_tmp
+    cache.fu_prev .= cache.fu
     cache.fu .= cache.fu_new
 end
 
 function take_step!(cache::TrustRegionCache{false})
+    cache.u_prev = cache.u
     cache.u = cache.u_tmp
+    cache.fu_prev = cache.fu
     cache.fu = cache.fu_new
 end
 
