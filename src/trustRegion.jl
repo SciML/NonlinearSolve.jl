@@ -401,6 +401,30 @@ function perform_step!(cache::TrustRegionCache{false})
     return nothing
 end
 
+function retrospective_step!(cache::TrustRegionCache{true})
+    @unpack J, fu_prev, fu, u_prev, u = cache
+    jacobian!(J, cache)
+    mul!(cache.H, J, J)
+    mul!(cache.g, J, fu)
+    cache.stats.njacs += 1
+    @unpack H, g, step_size = cache
+
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
+end
+
+function retrospective_step!(cache::TrustRegionCache{false})
+    @unpack J, fu_prev, fu, u_prev, u, f = cache
+    J = jacobian(cache, f)
+    cache.H = J * J
+    cache.g = J * fu
+    cache.stats.njacs += 1
+    @unpack H, g, step_size = cache
+
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
+end
+
 function trust_region_step!(cache::TrustRegionCache)
     @unpack fu_new, step_size, g, H, loss, max_trust_r, radius_update_scheme = cache
     cache.loss_new = get_loss(fu_new)
