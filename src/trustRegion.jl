@@ -174,7 +174,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     ϵ::floatType
     stats::NLStats
 
-    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType, fu_prev::resType, fu::resType, p::pType,
+    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType,
+        fu_prev::resType, fu::resType, p::pType,
         uf::ufType, linsolve::L, J::jType, jac_config::JC,
         force_stop::Bool, maxiters::Int, internalnorm::INType,
         retcode::SciMLBase.ReturnCode.T, abstol::tolType,
@@ -340,7 +341,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J, jac_config,
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
+        jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, radius_update_scheme,
         initial_trust_radius,
