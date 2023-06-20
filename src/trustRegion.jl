@@ -580,12 +580,16 @@ function dogleg!(cache::TrustRegionCache)
 end
 
 function take_step!(cache::TrustRegionCache{true})
+    cache.u_prev .= cache.u
     cache.u .= cache.u_tmp
+    cache.fu_prev .= cache.fu
     cache.fu .= cache.fu_new
 end
 
 function take_step!(cache::TrustRegionCache{false})
+    cache.u_prev = cache.u
     cache.u = cache.u_tmp
+    cache.fu_prev = cache.fu
     cache.fu = cache.fu_new
 end
 
