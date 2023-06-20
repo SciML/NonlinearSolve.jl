@@ -174,7 +174,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     p4::floatType
     ϵ::floatType
 
-    function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
+    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType, fu_prev::resType, fu::resType, p::pType,
                                    uf::ufType, linsolve::L, J::jType,
                                    jac_config::JC, iter::Int,
                                    force_stop::Bool, maxiters::Int, internalnorm::INType,
@@ -198,7 +198,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
                                                         suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType,
-            trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+            trustType, suType, su2Type, tmpType}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
                                                  jac_config, iter, force_stop,
                                                  maxiters, internalnorm, retcode,
                                                  abstol, prob, radius_update_scheme,
@@ -335,14 +335,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         step_threshold = convert(eltype(u), 0.05)
         shrink_threshold = convert(eltype(u), 0.05)
         expand_threshold = convert(eltype(u), 0.9)
-        p1 = convert(eltype(u), 2,5)  #alpha_1
+        p1 = convert(eltype(u), 2.5)  #alpha_1
         p2 = convert(eltype(u), 0.25) # alpha_2
         p3 = convert(eltype(u), 0) # not required
         p4 = convert(eltype(u), 0) # not required
         initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J, jac_config,
                                  1, false, maxiters, internalnorm,
                                  ReturnCode.Default, abstol, prob, radius_update_scheme,
                                  initial_trust_radius,
@@ -402,7 +402,7 @@ function retrospective_step!(cache::TrustRegionCache{true})
     mul!(cache.g, J, fu)
     @unpack H, g, step_size = cache
 
-    -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
+    return -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
 
 end
 
@@ -413,7 +413,7 @@ function retrospective_step!(cache::TrustRegionCache{false})
     cache.g = J * fu
     @unpack H, g, step_size = cache
 
-    -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
+    return -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
 
 end
 
