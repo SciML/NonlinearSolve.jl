@@ -104,34 +104,34 @@ struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
 end
 
 function TrustRegion(; chunk_size = Val{0}(),
-                     autodiff = Val{true}(),
-                     standardtag = Val{true}(), concrete_jac = nothing,
-                     diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-                     radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
-                     max_trust_radius::Real = 0 // 1,
-                     initial_trust_radius::Real = 0 // 1,
-                     step_threshold::Real = 1 // 10,
-                     shrink_threshold::Real = 1 // 4,
-                     expand_threshold::Real = 3 // 4,
-                     shrink_factor::Real = 1 // 4,
-                     expand_factor::Real = 2 // 1,
-                     max_shrink_times::Int = 32)
+    autodiff = Val{true}(),
+    standardtag = Val{true}(), concrete_jac = nothing,
+    diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
+    radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
+    max_trust_radius::Real = 0 // 1,
+    initial_trust_radius::Real = 0 // 1,
+    step_threshold::Real = 1 // 10,
+    shrink_threshold::Real = 1 // 4,
+    expand_threshold::Real = 3 // 4,
+    shrink_factor::Real = 1 // 4,
+    expand_factor::Real = 2 // 1,
+    max_shrink_times::Int = 32)
     TrustRegion{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
-                typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-                _unwrap_val(concrete_jac), typeof(max_trust_radius)
-                }(linsolve, precs, radius_update_scheme, max_trust_radius,
-                  initial_trust_radius,
-                  step_threshold,
-                  shrink_threshold,
-                  expand_threshold,
-                  shrink_factor,
-                  expand_factor,
-                  max_shrink_times)
+        typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
+        _unwrap_val(concrete_jac), typeof(max_trust_radius),
+    }(linsolve, precs, radius_update_scheme, max_trust_radius,
+        initial_trust_radius,
+        step_threshold,
+        shrink_threshold,
+        expand_threshold,
+        shrink_factor,
+        expand_factor,
+        max_shrink_times)
 end
 
 mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
-                                INType, tolType, probType, ufType, L, jType, JC, floatType,
-                                trustType, suType, su2Type, tmpType}
+    INType, tolType, probType, ufType, L, jType, JC, floatType,
+    trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
     u_prev::uType
@@ -174,41 +174,42 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     p4::floatType
     ϵ::floatType
 
-    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType, fu_prev::resType, fu::resType, p::pType,
-                                   uf::ufType, linsolve::L, J::jType,
-                                   jac_config::JC, iter::Int,
-                                   force_stop::Bool, maxiters::Int, internalnorm::INType,
-                                   retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                   prob::probType,
-                                   radius_update_scheme::RadiusUpdateSchemes.T,
-                                   trust_r::trustType,
-                                   max_trust_r::trustType, step_threshold::suType,
-                                   shrink_threshold::trustType, expand_threshold::trustType,
-                                   shrink_factor::trustType, expand_factor::trustType,
-                                   loss::floatType, loss_new::floatType, H::jType,
-                                   g::resType, shrink_counter::Int, step_size::su2Type,
-                                   u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
-                                   r::floatType, p1::floatType, p2::floatType,
-                                   p3::floatType,
-                                   p4::floatType,
-                                   ϵ::floatType) where {iip, fType, algType, uType,
-                                                        resType, pType, INType,
-                                                        tolType, probType, ufType, L,
-                                                        jType, JC, floatType, trustType,
-                                                        suType, su2Type, tmpType}
+    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType,
+        fu_prev::resType, fu::resType, p::pType,
+        uf::ufType, linsolve::L, J::jType,
+        jac_config::JC, iter::Int,
+        force_stop::Bool, maxiters::Int, internalnorm::INType,
+        retcode::SciMLBase.ReturnCode.T, abstol::tolType,
+        prob::probType,
+        radius_update_scheme::RadiusUpdateSchemes.T,
+        trust_r::trustType,
+        max_trust_r::trustType, step_threshold::suType,
+        shrink_threshold::trustType, expand_threshold::trustType,
+        shrink_factor::trustType, expand_factor::trustType,
+        loss::floatType, loss_new::floatType, H::jType,
+        g::resType, shrink_counter::Int, step_size::su2Type,
+        u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
+        r::floatType, p1::floatType, p2::floatType,
+        p3::floatType,
+        p4::floatType,
+        ϵ::floatType) where {iip, fType, algType, uType,
+        resType, pType, INType,
+        tolType, probType, ufType, L,
+        jType, JC, floatType, trustType,
+        suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType,
             trustType, suType, su2Type, tmpType}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
-                                                 jac_config, iter, force_stop,
-                                                 maxiters, internalnorm, retcode,
-                                                 abstol, prob, radius_update_scheme,
-                                                 trust_r, max_trust_r,
-                                                 step_threshold, shrink_threshold,
-                                                 expand_threshold, shrink_factor,
-                                                 expand_factor, loss,
-                                                 loss_new, H, g, shrink_counter,
-                                                 step_size, u_tmp, fu_new,
-                                                 make_new_J, r, p1, p2, p3, p4, ϵ)
+            jac_config, iter, force_stop,
+            maxiters, internalnorm, retcode,
+            abstol, prob, radius_update_scheme,
+            trust_r, max_trust_r,
+            step_threshold, shrink_threshold,
+            expand_threshold, shrink_factor,
+            expand_factor, loss,
+            loss_new, H, g, shrink_counter,
+            step_size, u_tmp, fu_new,
+            make_new_J, r, p1, p2, p3, p4, ϵ)
     end
 end
 
@@ -221,9 +222,9 @@ function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{true})
     recursivefill!(weight, false)
 
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-                                 nothing)..., weight)
+            nothing)..., weight)
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
-                    Pl = Pl, Pr = Pr)
+        Pl = Pl, Pr = Pr)
 
     du1 = zero(u)
     du2 = zero(u)
@@ -239,12 +240,12 @@ function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{false})
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
-                          args...;
-                          alias_u0 = false,
-                          maxiters = 1000,
-                          abstol = 1e-8,
-                          internalnorm = DEFAULT_NORM,
-                          kwargs...) where {uType, iip}
+    args...;
+    alias_u0 = false,
+    maxiters = 1000,
+    abstol = 1e-8,
+    internalnorm = DEFAULT_NORM,
+    kwargs...) where {uType, iip}
     if alias_u0
         u = prob.u0
     else
@@ -342,14 +343,15 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J, jac_config,
-                                 1, false, maxiters, internalnorm,
-                                 ReturnCode.Default, abstol, prob, radius_update_scheme,
-                                 initial_trust_radius,
-                                 max_trust_radius, step_threshold, shrink_threshold,
-                                 expand_threshold, shrink_factor, expand_factor, loss,
-                                 loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
-                                 make_new_J, r, p1, p2, p3, p4, ϵ)
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
+        jac_config,
+        1, false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, prob, radius_update_scheme,
+        initial_trust_radius,
+        max_trust_radius, step_threshold, shrink_threshold,
+        expand_threshold, shrink_factor, expand_factor, loss,
+        loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
+        make_new_J, r, p1, p2, p3, p4, ϵ)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -361,8 +363,8 @@ function perform_step!(cache::TrustRegionCache{true})
     end
 
     linres = dolinsolve(alg.precs, linsolve, A = cache.H, b = _vec(cache.g),
-                        linu = _vec(u_tmp),
-                        p = p, reltol = cache.abstol)
+        linu = _vec(u_tmp),
+        p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     cache.u_tmp .= -1 .* u_tmp
     dogleg!(cache)
@@ -402,8 +404,8 @@ function retrospective_step!(cache::TrustRegionCache{true})
     mul!(cache.g, J, fu)
     @unpack H, g, step_size = cache
 
-    return -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
-
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
 end
 
 function retrospective_step!(cache::TrustRegionCache{false})
@@ -413,8 +415,8 @@ function retrospective_step!(cache::TrustRegionCache{false})
     cache.g = J * fu
     @unpack H, g, step_size = cache
 
-    return -(get_loss(fu_prev) - get_loss(fu)) / (step_size' * g + step_size' * H * step_size / 2)
-
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
@@ -532,7 +534,7 @@ function trust_region_step!(cache::TrustRegionCache)
             if retrospective_step!(cache) >= cache.expand_threshold
                 cache.trust_r = max(cache.p1 * cache.internalnorm(step_size), cache.trust_r)
             end
-        
+
         else
             cache.make_new_J = false
             cache.trust_r *= cache.p2
@@ -540,7 +542,6 @@ function trust_region_step!(cache::TrustRegionCache)
         if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
             cache.force_stop = true
         end
-
     end
 end
 
@@ -616,11 +617,11 @@ function SciMLBase.solve!(cache::TrustRegionCache)
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-                             retcode = cache.retcode)
+        retcode = cache.retcode)
 end
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-                           abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
