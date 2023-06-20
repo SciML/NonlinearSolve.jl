@@ -532,6 +532,23 @@ function trust_region_step!(cache::TrustRegionCache)
            cache.internalnorm(g) < cache.ϵ
             cache.force_stop = true
         end
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+            if retrospective_step!(cache) >= cache.expand_threshold
+                cache.trust_r = max(cache.p1 * cache.internalnorm(step_size), cache.trust_r)
+            end
+
+        else
+            cache.make_new_J = false
+            cache.trust_r *= cache.p2
+            cache.shrink_counter += 1
+        end
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
+            cache.force_stop = true
+        end
     end
 end
 
