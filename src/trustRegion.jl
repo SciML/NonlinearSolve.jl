@@ -134,7 +134,9 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
+    u_prev::uType
     u::uType
+    fu_prev::resType
     fu::resType
     p::pType
     uf::ufType
@@ -172,7 +174,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     ϵ::floatType
     stats::NLStats
 
-    function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
+    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType, fu_prev::resType, fu::resType, p::pType,
         uf::ufType, linsolve::L, J::jType, jac_config::JC,
         force_stop::Bool, maxiters::Int, internalnorm::INType,
         retcode::SciMLBase.ReturnCode.T, abstol::tolType,
@@ -194,7 +196,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
         suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType,
-            trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+            trustType, suType, su2Type, tmpType}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
             jac_config, force_stop,
             maxiters, internalnorm, retcode,
             abstol, prob, radius_update_scheme,
@@ -246,6 +248,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         u = deepcopy(prob.u0)
     end
+    u_prev = deepcopy(u)
     f = prob.f
     p = prob.p
     if iip
@@ -254,6 +257,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         fu = f(u, p)
     end
+    fu_prev = deepcopy(fu)
 
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
@@ -325,9 +329,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         p3 = convert(eltype(u), 12) # c6
         p4 = convert(eltype(u), 1.0e18) # M
         initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
+        step_threshold = convert(eltype(u), 0.05)
+        shrink_threshold = convert(eltype(u), 0.05)
+        expand_threshold = convert(eltype(u), 0.9)
+        p1 = convert(eltype(u), 2.5)  #alpha_1
+        p2 = convert(eltype(u), 0.25) # alpha_2
+        p3 = convert(eltype(u), 0) # not required
+        p4 = convert(eltype(u), 0) # not required
+        initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, radius_update_scheme,
         initial_trust_radius,
