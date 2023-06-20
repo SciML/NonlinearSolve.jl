@@ -28,7 +28,9 @@ tol = 1e-9
 
 function convergence_test_oop(f, u0, p, radius_update_scheme)
     prob = NonlinearProblem{false}(f, oftype(p, u0), p)
-    cache = init(prob, TrustRegion(radius_update_scheme=radius_update_scheme), abstol = 1e-9)
+    cache = init(prob,
+        TrustRegion(radius_update_scheme = radius_update_scheme),
+        abstol = 1e-9)
     sol = solve!(cache)
     return cache.internalnorm(cache.u_prev - cache.u), cache.iter, sol.retcode
 end
