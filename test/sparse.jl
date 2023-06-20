@@ -11,7 +11,7 @@ function brusselator_2d_loop(du, u, p)
         i, j = Tuple(I)
         x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
         ip1, im1, jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
-                             limit(j - 1, N)
+        limit(j - 1, N)
         du[i, j, 1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
                        4u[i, j, 1]) +
                       B + u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
@@ -40,7 +40,7 @@ sol = solve(prob_brusselator_2d, NewtonRaphson())
 
 du0 = copy(u0)
 jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p), du0,
-                                           u0)
+    u0)
 
 ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity))
 prob_brusselator_2d = NonlinearProblem(ff, u0, p)

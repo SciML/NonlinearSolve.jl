@@ -143,7 +143,6 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     linsolve::L
     J::jType
     jac_config::JC
-    iter::Int
     force_stop::Bool
     maxiters::Int
     internalnorm::INType
@@ -173,11 +172,13 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     p3::floatType
     p4::floatType
     ϵ::floatType
+    stats::NLStats
+
 
     function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType,
         fu_prev::resType, fu::resType, p::pType,
         uf::ufType, linsolve::L, J::jType,
-        jac_config::JC, iter::Int,
+        jac_config::JC, iter::Int, 
         force_stop::Bool, maxiters::Int, internalnorm::INType,
         retcode::SciMLBase.ReturnCode.T, abstol::tolType,
         prob::probType,
@@ -190,9 +191,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
         g::resType, shrink_counter::Int, step_size::su2Type,
         u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
         r::floatType, p1::floatType, p2::floatType,
-        p3::floatType,
-        p4::floatType,
-        ϵ::floatType) where {iip, fType, algType, uType,
+        p3::floatType, p4::floatType, ϵ::floatType,
+        stats::NLStats) where {iip, fType, algType, uType,
         resType, pType, INType,
         tolType, probType, ufType, L,
         jType, JC, floatType, trustType,
@@ -209,7 +209,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
             expand_factor, loss,
             loss_new, H, g, shrink_counter,
             step_size, u_tmp, fu_new,
-            make_new_J, r, p1, p2, p3, p4, ϵ)
+            make_new_J, r, p1, p2, p3, p4, ϵ, stats)
     end
 end
 
@@ -343,6 +343,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         initial_trust_radius = convert(eltype(u), 1.0)
     end
 
+
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
         jac_config,
         1, false, maxiters, internalnorm,
@@ -351,7 +352,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         max_trust_radius, step_threshold, shrink_threshold,
         expand_threshold, shrink_factor, expand_factor, loss,
         loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
-        make_new_J, r, p1, p2, p3, p4, ϵ)
+        make_new_J, r, p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0))
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -360,6 +361,7 @@ function perform_step!(cache::TrustRegionCache{true})
         jacobian!(J, cache)
         mul!(cache.H, J, J)
         mul!(cache.g, J, fu)
+        cache.stats.njacs += 1
     end
 
     linres = dolinsolve(alg.precs, linsolve, A = cache.H, b = _vec(cache.g),
@@ -373,6 +375,9 @@ function perform_step!(cache::TrustRegionCache{true})
     cache.u_tmp .= u .+ cache.step_size
     f(cache.fu_new, cache.u_tmp, p)
     trust_region_step!(cache)
+    cache.stats.nf += 1
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
     return nothing
 end
 
@@ -383,6 +388,7 @@ function perform_step!(cache::TrustRegionCache{false})
         J = jacobian(cache, f)
         cache.H = J * J
         cache.g = J * fu
+        cache.stats.njacs += 1
     end
 
     @unpack g, H = cache
@@ -394,6 +400,9 @@ function perform_step!(cache::TrustRegionCache{false})
     cache.u_tmp = u .+ cache.step_size
     cache.fu_new = f(cache.u_tmp, p)
     trust_region_step!(cache)
+    cache.stats.nf += 1
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
     return nothing
 end
 
@@ -604,20 +613,20 @@ function jvp!(cache::TrustRegionCache{true})
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)
-    while !cache.force_stop && cache.iter < cache.maxiters &&
+    while !cache.force_stop && cache.stats.nsteps < cache.maxiters &&
               cache.shrink_counter < cache.alg.max_shrink_times
         perform_step!(cache)
-        cache.iter += 1
+        cache.stats.nsteps += 1
     end
 
-    if cache.iter == cache.maxiters
+    if cache.stats.nsteps == cache.maxiters
         cache.retcode = ReturnCode.MaxIters
     else
         cache.retcode = ReturnCode.Success
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-        retcode = cache.retcode)
+        retcode = cache.retcode, stats = cache.stats)
 end
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
@@ -633,7 +642,8 @@ function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache
     end
     cache.abstol = abstol
     cache.maxiters = maxiters
-    cache.iter = 1
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     cache.make_new_J = true

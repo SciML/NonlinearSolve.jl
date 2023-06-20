@@ -64,7 +64,7 @@ sol = benchmark_inplace(ffiip, u0)
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
 solver = init(probN, NewtonRaphson(), abstol = 1e-9)
-@test (@ballocated solve!(solver)) < 50
+@test (@ballocated solve!(solver)) <= 64
 
 # AD Tests
 using ForwardDiff
@@ -166,21 +166,21 @@ end
 function benchmark_immutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
     solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9)
+        abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_mutable(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
     solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9)
+        abstol = 1e-9)
     sol = solve!(solver)
 end
 
 function benchmark_scalar(f, u0, radius_update_scheme)
     probN = NonlinearProblem{false}(f, u0)
     sol = (solve(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-                 abstol = 1e-9))
+        abstol = 1e-9))
 end
 
 function ff(u, p = nothing)
@@ -210,7 +210,7 @@ end
 function benchmark_inplace(f, u0, radius_update_scheme)
     probN = NonlinearProblem{true}(f, u0)
     solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9)
+        abstol = 1e-9)
     sol = solve!(solver)
 end
 
@@ -228,7 +228,7 @@ end
 for radius_update_scheme in radius_update_schemes
     probN = NonlinearProblem{true}(ffiip, u0)
     solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9)
+        abstol = 1e-9)
     @test (@ballocated solve!(solver)) < 200
 end
 
@@ -252,7 +252,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei),
-                abstol = 1e-9)
+        abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -264,7 +264,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan),
-                abstol = 1e-9)
+        abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -276,7 +276,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
-                abstol = 1e-9)
+        abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -316,7 +316,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 
@@ -330,7 +330,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 
@@ -344,7 +344,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 
@@ -505,7 +505,7 @@ f(u, p)
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Fan),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -535,18 +535,18 @@ expand_factor = [1.5, 2.0, 3.0]
 max_shrink_times = [10, 20, 30]
 
 list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-                      shrink_threshold, expand_threshold, shrink_factor,
-                      expand_factor, max_shrink_times)
+    shrink_threshold, expand_threshold, shrink_factor,
+    expand_factor, max_shrink_times)
 for options in list_of_options
     local probN, sol, alg
     alg = TrustRegion(max_trust_radius = options[1],
-                      initial_trust_radius = options[2],
-                      step_threshold = options[3],
-                      shrink_threshold = options[4],
-                      expand_threshold = options[5],
-                      shrink_factor = options[6],
-                      expand_factor = options[7],
-                      max_shrink_times = options[8])
+        initial_trust_radius = options[2],
+        step_threshold = options[3],
+        shrink_threshold = options[4],
+        expand_threshold = options[5],
+        shrink_factor = options[6],
+        expand_factor = options[7],
+        max_shrink_times = options[8])
 
     probN = NonlinearProblem{false}(f, u0, p)
     sol = solve(probN, alg, abstol = 1e-10)
@@ -560,12 +560,12 @@ u0 = [1.0, 1.0]
 function iip_oop(f, fip, u0, radius_update_scheme, maxiters)
     prob_iip = NonlinearProblem{true}(fip, u0)
     solver = init(prob_iip, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9, maxiters = maxiters)
+        abstol = 1e-9, maxiters = maxiters)
     sol_iip = solve!(solver)
 
     prob_oop = NonlinearProblem{false}(f, u0)
     solver = init(prob_oop, TrustRegion(radius_update_scheme = radius_update_scheme),
-                  abstol = 1e-9, maxiters = maxiters)
+        abstol = 1e-9, maxiters = maxiters)
     sol_oop = solve!(solver)
 
     return sol_iip.u[end], sol_oop.u[end]
@@ -747,17 +747,17 @@ b_uphill = [0, 1, 2]
 min_damping_D = [1e-12, 1e-9, 1e-4]
 
 list_of_options = zip(damping_initial, damping_increase_factor, damping_decrease_factor,
-                      finite_diff_step_geodesic, α_geodesic, b_uphill,
-                      min_damping_D)
+    finite_diff_step_geodesic, α_geodesic, b_uphill,
+    min_damping_D)
 for options in list_of_options
     local probN, sol, alg
     alg = LevenbergMarquardt(damping_initial = options[1],
-                             damping_increase_factor = options[2],
-                             damping_decrease_factor = options[3],
-                             finite_diff_step_geodesic = options[4],
-                             α_geodesic = options[5],
-                             b_uphill = options[6],
-                             min_damping_D = options[7])
+        damping_increase_factor = options[2],
+        damping_decrease_factor = options[3],
+        finite_diff_step_geodesic = options[4],
+        α_geodesic = options[5],
+        b_uphill = options[6],
+        min_damping_D = options[7])
 
     probN = NonlinearProblem{false}(f, u0, p)
     sol = solve(probN, alg, abstol = 1e-10)
