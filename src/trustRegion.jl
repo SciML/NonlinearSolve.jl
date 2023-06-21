@@ -258,7 +258,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         fu = f(u, p)
     end
-    fu_prev = deepcopy(fu)
+    fu_prev = zero(fu)
 
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
