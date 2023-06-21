@@ -41,6 +41,7 @@ include("dfsane.jl")
 include("ad.jl")
 include("halley.jl")
 include("alefeld.jl")
+include("itp.jl")
 
 import PrecompileTools
 
