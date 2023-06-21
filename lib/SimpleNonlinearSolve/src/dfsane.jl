@@ -180,11 +180,13 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
             inner_iterations += 1
 
             if batched
+                criteria = @. f̄ + η - γ * α_p^2 * f_k
                 # NOTE: This is simply a heuristic, ideally we check using `all` but that is
                 #       typically very expensive for large problems
-                norm(f_new) ≤ norm(@. f̄ + η - γ * α_p^2 * f_k) && break
+                (sum(f_new .≤ criteria) ≥ batch_size ÷ 2) && break
             else
-                f_new ≤ f̄ + η - γ * α_p^2 * f_k && break
+                criteria = f̄ + η - γ * α_p^2 * f_k
+                f_new ≤ criteria && break
             end
 
             α_tp = @. α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
@@ -194,9 +196,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
             if batched
                 # NOTE: This is simply a heuristic, ideally we check using `all` but that is
                 #       typically very expensive for large problems
-                norm(f_new) ≤ norm(@. f̄ + η - γ * α_p^2 * f_k) && break
+                (sum(f_new .≤ criteria) ≥ batch_size ÷ 2) && break
             else
-                f_new ≤ f̄ + η - γ * α_p^2 * f_k && break
+                f_new ≤ criteria && break
             end
 
             α_tm = @. α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
