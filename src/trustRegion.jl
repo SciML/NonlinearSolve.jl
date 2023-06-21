@@ -134,7 +134,9 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     trustType, suType, su2Type, tmpType}
     f::fType
     alg::algType
+    u_prev::uType
     u::uType
+    fu_prev::resType
     fu::resType
     p::pType
     uf::ufType
@@ -172,7 +174,8 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     ϵ::floatType
     stats::NLStats
 
-    function TrustRegionCache{iip}(f::fType, alg::algType, u::uType, fu::resType, p::pType,
+    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType,
+        fu_prev::resType, fu::resType, p::pType,
         uf::ufType, linsolve::L, J::jType, jac_config::JC,
         force_stop::Bool, maxiters::Int, internalnorm::INType,
         retcode::SciMLBase.ReturnCode.T, abstol::tolType,
@@ -194,7 +197,7 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
         suType, su2Type, tmpType}
         new{iip, fType, algType, uType, resType, pType,
             INType, tolType, probType, ufType, L, jType, JC, floatType,
-            trustType, suType, su2Type, tmpType}(f, alg, u, fu, p, uf, linsolve, J,
+            trustType, suType, su2Type, tmpType}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
             jac_config, force_stop,
             maxiters, internalnorm, retcode,
             abstol, prob, radius_update_scheme,
@@ -246,6 +249,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         u = deepcopy(prob.u0)
     end
+    u_prev = zero(u)
     f = prob.f
     p = prob.p
     if iip
@@ -254,6 +258,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         fu = f(u, p)
     end
+    fu_prev = zero(fu)
 
     loss = get_loss(fu)
     uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
@@ -325,9 +330,19 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         p3 = convert(eltype(u), 12) # c6
         p4 = convert(eltype(u), 1.0e18) # M
         initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
+        step_threshold = convert(eltype(u), 0.05)
+        shrink_threshold = convert(eltype(u), 0.05)
+        expand_threshold = convert(eltype(u), 0.9)
+        p1 = convert(eltype(u), 2.5)  #alpha_1
+        p2 = convert(eltype(u), 0.25) # alpha_2
+        p3 = convert(eltype(u), 0) # not required
+        p4 = convert(eltype(u), 0) # not required
+        initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u, fu, p, uf, linsolve, J, jac_config,
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
+        jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, radius_update_scheme,
         initial_trust_radius,
@@ -386,6 +401,30 @@ function perform_step!(cache::TrustRegionCache{false})
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
     return nothing
+end
+
+function retrospective_step!(cache::TrustRegionCache{true})
+    @unpack J, fu_prev, fu, u_prev, u = cache
+    jacobian!(J, cache)
+    mul!(cache.H, J, J)
+    mul!(cache.g, J, fu)
+    cache.stats.njacs += 1
+    @unpack H, g, step_size = cache
+
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
+end
+
+function retrospective_step!(cache::TrustRegionCache{false})
+    @unpack J, fu_prev, fu, u_prev, u, f = cache
+    J = jacobian(cache, f)
+    cache.H = J * J
+    cache.g = J * fu
+    cache.stats.njacs += 1
+    @unpack H, g, step_size = cache
+
+    return -(get_loss(fu_prev) - get_loss(fu)) /
+           (step_size' * g + step_size' * H * step_size / 2)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
@@ -495,6 +534,23 @@ function trust_region_step!(cache::TrustRegionCache)
            cache.internalnorm(g) < cache.ϵ
             cache.force_stop = true
         end
+    elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
+        if r > cache.step_threshold
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+            if retrospective_step!(cache) >= cache.expand_threshold
+                cache.trust_r = max(cache.p1 * cache.internalnorm(step_size), cache.trust_r)
+            end
+
+        else
+            cache.make_new_J = false
+            cache.trust_r *= cache.p2
+            cache.shrink_counter += 1
+        end
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
+            cache.force_stop = true
+        end
     end
 end
 
@@ -526,12 +582,16 @@ function dogleg!(cache::TrustRegionCache)
 end
 
 function take_step!(cache::TrustRegionCache{true})
+    cache.u_prev .= cache.u
     cache.u .= cache.u_tmp
+    cache.fu_prev .= cache.fu
     cache.fu .= cache.fu_new
 end
 
 function take_step!(cache::TrustRegionCache{false})
+    cache.u_prev = cache.u
     cache.u = cache.u_tmp
+    cache.fu_prev = cache.fu
     cache.fu = cache.fu_new
 end
 
