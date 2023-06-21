@@ -249,7 +249,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     else
         u = deepcopy(prob.u0)
     end
-    u_prev = deepcopy(u)
+    u_prev = zero(u)
     f = prob.f
     p = prob.p
     if iip
