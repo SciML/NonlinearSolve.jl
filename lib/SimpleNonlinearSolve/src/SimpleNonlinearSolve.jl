@@ -74,6 +74,6 @@ end
 
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
-    Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld
+    Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, Itp
 
 end # module
