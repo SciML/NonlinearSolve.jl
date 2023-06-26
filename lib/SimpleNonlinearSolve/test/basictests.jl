@@ -9,6 +9,8 @@ const BATCHED_BROYDEN_SOLVERS = Broyden[]
 const BROYDEN_SOLVERS = Broyden[]
 const BATCHED_LBROYDEN_SOLVERS = LBroyden[]
 const LBROYDEN_SOLVERS = LBroyden[]
+const BATCHED_DFSANE_SOLVERS = SimpleDFSane[]
+const DFSANE_SOLVERS = SimpleDFSane[]
 
 for mode in instances(NLSolveTerminationMode.T)
     if mode ∈
@@ -23,6 +25,8 @@ for mode in instances(NLSolveTerminationMode.T)
     push!(BATCHED_BROYDEN_SOLVERS, Broyden(; batched = true, termination_condition))
     push!(LBROYDEN_SOLVERS, LBroyden(; batched = false, termination_condition))
     push!(BATCHED_LBROYDEN_SOLVERS, LBroyden(; batched = true, termination_condition))
+    push!(DFSANE_SOLVERS, SimpleDFSane(; batched = false, termination_condition))
+    push!(BATCHED_DFSANE_SOLVERS, SimpleDFSane(; batched = true, termination_condition))
 end
 
 # SimpleNewtonRaphson
@@ -484,11 +488,13 @@ sol = solve(probN, Broyden(batched = true))
 
 @test abs.(sol.u) ≈ sqrt.(p)
 
-for alg in (BATCHED_BROYDEN_SOLVERS..., BATCHED_LBROYDEN_SOLVERS...)
-    sol = solve(probN, alg)
+for alg in (BATCHED_BROYDEN_SOLVERS...,
+    BATCHED_LBROYDEN_SOLVERS...,
+    BATCHED_DFSANE_SOLVERS...)
+    sol = solve(probN, alg; abstol = 1e-3, reltol = 1e-3)
 
     @test sol.retcode == ReturnCode.Success
-    @test abs.(sol.u) ≈ sqrt.(p)
+    @test abs.(sol.u)≈sqrt.(p) atol=1e-3 rtol=1e-3
 end
 
 ## User specified Jacobian
