@@ -55,17 +55,17 @@ struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:
 end
 
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                       standardtag = Val{true}(), concrete_jac = nothing,
-                       diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
+    standardtag = Val{true}(), concrete_jac = nothing,
+    diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
     NewtonRaphson{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
-                  typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-                  _unwrap_val(concrete_jac)}(linsolve,
-                                             precs)
+        typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
+        _unwrap_val(concrete_jac)}(linsolve,
+        precs)
 end
 
 mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
-                                  INType, tolType,
-                                  probType, ufType, L, jType, JC}
+    INType, tolType,
+    probType, ufType, L, jType, JC}
     f::fType
     alg::algType
     u::uType
@@ -85,22 +85,22 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-                                     p::pType, uf::ufType, linsolve::L, J::jType,
-                                     du1::duType,
-                                     jac_config::JC, force_stop::Bool, maxiters::Int,
-                                     internalnorm::INType,
-                                     retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-                                     prob::probType,
-                                     stats::NLStats) where {
-                                                            iip, fType, algType, uType,
-                                                            duType, resType, pType, INType,
-                                                            tolType,
-                                                            probType, ufType, L, jType, JC}
+        p::pType, uf::ufType, linsolve::L, J::jType,
+        du1::duType,
+        jac_config::JC, force_stop::Bool, maxiters::Int,
+        internalnorm::INType,
+        retcode::SciMLBase.ReturnCode.T, abstol::tolType,
+        prob::probType,
+        stats::NLStats) where {
+        iip, fType, algType, uType,
+        duType, resType, pType, INType,
+        tolType,
+        probType, ufType, L, jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
             probType, ufType, L, jType, JC}(f, alg, u, fu, p,
-                                            uf, linsolve, J, du1, jac_config,
-                                            force_stop, maxiters, internalnorm,
-                                            retcode, abstol, prob, stats)
+            uf, linsolve, J, du1, jac_config,
+            force_stop, maxiters, internalnorm,
+            retcode, abstol, prob, stats)
     end
 end
 
@@ -113,9 +113,9 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     recursivefill!(weight, false)
 
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-                                 nothing)..., weight)
+            nothing)..., weight)
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
-                    Pl = Pl, Pr = Pr)
+        Pl = Pl, Pr = Pr)
 
     du1 = zero(u)
     du2 = zero(u)
@@ -130,12 +130,12 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson,
-                          args...;
-                          alias_u0 = false,
-                          maxiters = 1000,
-                          abstol = 1e-6,
-                          internalnorm = DEFAULT_NORM,
-                          kwargs...) where {uType, iip}
+    args...;
+    alias_u0 = false,
+    maxiters = 1000,
+    abstol = 1e-6,
+    internalnorm = DEFAULT_NORM,
+    kwargs...) where {uType, iip}
     if alias_u0
         u = prob.u0
     else
@@ -152,8 +152,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
     return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
-                                   false, maxiters, internalnorm,
-                                   ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
+        false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -163,7 +163,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
-                        p = p, reltol = cache.abstol)
+        p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. u = u - du1
     f(fu, u, p)
@@ -206,11 +206,11 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-                             retcode = cache.retcode, stats = cache.stats)
+        retcode = cache.retcode, stats = cache.stats)
 end
 
 function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-                           abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

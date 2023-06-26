@@ -17,11 +17,11 @@ end
 
 function jacobian_finitediff_forward!(J, f, x, jac_config, forwardcache, cache)
     (FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config, forwardcache);
-     maximum(jac_config.colorvec))
+    maximum(jac_config.colorvec))
 end
 function jacobian_finitediff!(J, f, x, jac_config, cache)
     (FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config);
-     2 * maximum(jac_config.colorvec))
+    2 * maximum(jac_config.colorvec))
 end
 
 function jacobian!(J::AbstractMatrix{<:Number}, cache)
@@ -43,7 +43,7 @@ function jacobian!(J::AbstractMatrix{<:Number}, cache)
             uf(fx, x)
             #cache.destats.nf += 1
             tmp = jacobian_finitediff_forward!(J, uf, x, jac_config, fx,
-                                               cache)
+                cache)
         else # not forward difference
             tmp = jacobian_finitediff!(J, uf, x, jac_config, cache)
         end
@@ -71,18 +71,18 @@ function build_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
                 typeof(ForwardDiff.Tag(uf, eltype(u)))
             end
             jac_config = ForwardColorJacCache(uf, u, _chunksize; colorvec = colorvec,
-                                              sparsity = sparsity, tag = T)
+                sparsity = sparsity, tag = T)
         else
             if alg_difftype(alg) !== Val{:complex}
                 jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg_difftype(alg),
-                                                      colorvec = colorvec,
-                                                      sparsity = sparsity)
+                    colorvec = colorvec,
+                    sparsity = sparsity)
             else
                 jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),
-                                                      Complex{eltype(du1)}.(du1), nothing,
-                                                      alg_difftype(alg), eltype(u),
-                                                      colorvec = colorvec,
-                                                      sparsity = sparsity)
+                    Complex{eltype(du1)}.(du1), nothing,
+                    alg_difftype(alg), eltype(u),
+                    colorvec = colorvec,
+                    sparsity = sparsity)
             end
         end
     else
@@ -92,27 +92,27 @@ function build_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
 end
 
 function get_chunksize(jac_config::ForwardDiff.JacobianConfig{
-                                                              T,
-                                                              V,
-                                                              N,
-                                                              D
-                                                              }) where {T, V, N, D
-                                                                        }
+    T,
+    V,
+    N,
+    D,
+}) where {T, V, N, D
+}
     Val(N)
 end # don't degrade compile time information to runtime information
 
 function jacobian_finitediff(f, x, ::Type{diff_type}, dir, colorvec, sparsity,
-                             jac_prototype) where {diff_type}
+    jac_prototype) where {diff_type}
     (FiniteDiff.finite_difference_derivative(f, x, diff_type, eltype(x), dir = dir), 2)
 end
 function jacobian_finitediff(f, x::AbstractArray, ::Type{diff_type}, dir, colorvec,
-                             sparsity, jac_prototype) where {diff_type}
+    sparsity, jac_prototype) where {diff_type}
     f_in = diff_type === Val{:forward} ? f(x) : similar(x)
     ret_eltype = eltype(f_in)
     J = FiniteDiff.finite_difference_jacobian(f, x, diff_type, ret_eltype, f_in,
-                                              dir = dir, colorvec = colorvec,
-                                              sparsity = sparsity,
-                                              jac_prototype = jac_prototype)
+        dir = dir, colorvec = colorvec,
+        sparsity = sparsity,
+        jac_prototype = jac_prototype)
     return J, _nfcount(maximum(colorvec), diff_type)
 end
 function jacobian(cache, f::F) where {F}
@@ -130,7 +130,7 @@ function jacobian(cache, f::F) where {F}
         sparsity, colorvec = sparsity_colorvec(cache.f, x)
         dir = true
         J, tmp = jacobian_finitediff(uf, x, alg_difftype(alg), dir, colorvec, sparsity,
-                                     jac_prototype)
+            jac_prototype)
     end
     J
 end
@@ -146,6 +146,6 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
                              SparseDiffTools.getsize(ForwardDiff.pickchunksize(maxcolor)))) :
                     Int(ceil(maxcolor / _unwrap_val(chunk_size)))
     (forwarddiff_color_jacobian(f, x, colorvec = colorvec, sparsity = sparsity,
-                                jac_prototype = jac_prototype, chunksize = chunk_size),
-     num_of_chunks)
+            jac_prototype = jac_prototype, chunksize = chunk_size),
+        num_of_chunks)
 end

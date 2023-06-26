@@ -5,11 +5,11 @@
     sqrt(real(sum(abs2, u)) / length(u))
 end
 @inline function DEFAULT_NORM(u::StaticArraysCore.StaticArray{
-                                                              T
-                                                              }) where {
-                                                                        T <: Union{
-                                                                              AbstractFloat,
-                                                                              Complex}}
+    T,
+}) where {
+    T <: Union{
+        AbstractFloat,
+        Complex}}
     sqrt(real(sum(abs2, u)) / length(u))
 end
 @inline function DEFAULT_NORM(u::RecursiveArrayTools.AbstractVectorOfArray)
@@ -46,56 +46,56 @@ _vec(v::Number) = v
 _vec(v::AbstractVector) = v
 
 function alg_difftype(alg::AbstractNewtonAlgorithm{
-                                                   CS,
-                                                   AD,
-                                                   FDT,
-                                                   ST,
-                                                   CJ
-                                                   }) where {CS, AD, FDT,
-                                                             ST, CJ}
+    CS,
+    AD,
+    FDT,
+    ST,
+    CJ,
+}) where {CS, AD, FDT,
+    ST, CJ}
     FDT
 end
 
 function concrete_jac(alg::AbstractNewtonAlgorithm{
-                                                   CS,
-                                                   AD,
-                                                   FDT,
-                                                   ST,
-                                                   CJ
-                                                   }) where {CS, AD, FDT,
-                                                             ST, CJ}
+    CS,
+    AD,
+    FDT,
+    ST,
+    CJ,
+}) where {CS, AD, FDT,
+    ST, CJ}
     CJ
 end
 
 function get_chunksize(alg::AbstractNewtonAlgorithm{
-                                                    CS,
-                                                    AD,
-                                                    FDT,
-                                                    ST,
-                                                    CJ
-                                                    }) where {CS, AD,
-                                                              FDT,
-                                                              ST, CJ}
+    CS,
+    AD,
+    FDT,
+    ST,
+    CJ,
+}) where {CS, AD,
+    FDT,
+    ST, CJ}
     Val(CS)
 end
 
 function standardtag(alg::AbstractNewtonAlgorithm{
-                                                  CS,
-                                                  AD,
-                                                  FDT,
-                                                  ST,
-                                                  CJ
-                                                  }) where {CS, AD, FDT,
-                                                            ST, CJ}
+    CS,
+    AD,
+    FDT,
+    ST,
+    CJ,
+}) where {CS, AD, FDT,
+    ST, CJ}
     ST
 end
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
-                    du = nothing, u = nothing, p = nothing, t = nothing,
-                    weight = nothing, cachedata = nothing,
-                    reltol = nothing) where {P}
+    du = nothing, u = nothing, p = nothing, t = nothing,
+    weight = nothing, cachedata = nothing,
+    reltol = nothing) where {P}
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
@@ -106,7 +106,7 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
              linsolve.Pr
 
     _Pl, _Pr = precs(linsolve.A, du, u, p, nothing, A !== nothing, Plprev, Prprev,
-                     cachedata)
+        cachedata)
     if (_Pl !== nothing || _Pr !== nothing)
         _weight = weight === nothing ?
                   (linsolve.Pr isa Diagonal ? linsolve.Pr.diag : linsolve.Pr.inner.diag) :
@@ -128,7 +128,7 @@ end
 function wrapprecs(_Pl, _Pr, weight)
     if _Pl !== nothing
         Pl = LinearSolve.ComposePreconditioner(LinearSolve.InvPreconditioner(Diagonal(_vec(weight))),
-                                               _Pl)
+            _Pl)
     else
         Pl = LinearSolve.InvPreconditioner(Diagonal(_vec(weight)))
     end
