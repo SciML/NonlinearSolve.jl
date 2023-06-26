@@ -118,36 +118,36 @@ struct LevenbergMarquardt{CS, AD, FDT, L, P, ST, CJ, T} <:
 end
 
 function LevenbergMarquardt(; chunk_size = Val{0}(),
-    autodiff = Val{true}(),
-    standardtag = Val{true}(),
-    concrete_jac = nothing,
-    diff_type = Val{:forward},
-    linsolve = nothing,
-    precs = DEFAULT_PRECS,
-    damping_initial::Real = 1.0,
-    damping_increase_factor::Real = 2.0,
-    damping_decrease_factor::Real = 3.0,
-    finite_diff_step_geodesic::Real = 0.1,
-    α_geodesic::Real = 0.75,
-    b_uphill::Real = 1.0,
-    min_damping_D::AbstractFloat = 1e-8)
+                            autodiff = Val{true}(),
+                            standardtag = Val{true}(),
+                            concrete_jac = nothing,
+                            diff_type = Val{:forward},
+                            linsolve = nothing,
+                            precs = DEFAULT_PRECS,
+                            damping_initial::Real = 1.0,
+                            damping_increase_factor::Real = 2.0,
+                            damping_decrease_factor::Real = 3.0,
+                            finite_diff_step_geodesic::Real = 0.1,
+                            α_geodesic::Real = 0.75,
+                            b_uphill::Real = 1.0,
+                            min_damping_D::AbstractFloat = 1e-8)
     LevenbergMarquardt{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
-        typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-        _unwrap_val(concrete_jac),
-        typeof(min_damping_D)}(linsolve, precs,
-        damping_initial,
-        damping_increase_factor,
-        damping_decrease_factor,
-        finite_diff_step_geodesic,
-        α_geodesic,
-        b_uphill,
-        min_damping_D)
+                       typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
+                       _unwrap_val(concrete_jac),
+                       typeof(min_damping_D)}(linsolve, precs,
+                                              damping_initial,
+                                              damping_increase_factor,
+                                              damping_decrease_factor,
+                                              finite_diff_step_geodesic,
+                                              α_geodesic,
+                                              b_uphill,
+                                              min_damping_D)
 end
 
 mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resType, pType,
-    INType, tolType, probType, ufType, L, jType, JC,
-    DᵀDType, λType, lossType,
-}
+                                       INType, tolType, probType, ufType, L, jType, JC,
+                                       DᵀDType, λType, lossType
+                                       }
     f::fType
     alg::algType
     u::uType
@@ -187,42 +187,42 @@ mutable struct LevenbergMarquardtCache{iip, fType, algType, uType, duType, resTy
     stats::NLStats
 
     function LevenbergMarquardtCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-        p::pType, uf::ufType, linsolve::L, J::jType,
-        du_tmp::duType, jac_config::JC,
-        force_stop::Bool, maxiters::Int,
-        internalnorm::INType,
-        retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-        prob::probType, DᵀD::DᵀDType, JᵀJ::jType,
-        λ::λType, λ_factor::λType,
-        damping_increase_factor::λType,
-        damping_decrease_factor::λType, h::λType,
-        α_geodesic::λType, b_uphill::λType,
-        min_damping_D::λType, v::uType,
-        a::uType, tmp_vec::uType, v_old::uType,
-        norm_v_old::lossType, δ::uType,
-        loss_old::lossType, make_new_J::Bool,
-        fu_tmp::resType,
-        mat_tmp::jType,
-        stats::NLStats) where {
-        iip, fType, algType,
-        uType, duType, resType,
-        pType, INType, tolType,
-        probType, ufType, L,
-        jType, JC, DᵀDType,
-        λType, lossType,
-    }
+                                          p::pType, uf::ufType, linsolve::L, J::jType,
+                                          du_tmp::duType, jac_config::JC,
+                                          force_stop::Bool, maxiters::Int,
+                                          internalnorm::INType,
+                                          retcode::SciMLBase.ReturnCode.T, abstol::tolType,
+                                          prob::probType, DᵀD::DᵀDType, JᵀJ::jType,
+                                          λ::λType, λ_factor::λType,
+                                          damping_increase_factor::λType,
+                                          damping_decrease_factor::λType, h::λType,
+                                          α_geodesic::λType, b_uphill::λType,
+                                          min_damping_D::λType, v::uType,
+                                          a::uType, tmp_vec::uType, v_old::uType,
+                                          norm_v_old::lossType, δ::uType,
+                                          loss_old::lossType, make_new_J::Bool,
+                                          fu_tmp::resType,
+                                          mat_tmp::jType,
+                                          stats::NLStats) where {
+                                                                 iip, fType, algType,
+                                                                 uType, duType, resType,
+                                                                 pType, INType, tolType,
+                                                                 probType, ufType, L,
+                                                                 jType, JC, DᵀDType,
+                                                                 λType, lossType
+                                                                 }
         new{iip, fType, algType, uType, duType, resType,
             pType, INType, tolType, probType, ufType, L,
             jType, JC, DᵀDType, λType, lossType}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
-            jac_config, force_stop, maxiters,
-            internalnorm, retcode, abstol, prob, DᵀD,
-            JᵀJ, λ, λ_factor,
-            damping_increase_factor,
-            damping_decrease_factor, h,
-            α_geodesic, b_uphill, min_damping_D,
-            v, a, tmp_vec, v_old,
-            norm_v_old, δ, loss_old, make_new_J,
-            fu_tmp, mat_tmp, stats)
+                                                 jac_config, force_stop, maxiters,
+                                                 internalnorm, retcode, abstol, prob, DᵀD,
+                                                 JᵀJ, λ, λ_factor,
+                                                 damping_increase_factor,
+                                                 damping_decrease_factor, h,
+                                                 α_geodesic, b_uphill, min_damping_D,
+                                                 v, a, tmp_vec, v_old,
+                                                 norm_v_old, δ, loss_old, make_new_J,
+                                                 fu_tmp, mat_tmp, stats)
     end
 end
 
@@ -235,9 +235,9 @@ function jacobian_caches(alg::LevenbergMarquardt, f, u, p, ::Val{true})
     recursivefill!(weight, false)
 
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-            nothing)..., weight)
+                                 nothing)..., weight)
     linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
-        Pl = Pl, Pr = Pr)
+                    Pl = Pl, Pr = Pr)
 
     du1 = zero(u)
     du2 = zero(u)
@@ -252,12 +252,12 @@ function jacobian_caches(alg::LevenbergMarquardt, f, u, p, ::Val{false})
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
-    args...;
-    alias_u0 = false,
-    maxiters = 1000,
-    abstol = 1e-6,
-    internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+                          args...;
+                          alias_u0 = false,
+                          maxiters = 1000,
+                          abstol = 1e-6,
+                          internalnorm = DEFAULT_NORM,
+                          kwargs...) where {uType, iip}
     if alias_u0
         u = prob.u0
     else
@@ -302,13 +302,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     mat_tmp = zero(J)
 
     return LevenbergMarquardtCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du_tmp,
-        jac_config, false, maxiters, internalnorm,
-        ReturnCode.Default, abstol, prob, DᵀD, JᵀJ,
-        λ, λ_factor, damping_increase_factor,
-        damping_decrease_factor, h,
-        α_geodesic, b_uphill, min_damping_D,
-        v, a, tmp_vec, v_old, loss, δ, loss, make_new_J,
-        fu_tmp, mat_tmp, NLStats(1, 0, 0, 0, 0))
+                                        jac_config, false, maxiters, internalnorm,
+                                        ReturnCode.Default, abstol, prob, DᵀD, JᵀJ,
+                                        λ, λ_factor, damping_increase_factor,
+                                        damping_decrease_factor, h,
+                                        α_geodesic, b_uphill, min_damping_D,
+                                        v, a, tmp_vec, v_old, loss, δ, loss, make_new_J,
+                                        fu_tmp, mat_tmp, NLStats(1, 0, 0, 0, 0))
 end
 function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack fu, f, make_new_J = cache
@@ -330,7 +330,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     mul!(cache.fu_tmp, J', fu)
     @. cache.mat_tmp = JᵀJ + λ * DᵀD
     linres = dolinsolve(alg.precs, linsolve, A = cache.mat_tmp, b = _vec(cache.fu_tmp),
-        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
+                        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.v = -cache.du_tmp
 
@@ -342,7 +342,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     mul!(cache.du_tmp, J, v)
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu) / h - cache.du_tmp)
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(cache.fu_tmp),
-        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
+                        linu = _vec(cache.du_tmp), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.a = -cache.du_tmp
     cache.stats.nsolve += 2
@@ -451,5 +451,5 @@ function SciMLBase.solve!(cache::LevenbergMarquardtCache)
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-        retcode = cache.retcode, stats = cache.stats)
+                             retcode = cache.retcode, stats = cache.stats)
 end

@@ -16,7 +16,7 @@ x_sol = ones(n)
 x_start = ones(n)
 x_start[1] = -1.2
 p1_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Generalized Rosenbrock function")
+               "title" => "Generalized Rosenbrock function")
 
 # ------------------------------------- Problem 2 ------------------------------------------
 function p2_f!(out, x, p = nothing)
@@ -31,7 +31,7 @@ n = 4
 x_sol = zeros(n)
 x_start = [3.0, -1.0, 0.0, 1.0]
 p2_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Powell singular function")
+               "title" => "Powell singular function")
 
 # ------------------------------------- Problem 3 ------------------------------------------
 function p3_f!(out, x, p = nothing)
@@ -44,7 +44,7 @@ n = 2
 x_sol = [1.098159e-05, 9.106146]
 x_start = [0.0, 1.0]
 p3_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Powell badly scaled function")
+               "title" => "Powell badly scaled function")
 
 # ------------------------------------- Problem 4 ------------------------------------------
 function p4_f!(out, x, p = nothing)
@@ -62,7 +62,7 @@ n = 4
 x_sol = ones(n)
 x_start = [-3.0, -1.0, -3.0, -1.0]
 p4_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Wood function")
+               "title" => "Wood function")
 
 # ------------------------------------- Problem 5 ------------------------------------------
 function p5_f!(out, x, p = nothing)
@@ -84,7 +84,7 @@ n = 3
 x_sol = [1.0, 0.0, 0.0]
 x_start = [-1.0, 0.0, 0.0]
 p5_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Helical valley function")
+               "title" => "Helical valley function")
 
 # ------------------------------------- Problem 6 ------------------------------------------
 function p6_f!(out, x, p = nothing)
@@ -121,7 +121,7 @@ n = 2
 x_sol = []
 x_start = zeros(n)
 p6_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Watson function")
+               "title" => "Watson function")
 
 # ------------------------------------- Problem 7 ------------------------------------------
 function p7_f!(out, x, p = nothing)
@@ -156,7 +156,7 @@ for i in 1:n
     x_start[i] = (2 * i - n) / (n + 1)
 end
 p7_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Chebyquad function")
+               "title" => "Chebyquad function")
 
 # ------------------------------------- Problem 8 ------------------------------------------
 function p8_f!(out, x, p = nothing)
@@ -170,7 +170,7 @@ n = 10
 x_sol = ones(n)
 x_start = ones(n) ./ 2
 p8_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Brown almost linear function")
+               "title" => "Brown almost linear function")
 
 # ------------------------------------- Problem 9 ------------------------------------------
 function p9_f!(out, x, p = nothing)
@@ -195,7 +195,7 @@ for i in 1:n
     x_start[i] = (i * (i - n - 1)) / (n + 1)^2
 end
 p9_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Discrete boundary value function")
+               "title" => "Discrete boundary value function")
 
 # ------------------------------------- Problem 10 -----------------------------------------
 function p10_f!(out, x, p = nothing)
@@ -226,7 +226,7 @@ for i in 1:n
     x_start[i] = (i * (i - n - 1)) / (n + 1)^2
 end
 p10_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Discrete integral equation function")
+                "title" => "Discrete integral equation function")
 
 # ------------------------------------- Problem 11 -----------------------------------------
 function p11_f!(out, x, p = nothing)
@@ -242,7 +242,7 @@ n = 10
 x_sol = []
 x_start = ones(n) / n
 p11_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Trigonometric function")
+                "title" => "Trigonometric function")
 
 # ------------------------------------- Problem 12 -----------------------------------------
 function p12_f!(out, x, p = nothing)
@@ -264,7 +264,7 @@ for i in 1:n
     x_start[i] = 1.0 - i / n
 end
 p12_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Variably dimensioned function")
+                "title" => "Variably dimensioned function")
 
 # ------------------------------------- Problem 13 -----------------------------------------
 function p13_f!(out, x, p = nothing)
@@ -285,7 +285,7 @@ n = 10
 x_sol = []
 x_start = ones(n) .* (-1.0)
 p13_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Broyden tridiagonal function")
+                "title" => "Broyden tridiagonal function")
 
 # ------------------------------------- Problem 14 -----------------------------------------
 function p14_f!(out, x, p = nothing)
@@ -311,7 +311,7 @@ n = 10
 x_sol = []
 x_start = ones(n) .* (-1.0)
 p14_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Broyden banded function")
+                "title" => "Broyden banded function")
 
 # ------------------------------------- Problem 15 -----------------------------------------
 function p15_f!(out, x, p = nothing)
@@ -326,7 +326,7 @@ n = 4
 x_sol = [0.01, 50.0, 0.0, 0.01]
 x_start = [1.0, 0.0, 0.0, 1.0]
 p15_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Hammarling 2 by 2 matrix square root problem")
+                "title" => "Hammarling 2 by 2 matrix square root problem")
 
 # ------------------------------------- Problem 16 -----------------------------------------
 function p16_f!(out, x, p = nothing)
@@ -346,7 +346,7 @@ n = 9
 x_sol = [0.01, 50.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.01]
 x_start = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 p16_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Hammarling 3 by 3 matrix square root problem")
+                "title" => "Hammarling 3 by 3 matrix square root problem")
 
 # ------------------------------------- Problem 17 -----------------------------------------
 function p17_f!(out, x, p = nothing)
@@ -359,7 +359,7 @@ n = 2
 x_sol = [0.0, 3.0]
 x_start = [1.0, 5.0]
 p17_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Dennis and Schnabel 2 by 2 example")
+                "title" => "Dennis and Schnabel 2 by 2 example")
 
 # ------------------------------------- Problem 18 -----------------------------------------
 function p18_f!(out, x, p = nothing)
@@ -380,7 +380,7 @@ n = 2
 x_sol = zeros(n)
 x_start = [2.0, 2.0]
 p18_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Sample problem 18")
+                "title" => "Sample problem 18")
 
 # ------------------------------------- Problem 19 -----------------------------------------
 function p19_f!(out, x, p = nothing)
@@ -393,7 +393,7 @@ n = 2
 x_sol = zeros(n)
 x_start = [3.0, 3.0]
 p19_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Sample problem 19")
+                "title" => "Sample problem 19")
 
 # ------------------------------------- Problem 20 -----------------------------------------
 function p20_f!(out, x, p = nothing)
@@ -405,7 +405,7 @@ n = 1
 x_sol = [5.0] # OR [0.0]...
 x_start = [1.0]
 p20_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Scalar problem f(x) = x(x - 5)^2")
+                "title" => "Scalar problem f(x) = x(x - 5)^2")
 
 # ------------------------------------- Problem 21 -----------------------------------------
 function p21_f!(out, x, p = nothing)
@@ -418,7 +418,7 @@ n = 2
 x_sol = [5.0, 4.0]
 x_start = [0.5, -2.0]
 p21_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Freudenstein-Roth function")
+                "title" => "Freudenstein-Roth function")
 
 # ------------------------------------- Problem 22 -----------------------------------------
 function p22_f!(out, x, p = nothing)
@@ -431,7 +431,7 @@ n = 2
 x_sol = [0.0, 1.0]
 x_start = [1.0, 0.0]
 p22_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Boggs function")
+                "title" => "Boggs function")
 
 # ------------------------------------- Problem 23 -----------------------------------------
 function p23_f!(out, x, p = nothing)
@@ -456,15 +456,15 @@ n = 10
 x_sol = []
 x_start = ones(n)
 p23_dict = Dict("n" => n, "start" => x_start, "sol" => x_sol,
-    "title" => "Chandrasekhar function")
+                "title" => "Chandrasekhar function")
 
 # ----------------------------------- Solve problems ---------------------------------------
 problems = (p1_f!, p2_f!, p3_f!, p4_f!, p5_f!, p6_f!, p7_f!, p8_f!, p9_f!, p10_f!, p11_f!,
-    p12_f!, p13_f!, p14_f!, p15_f!, p16_f!, p17_f!, p18_f!, p19_f!, p20_f!, p21_f!,
-    p22_f!, p23_f!)
+            p12_f!, p13_f!, p14_f!, p15_f!, p16_f!, p17_f!, p18_f!, p19_f!, p20_f!, p21_f!,
+            p22_f!, p23_f!)
 dicts = (p1_dict, p2_dict, p3_dict, p4_dict, p5_dict, p6_dict, p7_dict, p8_dict, p9_dict,
-    p10_dict, p11_dict, p12_dict, p13_dict, p14_dict, p15_dict, p16_dict, p17_dict,
-    p18_dict, p19_dict, p20_dict, p21_dict, p22_dict, p23_dict)
+         p10_dict, p11_dict, p12_dict, p13_dict, p14_dict, p15_dict, p16_dict, p17_dict,
+         p18_dict, p19_dict, p20_dict, p21_dict, p22_dict, p23_dict)
 algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
 names = ("NewtonRaphson", "TrustRegion", "LevenbergMarquardt")
 
@@ -475,7 +475,7 @@ for (problem, dict) in zip(problems, dicts)
         local out = similar(x)
         try
             problem(out,
-                solve(nlprob, alg, abstol = 1e-15, reltol = 1e-15).u, nothing)
+                    solve(nlprob, alg, abstol = 1e-15, reltol = 1e-15).u, nothing)
             dict["error_" * name] = ""
         catch
             # println("Error in $name")
