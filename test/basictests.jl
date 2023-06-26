@@ -288,7 +288,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, csu0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Bastin),
-                abstol = 1e-9)
+        abstol = 1e-9)
     return sol.u[end]
 end
 
@@ -358,7 +358,7 @@ end
 g = function (p)
     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Bastin),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 
@@ -516,7 +516,7 @@ f(u, p)
 g = function (p)
     probN = NonlinearProblem{false}(f, u0, p)
     sol = solve(probN, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Bastin),
-                abstol = 1e-10)
+        abstol = 1e-10)
     return sol.u
 end
 p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

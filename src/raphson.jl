@@ -85,8 +85,10 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-        p::pType, uf::ufType, linsolve::L, J::jType, du1::duType,
-        jac_config::JC, force_stop::Bool, maxiters::Int, internalnorm::INType,
+        p::pType, uf::ufType, linsolve::L, J::jType,
+        du1::duType,
+        jac_config::JC, force_stop::Bool, maxiters::Int,
+        internalnorm::INType,
         retcode::SciMLBase.ReturnCode.T, abstol::tolType,
         prob::probType,
         stats::NLStats) where {
