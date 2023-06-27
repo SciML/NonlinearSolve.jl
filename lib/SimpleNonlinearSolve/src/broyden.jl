@@ -1,7 +1,8 @@
 """
     Broyden(; batched = false,
-            termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-                                                                abstol = nothing, reltol = nothing))
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
@@ -20,7 +21,11 @@ function Broyden(; batched = false,
     termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
         abstol = nothing,
         reltol = nothing))
-    return (batched ? BatchedBroyden : Broyden)(termination_condition)
+    if batched
+        @assert NNlibExtLoaded[] "Please install and load `NNlib.jl` to use batched Broyden."
+        return BatchedBroyden(termination_condition)
+    end
+    return Broyden(termination_condition)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;

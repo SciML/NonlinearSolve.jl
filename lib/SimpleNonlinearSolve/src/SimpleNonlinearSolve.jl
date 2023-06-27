@@ -15,6 +15,9 @@ function __init__()
     @require_extensions
 end
 
+const ADLinearSolveExtLoaded = Ref{Bool}(false)
+const NNlibExtLoaded = Ref{Bool}(false)
+
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
@@ -75,6 +78,7 @@ end
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
     Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld
-export BatchedBroyden
+export BatchedBroyden, SimpleBatchedNewtonRaphson, SimpleBatchedDFSane,
+    BatchedLBroyden
 
 end # module

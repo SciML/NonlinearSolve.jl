@@ -1,8 +1,8 @@
 """
-```julia
-SimpleNewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                                 diff_type = Val{:forward})
-```
+    SimpleNewtonRaphson(; batched = false,
+        chunk_size = Val{0}(),
+        autodiff = Val{true}(),
+        diff_type = Val{:forward})
 
 A low-overhead implementation of Newton-Raphson. This method is non-allocating on scalar
 and static array problems.
@@ -27,13 +27,37 @@ and static array problems.
 - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
   `Val{:forward}` for forward finite differences. For more details on the choices, see the
   [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+
+!!! note
+
+    To use the `batched` version, remember to load `AbstractDifferentiation` and
+    `LinearSolve`.
 """
-struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
-    function SimpleNewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
-        diff_type = Val{:forward})
-        new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
-            SciMLBase._unwrap_val(diff_type)}()
+struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT} end
+
+function SimpleNewtonRaphson(; batched=false,
+    chunk_size = Val{0}(),
+    autodiff = Val{true}(),
+    diff_type = Val{:forward},
+    termination_condition = missing)
+    if !ismissing(termination_condition) && !batched
+        throw(ArgumentError("`termination_condition` is currently only supported for batched problems"))
     end
+    if batched
+        @assert ADLinearSolveExtLoaded[] "Please install and load `LinearSolve.jl` and `AbstractDifferentiation.jl` to use batched Newton-Raphson."
+        termination_condition = ismissing(termination_condition) ?
+            NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+                abstol = nothing,
+                reltol = nothing) :
+            termination_condition
+        return SimpleBatchedNewtonRaphson(; chunk_size,
+            autodiff,
+            diff_type,
+            termination_condition)
+    end
+    return SimpleNewtonRaphson{SciMLBase._unwrap_val(chunk_size),
+        SciMLBase._unwrap_val(autodiff),
+        SciMLBase._unwrap_val(diff_type)}()
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,

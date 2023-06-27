@@ -1,7 +1,12 @@
-module SimpleBatchedNonlinearSolveExt
+module SimpleNonlinearSolveNNlibExt
 
-using ArrayInterface, DiffEqBase, LinearAlgebra, SimpleNonlinearSolve, SciMLBase, NNlib
+using ArrayInterface, DiffEqBase, LinearAlgebra, NNlib, SimpleNonlinearSolve, SciMLBase
 import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage, _init_𝓙, _result_from_storage, _get_tolerance, @maybeinplace
+
+function __init__()
+    SimpleNonlinearSolve.NNlibExtLoaded[] = true
+    return
+end
 
 @views function SciMLBase.__solve(prob::NonlinearProblem,
     alg::BatchedBroyden;
@@ -10,7 +15,6 @@ import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage,
     maxiters=1000,
     kwargs...)
     iip = isinplace(prob)
-    u0 = prob.u0
 
     u, f, reconstruct = _construct_batched_problem_structure(prob)
     L, N = size(u)
@@ -49,7 +53,7 @@ import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage,
         batched_mul!(𝓙⁻¹, reshape(δx, L, 1, N), xᵀ𝓙⁻¹, one(T), one(T))
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
-            retcode, xₙ, fₙ = _result_from_storage(storage, xₙ, fₙ, f, mode)
+            retcode, xₙ, fₙ = _result_from_storage(storage, xₙ, fₙ, f, mode, iip)
             return DiffEqBase.build_solution(prob,
                 alg,
                 reconstruct(xₙ),
