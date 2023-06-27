@@ -5,12 +5,12 @@ using DiffEqBase
 using LinearAlgebra
 using Test
 
-const BATCHED_BROYDEN_SOLVERS = Broyden[]
-const BROYDEN_SOLVERS = Broyden[]
-const BATCHED_LBROYDEN_SOLVERS = LBroyden[]
-const LBROYDEN_SOLVERS = LBroyden[]
-const BATCHED_DFSANE_SOLVERS = SimpleDFSane[]
-const DFSANE_SOLVERS = SimpleDFSane[]
+const BATCHED_BROYDEN_SOLVERS = []
+const BROYDEN_SOLVERS = []
+const BATCHED_LBROYDEN_SOLVERS = []
+const LBROYDEN_SOLVERS = []
+const BATCHED_DFSANE_SOLVERS = []
+const DFSANE_SOLVERS = []
 
 for mode in instances(NLSolveTerminationMode.T)
     if mode ∈

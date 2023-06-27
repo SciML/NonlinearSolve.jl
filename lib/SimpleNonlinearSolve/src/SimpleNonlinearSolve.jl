@@ -19,6 +19,7 @@ abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonline
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractImmutableNonlinearSolver <: AbstractSimpleNonlinearSolveAlgorithm end
+abstract type AbstractBatchedNonlinearSolveAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
 include("bisection.jl")
@@ -34,6 +35,13 @@ include("dfsane.jl")
 include("ad.jl")
 include("halley.jl")
 include("alefeld.jl")
+
+# Batched Solver Support
+include("batched/utils.jl")
+include("batched/raphson.jl")
+include("batched/dfsane.jl")
+include("batched/broyden.jl")
+include("batched/lbroyden.jl")
 
 import PrecompileTools
 
@@ -67,5 +75,6 @@ end
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
     Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld
+export BatchedBroyden
 
 end # module

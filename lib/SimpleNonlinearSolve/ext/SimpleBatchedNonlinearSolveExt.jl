@@ -1,90 +1,76 @@
 module SimpleBatchedNonlinearSolveExt
 
-using ArrayInterface, DiffEqBase, LinearAlgebra, SimpleNonlinearSolve, SciMLBase
+using ArrayInterface, DiffEqBase, LinearAlgebra, SimpleNonlinearSolve, SciMLBase, NNlib
+import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage, _init_𝓙, _result_from_storage, _get_tolerance, @maybeinplace
 
-isdefined(Base, :get_extension) ? (using NNlib) : (using ..NNlib)
+@views function SciMLBase.__solve(prob::NonlinearProblem,
+    alg::BatchedBroyden;
+    abstol=nothing,
+    reltol=nothing,
+    maxiters=1000,
+    kwargs...)
+    iip = isinplace(prob)
+    u0 = prob.u0
 
-_batch_transpose(x) = reshape(x, 1, size(x)...)
+    u, f, reconstruct = _construct_batched_problem_structure(prob)
+    L, N = size(u)
 
-_batched_mul(x, y) = x * y
-
-function _batched_mul(x::AbstractArray{T, 3}, y::AbstractMatrix) where {T}
-    return dropdims(batched_mul(x, reshape(y, size(y, 1), 1, size(y, 2))); dims = 2)
-end
-
-function _batched_mul(x::AbstractMatrix, y::AbstractArray{T, 3}) where {T}
-    return batched_mul(reshape(x, size(x, 1), 1, size(x, 2)), y)
-end
-
-function _batched_mul(x::AbstractArray{T1, 3}, y::AbstractArray{T2, 3}) where {T1, T2}
-    return batched_mul(x, y)
-end
-
-function _init_J_batched(x::AbstractMatrix{T}) where {T}
-    J = ArrayInterface.zeromatrix(x[:, 1])
-    if ismutable(x)
-        J[diagind(J)] .= one(eltype(x))
-    else
-        J += I
-    end
-    return repeat(J, 1, 1, size(x, 2))
-end
-
-function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{true}, args...;
-    abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
-    f = Base.Fix2(prob.f, prob.p)
-    x = float(prob.u0)
 
-    if ndims(x) != 2
-        error("`batch` mode works only if `ndims(prob.u0) == 2`")
-    end
+    storage = _get_storage(mode, u)
 
-    fₙ = f(x)
-    T = eltype(x)
-    J⁻¹ = _init_J_batched(x)
+    xₙ, xₙ₋₁, δx, δf = ntuple(_ -> copy(u), 4)
+    T = eltype(u)
 
-    if SciMLBase.isinplace(prob)
-        error("Broyden currently only supports out-of-place nonlinear problems")
-    end
-
-    atol = abstol !== nothing ? abstol :
-           (tc.abstol !== nothing ? tc.abstol :
-            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
-    rtol = reltol !== nothing ? reltol :
-           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
-
-    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
-        error("Broyden currently doesn't support SAFE_BEST termination modes")
-    end
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    atol = _get_tolerance(abstol, tc.abstol, T)
+    rtol = _get_tolerance(reltol, tc.reltol, T)
     termination_condition = tc(storage)
 
-    xₙ = x
-    xₙ₋₁ = x
-    fₙ₋₁ = fₙ
-    for i in 1:maxiters
-        xₙ = xₙ₋₁ .- _batched_mul(J⁻¹, fₙ₋₁)
-        fₙ = f(xₙ)
-        Δxₙ = xₙ .- xₙ₋₁
-        Δfₙ = fₙ .- fₙ₋₁
-        J⁻¹Δfₙ = _batched_mul(J⁻¹, Δfₙ)
-        J⁻¹ += _batched_mul(((Δxₙ .- J⁻¹Δfₙ) ./
-                             (_batched_mul(_batch_transpose(Δxₙ), J⁻¹Δfₙ) .+ T(1e-5))),
-            _batched_mul(_batch_transpose(Δxₙ), J⁻¹))
+    𝓙⁻¹ = _init_𝓙(xₙ)  # L × L × N
+    𝓙⁻¹f, xᵀ𝓙⁻¹δf, xᵀ𝓙⁻¹ = similar(𝓙⁻¹, L, N), similar(𝓙⁻¹, 1, N), similar(𝓙⁻¹, 1, L, N)
+
+    @maybeinplace iip fₙ₋₁=f(xₙ) u
+    iip && (fₙ = copy(fₙ₋₁))
+    for n in 1:maxiters
+        batched_mul!(reshape(𝓙⁻¹f, L, 1, N), 𝓙⁻¹, reshape(fₙ₋₁, L, 1, N))
+        xₙ .= xₙ₋₁ .- 𝓙⁻¹f
+
+        @maybeinplace iip fₙ=f(xₙ)
+        δx .= xₙ .- xₙ₋₁
+        δf .= fₙ .- fₙ₋₁
+
+        batched_mul!(reshape(𝓙⁻¹f, L, 1, N), 𝓙⁻¹, reshape(δf, L, 1, N))
+        δxᵀ = reshape(δx, 1, L, N)
+
+        batched_mul!(reshape(xᵀ𝓙⁻¹δf, 1, 1, N), δxᵀ, reshape(𝓙⁻¹f, L, 1, N))
+        batched_mul!(xᵀ𝓙⁻¹, δxᵀ, 𝓙⁻¹)
+        δx .= (δx .- 𝓙⁻¹f) ./ (xᵀ𝓙⁻¹δf .+ T(1e-5))
+        batched_mul!(𝓙⁻¹, reshape(δx, L, 1, N), xᵀ𝓙⁻¹, one(T), one(T))
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
+            retcode, xₙ, fₙ = _result_from_storage(storage, xₙ, fₙ, f, mode)
+            return DiffEqBase.build_solution(prob,
+                alg,
+                reconstruct(xₙ),
+                reconstruct(fₙ);
+                retcode)
         end
 
-        xₙ₋₁ = xₙ
-        fₙ₋₁ = fₙ
+        xₙ₋₁ .= xₙ
+        fₙ₋₁ .= fₙ
     end
 
-    return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
+    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
+        xₙ = storage.u
+        @maybeinplace iip fₙ=f(xₙ)
+    end
+
+    return DiffEqBase.build_solution(prob,
+        alg,
+        reconstruct(xₙ),
+        reconstruct(fₙ);
+        retcode=ReturnCode.MaxIters)
 end
 
 end

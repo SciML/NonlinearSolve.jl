@@ -11,19 +11,19 @@ and static array problems.
     To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
     `import NNlib` must be present in your code.
 """
-struct Broyden{batched, TC <: NLSolveTerminationCondition} <:
+struct Broyden{TC <: NLSolveTerminationCondition} <:
        AbstractSimpleNonlinearSolveAlgorithm
     termination_condition::TC
-
-    function Broyden(; batched = false,
-        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-            abstol = nothing,
-            reltol = nothing))
-        return new{batched, typeof(termination_condition)}(termination_condition)
-    end
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
+function Broyden(; batched = false,
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        abstol = nothing,
+        reltol = nothing))
+    return (batched ? BatchedBroyden : Broyden)(termination_condition)
+end
+
+function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
     abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
