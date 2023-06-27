@@ -30,7 +30,7 @@ function Itp(k1::Real = Val{1}(), k2::Real = Val{2}(), n0::Int = Val{1}())
 end
 
 function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
-                            args..., abstol = nothing, reltol = nothing, 
+                            args..., abstol = 1e-8, reltol = nothing, 
                             maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
