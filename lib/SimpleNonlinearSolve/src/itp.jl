@@ -23,9 +23,38 @@ function Itp(k1::Real = Val{1}(), k2::Real = Val{2}(), n0::Int = Val{1}())
     Itp(k1, k2, n0)
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::Itp,
+function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
                             args..., abstol = nothing, reltol = nothing, 
                             maxiters = 1000, kwargs...)
+    f = Base.Fix2(prob.f, prob.p)
+    left, right = prob.tspan # a and b
+    fl, fr = f(left), f(right)
+    ϵ = abstol
+    if iszero(fl)
+        return SciMLBase.build_solution(prob, alg, left, fl;
+            retcode = ReturnCode.ExactSolutionLeft, left = left,
+            right = right)
+    end
 
+    if iszero(fr)
+
+    end
+    #defining variables/cache
+    k1 = alg.k1
+    k2 = alg.k2
+    n0 = alg.k3
+    n_h = ceil(log2((right - left) / (2 * ϵ)))
+    n_max = n_h + n0
+    mid = (left + right) / 2
+    x_f = (fr * left - fl * right) / (fr - fl)
+    r = zero(left)
+    δ = zero(left)
+    σ = sign(mid - x_f)
+    i = 0 #iteration
+    while i <= maxiters
+        mid = (left + right) / 2
+        r = ϵ * 2 ^ (n_max - i) - ((right - left) / 2)
+        δ = k1 * (right - left) ^ k2
+    end
                                
 end
