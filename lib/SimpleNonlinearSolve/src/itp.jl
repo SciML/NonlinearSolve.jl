@@ -47,14 +47,57 @@ function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
     n_max = n_h + n0
     mid = (left + right) / 2
     x_f = (fr * left - fl * right) / (fr - fl)
-    r = zero(left)
-    δ = zero(left)
-    σ = sign(mid - x_f)
+    xt = left
+    xp = left
+    r = zero(left) #minmax radius
+    δ = zero(left) # truncation error
+    σ = 1.0
     i = 0 #iteration
     while i <= maxiters
-        mid = (left + right) / 2
+        #mid = (left + right) / 2
         r = ϵ * 2 ^ (n_max - i) - ((right - left) / 2)
         δ = k1 * (right - left) ^ k2
+
+        ## Interpolation step ##
+        x_f =  (fr * left - fl * right) / (fr - fl)
+
+        ## Truncation step ##
+        σ = sign(mid - x_f)
+        if δ <= abs(mid - x_f)
+            xt = x_f + (σ * δ)
+        else
+            xt = mid
+        end
+
+        ## Projection step ##
+        if abs(xt - mid) <= r
+            xp = xt
+        else
+            xp = mid - (σ * r)
+        end
+
+        ## Update ##
+        yp = f(xp)
+        if yp > 0
+            right = xp
+            fr = yp
+        elseif yp < 0
+            left = xp
+            fl = yp
+        else
+            left = xp
+            right = xp
+        end
+        i += 1
+        mid = (left + right) / 2
+
+        if (right - left < 2 * ϵ)
+            return SciMLBase.build_solution(prob, alg, mid, fl;
+            retcode = ReturnCode.Success, left = left,
+            right = right)
+        end
     end
+    return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
+        left = left, right = right)
                                
 end
