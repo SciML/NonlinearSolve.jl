@@ -1,9 +1,5 @@
-using SimpleNonlinearSolve
-using StaticArrays
-using BenchmarkTools
-using DiffEqBase
-using LinearAlgebra
-using Test
+using SimpleNonlinearSolve, StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
+    NNlib, AbstractDifferentiation, LinearSolve
 
 const BATCHED_BROYDEN_SOLVERS = []
 const BROYDEN_SOLVERS = []
@@ -476,9 +472,6 @@ for options in list_of_options
     @test all(abs.(f(u, p)) .< 1e-10)
 end
 
-# Batched Broyden
-using NNlib
-
 f, u0 = (u, p) -> u .* u .- p, randn(1, 3)
 
 p = [2.0 1.0 5.0];
@@ -488,7 +481,7 @@ sol = solve(probN, Broyden(batched = true))
 
 @test abs.(sol.u) ≈ sqrt.(p)
 
-for alg in (BATCHED_BROYDEN_SOLVERS...,
+@testset "Batched Solver: $(nameof(typeof(alg)))" for alg in (BATCHED_BROYDEN_SOLVERS...,
     BATCHED_LBROYDEN_SOLVERS...,
     BATCHED_DFSANE_SOLVERS...)
     sol = solve(probN, alg; abstol = 1e-3, reltol = 1e-3)

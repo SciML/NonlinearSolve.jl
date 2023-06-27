@@ -2,12 +2,12 @@ macro maybeinplace(iip::Symbol, expr::Expr, u0::Union{Symbol, Nothing}=nothing)
     @assert expr.head == :(=)
     x1, x2 = expr.args
     @assert x2.head == :call
-    f, x = x2.args
+    f, x... = x2.args
     define_expr = u0 === nothing ? :() : :($(x1) = similar($(u0)))
     return quote
         if $(esc(iip))
             $(esc(define_expr))
-            $(esc(f))($(esc(x1)), $(esc(x)))
+            $(esc(f))($(esc(x1)), $(esc.(x)...))
         else
             $(esc(expr))
         end

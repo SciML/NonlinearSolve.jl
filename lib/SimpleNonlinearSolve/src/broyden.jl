@@ -43,11 +43,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
         error("Broyden currently only supports out-of-place nonlinear problems")
     end
 
-    atol = abstol !== nothing ? abstol :
-           (tc.abstol !== nothing ? tc.abstol :
-            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
-    rtol = reltol !== nothing ? reltol :
-           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
+    atol = _get_tolerance(abstol, tc.abstol, T)
+    rtol = _get_tolerance(reltol, tc.reltol, T)
 
     if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
         error("Broyden currently doesn't support SAFE_BEST termination modes")
