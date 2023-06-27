@@ -40,10 +40,10 @@ function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
         return SciMLBase.build_solution(prob, alg, left, fl;
             retcode = ReturnCode.ExactSolutionLeft, left = left,
             right = right)
-    end
-
-    if iszero(fr)
-
+    elseif iszero(fr)
+        return SciMLBase.build_solution(prob, alg, right, fr;
+            retcode = ReturnCode.ExactSolutionRight, left = left,
+            right = right)
     end
     #defining variables/cache
     k1 = alg.k1
