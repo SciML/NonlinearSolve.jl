@@ -20,7 +20,13 @@ function Itp(k1::Real = Val{1}(), k2::Real = Val{2}(), n0::Int = Val{1}())
     if !isa(n0, Int)
         ArgumentError("Hyper-parameter n₀ should be an Integer")
     end
-    Itp(k1, k2, n0)
+    if n0 < 0
+        ArgumentError("Hyper-parameter n₀ should not be negative")
+    end
+    if k2 < 1 || k2 > (1.5 + sqrt(5) / 2)
+        ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where ϕ ≈ 1.618... is the golden ratio")
+    end
+    return Itp(k1, k2, n0)
 end
 
 function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
