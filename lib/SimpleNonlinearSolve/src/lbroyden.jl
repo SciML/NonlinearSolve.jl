@@ -11,134 +11,121 @@ Broyden's method.
 
     This method is not very stable and can diverge even for very simple problems. This has mostly been
     tested for neural networks in DeepEquilibriumNetworks.jl.
+
+!!! note
+
+    To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
+    `import NNlib` must be present in your code.
 """
 struct LBroyden{batched, TC <: NLSolveTerminationCondition} <:
        AbstractSimpleNonlinearSolveAlgorithm
     termination_condition::TC
     threshold::Int
-
-    function LBroyden(; batched = false, threshold::Int = 27,
-        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-            abstol = nothing,
-            reltol = nothing))
-        return new{batched, typeof(termination_condition)}(termination_condition, threshold)
-    end
 end
 
-@views function SciMLBase.__solve(prob::NonlinearProblem, alg::LBroyden{batched}, args...;
+function LBroyden(; batched = false, threshold::Int = 27,
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        abstol = nothing,
+        reltol = nothing))
+    if batched
+        @assert NNlibExtLoaded[] "Please install and load `NNlib.jl` to use batched Broyden."
+        return BatchedLBroyden(termination_condition, threshold)
+    end
+    return LBroyden{true, typeof(termination_condition)}(termination_condition, threshold)
+end
+
+@views function SciMLBase.__solve(prob::NonlinearProblem, alg::LBroyden, args...;
     abstol = nothing, reltol = nothing, maxiters = 1000,
-    kwargs...) where {batched}
+    kwargs...)
+    if SciMLBase.isinplace(prob)
+        error("LBroyden currently only supports out-of-place nonlinear problems")
+    end
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
-    threshold = min(maxiters, alg.threshold)
+    η = min(maxiters, alg.threshold)
     x = float(prob.u0)
 
-    batched && @assert ndims(x)==2 "Batched LBroyden only supports 2D arrays"
-
+    # FIXME: The scalar case currently is very inefficient
     if x isa Number
         restore_scalar = true
         x = [x]
-        f = u -> prob.f(u[], prob.p)
+        f = u -> [prob.f(u[], prob.p)]
     else
         f = Base.Fix2(prob.f, prob.p)
         restore_scalar = false
     end
 
-    fₙ = f(x)
+    L = length(x)
     T = eltype(x)
 
-    if SciMLBase.isinplace(prob)
-        error("LBroyden currently only supports out-of-place nonlinear problems")
-    end
+    U = fill!(similar(x, (η, L)), zero(T))
+    Vᵀ = fill!(similar(x, (L, η)), zero(T))
 
-    U, Vᵀ = _init_lbroyden_state(batched, x, threshold)
-
-    atol = abstol !== nothing ? abstol :
-           (tc.abstol !== nothing ? tc.abstol :
-            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
-    rtol = reltol !== nothing ? reltol :
-           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
-
-    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
-        error("LBroyden currently doesn't support SAFE_BEST termination modes")
-    end
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    atol = _get_tolerance(abstol, tc.abstol, T)
+    rtol = _get_tolerance(reltol, tc.reltol, T)
+    storage = _get_storage(mode, x)
     termination_condition = tc(storage)
 
-    xₙ = x
-    xₙ₋₁ = x
-    fₙ₋₁ = fₙ
-    update = fₙ
-    for i in 1:maxiters
-        xₙ = xₙ₋₁ .+ update
-        fₙ = f(xₙ)
-        Δxₙ = xₙ .- xₙ₋₁
-        Δfₙ = fₙ .- fₙ₋₁
+    xₙ, xₙ₋₁, δfₙ = ntuple(_ -> copy(x), 3)
+    fₙ₋₁ = f(x)
+    δxₙ = -copy(fₙ₋₁)
+    ηNx = similar(xₙ, η)
 
-        if termination_condition(restore_scalar ? [fₙ] : fₙ, xₙ, xₙ₋₁, atol, rtol)
+    for i in 1:maxiters
+        @. xₙ = xₙ₋₁ - δxₙ
+        fₙ = f(xₙ)
+        @. δxₙ = xₙ - xₙ₋₁
+        @. δfₙ = fₙ - fₙ₋₁
+
+        if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
+            retcode, xₙ, fₙ = _result_from_storage(storage, xₙ, fₙ, f, mode, Val(false))
             xₙ = restore_scalar ? xₙ[] : xₙ
-            return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
+            fₙ = restore_scalar ? fₙ[] : fₙ
+            return DiffEqBase.build_solution(prob, alg, xₙ, fₙ; retcode)
         end
 
-        _U = selectdim(U, 1, 1:min(threshold, i))
-        _Vᵀ = selectdim(Vᵀ, 2, 1:min(threshold, i))
+        _L = min(i, η)
+        _U = U[1:_L, :]
+        _Vᵀ = Vᵀ[:, 1:_L]
 
-        vᵀ = _rmatvec(_U, _Vᵀ, Δxₙ)
-        mvec = _matvec(_U, _Vᵀ, Δfₙ)
-        u = (Δxₙ .- mvec) ./ (sum(vᵀ .* Δfₙ) .+ convert(T, 1e-5))
+        idx = mod1(i, η)
 
-        selectdim(Vᵀ, 2, mod1(i, threshold)) .= vᵀ
-        selectdim(U, 1, mod1(i, threshold)) .= u
+        partial_ηNx = ηNx[1:_L]
 
-        update = -_matvec(selectdim(U, 1, 1:min(threshold, i + 1)),
-            selectdim(Vᵀ, 2, 1:min(threshold, i + 1)), fₙ)
+        if i > 1
+            _ηNx = reshape(partial_ηNx, 1, :)
+            mul!(_ηNx, reshape(δxₙ, 1, L), _Vᵀ)
+            mul!(Vᵀ[:, idx:idx], _ηNx, _U)
+            Vᵀ[:, idx] .-= δxₙ
 
-        xₙ₋₁ = xₙ
-        fₙ₋₁ = fₙ
+            _ηNx = reshape(partial_ηNx, :, 1)
+            mul!(_ηNx, _U, reshape(δfₙ, L, 1))
+            mul!(U[idx:idx, :], _Vᵀ, _ηNx)
+            U[idx, :] .-= δfₙ
+        else
+            Vᵀ[:, idx] .= -δxₙ
+            U[idx, :] .= -δfₙ
+        end
+
+        U[idx, :] .= (δxₙ .- U[idx, :]) ./
+                     (sum(Vᵀ[:, idx] .* δfₙ) .+
+                      convert(T, 1e-5))
+
+        _L = min(i + 1, η)
+        _ηNx = reshape(ηNx[1:_L], :, 1)
+        mul!(_ηNx, U[1:_L, :], reshape(δfₙ, L, 1))
+        mul!(reshape(δxₙ, L, 1), Vᵀ[:, 1:_L], _ηNx)
+
+        xₙ₋₁ .= xₙ
+        fₙ₋₁ .= fₙ
+    end
+
+    if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
+        xₙ = storage.u
+        fₙ = f(xₙ)
     end
 
     xₙ = restore_scalar ? xₙ[] : xₙ
-    return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
+    fₙ = restore_scalar ? fₙ[] : fₙ
+    return DiffEqBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
 end
-
-function _init_lbroyden_state(batched::Bool, x, threshold)
-    T = eltype(x)
-    if batched
-        U = fill!(similar(x, (threshold, size(x, 1), size(x, 2))), zero(T))
-        Vᵀ = fill!(similar(x, (size(x, 1), threshold, size(x, 2))), zero(T))
-    else
-        U = fill!(similar(x, (threshold, length(x))), zero(T))
-        Vᵀ = fill!(similar(x, (length(x), threshold)), zero(T))
-    end
-    return U, Vᵀ
-end
-
-function _rmatvec(U::AbstractMatrix, Vᵀ::AbstractMatrix,
-    x::Union{<:AbstractVector, <:Number})
-    length(U) == 0 && return x
-    return -x .+ vec((x' * Vᵀ) * U)
-end
-
-function _rmatvec(U::AbstractArray{T1, 3}, Vᵀ::AbstractArray{T2, 3},
-    x::AbstractMatrix) where {T1, T2}
-    length(U) == 0 && return x
-    Vᵀx = sum(Vᵀ .* reshape(x, size(x, 1), 1, size(x, 2)); dims = 1)
-    return -x .+ _drdims_sum(U .* permutedims(Vᵀx, (2, 1, 3)); dims = 1)
-end
-
-function _matvec(U::AbstractMatrix, Vᵀ::AbstractMatrix,
-    x::Union{<:AbstractVector, <:Number})
-    length(U) == 0 && return x
-    return -x .+ vec(Vᵀ * (U * x))
-end
-
-function _matvec(U::AbstractArray{T1, 3}, Vᵀ::AbstractArray{T2, 3},
-    x::AbstractMatrix) where {T1, T2}
-    length(U) == 0 && return x
-    xUᵀ = sum(reshape(x, size(x, 1), 1, size(x, 2)) .* permutedims(U, (2, 1, 3)); dims = 1)
-    return -x .+ _drdims_sum(xUᵀ .* Vᵀ; dims = 2)
-end
-
-_drdims_sum(args...; dims = :) = dropdims(sum(args...; dims); dims)
