@@ -1,10 +1,8 @@
 module SimpleNonlinearSolveADLinearSolveExt
 
-using AbstractDifferentiation,
-    ArrayInterface, DiffEqBase, LinearAlgebra, LinearSolve,
+using AbstractDifferentiation, ArrayInterface, DiffEqBase, LinearAlgebra, LinearSolve,
     SimpleNonlinearSolve, SciMLBase
-import SimpleNonlinearSolve: _construct_batched_problem_structure,
-    _get_storage, _result_from_storage, _get_tolerance, @maybeinplace
+import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage, _result_from_storage, _get_tolerance, @maybeinplace
 
 const AD = AbstractDifferentiation
 
@@ -22,18 +20,19 @@ function SimpleNonlinearSolve.SimpleBatchedNewtonRaphson(; chunk_size = Val{0}()
     # TODO: Use `diff_type`. FiniteDiff.jl is currently not available in AD.jl
     chunksize = SciMLBase._unwrap_val(chunk_size) == 0 ? nothing : chunk_size
     ad = SciMLBase._unwrap_val(autodiff) ?
-         AD.ForwardDiffBackend(; chunksize) :
-         AD.FiniteDifferencesBackend()
-    return SimpleBatchedNewtonRaphson{typeof(ad), Nothing, typeof(termination_condition)}(ad,
+        AD.ForwardDiffBackend(; chunksize) :
+        AD.FiniteDifferencesBackend()
+    return SimpleBatchedNewtonRaphson{typeof(ad), Nothing, typeof(termination_condition)}(
+        ad,
         nothing,
         termination_condition)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
     alg::SimpleBatchedNewtonRaphson;
-    abstol = nothing,
-    reltol = nothing,
-    maxiters = 1000,
+    abstol=nothing,
+    reltol=nothing,
+    maxiters=1000,
     kwargs...)
     iip = isinplace(prob)
     @assert !iip "SimpleBatchedNewtonRaphson currently only supports out-of-place nonlinear problems."
@@ -58,9 +57,9 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             alg,
             reconstruct(xₙ),
             reconstruct(fₙ);
-            retcode = ReturnCode.Success)
+            retcode=ReturnCode.Success)
 
-        solve(LinearProblem(𝓙, vec(fₙ); u0 = vec(δx)), alg.linsolve; kwargs...)
+        solve(LinearProblem(𝓙, vec(fₙ); u0=vec(δx)), alg.linsolve; kwargs...)
         xₙ .-= δx
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
@@ -84,7 +83,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         alg,
         reconstruct(xₙ),
         reconstruct(fₙ);
-        retcode = ReturnCode.MaxIters)
+        retcode=ReturnCode.MaxIters)
 end
 
 end

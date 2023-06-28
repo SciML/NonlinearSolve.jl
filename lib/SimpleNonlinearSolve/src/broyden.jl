@@ -30,9 +30,6 @@ end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
     abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
-    if SciMLBase.isinplace(prob)
-        error("Broyden currently only supports out-of-place nonlinear problems")
-    end
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)
@@ -42,6 +39,10 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
     T = eltype(x)
     J⁻¹ = init_J(x)
 
+    if SciMLBase.isinplace(prob)
+        error("Broyden currently only supports out-of-place nonlinear problems")
+    end
+
     atol = _get_tolerance(abstol, tc.abstol, T)
     rtol = _get_tolerance(reltol, tc.reltol, T)
 
@@ -49,7 +50,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
         error("Broyden currently doesn't support SAFE_BEST termination modes")
     end
 
-    storage = _get_storage(mode, x)
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
     termination_condition = tc(storage)
 
     xₙ = x
