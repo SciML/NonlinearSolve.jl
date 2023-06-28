@@ -28,7 +28,7 @@ struct Itp <: AbstractBracketingAlgorithm
     end
 end
 
-function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
                             args...; abstol = nothing,
                             maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
