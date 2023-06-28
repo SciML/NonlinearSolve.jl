@@ -1,7 +1,8 @@
 module SimpleNonlinearSolveNNlibExt
 
 using ArrayInterface, DiffEqBase, LinearAlgebra, NNlib, SimpleNonlinearSolve, SciMLBase
-import SimpleNonlinearSolve: _construct_batched_problem_structure, _get_storage, _init_𝓙, _result_from_storage, _get_tolerance, @maybeinplace
+import SimpleNonlinearSolve: _construct_batched_problem_structure,
+    _get_storage, _init_𝓙, _result_from_storage, _get_tolerance, @maybeinplace
 
 function __init__()
     SimpleNonlinearSolve.NNlibExtLoaded[] = true
@@ -10,9 +11,9 @@ end
 
 @views function SciMLBase.__solve(prob::NonlinearProblem,
     alg::BatchedBroyden;
-    abstol=nothing,
-    reltol=nothing,
-    maxiters=1000,
+    abstol = nothing,
+    reltol = nothing,
+    maxiters = 1000,
     kwargs...)
     iip = isinplace(prob)
 
@@ -74,7 +75,7 @@ end
         alg,
         reconstruct(xₙ),
         reconstruct(fₙ);
-        retcode=ReturnCode.MaxIters)
+        retcode = ReturnCode.MaxIters)
 end
 
 end

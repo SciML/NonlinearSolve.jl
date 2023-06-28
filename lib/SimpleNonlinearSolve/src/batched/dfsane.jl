@@ -1,4 +1,4 @@
-@kwdef struct SimpleBatchedDFSane{T, F, TC <: NLSolveTerminationCondition} <:
+Base.@kwdef struct SimpleBatchedDFSane{T, F, TC <: NLSolveTerminationCondition} <:
               AbstractBatchedNonlinearSolveAlgorithm
     σₘᵢₙ::T = 1.0f-10
     σₘₐₓ::T = 1.0f+10
@@ -10,17 +10,17 @@
     nₑₓₚ::Int = 2
     ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2
     termination_condition::TC = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-        abstol=nothing,
-        reltol=nothing)
+        abstol = nothing,
+        reltol = nothing)
     max_inner_iterations::Int = 1000
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
     alg::SimpleBatchedDFSane,
     args...;
-    abstol=nothing,
-    reltol=nothing,
-    maxiters=100,
+    abstol = nothing,
+    reltol = nothing,
+    maxiters = 100,
     kwargs...)
     iip = isinplace(prob)
 
@@ -60,7 +60,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         return fₓ
     end
 
-    @maybeinplace iip fₙ₋₁ = ff!(f₍ₙₒᵣₘ₎ₙ₋₁, xₙ) xₙ
+    @maybeinplace iip fₙ₋₁=ff!(f₍ₙₒᵣₘ₎ₙ₋₁, xₙ) xₙ
     iip && (fₙ = similar(fₙ₋₁))
     ℋ = repeat(f₍ₙₒᵣₘ₎ₙ₋₁, M, 1)
     f̄ = similar(ℋ, 1, N)
@@ -79,7 +79,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         fill!(α₋, α₁)
         @. xₙ = xₙ₋₁ + α₊ * 𝒹
 
-        @maybeinplace iip fₙ = ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
+        @maybeinplace iip fₙ=ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
 
         for _ in 1:(alg.max_inner_iterations)
             𝒸 = @. f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
@@ -90,7 +90,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                 τₘᵢₙ * α₊,
                 τₘₐₓ * α₊)
             @. xₙ = xₙ₋₁ - α₋ * 𝒹
-            @maybeinplace iip fₙ = ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
+            @maybeinplace iip fₙ=ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
 
             (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
 
@@ -98,7 +98,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                 τₘᵢₙ * α₋,
                 τₘₐₓ * α₋)
             @. xₙ = xₙ₋₁ + α₊ * 𝒹
-            @maybeinplace iip fₙ = ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
+            @maybeinplace iip fₙ=ff!(f₍ₙₒᵣₘ₎ₙ, xₙ)
         end
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
@@ -129,12 +129,12 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
     if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
         xₙ = storage.u
-        @maybeinplace iip fₙ = f(xₙ)
+        @maybeinplace iip fₙ=f(xₙ)
     end
 
     return DiffEqBase.build_solution(prob,
         alg,
         reconstruct(xₙ),
         reconstruct(fₙ);
-        retcode=ReturnCode.MaxIters)
+        retcode = ReturnCode.MaxIters)
 end

@@ -1,5 +1,5 @@
 struct SimpleBatchedNewtonRaphson{AD, LS, TC <: NLSolveTerminationCondition} <:
-    AbstractBatchedNonlinearSolveAlgorithm
+       AbstractBatchedNonlinearSolveAlgorithm
     autodiff::AD
     linsolve::LS
     termination_condition::TC

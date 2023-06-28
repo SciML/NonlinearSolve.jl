@@ -1,5 +1,5 @@
 struct BatchedBroyden{TC <: NLSolveTerminationCondition} <:
-    AbstractBatchedNonlinearSolveAlgorithm
+       AbstractBatchedNonlinearSolveAlgorithm
     termination_condition::TC
 end
 

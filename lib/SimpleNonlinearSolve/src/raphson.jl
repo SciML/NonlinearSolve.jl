@@ -35,7 +35,7 @@ and static array problems.
 """
 struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT} end
 
-function SimpleNewtonRaphson(; batched=false,
+function SimpleNewtonRaphson(; batched = false,
     chunk_size = Val{0}(),
     autodiff = Val{true}(),
     diff_type = Val{:forward},
@@ -46,10 +46,10 @@ function SimpleNewtonRaphson(; batched=false,
     if batched
         @assert ADLinearSolveExtLoaded[] "Please install and load `LinearSolve.jl` and `AbstractDifferentiation.jl` to use batched Newton-Raphson."
         termination_condition = ismissing(termination_condition) ?
-            NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-                abstol = nothing,
-                reltol = nothing) :
-            termination_condition
+                                NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing) :
+                                termination_condition
         return SimpleBatchedNewtonRaphson(; chunk_size,
             autodiff,
             diff_type,

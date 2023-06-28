@@ -22,7 +22,8 @@ abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonline
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractImmutableNonlinearSolver <: AbstractSimpleNonlinearSolveAlgorithm end
-abstract type AbstractBatchedNonlinearSolveAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
+abstract type AbstractBatchedNonlinearSolveAlgorithm <:
+              AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
 include("bisection.jl")

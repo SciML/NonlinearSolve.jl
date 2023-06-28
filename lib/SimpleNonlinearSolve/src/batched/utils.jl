@@ -1,4 +1,4 @@
-macro maybeinplace(iip::Symbol, expr::Expr, u0::Union{Symbol, Nothing}=nothing)
+macro maybeinplace(iip::Symbol, expr::Expr, u0::Union{Symbol, Nothing} = nothing)
     @assert expr.head == :(=)
     x1, x2 = expr.args
     @assert x2.head == :call
@@ -64,7 +64,7 @@ function _result_from_storage(storage::NLSolveSafeTerminationResult, xₙ, fₙ,
         return ReturnCode.Success, xₙ, fₙ
     else
         if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
-            @maybeinplace iip fₙ = f(xₙ)
+            @maybeinplace iip fₙ=f(xₙ)
             return ReturnCode.Terminated, storage.u, fₙ
         else
             return ReturnCode.Terminated, xₙ, fₙ
