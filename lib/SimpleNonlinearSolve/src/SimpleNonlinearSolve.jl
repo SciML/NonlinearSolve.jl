@@ -66,7 +66,7 @@ PrecompileTools.@compile_workload begin
         prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
             T.((0.0, 2.0)),
             T(2))
-        for alg in (Bisection, Falsi, Ridder, Brent, Alefeld)
+        for alg in (Bisection, Falsi, Ridder, Brent, Alefeld, Itp)
             solve(prob_brack, alg(), abstol = T(1e-2))
         end
     end

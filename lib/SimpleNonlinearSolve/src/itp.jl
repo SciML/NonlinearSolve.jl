@@ -11,26 +11,25 @@ struct Itp <: AbstractBracketingAlgorithm
     k1::Real
     k2::Real
     n0::Int
-end
-
-function Itp(k1::Real = Val{1}(), k2::Real = Val{2}(), n0::Int = Val{1}())
-    if k1 < 0
-        ArgumentError("Hyper-parameter κ₁ should not be negative")
+    function Itp(;k1::Real = 0.1, k2::Real = 2.0, n0::Int = 1)
+        if k1 < 0
+            ArgumentError("Hyper-parameter κ₁ should not be negative")
+        end
+        if !isa(n0, Int)
+            ArgumentError("Hyper-parameter n₀ should be an Integer")
+        end
+        if n0 < 0
+            ArgumentError("Hyper-parameter n₀ should not be negative")
+        end
+        if k2 < 1 || k2 > (1.5 + sqrt(5) / 2)
+            ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where ϕ ≈ 1.618... is the golden ratio")
+        end
+        return new(k1, k2, n0)
     end
-    if !isa(n0, Int)
-        ArgumentError("Hyper-parameter n₀ should be an Integer")
-    end
-    if n0 < 0
-        ArgumentError("Hyper-parameter n₀ should not be negative")
-    end
-    if k2 < 1 || k2 > (1.5 + sqrt(5) / 2)
-        ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where ϕ ≈ 1.618... is the golden ratio")
-    end
-    return Itp(k1, k2, n0)
 end
 
 function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Itp,
-                            args..., abstol = 1e-8, reltol = nothing, 
+                            args...; abstol = nothing,
                             maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
