@@ -11,7 +11,7 @@ struct Itp <: AbstractBracketingAlgorithm
     k1::Real
     k2::Real
     n0::Int
-    function Itp(;k1::Real = 0.1, k2::Real = 2.0, n0::Int = 1)
+    function Itp(;k1::Real = 0.3, k2::Real = 2.0, n0::Int = 1)
         if k1 < 0
             error("Hyper-parameter κ₁ should not be negative")
         end
@@ -26,7 +26,7 @@ struct Itp <: AbstractBracketingAlgorithm
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
-                            args...; abstol = 1.0e-10,
+                            args...; abstol = 1.0e-8,
                             maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
