@@ -42,7 +42,8 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     α₊, α₋ = similar(u, 1, N), similar(u, 1, N)
     σₙ = fill(T(alg.σ₁), 1, N)
     𝒹 = similar(σₙ, L, N)
-    (; M, nₑₓₚ) = alg
+    M = alg.M
+    nₑₓₚ = alg.nₑₓₚ
 
     xₙ, xₙ₋₁, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎ₙ = copy(u), copy(u), similar(u, 1, N), similar(u, 1, N)
 
