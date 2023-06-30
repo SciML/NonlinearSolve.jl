@@ -1,5 +1,5 @@
 Base.@kwdef struct SimpleBatchedDFSane{T, F, TC <: NLSolveTerminationCondition} <:
-              AbstractBatchedNonlinearSolveAlgorithm
+                   AbstractBatchedNonlinearSolveAlgorithm
     σₘᵢₙ::T = 1.0f-10
     σₘₐₓ::T = 1.0f+10
     σ₁::T = 1.0f0

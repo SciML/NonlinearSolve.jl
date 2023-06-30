@@ -45,7 +45,6 @@ include("batched/utils.jl")
 include("batched/raphson.jl")
 include("batched/dfsane.jl")
 include("batched/broyden.jl")
-include("batched/lbroyden.jl")
 
 import PrecompileTools
 
@@ -79,7 +78,6 @@ end
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
     Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld
-export BatchedBroyden, SimpleBatchedNewtonRaphson, SimpleBatchedDFSane,
-    BatchedLBroyden
+export BatchedBroyden, SimpleBatchedNewtonRaphson, SimpleBatchedDFSane
 
 end # module
