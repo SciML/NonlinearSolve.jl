@@ -11,7 +11,7 @@ struct Itp <: AbstractBracketingAlgorithm
     k1::Real
     k2::Real
     n0::Int
-    function Itp(;k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
+    function Itp(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
         if k1 < 0
             error("Hyper-parameter κ₁ should not be negative")
         end
@@ -26,8 +26,8 @@ struct Itp <: AbstractBracketingAlgorithm
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
-                            args...; abstol = 1.0e-15,
-                            maxiters = 1000, kwargs...)
+    args...; abstol = 1.0e-15,
+    maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
     fl, fr = f(left), f(right)
@@ -58,10 +58,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
     while i <= maxiters
         #mid = (left + right) / 2
         r = ϵ_s - ((right - left) / 2)
-        δ = k1 * ((right - left) ^ k2)
+        δ = k1 * ((right - left)^k2)
 
         ## Interpolation step ##
-        x_f =  (fr * left - fl * right) / (fr - fl)
+        x_f = (fr * left - fl * right) / (fr - fl)
 
         ## Truncation step ##
         σ = sign(mid - x_f)
@@ -96,11 +96,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
 
         if (right - left < 2 * ϵ)
             return SciMLBase.build_solution(prob, alg, mid, f(mid);
-            retcode = ReturnCode.Success, left = left,
-            right = right)
+                retcode = ReturnCode.Success, left = left,
+                right = right)
         end
     end
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
         left = left, right = right)
-                               
 end
