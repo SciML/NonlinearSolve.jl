@@ -357,6 +357,18 @@ probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Alefeld())
 @test sol.u ≈ sqrt(2.0)
 
+# Itp
+sol = solve(probB, Itp())
+@test sol.u ≈ sqrt(2.0)
+tspan = (sqrt(2.0), 10.0)
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Itp())
+@test sol.u ≈ sqrt(2.0)
+tspan = (0.0, sqrt(2.0))
+probB = IntervalNonlinearProblem(f, tspan)
+sol = solve(probB, Itp())
+@test sol.u ≈ sqrt(2.0)
+
 # Garuntee Tests for Bisection
 f = function (u, p)
     if u < 2.0
