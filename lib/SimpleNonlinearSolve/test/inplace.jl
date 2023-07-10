@@ -1,4 +1,5 @@
-using SimpleNonlinearSolve, StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
+using SimpleNonlinearSolve,
+    StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
     NNlib
 
 # Supported Solvers: BatchedBroyden, BatchedSimpleDFSane

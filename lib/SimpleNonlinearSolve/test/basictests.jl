@@ -1,4 +1,5 @@
-using SimpleNonlinearSolve, StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
+using SimpleNonlinearSolve,
+    StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
     NNlib
 
 const BATCHED_BROYDEN_SOLVERS = []
