@@ -1,7 +1,7 @@
 using SimpleNonlinearSolve, StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
-    NNlib, AbstractDifferentiation, LinearSolve
+    NNlib
 
-# Supported Solvers: BatchedBroyden, SimpleBatchedDFSane
+# Supported Solvers: BatchedBroyden, BatchedSimpleDFSane
 function f!(du::AbstractArray{<:Number, N},
     u::AbstractArray{<:Number, N},
     p::AbstractVector) where {N}

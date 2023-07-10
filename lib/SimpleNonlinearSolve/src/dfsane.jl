@@ -73,7 +73,7 @@ function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 
     batched::Bool = false,
     max_inner_iterations = 1000)
     if batched
-        return SimpleBatchedDFSane(; σₘᵢₙ = σ_min,
+        return BatchedSimpleDFSane(; σₘᵢₙ = σ_min,
             σₘₐₓ = σ_max,
             σ₁ = σ_1,
             M,

@@ -1,4 +1,4 @@
-Base.@kwdef struct SimpleBatchedDFSane{T, F, TC <: NLSolveTerminationCondition} <:
+Base.@kwdef struct BatchedSimpleDFSane{T, F, TC <: NLSolveTerminationCondition} <:
                    AbstractBatchedNonlinearSolveAlgorithm
     σₘᵢₙ::T = 1.0f-10
     σₘₐₓ::T = 1.0f+10
@@ -16,7 +16,7 @@ Base.@kwdef struct SimpleBatchedDFSane{T, F, TC <: NLSolveTerminationCondition} 
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::SimpleBatchedDFSane,
+    alg::BatchedSimpleDFSane,
     args...;
     abstol = nothing,
     reltol = nothing,
