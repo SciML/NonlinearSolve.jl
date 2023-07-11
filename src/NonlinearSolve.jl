@@ -15,6 +15,7 @@ import ArrayInterface
 import LinearSolve
 using DiffEqBase
 using SparseDiffTools
+using LineSearches
 
 @reexport using SciMLBase
 using SciMLBase: NLStats

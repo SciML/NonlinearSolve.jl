@@ -48,19 +48,20 @@ for large-scale and numerically-difficult nonlinear systems.
     Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
-struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ} <:
+struct NewtonRaphson{CS, AD, FDT, L, P, ST, CJ, LS} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
     precs::P
+    linesearch::LS
 end
 
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
     standardtag = Val{true}(), concrete_jac = nothing,
-    diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS)
+    diff_type = Val{:forward}, linesearch = nothing, linsolve = nothing, precs = DEFAULT_PRECS)
     NewtonRaphson{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
         typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-        _unwrap_val(concrete_jac)}(linsolve,
-        precs)
+        _unwrap_val(concrete_jac), typeof(linesearch)}(linsolve,
+        precs, linesearch)
 end
 
 mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
