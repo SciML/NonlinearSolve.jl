@@ -34,6 +34,7 @@ for large-scale and numerically-difficult nonlinear systems.
   - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
     `Val{:forward}` for forward finite differences. For more details on the choices, see the
     [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+  - `linesearch`: the line search algorithm used. Defaults to no  line search being used.
   - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
     linear solves within the Newton method. Defaults to `nothing`, which means it uses the
     LinearSolve.jl default algorithm choice. For more information on available algorithm
@@ -57,7 +58,7 @@ end
 
 function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
     standardtag = Val{true}(), concrete_jac = nothing,
-    diff_type = Val{:forward}, linesearch = nothing, linsolve = nothing, precs = DEFAULT_PRECS)
+    diff_type = Val{:forward}, linesearch = LineSearches.Static(), linsolve = nothing, precs = DEFAULT_PRECS)
     NewtonRaphson{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
         typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
         _unwrap_val(concrete_jac), typeof(linesearch)}(linsolve,
@@ -166,8 +167,19 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    @. u = u - du1
-    f(fu, u, p)
+    function f!(ulin)
+        f(fu, ulin, p)
+        return dot(fu, fu) / 2
+    end
+
+    function g!(gvec, ulin)
+        mul!(gvec, J, fu)
+    end
+
+    function fg!()
+
+    end
+
 
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
