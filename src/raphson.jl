@@ -153,6 +153,10 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
+    function fo(x)
+        dot(value_f(f, x, iip), value_f(f, x, iip)) / 2
+    end
+
     return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
@@ -167,19 +171,8 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    function f!(ulin)
-        f(fu, ulin, p)
-        return dot(fu, fu) / 2
-    end
-
-    function g!(gvec, ulin)
-        mul!(gvec, J, fu)
-    end
-
-    function fg!()
-
-    end
-
+    @. u = u - du1
+    f(fu, u, p)
 
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
