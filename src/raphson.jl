@@ -73,6 +73,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     u::uType
     fu::resType
     p::pType
+    α::Real
     uf::ufType
     linsolve::L
     J::jType
@@ -99,7 +100,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
         tolType,
         probType, ufType, L, jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
-            probType, ufType, L, jType, JC}(f, alg, u, fu, p,
+            probType, ufType, L, jType, JC}(f, alg, u, fu, p, α,
             uf, linsolve, J, du1, jac_config,
             force_stop, maxiters, internalnorm,
             retcode, abstol, prob, stats)
@@ -145,6 +146,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     f = prob.f
     p = prob.p
+    α = 1.0 #line search coefficient
     if iip
         fu = zero(u)
         f(fu, u, p)
@@ -153,7 +155,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
-    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
+    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, α, uf, linsolve, J, du1, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
 end
@@ -167,8 +169,10 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    @. u = u - du1
-    f(fu, u, p)
+    # @. u = u - du1
+    # f(fu, u, p)
+    ## Line Search ##
+    perform_linesearch!(cache)
 
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
@@ -193,6 +197,41 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
     return nothing
+end
+
+function objective_linesearch!(cache::NewtonRaphsonCache) ## returns the objective functions required in LS
+    @unpack f = cache
+
+    function fo(x)
+        return dot(value_f(cache, x), value_f(cache, x))
+    end
+
+    function g!(grad, x)
+        grad = simple_jacobian(f, x)' * f(x)
+        return grad
+    end
+
+    function fg!(grad, x)
+        g!(grad, x)
+        fo(x)
+    end
+    return fo, g!, fg!
+end
+
+function perform_linesearch(cache::NewtonRaphsonCache)
+    @unpack u, fu, du1, alg, α = cache
+    fo, g!, fg! = objective_linesearch!(cache)
+    ϕ(α) = fo(u .- α .* du1)
+    ###
+
+    # other functions to be defined
+
+
+    if alg.linesearch isa Static
+
+    else
+        α, fu = alg.linesearch(ϕ, dϕ, ϕdϕ)
+    end
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
