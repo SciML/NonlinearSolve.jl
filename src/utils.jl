@@ -164,22 +164,6 @@ function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-f
     end
 end
 
-function value_f(cache::NewtonRaphsonCache, x)
-    iip = get_iip(cache)
-    @unpack f, p = cache
-    if iip
-        res = zero(x)
-        f(res, x, p)
-    else
-        res = f(x, p)
-    end
-    res
-end
 
-get_iip(cache::NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
-    INType, tolType,
-    probType, ufType, L, jType, JC}) where {iip, fType, algType, uType, duType, resType, pType,
-    INType, tolType,
-    probType, ufType, L, jType, JC} = iip
 
 

@@ -88,7 +88,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-        p::pType, uf::ufType, linsolve::L, J::jType,
+        p::pType, α::Real, uf::ufType, linsolve::L, J::jType,
         du1::duType,
         jac_config::JC, force_stop::Bool, maxiters::Int,
         internalnorm::INType,
@@ -172,7 +172,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     # @. u = u - du1
     # f(fu, u, p)
     ## Line Search ##
-    perform_linesearch!(cache)
+    #perform_linesearch!(cache)
 
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
@@ -199,20 +199,20 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     return nothing
 end
 
-function objective_linesearch!(cache::NewtonRaphsonCache) ## returns the objective functions required in LS
-    @unpack f = cache
+function objective_linesearch(cache::NewtonRaphsonCache) ## returns the objective functions required in LS
+    @unpack f, p = cache
 
     function fo(x)
         return dot(value_f(cache, x), value_f(cache, x)) / 2
     end
 
-    function g!(grad, x)
-        grad = simple_jacobian(f, x)' * f(x)
-        return grad
+    function g!(gvec, x)
+        mul!(gvec, simple_jacobian(f, x, p)', value_f(cache, x)) 
+        gvec
     end
 
-    function fg!(grad, x)
-        g!(grad, x)
+    function fg!(gvec, x)
+        g!(gvec, x)
         fo(x)
     end
     return fo, g!, fg!
@@ -269,3 +269,23 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
     cache.retcode = ReturnCode.Default
     return cache
 end
+
+## some helper func ###
+
+function value_f(cache::NewtonRaphsonCache, x)
+    iip = get_iip(cache)
+    @unpack f, p = cache
+    if iip
+        res = zero(x)
+        f(res, x, p)
+    else
+        res = f(x, p)
+    end
+    res
+end
+
+get_iip(cache::NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
+    INType, tolType,
+    probType, ufType, L, jType, JC}) where {iip, fType, algType, uType, duType, resType, pType,
+    INType, tolType,
+    probType, ufType, L, jType, JC} = iip
