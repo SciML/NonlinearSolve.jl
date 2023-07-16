@@ -153,10 +153,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
-    function fo(x)
-        dot(value_f(f, x, iip), value_f(f, x, iip)) / 2
-    end
-
     return NewtonRaphsonCache{iip}(f, alg, u, fu, p, uf, linsolve, J, du1, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
