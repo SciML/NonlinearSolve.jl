@@ -150,10 +150,12 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
         num_of_chunks)
 end
 
-function simple_jacobian(f, x::Number)
-    ForwardDiff.derivative(f, x)
+function simple_jacobian(f, x::Number, p)
+    g = Base.Fix2(f, p)
+    ForwardDiff.derivative(g, x)
 end
 
-function simple_jacobian(f, x::AbstractArray{<:Number})
-    ForwardDiff.jacobian(f, x)
+function simple_jacobian(f, x::AbstractArray{<:Number}, p)
+    g = Base.Fix2(f, p)
+    ForwardDiff.jacobian(g, x)
 end
