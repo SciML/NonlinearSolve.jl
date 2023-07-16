@@ -149,3 +149,11 @@ function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
             jac_prototype = jac_prototype, chunksize = chunk_size),
         num_of_chunks)
 end
+
+function simple_jacobian(f, x::Number)
+    ForwardDiff.derivative(f, x)
+end
+
+function simple_jacobian(f, x::AbstractArray{<:Number})
+    ForwardDiff.jacobian(f, x)
+end
