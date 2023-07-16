@@ -203,7 +203,7 @@ function objective_linesearch!(cache::NewtonRaphsonCache) ## returns the objecti
     @unpack f = cache
 
     function fo(x)
-        return dot(value_f(cache, x), value_f(cache, x))
+        return dot(value_f(cache, x), value_f(cache, x)) / 2
     end
 
     function g!(grad, x)
