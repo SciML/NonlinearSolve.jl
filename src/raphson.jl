@@ -74,6 +74,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     fu::resType
     p::pType
     α::Real
+    gvec::uType
     uf::ufType
     linsolve::L
     J::jType
@@ -88,7 +89,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-        p::pType, α::Real, uf::ufType, linsolve::L, J::jType,
+        p::pType, α::Real, gvec::uType, uf::ufType, linsolve::L, J::jType,
         du1::duType,
         jac_config::JC, force_stop::Bool, maxiters::Int,
         internalnorm::INType,
@@ -100,7 +101,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
         tolType,
         probType, ufType, L, jType, JC}
         new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
-            probType, ufType, L, jType, JC}(f, alg, u, fu, p, α,
+            probType, ufType, L, jType, JC}(f, alg, u, fu, p, α, gvec,
             uf, linsolve, J, du1, jac_config,
             force_stop, maxiters, internalnorm,
             retcode, abstol, prob, stats)
@@ -144,6 +145,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     else
         u = deepcopy(prob.u0)
     end
+    gvec = zero(u)
     f = prob.f
     p = prob.p
     α = 1.0 #line search coefficient
@@ -155,7 +157,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
-    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, α, uf, linsolve, J, du1, jac_config,
+    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, α, gvec, uf, linsolve, J, du1, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
 end
@@ -218,13 +220,19 @@ function objective_linesearch(cache::NewtonRaphsonCache) ## returns the objectiv
     return fo, g!, fg!
 end
 
-function perform_linesearch(cache::NewtonRaphsonCache)
-    @unpack u, fu, du1, alg, α = cache
+function perform_linesearch!(cache::NewtonRaphsonCache)
+    @unpack u, fu, du1, alg, α, gvec = cache
     fo, g!, fg! = objective_linesearch!(cache)
     ϕ(α) = fo(u .- α .* du1)
-    ###
 
-    # other functions to be defined
+    function dϕ(α)
+        g!(gvec, u .- α .* du1)
+        return dot(gvec, du1)
+    end
+
+    function ϕdϕ(α)
+        return (fg!(gvec, u .- α .* du1), dot(gvec, s))
+    end
 
 
     if alg.linesearch isa Static
