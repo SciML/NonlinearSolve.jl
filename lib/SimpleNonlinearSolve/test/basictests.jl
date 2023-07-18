@@ -1,16 +1,14 @@
-using SimpleNonlinearSolve
-using StaticArrays
-using BenchmarkTools
-using DiffEqBase
-using LinearAlgebra
-using Test
+using SimpleNonlinearSolve,
+    StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
+    NNlib
 
-const BATCHED_BROYDEN_SOLVERS = Broyden[]
-const BROYDEN_SOLVERS = Broyden[]
-const BATCHED_LBROYDEN_SOLVERS = LBroyden[]
-const LBROYDEN_SOLVERS = LBroyden[]
-const BATCHED_DFSANE_SOLVERS = SimpleDFSane[]
-const DFSANE_SOLVERS = SimpleDFSane[]
+const BATCHED_BROYDEN_SOLVERS = []
+const BROYDEN_SOLVERS = []
+const BATCHED_LBROYDEN_SOLVERS = []
+const LBROYDEN_SOLVERS = []
+const BATCHED_DFSANE_SOLVERS = []
+const DFSANE_SOLVERS = []
+const BATCHED_RAPHSON_SOLVERS = []
 
 for mode in instances(NLSolveTerminationMode.T)
     if mode ∈
@@ -27,6 +25,12 @@ for mode in instances(NLSolveTerminationMode.T)
     push!(BATCHED_LBROYDEN_SOLVERS, LBroyden(; batched = true, termination_condition))
     push!(DFSANE_SOLVERS, SimpleDFSane(; batched = false, termination_condition))
     push!(BATCHED_DFSANE_SOLVERS, SimpleDFSane(; batched = true, termination_condition))
+    push!(BATCHED_RAPHSON_SOLVERS,
+        SimpleNewtonRaphson(; batched = true,
+            termination_condition))
+    push!(BATCHED_RAPHSON_SOLVERS,
+        SimpleNewtonRaphson(; batched = true, autodiff = false,
+            termination_condition))
 end
 
 # SimpleNewtonRaphson
@@ -476,9 +480,6 @@ for options in list_of_options
     @test all(abs.(f(u, p)) .< 1e-10)
 end
 
-# Batched Broyden
-using NNlib
-
 f, u0 = (u, p) -> u .* u .- p, randn(1, 3)
 
 p = [2.0 1.0 5.0];
@@ -488,9 +489,10 @@ sol = solve(probN, Broyden(batched = true))
 
 @test abs.(sol.u) ≈ sqrt.(p)
 
-for alg in (BATCHED_BROYDEN_SOLVERS...,
+@testset "Batched Solver: $(nameof(typeof(alg)))" for alg in (BATCHED_BROYDEN_SOLVERS...,
     BATCHED_LBROYDEN_SOLVERS...,
-    BATCHED_DFSANE_SOLVERS...)
+    BATCHED_DFSANE_SOLVERS...,
+    BATCHED_RAPHSON_SOLVERS...)
     sol = solve(probN, alg; abstol = 1e-3, reltol = 1e-3)
 
     @test sol.retcode == ReturnCode.Success
