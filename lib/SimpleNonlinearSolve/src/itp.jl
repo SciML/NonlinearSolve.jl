@@ -39,7 +39,7 @@ n½ + `n₀` iterations, where n½ is the number of iterations using bisection
 If `f` is twice differentiable and the root is simple,
 then with `n₀` > 0 the convergence rate is √`κ₂`.
 """
-struct Itp <: AbstractBracketingAlgorithm{T}
+struct Itp{T} <: AbstractBracketingAlgorithm
     k1::T
     k2::T
     n0::Int
