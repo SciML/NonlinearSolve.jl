@@ -222,7 +222,7 @@ end
 # ITP
 g = function (p)
     probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, Itp())
+    sol = solve(probN, ITP())
     return sol.u
 end
 
@@ -258,7 +258,7 @@ end
 f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
 t = (p) -> [sqrt(p[2] / p[1])]
 p = [0.9, 50.0]
-for alg in [Bisection(), Falsi(), Ridder(), Brent(), Itp()]
+for alg in [Bisection(), Falsi(), Ridder(), Brent(), ITP()]
     global g, p
     g = function (p)
         probN = IntervalNonlinearProblem{false}(f, tspan, p)
@@ -361,16 +361,16 @@ probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, Alefeld())
 @test sol.u ≈ sqrt(2.0)
 
-# Itp
-sol = solve(probB, Itp())
+# ITP
+sol = solve(probB, ITP())
 @test sol.u ≈ sqrt(2.0)
 tspan = (sqrt(2.0), 10.0)
 probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Itp())
+sol = solve(probB, ITP())
 @test sol.u ≈ sqrt(2.0)
 tspan = (0.0, sqrt(2.0))
 probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Itp())
+sol = solve(probB, ITP())
 @test sol.u ≈ sqrt(2.0)
 
 # Garuntee Tests for Bisection
