@@ -10,22 +10,19 @@ using DiffEqBase
 
 @reexport using SciMLBase
 
-if !isdefined(Base, :get_extension)
-    using Requires
+using PackageExtensionCompat
+function __init__()
+    @require_extensions
 end
 
-function __init__()
-    @static if !isdefined(Base, :get_extension)
-        @require NNlib="872c559c-99b0-510c-b3b7-b6c96a88d5cd" begin
-            include("../ext/SimpleBatchedNonlinearSolveExt.jl")
-        end
-    end
-end
+const NNlibExtLoaded = Ref{Bool}(false)
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractImmutableNonlinearSolver <: AbstractSimpleNonlinearSolveAlgorithm end
+abstract type AbstractBatchedNonlinearSolveAlgorithm <:
+              AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
 include("bisection.jl")
@@ -42,6 +39,12 @@ include("ad.jl")
 include("halley.jl")
 include("alefeld.jl")
 include("itp.jl")
+
+# Batched Solver Support
+include("batched/utils.jl")
+include("batched/raphson.jl")
+include("batched/dfsane.jl")
+include("batched/broyden.jl")
 
 import PrecompileTools
 
@@ -75,5 +78,6 @@ end
 # DiffEq styled algorithms
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
     Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, Itp
+export BatchedBroyden, BatchedSimpleNewtonRaphson, BatchedSimpleDFSane
 
 end # module

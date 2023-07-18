@@ -51,7 +51,7 @@ Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_
 - `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
   algorithm. Used exclusively in `batched` mode. Defaults to `1000`.
 """
-struct SimpleDFSane{batched, T, TC} <: AbstractSimpleNonlinearSolveAlgorithm
+struct SimpleDFSane{T, TC} <: AbstractSimpleNonlinearSolveAlgorithm
     σ_min::T
     σ_max::T
     σ_1::T
@@ -62,47 +62,54 @@ struct SimpleDFSane{batched, T, TC} <: AbstractSimpleNonlinearSolveAlgorithm
     nexp::Int
     η_strategy::Function
     termination_condition::TC
-    max_inner_iterations::Int
+end
 
-    function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-        M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
-        nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2,
-        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-            abstol = nothing,
-            reltol = nothing),
-        batched::Bool = false,
-        max_inner_iterations = 1000)
-        return new{batched, typeof(σ_min), typeof(termination_condition)}(σ_min,
-            σ_max,
-            σ_1,
+function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
+    M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+    nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2,
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        abstol = nothing,
+        reltol = nothing),
+    batched::Bool = false,
+    max_inner_iterations = 1000)
+    if batched
+        return BatchedSimpleDFSane(; σₘᵢₙ = σ_min,
+            σₘₐₓ = σ_max,
+            σ₁ = σ_1,
             M,
             γ,
-            τ_min,
-            τ_max,
-            nexp,
-            η_strategy,
+            τₘᵢₙ = τ_min,
+            τₘₐₓ = τ_max,
+            nₑₓₚ = nexp,
+            ηₛ = η_strategy,
             termination_condition,
             max_inner_iterations)
     end
+    return SimpleDFSane{typeof(σ_min), typeof(termination_condition)}(σ_min,
+        σ_max,
+        σ_1,
+        M,
+        γ,
+        τ_min,
+        τ_max,
+        nexp,
+        η_strategy,
+        termination_condition)
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane,
     args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-    kwargs...) where {batched}
+    kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
 
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
 
-    if batched
-        batch_size = size(x, 2)
-    end
-
     T = eltype(x)
     σ_min = float(alg.σ_min)
     σ_max = float(alg.σ_max)
-    σ_k = batched ? fill(float(alg.σ_1), 1, batch_size) : float(alg.σ_1)
+    σ_k = float(alg.σ_1)
 
     M = alg.M
     γ = float(alg.γ)
@@ -111,17 +118,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
     nexp = alg.nexp
     η_strategy = alg.η_strategy
 
-    batched && @assert ndims(x)==2 "Batched SimpleDFSane only supports 2D arrays"
-
     if SciMLBase.isinplace(prob)
         error("SimpleDFSane currently only supports out-of-place nonlinear problems")
     end
 
-    atol = abstol !== nothing ? abstol :
-           (tc.abstol !== nothing ? tc.abstol :
-            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
-    rtol = reltol !== nothing ? reltol :
-           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
+    atol = _get_tolerance(abstol, tc.abstol, T)
+    rtol = _get_tolerance(reltol, tc.reltol, T)
 
     if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
         error("SimpleDFSane currently doesn't support SAFE_BEST termination modes")
@@ -133,22 +135,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
 
     function ff(x)
         F = f(x)
-        f_k = if batched
-            sum(abs2, F; dims = 1) .^ (nexp / 2)
-        else
-            norm(F)^nexp
-        end
+        f_k = norm(F)^nexp
         return f_k, F
     end
 
     function generate_history(f_k, M)
-        if batched
-            history = similar(f_k, (M, length(f_k)))
-            history .= reshape(f_k, 1, :)
-            return history
-        else
-            return fill(f_k, M)
-        end
+        return fill(f_k, M)
     end
 
     f_k, F_k = ff(x)
@@ -158,17 +150,13 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
 
     for k in 1:maxiters
         # Spectral parameter range check
-        if batched
-            @. σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
-        else
-            σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
-        end
+        σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
 
         # Line search direction
         d = -σ_k .* F_k
 
         η = η_strategy(f_1, k, x, F_k)
-        f̄ = batched ? maximum(history_f_k; dims = 1) : maximum(history_f_k)
+        f̄ = maximum(history_f_k)
         α_p = α_1
         α_m = α_1
         x_new = @. x + α_p * d
@@ -179,38 +167,20 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
         while true
             inner_iterations += 1
 
-            if batched
-                criteria = @. f̄ + η - γ * α_p^2 * f_k
-                # NOTE: This is simply a heuristic, ideally we check using `all` but that is
-                #       typically very expensive for large problems
-                (sum(f_new .≤ criteria) ≥ batch_size ÷ 2) && break
-            else
-                criteria = f̄ + η - γ * α_p^2 * f_k
-                f_new ≤ criteria && break
-            end
+            criteria = f̄ + η - γ * α_p^2 * f_k
+            f_new ≤ criteria && break
 
             α_tp = @. α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
             x_new = @. x - α_m * d
             f_new, F_new = ff(x_new)
 
-            if batched
-                # NOTE: This is simply a heuristic, ideally we check using `all` but that is
-                #       typically very expensive for large problems
-                (sum(f_new .≤ criteria) ≥ batch_size ÷ 2) && break
-            else
-                f_new ≤ criteria && break
-            end
+            f_new ≤ criteria && break
 
             α_tm = @. α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
             α_p = @. clamp(α_tp, τ_min * α_p, τ_max * α_p)
             α_m = @. clamp(α_tm, τ_min * α_m, τ_max * α_m)
             x_new = @. x + α_p * d
             f_new, F_new = ff(x_new)
-
-            # NOTE: The original algorithm runs till either condition is satisfied, however,
-            #       for most batched problems like neural networks we only care about
-            #       approximate convergence
-            batched && (inner_iterations ≥ alg.max_inner_iterations) && break
         end
 
         if termination_condition(F_new, x_new, x, atol, rtol)
@@ -225,11 +195,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
         s_k = @. x_new - x
         y_k = @. F_new - F_k
 
-        if batched
-            σ_k = sum(abs2, s_k; dims = 1) ./ (sum(s_k .* y_k; dims = 1) .+ T(1e-5))
-        else
-            σ_k = (s_k' * s_k) / (s_k' * y_k)
-        end
+        σ_k = (s_k' * s_k) / (s_k' * y_k)
 
         # Take step
         x = x_new
@@ -237,11 +203,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{batched},
         f_k = f_new
 
         # Store function value
-        if batched
-            history_f_k[k % M + 1, :] .= vec(f_new)
-        else
-            history_f_k[k % M + 1] = f_new
-        end
+        history_f_k[k % M + 1] = f_new
     end
     return SciMLBase.build_solution(prob, alg, x, F_k; retcode = ReturnCode.MaxIters)
 end

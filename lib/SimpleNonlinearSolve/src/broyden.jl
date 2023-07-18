@@ -1,7 +1,8 @@
 """
     Broyden(; batched = false,
-            termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-                                                                abstol = nothing, reltol = nothing))
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
@@ -11,19 +12,23 @@ and static array problems.
     To use the `batched` version, remember to load `NNlib`, i.e., `using NNlib` or
     `import NNlib` must be present in your code.
 """
-struct Broyden{batched, TC <: NLSolveTerminationCondition} <:
+struct Broyden{TC <: NLSolveTerminationCondition} <:
        AbstractSimpleNonlinearSolveAlgorithm
     termination_condition::TC
-
-    function Broyden(; batched = false,
-        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-            abstol = nothing,
-            reltol = nothing))
-        return new{batched, typeof(termination_condition)}(termination_condition)
-    end
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
+function Broyden(; batched = false,
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        abstol = nothing,
+        reltol = nothing))
+    if batched
+        @assert NNlibExtLoaded[] "Please install and load `NNlib.jl` to use batched Broyden."
+        return BatchedBroyden(termination_condition)
+    end
+    return Broyden(termination_condition)
+end
+
+function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
     abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
@@ -38,11 +43,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden{false}, args...;
         error("Broyden currently only supports out-of-place nonlinear problems")
     end
 
-    atol = abstol !== nothing ? abstol :
-           (tc.abstol !== nothing ? tc.abstol :
-            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5))
-    rtol = reltol !== nothing ? reltol :
-           (tc.reltol !== nothing ? tc.reltol : eps(real(one(eltype(T))))^(4 // 5))
+    atol = _get_tolerance(abstol, tc.abstol, T)
+    rtol = _get_tolerance(reltol, tc.reltol, T)
 
     if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
         error("Broyden currently doesn't support SAFE_BEST termination modes")
