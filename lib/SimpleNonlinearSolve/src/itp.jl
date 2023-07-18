@@ -1,15 +1,47 @@
 """
 ```julia
-Itp(; k1 = Val{1}(), k2 = Val{2}(), n0 = Val{1}())
+Itp(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
 ```
+
 ITP (Interpolate Truncate & Project)
 
+Use the [ITP method](https://en.wikipedia.org/wiki/ITP_method) to find
+a root of a bracketed function, with a convergence rate between 1 and 1.62.
 
+This method was introduced in the paper "An Enhancement of the Bisection Method
+Average Performance Preserving Minmax Optimality"
+(https://doi.org/10.1145/3423597) by I. F. D. Oliveira and R. H. C. Takahashi.
+
+# Tuning Parameters
+
+The following keyword parameters are accepted.
+
+- `n₀::Int = 1`, the 'slack'. Must not be negative.\n
+  When n₀ = 0 the worst-case is identical to that of bisection,
+  but increacing n₀ provides greater oppotunity for superlinearity.
+- `κ₁::Float64 = 0.1`. Must not be negative.\n
+  The recomended value is `0.2/(x₂ - x₁)`.
+  Lower values produce tighter asymptotic behaviour, while higher values
+  improve the steady-state behaviour when truncation is not helpful.
+- `κ₂::Real = 2`. Must lie in [1, 1+ϕ ≈ 2.62).\n
+  Higher values allow for a greater convergence rate,
+  but also make the method more succeptable to worst-case performance.
+  In practice, κ=1,2 seems to work well due to the computational simplicity,
+  as κ₂ is used as an exponent in the method.
+
+### Worst Case Performance
+
+n½ + `n₀` iterations, where n½ is the number of iterations using bisection
+(n½ = ⌈log2(Δx)/2`tol`⌉).
+
+### Asymptotic Performance
+
+If `f` is twice differentiable and the root is simple,
+then with `n₀` > 0 the convergence rate is √`κ₂`.
 """
-
-struct Itp <: AbstractBracketingAlgorithm
-    k1::Real
-    k2::Real
+struct Itp <: AbstractBracketingAlgorithm{T}
+    k1::T
+    k2::T
     n0::Int
     function Itp(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
         if k1 < 0
