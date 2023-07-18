@@ -1,6 +1,6 @@
 """
 ```julia
-Itp(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
+ITP(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
 ```
 
 ITP (Interpolate Truncate & Project)
@@ -39,11 +39,11 @@ n½ + `n₀` iterations, where n½ is the number of iterations using bisection
 If `f` is twice differentiable and the root is simple,
 then with `n₀` > 0 the convergence rate is √`κ₂`.
 """
-struct Itp{T} <: AbstractBracketingAlgorithm
+struct ITP{T} <: AbstractBracketingAlgorithm
     k1::T
     k2::T
     n0::Int
-    function Itp(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
+    function ITP(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
         if k1 < 0
             error("Hyper-parameter κ₁ should not be negative")
         end
@@ -58,7 +58,7 @@ struct Itp{T} <: AbstractBracketingAlgorithm
     end
 end
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Itp,
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
     args...; abstol = 1.0e-15,
     maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
