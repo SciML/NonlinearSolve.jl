@@ -53,7 +53,8 @@ struct Itp{T} <: AbstractBracketingAlgorithm
         if k2 < 1 || k2 > (1.5 + sqrt(5) / 2)
             ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where ϕ ≈ 1.618... is the golden ratio")
         end
-        return new(k1, k2, n0)
+        T = promote_type(eltype(k1), eltype(k2))
+        return new{T}(k1, k2, n0)
     end
 end
 
