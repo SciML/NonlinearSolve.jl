@@ -130,7 +130,7 @@ function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
 end
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
-    JacobianWrapper(f, p), nothing, nothing, nothing, nothing
+    JacobianWrapper(f, p), nothing, nothing, zero(u), nothing
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson,
@@ -189,7 +189,9 @@ end
 function perform_step!(cache::NewtonRaphsonCache{false})
     @unpack u, fu, f, p = cache
     J = jacobian(cache, f)
-    cache.u = u - J \ fu
+    cache.du1 = J \ fu
+    perform_linesearch!(cache) ## need some edits here
+    cache.u = u - cache.α * cache.du1
     cache.fu = f(cache.u, p)
     if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
@@ -222,7 +224,7 @@ end
 
 function perform_linesearch!(cache::NewtonRaphsonCache)
     @unpack u, fu, du1, alg, α, gvec = cache
-    fo, g!, fg! = objective_linesearch!(cache)
+    fo, g!, fg! = objective_linesearch(cache)
     ϕ(α) = fo(u .- α .* du1)
 
     function dϕ(α)
@@ -231,15 +233,9 @@ function perform_linesearch!(cache::NewtonRaphsonCache)
     end
 
     function ϕdϕ(α)
-        return (fg!(gvec, u .- α .* du1), dot(gvec, s))
+        return (fg!(gvec, u .- α .* du1), dot(gvec, du1))
     end
-
-
-    if alg.linesearch isa Static
-
-    else
-        α, fu = alg.linesearch(ϕ, dϕ, ϕdϕ)
-    end
+    cache.α, fu = alg.linesearch(ϕ, dϕ, ϕdϕ, 1.0, fo(u), dot(du1, gvec))
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
