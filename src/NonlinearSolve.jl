@@ -66,7 +66,10 @@ PrecompileTools.@compile_workload begin
 end
 
 export RadiusUpdateSchemes
-
+export LineSearches
 export NewtonRaphson, TrustRegion, LevenbergMarquardt
 
+## test exports - to be removed later ##
+export get_iip, value_f, objective_linesearch, simple_jacobian
+##
 end # module
