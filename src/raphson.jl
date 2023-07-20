@@ -242,7 +242,6 @@ end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
     while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        @show "yes"
         perform_step!(cache)
         cache.stats.nsteps += 1
     end
