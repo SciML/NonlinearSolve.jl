@@ -11,7 +11,7 @@ f(u, p) = u .* u .- p
 u0 = @SVector[1.0, 1.0]
 p = 2.0
 probN = NonlinearProblem(f, u0, p)
-solver = solve(probN, NewtonRaphson(), reltol = 1e-9)
+sol = solve(probN, NewtonRaphson(), reltol = 1e-9)
 ```
 
 where `u0` is the initial condition for the rootfinder. Native NonlinearSolve.jl
