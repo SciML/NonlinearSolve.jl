@@ -65,7 +65,7 @@ function NewtonRaphson(; chunk_size = Val{0}(), autodiff = Val{true}(),
         precs, linesearch)
 end
 
-mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
+mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType, foType, goType,
     INType, tolType,
     probType, ufType, L, jType, JC}
     f::fType
@@ -74,7 +74,8 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     fu::resType
     p::pType
     α::Real
-    gvec::uType
+    f_o::foType # stores value of objective
+    g_o::goType # stores grad of objective at x
     uf::ufType
     linsolve::L
     J::jType
@@ -89,7 +90,7 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     stats::NLStats
 
     function NewtonRaphsonCache{iip}(f::fType, alg::algType, u::uType, fu::resType,
-        p::pType, α::Real, gvec::uType, uf::ufType, linsolve::L, J::jType,
+        p::pType, α::Real, f_o::foType, g_o::goType, uf::ufType, linsolve::L, J::jType,
         du1::duType,
         jac_config::JC, force_stop::Bool, maxiters::Int,
         internalnorm::INType,
@@ -97,11 +98,11 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
         prob::probType,
         stats::NLStats) where {
         iip, fType, algType, uType,
-        duType, resType, pType, INType,
+        duType, resType, pType, foType, goType, INType,
         tolType,
         probType, ufType, L, jType, JC}
-        new{iip, fType, algType, uType, duType, resType, pType, INType, tolType,
-            probType, ufType, L, jType, JC}(f, alg, u, fu, p, α, gvec,
+        new{iip, fType, algType, uType, duType, resType, pType, foType, goType, INType, tolType,
+            probType, ufType, L, jType, JC}(f, alg, u, fu, p, α, f_o, g_o,
             uf, linsolve, J, du1, jac_config,
             force_stop, maxiters, internalnorm,
             retcode, abstol, prob, stats)
@@ -145,10 +146,11 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     else
         u = deepcopy(prob.u0)
     end
-    gvec = zero(u)
     f = prob.f
     p = prob.p
     α = 1.0 #line search coefficient
+    f_o = 0.0
+    g_o = zero(u)
     if iip
         fu = zero(u)
         f(fu, u, p)
@@ -157,7 +159,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     end
     uf, linsolve, J, du1, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
 
-    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, α, gvec, uf, linsolve, J, du1, jac_config,
+    return NewtonRaphsonCache{iip}(f, alg, u, fu, p, α, f_o, g_o, uf, linsolve, J, du1, jac_config,
         false, maxiters, internalnorm,
         ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
 end
@@ -166,15 +168,13 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     @unpack u, fu, f, p, alg = cache
     @unpack J, linsolve, du1 = cache
     jacobian!(J, cache)
-
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), linu = _vec(du1),
         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    # @. u = u - du1
-    # f(fu, u, p)
-    ## Line Search ##
-    #perform_linesearch!(cache)
+    perform_linesearch!(cache)
+    @. cache.u = cache.u - cache.α * cache.du1
+    f(cache.fu, cache.u, p)
 
     if cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
@@ -190,8 +190,8 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     @unpack u, fu, f, p = cache
     J = jacobian(cache, f)
     cache.du1 = J \ fu
-    perform_linesearch!(cache) ## need some edits here
-    cache.u = u - cache.α * cache.du1
+    perform_linesearch!(cache) 
+    cache.u = cache.u - cache.α * cache.du1
     cache.fu = f(cache.u, p)
     if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
         cache.force_stop = true
@@ -210,36 +210,39 @@ function objective_linesearch(cache::NewtonRaphsonCache) ## returns the objectiv
         return dot(value_f(cache, x), value_f(cache, x)) / 2
     end
 
-    function g!(gvec, x)
-        mul!(gvec, simple_jacobian(f, x, p)', value_f(cache, x)) 
-        gvec
+    function g!(g_o, x)
+        mul!(g_o, simple_jacobian(cache, x)', value_f(cache, x)) 
+        g_o
     end
 
-    function fg!(gvec, x)
-        g!(gvec, x)
+    function fg!(g_o, x)
+        g!(g_o, x)
         fo(x)
     end
     return fo, g!, fg!
 end
 
 function perform_linesearch!(cache::NewtonRaphsonCache)
-    @unpack u, fu, du1, alg, α, gvec = cache
+    @unpack u, fu, du1, alg, α, g_o = cache
     fo, g!, fg! = objective_linesearch(cache)
     ϕ(α) = fo(u .- α .* du1)
 
     function dϕ(α)
-        g!(gvec, u .- α .* du1)
-        return dot(gvec, du1)
+        g!(g_o, u .- α .* du1)
+        return dot(g_o, du1)
     end
 
     function ϕdϕ(α)
-        return (fg!(gvec, u .- α .* du1), dot(gvec, du1))
+        return (fg!(g_o, u .- α .* du1), dot(g_o, du1))
     end
-    cache.α, fu = alg.linesearch(ϕ, dϕ, ϕdϕ, 1.0, fo(u), dot(du1, gvec))
+    cache.f_o = fo(u)
+    @unpack f_o = cache
+    cache.α, cache.f_o = alg.linesearch(ϕ, dϕ, ϕdϕ, 1.0, f_o, dot(du1, g_o))
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
     while !cache.force_stop && cache.stats.nsteps < cache.maxiters
+        @show "yes"
         perform_step!(cache)
         cache.stats.nsteps += 1
     end
@@ -277,7 +280,7 @@ end
 ## some helper func ###
 
 function value_f(cache::NewtonRaphsonCache, x)
-    iip = get_iip(cache)
+    iip = get_iip(cache.prob)
     @unpack f, p = cache
     if iip
         res = zero(x)
@@ -288,8 +291,3 @@ function value_f(cache::NewtonRaphsonCache, x)
     res
 end
 
-get_iip(cache::NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, pType,
-    INType, tolType,
-    probType, ufType, L, jType, JC}) where {iip, fType, algType, uType, duType, resType, pType,
-    INType, tolType,
-    probType, ufType, L, jType, JC} = iip
