@@ -539,3 +539,19 @@ for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
     sol = solve(probN, alg)
     @test abs.(sol.u) ≈ sqrt.(p)
 end
+
+# Flipped signs test
+f1(u, p) = u * u - p 
+f2(u, p) = p - u * u
+
+for Alg in (Alefeld, Bisection, Falsi, Brent, ITP, Ridder)
+    alg = Alg()
+    for p ∈ 1:4
+        inp1 = IntervalNonlinearProblem(f1, (1.0, 2.0), p)
+        inp2 = IntervalNonlinearProblem(f2, (1.0, 2.0), p)
+        sol = solve(inp1, alg)
+        @test abs.(sol.u) ≈ sqrt.(p)
+        sol = solve(inp2, alg)
+        @test abs.(sol.u) ≈ sqrt.(p)
+    end
+end
