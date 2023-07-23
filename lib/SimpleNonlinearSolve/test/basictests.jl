@@ -541,11 +541,11 @@ for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
 end
 
 # Flipped signs & reversed tsoan test for bracketing algorithms
-f1(u, p) = u * u - p 
+f1(u, p) = u * u - p
 f2(u, p) = p - u * u
 
 for alg in (Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder())
-    for p ∈ 1:4
+    for p in 1:4
         inp1 = IntervalNonlinearProblem(f1, (1.0, 2.0), p)
         inp2 = IntervalNonlinearProblem(f2, (1.0, 2.0), p)
         inp3 = IntervalNonlinearProblem(f1, (2.0, 1.0), p)
