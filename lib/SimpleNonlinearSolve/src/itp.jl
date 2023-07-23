@@ -80,7 +80,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
     n0 = alg.n0
     n_h = ceil(log2(abs(right - left) / (2 * ϵ)))
     mid = (left + right) / 2
-    x_f = (fr * left - fl * right) / (fr - fl)
+    x_f = left + (right - left) * (fl/(fl - fr))
     xt = left
     xp = left
     r = zero(left) #minmax radius
@@ -94,7 +94,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
         δ = k1 * (span^k2)
 
         ## Interpolation step ##
-        x_f = (fr * left - fl * right) / (fr - fl)
+        x_f = left + (right - left) * (fl/(fl - fr))
 
         ## Truncation step ##
         σ = sign(mid - x_f)
