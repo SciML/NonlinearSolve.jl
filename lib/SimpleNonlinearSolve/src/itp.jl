@@ -125,8 +125,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
             fl = yp
         else
             return SciMLBase.build_solution(prob, alg, xp, yps;
-                                            retcode = ReturnCode.Success, left = left,
-                                            right = right)
+                                            retcode = ReturnCode.Success, left = xp,
+                                            right = xp)
         end
         i += 1
         mid = (left + right) / 2
