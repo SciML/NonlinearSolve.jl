@@ -540,7 +540,7 @@ for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
     @test abs.(sol.u) ≈ sqrt.(p)
 end
 
-# Flipped signs & reversed tsoan test for bracketing algorithms
+# Flipped signs & reversed tspan test for bracketing algorithms
 f1(u, p) = u * u - p
 f2(u, p) = p - u * u
 
