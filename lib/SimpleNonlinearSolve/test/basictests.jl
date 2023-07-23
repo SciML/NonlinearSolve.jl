@@ -540,18 +540,19 @@ for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
     @test abs.(sol.u) ≈ sqrt.(p)
 end
 
-# Flipped signs test
+# Flipped signs & reversed tsoan test for bracketing algorithms
 f1(u, p) = u * u - p 
 f2(u, p) = p - u * u
 
-for Alg in (Alefeld, Bisection, Falsi, Brent, ITP, Ridder)
-    alg = Alg()
+for alg in (Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder())
     for p ∈ 1:4
         inp1 = IntervalNonlinearProblem(f1, (1.0, 2.0), p)
         inp2 = IntervalNonlinearProblem(f2, (1.0, 2.0), p)
-        sol = solve(inp1, alg)
-        @test abs.(sol.u) ≈ sqrt.(p)
-        sol = solve(inp2, alg)
-        @test abs.(sol.u) ≈ sqrt.(p)
+        inp3 = IntervalNonlinearProblem(f1, (2.0, 1.0), p)
+        inp4 = IntervalNonlinearProblem(f2, (2.0, 1.0), p)
+        @test abs.(solve(inp1, alg).u) ≈ sqrt.(p)
+        @test abs.(solve(inp2, alg).u) ≈ sqrt.(p)
+        @test abs.(solve(inp3, alg).u) ≈ sqrt.(p)
+        @test abs.(solve(inp4, alg).u) ≈ sqrt.(p)
     end
 end

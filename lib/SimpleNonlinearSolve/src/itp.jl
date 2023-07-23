@@ -78,7 +78,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
     k1 = alg.k1
     k2 = alg.k2
     n0 = alg.n0
-    n_h = ceil(log2((right - left) / (2 * ϵ)))
+    n_h = ceil(log2(abs(right - left) / (2 * ϵ)))
     mid = (left + right) / 2
     x_f = (fr * left - fl * right) / (fr - fl)
     xt = left
@@ -89,9 +89,9 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
     ϵ_s = ϵ * 2^(n_h + n0)
     i = 0 #iteration
     while i <= maxiters
-        #mid = (left + right) / 2
-        r = ϵ_s - ((right - left) / 2)
-        δ = k1 * ((right - left)^k2)
+        span = abs(right - left)
+        r = ϵ_s - (span / 2)
+        δ = k1 * (span^k2)
 
         ## Interpolation step ##
         x_f = (fr * left - fl * right) / (fr - fl)
@@ -112,6 +112,9 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
         end
 
         ## Update ##
+        tmin, tmax = minmax(left, right)
+        xp >= tmax && (xp = prevfloat(tmax))
+        xp <= tmin && (xp = nextfloat(tmin))
         yp = f(xp)
         yps = yp * sign(fr)
         if yps > 0
@@ -121,16 +124,17 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
             left = xp
             fl = yp
         else
-            left = xp
-            right = xp
+            return SciMLBase.build_solution(prob, alg, xp, yps;
+                                            retcode = ReturnCode.Success, left = left,
+                                            right = right)
         end
         i += 1
         mid = (left + right) / 2
         ϵ_s /= 2
 
-        if (right - left < 2 * ϵ)
-            return SciMLBase.build_solution(prob, alg, mid, f(mid);
-                retcode = ReturnCode.Success, left = left,
+        if nextfloat_tdir(left, prob.tspan...) == right
+            return SciMLBase.build_solution(prob, alg, left, fl;
+                retcode = ReturnCode.FloatingPointLimit, left = left,
                 right = right)
         end
     end
