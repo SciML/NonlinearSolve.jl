@@ -58,6 +58,8 @@ for large-scale and numerically-difficult nonlinear systems.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `radius_update_scheme`: the choice of radius update scheme to be used. Defaults to RadiusUpdateSchemes.Simple
+    which follows the conventional approach
   - `max_trust_radius`: the maximal trust region radius.
     Defaults to `max(norm(fu), maximum(u) - minimum(u))`.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
