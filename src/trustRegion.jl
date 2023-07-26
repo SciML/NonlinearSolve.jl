@@ -52,8 +52,9 @@ for large-scale and numerically-difficult nonlinear systems.
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `radius_update_scheme`: the choice of radius update scheme to be used. Defaults to `RadiusUpdateSchemes.Simple`
     which follows the conventional approach. Other available schemes are `RadiusUpdateSchemes.Hei`, 
-    `RadiusUpdateSchemes.Yuan`, `RadiusUpdateSchemes.Bastin`, `RadiusUpdateSchemes.Fan`. For more details, see the
-    tutorials and [Yuan, Yx](https://link.springer.com/article/10.1007/s10107-015-0893-2#Sec4).
+    `RadiusUpdateSchemes.Yuan`, `RadiusUpdateSchemes.Bastin`, `RadiusUpdateSchemes.Fan`. These schemes
+    have the trust region radius converging to zero that is seen to improve convergence. For more details, see the
+    [Yuan, Yx](https://link.springer.com/article/10.1007/s10107-015-0893-2#Sec4).
   - `max_trust_radius`: the maximal trust region radius.
     Defaults to `max(norm(fu), maximum(u) - minimum(u))`.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
