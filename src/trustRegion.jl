@@ -93,7 +93,6 @@ EnumX.@enumx RadiusUpdateSchemes begin
     Fan
 end
 
-
 struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
