@@ -1,3 +1,11 @@
+EnumX.@enumx RadiusUpdateSchemes begin
+    Simple
+    Hei
+    Yuan
+    Bastin
+    Fan
+end
+
 """
 ```julia
 TrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
@@ -85,14 +93,6 @@ for large-scale and numerically-difficult nonlinear systems.
     Currently, the linear solver and chunk size choice only applies to in-place defined
     `NonlinearProblem`s. That is expected to change in the future.
 """
-EnumX.@enumx RadiusUpdateSchemes begin
-    Simple
-    Hei
-    Yuan
-    Bastin
-    Fan
-end
-
 struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
        AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
     linsolve::L
