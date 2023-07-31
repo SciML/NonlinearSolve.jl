@@ -426,9 +426,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LinearSolve]]
 deps = ["ArrayInterface", "DocStringExtensions", "EnumX", "FastLapackInterface", "GPUArraysCore", "InteractiveUtils", "KLU", "Krylov", "LinearAlgebra", "PrecompileTools", "Preferences", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Sparspak", "SuiteSparse", "UnPack"]
-git-tree-sha1 = "1b55771f2c211583ad52af5a5ca6475be374c961"
+git-tree-sha1 = "d2605a42d5453f510ca0fe37eff8aa0bfc5a3c80"
 uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "2.4.1"
+version = "2.4.2"
 
     [deps.LinearSolve.extensions]
     LinearSolveCUDAExt = "CUDA"
@@ -538,7 +538,7 @@ version = "1.2.0"
 deps = ["ArrayInterface", "DiffEqBase", "EnumX", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "PrecompileTools", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "UnPack"]
 path = "/home/runner/work/NonlinearSolve.jl/NonlinearSolve.jl"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "1.8.0"
+version = "1.9.0"
 
 [[deps.NonlinearSolveMINPACK]]
 deps = ["MINPACK", "Reexport", "SciMLBase"]
