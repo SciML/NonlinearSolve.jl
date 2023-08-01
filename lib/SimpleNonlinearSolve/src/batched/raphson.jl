@@ -20,7 +20,8 @@ end
 function SciMLBase.__solve(prob::NonlinearProblem, alg::BatchedSimpleNewtonRaphson;
     abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
-    @assert !iip "BatchedSimpleNewtonRaphson currently only supports out-of-place nonlinear problems."
+    iip &&
+        @assert alg_autodiff(alg) "Inplace BatchedSimpleNewtonRaphson currently only supports autodiff."
     u, f, reconstruct = _construct_batched_problem_structure(prob)
 
     tc = alg.termination_condition
@@ -35,12 +36,26 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::BatchedSimpleNewtonRaphs
     rtol = _get_tolerance(reltol, tc.reltol, T)
     termination_condition = tc(storage)
 
+    if iip
+        𝓙 = similar(xₙ, length(xₙ), length(xₙ))
+        fₙ = similar(xₙ)
+        jac_cfg = ForwardDiff.JacobianConfig(f, fₙ, xₙ)
+    end
+
     for i in 1:maxiters
-        if alg_autodiff(alg)
-            fₙ, 𝓙 = value_derivative(f, xₙ)
+        if iip
+            value_derivative!(𝓙, fₙ, f, xₙ, jac_cfg)
         else
-            fₙ = f(xₙ)
-            𝓙 = FiniteDiff.finite_difference_jacobian(f, xₙ, diff_type(alg), eltype(xₙ), fₙ)
+            if alg_autodiff(alg)
+                fₙ, 𝓙 = value_derivative(f, xₙ)
+            else
+                fₙ = f(xₙ)
+                𝓙 = FiniteDiff.finite_difference_jacobian(f,
+                    xₙ,
+                    diff_type(alg),
+                    eltype(xₙ),
+                    fₙ)
+            end
         end
 
         iszero(fₙ) && return DiffEqBase.build_solution(prob,
@@ -66,7 +81,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::BatchedSimpleNewtonRaphs
 
     if mode ∈ DiffEqBase.SAFE_BEST_TERMINATION_MODES
         xₙ = storage.u
-        fₙ = f(xₙ)
+        @maybeinplace iip fₙ=f(xₙ)
     end
 
     return DiffEqBase.build_solution(prob,

@@ -30,6 +30,20 @@ function value_derivative(f::F, x::R) where {F, R}
 end
 value_derivative(f::F, x::AbstractArray) where {F} = f(x), ForwardDiff.jacobian(f, x)
 
+"""
+    value_derivative!(J, y, f!, x, cfg = JacobianConfig(f!, y, x))
+
+Inplace version of [`SimpleNonlinearSolve.value_derivative`](@ref).
+"""
+function value_derivative!(J::AbstractMatrix,
+    y::AbstractArray,
+    f!::F,
+    x::AbstractArray,
+    cfg::ForwardDiff.JacobianConfig = ForwardDiff.JacobianConfig(f!, y, x)) where {F}
+    ForwardDiff.jacobian!(J, f!, y, x, cfg)
+    return y, J
+end
+
 value(x) = x
 value(x::Dual) = ForwardDiff.value(x)
 value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
