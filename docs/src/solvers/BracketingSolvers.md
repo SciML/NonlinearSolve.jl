@@ -7,6 +7,7 @@ Solves for ``f(t)=0`` in the problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
+`ITP()` is the recommended method for the scalar interval root-finding problems.
 `Falsi()` can have a faster convergence and is discretely differentiable, but is
 less stable than `Bisection`.
 `Ridder` is a hybrid method that uses the value of function at the midpoint of the interval to perform an exponential interpolation to the root. This gives a fast convergence with a guaranteed convergence of at most twice the number of iterations as the bisection method.
@@ -19,6 +20,7 @@ less stable than `Bisection`.
 These methods are automatically included as part of NonlinearSolve.jl. Though, one can use
 SimpleNonlinearSolve.jl directly to decrease the dependencies and improve load time.
 
+  - `ITP`: A non-allocating ITP (Interpolate, Truncate & Project) method
   - `Falsi`: A non-allocating regula falsi method
   - `Bisection`: A common bisection method
   - `Ridder`: A non-allocating Ridder method
