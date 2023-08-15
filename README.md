@@ -32,7 +32,7 @@ solver = solve(probN, NewtonRaphson(), abstol = 1e-9)
 f(u, p) = u .* u .- 2.0
 u0 = (1.0, 2.0) # brackets
 probB = IntervalNonlinearProblem(f, u0)
-sol = solve(probB, Falsi())
+sol = solve(probB, ITP())
 ```
 
 ## v1.0 Breaking Release Highlights!
