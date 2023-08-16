@@ -1,3 +1,19 @@
+"""
+`RadiusUpdateSchemes`
+
+`RadiusUpdateSchemes` is the standard enum interface for different types of radius update schemes
+implemented in the Trust Region method. These schemes specify how the radius of the so-called trust region
+is updated after each iteration of the algorithm. The specific role and caveats associated with each
+scheme are provided below.
+
+## Using `RadiusUpdateSchemes`
+
+`RadiusUpdateSchemes` uses the standard EnumX interface (https://github.com/fredrikekre/EnumX.jl), 
+and hence inherits all properties of being an EnumX, including the type of each constituent enum
+states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
+`TrustRegion(radius_update_scheme = your desired update scheme)`. For example,
+`sol = solve(prob, alg=TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei))`.
+"""
 EnumX.@enumx RadiusUpdateSchemes begin
     """
     `RadiusUpdateSchemes.Simple`
