@@ -1,8 +1,68 @@
+"""
+`RadiusUpdateSchemes`
+
+`RadiusUpdateSchemes` is the standard enum interface for different types of radius update schemes
+implemented in the Trust Region method. These schemes specify how the radius of the so-called trust region
+is updated after each iteration of the algorithm. The specific role and caveats associated with each
+scheme are provided below.
+
+## Using `RadiusUpdateSchemes`
+
+`RadiusUpdateSchemes` uses the standard EnumX interface (https://github.com/fredrikekre/EnumX.jl), 
+and hence inherits all properties of being an EnumX, including the type of each constituent enum
+states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
+`TrustRegion(radius_update_scheme = your desired update scheme)`. For example,
+`sol = solve(prob, alg=TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei))`.
+"""
 EnumX.@enumx RadiusUpdateSchemes begin
+    """
+    `RadiusUpdateSchemes.Simple`
+
+    The simple or conventional radius update scheme. This scheme is chosen by default
+    and follows the conventional approach to update the trust region radius, i.e. if the
+    trial step is accepted it increases the radius by a fixed factor (bounded by a maximum radius)
+    and if the trial step is rejected, it shrinks the radius by a fixed factor.
+    """
     Simple
+
+    """
+    `RadiusUpdateSchemes.Hei`
+
+    This scheme is proposed by [Hei, L.] (https://www.jstor.org/stable/43693061). The trust region radius
+    depends on the size (norm) of the current step size. The hypothesis is to let the radius converge to zero
+    as the iterations progress, which is more reliable and robust for ill-conditioned as well as degenerate
+    problems.
+    """
     Hei
+
+    """
+    `RadiusUpdateSchemes.Yuan`
+
+    This scheme is proposed by [Yuan, Y.] (https://www.researchgate.net/publication/249011466_A_new_trust_region_algorithm_with_trust_region_radius_converging_to_zero).
+    Similar to Hei's scheme, the trust region is updated in a way so that it converges to zero, however here,
+    the radius depends on the size (norm) of the current gradient of the objective (merit) function. The hypothesis
+    is that the step size is bounded by the gradient size, so it makes sense to let the radius depend on the gradient.
+    """
     Yuan
+
+    """
+    `RadiusUpdateSchemes.Bastin`
+
+    This scheme is proposed by [Bastin, et al.] (https://www.researchgate.net/publication/225100660_A_retrospective_trust-region_method_for_unconstrained_optimization).
+    The scheme is called a retrospective update scheme as it uses the model function at the current
+    iteration to compute the ratio of the actual reduction and the predicted reduction in the previous
+    trial step, and use this ratio to update the trust region radius. The hypothesis is to exploit the information
+    made available during the optimization process in order to vary the accuracy of the objective function computation.
+    """
     Bastin
+
+    """
+    `RadiusUpdateSchemes.Fan`
+
+    This scheme is proposed by [Fan, J.] (https://link.springer.com/article/10.1007/s10589-005-3078-8). It is very much similar to
+    Hei's and Yuan's schemes as it lets the trust region radius depend on the current size (norm) of the objective (merit)
+    function itself. These new update schemes are known to improve local convergence.
+    """
     Fan
 end
 
