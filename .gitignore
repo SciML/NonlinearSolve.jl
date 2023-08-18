@@ -23,3 +23,5 @@ docs/site/
 # environment.
 Manifest.toml
 docs/src/assets/Project.toml
+
+.vscode
