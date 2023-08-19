@@ -106,7 +106,11 @@ end
 
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
     uf = JacobianWrapper(f, p)
-    J = ArrayInterface.undefmatrix(u)
+    J = if f.jac_prototype === nothing
+        ArrayInterface.undefmatrix(u)
+    else
+        f.jac_prototype
+    end
 
     linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     weight = similar(u)
