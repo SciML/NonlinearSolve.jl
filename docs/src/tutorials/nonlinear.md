@@ -47,6 +47,5 @@ p = 2.0
 probN = NonlinearProblem(f!, u0, p)
 
 linsolve = LinearSolve.KrylovJL_GMRES()
-sol = solve(probN, NewtonRaphson(), reltol = 1e-9, maxiters=4)
-sol = solve(probN, NewtonRaphson(; linsolve), reltol = 1e-9, maxiters=4)
+sol = solve(probN, NewtonRaphson(; linsolve), reltol = 1e-9)
 ```

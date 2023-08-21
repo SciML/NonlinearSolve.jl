@@ -1,6 +1,7 @@
 using NonlinearSolve
 using StaticArrays
 using BenchmarkTools
+using LinearSolve
 using Test
 
 # --- NewtonRaphson tests ---
