@@ -31,3 +31,22 @@ uspan = (1.0, 2.0) # brackets
 probB = IntervalNonlinearProblem(f, uspan)
 sol = solve(probB, Falsi())
 ```
+
+## Using Jacobian Free Newton Krylov (JNFK) Methods
+
+If we want to solve the first example, without constructing the entire Jacobian
+
+```@example
+using NonlinearSolve, LinearSolve
+
+function f!(res, u, p)
+    @. res = u * u - p
+end
+u0 = [1.0, 1.0]
+p = 2.0
+probN = NonlinearProblem(f!, u0, p)
+
+linsolve = LinearSolve.KrylovJL_GMRES()
+sol = solve(probN, NewtonRaphson(), reltol = 1e-9, maxiters=4)
+sol = solve(probN, NewtonRaphson(; linsolve), reltol = 1e-9, maxiters=4)
+```

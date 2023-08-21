@@ -51,8 +51,7 @@ function alg_difftype(alg::AbstractNewtonAlgorithm{
     FDT,
     ST,
     CJ,
-}) where {CS, AD, FDT,
-    ST, CJ}
+}) where {CS, AD, FDT, ST, CJ}
     FDT
 end
 
@@ -62,8 +61,7 @@ function concrete_jac(alg::AbstractNewtonAlgorithm{
     FDT,
     ST,
     CJ,
-}) where {CS, AD, FDT,
-    ST, CJ}
+}) where {CS, AD, FDT, ST, CJ}
     CJ
 end
 
@@ -73,9 +71,7 @@ function get_chunksize(alg::AbstractNewtonAlgorithm{
     FDT,
     ST,
     CJ,
-}) where {CS, AD,
-    FDT,
-    ST, CJ}
+}) where {CS, AD, FDT, ST, CJ}
     Val(CS)
 end
 
@@ -85,17 +81,15 @@ function standardtag(alg::AbstractNewtonAlgorithm{
     FDT,
     ST,
     CJ,
-}) where {CS, AD, FDT,
-    ST, CJ}
+}) where {CS, AD, FDT, ST, CJ}
     ST
 end
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
-    du = nothing, u = nothing, p = nothing, t = nothing,
-    weight = nothing, cachedata = nothing,
-    reltol = nothing) where {P}
+    du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
+    cachedata = nothing, reltol = nothing) where {P}
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
