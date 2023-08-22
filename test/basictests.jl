@@ -3,6 +3,7 @@ using StaticArrays
 using BenchmarkTools
 using LinearSolve
 using Random
+using LinearAlgebra
 using Test
 
 # --- NewtonRaphson tests ---
