@@ -2,6 +2,7 @@ using NonlinearSolve
 using StaticArrays
 using BenchmarkTools
 using LinearSolve
+using Random
 using Test
 
 # --- NewtonRaphson tests ---
