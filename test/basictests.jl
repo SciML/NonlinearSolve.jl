@@ -1,6 +1,9 @@
 using NonlinearSolve
 using StaticArrays
 using BenchmarkTools
+using LinearSolve
+using Random
+using LinearAlgebra
 using Test
 
 # --- NewtonRaphson tests ---
@@ -46,9 +49,9 @@ sol = benchmark_scalar(sf, csu0)
 # @test (@ballocated benchmark_mutable(ff, cu0)) < 200
 # @test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
-function benchmark_inplace(f, u0)
+function benchmark_inplace(f, u0, linsolve, precs)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, NewtonRaphson(), abstol = 1e-9)
+    solver = init(probN, NewtonRaphson(; linsolve, precs), abstol = 1e-9)
     sol = solve!(solver)
 end
 
@@ -57,9 +60,16 @@ function ffiip(du, u, p)
 end
 u0 = [1.0, 1.0]
 
-sol = benchmark_inplace(ffiip, u0)
-@test sol.retcode === ReturnCode.Success
-@test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+precs = [
+    NonlinearSolve.DEFAULT_PRECS,
+    (args...) -> (Diagonal(rand!(similar(u0))), nothing)
+]
+
+for prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+    sol = benchmark_inplace(ffiip, u0, linsolve, prec)
+    @test sol.retcode === ReturnCode.Success
+    @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+end
 
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{true}(ffiip, u0)
@@ -209,8 +219,7 @@ end
 
 function benchmark_inplace(f, u0, radius_update_scheme)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, TrustRegion(radius_update_scheme = radius_update_scheme),
-        abstol = 1e-9)
+    solver = init(probN, TrustRegion(; radius_update_scheme), abstol = 1e-9)
     sol = solve!(solver)
 end
 

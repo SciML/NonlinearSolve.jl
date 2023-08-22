@@ -34,10 +34,10 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 end
 
 include("utils.jl")
-include("jacobian.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
+include("jacobian.jl")
 include("ad.jl")
 
 import PrecompileTools

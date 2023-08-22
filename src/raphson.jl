@@ -104,31 +104,6 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     end
 end
 
-function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
-    uf = JacobianWrapper(f, p)
-    J = if f.jac_prototype === nothing
-        ArrayInterface.undefmatrix(u)
-    else
-        f.jac_prototype
-    end
-
-    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
-    weight = similar(u)
-    recursivefill!(weight, false)
-
-    Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-            nothing)..., weight)
-    linsolve = init(linprob, alg.linsolve, alias_A = true, alias_b = true,
-        Pl = Pl, Pr = Pr)
-
-    du1 = zero(u)
-    du2 = zero(u)
-    tmp = zero(u)
-    jac_config = build_jac_config(alg, f, uf, du1, u, tmp, du2)
-
-    uf, linsolve, J, du1, jac_config
-end
-
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
     JacobianWrapper(f, p), nothing, nothing, nothing, nothing
 end
