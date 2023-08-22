@@ -104,26 +104,6 @@ mutable struct NewtonRaphsonCache{iip, fType, algType, uType, duType, resType, p
     end
 end
 
-function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{true})
-    uf = JacobianWrapper(f, p)
-
-    du1 = zero(u)
-    du2 = zero(u)
-    tmp = zero(u)
-    J, jac_config = build_jac_and_jac_config(alg, f, uf, du1, u, tmp, du2)
-
-    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
-    weight = similar(u)
-    # Q: Setting this to false leads to residual = 0 in GMRES?
-    recursivefill!(weight, true)
-
-    Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-            nothing)..., weight)
-    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
-
-    uf, linsolve, J, du1, jac_config
-end
-
 function jacobian_caches(alg::NewtonRaphson, f, u, p, ::Val{false})
     JacobianWrapper(f, p), nothing, nothing, nothing, nothing
 end

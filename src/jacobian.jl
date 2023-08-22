@@ -92,7 +92,7 @@ function build_jac_and_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F
 
     J = if !linsolve_needs_jac
         # We don't need to construct the Jacobian
-        JacVec(uf, u; autodiff = AutoFiniteDiff())
+        JacVec(uf, u; autodiff = alg_autodiff(alg) ? AutoForwardDiff() : AutoFiniteDiff())
     else
         if f.jac_prototype === nothing
             ArrayInterface.undefmatrix(u)
@@ -102,6 +102,27 @@ function build_jac_and_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F
     end
 
     return J, jac_config
+end
+
+# Build Jacobian Caches
+function jacobian_caches(alg::Union{NewtonRaphson, LevenbergMarquardt, TrustRegion}, f, u,
+    p, ::Val{true})
+    uf = JacobianWrapper(f, p)
+
+    du1 = zero(u)
+    du2 = zero(u)
+    tmp = zero(u)
+    J, jac_config = build_jac_and_jac_config(alg, f, uf, du1, u, tmp, du2)
+
+    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
+    weight = similar(u)
+    recursivefill!(weight, true)
+
+    Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
+            nothing)..., weight)
+    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
+
+    uf, linsolve, J, du1, jac_config
 end
 
 function get_chunksize(jac_config::ForwardDiff.JacobianConfig{
