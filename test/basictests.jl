@@ -47,9 +47,9 @@ sol = benchmark_scalar(sf, csu0)
 # @test (@ballocated benchmark_mutable(ff, cu0)) < 200
 # @test (@ballocated benchmark_scalar(sf, csu0)) < 400
 
-function benchmark_inplace(f, u0, linsolve)
+function benchmark_inplace(f, u0, linsolve, precs)
     probN = NonlinearProblem{true}(f, u0)
-    solver = init(probN, NewtonRaphson(; linsolve), abstol = 1e-9)
+    solver = init(probN, NewtonRaphson(; linsolve, precs), abstol = 1e-9)
     sol = solve!(solver)
 end
 
@@ -58,8 +58,13 @@ function ffiip(du, u, p)
 end
 u0 = [1.0, 1.0]
 
-for linsolve in (nothing, KrylovJL_GMRES())
-    sol = benchmark_inplace(ffiip, u0, linsolve)
+precs = [
+    NonlinearSolve.DEFAULT_PRECS,
+    (args...) -> (Diagonal(rand!(similar(u0))), nothing)
+]
+
+for prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+    sol = benchmark_inplace(ffiip, u0, linsolve, prec)
     @test sol.retcode === ReturnCode.Success
     @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 end
