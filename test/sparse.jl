@@ -41,11 +41,15 @@ sol = solve(prob_brusselator_2d, NewtonRaphson())
 du0 = copy(u0)
 jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p), du0,
     u0)
+jac_prototype = float.(jac_sparsity)
+fill!(jac_prototype, 0)
+@test all(iszero, jac_prototype)
 
-ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity))
+ff = NonlinearFunction(brusselator_2d_loop; jac_prototype)
 prob_brusselator_2d = NonlinearProblem(ff, u0, p)
 sol = solve(prob_brusselator_2d, NewtonRaphson())
 @test norm(sol.resid) < 1e-8
+@test !all(iszero, jac_prototype)
 
 sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = false))
 @test norm(sol.resid) < 1e-6

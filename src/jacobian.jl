@@ -24,6 +24,8 @@ function jacobian_finitediff!(J, f, x, jac_config, cache)
     2 * maximum(jac_config.colorvec))
 end
 
+# NoOp for Jacobian if it is not a Abstract Array -- For eg, JacVec Operator
+jacobian!(J, cache) = J
 function jacobian!(J::AbstractMatrix{<:Number}, cache)
     f = cache.f
     uf = cache.uf
@@ -52,14 +54,16 @@ function jacobian!(J::AbstractMatrix{<:Number}, cache)
     nothing
 end
 
-function build_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
+function build_jac_and_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
     haslinsolve = hasfield(typeof(alg), :linsolve)
 
-    if !SciMLBase.has_jac(f) && # No Jacobian if has analytical solution
-       ((concrete_jac(alg) === nothing && (!haslinsolve || (haslinsolve && # No Jacobian if linsolve doesn't want it
-           (alg.linsolve === nothing || LinearSolve.needs_concrete_A(alg.linsolve))))) ||
-        (concrete_jac(alg) !== nothing && concrete_jac(alg))) # Jacobian if explicitly asked for
-        jac_prototype = f.jac_prototype
+    has_analytic_jac = SciMLBase.has_jac(f)
+    linsolve_needs_jac = (concrete_jac(alg) === nothing &&
+                          (!haslinsolve || (haslinsolve && (alg.linsolve === nothing ||
+                             LinearSolve.needs_concrete_A(alg.linsolve)))))
+    alg_wants_jac = (concrete_jac(alg) !== nothing && concrete_jac(alg))
+
+    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
         sparsity, colorvec = sparsity_colorvec(f, u)
 
         if alg_autodiff(alg)
@@ -70,25 +74,55 @@ function build_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
             else
                 typeof(ForwardDiff.Tag(uf, eltype(u)))
             end
-            jac_config = ForwardColorJacCache(uf, u, _chunksize; colorvec = colorvec,
-                sparsity = sparsity, tag = T)
+            jac_config = ForwardColorJacCache(uf, u, _chunksize; colorvec, sparsity,
+                tag = T)
         else
             if alg_difftype(alg) !== Val{:complex}
-                jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg_difftype(alg),
-                    colorvec = colorvec,
-                    sparsity = sparsity)
+                jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg_difftype(alg);
+                    colorvec, sparsity)
             else
                 jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),
-                    Complex{eltype(du1)}.(du1), nothing,
-                    alg_difftype(alg), eltype(u),
-                    colorvec = colorvec,
-                    sparsity = sparsity)
+                    Complex{eltype(du1)}.(du1), nothing, alg_difftype(alg), eltype(u);
+                    colorvec, sparsity)
             end
         end
     else
         jac_config = nothing
     end
-    jac_config
+
+    J = if !linsolve_needs_jac
+        # We don't need to construct the Jacobian
+        JacVec(uf, u; autodiff = alg_autodiff(alg) ? AutoForwardDiff() : AutoFiniteDiff())
+    else
+        if f.jac_prototype === nothing
+            ArrayInterface.undefmatrix(u)
+        else
+            f.jac_prototype
+        end
+    end
+
+    return J, jac_config
+end
+
+# Build Jacobian Caches
+function jacobian_caches(alg::Union{NewtonRaphson, LevenbergMarquardt, TrustRegion}, f, u,
+    p, ::Val{true})
+    uf = JacobianWrapper(f, p)
+
+    du1 = zero(u)
+    du2 = zero(u)
+    tmp = zero(u)
+    J, jac_config = build_jac_and_jac_config(alg, f, uf, du1, u, tmp, du2)
+
+    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
+    weight = similar(u)
+    recursivefill!(weight, true)
+
+    Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
+            nothing)..., weight)
+    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
+
+    uf, linsolve, J, du1, jac_config
 end
 
 function get_chunksize(jac_config::ForwardDiff.JacobianConfig{

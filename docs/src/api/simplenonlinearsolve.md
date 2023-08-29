@@ -6,9 +6,11 @@ These methods can be used independently of the rest of NonlinearSolve.jl
 
 ```@docs
 Bisection
+ITP
 Falsi
 SimpleNewtonRaphson
 Broyden
+Halley
 Klement
 SimpleTrustRegion
 Ridder
