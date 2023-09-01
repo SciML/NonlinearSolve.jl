@@ -31,6 +31,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
             retcode = ReturnCode.ExactSolutionLeft, left = left,
             right = right)
     end
+    if iszero(fr)
+        return SciMLBase.build_solution(prob, alg, right, fr;
+            retcode = ReturnCode.ExactSolutionRight, left = left,
+            right = right)
+    end
 
     i = 1
     if !iszero(fr)
