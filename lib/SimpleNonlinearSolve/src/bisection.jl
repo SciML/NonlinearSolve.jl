@@ -46,6 +46,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
                     retcode = ReturnCode.FloatingPointLimit,
                     left = left, right = right)
             fm = f(mid)
+            if abs((right - left) / 2) < atol
+                return SciMLBase.build_solution(prob, alg, mid, fm;
+                    retcode = ReturnCode.Success,
+                    left = left, right = right)
+            end
             if iszero(fm)
                 right = mid
                 break
@@ -68,6 +73,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
                 retcode = ReturnCode.FloatingPointLimit,
                 left = left, right = right)
         fm = f(mid)
+        if abs((right - left) / 2) < atol
+            return SciMLBase.build_solution(prob, alg, mid, fm;
+                retcode = ReturnCode.Success,
+                left = left, right = right)
+        end
         if iszero(fm)
             right = mid
             fr = fm
