@@ -373,6 +373,15 @@ probB = IntervalNonlinearProblem(f, tspan)
 sol = solve(probB, ITP())
 @test sol.u ≈ sqrt(2.0)
 
+# Tolerance tests for Interval methods
+
+tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
+
+for abstol in tols
+    sol = solve(probB, Bisection())
+    @test abs(sol.u - sqrt(2)) < abstol
+end
+
 # Garuntee Tests for Bisection
 f = function (u, p)
     if u < 2.0
