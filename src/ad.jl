@@ -23,22 +23,17 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return sol, partials
 end
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-        iip,
-        <:Dual{T, V, P}},
-    alg::AbstractNewtonAlgorithm,
-    args...; kwargs...) where {iip, T, V, P}
-    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
-        retcode = sol.retcode)
-end
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-        iip,
-        <:AbstractArray{<:Dual{T, V, P}}},
-    alg::AbstractNewtonAlgorithm,
-    args...;
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector}, iip,
+        <:Dual{T, V, P}}, alg::AbstractNewtonAlgorithm, args...;
     kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
-        retcode = sol.retcode)
+        sol.retcode)
+end
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector}, iip,
+        <:AbstractArray{<:Dual{T, V, P}}}, alg::AbstractNewtonAlgorithm, args...;
+    kwargs...) where {iip, T, V, P}
+    sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
+    return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
+        sol.retcode)
 end
