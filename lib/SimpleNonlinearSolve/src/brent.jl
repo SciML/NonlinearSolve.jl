@@ -19,6 +19,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
         return SciMLBase.build_solution(prob, alg, a, fa;
             retcode = ReturnCode.ExactSolutionLeft, left = a,
             right = b)
+    elseif iszero(fb)
+        return SciMLBase.build_solution(prob, alg, b, fb;
+            retcode = ReturnCode.ExactSolutionRight, left = a,
+            right = b)
     end
     if abs(fa) < abs(fb)
         c = b
