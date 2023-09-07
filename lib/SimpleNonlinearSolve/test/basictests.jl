@@ -374,12 +374,28 @@ sol = solve(probB, ITP())
 @test sol.u ≈ sqrt(2.0)
 
 # Tolerance tests for Interval methods
-
+f, tspan = (u, p) -> u .* u .- 2.0, (1.0, 10.0)
+probB = IntervalNonlinearProblem(f, tspan)
 tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
+ϵ = eps(1.0) #least possible tol for all methods
 
-for abstol in tols
-    sol = solve(probB, Bisection())
-    @test abs(sol.u - sqrt(2)) < abstol
+for atol in tols
+    sol = solve(probB, Bisection(), abstol = atol)
+    @test abs(sol.u - sqrt(2)) < atol
+    @test abs(sol.u - sqrt(2)) > ϵ #test that the solution is not calculated upto max precision
+    sol = solve(probB, Falsi(), abstol = atol)
+    @test abs(sol.u - sqrt(2)) < atol
+    @test abs(sol.u - sqrt(2)) > ϵ
+end
+
+tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
+for atol in tols
+    sol = solve(probB, Ridder(), abstol = atol)
+    @test abs(sol.u - sqrt(2)) < atol
+    @test abs(sol.u - sqrt(2)) > ϵ
+    sol = solve(probB, Brent(), abstol = atol)
+    @test abs(sol.u - sqrt(2)) < atol
+    @test abs(sol.u - sqrt(2)) > ϵ
 end
 
 # Garuntee Tests for Bisection
