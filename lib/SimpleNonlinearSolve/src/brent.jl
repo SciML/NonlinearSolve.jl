@@ -7,12 +7,13 @@ A non-allocating Brent method
 struct Brent <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
-    maxiters = 1000,
+    maxiters = 1000, abstol = nothing,
     kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     fa, fb = f(a), f(b)
     ϵ = eps(convert(typeof(fa), 1.0))
+    atol = abstol !== nothing ? abstol : eps(1.0)
 
     if iszero(fa)
         return SciMLBase.build_solution(prob, alg, a, fa;
@@ -60,6 +61,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
                 cond = false
             end
             fs = f(s)
+            if abs((b - a) / 2) < atol
+                return SciMLBase.build_solution(prob, alg, s, fs;
+                    retcode = ReturnCode.Success,
+                    left = a, right = b)
+            end
             if iszero(fs)
                 if b < a
                     a = b
@@ -99,6 +105,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
                 left = a, right = b)
         end
         fc = f(c)
+        if abs((b - a) / 2) < atol
+            return SciMLBase.build_solution(prob, alg, c, fc;
+                retcode = ReturnCode.Success,
+                left = a, right = b)
+        end
         if iszero(fc)
             b = c
             fb = fc
