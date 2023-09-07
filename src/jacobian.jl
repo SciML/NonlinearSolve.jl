@@ -6,12 +6,27 @@ end
 (uf::JacobianWrapper)(u) = uf.f(u, uf.p)
 (uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
 
-# function sparsity_colorvec(f, x)
-#     sparsity = f.sparsity
-#     colorvec = DiffEqBase.has_colorvec(f) ? f.colorvec :
-#                (isnothing(sparsity) ? (1:length(x)) : matrix_colors(sparsity))
-#     sparsity, colorvec
-# end
+# FIXME: This is a deviation from older versions. Previously if sparsity and colorvec were
+#        provided we would use a sparse AD. Right now it requires an explicit specification
+sparsity_detection_alg(f, ad) = NoSparsityDetection()
+function sparsity_detection_alg(f, ad::AbstractSparseADType)
+    if f.sparsity === nothing
+        if f.jac_prototype === nothing
+            return SymbolicsSparsityDetection()
+        else
+            jac_prototype = f.jac_prototype
+        end
+    else
+        jac_prototype = f.sparsity
+    end
+
+    if SciMLBase.has_colorvec(f)
+        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
+            partition_by_rows = ad isa ADTypes.AbstractSparseReverseMode)
+    else
+        return JacPrototypeSparsityDetection(; jac_prototype)
+    end
+end
 
 # NoOp for Jacobian if it is not a Abstract Array -- For eg, JacVec Operator
 jacobian!!(J, _) = J
@@ -41,14 +56,13 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
                              needs_concrete_A(alg.linsolve)))))
     alg_wants_jac = (concrete_jac(alg) === nothing && concrete_jac(alg))
 
-    fu = zero(u)  # TODO: Use Prototype
+    # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
+    fu = f.resid_prototype === nothing ? (iip ? zero(u) : f(u, p)) :
+         deepcopy(f.resid_prototype)
     if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
-        # TODO: We need an Upstream Mode to allow using known sparsity and colorvec
-        # TODO: We can use the jacobian prototype here
-        sd = typeof(alg.ad) <: AbstractSparseADType ? SymbolicsSparsityDetection() :
-             NoSparsityDetection()
+        sd = sparsity_detection_alg(f, alg.ad)
         jac_cache = iip ? sparse_jacobian_cache(alg.ad, sd, uf, fu, u) :
-                    sparse_jacobian_cache(alg.ad, sd, uf, u; fx=fu)
+                    sparse_jacobian_cache(alg.ad, sd, uf, u; fx = fu)
     else
         jac_cache = nothing
     end
@@ -60,12 +74,12 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
         if has_analytic_jac
             iip ? undefmatrix(u) : nothing
         else
-            f.jac_prototype === nothing ? __init_𝒥(jac_cache) : f.jac_prototype
+            f.jac_prototype === nothing ? init_jacobian(jac_cache) : f.jac_prototype
         end
     end
 
-    # FIXME: Assumes same sized `u` and `fu` -- Incorrect Assumption for Levenberg
-    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
+    du = zero(u)
+    linprob = LinearProblem(J, _vec(fu); u0 = _vec(du))
 
     weight = similar(u)
     recursivefill!(weight, true)
@@ -74,5 +88,5 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
             nothing)..., weight)
     linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return uf, linsolve, J, fu, jac_cache
+    return uf, linsolve, J, fu, jac_cache, du
 end

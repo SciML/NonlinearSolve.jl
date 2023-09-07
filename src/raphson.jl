@@ -36,7 +36,7 @@ concrete_jac(::NewtonRaphson{CJ}) where {CJ} = CJ
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, adkwargs...)
-    ad = default_adargs_to_adtype(adkwargs...)
+    ad = default_adargs_to_adtype(; adkwargs...)
     return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
 
@@ -69,14 +69,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     if iip
-        fu1 = zero(u)  # TODO: Use Prototype
+        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
         f(fu1, u, p)
     else
-        fu1 = f(u, p)
+        fu1 = f.resid_prototype === nothing ? f(u, p) : f.resid_prototype
     end
-    uf, linsolve, J, fu2, jac_cache = jacobian_caches(alg, f, u, p, Val(iip))
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
 
-    return NewtonRaphsonCache{iip}(f, alg, u, fu1, fu2, zero(u), p, uf, linsolve, J,
+    return NewtonRaphsonCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
         NLStats(1, 0, 0, 0, 0))
 end

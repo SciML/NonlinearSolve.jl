@@ -8,7 +8,7 @@ using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
 import ForwardDiff
 
 import ADTypes: AbstractFiniteDifferencesMode
-import ArrayInterface: undefmatrix
+import ArrayInterface: undefmatrix, matrix_colors
 import ConcreteStructs: @concrete
 import EnumX: @enumx
 import ForwardDiff: Dual
@@ -16,7 +16,6 @@ import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
 import RecursiveArrayTools: AbstractVectorOfArray, recursivecopy!, recursivefill!
 import Reexport: @reexport
 import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
-import SparseDiffTools: __init_𝒥
 import StaticArraysCore: StaticArray, SVector
 import UnPack: @unpack
 
