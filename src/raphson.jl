@@ -72,7 +72,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
         fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
         f(fu1, u, p)
     else
-        fu1 = f.resid_prototype === nothing ? f(u, p) : f.resid_prototype
+        fu1 = _mutable(f(u, p))
     end
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
 
@@ -101,15 +101,19 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, fu1, f, p, alg, linsolve, du = cache
+    @unpack u, fu1, f, p, alg, linsolve = cache
 
     cache.J = jacobian!!(cache.J, cache)
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1), linu = _vec(du),
-        p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-    @. u = u - du
-    cache.fu1 = f(u, p)
+    if linsolve === nothing
+        cache.du = fu1 / cache.J
+    else
+        linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
+            linu = _vec(cache.du), p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+    end
+    cache.u = @. u - cache.du  # `u` might not support mutation
+    cache.fu1 = f(cache.u, p)
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)
     cache.stats.nf += 1

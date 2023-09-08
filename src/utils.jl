@@ -37,21 +37,21 @@ function default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(
     return ad
 end
 
-# """
-# value_derivative(f, x)
+"""
+value_derivative(f, x)
 
-# Compute `f(x), d/dx f(x)` in the most efficient way.
-# """
-# function value_derivative(f::F, x::R) where {F, R}
-#     T = typeof(ForwardDiff.Tag(f, R))
-#     out = f(ForwardDiff.Dual{T}(x, one(x)))
-#     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-# end
+Compute `f(x), d/dx f(x)` in the most efficient way.
+"""
+function value_derivative(f::F, x::R) where {F, R}
+    T = typeof(ForwardDiff.Tag(f, R))
+    out = f(ForwardDiff.Dual{T}(x, one(x)))
+    ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+end
 
-# # Todo: improve this dispatch
-# function value_derivative(f::F, x::StaticArraysCore.SVector) where {F}
-#     f(x), ForwardDiff.jacobian(f, x)
-# end
+# Todo: improve this dispatch
+function value_derivative(f::F, x::SVector) where {F}
+    f(x), ForwardDiff.jacobian(f, x)
+end
 
 @inline value(x) = x
 @inline value(x::Dual) = ForwardDiff.value(x)
@@ -128,3 +128,17 @@ end
 
 concrete_jac(_) = nothing
 concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
+
+# Circumventing https://github.com/SciML/RecursiveArrayTools.jl/issues/277
+_iszero(x) = iszero(x)
+_iszero(x::ArrayPartition) = all(_iszero, x.x)
+
+_mutable_zero(x) = zero(x)
+_mutable_zero(x::SArray) = MArray(x)
+
+_mutable(x) = x
+_mutable(x::SArray) = MArray(x)
+_maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
+# The shadow allocated for Enzyme needs to be mutable
+_maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
+_maybe_mutable(x, _) = x

@@ -8,15 +8,16 @@ using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
 import ForwardDiff
 
 import ADTypes: AbstractFiniteDifferencesMode
-import ArrayInterface: undefmatrix, matrix_colors
+import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable
 import ConcreteStructs: @concrete
 import EnumX: @enumx
 import ForwardDiff: Dual
 import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-import RecursiveArrayTools: AbstractVectorOfArray, recursivecopy!, recursivefill!
+import RecursiveArrayTools: ArrayPartition,
+    AbstractVectorOfArray, recursivecopy!, recursivefill!
 import Reexport: @reexport
 import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
-import StaticArraysCore: StaticArray, SVector
+import StaticArraysCore: StaticArray, SVector, SArray, MArray
 import UnPack: @unpack
 
 @reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
@@ -32,8 +33,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::AbstractNonlinearSolveAl
     cache = init(prob, alg, args...; kwargs...)
     return solve!(cache)
 end
-
-# FIXME: Scalar Case is Completely Broken
 
 include("utils.jl")
 include("raphson.jl")

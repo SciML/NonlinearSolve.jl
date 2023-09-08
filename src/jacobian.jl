@@ -36,12 +36,16 @@ function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache)
     @unpack f, uf, u, p, jac_cache, alg, fu2 = cache
     iip = isinplace(cache)
     if iip
-        has_jac(f) ? f.jac(J, u, p) : sparse_jacobian!(J, alg.ad, jac_cache, uf, fu2, u)
+        has_jac(f) ? f.jac(J, u, p) :
+        sparse_jacobian!(J, alg.ad, jac_cache, uf, fu2, _maybe_mutable(u, alg.ad))
     else
-        return has_jac(f) ? f.jac(u, p) : sparse_jacobian!(J, alg.ad, jac_cache, uf, u)
+        return has_jac(f) ? f.jac(u, p) :
+               sparse_jacobian!(J, alg.ad, jac_cache, uf, _maybe_mutable(u, alg.ad))
     end
-    return nothing
+    return J
 end
+# Scalar case
+jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 
 # Build Jacobian Caches
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
@@ -54,15 +58,16 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
     linsolve_needs_jac = (concrete_jac(alg) === nothing &&
                           (!haslinsolve || (haslinsolve && (alg.linsolve === nothing ||
                              needs_concrete_A(alg.linsolve)))))
-    alg_wants_jac = (concrete_jac(alg) === nothing && concrete_jac(alg))
+    alg_wants_jac = (concrete_jac(alg) !== nothing && concrete_jac(alg))
 
     # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
-    fu = f.resid_prototype === nothing ? (iip ? zero(u) : f(u, p)) :
-         deepcopy(f.resid_prototype)
+    fu = f.resid_prototype === nothing ? (iip ? _mutable_zero(u) : _mutable(f(u, p))) :
+         (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
     if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
         sd = sparsity_detection_alg(f, alg.ad)
-        jac_cache = iip ? sparse_jacobian_cache(alg.ad, sd, uf, fu, u) :
-                    sparse_jacobian_cache(alg.ad, sd, uf, u; fx = fu)
+        ad = alg.ad
+        jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, _maybe_mutable(u, ad)) :
+                    sparse_jacobian_cache(ad, sd, uf, _maybe_mutable(u, ad); fx = fu)
     else
         jac_cache = nothing
     end
@@ -78,7 +83,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
         end
     end
 
-    du = zero(u)
+    du = _mutable_zero(u)
     linprob = LinearProblem(J, _vec(fu); u0 = _vec(du))
 
     weight = similar(u)
@@ -89,4 +94,12 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
     linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
     return uf, linsolve, J, fu, jac_cache, du
+end
+
+## Special Handling for Scalars
+function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
+    ::Val{false})
+    # NOTE: Scalar `u` assumes scalar output from `f`
+    uf = JacobianWrapper(f, p)
+    return uf, nothing, u, nothing, nothing, u
 end
