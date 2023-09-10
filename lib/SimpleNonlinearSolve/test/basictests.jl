@@ -386,6 +386,9 @@ for atol in tols
     sol = solve(probB, Falsi(), abstol = atol)
     @test abs(sol.u - sqrt(2)) < atol
     @test abs(sol.u - sqrt(2)) > ϵ
+    sol = solve(probB, ITP(), abstol = atol)
+    @test abs(sol.u - sqrt(2)) < atol
+    @test abs(sol.u - sqrt(2)) > ϵ
 end
 
 tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
