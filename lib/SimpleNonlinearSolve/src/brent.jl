@@ -13,7 +13,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     a, b = prob.tspan
     fa, fb = f(a), f(b)
     ϵ = eps(convert(typeof(fa), 1.0))
-    atol = abstol !== nothing ? abstol : min(eps(left), eps(right))
+    atol = abstol !== nothing ? abstol : min(eps(a), eps(b))
 
     if iszero(fa)
         return SciMLBase.build_solution(prob, alg, a, fa;
