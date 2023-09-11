@@ -59,12 +59,12 @@ struct ITP{T} <: AbstractBracketingAlgorithm
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
-    args...; abstol = nothing,
+    args...; abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
     maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
     fl, fr = f(left), f(right)
-    ϵ = abstol !== nothing ? abstol : min(eps(left), eps(right))
+    ϵ = abstol
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
             retcode = ReturnCode.ExactSolutionLeft, left = left,

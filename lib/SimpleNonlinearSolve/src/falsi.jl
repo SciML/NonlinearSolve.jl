@@ -4,12 +4,11 @@
 struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
-    maxiters = 1000, abstol = nothing,
+    maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
     kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
-    atol = abstol !== nothing ? abstol : min(eps(left), eps(right))
 
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
@@ -37,7 +36,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
                 break
             end
             fm = f(mid)
-            if abs((right - left) / 2) < atol
+            if abs((right - left) / 2) < abstol
                 return SciMLBase.build_solution(prob, alg, mid, fm;
                     retcode = ReturnCode.Success,
                     left = left, right = right)
@@ -64,7 +63,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
                 retcode = ReturnCode.FloatingPointLimit,
                 left = left, right = right)
         fm = f(mid)
-        if abs((right - left) / 2) < atol
+        if abs((right - left) / 2) < abstol
             return SciMLBase.build_solution(prob, alg, mid, fm;
                 retcode = ReturnCode.Success,
                 left = left, right = right)
