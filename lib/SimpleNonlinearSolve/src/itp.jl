@@ -113,10 +113,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
 
         if abs((left - right) / 2) < ϵ
             return SciMLBase.build_solution(prob, alg, mid, f(mid);
-            retcode = ReturnCode.Success,
-            left = left, right = right)
+                retcode = ReturnCode.Success,
+                left = left, right = right)
         end
-    
+
         ## Update ##
         tmin, tmax = minmax(left, right)
         xp >= tmax && (xp = prevfloat(tmax))

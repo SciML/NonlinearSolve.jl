@@ -25,7 +25,6 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
-    #atol = abstol
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
             retcode = ReturnCode.ExactSolutionLeft, left = left,
