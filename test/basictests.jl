@@ -364,10 +364,10 @@ end
         for options in list_of_options
             local probN, sol, alg
             alg = LevenbergMarquardt(damping_initial = options[1],
-                    damping_increase_factor = options[2],
-                    damping_decrease_factor = options[3],
-                    finite_diff_step_geodesic = options[4], α_geodesic = options[5],
-                    b_uphill = options[6], min_damping_D = options[7])
+                damping_increase_factor = options[2],
+                damping_decrease_factor = options[3],
+                finite_diff_step_geodesic = options[4], α_geodesic = options[5],
+                b_uphill = options[6], min_damping_D = options[7])
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-10)
