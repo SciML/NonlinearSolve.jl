@@ -3,6 +3,21 @@ using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random, LinearA
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
+quadratic_f(u, p) = u .* u .- p
+quadratic_f!(du, u, p) = (du .= u .* u .- p)
+quadratic_f2(u, p) = @. p[1] * u * u - p[2]
+
+function newton_fails(u, p)
+    return 0.010000000000000002 .+
+           10.000000000000002 ./ (1 .+
+            (0.21640425613334457 .+
+             216.40425613334457 ./ (1 .+
+              (0.21640425613334457 .+
+               216.40425613334457 ./
+               (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
+           0.0011552453009332421u .- p
+end
+
 # --- NewtonRaphson tests ---
 
 @testset "NewtonRaphson" begin
@@ -15,9 +30,6 @@ _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, NewtonRaphson(; linsolve, precs), abstol = 1e-9)
     end
-
-    quadratic_f(u, p) = u .* u .- p
-    quadratic_f!(du, u, p) = (du .= u .* u .- p)
 
     @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
         sol = benchmark_nlsolve_oop(quadratic_f, u0)
@@ -40,7 +52,7 @@ _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
+        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
             NewtonRaphson(; linsolve, precs = prec), abstol = 1e-9)
         @test (@ballocated solve!($cache)) ≤ 64
     end
@@ -67,7 +79,6 @@ _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
               1 / (2 * sqrt(p))
     end
 
-    quadratic_f2(u, p) = @. p[1] * u * u - p[2]
     t = (p) -> [sqrt(p[2] / p[1])]
     p = [0.9, 50.0]
     @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
@@ -112,9 +123,6 @@ end
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, TrustRegion(; radius_update_scheme); abstol = 1e-9, kwargs...)
     end
-
-    quadratic_f(u, p) = u .* u .- p
-    quadratic_f!(du, u, p) = (du .= u .* u .- p)
 
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei,
         RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
@@ -169,7 +177,6 @@ end
                 p; radius_update_scheme).u, p) ≈ 1 / (2 * sqrt(p))
     end
 
-    quadratic_f2(u, p) = @. p[1] * u * u - p[2]
     t = (p) -> [sqrt(p[2] / p[1])]
     p = [0.9, 50.0]
     @testset "[OOP] [Jacobian] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
@@ -209,17 +216,6 @@ end
     end
 
     # Test that `TrustRegion` passes a test that `NewtonRaphson` fails on.
-    function newton_fails(u, p)
-        return 0.010000000000000002 .+
-               10.000000000000002 ./ (1 .+
-                (0.21640425613334457 .+
-                 216.40425613334457 ./ (1 .+
-                  (0.21640425613334457 .+
-                   216.40425613334457 ./
-                   (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-               0.0011552453009332421u .- p
-    end
-
     @testset "Newton Raphson Fails: radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in [
         RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
@@ -251,9 +247,9 @@ end
                 shrink_factor = options[6], expand_factor = options[7],
                 max_shrink_times = options[8])
 
-            probN = NonlinearProblem{false}(f, u0, p)
+            probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-10)
-            @test all(abs.(f(u, p)) .< 1e-10)
+            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
     end
 
@@ -275,170 +271,107 @@ end
 
 # --- LevenbergMarquardt tests ---
 
-@testset "LevenbergMarquardt" begin end
+@testset "LevenbergMarquardt" begin
+    function benchmark_nlsolve_oop(f, u0, p = 2.0)
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, LevenbergMarquardt(), abstol = 1e-9)
+    end
 
-# function benchmark_immutable(f, u0)
-#     probN = NonlinearProblem{false}(f, u0)
-#     solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-#     sol = solve!(solver)
-# end
+    function benchmark_nlsolve_iip(f, u0, p = 2.0)
+        prob = NonlinearProblem{true}(f, u0, p)
+        return solve(prob, LevenbergMarquardt(), abstol = 1e-9)
+    end
 
-# function benchmark_mutable(f, u0)
-#     probN = NonlinearProblem{false}(f, u0)
-#     solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-#     sol = solve!(solver)
-# end
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-# function benchmark_scalar(f, u0)
-#     probN = NonlinearProblem{false}(f, u0)
-#     sol = (solve(probN, LevenbergMarquardt(), abstol = 1e-9))
-# end
+        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), LevenbergMarquardt(),
+            abstol = 1e-9)
+        @test (@ballocated solve!($cache)) < 200
+    end
 
-# function ff(u, p)
-#     u .* u .- 2
-# end
+    @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-# function sf(u, p)
-#     u * u - 2
-# end
-# u0 = [1.0, 1.0]
+        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), LevenbergMarquardt(),
+            abstol = 1e-9)
+        @test (@ballocated solve!($cache)) ≤ 64
+    end
 
-# sol = benchmark_immutable(ff, cu0)
-# @test SciMLBase.successful_retcode(sol)
-# @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-# sol = benchmark_mutable(ff, u0)
-# @test SciMLBase.successful_retcode(sol)
-# @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-# sol = benchmark_scalar(sf, csu0)
-# @test SciMLBase.successful_retcode(sol)
-# @test abs(sol.u * sol.u - 2) < 1e-9
+    # FIXME: Even the previous tests were broken, but due to a typo in the tests they
+    #        accidentally passed
+    @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
+        @test begin
+            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+            res_true = sqrt(p)
+            all(res.u .≈ res_true)
+        end
+        @test_broken ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+            @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
+    end
 
-# function benchmark_inplace(f, u0)
-#     probN = NonlinearProblem{true}(f, u0)
-#     solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-#     sol = solve!(solver)
-# end
+    @testset "[OOP] [Scalar AD] p: $(p)" for p in 1.0:0.1:100.0
+        @test begin
+            res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+            res_true = sqrt(p)
+            res.u ≈ res_true
+        end
+        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u, p) ≈
+              1 / (2 * sqrt(p))
+    end
 
-# function ffiip(du, u, p)
-#     du .= u .* u .- 2
-# end
-# u0 = [1.0, 1.0]
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u], p) ≈
+          ForwardDiff.jacobian(t, p)
 
-# sol = benchmark_inplace(ffiip, u0)
-# @test SciMLBase.successful_retcode(sol)
-# @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    probN = NonlinearProblem(quadratic_f, @SVector[1.0, 1.0], 2.0)
+    @testset "ADType: $(autodiff) u0: $(u0)" for autodiff in (false, true,
+            AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
+            AutoSparseZygote(),
+            AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, LevenbergMarquardt(; autodiff)).u .≈ sqrt(2.0))
+    end
 
-# u0 = [1.0, 1.0]
-# probN = NonlinearProblem{true}(ffiip, u0)
-# solver = init(probN, LevenbergMarquardt(), abstol = 1e-9)
-# @test (@ballocated solve!(solver)) < 120
+    # Test that `LevenbergMarquardt` passes a test that `NewtonRaphson` fails on.
+    @testset "Newton Raphson Fails" begin
+        u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+        p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
+    end
 
-# # AD Tests
-# using ForwardDiff
+    # Test kwargs in `LevenbergMarquardt`
+    @testset "Keyword Arguments" begin
+        damping_initial = [0.5, 2.0, 5.0]
+        damping_increase_factor = [1.5, 3.0, 10.0]
+        damping_decrease_factor = Float64[2, 5, 10]
+        finite_diff_step_geodesic = [0.02, 0.2, 0.3]
+        α_geodesic = [0.6, 0.8, 0.9]
+        b_uphill = Float64[0, 1, 2]
+        min_damping_D = [1e-12, 1e-9, 1e-4]
 
-# # Immutable
-# f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
+        list_of_options = zip(damping_initial, damping_increase_factor,
+            damping_decrease_factor, finite_diff_step_geodesic, α_geodesic, b_uphill,
+            min_damping_D)
+        for options in list_of_options
+            local probN, sol, alg
+            alg = LevenbergMarquardt(damping_initial = options[1],
+                    damping_increase_factor = options[2],
+                    damping_decrease_factor = options[3],
+                    finite_diff_step_geodesic = options[4], α_geodesic = options[5],
+                    b_uphill = options[6], min_damping_D = options[7])
 
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, csu0, p)
-#     sol = solve(probN, LevenbergMarquardt(), abstol = 1e-9)
-#     return sol.u[end]
-# end
-
-# for p in 1.1:0.1:100.0
-#     @test g(p) ≈ sqrt(p)
-#     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-# end
-
-# # Scalar
-# f, u0 = (u, p) -> u * u - p, 1.0
-
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-#     sol = solve(probN, LevenbergMarquardt(), abstol = 1e-10)
-#     return sol.u
-# end
-
-# @test ForwardDiff.derivative(g, 3.0) ≈ 1 / (2 * sqrt(3.0))
-
-# for p in 1.1:0.1:100.0
-#     @test g(p) ≈ sqrt(p)
-#     @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-# end
-
-# f = (u, p) -> p[1] * u * u - p[2]
-# t = (p) -> [sqrt(p[2] / p[1])]
-# p = [0.9, 50.0]
-# gnewton = function (p)
-#     probN = NonlinearProblem{false}(f, 0.5, p)
-#     sol = solve(probN, LevenbergMarquardt())
-#     return [sol.u]
-# end
-# @test gnewton(p) ≈ [sqrt(p[2] / p[1])]
-# @test ForwardDiff.jacobian(gnewton, p) ≈ ForwardDiff.jacobian(t, p)
-
-# # Error Checks
-# f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
-# probN = NonlinearProblem(f, u0)
-
-# @test solve(probN, LevenbergMarquardt()).u[end] ≈ sqrt(2.0)
-# @test solve(probN, LevenbergMarquardt(; autodiff = false)).u[end] ≈ sqrt(2.0)
-
-# for u0 in [1.0, [1, 1.0]]
-#     local f, probN, sol
-#     f = (u, p) -> u .* u .- 2.0
-#     probN = NonlinearProblem(f, u0)
-#     sol = sqrt(2) * u0
-
-#     @test solve(probN, LevenbergMarquardt()).u ≈ sol
-#     @test solve(probN, LevenbergMarquardt()).u ≈ sol
-#     @test solve(probN, LevenbergMarquardt(; autodiff = false)).u ≈ sol
-# end
-
-# # Test that `LevenbergMarquardt` passes a test that `NewtonRaphson` fails on.
-# u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-# global g, f
-# f = (u, p) -> 0.010000000000000002 .+
-#               10.000000000000002 ./ (1 .+
-#                (0.21640425613334457 .+
-#                 216.40425613334457 ./ (1 .+
-#                  (0.21640425613334457 .+
-#                   216.40425613334457 ./
-#                   (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-#               0.0011552453009332421u .- p
-# g = function (p)
-#     probN = NonlinearProblem{false}(f, u0, p)
-#     sol = solve(probN, LevenbergMarquardt(), abstol = 1e-10)
-#     return sol.u
-# end
-# p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-# u = g(p)
-# f(u, p)
-# @test all(abs.(f(u, p)) .< 1e-10)
-
-# # # Test kwars in `LevenbergMarquardt`
-# damping_initial = [0.5, 2.0, 5.0]
-# damping_increase_factor = [1.5, 3.0, 10.0]
-# damping_decrease_factor = [2, 5, 10]
-# finite_diff_step_geodesic = [0.02, 0.2, 0.3]
-# α_geodesic = [0.6, 0.8, 0.9]
-# b_uphill = [0, 1, 2]
-# min_damping_D = [1e-12, 1e-9, 1e-4]
-
-# list_of_options = zip(damping_initial, damping_increase_factor, damping_decrease_factor,
-#     finite_diff_step_geodesic, α_geodesic, b_uphill,
-#     min_damping_D)
-# for options in list_of_options
-#     local probN, sol, alg
-#     alg = LevenbergMarquardt(damping_initial = options[1],
-#         damping_increase_factor = options[2],
-#         damping_decrease_factor = options[3],
-#         finite_diff_step_geodesic = options[4],
-#         α_geodesic = options[5],
-#         b_uphill = options[6],
-#         min_damping_D = options[7])
-
-#     probN = NonlinearProblem{false}(f, u0, p)
-#     sol = solve(probN, alg, abstol = 1e-10)
-#     @test all(abs.(f(u, p)) .< 1e-10)
-# end
+            probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
+            sol = solve(probN, alg, abstol = 1e-10)
+            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
+        end
+    end
+end

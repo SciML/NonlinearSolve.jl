@@ -14,11 +14,11 @@ end
 @time begin
     if GROUP == "All" || GROUP == "Core"
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
-        # @time @safetestset "Sparsity Tests" include("sparse.jl")
+        @time @safetestset "Sparsity Tests" include("sparse.jl")
     end
 
-    # if GROUP == "GPU"
-    #     activate_downstream_env()
-    #     @time @safetestset "GPU Tests" include("gpu.jl")
-    # end
+    if GROUP == "GPU"
+        activate_downstream_env()
+        @time @safetestset "GPU Tests" include("gpu.jl")
+    end
 end

@@ -30,6 +30,7 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector}, iip,
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
         sol.retcode)
 end
+
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector}, iip,
         <:AbstractArray{<:Dual{T, V, P}}}, alg::AbstractNewtonAlgorithm, args...;
     kwargs...) where {iip, T, V, P}
