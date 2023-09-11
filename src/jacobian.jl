@@ -6,8 +6,6 @@ end
 (uf::JacobianWrapper)(u) = uf.f(u, uf.p)
 (uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
 
-# FIXME: This is a deviation from older versions. Previously if sparsity and colorvec were
-#        provided we would use a sparse AD. Right now it requires an explicit specification
 sparsity_detection_alg(f, ad) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
