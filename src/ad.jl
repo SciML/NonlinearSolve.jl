@@ -13,7 +13,7 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     z_arr = -inv(f_x) * f_p
 
     pp = prob.p
-    sumfun = ((z, p),) -> [zᵢ * ForwardDiff.partials(p) for zᵢ in z]
+    sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
     if uu isa Number
         partials = sum(sumfun, zip(z_arr, pp))
     else
@@ -52,7 +52,7 @@ end
 
 function scalar_nlsolve_dual_soln(u::Number, partials,
     ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}) where {T, V, P}
-    return Dual{T, V, P}(u, partials[1])
+    return Dual{T, V, P}(u, partials)
 end
 
 function scalar_nlsolve_dual_soln(u::AbstractArray, partials,
