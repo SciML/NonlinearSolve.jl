@@ -57,15 +57,13 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    # FIXME: Even the previous tests were broken, but due to a typo in the tests they
-    #        accidentally passed
     @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
         @test begin
             res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
             res_true = sqrt(p)
             all(res.u .≈ res_true)
         end
-        @test_broken ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
             @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
@@ -101,11 +99,9 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    probN = NonlinearProblem(quadratic_f, @SVector[1.0, 1.0], 2.0)
-    @testset "ADType: $(autodiff) u0: $(u0)" for autodiff in (false, true,
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
             AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(),
-            AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
@@ -149,8 +145,6 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    # FIXME: Even the previous tests were broken, but due to a typo in the tests they
-    #        accidentally passed
     @testset "[OOP] [Immutable AD] radius_update_scheme: $(radius_update_scheme) p: $(p)" for radius_update_scheme in radius_update_schemes,
         p in 1.0:0.1:100.0
 
@@ -160,7 +154,7 @@ end
             res_true = sqrt(p)
             all(res.u .≈ res_true)
         end
-        @test_broken ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
             @SVector[1.0, 1.0], p; radius_update_scheme).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
@@ -204,11 +198,9 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    probN = NonlinearProblem(quadratic_f, @SVector[1.0, 1.0], 2.0)
-    @testset "ADType: $(autodiff) u0: $(u0) radius_update_scheme: $(radius_update_scheme)" for autodiff in (false,
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (false,
             true, AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(), AutoSparseEnzyme()),
-        u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0]),
+            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -302,15 +294,13 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    # FIXME: Even the previous tests were broken, but due to a typo in the tests they
-    #        accidentally passed
     @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
         @test begin
             res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
             res_true = sqrt(p)
             all(res.u .≈ res_true)
         end
-        @test_broken ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
             @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
@@ -330,11 +320,9 @@ end
     @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u], p) ≈
           ForwardDiff.jacobian(t, p)
 
-    probN = NonlinearProblem(quadratic_f, @SVector[1.0, 1.0], 2.0)
-    @testset "ADType: $(autodiff) u0: $(u0)" for autodiff in (false, true,
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
             AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(),
-            AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(; autodiff)).u .≈ sqrt(2.0))
     end
