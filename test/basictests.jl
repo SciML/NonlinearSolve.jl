@@ -57,14 +57,16 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
-        @test begin
-            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-            res_true = sqrt(p)
-            all(res.u .≈ res_true)
+    if VERSION ≥ v"1.9"
+        @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(res.u .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
         end
-        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-            @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
     @testset "[OOP] [Scalar AD] p: $(p)" for p in 1.0:0.1:100.0
@@ -77,11 +79,14 @@ end
               1 / (2 * sqrt(p))
     end
 
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u], p) ≈
-          ForwardDiff.jacobian(t, p)
+    if VERSION ≥ v"1.9"
+        t = (p) -> [sqrt(p[2] / p[1])]
+        p = [0.9, 50.0]
+        @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+        @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+            p) ≈
+              ForwardDiff.jacobian(t, p)
+    end
 
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
@@ -145,17 +150,19 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    @testset "[OOP] [Immutable AD] radius_update_scheme: $(radius_update_scheme) p: $(p)" for radius_update_scheme in radius_update_schemes,
-        p in 1.0:0.1:100.0
+    if VERSION ≥ v"1.9"
+        @testset "[OOP] [Immutable AD] radius_update_scheme: $(radius_update_scheme) p: $(p)" for radius_update_scheme in radius_update_schemes,
+            p in 1.0:0.1:100.0
 
-        @test begin
-            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p;
-                radius_update_scheme)
-            res_true = sqrt(p)
-            all(res.u .≈ res_true)
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p;
+                    radius_update_scheme)
+                res_true = sqrt(p)
+                all(res.u .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p; radius_update_scheme).u[end], p) ≈ 1 / (2 * sqrt(p))
         end
-        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-            @SVector[1.0, 1.0], p; radius_update_scheme).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
     @testset "[OOP] [Scalar AD] radius_update_scheme: $(radius_update_scheme)  p: $(p)" for radius_update_scheme in radius_update_schemes,
@@ -171,15 +178,17 @@ end
                 p; radius_update_scheme).u, p) ≈ 1 / (2 * sqrt(p))
     end
 
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @testset "[OOP] [Jacobian] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
-        @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p; radius_update_scheme).u ≈
-              sqrt(p[2] / p[1])
-        @test ForwardDiff.jacobian(p -> [
-                benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
-                    radius_update_scheme).u,
-            ], p) ≈ ForwardDiff.jacobian(t, p)
+    if VERSION ≥ v"1.9"
+        t = (p) -> [sqrt(p[2] / p[1])]
+        p = [0.9, 50.0]
+        @testset "[OOP] [Jacobian] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
+            @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p; radius_update_scheme).u ≈
+                  sqrt(p[2] / p[1])
+            @test ForwardDiff.jacobian(p -> [
+                    benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
+                        radius_update_scheme).u,
+                ], p) ≈ ForwardDiff.jacobian(t, p)
+        end
     end
 
     # Iterator interface
@@ -294,14 +303,16 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
-        @test begin
-            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-            res_true = sqrt(p)
-            all(res.u .≈ res_true)
+    if VERSION ≥ v"1.9"
+        @testset "[OOP] [Immutable AD] p: $(p)" for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(res.u .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
         end
-        @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-            @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
     end
 
     @testset "[OOP] [Scalar AD] p: $(p)" for p in 1.0:0.1:100.0
@@ -314,11 +325,14 @@ end
               1 / (2 * sqrt(p))
     end
 
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u], p) ≈
-          ForwardDiff.jacobian(t, p)
+    if VERSION ≥ v"1.9"
+        t = (p) -> [sqrt(p[2] / p[1])]
+        p = [0.9, 50.0]
+        @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+        @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+            p) ≈
+              ForwardDiff.jacobian(t, p)
+    end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
             AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),

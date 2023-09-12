@@ -16,6 +16,8 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
     if uu isa Number
         partials = sum(sumfun, zip(z_arr, pp))
+    elseif p isa Number
+        partials = sumfun((z_arr, pp))
     else
         partials = sum(sumfun, zip(eachcol(z_arr), pp))
     end
