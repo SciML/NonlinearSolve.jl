@@ -20,15 +20,19 @@ function Bisection(; exact_left = false, exact_right = false)
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
-    maxiters = 1000,
+    maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
     kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
-
     if iszero(fl)
         return SciMLBase.build_solution(prob, alg, left, fl;
             retcode = ReturnCode.ExactSolutionLeft, left = left,
+            right = right)
+    end
+    if iszero(fr)
+        return SciMLBase.build_solution(prob, alg, right, fr;
+            retcode = ReturnCode.ExactSolutionRight, left = left,
             right = right)
     end
 
@@ -41,6 +45,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
                     retcode = ReturnCode.FloatingPointLimit,
                     left = left, right = right)
             fm = f(mid)
+            if abs((right - left) / 2) < abstol
+                return SciMLBase.build_solution(prob, alg, mid, fm;
+                    retcode = ReturnCode.Success,
+                    left = left, right = right)
+            end
             if iszero(fm)
                 right = mid
                 break
@@ -63,6 +72,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
                 retcode = ReturnCode.FloatingPointLimit,
                 left = left, right = right)
         fm = f(mid)
+        if abs((right - left) / 2) < abstol
+            return SciMLBase.build_solution(prob, alg, mid, fm;
+                retcode = ReturnCode.Success,
+                left = left, right = right)
+        end
         if iszero(fm)
             right = mid
             fr = fm

@@ -59,7 +59,7 @@ struct ITP{T} <: AbstractBracketingAlgorithm
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
-    args...; abstol = 1.0e-15,
+    args...; abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
     maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
@@ -109,6 +109,12 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
             xp = xt
         else
             xp = mid - (σ * r)
+        end
+
+        if abs((left - right) / 2) < ϵ
+            return SciMLBase.build_solution(prob, alg, mid, f(mid);
+                retcode = ReturnCode.Success,
+                left = left, right = right)
         end
 
         ## Update ##
