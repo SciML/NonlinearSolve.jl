@@ -31,7 +31,8 @@ end
         return solve(prob, NewtonRaphson(; linsolve, precs), abstol = 1e-9)
     end
 
-    @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+    u0s = VERSION ≥ v"1.9" ? ([1.0, 1.0], @SVector[1.0, 1.0], 1.0) : ([1.0, 1.0], 1.0)
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
         sol = benchmark_nlsolve_oop(quadratic_f, u0)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
@@ -127,9 +128,11 @@ end
 
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Hei,
         RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+    u0s = VERSION ≥ v"1.9" ? ([1.0, 1.0], @SVector[1.0, 1.0], 1.0) : ([1.0, 1.0], 1.0)
 
-    @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme)" for u0 in ([
-                1.0, 1.0], @SVector[1.0, 1.0], 1.0), radius_update_scheme in radius_update_schemes
+    @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme)" for u0 in u0s,
+        radius_update_scheme in radius_update_schemes
+
         sol = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
@@ -283,7 +286,8 @@ end
         return solve(prob, LevenbergMarquardt(), abstol = 1e-9)
     end
 
-    @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+    u0s = VERSION ≥ v"1.9" ? ([1.0, 1.0], @SVector[1.0, 1.0], 1.0) : ([1.0, 1.0], 1.0)
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
         sol = benchmark_nlsolve_oop(quadratic_f, u0)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
