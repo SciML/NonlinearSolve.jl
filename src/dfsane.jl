@@ -4,8 +4,6 @@ mutable struct DFSaneCache{iip}
     u::uType
     fu::resType
     p::pType
-    uf::ufType
-    du_tmp::duType
     force_stop::Bool
     maxiters::Int
     internalnorm::INType
@@ -18,8 +16,29 @@ mutable struct DFSaneCache{iip}
     end
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane)
-    return DFSaneCache()
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
+                          args...;
+                          alias_u0 = false,
+                          maxiters = 1000,
+                          abstol = 1e-6,
+                          internalnorm = DEFAULT_NORM,
+                          kwargs...) where {uType, iip}
+    if alias_u0
+        u = prob.u0
+    else
+        u = deepcopy(prob.u0)
+    end
+    f = prob.f
+    p = prob.p
+    if iip
+        fu = zero(u)
+        f(fu, u, p)
+    else
+        fu = f(u, p)
+    end
+
+    return DFSaneCache{iip}(f, alg, u, fu, p, false, maxiters, internalnorm,
+                            ReturnCode.Default, abstol, prob, NLStats(1,0,0,0,0)) # What should NL stats be?
 end
 
 function perform_step!(cache::DFSaneCache{true})
@@ -43,5 +62,5 @@ function SciMLBase.solve!(cache::DFSaneCache)
     end
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-        retcode = cache.retcode, stats = cache.stats)
+                             retcode = cache.retcode, stats = cache.stats)
 end
