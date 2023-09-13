@@ -75,7 +75,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
         JacVec(uf, u; autodiff = alg.ad)
     else
         if has_analytic_jac
-            iip ? undefmatrix(u) : nothing
+            f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
         else
             f.jac_prototype === nothing ? init_jacobian(jac_cache) : f.jac_prototype
         end
