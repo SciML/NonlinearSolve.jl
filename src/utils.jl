@@ -210,6 +210,6 @@ function __get_concrete_algorithm(alg, prob)
 end
 
 function _get_tolerance(η, tc_η, ::Type{T}) where {T}
-    @show fallback_η
+    fallback_η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
     return ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η))
 end
