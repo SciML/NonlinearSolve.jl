@@ -1,10 +1,14 @@
 """
-    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, adkwargs...)
 
-An advanced NewtonRaphson implementation with support for efficient handling of sparse
+An advanced GaussNewton implementation with support for efficient handling of sparse
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
-for large-scale and numerically-difficult nonlinear systems.
+for large-scale and numerically-difficult nonlinear least squares problems.
+
+!!! note
+    In most practical situations, users should prefer using `LevenbergMarquardt` instead! It
+    is a more general extension of `Gauss-Newton` Method.
 
 ### Keyword Arguments
 
@@ -26,29 +30,32 @@ for large-scale and numerically-difficult nonlinear systems.
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 """
-@concrete struct NewtonRaphson{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct GaussNewton{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
 end
 
-function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
+function GaussNewton(; concrete_jac = nothing, linsolve = NormalCholeskyFactorization(),
     precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
 
-@concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
     fu1
     fu2
+    fu_new
     du
     p
     uf
     linsolve
     J
+    JᵀJ
+    Jᵀf
     jac_cache
     force_stop
     maxiters::Int
@@ -59,8 +66,8 @@ end
     stats::NLStats
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson, args...;
-    alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GaussNewton,
+    args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -68,27 +75,35 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson
         fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
         f(fu1, u, p)
     else
-        fu1 = _mutable(f(u, p))
+        fu1 = f(u, p)
     end
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
 
-    return NewtonRaphsonCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
-        NLStats(1, 0, 0, 0, 0))
+    JᵀJ = J isa Number ? zero(J) : similar(J, size(J, 2), size(J, 2))
+    Jᵀf = zero(u)
+
+    return GaussNewtonCache{iip}(f, alg, u, fu1, fu2, zero(fu1), du, p, uf, linsolve, J,
+        JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
+        prob, NLStats(1, 0, 0, 0, 0))
 end
 
-function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, fu1, f, p, alg, J, linsolve, du = cache
+function perform_step!(cache::GaussNewtonCache{true})
+    @unpack u, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
     jacobian!!(J, cache)
+    mul!(JᵀJ, J', J)
+    mul!(Jᵀf, J', fu1)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
+    linres = dolinsolve(alg.precs, linsolve; A = JᵀJ, b = _vec(Jᵀf), linu = _vec(du),
         p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. u = u - du
-    f(fu1, u, p)
+    f(cache.fu_new, u, p)
 
-    cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)
+    (cache.internalnorm(cache.fu_new .- cache.fu1) < cache.abstol ||
+     cache.internalnorm(cache.fu_new) < cache.abstol) &&
+        (cache.force_stop = true)
+    cache.fu1 .= cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -96,22 +111,27 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     return nothing
 end
 
-function perform_step!(cache::NewtonRaphsonCache{false})
+function perform_step!(cache::GaussNewtonCache{false})
     @unpack u, fu1, f, p, alg, linsolve = cache
 
     cache.J = jacobian!!(cache.J, cache)
+    cache.JᵀJ = cache.J' * cache.J
+    cache.Jᵀf = cache.J' * fu1
     # u = u - J \ fu
     if linsolve === nothing
         cache.du = fu1 / cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
+        linres = dolinsolve(alg.precs, linsolve; A = cache.JᵀJ, b = _vec(cache.Jᵀf),
             linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
     cache.u = @. u - cache.du  # `u` might not support mutation
-    cache.fu1 = f(cache.u, p)
+    cache.fu_new = f(cache.u, p)
 
-    cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)
+    (cache.internalnorm(cache.fu_new .- cache.fu1) < cache.abstol ||
+     cache.internalnorm(cache.fu_new) < cache.abstol) &&
+        (cache.force_stop = true)
+    cache.fu1 = cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -119,7 +139,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     return nothing
 end
 
-function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
+function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache.p,
     abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip

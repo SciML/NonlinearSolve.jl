@@ -155,7 +155,8 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         expand_threshold, shrink_factor, expand_factor, max_shrink_times)
 end
 
-@concrete mutable struct TrustRegionCache{iip, trustType, floatType}
+@concrete mutable struct TrustRegionCache{iip, trustType, floatType} <:
+                         AbstractNonlinearSolveCache{iip}
     f
     alg
     u_prev
@@ -302,8 +303,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
         H, g, shrink_counter, step_size, du, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
         NLStats(1, 0, 0, 0, 0))
 end
-
-isinplace(::TrustRegionCache{iip}) where {iip} = iip
 
 function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_tmp, alg, linsolve = cache

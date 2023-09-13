@@ -15,6 +15,7 @@ end
     if GROUP == "All" || GROUP == "Core"
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
         @time @safetestset "Sparsity Tests" include("sparse.jl")
+        @time @safetestset "Nonlinear Least Squares" include("nonlinearls.jl")
     end
 
     if GROUP == "GPU"
