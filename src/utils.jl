@@ -208,3 +208,8 @@ function __get_concrete_algorithm(alg, prob)
     end
     return set_ad(alg, ad)
 end
+
+function _get_tolerance(η, tc_η, ::Type{T}) where {T}
+    @show fallback_η
+    return ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η))
+end
