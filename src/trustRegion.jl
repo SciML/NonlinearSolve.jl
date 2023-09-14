@@ -33,6 +33,13 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
     NLsolve
 
     """
+    `RadiusUpdateSchemes.NLsolve`
+
+    Nocedal and Wright updating scheme 
+    """
+    NW
+
+    """
     `RadiusUpdateSchemes.Hei`
 
     This scheme is proposed by [Hei, L.] (https://www.jstor.org/stable/43693061). The trust region radius
@@ -436,6 +443,22 @@ function trust_region_step!(cache::TrustRegionCache)
         if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
             cache.force_stop = true
         end
+    
+    elseif radius_update_scheme === RadiusUpdateSchemes.NW
+        # accept/reject decision
+        if r > cache.step_threshold # accept
+            take_step!(cache)
+            cache.loss = cache.loss_new
+            cache.make_new_J = true
+        else # reject
+            cache.make_new_J = false
+        end
+
+        if r < 1 // 4
+            cache.trust_r = (1 // 4) * norm(cache.step_size)
+        elseif (r > (3 // 4)) && abs(norm(cache.step_size) - cache.trust_r)/cache.trust_r < 1e-6
+            cache.trust_r = min(2*cache.trust_r, cache.max_trust_r)
+        end  
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         if r > cache.step_threshold
