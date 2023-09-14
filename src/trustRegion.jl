@@ -365,7 +365,7 @@ function retrospective_step!(cache::TrustRegionCache)
     @unpack H, g, step_size = cache
 
     return -(get_loss(fu_prev) - get_loss(fu)) /
-           (step_size' * g + step_size' * H * step_size / 2)
+           (dot(step_size, g) + dot(step_size, H, step_size) / 2)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
@@ -373,7 +373,7 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.loss_new = get_loss(fu_new)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
-    cache.r = -(loss - cache.loss_new) / (step_size' * g + step_size' * H * step_size / 2)
+    cache.r = -(loss - cache.loss_new) / (dot(step_size, g) + dot(step_size, H, step_size) / 2)
     @unpack r = cache
 
     if radius_update_scheme === RadiusUpdateSchemes.Simple
