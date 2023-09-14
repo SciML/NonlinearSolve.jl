@@ -304,9 +304,9 @@ isinplace(::TrustRegionCache{iip}) where {iip} = iip
 function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_tmp, alg, linsolve = cache
     if cache.make_new_J
-        jacobian!!(J, cache)
-        mul!(cache.H, J, J)
-        mul!(cache.g, J, fu)
+        jacobian!(J, cache)
+        mul!(cache.H, J', J)
+        mul!(cache.g, J', fu)
         cache.stats.njacs += 1
     end
 
@@ -330,9 +330,9 @@ function perform_step!(cache::TrustRegionCache{false})
     @unpack make_new_J, fu, f, u, p = cache
 
     if make_new_J
-        J = jacobian!!(cache.J, cache)
-        cache.H = J * J
-        cache.g = J * fu
+        J = jacobian(cache, f)
+        cache.H = J' * J
+        cache.g = J' * fu
         cache.stats.njacs += 1
     end
 
