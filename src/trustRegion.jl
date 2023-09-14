@@ -505,21 +505,23 @@ function dogleg!(cache::TrustRegionCache)
     end
 
     # Calcualte Cauchy point, optimum along the steepest descent direction.
-    δsd = -cache.g
-    norm_δsd = norm(δsd)
-    if norm_δsd ≥ trust_r
-        cache.step_size = δsd .* trust_r / norm_δsd
+    l_grad = norm(cache.g)
+    d_cauchy = l_grad^3 / dot(cache.g, cache.H, cache.g) # distance of the cauchy point from the current iterate
+    if d_cauchy > trust_r # cauchy point lies outside of trust region
+        cache.step_size = - (trust_r/l_grad) * cache.g # step to the end of the trust region
         return
     end
+    
+    # cauchy point lies inside the trust region
+    u_c = - (d_cauchy/l_grad) * cache.g
 
     # Find the intersection point on the boundary.
-    N_sd = u_tmp - δsd
-    dot_N_sd = dot(N_sd, N_sd)
-    dot_sd_N_sd = dot(δsd, N_sd)
-    dot_sd = dot(δsd, δsd)
-    fact = dot_sd_N_sd^2 - dot_N_sd * (dot_sd - trust_r^2)
-    τ = (-dot_sd_N_sd + sqrt(fact)) / dot_N_sd
-    cache.step_size = δsd + τ * N_sd
+    Δ = u_tmp - u_c # calf of the dogleg
+    θ = dot(Δ, u_c) # ~ cos(∠(calf,thigh)) 
+    l_calf = dot(Δ,Δ) # length of the calf of the dogleg
+    aux = max(θ^2 + l_calf*(trust_r^2 - d_cauchy^2), 0) # technically guaranteed to be non-negative but hedging against floating point issues
+    τ = ( - θ + sqrt( aux ) ) / l_calf # stepsize along dogleg
+    cache.step_size = u_c + τ * Δ
 end
 
 function take_step!(cache::TrustRegionCache{true})
