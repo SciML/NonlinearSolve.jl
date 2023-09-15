@@ -192,7 +192,7 @@ end
 
 function simple_jacobian(cache, x::AbstractArray{<:Number})
     @unpack f, fu, p, prob = cache
-    if !get_iip(prob)
+    if !SciMLBase.isinplace(prob)
         g = Base.Fix2(f, p)
         return ForwardDiff.jacobian(g, x)
     else
