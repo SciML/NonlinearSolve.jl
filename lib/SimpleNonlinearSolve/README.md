@@ -35,5 +35,7 @@ solver = solve(probN, SimpleNewtonRaphson(), tol = 1e-9)
 f(u, p) = u .* u .- 2.0
 u0 = (1.0, 2.0) # brackets
 probB = IntervalNonlinearProblem(f, u0)
-sol = solve(probB, Falsi())
+sol = solve(probB, ITP())
 ```
+
+For more details on the bracketing methods, refer to the [Tutorials](https://docs.sciml.ai/NonlinearSolve/stable/tutorials/nonlinear/#Using-Bracketing-Methods) and detailed [APIs](https://docs.sciml.ai/NonlinearSolve/stable/api/simplenonlinearsolve/#Solver-API)
