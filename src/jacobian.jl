@@ -1,10 +1,13 @@
-@concrete struct JacobianWrapper
+@concrete struct JacobianWrapper{iip}
     f
     p
 end
 
-(uf::JacobianWrapper)(u) = uf.f(u, uf.p)
-(uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
+# Previous Implementation did not hold onto `iip`, but this causes problems in packages
+# where we check for the presence of function signatures to check which dispatch to call
+(uf::JacobianWrapper{false})(u) = uf.f(u, uf.p)
+(uf::JacobianWrapper{false})(res, u) = (vec(res) .= vec(uf.f(u, uf.p)))
+(uf::JacobianWrapper{true})(res, u) = uf.f(res, u, uf.p)
 
 sparsity_detection_alg(f, ad) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
@@ -48,7 +51,7 @@ jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 # Build Jacobian Caches
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
     ::Val{iip}) where {iip}
-    uf = JacobianWrapper(f, p)
+    uf = JacobianWrapper{iip}(f, p)
 
     haslinsolve = hasfield(typeof(alg), :linsolve)
 
@@ -98,6 +101,6 @@ end
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
     ::Val{false})
     # NOTE: Scalar `u` assumes scalar output from `f`
-    uf = JacobianWrapper(f, p)
+    uf = JacobianWrapper{false}(f, p)
     return uf, nothing, u, nothing, nothing, u
 end
