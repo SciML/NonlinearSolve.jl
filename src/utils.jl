@@ -158,8 +158,5 @@ function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-f
     end
 end
 
-function get_iip(prob::NonlinearProblem{uType, iip}) where {uType, iip}
-    iip
-end
 
 

@@ -258,7 +258,7 @@ end
 ## some helper func ###
 
 function value_f(cache::NewtonRaphsonCache, x)
-    iip = get_iip(cache.prob)
+    iip = SciMLBase.isinplace(cache.prob)
     @unpack f, p = cache
     if iip
         res = zero(x)
