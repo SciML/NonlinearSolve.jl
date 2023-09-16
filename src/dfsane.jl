@@ -1,8 +1,13 @@
 mutable struct DFSaneCache{iip}
     f::fType
     alg::algType
-    u::uType
-    fu::resType
+    uₙ::uType
+    uₙ₋₁::uType
+    fuₙ::resType
+    fuₙ₋₁::resType
+    f₍ₙₒᵣₘ₎ₙ::resType
+    f̄::resType
+    ff::Function
     p::pType
     force_stop::Bool
     maxiters::Int
@@ -11,8 +16,19 @@ mutable struct DFSaneCache{iip}
     abstol::tolType
     prob::probType
     stats::NLStats
-    
-
+    σₙ::σₙType
+    σₘᵢₙ::σType
+    σₘₐₓ::σType
+    σ_sign::σType
+    α₁::α₁Type
+    α₋::αType
+    α₊::αType
+    𝒹::𝒹Type
+    ℋ::ℋType
+    η::ηType
+    ηₛ::Function
+    𝒸::𝒸Type
+    N::NType
     function DFSaneCache()
     end
 end
