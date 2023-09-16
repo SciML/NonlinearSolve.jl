@@ -55,66 +55,73 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     end
 
     return DFSaneCache{iip}(f, alg, u, fu, p, false, maxiters, internalnorm,
-                            ReturnCode.Default, abstol, prob, NLStats(1,0,0,0,0)) # What should NL stats be?
+                            ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0)) # What should NL stats be?
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    @unpack σₙ, σₘᵢₙ, σₘₐₓ, 𝒹, fₙ₋₁,fₙ, n,
-    xₙ₋₁, f̄, ℋ, α₊, α₁, α₋, xₙ,η,ff!, f₍ₙₒᵣₘ₎ₙ, = cache
+    @unpack σₙ, σₘᵢₙ, σₘₐₓ, σₙ_sign, 𝒹, fuₙ₋₁, fuₙ,
+    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ, γ, N, = cache
 
+    T = eltype(uₙ)
+    n = cache.stats.nsteps
     # Spectral parameter range check
-    @. σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
+    @. σₙ_sign = sign(σₙ)
+    @. σₙ = abs(σₙ)
+    clamp!(σₙ, σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
-    @. 𝒹 = -σₙ * fₙ₋₁
+    @. 𝒹 = -σₙ * fuₙ₋₁
 
-    η = ηₛ(n, xₙ₋₁, fₙ₋₁)
+    η = cache.ηₛ(n, uₙ₋₁, fuₙ₋₁) # TODO: Change to non allocating
     maximum!(f̄, ℋ)
     fill!(α₊, α₁)
     fill!(α₋, α₁)
-    @. xₙ = xₙ₋₁ + α₊ * 𝒹
+    @. uₙ = uₙ₋₁ + α₊ * 𝒹
 
-    ff(fₙ, f₍ₙₒᵣₘ₎ₙ, xₙ)
+    ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
 
     for _ in 1:(cache.max_inner_iterations)
-        𝒸 = @. f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
+        @. 𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ # TODO: can we improve on this?
 
         (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
 
-        @. α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-            τₘᵢₙ * α₊,
-            τₘₐₓ * α₊)
-        @. xₙ = xₙ₋₁ - α₋ * 𝒹
-        ff(fₙ, f₍ₙₒᵣₘ₎ₙ, xₙ)
+        @btime @. α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
+                             (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
+                             τₘᵢₙ * α₊,
+                             τₘₐₓ * α₊) # TODO: can we improve on this?
+
+        @. uₙ = uₙ₋₁ - α₋ * 𝒹
+        ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
 
         (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
 
         @. α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-            τₘᵢₙ * α₋,
-            τₘₐₓ * α₋)
-        @. xₙ = xₙ₋₁ + α₊ * 𝒹
-        ff(fₙ, f₍ₙₒᵣₘ₎ₙ, xₙ)
+                      τₘᵢₙ * α₋,
+                      τₘₐₓ * α₋) # TODO: can we improve on this?
+        @. uₙ = uₙ₋₁ + α₊ * 𝒹
+        ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
     end
 
-    if cache.internalnorm(cache.fₙ) < cache.abstol
+    if cache.internalnorm(cache.fuₙ) < cache.abstol
         cache.force_stop = true
     end
 
     # Update spectral parameter
-    @. xₙ₋₁ = xₙ - xₙ₋₁
-    @. fₙ₋₁ = fₙ - fₙ₋₁
+    @. u₋₁ = u - u₋₁
+    @. fu₋₁ = fu - fu₋₁
 
-    sum!(abs2, α₊, xₙ₋₁)
-    sum!(α₋, xₙ₋₁ .* fₙ₋₁)
+    sum!(abs2, α₊, u₋₁)
+    sum!(α₋, u₋₁ .* fu₋₁)
     σₙ .= α₊ ./ (α₋ .+ T(1e-5))
 
     # Take step
-    @. xₙ₋₁ = xₙ
-    @. fₙ₋₁ = fₙ
+    @. u₋₁ = u
+    @. fu₋₁ = fu
     @. f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
 
     # Update history
     ℋ[n % M + 1, :] .= view(f₍ₙₒᵣₘ₎ₙ, 1, :)
+    cache.stats.nf += 1
     return nothing
 end
 
