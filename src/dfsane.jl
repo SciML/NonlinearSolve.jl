@@ -1,3 +1,39 @@
+struct DFSane{T}#<:AbstractNonlinearSolveAlgorithm
+    σₘᵢₙ::T 
+    σₘₐₓ::T 
+    σ₁::T
+    M::Int
+    γ::T
+    τₘᵢₙ::T
+    τₘₐₓ::T 
+    nₑₓₚ::Int
+    # ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2 # Would this change ever?
+    max_inner_iterations::Int
+end
+
+function DFSane(;
+    σₘᵢₙ = 1.0f-10,
+    σₘₐₓ = 1.0f+10,
+    σ₁ = 1.0f0,
+    M = 10,
+    γ = 1.0f-4,
+    τₘᵢₙ = 0.1f0,
+    τₘₐₓ = 0.5f0,
+    nₑₓₚ= 2,
+    #ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2
+    max_inner_iterations = 1000)
+
+    return DFSane{typeof(σₘᵢₙ)}(σₘᵢₙ, # Typeof thing?
+    σₘₐₓ,
+    σ₁,
+    M,
+    γ,
+    τₘᵢₙ,
+    τₘₐₓ,
+    nₑₓₚ,
+    #ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2
+    max_inner_iterations)
+end
 mutable struct DFSaneCache{iip}
     f::fType
     alg::algType
@@ -59,7 +95,7 @@ end
 
 function perform_step!(cache::DFSaneCache{true})
     @unpack σₙ, σₘᵢₙ, σₘₐₓ, 𝒹, fuₙ₋₁, fuₙ,
-    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ,f₍ₙₒᵣₘ₎0₋₁, γ, N, = cache
+    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ,f₍ₙₒᵣₘ₎₋₁, γ, N, = cache
 
     T = eltype(uₙ)
     n = cache.stats.nsteps
@@ -69,7 +105,7 @@ function perform_step!(cache::DFSaneCache{true})
     # Line search direction
     @. 𝒹 = -σₙ * fuₙ₋₁
 
-    @. η = f₍ₙₒᵣₘ₎0₋₁ / n^2 # Will rename initial norm
+    @. η = f₍ₙₒᵣₘ₎₋₁ / n^2 # Will rename initial norm
 
     maximum!(f̄, ℋ)
     fill!(α₊, α₁)
