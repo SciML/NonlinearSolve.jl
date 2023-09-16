@@ -26,7 +26,6 @@ mutable struct DFSaneCache{iip}
     𝒹::𝒹Type
     ℋ::ℋType
     η::ηType
-    ηₛ::Function
     𝒸::𝒸Type
     N::NType
     function DFSaneCache()
@@ -59,20 +58,19 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    @unpack σₙ, σₘᵢₙ, σₘₐₓ, σₙ_sign, 𝒹, fuₙ₋₁, fuₙ,
-    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ, γ, N, = cache
+    @unpack σₙ, σₘᵢₙ, σₘₐₓ, 𝒹, fuₙ₋₁, fuₙ,
+    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ,f₍ₙₒᵣₘ₎0₋₁, γ, N, = cache
 
     T = eltype(uₙ)
     n = cache.stats.nsteps
     # Spectral parameter range check
-    @. σₙ_sign = sign(σₙ)
-    @. σₙ = abs(σₙ)
-    clamp!(σₙ, σₘᵢₙ, σₘₐₓ)
+    @. σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
     @. 𝒹 = -σₙ * fuₙ₋₁
 
-    η = cache.ηₛ(n, uₙ₋₁, fuₙ₋₁) # TODO: Change to non allocating
+    @. η = f₍ₙₒᵣₘ₎0₋₁ / n^2 # Will rename initial norm
+
     maximum!(f̄, ℋ)
     fill!(α₊, α₁)
     fill!(α₋, α₁)
@@ -81,14 +79,14 @@ function perform_step!(cache::DFSaneCache{true})
     ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
 
     for _ in 1:(cache.max_inner_iterations)
-        @. 𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ # TODO: can we improve on this?
+       @. 𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
         (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
 
-        @btime @. α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
+       @. α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
                              (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                              τₘᵢₙ * α₊,
-                             τₘₐₓ * α₊) # TODO: can we improve on this?
+                             τₘₐₓ * α₊)
 
         @. uₙ = uₙ₋₁ - α₋ * 𝒹
         ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
@@ -97,7 +95,7 @@ function perform_step!(cache::DFSaneCache{true})
 
         @. α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                       τₘᵢₙ * α₋,
-                      τₘₐₓ * α₋) # TODO: can we improve on this?
+                      τₘₐₓ * α₋)
         @. uₙ = uₙ₋₁ + α₊ * 𝒹
         ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
     end
