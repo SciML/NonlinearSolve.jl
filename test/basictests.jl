@@ -49,7 +49,11 @@ end
             @test (@ballocated solve!($cache)) < 200
         end
 
-        precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
+
+        precs = [
+            NonlinearSolve.DEFAULT_PRECS,
+            (args...) -> (Diagonal(rand!(similar(u0))), nothing),
+        ]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
                 1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
