@@ -21,15 +21,25 @@ AbstractArray for automatic differentiation.
 
 ## Using Bracketing Methods
 
-For scalar rootfinding problems, bracketing methods exist. In this case, one passes
+For scalar rootfinding problems, bracketing methods exist in `SimpleNonlinearSolve`. In this case, one passes
 a bracket instead of an initial condition, for example:
 
 ```@example
-using NonlinearSolve
+using SimpleNonlinearSolve
 f(u, p) = u * u - 2.0
 uspan = (1.0, 2.0) # brackets
 probB = IntervalNonlinearProblem(f, uspan)
-sol = solve(probB, Falsi())
+sol = solve(probB, ITP())
+```
+
+The user can also set a tolerance that suits the application.
+
+```@example
+using SimpleNonlinearSolve
+f(u, p) = u * u - 2.0
+uspan = (1.0, 2.0) # brackets
+probB = IntervalNonlinearProblem(f, uspan)
+sol = solve(probB, ITP(), abstol = 0.01)
 ```
 
 ## Using Jacobian Free Newton Krylov (JNFK) Methods
