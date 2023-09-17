@@ -208,11 +208,11 @@ function perform_linesearch!(cache::NewtonRaphsonCache)
 
     function dϕ(α)
         g!(g_o, u .- α .* du1)
-        return dot(g_o, du1)
+        return dot(g_o, -du1)
     end
 
     function ϕdϕ(α)
-        return (fg!(g_o, u .- α .* du1), dot(g_o, du1))
+        return (fg!(g_o, u .- α .* du1), dot(g_o, -du1))
     end
     cache.f_o = fo(u)
     @unpack f_o = cache
