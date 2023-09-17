@@ -202,8 +202,11 @@ function objective_linesearch(cache::NewtonRaphsonCache) ## returns the objectiv
 end
 
 function perform_linesearch!(cache::NewtonRaphsonCache)
-    @unpack u, fu, du1, alg, α, g_o = cache
+    @unpack u, fu, du1, alg, α = cache
     fo, g!, fg! = objective_linesearch(cache)
+    cache.f_o = fo(u)
+    g!(cache.g_o, u)
+    @unpack f_o, g_o = cache
     ϕ(α) = fo(u .- α .* du1)
 
     function dϕ(α)
@@ -214,9 +217,7 @@ function perform_linesearch!(cache::NewtonRaphsonCache)
     function ϕdϕ(α)
         return (fg!(g_o, u .- α .* du1), dot(g_o, -du1))
     end
-    cache.f_o = fo(u)
-    @unpack f_o = cache
-    cache.α, cache.f_o = alg.linesearch(ϕ, dϕ, ϕdϕ, 1.0, f_o, dot(du1, g_o))
+    cache.α, cache.f_o = alg.linesearch(ϕ, dϕ, ϕdϕ, 1.0, f_o, dot(du1, -g_o))
 end
 
 function SciMLBase.solve!(cache::NewtonRaphsonCache)
