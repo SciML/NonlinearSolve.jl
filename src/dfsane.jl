@@ -1,49 +1,66 @@
-struct DFSane{T}#<:AbstractNonlinearSolveAlgorithm
-    σₘᵢₙ::T 
-    σₘₐₓ::T 
+struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
+    σₘᵢₙ::T
+    σₘₐₓ::T
     σ₁::T
     M::Int
     γ::T
     τₘᵢₙ::T
-    τₘₐₓ::T 
+    τₘₐₓ::T
     nₑₓₚ::Int
-    # ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2 # Would this change ever?
+    ηₛ::F
     max_inner_iterations::Int
 end
 
 function DFSane(;
-    σₘᵢₙ = 1.0f-10,
-    σₘₐₓ = 1.0f+10,
-    σ₁ = 1.0f0,
-    M = 10,
-    γ = 1.0f-4,
-    τₘᵢₙ = 0.1f0,
-    τₘₐₓ = 0.5f0,
-    nₑₓₚ= 2,
-    #ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2
-    max_inner_iterations = 1000)
-
-    return DFSane{typeof(σₘᵢₙ)}(σₘᵢₙ, # Typeof thing?
-    σₘₐₓ,
-    σ₁,
-    M,
-    γ,
-    τₘᵢₙ,
-    τₘₐₓ,
-    nₑₓₚ,
-    #ηₛ::F = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ ./ n .^ 2
-    max_inner_iterations)
+                σₘᵢₙ = 1.0f-10,
+                σₘₐₓ = 1.0f+10,
+                σ₁ = 1.0f0,
+                M = 10,
+                γ = 1.0f-4,
+                τₘᵢₙ = 0.1f0,
+                τₘₐₓ = 0.5f0,
+                nₑₓₚ = 2,
+                ηₛ = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
+                max_inner_iterations = 1000)
+    return DFSane{typeof(σₘᵢₙ), typeof(ηₛ)}(σₘᵢₙ, # Typeof thing?
+                                            σₘₐₓ,
+                                            σ₁,
+                                            M,
+                                            γ,
+                                            τₘᵢₙ,
+                                            τₘₐₓ,
+                                            nₑₓₚ,
+                                            ηₛ,
+                                            max_inner_iterations)
 end
-mutable struct DFSaneCache{iip}
+mutable struct DFSaneCache{iip, fType, ffType, algType, uType, resType, T, ηₛType, pType,
+                           INType,
+                           tolType,
+                           probType}
     f::fType
+    ff::ffType
     alg::algType
     uₙ::uType
     uₙ₋₁::uType
     fuₙ::resType
     fuₙ₋₁::resType
-    f₍ₙₒᵣₘ₎ₙ::resType
-    f̄::resType
-    ff::Function
+    𝒹::uType
+    ℋ::uType
+    f₍ₙₒᵣₘ₎ₙ::T
+    f₍ₙₒᵣₘ₎ₙ₋₁::T
+    f̄::T
+    M::Int
+    σₙ::T
+    σₘᵢₙ::T
+    σₘₐₓ::T
+    α₁::T
+    α₋::T
+    α₊::T
+    η::T
+    γ::T
+    τₘᵢₙ::T
+    τₘₐₓ::T
+    ηₛ::ηₛType
     p::pType
     force_stop::Bool
     maxiters::Int
@@ -52,19 +69,27 @@ mutable struct DFSaneCache{iip}
     abstol::tolType
     prob::probType
     stats::NLStats
-    σₙ::σₙType
-    σₘᵢₙ::σType
-    σₘₐₓ::σType
-    σ_sign::σType
-    α₁::α₁Type
-    α₋::αType
-    α₊::αType
-    𝒹::𝒹Type
-    ℋ::ℋType
-    η::ηType
-    𝒸::𝒸Type
-    N::NType
-    function DFSaneCache()
+    function DFSaneCache{iip}(f::fType, ff::ffType, alg::algType, uₙ::uType, uₙ₋₁::uType,
+                              fuₙ::resType, fuₙ₋₁::resType, 𝒹::uType, ℋ::uType, f₍ₙₒᵣₘ₎ₙ::T,
+                              f₍ₙₒᵣₘ₎ₙ₋₁::T, f̄::T, M::Int, σₙ::T, σₘᵢₙ::T, σₘₐₓ::T, α₁::T,
+                              α₋::T,
+                              α₊::T, η::T, γ::T, τₘᵢₙ::T, τₘₐₓ::T, ηₛ::ηₛType, p::pType,
+                              force_stop::Bool,
+                              maxiters::Int,
+                              internalnorm::INType, retcode::SciMLBase.ReturnCode.T,
+                              abstol::tolType, prob::probType,
+                              stats::NLStats) where {iip, fType, ffType, algType, uType,
+                                                     resType, T, ηₛType, pType, INType,
+                                                     tolType,
+                                                     probType
+                                                     }
+        new{iip, fType, ffType, algType, uType, resType, T, ηₛType, pType, INType, tolType,
+            probType
+            }(f, ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ, f₍ₙₒᵣₘ₎ₙ₋₁, f̄, M, σₙ,
+              σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, η, γ, τₘᵢₙ,
+              τₘₐₓ, ηₛ, p, force_stop, maxiters, internalnorm,
+              retcode,
+              abstol, prob, stats)
     end
 end
 
@@ -76,64 +101,101 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
                           internalnorm = DEFAULT_NORM,
                           kwargs...) where {uType, iip}
     if alias_u0
-        u = prob.u0
+        uₙ = prob.u0
     else
-        u = deepcopy(prob.u0)
+        uₙ = deepcopy(prob.u0)
     end
-    f = prob.f
     p = prob.p
+
+    T = eltype(uₙ)
+
+    σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σₘᵢₙ), T(alg.σₘₐₓ), T(alg.γ), T(alg.τₘᵢₙ), T(alg.τₘₐₓ)
+    α₁ = one(T)
+    α₊, α₋ = α₁, α₁
+    η = α₁
+    γ = T(alg.γ)
+    f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎ₙ = α₁, α₁
+    σₙ = T(alg.σ₁)
+    M = alg.M
+    nₑₓₚ = alg.nₑₓₚ
+    𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
+
     if iip
-        fu = zero(u)
-        f(fu, u, p)
+        f(dx, x) = prob.f(dx, x, p)
+        function ff(fₓ, x)
+            f(fₓ, x)
+            fₙₒᵣₘ = sum(abs2, fₓ)
+            fₙₒᵣₘ ^= (nₑₓₚ / 2)
+            return fₙₒᵣₘ
+        end
+        f₍ₙₒᵣₘ₎ₙ₋₁ = ff(fuₙ₋₁, uₙ₋₁)
     else
-        fu = f(u, p)
+        f(x) = prob.f(x, p)
+        function ff!(x)
+            fₓ = f(x)
+            sum!(abs2, fₙₒᵣₘ, fₓ)
+            fₙₒᵣₘ ^= (nₑₓₚ / 2)
+            return fₓ, fₙₒᵣₘ
+        end
+        fuₙ₋₁, f₍ₙₒᵣₘ₎ₙ₋₁ = ff(uₙ₋₁)
     end
 
-    return DFSaneCache{iip}(f, alg, u, fu, p, false, maxiters, internalnorm,
-                            ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0)) # What should NL stats be?
+    ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
+    f̄ = f₍ₙₒᵣₘ₎ₙ₋₁
+    ηₛ = (n, xₙ, fₙ) -> alg.ηₛ(f₍ₙₒᵣₘ₎ₙ₋₁, n, xₙ, fₙ)
+
+    return DFSaneCache{iip}(f, ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ, f₍ₙₒᵣₘ₎ₙ₋₁,
+                            f̄, M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, η, γ, τₘᵢₙ,
+                            τₘₐₓ, ηₛ, p, false, maxiters,
+                            internalnorm, ReturnCode.Default, abstol, prob,
+                            NLStats(1, 0, 0, 0, 0)) # What should NL stats be?
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    @unpack σₙ, σₘᵢₙ, σₘₐₓ, 𝒹, fuₙ₋₁, fuₙ,
-    uₙ₋₁, f̄, ℋ, α₊, α₁, α₋, uₙ, η, ff, f₍ₙₒᵣₘ₎ₙ,f₍ₙₒᵣₘ₎₋₁, γ, N, = cache
+    if isdefined(Main, :Infiltrator)
+        Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
+    end
+    @unpack ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ, f₍ₙₒᵣₘ₎ₙ₋₁,
+    f̄, σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, η, γ, ηₛ, τₘᵢₙ, τₘₐₓ, M = cache
 
     T = eltype(uₙ)
+    cache.stats.nsteps += 1
     n = cache.stats.nsteps
     # Spectral parameter range check
-    @. σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
+    σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
     @. 𝒹 = -σₙ * fuₙ₋₁
 
-    @. η = f₍ₙₒᵣₘ₎₋₁ / n^2 # Will rename initial norm
+    η = ηₛ(n, uₙ₋₁, fuₙ₋₁)
 
-    maximum!(f̄, ℋ)
-    fill!(α₊, α₁)
-    fill!(α₋, α₁)
+    f̄ = maximum(ℋ)
+    α₊ = α₁
+    α₋ = α₁
     @. uₙ = uₙ₋₁ + α₊ * 𝒹
 
-    ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
+    f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
 
     for _ in 1:(cache.max_inner_iterations)
-       @. 𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
+        𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
-        (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
+        (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
 
-       @. α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
-                             (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-                             τₘᵢₙ * α₊,
-                             τₘₐₓ * α₊)
+        α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
+                   (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
+                   τₘᵢₙ * α₊,
+                   τₘₐₓ * α₊)  
+        @. uₙ = uₙ₋₁ + α₊ * 𝒹 # correct order?
 
-        @. uₙ = uₙ₋₁ - α₋ * 𝒹
-        ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
+        f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
 
-        (sum(f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) ≥ N ÷ 2) && break
+        (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
 
-        @. α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
+        α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                       τₘᵢₙ * α₋,
-                      τₘₐₓ * α₋)
-        @. uₙ = uₙ₋₁ + α₊ * 𝒹
-        ff(fuₙ, f₍ₙₒᵣₘ₎ₙ, uₙ)
+                      τₘₐₓ * α₋)  
+        @. uₙ = uₙ₋₁ - α₋ * 𝒹 # correct order?
+        f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
     end
 
     if cache.internalnorm(cache.fuₙ) < cache.abstol
@@ -141,25 +203,22 @@ function perform_step!(cache::DFSaneCache{true})
     end
 
     # Update spectral parameter
-    @. u₋₁ = u - u₋₁
-    @. fu₋₁ = fu - fu₋₁
+    @. uₙ₋₁ = uₙ - uₙ₋₁
+    @. fuₙ₋₁ = fuₙ - fuₙ₋₁
 
-    sum!(abs2, α₊, u₋₁)
-    sum!(α₋, u₋₁ .* fu₋₁)
-    σₙ .= α₊ ./ (α₋ .+ T(1e-5))
+    α₊ = sum(abs2, uₙ₋₁)
+    α₋ = sum(uₙ₋₁ .* fuₙ₋₁)
+    σₙ = α₊ / (α₋ + T(1e-5))
 
     # Take step
-    @. u₋₁ = u
-    @. fu₋₁ = fu
-    @. f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
+    @. uₙ₋₁ = uₙ
+    @. fuₙ₋₁ = fuₙ
+    f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
 
     # Update history
-    ℋ[n % M + 1, :] .= view(f₍ₙₒᵣₘ₎ₙ, 1, :)
+    ℋ[n % M + 1] = f₍ₙₒᵣₘ₎ₙ
     cache.stats.nf += 1
-    return nothing
-end
-
-function perform_step!(cache::DFSaneCache{false})
+    @pack! cache = f₍ₙₒᵣₘ₎ₙ₋₁, σₙ
     return nothing
 end
 
