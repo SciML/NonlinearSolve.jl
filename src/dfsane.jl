@@ -120,30 +120,40 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     nₑₓₚ = alg.nₑₓₚ
     𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
 
+    #= if isdefined(Main, :Infiltrator)
+        Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
+    end =#
     if iip
         f(dx, x) = prob.f(dx, x, p)
-        function ff(fₓ, x)
+        #= function ff(fₓ, x)
             f(fₓ, x)
             fₙₒᵣₘ = sum(abs2, fₓ)
-            fₙₒᵣₘ ^= (nₑₓₚ / 2)
+            #fₙₒᵣₘ ^= (nₑₓₚ / 2) #gives dispatch
+            fₙₒᵣₘ ^= (2 / 2)
             return fₙₒᵣₘ
         end
-        f₍ₙₒᵣₘ₎ₙ₋₁ = ff(fuₙ₋₁, uₙ₋₁)
+        f₍ₙₒᵣₘ₎ₙ₋₁ = ff(fuₙ₋₁, uₙ₋₁) =#
+        f(fuₙ₋₁, uₙ₋₁)
+        f₍ₙₒᵣₘ₎ₙ₋₁ = sum(abs2, fuₙ₋₁)
     else
         f(x) = prob.f(x, p)
-        function ff!(x)
+        #= function ff!(x)
             fₓ = f(x)
             sum!(abs2, fₙₒᵣₘ, fₓ)
             fₙₒᵣₘ ^= (nₑₓₚ / 2)
             return fₓ, fₙₒᵣₘ
         end
-        fuₙ₋₁, f₍ₙₒᵣₘ₎ₙ₋₁ = ff(uₙ₋₁)
+        fuₙ₋₁, f₍ₙₒᵣₘ₎ₙ₋₁ = ff(uₙ₋₁) =#
+        
+        fuₙ₋₁ = f(uₙ₋₁)
+        f₍ₙₒᵣₘ₎ₙ₋₁ = sum(abs2, fuₙ₋₁)
     end
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
     f̄ = f₍ₙₒᵣₘ₎ₙ₋₁
     ηₛ = (n, xₙ, fₙ) -> alg.ηₛ(f₍ₙₒᵣₘ₎ₙ₋₁, n, xₙ, fₙ)
 
+    ff = f # Hack
     return DFSaneCache{iip}(f, ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ, f₍ₙₒᵣₘ₎ₙ₋₁,
                             f̄, M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, η, γ, τₘᵢₙ,
                             τₘₐₓ, ηₛ, p, false, maxiters,
@@ -152,31 +162,36 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    if isdefined(Main, :Infiltrator)
+    #= if isdefined(Main, :Infiltrator)
         Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
-    end
-    @unpack ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ, f₍ₙₒᵣₘ₎ₙ₋₁,
-    f̄, σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, η, γ, ηₛ, τₘᵢₙ, τₘₐₓ, M = cache
+    end =#
+    #= @unpack ff, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁,
+     σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, γ, ηₛ, τₘᵢₙ, τₘₐₓ, M = cache =#
 
-    T = eltype(uₙ)
-    cache.stats.nsteps += 1
+    @unpack f, ff, alg, f₍ₙₒᵣₘ₎ₙ₋₁,
+    σₙ, σₘᵢₙ, σₘₐₓ, α₁, α₋, α₊, γ, ηₛ, τₘᵢₙ, τₘₐₓ, M = cache
+
+    T = eltype(cache.uₙ)
     n = cache.stats.nsteps
+
     # Spectral parameter range check
     σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
-    @. 𝒹 = -σₙ * fuₙ₋₁
+    @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
-    η = ηₛ(n, uₙ₋₁, fuₙ₋₁)
+    η = 3.01934248341075e6 / n^2
+    #η = ηₛ(n, cache.uₙ₋₁, cache.fuₙ₋₁) # Gives runtime dispatch
 
-    f̄ = maximum(ℋ)
+    f̄ = maximum(cache.ℋ)
     α₊ = α₁
     α₋ = α₁
-    @. uₙ = uₙ₋₁ + α₊ * 𝒹
+    @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
 
-    f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
-
-    for _ in 1:(cache.max_inner_iterations)
+    f(cache.fuₙ, cache.uₙ)
+    f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
+    #f₍ₙₒᵣₘ₎ₙ = ff(cache.fuₙ, cache.uₙ) # Gives runtime dispatch
+    for _ in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
         (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
@@ -184,18 +199,22 @@ function perform_step!(cache::DFSaneCache{true})
         α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
                    (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                    τₘᵢₙ * α₊,
-                   τₘₐₓ * α₊)  
-        @. uₙ = uₙ₋₁ + α₊ * 𝒹 # correct order?
+                   τₘₐₓ * α₊)
+        @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹 # correct order?
 
-        f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
+        #f₍ₙₒᵣₘ₎ₙ = ff(cache.fuₙ, cache.uₙ) # Gives runtime dispatch
+        f(cache.fuₙ, cache.uₙ)
+        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
 
         (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
 
         α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-                      τₘᵢₙ * α₋,
-                      τₘₐₓ * α₋)  
-        @. uₙ = uₙ₋₁ - α₋ * 𝒹 # correct order?
-        f₍ₙₒᵣₘ₎ₙ = ff(fuₙ, uₙ)
+                   τₘᵢₙ * α₋,
+                   τₘₐₓ * α₋)
+        @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹 # correct order?
+        #f₍ₙₒᵣₘ₎ₙ = ff(cache.fuₙ, cache.uₙ) # Gives runtime dispatch
+        f(cache.fuₙ, cache.uₙ)
+        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
     end
 
     if cache.internalnorm(cache.fuₙ) < cache.abstol
@@ -203,29 +222,29 @@ function perform_step!(cache::DFSaneCache{true})
     end
 
     # Update spectral parameter
-    @. uₙ₋₁ = uₙ - uₙ₋₁
-    @. fuₙ₋₁ = fuₙ - fuₙ₋₁
+    @. cache.uₙ₋₁ = cache.uₙ - cache.uₙ₋₁
+    @. cache.fuₙ₋₁ = cache.fuₙ - cache.fuₙ₋₁
 
-    α₊ = sum(abs2, uₙ₋₁)
-    α₋ = sum(uₙ₋₁ .* fuₙ₋₁)
+    α₊ = sum(abs2, cache.uₙ₋₁)
     σₙ = α₊ / (α₋ + T(1e-5))
 
     # Take step
-    @. uₙ₋₁ = uₙ
-    @. fuₙ₋₁ = fuₙ
+    @. cache.uₙ₋₁ = cache.uₙ
+    @. cache.fuₙ₋₁ = cache.fuₙ
     f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
 
     # Update history
-    ℋ[n % M + 1] = f₍ₙₒᵣₘ₎ₙ
+    cache.ℋ[n % M + 1] = f₍ₙₒᵣₘ₎ₙ
     cache.stats.nf += 1
-    @pack! cache = f₍ₙₒᵣₘ₎ₙ₋₁, σₙ
+    cache.f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ₋₁
+    cache.σₙ = σₙ
     return nothing
 end
 
 function SciMLBase.solve!(cache::DFSaneCache)
     while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        perform_step!(cache)
         cache.stats.nsteps += 1
+        perform_step!(cache)
     end
 
     if cache.stats.nsteps == cache.maxiters
@@ -234,6 +253,6 @@ function SciMLBase.solve!(cache::DFSaneCache)
         cache.retcode = ReturnCode.Success
     end
 
-    SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
+    SciMLBase.build_solution(cache.prob, cache.alg, cache.uₙ, cache.fuₙ;
                              retcode = cache.retcode, stats = cache.stats)
 end
