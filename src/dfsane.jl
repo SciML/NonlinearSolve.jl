@@ -118,8 +118,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
         fuₙ₋₁ = f(uₙ₋₁)
     end
 
-    f₍ₙₒᵣₘ₎ₙ₋₁ = sum(abs2, fuₙ₋₁)
-    f₍ₙₒᵣₘ₎ₙ₋₁ ^= (nₑₓₚ / 2)
+    f₍ₙₒᵣₘ₎ₙ₋₁ = norm(fuₙ₋₁)^nₑₓₚ
     f₍ₙₒᵣₘ₎₀ = f₍ₙₒᵣₘ₎ₙ₋₁
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
@@ -152,8 +151,7 @@ function perform_step!(cache::DFSaneCache{true})
     @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
 
     f(cache.fuₙ, cache.uₙ)
-    f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-    f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+    f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     for _ in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
@@ -166,8 +164,7 @@ function perform_step!(cache::DFSaneCache{true})
         @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹
 
         f(cache.fuₙ, cache.uₙ)
-        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+        f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
 
         f₍ₙₒᵣₘ₎ₙ .≤ 𝒸 && break
 
@@ -177,8 +174,7 @@ function perform_step!(cache::DFSaneCache{true})
 
         @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
         f(cache.fuₙ, cache.uₙ)
-        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+        f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
     if cache.internalnorm(cache.fuₙ) < cache.abstol
@@ -193,7 +189,6 @@ function perform_step!(cache::DFSaneCache{true})
     @. cache.uₙ₋₁ = cache.uₙ₋₁ * cache.fuₙ₋₁
     α₋ = sum(cache.uₙ₋₁)
     cache.σₙ = α₊ / α₋
-
 
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
@@ -239,8 +234,7 @@ function perform_step!(cache::DFSaneCache{false})
     @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
 
     @. cache.fuₙ = f(cache.uₙ)
-    f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-    f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+    f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
 
     for _ in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
@@ -254,8 +248,7 @@ function perform_step!(cache::DFSaneCache{false})
         @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹 # correct order?
 
         @. cache.fuₙ = f(cache.uₙ)
-        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+        f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
 
         (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
 
@@ -265,8 +258,7 @@ function perform_step!(cache::DFSaneCache{false})
 
         @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹 # correct order?
         @. cache.fuₙ = f(cache.uₙ)
-        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
-        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+        f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
     if cache.internalnorm(cache.fuₙ) < cache.abstol
