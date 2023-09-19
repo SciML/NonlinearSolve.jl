@@ -11,8 +11,7 @@ struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
     max_inner_iterations::Int
 end
 
-function DFSane(;
-                σₘᵢₙ = 1.0f-10,
+function DFSane(; σₘᵢₙ = 1.0f-10,
                 σₘₐₓ = 1.0f+10,
                 σ₁ = 1.0f0,
                 M = 10,
@@ -22,7 +21,7 @@ function DFSane(;
                 nₑₓₚ = 2,
                 ηₛ = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
                 max_inner_iterations = 1000)
-    return DFSane{typeof(σₘᵢₙ), typeof(ηₛ)}(σₘᵢₙ, # Typeof thing?
+    return DFSane{typeof(σₘᵢₙ), typeof(ηₛ)}(σₘᵢₙ,
                                             σₘₐₓ,
                                             σ₁,
                                             M,
@@ -147,7 +146,7 @@ function perform_step!(cache::DFSaneCache{true})
     # Line search direction
     @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
-    η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
+    η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁) 
 
     f̄ = maximum(cache.ℋ)
     α₊ = α₁
