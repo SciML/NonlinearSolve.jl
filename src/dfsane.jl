@@ -194,7 +194,8 @@ function perform_step!(cache::DFSaneCache{true})
     @. cache.fuₙ₋₁ = cache.fuₙ - cache.fuₙ₋₁
 
     α₊ = sum(abs2, cache.uₙ₋₁)
-    α₋ = sum(cache.uₙ₋₁ .* cache.fuₙ₋₁)
+    @. cache.uₙ₋₁ = cache.uₙ₋₁ * cache.fuₙ₋₁
+    α₋ = sum(cache.uₙ₋₁)
     cache.σₙ = α₊ / (α₋ + T(1e-5))
 
     # Take step
