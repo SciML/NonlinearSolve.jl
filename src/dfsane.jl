@@ -11,13 +11,13 @@ struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
     max_inner_iterations::Int
 end
 
-function DFSane(; σₘᵢₙ = 1.0f-10,
-                σₘₐₓ = 1.0f+10,
-                σ₁ = 1.0f0,
+function DFSane(; σₘᵢₙ = 1e-10,
+                σₘₐₓ = 1e+10,
+                σ₁ = 1.0,
                 M = 10,
-                γ = 1.0f-4,
-                τₘᵢₙ = 0.1f0,
-                τₘₐₓ = 0.5f0,
+                γ = 1e-4,
+                τₘᵢₙ = 0.1,
+                τₘₐₓ = 0.5,
                 nₑₓₚ = 2,
                 ηₛ = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
                 max_inner_iterations = 1000)
@@ -193,6 +193,7 @@ function perform_step!(cache::DFSaneCache{true})
     @. cache.uₙ₋₁ = cache.uₙ₋₁ * cache.fuₙ₋₁
     α₋ = sum(cache.uₙ₋₁)
     cache.σₙ = α₊ / α₋
+
 
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
