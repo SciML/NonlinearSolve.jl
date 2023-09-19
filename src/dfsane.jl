@@ -97,10 +97,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     else
         uₙ = deepcopy(prob.u0)
     end
+
     p = prob.p
-
     T = eltype(uₙ)
-
     σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σₘᵢₙ), T(alg.σₘₐₓ), T(alg.γ), T(alg.τₘᵢₙ), T(alg.τₘₐₓ)
     α₁ = one(T)
     γ = T(alg.γ)
@@ -117,14 +116,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     else
         f(x) = prob.f(x, p)
         fuₙ₋₁ = f(uₙ₋₁)
-        f₍ₙₒᵣₘ₎ₙ₋₁ = sum(abs2, fuₙ₋₁)
     end
 
     f₍ₙₒᵣₘ₎ₙ₋₁ = sum(abs2, fuₙ₋₁)
+    f₍ₙₒᵣₘ₎ₙ₋₁ ^= (nₑₓₚ / 2)
     f₍ₙₒᵣₘ₎₀ = f₍ₙₒᵣₘ₎ₙ₋₁
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
-    f̄ = f₍ₙₒᵣₘ₎ₙ₋₁
 
     return DFSaneCache{iip}(f, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀,
                             M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ,
@@ -180,6 +178,81 @@ function perform_step!(cache::DFSaneCache{true})
 
         @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹 # correct order?
         f(cache.fuₙ, cache.uₙ)
+        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
+        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+    end
+
+    if cache.internalnorm(cache.fuₙ) < cache.abstol
+        cache.force_stop = true
+    end
+
+    # Update spectral parameter
+    @. cache.uₙ₋₁ = cache.uₙ - cache.uₙ₋₁
+    @. cache.fuₙ₋₁ = cache.fuₙ - cache.fuₙ₋₁
+
+    α₊ = sum(abs2, cache.uₙ₋₁)
+    @. cache.uₙ₋₁ = cache.uₙ₋₁ * cache.fuₙ₋₁
+    α₋ = sum(cache.uₙ₋₁)
+    cache.σₙ = α₊ / (α₋ + T(1e-5))
+
+    # Take step
+    @. cache.uₙ₋₁ = cache.uₙ
+    @. cache.fuₙ₋₁ = cache.fuₙ
+    cache.f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
+
+    # Update history
+    cache.ℋ[n % M + 1] = f₍ₙₒᵣₘ₎ₙ
+    cache.stats.nf += 1
+    return nothing
+end
+
+function perform_step!(cache::DFSaneCache{false})
+    @unpack f, alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀,
+    σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
+
+    T = eltype(cache.uₙ)
+    n = cache.stats.nsteps
+
+    # Spectral parameter range check
+    σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
+
+    # Line search direction
+    @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
+
+    η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁) 
+
+    f̄ = maximum(cache.ℋ)
+    α₊ = α₁
+    α₋ = α₁
+    @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
+
+    @. cache.fuₙ = f(cache.uₙ)
+    f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
+    f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+
+    for _ in 1:(cache.alg.max_inner_iterations)
+        𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
+
+        f₍ₙₒᵣₘ₎ₙ ≤ 𝒸 && break
+
+        α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ /
+                   (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
+                   τₘᵢₙ * α₊,
+                   τₘₐₓ * α₊)
+        @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹 # correct order?
+
+        @. cache.fuₙ = f(cache.uₙ)
+        f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
+        f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
+
+        (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
+
+        α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
+                   τₘᵢₙ * α₋,
+                   τₘₐₓ * α₋)
+
+        @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹 # correct order?
+        @. cache.fuₙ = f(cache.uₙ)
         f₍ₙₒᵣₘ₎ₙ = sum(abs2, cache.fuₙ)
         f₍ₙₒᵣₘ₎ₙ ^= (nₑₓₚ / 2)
     end
