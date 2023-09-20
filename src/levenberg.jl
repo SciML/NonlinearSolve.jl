@@ -142,16 +142,12 @@ isinplace(::LevenbergMarquardtCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    linsolve_kwargs=(;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
-    if iip
-        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
-        f(fu1, u, p)
-    else
-        fu1 = f(u, p)
-    end
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
+    fu1 = evaluate_f(prob, u)
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_kwargs)
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)

@@ -142,3 +142,26 @@ _maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
 # The shadow allocated for Enzyme needs to be mutable
 _maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 _maybe_mutable(x, _) = x
+
+# Helper function to get value of `f(u, p)`
+function evaluate_f(prob::NonlinearProblem{uType, iip}, u) where {uType, iip}
+    @unpack f, u0, p = prob
+    if iip
+        fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
+        f(fu, u, p)
+    else
+        fu = _mutable(f(u, p))
+    end
+    return fu
+end
+
+evaluate_f(cache, u; fu = nothing) = evaluate_f(cache.f, u, cache.p, Val(cache.iip); fu)
+
+function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
+    if iip
+        f(fu, u, p)
+        return fu
+    else
+        return f(u, p)
+    end
+end

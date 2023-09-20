@@ -21,41 +21,49 @@ end
 # --- NewtonRaphson tests ---
 
 @testset "NewtonRaphson" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0)
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, NewtonRaphson(), abstol = 1e-9)
+        return solve(prob, NewtonRaphson(; linesearch), abstol = 1e-9)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs)
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
+        linesearch = LineSearch())
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, NewtonRaphson(; linsolve, precs), abstol = 1e-9)
+        return solve(prob, NewtonRaphson(; linsolve, precs, linesearch), abstol = 1e-9)
     end
 
-    u0s = VERSION ≥ v"1.9" ? ([1.0, 1.0], @SVector[1.0, 1.0], 1.0) : ([1.0, 1.0], 1.0)
-    @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-        sol = benchmark_nlsolve_oop(quadratic_f, u0)
-        @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
+        ad in (AutoFiniteDiff(), AutoZygote())
 
-        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), NewtonRaphson(),
-            abstol = 1e-9)
-        @test (@ballocated solve!($cache)) < 200
-    end
+        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        u0s = VERSION ≥ v"1.9" ? ([1.0, 1.0], @SVector[1.0, 1.0], 1.0) : ([1.0, 1.0], 1.0)
 
-    precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-    @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
-            1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
-        if prec === :Random
-            prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
+            cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), NewtonRaphson(),
+                abstol = 1e-9)
+            @test (@ballocated solve!($cache)) < 200
         end
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0; linsolve, precs = prec)
-        @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-            NewtonRaphson(; linsolve, precs = prec), abstol = 1e-9)
-        @test (@ballocated solve!($cache)) ≤ 64
+        precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
+
+        @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
+                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+            if prec === :Random
+                prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
+            end
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linsolve, precs = prec, linesearch)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
+                NewtonRaphson(; linsolve, precs = prec), abstol = 1e-9)
+            @test (@ballocated solve!($cache)) ≤ 64
+        end
     end
 
     if VERSION ≥ v"1.9"
