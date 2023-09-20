@@ -91,8 +91,15 @@ function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip
 
     g₀ = _mutable_zero(u)
 
+    autodiff = if iip && (ls.autodiff isa AutoZygote || ls.autodiff isa AutoSparseZygote)
+        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling back to finite differencing."
+        AutoFiniteDiff()
+    else
+        ls.autodiff
+    end
+
     function g!(u, fu)
-        op = VecJac((args...) -> f(args..., p), u)
+        op = VecJac((args...) -> f(args..., p), u; autodiff)
         if iip
             mul!(g₀, op, fu)
             return g₀
@@ -134,7 +141,7 @@ function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip
 end
 
 function perform_linesearch!(cache::LineSearchCache, u, du)
-    cache.ls.method isa Static && return (cache.α, cache.f(u, du, cache.α))
+    cache.ls.method isa Static && return cache.α
 
     ϕ = cache.ϕ(u, du)
     dϕ = cache.dϕ(u, du)
@@ -142,5 +149,8 @@ function perform_linesearch!(cache::LineSearchCache, u, du)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
-    return cache.ls.method(ϕ, cache.dϕ(u, du), cache.ϕdϕ(u, du), cache.α, ϕ₀, dϕ₀)
+    # This case is sometimes possible for large optimization problems
+    dϕ₀ ≥ 0 && return cache.α
+
+    return first(cache.ls.method(ϕ, cache.dϕ(u, du), cache.ϕdϕ(u, du), cache.α, ϕ₀, dϕ₀))
 end

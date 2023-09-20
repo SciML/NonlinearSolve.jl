@@ -93,8 +93,9 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     cache.linsolve = linres.cache
 
     # Line Search
-    α, _ = perform_linesearch!(cache.lscache, u, du)
+    α = perform_linesearch!(cache.lscache, u, du)
     @. u = u - α * du
+    f(cache.fu1, u, p)
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)
     cache.stats.nf += 1
@@ -118,7 +119,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     end
 
     # Line Search
-    α, _fu = perform_linesearch!(cache.lscache, u, cache.du)
+    α = perform_linesearch!(cache.lscache, u, cache.du)
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
