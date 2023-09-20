@@ -25,17 +25,22 @@ for large-scale and numerically-difficult nonlinear systems.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
+    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
+    used here directly, and they will be converted to the correct `LineSearch`.
 """
 @concrete struct NewtonRaphson{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
+    linesearch
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, adkwargs...)
+    linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
+    linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method=linesearch)
+    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
 end
 
 @concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -57,24 +62,21 @@ end
     abstol
     prob
     stats::NLStats
+    lscache
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    linsolve_kwargs=(;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
-    if iip
-        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
-        f(fu1, u, p)
-    else
-        fu1 = _mutable(f(u, p))
-    end
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
+    fu1 = evaluate_f(prob, u)
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_kwargs)
 
     return NewtonRaphsonCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
-        NLStats(1, 0, 0, 0, 0))
+        NLStats(1, 0, 0, 0, 0), LineSearchCache(alg.linesearch, f, u, p, fu1, Val(iip)))
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -85,8 +87,10 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
         p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    @. u = u - du
-    f(fu1, u, p)
+
+    # Line Search
+    α, _ = perform_linesearch!(cache.lscache, u, du)
+    @. u = u - α * du
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)
     cache.stats.nf += 1
@@ -108,7 +112,10 @@ function perform_step!(cache::NewtonRaphsonCache{false})
             linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
-    cache.u = @. u - cache.du  # `u` might not support mutation
+
+    # Line Search
+    α, _fu = perform_linesearch!(cache.lscache, u, cache.du)
+    cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)

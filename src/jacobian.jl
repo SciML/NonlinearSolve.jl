@@ -9,7 +9,7 @@ end
 (uf::JacobianWrapper{false})(res, u) = (vec(res) .= vec(uf.f(u, uf.p)))
 (uf::JacobianWrapper{true})(res, u) = uf.f(res, u, uf.p)
 
-sparsity_detection_alg(f, ad) = NoSparsityDetection()
+sparsity_detection_alg(_, _) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
@@ -49,8 +49,8 @@ end
 jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 
 # Build Jacobian Caches
-function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
-    ::Val{iip}) where {iip}
+function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{iip};
+    linsolve_kwargs=(;)) where {iip}
     uf = JacobianWrapper{iip}(f, p)
 
     haslinsolve = hasfield(typeof(alg), :linsolve)
@@ -92,14 +92,15 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p,
 
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
             nothing)..., weight)
-    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
+    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
+        linsolve_kwargs...)
 
     return uf, linsolve, J, fu, jac_cache, du
 end
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
-    ::Val{false})
+    ::Val{false}; kwargs...)
     # NOTE: Scalar `u` assumes scalar output from `f`
     uf = JacobianWrapper{false}(f, p)
     return uf, nothing, u, nothing, nothing, u

@@ -203,20 +203,15 @@ end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-8, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    linsolve_kwargs=(;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     u_prev = zero(u)
-    if iip
-        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
-        f(fu1, u, p)
-    else
-        fu1 = f(u, p)
-    end
+    fu1 = evaluate_f(prob, u)
     fu_prev = zero(fu1)
 
     loss = get_loss(fu1)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip); linsolve_kwargs)
 
     radius_update_scheme = alg.radius_update_scheme
     max_trust_radius = convert(eltype(u), alg.max_trust_radius)

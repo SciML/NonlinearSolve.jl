@@ -20,7 +20,7 @@ import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isi
 import StaticArraysCore: StaticArray, SVector, SArray, MArray
 import UnPack: @unpack
 
-@reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
+@reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
@@ -55,6 +55,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 include("utils.jl")
+include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
@@ -89,5 +90,7 @@ end
 export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
+
+export LineSearch
 
 end # module
