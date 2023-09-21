@@ -110,7 +110,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
 
     if iip
-        f( = dx, x) -> prob.f(dx, x, p)
+        f =  (dx, x) -> prob.f(dx, x, p)
         f(fuₙ₋₁, uₙ₋₁)
 
     else
