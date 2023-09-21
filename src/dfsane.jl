@@ -110,7 +110,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
 
     if iip
-        f =  (dx, x) -> prob.f(dx, x, p)
+        f = (dx, x) -> prob.f(dx, x, p)
         f(fuₙ₋₁, uₙ₋₁)
 
     else
@@ -233,9 +233,8 @@ function perform_step!(cache::DFSaneCache{false})
     α₋ = α₁
     @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
 
-    @. cache.fuₙ = f(cache.uₙ)
+    cache.fuₙ .= f(cache.uₙ)
     f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
-
     for _ in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
@@ -245,19 +244,19 @@ function perform_step!(cache::DFSaneCache{false})
                    (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                    τₘᵢₙ * α₊,
                    τₘₐₓ * α₊)
-        @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹 # correct order?
+        @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹
 
-        @. cache.fuₙ = f(cache.uₙ)
+        cache.fuₙ .= f(cache.uₙ)
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
 
-        (f₍ₙₒᵣₘ₎ₙ .≤ 𝒸) && break
+        f₍ₙₒᵣₘ₎ₙ .≤ 𝒸 && break
 
         α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                    τₘᵢₙ * α₋,
                    τₘₐₓ * α₋)
 
-        @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹 # correct order?
-        @. cache.fuₙ = f(cache.uₙ)
+        @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
+        cache.fuₙ .= f(cache.uₙ)
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
