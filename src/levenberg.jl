@@ -72,6 +72,11 @@ numerically-difficult nonlinear systems.
     where `J` is the Jacobian. It is suggested by
     [this paper](https://arxiv.org/abs/1201.5885) to use a minimum value of the elements in
     `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
+
+!!! warning
+
+    `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
+    Support for the OOP version is planned!
 """
 @concrete struct LevenbergMarquardt{CJ, AD, T} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -135,11 +140,14 @@ end
     loss_old::lossType
     make_new_J::Bool
     fu_tmp
+    u_tmp
+    Jv
     mat_tmp::jType
     stats::NLStats
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
+function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
+        NonlinearLeastSquaresProblem{uType, iip}}, alg::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
@@ -166,7 +174,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     end
 
     loss = internalnorm(fu1)
-    JᵀJ = zero(J)
+    JᵀJ = J isa Number ? zero(J) : similar(J, size(J, 2), size(J, 2))
     v = zero(u)
     a = zero(u)
     tmp_vec = zero(u)
@@ -174,13 +182,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarq
     δ = zero(u)
     make_new_J = true
     fu_tmp = zero(fu1)
-    mat_tmp = zero(J)
+    mat_tmp = zero(JᵀJ)
 
     return LevenbergMarquardtCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob, DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        mat_tmp, NLStats(1, 0, 0, 0, 0))
+        zero(u), zero(fu1), mat_tmp, NLStats(1, 0, 0, 0, 0))
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true})
@@ -200,10 +208,10 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack u, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
-    # The following lines do: cache.v = -cache.mat_tmp \ cache.fu_tmp
-    mul!(cache.fu_tmp, J', fu1)
+    # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
+    mul!(cache.u_tmp, J', fu1)
     @. cache.mat_tmp = JᵀJ + λ * DᵀD
-    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.fu_tmp),
+    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.u_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.v = -cache.du
@@ -213,8 +221,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     f(cache.fu_tmp, u .+ h .* v, p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
-    mul!(cache.du, J, v)
-    @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.du)
+    mul!(cache.Jv, J, v)
+    @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
     linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.fu_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache

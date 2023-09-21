@@ -144,7 +144,8 @@ _maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 _maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
-function evaluate_f(prob::NonlinearProblem{uType, iip}, u) where {uType, iip}
+function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
+        NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
         fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype

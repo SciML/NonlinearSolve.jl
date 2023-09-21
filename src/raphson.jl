@@ -127,18 +127,22 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     return nothing
 end
 
-function SciMLBase.solve!(cache::NewtonRaphsonCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
+function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
+    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(cache.u, u0)
+        cache.f(cache.fu1, cache.u, p)
     else
-        cache.retcode = ReturnCode.Success
+        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
+        cache.u = u0
+        cache.fu1 = cache.f(cache.u, p)
     end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
-        cache.retcode, cache.stats)
+    cache.abstol = abstol
+    cache.maxiters = maxiters
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    return cache
 end

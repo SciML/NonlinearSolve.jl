@@ -141,6 +141,11 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
+
+!!! warning
+
+    `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
+    Support for the OOP version is planned!
 """
 @concrete struct TrustRegion{CJ, AD, MTR} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -662,22 +667,11 @@ function jvp!(cache::TrustRegionCache{true})
     return g
 end
 
-function SciMLBase.solve!(cache::TrustRegionCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters &&
-              cache.shrink_counter < cache.alg.max_shrink_times
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu; cache.retcode,
-        cache.stats)
+function not_terminated(cache::TrustRegionCache)
+    return !cache.force_stop && cache.stats.nsteps < cache.maxiters &&
+           cache.shrink_counter < cache.alg.max_shrink_times
 end
+get_fu(cache::TrustRegionCache) = cache.fu
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
     abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
