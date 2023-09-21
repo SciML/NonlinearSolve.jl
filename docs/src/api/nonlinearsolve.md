@@ -7,6 +7,8 @@ These are the native solvers of NonlinearSolve.jl.
 ```@docs
 NewtonRaphson
 TrustRegion
+LevenbergMarquardt
+GaussNewton
 ```
 
 ## Radius Update Schemes for Trust Region (RadiusUpdateSchemes)

@@ -25,13 +25,13 @@ prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
-# sol = solve(prob_oop, GaussNewton(); maxiters = 1000, abstol = 1e-8)
-# @test SciMLBase.successful_retcode(sol)
-# @test norm(sol.resid) < 1e-6
+sol = solve(prob_oop, GaussNewton(); maxiters = 1000, abstol = 1e-8)
+@test SciMLBase.successful_retcode(sol)
+@test norm(sol.resid) < 1e-6
 
-# sol = solve(prob_iip, GaussNewton(); maxiters = 1000, abstol = 1e-8)
-# @test SciMLBase.successful_retcode(sol)
-# @test norm(sol.resid) < 1e-6
+sol = solve(prob_iip, GaussNewton(); maxiters = 1000, abstol = 1e-8)
+@test SciMLBase.successful_retcode(sol)
+@test norm(sol.resid) < 1e-6
 
 sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 1000, abstol = 1e-8)
 @test SciMLBase.successful_retcode(sol)

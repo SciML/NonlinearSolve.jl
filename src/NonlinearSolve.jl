@@ -64,6 +64,7 @@ include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
+include("gaussnewton.jl")
 include("jacobian.jl")
 include("ad.jl")
 
@@ -91,7 +92,7 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
 
 export LineSearch
 

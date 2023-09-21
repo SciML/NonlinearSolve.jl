@@ -42,6 +42,10 @@ features, but have a bit of overhead on very small problems.
     methods for high performance on large and sparse systems.
   - `TrustRegion()`: A Newton Trust Region dogleg method with swappable nonlinear solvers and
     autodiff methods for high performance on large and sparse systems.
+  - `LevenbergMarquardt()`: An advanced Levenberg-Marquardt implementation with the
+    improvements suggested in the [paper](https://arxiv.org/abs/1201.5885) "Improvements to
+    the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". Designed for
+    large-scale and numerically-difficult nonlinear systems.
 
 ### SimpleNonlinearSolve.jl
 
