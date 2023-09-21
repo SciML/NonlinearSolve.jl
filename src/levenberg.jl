@@ -142,7 +142,7 @@ isinplace(::LevenbergMarquardtCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs=(;), kwargs...) where {uType, iip}
+    linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)

@@ -41,7 +41,7 @@ concrete_jac(::NewtonRaphson{CJ}) where {CJ} = CJ
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
     linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method=linesearch)
+    linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
 end
 
@@ -71,7 +71,7 @@ isinplace(::NewtonRaphsonCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs=(;), kwargs...) where {uType, iip}
+    linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
