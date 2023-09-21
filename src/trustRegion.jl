@@ -8,13 +8,13 @@ scheme are provided below.
 
 ## Using `RadiusUpdateSchemes`
 
-`RadiusUpdateSchemes` uses the standard EnumX interface (https://github.com/fredrikekre/EnumX.jl), 
+`RadiusUpdateSchemes` uses the standard EnumX interface (https://github.com/fredrikekre/EnumX.jl),
 and hence inherits all properties of being an EnumX, including the type of each constituent enum
 states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
 `TrustRegion(radius_update_scheme = your desired update scheme)`. For example,
 `sol = solve(prob, alg=TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei))`.
 """
-EnumX.@enumx RadiusUpdateSchemes begin
+@enumx RadiusUpdateSchemes begin
     """
     `RadiusUpdateSchemes.Simple`
 
@@ -68,19 +68,12 @@ end
 
 """
 ```julia
-TrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
-            standardtag = Val{true}(), concrete_jac = nothing,
-            diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
-            radius_update_scheme = RadiusUpdateSchemes.Simple,
-            max_trust_radius::Real = 0 // 1,
-            initial_trust_radius::Real = 0 // 1,
-            step_threshold::Real = 1 // 10,
-            shrink_threshold::Real = 1 // 4,
-            expand_threshold::Real = 3 // 4,
-            shrink_factor::Real = 1 // 4,
-            expand_factor::Real = 2 // 1,
-            max_shrink_times::Int = 32)
-```
+    TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+        radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple,
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
 
 An advanced TrustRegion implementation with support for efficient handling of sparse
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
@@ -88,29 +81,15 @@ for large-scale and numerically-difficult nonlinear systems.
 
 ### Keyword Arguments
 
-  - `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
-    system. This allows for multiple derivative columns to be computed simultaneously,
-    improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
-    default chunk size mechanism. For more details, see the documentation for
-    [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
-  - `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
-    Note that this argument is ignored if an analytical Jacobian is passed, as that will be
-    used instead. Defaults to `Val{true}`, which means ForwardDiff.jl via
-    SparseDiffTools.jl is used by default. If `Val{false}`, then FiniteDiff.jl is used for
-    finite differencing.
-  - `standardtag`: whether to use a standardized tag definition for the purposes of automatic
-    differentiation. Defaults to true, which thus uses the `NonlinearSolveTag`. If `Val{false}`,
-    then ForwardDiff's default function naming tag is used, which results in larger stack
-    traces.
+  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
+    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
     tricks (without ever constructing the Jacobian). However, if the Jacobian is still needed,
     for example for a preconditioner, `concrete_jac = true` can be passed in order to force
     the construction of the Jacobian.
-  - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
-    `Val{:forward}` for forward finite differences. For more details on the choices, see the
-    [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
   - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
     linear solves within the Newton method. Defaults to `nothing`, which means it uses the
     LinearSolve.jl default algorithm choice. For more information on available algorithm
@@ -120,7 +99,7 @@ for large-scale and numerically-difficult nonlinear systems.
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `radius_update_scheme`: the choice of radius update scheme to be used. Defaults to `RadiusUpdateSchemes.Simple`
-    which follows the conventional approach. Other available schemes are `RadiusUpdateSchemes.Hei`, 
+    which follows the conventional approach. Other available schemes are `RadiusUpdateSchemes.Hei`,
     `RadiusUpdateSchemes.Yuan`, `RadiusUpdateSchemes.Bastin`, `RadiusUpdateSchemes.Fan`. These schemes
     have the trust region radius converging to zero that is seen to improve convergence. For more details, see the
     [Yuan, Yx](https://link.springer.com/article/10.1007/s10107-015-0893-2#Sec4).
@@ -148,18 +127,13 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
-
-!!! note
-
-    Currently, the linear solver and chunk size choice only applies to in-place defined
-    `NonlinearProblem`s. That is expected to change in the future.
 """
-struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
-       AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ}
-    linsolve::L
-    precs::P
+@concrete struct TrustRegion{CJ, AD, MTR} <: AbstractNewtonAlgorithm{CJ, AD}
+    ad::AD
+    linsolve
+    precs
     radius_update_scheme::RadiusUpdateSchemes.T
-    max_trust_radius::MTR
+    max_trust_radius
     initial_trust_radius::MTR
     step_threshold::MTR
     shrink_threshold::MTR
@@ -169,68 +143,53 @@ struct TrustRegion{CS, AD, FDT, L, P, ST, CJ, MTR} <:
     max_shrink_times::Int
 end
 
-function TrustRegion(; chunk_size = Val{0}(),
-    autodiff = Val{true}(),
-    standardtag = Val{true}(), concrete_jac = nothing,
-    diff_type = Val{:forward}, linsolve = nothing, precs = DEFAULT_PRECS,
+function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
     radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
-    max_trust_radius::Real = 0 // 1,
-    initial_trust_radius::Real = 0 // 1,
-    step_threshold::Real = 1 // 10,
-    shrink_threshold::Real = 1 // 4,
-    expand_threshold::Real = 3 // 4,
-    shrink_factor::Real = 1 // 4,
-    expand_factor::Real = 2 // 1,
-    max_shrink_times::Int = 32)
-    TrustRegion{_unwrap_val(chunk_size), _unwrap_val(autodiff), diff_type,
-        typeof(linsolve), typeof(precs), _unwrap_val(standardtag),
-        _unwrap_val(concrete_jac), typeof(max_trust_radius),
-    }(linsolve, precs, radius_update_scheme, max_trust_radius,
-        initial_trust_radius,
-        step_threshold,
-        shrink_threshold,
-        expand_threshold,
-        shrink_factor,
-        expand_factor,
-        max_shrink_times)
+    max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+    step_threshold::Real = 1 // 10, shrink_threshold::Real = 1 // 4,
+    expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+    expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
+    ad = default_adargs_to_adtype(; adkwargs...)
+    return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
+        max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
+        expand_threshold, shrink_factor, expand_factor, max_shrink_times)
 end
 
-mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
-    INType, tolType, probType, ufType, L, jType, JC, floatType,
-    trustType, suType, su2Type, tmpType}
-    f::fType
-    alg::algType
-    u_prev::uType
-    u::uType
-    fu_prev::resType
-    fu::resType
-    p::pType
-    uf::ufType
-    linsolve::L
-    J::jType
-    jac_config::JC
+@concrete mutable struct TrustRegionCache{iip, trustType, floatType}
+    f
+    alg
+    u_prev
+    u
+    fu_prev
+    fu
+    fu2
+    p
+    uf
+    linsolve
+    J
+    jac_cache
     force_stop::Bool
     maxiters::Int
-    internalnorm::INType
-    retcode::SciMLBase.ReturnCode.T
-    abstol::tolType
-    prob::probType
+    internalnorm
+    retcode::ReturnCode.T
+    abstol
+    prob
     radius_update_scheme::RadiusUpdateSchemes.T
     trust_r::trustType
     max_trust_r::trustType
-    step_threshold::suType
+    step_threshold
     shrink_threshold::trustType
     expand_threshold::trustType
     shrink_factor::trustType
     expand_factor::trustType
     loss::floatType
     loss_new::floatType
-    H::jType
-    g::resType
+    H
+    g
     shrink_counter::Int
-    step_size::su2Type
-    u_tmp::tmpType
-    fu_new::resType
+    step_size
+    u_tmp
+    fu_new
     make_new_J::Bool
     r::floatType
     p1::floatType
@@ -239,75 +198,19 @@ mutable struct TrustRegionCache{iip, fType, algType, uType, resType, pType,
     p4::floatType
     ϵ::floatType
     stats::NLStats
-
-    function TrustRegionCache{iip}(f::fType, alg::algType, u_prev::uType, u::uType,
-        fu_prev::resType, fu::resType, p::pType,
-        uf::ufType, linsolve::L, J::jType, jac_config::JC,
-        force_stop::Bool, maxiters::Int, internalnorm::INType,
-        retcode::SciMLBase.ReturnCode.T, abstol::tolType,
-        prob::probType,
-        radius_update_scheme::RadiusUpdateSchemes.T,
-        trust_r::trustType,
-        max_trust_r::trustType, step_threshold::suType,
-        shrink_threshold::trustType, expand_threshold::trustType,
-        shrink_factor::trustType, expand_factor::trustType,
-        loss::floatType, loss_new::floatType, H::jType,
-        g::resType, shrink_counter::Int, step_size::su2Type,
-        u_tmp::tmpType, fu_new::resType, make_new_J::Bool,
-        r::floatType, p1::floatType, p2::floatType,
-        p3::floatType, p4::floatType, ϵ::floatType,
-        stats::NLStats) where {iip, fType, algType, uType,
-        resType, pType, INType,
-        tolType, probType, ufType, L,
-        jType, JC, floatType, trustType,
-        suType, su2Type, tmpType}
-        new{iip, fType, algType, uType, resType, pType,
-            INType, tolType, probType, ufType, L, jType, JC, floatType,
-            trustType, suType, su2Type, tmpType}(f, alg, u_prev, u, fu_prev, fu, p, uf,
-            linsolve, J,
-            jac_config, force_stop,
-            maxiters, internalnorm, retcode,
-            abstol, prob, radius_update_scheme,
-            trust_r, max_trust_r,
-            step_threshold, shrink_threshold,
-            expand_threshold, shrink_factor,
-            expand_factor, loss,
-            loss_new, H, g, shrink_counter,
-            step_size, u_tmp, fu_new,
-            make_new_J, r, p1, p2, p3, p4, ϵ, stats)
-    end
 end
 
-function jacobian_caches(alg::TrustRegion, f, u, p, ::Val{false})
-    J = ArrayInterface.undefmatrix(u)
-    JacobianWrapper(f, p), nothing, J, zero(u), nothing
-end
-
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
-    args...;
-    alias_u0 = false,
-    maxiters = 1000,
-    abstol = 1e-8,
-    internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
-    if alias_u0
-        u = prob.u0
-    else
-        u = deepcopy(prob.u0)
-    end
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, args...;
+    alias_u0 = false, maxiters = 1000, abstol = 1e-8, internalnorm = DEFAULT_NORM,
+    linsolve_kwargs=(;), kwargs...) where {uType, iip}
+    @unpack f, u0, p = prob
+    u = alias_u0 ? u0 : deepcopy(u0)
     u_prev = zero(u)
-    f = prob.f
-    p = prob.p
-    if iip
-        fu = zero(u)
-        f(fu, u, p)
-    else
-        fu = f(u, p)
-    end
-    fu_prev = zero(fu)
+    fu1 = evaluate_f(prob, u)
+    fu_prev = zero(fu1)
 
-    loss = get_loss(fu)
-    uf, linsolve, J, u_tmp, jac_config = jacobian_caches(alg, f, u, p, Val(iip))
+    loss = get_loss(fu1)
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip); linsolve_kwargs)
 
     radius_update_scheme = alg.radius_update_scheme
     max_trust_radius = convert(eltype(u), alg.max_trust_radius)
@@ -319,18 +222,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
     expand_factor = convert(eltype(u), alg.expand_factor)
     # Set default trust region radius if not specified
     if iszero(max_trust_radius)
-        max_trust_radius = convert(eltype(u), max(norm(fu), maximum(u) - minimum(u)))
+        max_trust_radius = convert(eltype(u), max(norm(fu1), maximum(u) - minimum(u)))
     end
     if iszero(initial_trust_radius)
         initial_trust_radius = convert(eltype(u), max_trust_radius / 11)
     end
 
     loss_new = loss
-    H = ArrayInterface.undefmatrix(u)
-    g = zero(fu)
+    H = zero(J)
+    g = _mutable_zero(fu1)
     shrink_counter = 0
     step_size = zero(u)
-    fu_new = zero(fu)
+    fu_new = zero(fu1)
     make_new_J = true
     r = loss
 
@@ -358,12 +261,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         p3 = convert(eltype(u), 6.0) # c6
         p4 = convert(eltype(u), 0.0)
         if iip
-            auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
+            auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu1)
         else
             if isa(u, Number)
                 g = ForwardDiff.derivative(x -> f(x, p), u)
             else
-                g = auto_jacvec(x -> f(x, p), u, fu)
+                g = auto_jacvec(x -> f(x, p), u, fu1)
             end
         end
         initial_trust_radius = convert(eltype(u), p1 * norm(g))
@@ -375,7 +278,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         p2 = convert(eltype(u), 1 / 4) # c5
         p3 = convert(eltype(u), 12) # c6
         p4 = convert(eltype(u), 1.0e18) # M
-        initial_trust_radius = convert(eltype(u), p1 * (norm(fu)^0.99))
+        initial_trust_radius = convert(eltype(u), p1 * (norm(fu1)^0.99))
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
         step_threshold = convert(eltype(u), 0.05)
         shrink_threshold = convert(eltype(u), 0.05)
@@ -387,29 +290,27 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion,
         initial_trust_radius = convert(eltype(u), 1.0)
     end
 
-    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu, p, uf, linsolve, J,
-        jac_config,
-        false, maxiters, internalnorm,
-        ReturnCode.Default, abstol, prob, radius_update_scheme,
-        initial_trust_radius,
-        max_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, loss,
-        loss_new, H, g, shrink_counter, step_size, u_tmp, fu_new,
-        make_new_J, r, p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0))
+    return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
+        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
+        radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
+        shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
+        H, g, shrink_counter, step_size, du, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
+        NLStats(1, 0, 0, 0, 0))
 end
+
+isinplace(::TrustRegionCache{iip}) where {iip} = iip
 
 function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_tmp, alg, linsolve = cache
     if cache.make_new_J
-        jacobian!(J, cache)
+        jacobian!!(J, cache)
         mul!(cache.H, J, J)
         mul!(cache.g, J, fu)
         cache.stats.njacs += 1
     end
 
-    linres = dolinsolve(alg.precs, linsolve, A = cache.H, b = _vec(cache.g),
-        linu = _vec(u_tmp),
-        p = p, reltol = cache.abstol)
+    linres = dolinsolve(alg.precs, linsolve; A = cache.H, b = _vec(cache.g),
+        linu = _vec(u_tmp), p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     cache.u_tmp .= -1 .* u_tmp
     dogleg!(cache)
@@ -428,7 +329,7 @@ function perform_step!(cache::TrustRegionCache{false})
     @unpack make_new_J, fu, f, u, p = cache
 
     if make_new_J
-        J = jacobian(cache, f)
+        J = jacobian!!(cache.J, cache)
         cache.H = J * J
         cache.g = J * fu
         cache.stats.njacs += 1
@@ -449,23 +350,16 @@ function perform_step!(cache::TrustRegionCache{false})
     return nothing
 end
 
-function retrospective_step!(cache::TrustRegionCache{true})
+function retrospective_step!(cache::TrustRegionCache)
     @unpack J, fu_prev, fu, u_prev, u = cache
-    jacobian!(J, cache)
-    mul!(cache.H, J, J)
-    mul!(cache.g, J, fu)
-    cache.stats.njacs += 1
-    @unpack H, g, step_size = cache
-
-    return -(get_loss(fu_prev) - get_loss(fu)) /
-           (step_size' * g + step_size' * H * step_size / 2)
-end
-
-function retrospective_step!(cache::TrustRegionCache{false})
-    @unpack J, fu_prev, fu, u_prev, u, f = cache
-    J = jacobian(cache, f)
-    cache.H = J * J
-    cache.g = J * fu
+    J = jacobian!!(deepcopy(J), cache)
+    if J isa Number
+        cache.H = J * J
+        cache.g = J * fu
+    else
+        mul!(cache.H, J, J)
+        mul!(cache.g, J, fu)
+    end
     cache.stats.njacs += 1
     @unpack H, g, step_size = cache
 
@@ -642,20 +536,20 @@ function take_step!(cache::TrustRegionCache{false})
 end
 
 function jvp!(cache::TrustRegionCache{false})
-    @unpack f, u, fu, p = cache
+    @unpack f, u, fu, uf = cache
     if isa(u, Number)
-        return value_derivative(x -> f(x, p), u)
+        return value_derivative(uf, u)
     end
-    return auto_jacvec(x -> f(x, p), u, fu)
+    return auto_jacvec(uf, u, fu)
 end
 
 function jvp!(cache::TrustRegionCache{true})
-    @unpack g, f, u, fu, p = cache
+    @unpack g, f, u, fu, uf = cache
     if isa(u, Number)
-        return value_derivative(x -> f(x, p), u)
+        return value_derivative(uf, u)
     end
-    auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu)
-    g
+    auto_jacvec!(g, uf, u, fu)
+    return g
 end
 
 function SciMLBase.solve!(cache::TrustRegionCache)
@@ -671,8 +565,8 @@ function SciMLBase.solve!(cache::TrustRegionCache)
         cache.retcode = ReturnCode.Success
     end
 
-    SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu;
-        retcode = cache.retcode, stats = cache.stats)
+    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu; cache.retcode,
+        cache.stats)
 end
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,

@@ -1,39 +1,41 @@
 module NonlinearSolve
-if isdefined(Base, :Experimental) &&
-   isdefined(Base.Experimental, Symbol("@max_methods"))
+
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_methods"))
     @eval Base.Experimental.@max_methods 1
 end
-using Reexport
-using UnPack: @unpack
-using FiniteDiff, ForwardDiff
-using ForwardDiff: Dual
-using LinearAlgebra
-using StaticArraysCore
-using RecursiveArrayTools
-import EnumX
-import ArrayInterface
-import LinearSolve
-using DiffEqBase
-using SparseDiffTools
 
-@reexport using SciMLBase
-using SciMLBase: NLStats
-@reexport using SimpleNonlinearSolve
+using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
+import ForwardDiff
 
-import SciMLBase: _unwrap_val
+import ADTypes: AbstractFiniteDifferencesMode
+import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable
+import ConcreteStructs: @concrete
+import EnumX: @enumx
+import ForwardDiff: Dual
+import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
+import RecursiveArrayTools: ArrayPartition,
+    AbstractVectorOfArray, recursivecopy!, recursivefill!
+import Reexport: @reexport
+import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
+import StaticArraysCore: StaticArray, SVector, SArray, MArray
+import UnPack: @unpack
 
-abstract type AbstractNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
-abstract type AbstractNewtonAlgorithm{CS, AD, FDT, ST, CJ} <:
-              AbstractNonlinearSolveAlgorithm end
+@reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
 
-function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::AbstractNonlinearSolveAlgorithm, args...;
-    kwargs...)
+const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
+    ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
+
+abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
+abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
+
+function SciMLBase.__solve(prob::NonlinearProblem, alg::AbstractNonlinearSolveAlgorithm,
+    args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
-    sol = solve!(cache)
+    return solve!(cache)
 end
 
 include("utils.jl")
+include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
@@ -46,7 +48,7 @@ PrecompileTools.@compile_workload begin
     for T in (Float32, Float64)
         prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-        precompile_algs = if VERSION >= v"1.7"
+        precompile_algs = if VERSION ≥ v"1.7"
             (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
         else
             (NewtonRaphson(),)
@@ -67,5 +69,7 @@ end
 export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt
+
+export LineSearch
 
 end # module

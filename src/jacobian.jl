@@ -1,185 +1,107 @@
-struct JacobianWrapper{fType, pType}
-    f::fType
-    p::pType
+@concrete struct JacobianWrapper{iip}
+    f
+    p
 end
 
-(uf::JacobianWrapper)(u) = uf.f(u, uf.p)
-(uf::JacobianWrapper)(res, u) = uf.f(res, u, uf.p)
+# Previous Implementation did not hold onto `iip`, but this causes problems in packages
+# where we check for the presence of function signatures to check which dispatch to call
+(uf::JacobianWrapper{false})(u) = uf.f(u, uf.p)
+(uf::JacobianWrapper{false})(res, u) = (vec(res) .= vec(uf.f(u, uf.p)))
+(uf::JacobianWrapper{true})(res, u) = uf.f(res, u, uf.p)
 
-struct NonlinearSolveTag end
+sparsity_detection_alg(_, _) = NoSparsityDetection()
+function sparsity_detection_alg(f, ad::AbstractSparseADType)
+    if f.sparsity === nothing
+        if f.jac_prototype === nothing
+            return SymbolicsSparsityDetection()
+        else
+            jac_prototype = f.jac_prototype
+        end
+    else
+        jac_prototype = f.sparsity
+    end
 
-function sparsity_colorvec(f, x)
-    sparsity = f.sparsity
-    colorvec = DiffEqBase.has_colorvec(f) ? f.colorvec :
-               (isnothing(sparsity) ? (1:length(x)) : matrix_colors(sparsity))
-    sparsity, colorvec
-end
-
-function jacobian_finitediff_forward!(J, f, x, jac_config, forwardcache, cache)
-    (FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config, forwardcache);
-    maximum(jac_config.colorvec))
-end
-function jacobian_finitediff!(J, f, x, jac_config, cache)
-    (FiniteDiff.finite_difference_jacobian!(J, f, x, jac_config);
-    2 * maximum(jac_config.colorvec))
+    if SciMLBase.has_colorvec(f)
+        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
+            partition_by_rows = ad isa ADTypes.AbstractSparseReverseMode)
+    else
+        return JacPrototypeSparsityDetection(; jac_prototype)
+    end
 end
 
 # NoOp for Jacobian if it is not a Abstract Array -- For eg, JacVec Operator
-jacobian!(J, cache) = J
-function jacobian!(J::AbstractMatrix{<:Number}, cache)
-    f = cache.f
-    uf = cache.uf
-    x = cache.u
-    fx = cache.fu
-    jac_config = cache.jac_config
-    alg = cache.alg
-
-    if SciMLBase.has_jac(f)
-        f.jac(J, x, cache.p)
-    elseif alg_autodiff(alg)
-        forwarddiff_color_jacobian!(J, uf, x, jac_config)
-        #cache.destats.nf += 1
+jacobian!!(J, _) = J
+# `!!` notation is from BangBang.jl since J might be jacobian in case of oop `f.jac`
+# and we don't want wasteful `copyto!`
+function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache)
+    @unpack f, uf, u, p, jac_cache, alg, fu2 = cache
+    iip = isinplace(cache)
+    if iip
+        has_jac(f) ? f.jac(J, u, p) :
+        sparse_jacobian!(J, alg.ad, jac_cache, uf, fu2, _maybe_mutable(u, alg.ad))
     else
-        isforward = alg_difftype(alg) === Val{:forward}
-        if isforward
-            uf(fx, x)
-            #cache.destats.nf += 1
-            tmp = jacobian_finitediff_forward!(J, uf, x, jac_config, fx,
-                cache)
-        else # not forward difference
-            tmp = jacobian_finitediff!(J, uf, x, jac_config, cache)
-        end
-        #cache.destats.nf += tmp
+        return has_jac(f) ? f.jac(u, p) :
+               sparse_jacobian!(J, alg.ad, jac_cache, uf, _maybe_mutable(u, alg.ad))
     end
-    nothing
+    return J
 end
+# Scalar case
+jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 
-function build_jac_and_jac_config(alg, f::F1, uf::F2, du1, u, tmp, du2) where {F1, F2}
+# Build Jacobian Caches
+function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{iip};
+    linsolve_kwargs=(;)) where {iip}
+    uf = JacobianWrapper{iip}(f, p)
+
     haslinsolve = hasfield(typeof(alg), :linsolve)
 
-    has_analytic_jac = SciMLBase.has_jac(f)
+    has_analytic_jac = has_jac(f)
     linsolve_needs_jac = (concrete_jac(alg) === nothing &&
                           (!haslinsolve || (haslinsolve && (alg.linsolve === nothing ||
-                             LinearSolve.needs_concrete_A(alg.linsolve)))))
+                             needs_concrete_A(alg.linsolve)))))
     alg_wants_jac = (concrete_jac(alg) !== nothing && concrete_jac(alg))
 
+    # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
+    fu = f.resid_prototype === nothing ? (iip ? _mutable_zero(u) : _mutable(f(u, p))) :
+         (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
     if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
-        sparsity, colorvec = sparsity_colorvec(f, u)
-
-        if alg_autodiff(alg)
-            _chunksize = get_chunksize(alg) === Val(0) ? nothing : get_chunksize(alg) # SparseDiffEq uses different convection...
-
-            T = if standardtag(alg)
-                typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(u)))
-            else
-                typeof(ForwardDiff.Tag(uf, eltype(u)))
-            end
-            jac_config = ForwardColorJacCache(uf, u, _chunksize; colorvec, sparsity,
-                tag = T)
-        else
-            if alg_difftype(alg) !== Val{:complex}
-                jac_config = FiniteDiff.JacobianCache(tmp, du1, du2, alg_difftype(alg);
-                    colorvec, sparsity)
-            else
-                jac_config = FiniteDiff.JacobianCache(Complex{eltype(tmp)}.(tmp),
-                    Complex{eltype(du1)}.(du1), nothing, alg_difftype(alg), eltype(u);
-                    colorvec, sparsity)
-            end
-        end
+        sd = sparsity_detection_alg(f, alg.ad)
+        ad = alg.ad
+        jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, _maybe_mutable(u, ad)) :
+                    sparse_jacobian_cache(ad, sd, uf, _maybe_mutable(u, ad); fx = fu)
     else
-        jac_config = nothing
+        jac_cache = nothing
     end
 
     J = if !linsolve_needs_jac
         # We don't need to construct the Jacobian
-        JacVec(uf, u; autodiff = alg_autodiff(alg) ? AutoForwardDiff() : AutoFiniteDiff())
+        JacVec(uf, u; autodiff = alg.ad)
     else
-        if f.jac_prototype === nothing
-            ArrayInterface.undefmatrix(u)
+        if has_analytic_jac
+            f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
         else
-            f.jac_prototype
+            f.jac_prototype === nothing ? init_jacobian(jac_cache) : f.jac_prototype
         end
     end
 
-    return J, jac_config
-end
+    du = _mutable_zero(u)
+    linprob = LinearProblem(J, _vec(fu); u0 = _vec(du))
 
-# Build Jacobian Caches
-function jacobian_caches(alg::Union{NewtonRaphson, LevenbergMarquardt, TrustRegion}, f, u,
-    p, ::Val{true})
-    uf = JacobianWrapper(f, p)
-
-    du1 = zero(u)
-    du2 = zero(u)
-    tmp = zero(u)
-    J, jac_config = build_jac_and_jac_config(alg, f, uf, du1, u, tmp, du2)
-
-    linprob = LinearProblem(J, _vec(zero(u)); u0 = _vec(zero(u)))
     weight = similar(u)
     recursivefill!(weight, true)
 
     Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
             nothing)..., weight)
-    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
+    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
+        linsolve_kwargs...)
 
-    uf, linsolve, J, du1, jac_config
+    return uf, linsolve, J, fu, jac_cache, du
 end
 
-function get_chunksize(jac_config::ForwardDiff.JacobianConfig{
-    T,
-    V,
-    N,
-    D,
-}) where {T, V, N, D
-}
-    Val(N)
-end # don't degrade compile time information to runtime information
-
-function jacobian_finitediff(f, x, ::Type{diff_type}, dir, colorvec, sparsity,
-    jac_prototype) where {diff_type}
-    (FiniteDiff.finite_difference_derivative(f, x, diff_type, eltype(x), dir = dir), 2)
-end
-function jacobian_finitediff(f, x::AbstractArray, ::Type{diff_type}, dir, colorvec,
-    sparsity, jac_prototype) where {diff_type}
-    f_in = diff_type === Val{:forward} ? f(x) : similar(x)
-    ret_eltype = eltype(f_in)
-    J = FiniteDiff.finite_difference_jacobian(f, x, diff_type, ret_eltype, f_in,
-        dir = dir, colorvec = colorvec,
-        sparsity = sparsity,
-        jac_prototype = jac_prototype)
-    return J, _nfcount(maximum(colorvec), diff_type)
-end
-function jacobian(cache, f::F) where {F}
-    x = cache.u
-    alg = cache.alg
-    uf = cache.uf
-    local tmp
-
-    if DiffEqBase.has_jac(cache.f)
-        J = f.jac(cache.u, cache.p)
-    elseif alg_autodiff(alg)
-        J, tmp = jacobian_autodiff(uf, x, cache.f, alg)
-    else
-        jac_prototype = cache.f.jac_prototype
-        sparsity, colorvec = sparsity_colorvec(cache.f, x)
-        dir = true
-        J, tmp = jacobian_finitediff(uf, x, alg_difftype(alg), dir, colorvec, sparsity,
-            jac_prototype)
-    end
-    J
-end
-
-jacobian_autodiff(f, x, nonlinfun, alg) = (ForwardDiff.derivative(f, x), 1, alg)
-function jacobian_autodiff(f, x::AbstractArray, nonlinfun, alg)
-    jac_prototype = nonlinfun.jac_prototype
-    sparsity, colorvec = sparsity_colorvec(nonlinfun, x)
-    maxcolor = maximum(colorvec)
-    chunk_size = get_chunksize(alg) === Val(0) ? nothing : get_chunksize(alg)
-    num_of_chunks = chunk_size === nothing ?
-                    Int(ceil(maxcolor /
-                             SparseDiffTools.getsize(ForwardDiff.pickchunksize(maxcolor)))) :
-                    Int(ceil(maxcolor / _unwrap_val(chunk_size)))
-    (forwarddiff_color_jacobian(f, x, colorvec = colorvec, sparsity = sparsity,
-            jac_prototype = jac_prototype, chunksize = chunk_size),
-        num_of_chunks)
+## Special Handling for Scalars
+function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
+    ::Val{false}; kwargs...)
+    # NOTE: Scalar `u` assumes scalar output from `f`
+    uf = JacobianWrapper{false}(f, p)
+    return uf, nothing, u, nothing, nothing, u
 end
