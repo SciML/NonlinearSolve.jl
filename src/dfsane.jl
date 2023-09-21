@@ -195,7 +195,7 @@ function perform_step!(cache::DFSaneCache{true})
         test_norm = sqrt(sum(abs2, cache.fuₙ₋₁))
         if test_norm > 1
             cache.σₙ = 1.0
-        elseif testnorm < 1e-5
+        elseif test_norm < 1e-5
             cache.σₙ = 1e5
         else
             cache.σₙ = 1.0 / test_norm
