@@ -114,7 +114,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
         f(fuₙ₋₁, uₙ₋₁)
 
     else
-        f(x) = prob.f(x, p)
+        f = (x) -> prob.f(x, p)
         fuₙ₋₁ = f(uₙ₋₁)
     end
 
