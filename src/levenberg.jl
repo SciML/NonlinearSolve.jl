@@ -97,7 +97,8 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end
 
-@concrete mutable struct LevenbergMarquardtCache{iip, uType, jType, λType, lossType}
+@concrete mutable struct LevenbergMarquardtCache{iip, uType, jType, λType, lossType} <:
+                         AbstractNonlinearSolveCache{iip}
     f
     alg
     u::uType
@@ -137,8 +138,6 @@ end
     mat_tmp::jType
     stats::NLStats
 end
-
-isinplace(::LevenbergMarquardtCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
@@ -313,20 +312,4 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     cache.λ *= cache.λ_factor
     cache.λ_factor = cache.damping_increase_factor
     return nothing
-end
-
-function SciMLBase.solve!(cache::LevenbergMarquardtCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
-        cache.retcode, cache.stats)
 end

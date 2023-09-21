@@ -28,10 +28,30 @@ const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
+abstract type AbstractNonlinearSolveCache{iip} end
+
+isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+
 function SciMLBase.__solve(prob::NonlinearProblem, alg::AbstractNonlinearSolveAlgorithm,
     args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
     return solve!(cache)
+end
+
+function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
+    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
+        perform_step!(cache)
+        cache.stats.nsteps += 1
+    end
+
+    if cache.stats.nsteps == cache.maxiters
+        cache.retcode = ReturnCode.MaxIters
+    else
+        cache.retcode = ReturnCode.Success
+    end
+
+    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
+        cache.retcode, cache.stats)
 end
 
 include("utils.jl")

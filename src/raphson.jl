@@ -36,8 +36,6 @@ for large-scale and numerically-difficult nonlinear systems.
     linesearch
 end
 
-concrete_jac(::NewtonRaphson{CJ}) where {CJ} = CJ
-
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
     linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
@@ -45,7 +43,7 @@ function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
     return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
 end
 
-@concrete mutable struct NewtonRaphsonCache{iip}
+@concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -66,8 +64,6 @@ end
     stats::NLStats
     lscache
 end
-
-isinplace(::NewtonRaphsonCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
@@ -145,24 +141,4 @@ function SciMLBase.solve!(cache::NewtonRaphsonCache)
 
     return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
         cache.retcode, cache.stats)
-end
-
-function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu1, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu1 = cache.f(cache.u, p)
-    end
-    cache.abstol = abstol
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
 end
