@@ -30,7 +30,7 @@ NNlib = "0.8, 0.9"
 PackageExtensionCompat = "1"
 PrecompileTools = "1"
 Reexport = "0.2, 1"
-SciMLBase = "1.73"
+SciMLBase = "1.73, 2"
 StaticArraysCore = "1.4"
 julia = "1.6"
 
