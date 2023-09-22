@@ -403,3 +403,60 @@ end
         end
     end
 end
+
+# --- PseudoTransient tests ---
+
+@testset "PseudoTransient" begin
+
+    #iip
+    function test_f!(du, u, p)
+        du[1] = 2 - 2u[1]
+        du[2] = u[1] - 4u[2]
+        return du
+    end
+
+    #oop
+    simple_test(u, p) = 0.9f0 .* u .- u
+
+    #test jacobian free PseudoTransient method
+    function f!(res, u, p)
+        @. res = u * u - p
+    end
+
+    @testset "[IIP] u0: $(typeof(u0))" for u0 in (zeros(2),)
+        probN = NonlinearProblem{true}(test_f!, u0)
+        sol = solve(probN, PseudoTransient())
+        @test sol.retcode == ReturnCode.Success
+        du = zeros(2)
+        test_f!(du, sol.u, 4.0)
+        @test du≈[0, 0] atol=1e-7
+    end
+
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0f0],)
+        probN = NonlinearProblem{false}(simple_test, u0)
+        sol = solve(probN, PseudoTransient(alpha_initial = 1.0))
+        @test sol.retcode == ReturnCode.Success
+        @test abs(sol.u[1]) <= 1.0f-4
+    end
+
+    @testset "Jacobian Free PT" begin
+        u0 = [1.0, 1.0]
+        p = 2.0
+        probN = NonlinearProblem(f!, u0, p)
+        linsolve = LinearSolve.KrylovJL_GMRES()
+        sol = solve(probN,
+            PseudoTransient(alpha_initial = 10.0, linsolve = linsolve),
+            reltol = 1e-9)
+        @test sol.retcode == ReturnCode.Success
+    end
+
+    @testset "NewtonRaphson Fails" begin
+        p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+        probN = NonlinearProblem{false}(newton_fails, u0, p)
+        sol = solve(probN, PseudoTransient(alpha_initial = 1.0), abstol = 1e-10)
+        @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
+    end
+end
+
+# Test that `PseudoTransient` passes a test that `NewtonRaphson` fails on.

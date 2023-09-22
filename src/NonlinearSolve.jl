@@ -39,6 +39,7 @@ include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
+include("pseudotransient.jl")
 include("jacobian.jl")
 include("ad.jl")
 
@@ -49,7 +50,11 @@ import PrecompileTools
         for T in (Float32, Float64)
             prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
+        precompile_algs = if VERSION ≥ v"1.7"
+            (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient())
+        else
+            (NewtonRaphson(),)
+        end
 
             for alg in precompile_algs
                 solve(prob, alg, abstol = T(1e-2))
@@ -66,7 +71,7 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, PseudoTransient
 
 export LineSearch
 
