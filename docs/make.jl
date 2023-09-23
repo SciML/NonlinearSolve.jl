@@ -11,15 +11,9 @@ makedocs(sitename = "NonlinearSolve.jl",
     modules = [NonlinearSolve, NonlinearSolve.SciMLBase, NonlinearSolve.DiffEqBase,
         SimpleNonlinearSolve, Sundials, SciMLNLSolve, NonlinearSolveMINPACK,
         SteadyStateDiffEq],
-    clean = true, doctest = false,
-    strict = [
-        :doctest,
-        :linkcheck,
-        :parse_error,
-        :example_block,
-        # Other available options are
-        # :autodocs_block, :cross_references, :docs_block, :eval_block, :example_block, :footnote, :meta_block, :missing_docs, :setup_block
-    ],
+    clean = true, doctest = false, linkcheck = true,
+    linkcheck_ignore = ["https://twitter.com/ChrisRackauckas/status/1544743542094020615"],
+    warnonly = [:missing_docs, :cross_references],
     format = Documenter.HTML(assets = ["assets/favicon.ico"],
         canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
     pages = pages)
