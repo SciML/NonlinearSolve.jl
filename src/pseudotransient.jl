@@ -89,7 +89,7 @@ function perform_step!(cache::PseudoTransientCache{false})
     cache.J = jacobian!!(cache.J, cache)
     # u = u - J \ fu
     if linsolve === nothing
-        cache.du = fu1 / cache.J
+        cache.du = fu1 / (cache.J - (1 / alpha) * I)
     else
         linres = dolinsolve(alg.precs, linsolve; A = cache.J - (1 / alpha) * I,
             b = _vec(fu1),
