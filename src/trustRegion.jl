@@ -235,6 +235,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     expand_threshold = convert(eltype(u), alg.expand_threshold)
     shrink_factor = convert(eltype(u), alg.shrink_factor)
     expand_factor = convert(eltype(u), alg.expand_factor)
+
     # Set default trust region radius if not specified
     if iszero(max_trust_radius)
         max_trust_radius = convert(eltype(u), max(norm(fu1), maximum(u) - minimum(u)))
@@ -552,8 +553,37 @@ function trust_region_step!(cache::TrustRegionCache)
     end
 end
 
-function dogleg!(cache::TrustRegionCache)
-    @unpack u_tmp, trust_r = cache
+function dogleg!(cache::TrustRegionCache{true})
+    @unpack u_tmp, u_c, trust_r = cache
+
+    # Test if the full step is within the trust region.
+    if norm(u_tmp) ≤ trust_r
+        cache.step_size .= u_tmp 
+        return
+    end
+
+    # Calcualte Cauchy point, optimum along the steepest descent direction.
+    l_grad = norm(cache.g)
+    d_cauchy = l_grad^3 / dot(cache.g, cache.H, cache.g) # distance of the cauchy point from the current iterate
+    if d_cauchy > trust_r # cauchy point lies outside of trust region
+        @. cache.step_size = - (trust_r/l_grad) * cache.g # step to the end of the trust region
+        return
+    end
+    
+    # cauchy point lies inside the trust region
+    @. u_c = - (d_cauchy/l_grad) * cache.g
+
+    # Find the intersection point on the boundary.
+    @. u_tmp -= u_c # calf of the dogleg, use u_tmp to avoid allocation
+    θ = dot(u_tmp, u_c) # ~ cos(∠(calf,thigh)) 
+    l_calf = dot(u_tmp,u_tmp) # length of the calf of the dogleg
+    aux = max(θ^2 + l_calf*(trust_r^2 - d_cauchy^2), 0) # technically guaranteed to be non-negative but hedging against floating point issues
+    τ = ( - θ + sqrt( aux ) ) / l_calf # stepsize along dogleg
+    @. cache.step_size = u_c + τ * u_tmp
+end
+
+function dogleg!(cache::TrustRegionCache{false})
+    @unpack u_tmp, u_c, trust_r = cache
 
     # Test if the full step is within the trust region.
     if norm(u_tmp) ≤ trust_r
@@ -573,12 +603,12 @@ function dogleg!(cache::TrustRegionCache)
     u_c = - (d_cauchy/l_grad) * cache.g
 
     # Find the intersection point on the boundary.
-    Δ = u_tmp - u_c # calf of the dogleg
-    θ = dot(Δ, u_c) # ~ cos(∠(calf,thigh)) 
-    l_calf = dot(Δ,Δ) # length of the calf of the dogleg
+    u_tmp -= u_c # calf of the dogleg, use u_tmp to avoid allocation
+    θ = dot(u_tmp, u_c) # ~ cos(∠(calf,thigh)) 
+    l_calf = dot(u_tmp,u_tmp) # length of the calf of the dogleg
     aux = max(θ^2 + l_calf*(trust_r^2 - d_cauchy^2), 0) # technically guaranteed to be non-negative but hedging against floating point issues
     τ = ( - θ + sqrt( aux ) ) / l_calf # stepsize along dogleg
-    cache.step_size = u_c + τ * Δ
+    cache.step_size = u_c + τ * u_tmp
 end
 
 function take_step!(cache::TrustRegionCache{true})
