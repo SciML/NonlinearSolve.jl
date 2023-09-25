@@ -28,14 +28,14 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
     """
     `RadiusUpdateSchemes.NLsolve`
 
-    The same updating rule as in NLsolve's trust region implementation
+    The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl) trust region dogleg implementation. 
     """
     NLsolve
 
     """
-    `RadiusUpdateSchemes.NLsolve`
+    `RadiusUpdateSchemes.NW`
 
-    Nocedal and Wright updating scheme 
+    Trust region updating scheme as in Nocedal and Wrigt [see Alg 11.5, page 291]. 
     """
     NW
 
