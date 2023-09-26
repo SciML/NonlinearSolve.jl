@@ -74,7 +74,8 @@ numerically-difficult nonlinear systems.
     [this paper](https://arxiv.org/abs/1201.5885) to use a minimum value of the elements in
     `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
 """
-@concrete struct LevenbergMarquardt{CJ, AD, T} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct LevenbergMarquardt{CJ, AD, T, TC <: NLSolveTerminationCondition} <:
+                 AbstractNewtonAlgorithm{CJ, AD, TC}
     ad::AD
     linsolve
     precs
@@ -85,6 +86,7 @@ numerically-difficult nonlinear systems.
     α_geodesic::T
     b_uphill::T
     min_damping_D::T
+    termination_condition::TC
 end
 
 function set_ad(alg::LevenbergMarquardt{CJ}, ad) where {CJ}
@@ -97,17 +99,22 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, damping_initial::Real = 1.0, damping_increase_factor::Real = 2.0,
     damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic::Real = 0.1,
     α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        abstol = nothing,
+        reltol = nothing),
     adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return LevenbergMarquardt{_unwrap_val(concrete_jac)}(ad, linsolve, precs,
         damping_initial, damping_increase_factor, damping_decrease_factor,
-        finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
+        finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D,
+        termination_condition)
 end
 
 @concrete mutable struct LevenbergMarquardtCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
+    u_prev
     fu1
     fu2
     du
@@ -121,6 +128,7 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     prob
     DᵀD
     JᵀJ
@@ -145,11 +153,13 @@ end
     Jv
     mat_tmp
     stats::NLStats
+    tc_storage
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
-        NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
-    args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
+    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
@@ -184,15 +194,30 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     fu_tmp = zero(fu1)
     mat_tmp = zero(JᵀJ)
 
-    return LevenbergMarquardtCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob, DᵀD,
+    tc = alg.termination_condition
+    mode = DiffEqBase.get_termination_mode(tc)
+
+    atol = _get_tolerance(abstol, tc.abstol, eltype(u))
+    rtol = _get_tolerance(reltol, tc.reltol, eltype(u))
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
+    return LevenbergMarquardtCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve,
+        J,
+        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, atol, rtol, prob, DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        zero(u), zero(fu1), mat_tmp, NLStats(1, 0, 0, 0, 0))
+        zero(u), zero(fu1), mat_tmp, NLStats(1, 0, 0, 0, 0), storage)
+
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack fu1, f, make_new_J = cache
+
+    tc_storage = cache.tc_storage
+    termination_condition = cache.alg.termination_condition(tc_storage)
+
     if iszero(fu1)
         cache.force_stop = true
         return nothing
@@ -205,7 +230,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
+    @unpack u, u_prev, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
@@ -246,7 +271,11 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
-            if loss < cache.abstol
+            if termination_condition(cache.fu_tmp,
+                cache.u,
+                u_prev,
+                cache.abstol,
+                cache.reltol)
                 cache.force_stop = true
                 return nothing
             end
@@ -258,6 +287,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
             cache.make_new_J = true
         end
     end
+    @. u_prev = u
     cache.λ *= cache.λ_factor
     cache.λ_factor = cache.damping_increase_factor
     return nothing
@@ -265,6 +295,10 @@ end
 
 function perform_step!(cache::LevenbergMarquardtCache{false})
     @unpack fu1, f, make_new_J = cache
+
+    tc_storage = cache.tc_storage
+    termination_condition = cache.alg.termination_condition(tc_storage)
+
     if iszero(fu1)
         cache.force_stop = true
         return nothing
@@ -281,7 +315,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
+
+    @unpack u, u_prev, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
 
     cache.mat_tmp = JᵀJ + λ * DᵀD
     # Usual Levenberg-Marquardt step ("velocity").
@@ -322,7 +357,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u += δ
-            if loss < cache.abstol
+            if termination_condition(fu_new, cache.u, u_prev, cache.abstol, cache.reltol)
                 cache.force_stop = true
                 return nothing
             end
@@ -334,6 +369,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
             cache.make_new_J = true
         end
     end
+    cache.u_prev = @. cache.u
     cache.λ *= cache.λ_factor
     cache.λ_factor = cache.damping_increase_factor
     return nothing

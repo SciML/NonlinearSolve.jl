@@ -123,6 +123,20 @@ end
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, NewtonRaphson(; termination_condition)).u .≈ sqrt(2.0))
+    end
 end
 
 # --- TrustRegion tests ---
@@ -281,6 +295,20 @@ end
             @test sol_iip.u ≈ sol_oop.u
         end
     end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, TrustRegion(; termination_condition)).u .≈ sqrt(2.0))
+    end
 end
 
 # --- LevenbergMarquardt tests ---
@@ -389,6 +417,20 @@ end
             sol = solve(probN, alg, abstol = 1e-10)
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
+    end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN2 = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, LevenbergMarquardt(; termination_condition)).u .≈ sqrt(2.0))
     end
 end
 
