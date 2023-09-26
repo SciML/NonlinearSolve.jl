@@ -437,12 +437,12 @@ function trust_region_step!(cache::TrustRegionCache)
         end
 
         # trust region update 
-        if r < cache.shrink_threshold # default 1 // 10
-            cache.trust_r *= cache.shrink_factor # default 1 // 2
-        elseif r >= cache.expand_threshold # default 9 // 10
-            cache.trust_r = cache.expand_factor * norm(cache.du) # default 2
-        elseif r >= cache.p1 # default 1 // 2
-            cache.trust_r = max(cache.trust_r, cache.expand_factor * norm(cache.du))
+        if r < 1//10 # cache.shrink_threshold 
+            cache.trust_r *= 1//2 # cache.shrink_factor 
+        elseif r >= 9//10 # cache.expand_threshold 
+            cache.trust_r = 2 * norm(cache.du) # cache.expand_factor * norm(cache.du) 
+        elseif r >= 1//2 # cache.p1 
+            cache.trust_r = max(cache.trust_r, 2*norm(cache.du)) # cache.expand_factor * norm(cache.du))
         end
 
         # convergence test
