@@ -329,7 +329,9 @@ function perform_step!(cache::TrustRegionCache{true})
         cache.stats.njacs += 1
     end
 
-    linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), # cache.H, b = _vec(cache.g),
+    # do not use A = cache.H, b = _vec(cache.g) since it is equivalent 
+    # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
+    linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), 
         linu = _vec(u_tmp),
         p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
