@@ -203,13 +203,14 @@ end
     shrink_counter::Int
     step_size
     u_tmp
+    u_c
     fu_new
     make_new_J::Bool
     r::floatType
-    p1::parType
-    p2::parType
-    p3::parType
-    p4::parType
+    p1::floatType
+    p2::floatType
+    p3::floatType
+    p4::floatType
     ϵ::floatType
     stats::NLStats
 end
@@ -226,6 +227,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     loss = get_loss(fu1)
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
+    u_c = zero(u)
 
     loss_new = loss
     H = zero(J)
@@ -243,7 +245,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     trustType = Float64 #typeof(alg.initial_trust_radius)
     max_trust_radius = convert(trustType, alg.max_trust_radius)
     if iszero(max_trust_radius)
-        max_trust_radius = convert(trustType, max(norm(fu), maximum(u) - minimum(u)))
+        max_trust_radius = convert(trustType, max(norm(fu1), maximum(u) - minimum(u)))
     end
     initial_trust_radius = convert(trustType, alg.initial_trust_radius)
     if iszero(initial_trust_radius)
@@ -256,30 +258,30 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     expand_factor = convert(trustType, alg.expand_factor)
     
     # Parameters for the Schemes
-    parType = Float64
-    p1 = convert(parType, 0.0)
-    p2 = convert(parType, 0.0)
-    p3 = convert(parType, 0.0)
-    p4 = convert(parType, 0.0)
-    ϵ = convert(typeof(r), 1.0e-8)
+    floatType = typeof(r)
+    p1 = convert(floatType, 0.0)
+    p2 = convert(floatType, 0.0)
+    p3 = convert(floatType, 0.0)
+    p4 = convert(floatType, 0.0)
+    ϵ = convert(floatType, 1.0e-8)
     if radius_update_scheme === RadiusUpdateSchemes.NLsolve
-        p1 = convert(parType, 0.5)
+        p1 = convert(floatType, 0.5)
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         step_threshold = convert(trustType, 0.0)
         shrink_threshold = convert(trustType, 0.25)
         expand_threshold = convert(trustType, 0.25)
-        p1 = convert(parType, 5.0)  # M
-        p2 = convert(parType, 0.1)  # β
-        p3 = convert(parType, 0.15) # γ1
-        p4 = convert(parType, 0.15) # γ2
+        p1 = convert(floatType, 5.0)  # M
+        p2 = convert(floatType, 0.1)  # β
+        p3 = convert(floatType, 0.15) # γ1
+        p4 = convert(floatType, 0.15) # γ2
         initial_trust_radius = convert(trustType, 1.0)
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
         step_threshold = convert(trustType, 0.0001)
         shrink_threshold = convert(trustType, 0.25)
         expand_threshold = convert(trustType, 0.25)
-        p1 = convert(parType, 2.0)   # μ
-        p2 = convert(parType, 1 / 6) # c5
-        p3 = convert(parType, 6.0)   # c6
+        p1 = convert(floatType, 2.0)   # μ
+        p2 = convert(floatType, 1 / 6) # c5
+        p3 = convert(floatType, 6.0)   # c6
         if iip
             auto_jacvec!(g, (fu, x) -> f(fu, x, p), u, fu1)
         else
@@ -294,17 +296,17 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
         step_threshold = convert(trustType, 0.0001)
         shrink_threshold = convert(trustType, 0.25)
         expand_threshold = convert(trustType, 0.75)
-        p1 = convert(parType, 0.1) # μ
-        p2 = convert(parType, 0.25) # c5
-        p3 = convert(parType, 12.0) # c6
-        p4 = convert(parType, 1.0e18) # M
+        p1 = convert(floatType, 0.1) # μ
+        p2 = convert(floatType, 0.25) # c5
+        p3 = convert(floatType, 12.0) # c6
+        p4 = convert(floatType, 1.0e18) # M
         initial_trust_radius = convert(trustType, p1 * (norm(fu)^0.99))
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
         step_threshold = convert(trustType, 0.05)
         shrink_threshold = convert(trustType, 0.05)
         expand_threshold = convert(trustType, 0.9)
-        p1 = convert(parType, 2.5)  #alpha_1
-        p2 = convert(parType, 0.25) # alpha_2
+        p1 = convert(floatType, 2.5)  # alpha_1
+        p2 = convert(floatType, 0.25) # alpha_2
         initial_trust_radius = convert(trustType, 1.0)
     end
 
@@ -312,7 +314,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
-        H, g, shrink_counter, step_size, du, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
+        H, g, shrink_counter, step_size, du, u_c, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
         NLStats(1, 0, 0, 0, 0))
 end
 
@@ -321,7 +323,7 @@ isinplace(::TrustRegionCache{iip}) where {iip} = iip
 function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_tmp, alg, linsolve = cache
     if cache.make_new_J
-        jacobian!(J, cache)
+        jacobian!!(J, cache)
         mul!(cache.H, J', J)
         mul!(cache.g, J', fu)
         cache.stats.njacs += 1
@@ -348,7 +350,7 @@ function perform_step!(cache::TrustRegionCache{false})
     @unpack make_new_J, fu, f, u, p = cache
 
     if make_new_J
-        J = jacobian(cache, f)
+        J = jacobian!!(cache.J, cache)
         cache.H = J' * J
         cache.g = J' * fu
         cache.stats.njacs += 1
@@ -373,11 +375,11 @@ function retrospective_step!(cache::TrustRegionCache)
     @unpack J, fu_prev, fu, u_prev, u = cache
     J = jacobian!!(deepcopy(J), cache)
     if J isa Number
-        cache.H = J * J
-        cache.g = J * fu
+        cache.H = J' * J
+        cache.g = J' * fu
     else
-        mul!(cache.H, J, J)
-        mul!(cache.g, J, fu)
+        mul!(cache.H, J', J)
+        mul!(cache.g, J', fu)
     end
     cache.stats.njacs += 1
     @unpack H, g, step_size = cache
