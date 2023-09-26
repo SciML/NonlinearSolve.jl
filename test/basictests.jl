@@ -284,7 +284,7 @@ end
                 maxiters)
             sol_oop = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme,
                 maxiters)
-            @test sol_iip.u ≈ sol_iip.u
+            @test sol_iip.u ≈ sol_oop.u
         end
     end
 end
