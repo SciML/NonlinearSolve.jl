@@ -242,7 +242,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     radius_update_scheme = alg.radius_update_scheme
 
     # set default type for all trust region parameters
-    trustType = eltype(u) #typeof(alg.initial_trust_radius)
+    trustType = Float64 #typeof(alg.initial_trust_radius)
     max_trust_radius = convert(trustType, alg.max_trust_radius)
     if iszero(max_trust_radius)
         max_trust_radius = convert(trustType, max(norm(fu1), maximum(u) - minimum(u)))
