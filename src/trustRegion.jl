@@ -160,7 +160,7 @@ end
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
     radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
     max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
-    step_threshold::Real = 1 // 10, shrink_threshold::Real = 1 // 4,
+    step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
     expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
     expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
