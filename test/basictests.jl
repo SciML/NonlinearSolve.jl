@@ -1,5 +1,5 @@
 using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random, LinearAlgebra,
-    Test, ForwardDiff, Zygote, Enzyme, SparseDiffTools
+    Test, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
@@ -429,7 +429,7 @@ end
         end
         termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
             reltol = nothing)
-        probN2 = NonlinearProblem(quadratic_f, u0, 2.0)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(; termination_condition)).u .≈ sqrt(2.0))
     end
 end
