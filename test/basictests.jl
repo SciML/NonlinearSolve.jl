@@ -62,7 +62,7 @@ u0 = [1.0, 1.0]
 
 precs = [
     NonlinearSolve.DEFAULT_PRECS,
-    (args...) -> (Diagonal(rand!(similar(u0))), nothing)
+    (args...) -> (Diagonal(rand!(similar(u0))), nothing),
 ]
 
 for prec in precs, linsolve in (nothing, KrylovJL_GMRES())
