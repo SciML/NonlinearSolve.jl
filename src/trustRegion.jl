@@ -238,19 +238,26 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     make_new_J = true
     r = loss
 
+    floatType = typeof(r)
+
     # set trust region update scheme
     radius_update_scheme = alg.radius_update_scheme
 
     # set default type for all trust region parameters
-    trustType = Float64 #typeof(alg.initial_trust_radius)
-    max_trust_radius = convert(trustType, alg.max_trust_radius)
-    if iszero(max_trust_radius)
-        max_trust_radius = convert(trustType, max(norm(fu1), maximum(u) - minimum(u)))
+    trustType = floatType
+    if radius_update_scheme == RadiusUpdateSchemes.NLsolve
+        max_trust_radius = convert(trustType, Inf)
+        initial_trust_radius = norm(u0) > 0 ? convert(trustType, norm(u0)) : one(trustType)
+    else
+        max_trust_radius = convert(trustType, alg.max_trust_radius)
+        if iszero(max_trust_radius)
+            max_trust_radius = convert(trustType, max(norm(fu1), maximum(u) - minimum(u)))
+        end
+        initial_trust_radius = convert(trustType, alg.initial_trust_radius)
+        if iszero(initial_trust_radius)
+            initial_trust_radius = convert(trustType, max_trust_radius / 11)
+        end    
     end
-    initial_trust_radius = convert(trustType, alg.initial_trust_radius)
-    if iszero(initial_trust_radius)
-        initial_trust_radius = convert(trustType, max_trust_radius / 11)
-    end    
     step_threshold = convert(trustType, alg.step_threshold)
     shrink_threshold = convert(trustType, alg.shrink_threshold)
     expand_threshold = convert(trustType, alg.expand_threshold)
