@@ -476,6 +476,11 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r = min(2 * cache.trust_r, cache.max_trust_r)
         end
 
+        # convergence test
+        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
+            cache.force_stop = true
+        end
+        
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         if r > cache.step_threshold
             take_step!(cache)
