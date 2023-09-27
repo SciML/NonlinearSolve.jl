@@ -480,7 +480,7 @@ function trust_region_step!(cache::TrustRegionCache)
         if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
             cache.force_stop = true
         end
-        
+
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         if r > cache.step_threshold
             take_step!(cache)
