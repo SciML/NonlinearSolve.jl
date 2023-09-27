@@ -33,11 +33,11 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
     NLsolve
 
     """
-    `RadiusUpdateSchemes.NW`
+    `RadiusUpdateSchemes.NocedalWright`
 
-    Trust region updating scheme as in Nocedal and Wrigt [see Alg 11.5, page 291]. 
+    Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291]. 
     """
-    NW
+    NocedalWright
 
     """
     `RadiusUpdateSchemes.Hei`
@@ -460,7 +460,7 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.force_stop = true
         end
 
-    elseif radius_update_scheme === RadiusUpdateSchemes.NW
+    elseif radius_update_scheme === RadiusUpdateSchemes.NocedalWright
         # accept/reject decision
         if r > cache.step_threshold # accept
             take_step!(cache)
