@@ -203,6 +203,7 @@ end
     shrink_counter::Int
     du
     u_tmp
+    u_gauss_newton
     u_cauchy
     fu_new
     make_new_J::Bool
@@ -229,6 +230,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
         linsolve_kwargs)
     u_tmp = zero(u)
     u_cauchy = zero(u)
+    u_gauss_newton = zero(u)
 
     loss_new = loss
     H = zero(J)
@@ -265,7 +267,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     expand_factor = convert(trustType, alg.expand_factor)
     
     # Parameters for the Schemes
-    floatType = typeof(r)
     p1 = convert(floatType, 0.0)
     p2 = convert(floatType, 0.0)
     p3 = convert(floatType, 0.0)
@@ -321,28 +322,30 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
-        H, g, shrink_counter, du, u_tmp, u_cauchy, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
+        H, g, shrink_counter, du, u_tmp, u_gauss_newton, u_cauchy, fu_new, make_new_J, r, p1, p2, p3, p4, ϵ,
         NLStats(1, 0, 0, 0, 0))
 end
 
 isinplace(::TrustRegionCache{iip}) where {iip} = iip
 
 function perform_step!(cache::TrustRegionCache{true})
-    @unpack make_new_J, J, fu, f, u, p, u_tmp, alg, linsolve = cache
+    @unpack make_new_J, J, fu, f, u, p, u_gauss_newton, alg, linsolve = cache
     if cache.make_new_J
         jacobian!!(J, cache)
         mul!(cache.H, J', J)
         mul!(cache.g, J', fu)
         cache.stats.njacs += 1
+
+        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent 
+        # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
+        linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), 
+                            linu = _vec(u_gauss_newton),
+        p = p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+        @. cache.u_gauss_newton = -1 * u_gauss_newton
     end
 
-    # do not use A = cache.H, b = _vec(cache.g) since it is equivalent 
-    # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
-    linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu), 
-        linu = _vec(u_tmp),
-        p = p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-    cache.u_tmp .= -1 .* u_tmp
+    # Compute dogleg step
     dogleg!(cache)
 
     # Compute the potentially new u
@@ -363,11 +366,10 @@ function perform_step!(cache::TrustRegionCache{false})
         cache.H = J' * J
         cache.g = J' * fu
         cache.stats.njacs += 1
+        cache.u_gauss_newton = -1 .* (cache.H \ cache.g)
     end
 
-    @unpack g, H = cache
     # Compute the Newton step.
-    cache.u_tmp = -1 .* (H \ g)
     dogleg!(cache)
 
     # Compute the potentially new u
@@ -566,25 +568,26 @@ function trust_region_step!(cache::TrustRegionCache)
 end
 
 function dogleg!(cache::TrustRegionCache{true})
-    @unpack u_tmp, u_cauchy, trust_r = cache
+    @unpack u_tmp, u_gauss_newton, u_cauchy, trust_r = cache
 
     # Take the full Gauss-Newton step if lies within the trust region.
-    if norm(u_tmp) ≤ trust_r
-        cache.du .= u_tmp 
+    if norm(u_gauss_newton) ≤ trust_r
+        cache.du .= u_gauss_newton
         return
     end
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g) # length of the gradient
     d_cauchy = l_grad^3 / dot(cache.g, cache.H, cache.g) # distance of the cauchy point from the current iterate
-    if d_cauchy > trust_r 
+    if d_cauchy >= trust_r 
         @. cache.du = - (trust_r/l_grad) * cache.g # step to the end of the trust region
         return
     end
-    
+
     # Take the intersection of dogled with trust region if Cauchy point lies inside the trust region
     @. u_cauchy = - (d_cauchy/l_grad) * cache.g # compute Cauchy point
-    @. u_tmp -= u_cauchy # calf of the dogleg -- use u_tmp to avoid allocation
+    @. u_tmp = u_gauss_newton - u_cauchy # calf of the dogleg -- use u_tmp to avoid allocation
+    
     a = dot(u_tmp, u_tmp)
     b = 2*dot(u_cauchy, u_tmp)
     c = d_cauchy^2 - trust_r^2
@@ -596,11 +599,11 @@ end
 
 
 function dogleg!(cache::TrustRegionCache{false})
-    @unpack u_tmp, u_cauchy, trust_r = cache
+    @unpack u_tmp, u_gauss_newton, u_cauchy, trust_r = cache
 
     # Take the full Gauss-Newton step if lies within the trust region.
-    if norm(u_tmp) ≤ trust_r
-        cache.du = deepcopy(u_tmp)
+    if norm(u_gauss_newton) ≤ trust_r
+        cache.du = deepcopy(u_gauss_newton)
         return
     end
 
@@ -614,7 +617,7 @@ function dogleg!(cache::TrustRegionCache{false})
     
     # Take the intersection of dogled with trust region if Cauchy point lies inside the trust region
     u_cauchy = - (d_cauchy/l_grad) * cache.g # compute Cauchy point
-    u_tmp -= u_cauchy # calf of the dogleg -- use u_tmp to avoid allocation
+    u_tmp = u_gauss_newton - u_cauchy # calf of the dogleg
     a = dot(u_tmp, u_tmp)
     b = 2*dot(u_cauchy, u_tmp)
     c = d_cauchy^2 - trust_r^2
