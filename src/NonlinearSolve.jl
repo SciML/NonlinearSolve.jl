@@ -49,11 +49,7 @@ import PrecompileTools
         for T in (Float32, Float64)
             prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-            precompile_algs = if VERSION ≥ v"1.7"
-                (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
-            else
-                (NewtonRaphson(),)
-            end
+            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
 
             for alg in precompile_algs
                 solve(prob, alg, abstol = T(1e-2))
