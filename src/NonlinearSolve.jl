@@ -4,21 +4,26 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
     @eval Base.Experimental.@max_methods 1
 end
 
-using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
-import ForwardDiff
+import PrecompileTools
 
-import ADTypes: AbstractFiniteDifferencesMode
-import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable
-import ConcreteStructs: @concrete
-import EnumX: @enumx
-import ForwardDiff: Dual
-import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-import RecursiveArrayTools: ArrayPartition,
-    AbstractVectorOfArray, recursivecopy!, recursivefill!
-import Reexport: @reexport
-import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
-import StaticArraysCore: StaticArray, SVector, SArray, MArray
-import UnPack: @unpack
+PrecompileTools.@recompile_invalidations begin
+    using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
+    using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
+    import ForwardDiff
+
+    import ADTypes: AbstractFiniteDifferencesMode
+    import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable
+    import ConcreteStructs: @concrete
+    import EnumX: @enumx
+    import ForwardDiff: Dual
+    import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
+    import RecursiveArrayTools: ArrayPartition,
+        AbstractVectorOfArray, recursivecopy!, recursivefill!
+    import Reexport: @reexport
+    import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray
+    import UnPack: @unpack
+end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
 
@@ -42,26 +47,23 @@ include("levenberg.jl")
 include("jacobian.jl")
 include("ad.jl")
 
-import PrecompileTools
+# https://github.com/SciML/NonlinearSolve.jl/issues/223
+@static if VERSION ≥ v"1.10-beta2"
+    PrecompileTools.@compile_workload begin
+        for T in (Float32, Float64)
+            prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-PrecompileTools.@compile_workload begin
-    for T in (Float32, Float64)
-        prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+            precompile_algs = NewtonRaphson(), TrustRegion(), LevenbergMarquardt()
 
-        precompile_algs = if VERSION ≥ v"1.7"
-            (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
-        else
-            (NewtonRaphson(),)
-        end
+            for alg in precompile_algs
+                solve(prob, alg, abstol = T(1e-2))
+            end
 
-        for alg in precompile_algs
-            solve(prob, alg, abstol = T(1e-2))
-        end
-
-        prob = NonlinearProblem{true}((du, u, p) -> du[1] = u[1] * u[1] - p[1], T[0.1],
-            T[2])
-        for alg in precompile_algs
-            solve(prob, alg, abstol = T(1e-2))
+            prob = NonlinearProblem{true}((du, u, p) -> du[1] = u[1] * u[1] - p[1], T[0.1],
+                T[2])
+            for alg in precompile_algs
+                solve(prob, alg, abstol = T(1e-2))
+            end
         end
     end
 end
