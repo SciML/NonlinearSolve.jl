@@ -216,7 +216,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     # The following lines do: cache.a = -J \ cache.fu_tmp
     mul!(cache.du, J, v)
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.du)
-    linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(cache.fu_tmp),
+    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.fu_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.a = -cache.du
@@ -225,7 +225,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
-    if (2 * norm(cache.a) / norm_v) < α_geodesic
+    if 1 + log2(norm(cache.a)) - log2(norm_v) ≤ log2(α_geodesic)
         @. cache.δ = v + cache.a / 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
