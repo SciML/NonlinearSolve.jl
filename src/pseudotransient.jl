@@ -40,6 +40,7 @@ isinplace(::PseudoTransientCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::PseudoTransient, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    linsolve_kwargs = (;),
     kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -49,7 +50,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::PseudoTransie
     else
         fu1 = _mutable(f(u, p))
     end
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg,
+        f,
+        u,
+        p,
+        Val(iip);
+        linsolve_kwargs)
     alpha = convert(eltype(u), alg.alpha_initial)
     res_norm = internalnorm(fu1)
 
@@ -102,7 +108,6 @@ function perform_step!(cache::PseudoTransientCache{false})
     new_norm = cache.internalnorm(fu1)
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
-
     new_norm < cache.abstol && (cache.force_stop = true)
     cache.stats.nf += 1
     cache.stats.njacs += 1
