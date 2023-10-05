@@ -225,7 +225,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
-    if @fastmath((1 + log2(norm(cache.a)) - log2(norm_v))≤log2(α_geodesic))
+    if 2 * norm(cache.a) ≤ α_geodesic * norm_v
         @. cache.δ = v + cache.a / 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
@@ -286,7 +286,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
-    if @fastmath((1 + log2(norm(cache.a)) - log2(norm_v))≤log2(α_geodesic))
+    if 2 * norm(cache.a) ≤ α_geodesic * norm_v
         cache.δ = v .+ cache.a ./ 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
