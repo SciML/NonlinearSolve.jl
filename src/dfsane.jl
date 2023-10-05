@@ -43,7 +43,7 @@ See also the implementation in [SimpleNonlinearSolve.jl](https://github.com/SciM
 - `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
   algorithm. Defaults to `1000`.
 """
-(f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2
+
 struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
     σₘᵢₙ::T
     σₘₐₓ::T
@@ -158,7 +158,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     if iip
         f = (dx, x) -> prob.f(dx, x, p)
         f(fuₙ₋₁, uₙ₋₁)
-
     else
         f = (x) -> prob.f(x, p)
         fuₙ₋₁ = f(uₙ₋₁)
