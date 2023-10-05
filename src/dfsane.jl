@@ -238,13 +238,7 @@ function perform_step!(cache::DFSaneCache{true})
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
         test_norm = sqrt(sum(abs2, cache.fuₙ₋₁))
-        if test_norm > 1
-            cache.σₙ = 1.0
-        elseif test_norm < 1e-5
-            cache.σₙ = 1e5
-        else
-            cache.σₙ = 1.0 / test_norm
-        end
+        cache.σₙ = clamp(1.0 / test_norm, 1, 1e5)
     end
 
     # Take step
@@ -321,13 +315,7 @@ function perform_step!(cache::DFSaneCache{false})
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
         test_norm = sqrt(sum(abs2, cache.fuₙ₋₁))
-        if test_norm > 1
-            cache.σₙ = 1.0
-        elseif test_norm < 1e-5
-            cache.σₙ = 1e5
-        else
-            cache.σₙ = 1.0 / test_norm
-        end
+        cache.σₙ = clamp(1.0 / test_norm, 1, 1e5)
     end
 
     # Take step
