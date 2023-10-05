@@ -1,3 +1,49 @@
+"""
+    DFSane(; σₘᵢₙ::Real = 1e-10, σₘₐₓ::Real = 1e10, σ₁::Real = 1.0,
+        M::Int = 10, γ::Real = 1e-4, τₘᵢₙ::Real = 0.1, τₘₐₓ::Real = 0.5,
+        nₑₓₚ::Int = 2, ηₛ::Function = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
+        max_inner_iterations::Int = 1000)
+
+A low-overhead and allocation-free implementation of the df-sane method for solving large-scale nonlinear
+systems of equations. For in depth information about all the parameters and the algorithm,
+see the paper: [W LaCruz, JM Martinez, and M Raydan (2006), Spectral residual mathod without
+gradient information for solving large-scale nonlinear systems of equations, Mathematics of
+Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_Spectral_Residual_Method_without_Gradient_Information_for_Solving_Large-Scale_Nonlinear_Systems_of_Equations)
+
+See also the implementation in [SimpleNonlinearSolve.jl](https://github.com/SciML/SimpleNonlinearSolve.jl/blob/main/src/dfsane.jl)
+
+### Keyword Arguments
+
+- `σₘᵢₙ`: the minimum value of the spectral coefficient `σₙ` which is related to the step
+  size in the algorithm. Defaults to `1e-10`.
+- `σₘₐₓ`: the maximum value of the spectral coefficient `σₙ` which is related to the step
+  size in the algorithm. Defaults to `1e10`.
+- `σ₁`: the initial value of the spectral coefficient `σₙ` which is related to the step
+  size in the algorithm.. Defaults to `1.0`.
+- `M`: The monotonicity of the algorithm is determined by a this positive integer.
+  A value of 1 for `M` would result in strict monotonicity in the decrease of the L2-norm
+  of the function `f`. However, higher values allow for more flexibility in this reduction.
+  Despite this, the algorithm still ensures global convergence through the use of a
+  non-monotone line-search algorithm that adheres to the Grippo-Lampariello-Lucidi
+  condition. Values in the range of 5 to 20 are usually sufficient, but some cases may call
+  for a higher value of `M`. The default setting is 10.
+- `γ`: a parameter that influences if a proposed step will be accepted. Higher value of `γ`
+  will make the algorithm more restrictive in accepting steps. Defaults to `1e-4`.
+- `τₘᵢₙ`: if a step is rejected the new step size will get multiplied by factor, and this
+  parameter is the minimum value of that factor. Defaults to `0.1`.
+- `τₘₐₓ`: if a step is rejected the new step size will get multiplied by factor, and this
+  parameter is the maximum value of that factor. Defaults to `0.5`.
+- `nₑₓₚ`: the exponent of the loss, i.e. ``fₙ=||F(xₙ)||^{nₑₓₚ}``. The paper uses
+  `nₑₓₚ ∈ {1,2}`. Defaults to `2`.
+- `ηₛ`:  function to determine the parameter `η`, which enables growth
+  of ``||fₙ||^2``. Called as ``η = ηₛ(f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ)`` with `f₍ₙₒᵣₘ₎₁` initialized as
+  ``f₍ₙₒᵣₘ₎₁=||f(x₁)||^{nₑₓₚ}``, `n` is the iteration number, `xₙ` is the current `x`-value and
+  `fₙ` the current residual. Should satisfy ``η > 0`` and ``∑ₖ ηₖ < ∞``. Defaults to
+  ``f₍ₙₒᵣₘ₎₁ / n^2``.
+- `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
+  algorithm. Defaults to `1000`.
+"""
+(f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2
 struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
     σₘᵢₙ::T
     σₘₐₓ::T
