@@ -15,7 +15,9 @@ end
     if GROUP == "All" || GROUP == "Core"
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
         @time @safetestset "Sparsity Tests" include("sparse.jl")
+    end
 
+    if GROUP == "All" || GROUP == "23TestProblems"
         @time @safetestset "23 Test Problems" include("23_test_problems.jl")
     end
 
