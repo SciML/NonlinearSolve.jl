@@ -4,7 +4,7 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
     @eval Base.Experimental.@max_methods 1
 end
 
-using DiffEqBase, LinearAlgebra, LinearSolve, SparseDiffTools
+using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
 import ForwardDiff
 
 import ADTypes: AbstractFiniteDifferencesMode

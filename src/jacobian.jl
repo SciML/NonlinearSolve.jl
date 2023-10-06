@@ -80,7 +80,11 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         if has_analytic_jac
             f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
         else
-            f.jac_prototype === nothing ? init_jacobian(jac_cache) : f.jac_prototype
+            if f.jac_prototype === nothing
+                __safe_init_jacobian(jac_cache)
+            else
+                f.jac_prototype
+            end
         end
     end
 
@@ -96,6 +100,26 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         linsolve_kwargs...)
 
     return uf, linsolve, J, fu, jac_cache, du
+end
+
+@generated function __getfield(c::T, ::Val{S}) where {T, S}
+    hasfield(T, S) && return :(c.$(S))
+    return :(nothing)
+end
+
+function __safe_init_jacobian(c::SparseDiffTools.AbstractMaybeSparseJacobianCache)
+    T = promote_type(eltype(c.fx), eltype(c.x))
+    return __safe_init_jacobian(__getfield(c, Val(:jac_prototype)), T, c.fx, c.x)
+end
+function __safe_init_jacobian(::Nothing, ::Type{T}, fx, x) where {T}
+    return similar(fx, T, length(fx), length(x))
+end
+function __safe_init_jacobian(J::SparseMatrixCSC, ::Type{T}, fx, x) where {T}
+    @assert size(J, 1) == length(fx) && size(J, 2) == length(x)
+    return T.(J)
+end
+function __safe_init_jacobian(J, ::Type{T}, fx, x) where {T}
+    return similar(fx, T, length(fx), length(x))  # This is not safe for sparse jacobians
 end
 
 __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
