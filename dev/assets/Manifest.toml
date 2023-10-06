@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "6b8772d6fd40e4f9226f1d4285518ff4c698eab0"
+project_hash = "49751d13cc93d1f6f185e4690f28cecc649df8d4"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "5d2e21d7b0d8c22f67483ef95ebdc39c0e6b6003"
@@ -36,10 +36,10 @@ weakdeps = ["StaticArrays"]
     AdaptStaticArraysExt = "StaticArrays"
 
 [[deps.AlgebraicMultigrid]]
-deps = ["CommonSolve", "LinearAlgebra", "Printf", "Reexport", "SparseArrays"]
-git-tree-sha1 = "796eedcb42226861a51d92d28ee82d4985ee860b"
+deps = ["CommonSolve", "LinearAlgebra", "LinearSolve", "Printf", "Reexport", "SparseArrays"]
+git-tree-sha1 = "eb3dbbca423d8e8a1d4061b890f775dcd31b8d7c"
 uuid = "2169fc97-5a83-5252-b627-83903c6c433c"
-version = "0.5.1"
+version = "0.6.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -615,9 +615,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LinearSolve]]
 deps = ["ArrayInterface", "ConcreteStructs", "DocStringExtensions", "EnumX", "EnzymeCore", "FastLapackInterface", "GPUArraysCore", "InteractiveUtils", "KLU", "Krylov", "Libdl", "LinearAlgebra", "MKL_jll", "PrecompileTools", "Preferences", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Sparspak", "SuiteSparse", "UnPack"]
-git-tree-sha1 = "279cce40bcc891ce03f37908629d5f0399f79182"
+git-tree-sha1 = "435ab14ca589757a0feae6e3e347bc37addda42d"
 uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "2.9.1"
+version = "2.9.2"
 
     [deps.LinearSolve.extensions]
     LinearSolveBlockDiagonalsExt = "BlockDiagonals"
