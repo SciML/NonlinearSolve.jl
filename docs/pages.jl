@@ -2,6 +2,7 @@
 
 pages = ["index.md",
     "Tutorials" => Any["tutorials/nonlinear.md",
+        "tutorials/advanced.md",
         "tutorials/iterator_interface.md"],
     "Basics" => Any["basics/NonlinearProblem.md",
         "basics/NonlinearFunctions.md",
