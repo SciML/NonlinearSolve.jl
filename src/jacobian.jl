@@ -1,4 +1,4 @@
-@concrete struct JacobianWrapper{iip}
+@concrete struct JacobianWrapper{iip} <: Function
     f
     p
 end
@@ -73,9 +73,9 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         jac_cache = nothing
     end
 
-    J = if !linsolve_needs_jac
+    J = if !(linsolve_needs_jac || alg_wants_jac)
         # We don't need to construct the Jacobian
-        JacVec(uf, u; autodiff = alg.ad)
+        JacVec(uf, u; autodiff = __get_nonsparse_ad(alg.ad))
     else
         if has_analytic_jac
             f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
@@ -97,6 +97,11 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
 
     return uf, linsolve, J, fu, jac_cache, du
 end
+
+__get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
+__get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
+__get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
+__get_nonsparse_ad(ad) = ad
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
