@@ -82,10 +82,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg::G
     else
         fu1 = f(u, p)
     end
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip))
-
-    JᵀJ = J isa Number ? zero(J) : similar(J, size(J, 2), size(J, 2))
-    Jᵀf = zero(u)
+    uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_with_JᵀJ = Val(true))
 
     return GaussNewtonCache{iip}(f, alg, u, fu1, fu2, zero(fu1), du, p, uf, linsolve, J,
         JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
@@ -120,6 +118,7 @@ function perform_step!(cache::GaussNewtonCache{false})
     @unpack u, fu1, f, p, alg, linsolve = cache
 
     cache.J = jacobian!!(cache.J, cache)
+
     cache.JᵀJ = cache.J' * cache.J
     cache.Jᵀf = cache.J' * fu1
     # u = u - J \ fu

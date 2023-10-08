@@ -50,7 +50,8 @@ jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 
 # Build Jacobian Caches
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{iip};
-    linsolve_kwargs = (;)) where {iip}
+    linsolve_kwargs = (;),
+    linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false)) where {iip, needsJᵀJ}
     uf = JacobianWrapper{iip}(f, p)
 
     haslinsolve = hasfield(typeof(alg), :linsolve)
@@ -85,7 +86,15 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
     end
 
     du = _mutable_zero(u)
-    linprob = LinearProblem(J, _vec(fu); u0 = _vec(du))
+
+    if needsJᵀJ
+        JᵀJ = __init_JᵀJ(J)
+        # FIXME: This needs to be handled better for JacVec Operator
+        Jᵀfu = J' * fu
+    end
+
+    linprob = LinearProblem(needsJᵀJ ? JᵀJ : J, needsJᵀJ ? _vec(Jᵀfu) : _vec(fu);
+        u0 = _vec(du))
 
     weight = similar(u)
     recursivefill!(weight, true)
@@ -95,6 +104,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
     linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
         linsolve_kwargs...)
 
+    needsJᵀJ && return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
     return uf, linsolve, J, fu, jac_cache, du
 end
 
@@ -102,6 +112,10 @@ __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
 __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
 __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 __get_nonsparse_ad(ad) = ad
+
+__init_JᵀJ(J::Number) = zero(J)
+__init_JᵀJ(J::AbstractArray) = zeros(eltype(J), size(J, 2), size(J, 2))
+__init_JᵀJ(J::StaticArray) = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,

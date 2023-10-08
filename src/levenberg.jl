@@ -72,11 +72,6 @@ numerically-difficult nonlinear systems.
     where `J` is the Jacobian. It is suggested by
     [this paper](https://arxiv.org/abs/1201.5885) to use a minimum value of the elements in
     `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
-
-!!! warning
-
-    `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
-    Support for the OOP version is planned!
 """
 @concrete struct LevenbergMarquardt{CJ, AD, T} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -102,18 +97,17 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end
 
-@concrete mutable struct LevenbergMarquardtCache{iip, uType, jType, λType, lossType} <:
-                         AbstractNonlinearSolveCache{iip}
+@concrete mutable struct LevenbergMarquardtCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
-    u::uType
+    u
     fu1
     fu2
     du
     p
     uf
     linsolve
-    J::jType
+    J
     jac_cache
     force_stop::Bool
     maxiters::Int
@@ -122,27 +116,27 @@ end
     abstol
     prob
     DᵀD
-    JᵀJ::jType
-    λ::λType
-    λ_factor::λType
-    damping_increase_factor::λType
-    damping_decrease_factor::λType
-    h::λType
-    α_geodesic::λType
-    b_uphill::λType
-    min_damping_D::λType
-    v::uType
-    a::uType
-    tmp_vec::uType
-    v_old::uType
-    norm_v_old::lossType
-    δ::uType
-    loss_old::lossType
+    JᵀJ
+    λ
+    λ_factor
+    damping_increase_factor
+    damping_decrease_factor
+    h
+    α_geodesic
+    b_uphill
+    min_damping_D
+    v
+    a
+    tmp_vec
+    v_old
+    norm_v_old
+    δ
+    loss_old
     make_new_J::Bool
     fu_tmp
     u_tmp
     Jv
-    mat_tmp::jType
+    mat_tmp
     stats::NLStats
 end
 
@@ -153,8 +147,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_kwargs)
+    uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_kwargs, linsolve_with_JᵀJ=Val(true))
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
@@ -174,12 +168,10 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     end
 
     loss = internalnorm(fu1)
-    JᵀJ = J isa Number ? zero(J) : similar(J, size(J, 2), size(J, 2))
-    v = zero(u)
-    a = zero(u)
-    tmp_vec = zero(u)
-    v_old = zero(u)
-    δ = zero(u)
+    a = _mutable_zero(u)
+    tmp_vec = _mutable_zero(u)
+    v_old = _mutable_zero(u)
+    δ = _mutable_zero(u)
     make_new_J = true
     fu_tmp = zero(fu1)
     mat_tmp = zero(JᵀJ)
@@ -223,7 +215,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     # The following lines do: cache.a = -J \ cache.fu_tmp
     mul!(cache.Jv, J, v)
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
-    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.fu_tmp),
+    mul!(cache.u_tmp, J', cache.fu_tmp)
+    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.u_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.a = -cache.du
@@ -279,15 +272,30 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J = cache
+    @unpack u, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
 
     cache.mat_tmp = JᵀJ + λ * DᵀD
     # Usual Levenberg-Marquardt step ("velocity").
-    cache.v = -cache.mat_tmp \ (J' * fu1)
+    if linsolve === nothing
+        cache.v = -cache.mat_tmp \ (J' * fu1)
+    else
+        linres = dolinsolve(alg.precs, linsolve; A = -cache.mat_tmp, b = _vec(J' * fu1),
+            linu = _vec(cache.v), p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+    end
 
     @unpack v, h, α_geodesic = cache
     # Geodesic acceleration (step_size = v + a / 2).
-    cache.a = -cache.mat_tmp \ ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v))
+    if linsolve === nothing
+        cache.a = -cache.mat_tmp \
+                  _vec(J' * ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))
+    else
+        linres = dolinsolve(alg.precs, linsolve; A = -cache.mat_tmp,
+            b = _mutable(_vec(J' *
+                              ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
+            linu = _vec(cache.a), p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+    end
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
 
