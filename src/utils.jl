@@ -129,10 +129,6 @@ end
 concrete_jac(_) = nothing
 concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
-# Circumventing https://github.com/SciML/RecursiveArrayTools.jl/issues/277
-_iszero(x) = iszero(x)
-_iszero(x::ArrayPartition) = all(_iszero, x.x)
-
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
 

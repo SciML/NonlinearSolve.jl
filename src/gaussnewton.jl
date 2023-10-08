@@ -132,9 +132,7 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.u = @. u - cache.du  # `u` might not support mutation
     cache.fu_new = f(cache.u, p)
 
-    (cache.internalnorm(cache.fu_new .- cache.fu1) < cache.abstol ||
-     cache.internalnorm(cache.fu_new) < cache.abstol) &&
-        (cache.force_stop = true)
+    (cache.internalnorm(cache.fu_new) < cache.abstol) && (cache.force_stop = true)
     cache.fu1 = cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1

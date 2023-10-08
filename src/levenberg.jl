@@ -185,7 +185,7 @@ end
 
 function perform_step!(cache::LevenbergMarquardtCache{true})
     @unpack fu1, f, make_new_J = cache
-    if _iszero(fu1)
+    if iszero(fu1)
         cache.force_stop = true
         return nothing
     end
@@ -256,7 +256,7 @@ end
 
 function perform_step!(cache::LevenbergMarquardtCache{false})
     @unpack fu1, f, make_new_J = cache
-    if _iszero(fu1)
+    if iszero(fu1)
         cache.force_stop = true
         return nothing
     end
