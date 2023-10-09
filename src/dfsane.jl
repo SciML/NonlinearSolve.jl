@@ -1,7 +1,7 @@
 """
-    DFSane(; σₘᵢₙ::Real = 1e-10, σₘₐₓ::Real = 1e10, σ₁::Real = 1.0,
-        M::Int = 10, γ::Real = 1e-4, τₘᵢₙ::Real = 0.1, τₘₐₓ::Real = 0.5,
-        nₑₓₚ::Int = 2, ηₛ::Function = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
+    DFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
+        M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        n_exp::Int = 2, η_strategy::Function = (fn_1, n, x_n, f_n) -> fn_1 / n^2,
         max_inner_iterations::Int = 1000)
 
 A low-overhead and allocation-free implementation of the df-sane method for solving large-scale nonlinear
@@ -14,11 +14,11 @@ See also the implementation in [SimpleNonlinearSolve.jl](https://github.com/SciM
 
 ### Keyword Arguments
 
-- `σₘᵢₙ`: the minimum value of the spectral coefficient `σₙ` which is related to the step
+- `σ_min`: the minimum value of the spectral coefficient `σₙ` which is related to the step
   size in the algorithm. Defaults to `1e-10`.
-- `σₘₐₓ`: the maximum value of the spectral coefficient `σₙ` which is related to the step
+- `σ_max`: the maximum value of the spectral coefficient `σₙ` which is related to the step
   size in the algorithm. Defaults to `1e10`.
-- `σ₁`: the initial value of the spectral coefficient `σₙ` which is related to the step
+- `σ_1`: the initial value of the spectral coefficient `σₙ` which is related to the step
   size in the algorithm.. Defaults to `1.0`.
 - `M`: The monotonicity of the algorithm is determined by a this positive integer.
   A value of 1 for `M` would result in strict monotonicity in the decrease of the L2-norm
@@ -29,53 +29,53 @@ See also the implementation in [SimpleNonlinearSolve.jl](https://github.com/SciM
   for a higher value of `M`. The default setting is 10.
 - `γ`: a parameter that influences if a proposed step will be accepted. Higher value of `γ`
   will make the algorithm more restrictive in accepting steps. Defaults to `1e-4`.
-- `τₘᵢₙ`: if a step is rejected the new step size will get multiplied by factor, and this
+- `τ_min`: if a step is rejected the new step size will get multiplied by factor, and this
   parameter is the minimum value of that factor. Defaults to `0.1`.
-- `τₘₐₓ`: if a step is rejected the new step size will get multiplied by factor, and this
+- `τ_max`: if a step is rejected the new step size will get multiplied by factor, and this
   parameter is the maximum value of that factor. Defaults to `0.5`.
-- `nₑₓₚ`: the exponent of the loss, i.e. ``fₙ=||F(xₙ)||^{nₑₓₚ}``. The paper uses
-  `nₑₓₚ ∈ {1,2}`. Defaults to `2`.
-- `ηₛ`:  function to determine the parameter `η`, which enables growth
-  of ``||fₙ||^2``. Called as ``η = ηₛ(f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ)`` with `f₍ₙₒᵣₘ₎₁` initialized as
-  ``f₍ₙₒᵣₘ₎₁=||f(x₁)||^{nₑₓₚ}``, `n` is the iteration number, `xₙ` is the current `x`-value and
-  `fₙ` the current residual. Should satisfy ``η > 0`` and ``∑ₖ ηₖ < ∞``. Defaults to
-  ``f₍ₙₒᵣₘ₎₁ / n^2``.
+- `n_exp`: the exponent of the loss, i.e. ``f_n=||F(x_n)||^{n_exp}``. The paper uses
+  `n_exp ∈ {1,2}`. Defaults to `2`.
+- `η_strategy`:  function to determine the parameter `η`, which enables growth
+  of ``||f_n||^2``. Called as ``η = η_strategy(fn_1, n, x_n, f_n)`` with `fn_1` initialized as
+  ``fn_1=||f(x_1)||^{n_exp}``, `n` is the iteration number, `x_n` is the current `x`-value and
+  `f_n` the current residual. Should satisfy ``η > 0`` and ``∑ₖ ηₖ < ∞``. Defaults to
+  ``fn_1 / n^2``.
 - `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
   algorithm. Defaults to `1000`.
 """
 
 struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
-    σₘᵢₙ::T
-    σₘₐₓ::T
-    σ₁::T
+    σ_min::T
+    σ_max::T
+    σ_1::T
     M::Int
     γ::T
-    τₘᵢₙ::T
-    τₘₐₓ::T
-    nₑₓₚ::Int
-    ηₛ::F
+    τ_min::T
+    τ_max::T
+    n_exp::Int
+    η_strategy::F
     max_inner_iterations::Int
 end
 
-function DFSane(; σₘᵢₙ = 1e-10,
-                σₘₐₓ = 1e+10,
-                σ₁ = 1.0,
+function DFSane(; σ_min = 1e-10,
+                σ_max = 1e+10,
+                σ_1 = 1.0,
                 M = 10,
                 γ = 1e-4,
-                τₘᵢₙ = 0.1,
-                τₘₐₓ = 0.5,
-                nₑₓₚ = 2,
-                ηₛ = (f₍ₙₒᵣₘ₎₁, n, xₙ, fₙ) -> f₍ₙₒᵣₘ₎₁ / n^2,
+                τ_min = 0.1,
+                τ_max = 0.5,
+                n_exp = 2,
+                η_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2,
                 max_inner_iterations = 1000)
-    return DFSane{typeof(σₘᵢₙ), typeof(ηₛ)}(σₘᵢₙ,
-                                            σₘₐₓ,
-                                            σ₁,
+    return DFSane{typeof(σ_min), typeof(η_strategy)}(σ_min,
+                                            σ_max,
+                                            σ_1,
                                             M,
                                             γ,
-                                            τₘᵢₙ,
-                                            τₘₐₓ,
-                                            nₑₓₚ,
-                                            ηₛ,
+                                            τ_min,
+                                            τ_max,
+                                            n_exp,
+                                            η_strategy,
                                             max_inner_iterations)
 end
 mutable struct DFSaneCache{iip, fType, algType, uType, resType, T, pType,
@@ -89,7 +89,7 @@ mutable struct DFSaneCache{iip, fType, algType, uType, resType, T, pType,
     fuₙ::resType
     fuₙ₋₁::resType
     𝒹::uType
-    ℋ::uType
+    ℋ::Vector{T}
     f₍ₙₒᵣₘ₎ₙ₋₁::T
     f₍ₙₒᵣₘ₎₀::T
     M::Int
@@ -110,7 +110,7 @@ mutable struct DFSaneCache{iip, fType, algType, uType, resType, T, pType,
     prob::probType
     stats::NLStats
     function DFSaneCache{iip}(f::fType, alg::algType, uₙ::uType, uₙ₋₁::uType,
-                              fuₙ::resType, fuₙ₋₁::resType, 𝒹::uType, ℋ::uType,
+                              fuₙ::resType, fuₙ₋₁::resType, 𝒹::uType, ℋ::Vector{T},
                               f₍ₙₒᵣₘ₎ₙ₋₁::T, f₍ₙₒᵣₘ₎₀::T, M::Int, σₙ::T, σₘᵢₙ::T, σₘₐₓ::T,
                               α₁::T, γ::T, τₘᵢₙ::T, τₘₐₓ::T, nₑₓₚ::Int, p::pType,
                               force_stop::Bool, maxiters::Int, internalnorm::INType,
@@ -167,7 +167,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
     f₍ₙₒᵣₘ₎₀ = f₍ₙₒᵣₘ₎ₙ₋₁
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
-
     return DFSaneCache{iip}(f, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀,
                             M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ,
                             τₘₐₓ, nₑₓₚ, p, false, maxiters,
@@ -263,6 +262,9 @@ function perform_step!(cache::DFSaneCache{false})
     σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
+    if isdefined(Main, :Infiltrator)
+    Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
+        end
     @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
     η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
