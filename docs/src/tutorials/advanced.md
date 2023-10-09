@@ -55,7 +55,7 @@ are then applied at each point in space (they are broadcast). Use `dx=dy=1/32`.
 The resulting `NonlinearProblem` definition is:
 
 ```@example ill_conditioned_nlprob
-using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve
+using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve, Symbolics
 
 const N = 32
 const xyd_brusselator = range(0, stop = 1, length = N)
@@ -275,3 +275,28 @@ nothing # hide
 
 For more information on the preconditioner interface, see the
 [linear solver documentation](https://docs.sciml.ai/LinearSolve/stable/basics/Preconditioners/).
+
+## Speed up Jacobian computation with sparsity exploitation and matrix coloring
+
+To cut down the of Jacobian building overhead, we can choose to exploit the sparsity pattern and deploy matrix coloring during Jacobian construction. With NonlinearSolve.jl, we can simply use `autodiff=AutoSparseForwardDiff()` to automatically exploit the sparsity pattern of Jacobian matrices:
+
+```@example ill_conditioned_nlprob
+@benchmark solve(prob_brusselator_2d,
+    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu, concrete_jac = true,
+        autodiff = AutoSparseForwardDiff()));
+nothing # hide
+```
+
+To setup matrix coloring for the jacobian sparsity pattern, we can simply get the coloring vector by using [ArrayInterface.jl](https://github.com/JuliaArrays/ArrayInterface.jl) for the sparsity pattern of `jac_prototype`:
+
+```@example ill_conditioned_nlprob
+using ArrayInterface
+colorvec = ArrayInterface.matrix_colors(jac_sparsity)
+ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity), colorvec)
+prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)
+
+@benchmark solve(prob_brusselator_2d_sparse,
+    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu, concrete_jac = true,
+        autodiff = AutoSparseForwardDiff()));
+nothing # hide
+```
