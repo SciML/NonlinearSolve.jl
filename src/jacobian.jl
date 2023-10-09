@@ -119,8 +119,10 @@ __init_JᵀJ(J::StaticArray) = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
-    ::Val{false}; kwargs...)
+    ::Val{false}; linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false),
+    kwargs...) where {needsJᵀJ}
     # NOTE: Scalar `u` assumes scalar output from `f`
     uf = JacobianWrapper{false}(f, p)
+    needsJᵀJ && return uf, nothing, u, nothing, nothing, u, u, u
     return uf, nothing, u, nothing, nothing, u
 end
