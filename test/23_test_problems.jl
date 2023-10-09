@@ -51,8 +51,8 @@ end
 end
 
 @testset "TrustRegion test problem library" begin
-    alg_ops = (LevenbergMarquardt(; linsolve=NormalCholeskyFactorization()),
-        LevenbergMarquardt(; α_geodesic = 0.1, linsolve=NormalCholeskyFactorization()))
+    alg_ops = (LevenbergMarquardt(; linsolve = NormalCholeskyFactorization()),
+        LevenbergMarquardt(; α_geodesic = 0.1, linsolve = NormalCholeskyFactorization()))
 
     # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)

@@ -148,7 +148,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
     uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_kwargs, linsolve_with_JᵀJ=Val(true))
+        linsolve_kwargs, linsolve_with_JᵀJ = Val(true))
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
