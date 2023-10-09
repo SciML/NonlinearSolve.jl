@@ -1,5 +1,6 @@
 [deps]
 AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 IncompleteLU = "40713840-3770-5561-ab4c-a76e7d0d7895"
@@ -15,6 +16,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 AlgebraicMultigrid = "0.5, 0.6"
+ArrayInterface = "6, 7"
 BenchmarkTools = "1"
 Documenter = "1"
 IncompleteLU = "0.2"
