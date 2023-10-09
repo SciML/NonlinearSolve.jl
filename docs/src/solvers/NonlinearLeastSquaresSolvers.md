@@ -19,6 +19,10 @@ Solves the nonlinear least squares problem defined by `prob` using the algorithm
     handling of sparse matrices via colored automatic differentiation and preconditioned
     linear solvers. Designed for large-scale and numerically-difficult nonlinear least squares
     problems.
+  - `SimpleNewtonRaphson()`: Newton Raphson implementation that uses Linear Least Squares
+    solution at every step to compute the descent direction. **WARNING**: This method is not
+    a robust solver for nonlinear least squares problems. The computed delta step might not
+    be the correct descent direction!
 
 ## Example usage
 
