@@ -16,8 +16,7 @@ jobs:
     strategy:
       matrix:
         group:
-          - Core
-          - 23TestProblems
+          - All
         version:
           - '1'
     steps:
@@ -41,6 +40,8 @@ jobs:
           GROUP: ${{ matrix.group }}
           JULIA_NUM_THREADS: 11
       - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,ext
       - uses: codecov/codecov-action@v3
         with:
           file: lcov.info
