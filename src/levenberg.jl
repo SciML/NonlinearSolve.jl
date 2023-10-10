@@ -99,7 +99,7 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, damping_initial::Real = 1.0, damping_increase_factor::Real = 2.0,
     damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic::Real = 0.1,
     α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.AbsNorm;
         abstol = nothing,
         reltol = nothing),
     adkwargs...)
@@ -209,7 +209,6 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
         zero(u), zero(fu1), mat_tmp, NLStats(1, 0, 0, 0, 0), storage)
-
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true})
@@ -271,11 +270,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
-            if termination_condition(cache.fu_tmp,
-                cache.u,
-                u_prev,
-                cache.abstol,
-                cache.reltol)
+            if loss < cache.abstol
                 cache.force_stop = true
                 return nothing
             end
