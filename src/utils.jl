@@ -129,22 +129,20 @@ end
 concrete_jac(_) = nothing
 concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
-# Circumventing https://github.com/SciML/RecursiveArrayTools.jl/issues/277
-_iszero(x) = iszero(x)
-_iszero(x::ArrayPartition) = all(_iszero, x.x)
-
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
 
 _mutable(x) = x
 _mutable(x::SArray) = MArray(x)
+
 _maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
 # The shadow allocated for Enzyme needs to be mutable
 _maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 _maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
-function evaluate_f(prob::NonlinearProblem{uType, iip}, u) where {uType, iip}
+function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
+        NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
         fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype

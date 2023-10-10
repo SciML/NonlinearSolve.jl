@@ -28,10 +28,35 @@ const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::AbstractNonlinearSolveAlgorithm,
-    args...; kwargs...)
+abstract type AbstractNonlinearSolveCache{iip} end
+
+isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+
+function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+    alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
     return solve!(cache)
+end
+
+function not_terminated(cache::AbstractNonlinearSolveCache)
+    return !cache.force_stop && cache.stats.nsteps < cache.maxiters
+end
+get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
+
+function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
+    while not_terminated(cache)
+        perform_step!(cache)
+        cache.stats.nsteps += 1
+    end
+
+    if cache.stats.nsteps == cache.maxiters
+        cache.retcode = ReturnCode.MaxIters
+    else
+        cache.retcode = ReturnCode.Success
+    end
+
+    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, get_fu(cache);
+        cache.retcode, cache.stats)
 end
 
 include("utils.jl")
@@ -39,6 +64,7 @@ include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
+include("gaussnewton.jl")
 include("jacobian.jl")
 include("ad.jl")
 
@@ -66,7 +92,7 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
 
 export LineSearch
 
