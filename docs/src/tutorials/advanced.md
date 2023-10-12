@@ -281,7 +281,7 @@ For more information on the preconditioner interface, see the
 To cut down the of Jacobian building overhead, we can choose to exploit the sparsity pattern and deploy matrix coloring during Jacobian construction. With NonlinearSolve.jl, we can simply use `autodiff=AutoSparseForwardDiff()` to automatically exploit the sparsity pattern of Jacobian matrices:
 
 ```@example ill_conditioned_nlprob
-@benchmark solve(prob_brusselator_2d,
+@btime solve(prob_brusselator_2d,
     NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu, concrete_jac = true,
         autodiff = AutoSparseForwardDiff()));
 nothing # hide
@@ -295,7 +295,7 @@ colorvec = ArrayInterface.matrix_colors(jac_sparsity)
 ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity), colorvec)
 prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)
 
-@benchmark solve(prob_brusselator_2d_sparse,
+@btime solve(prob_brusselator_2d_sparse,
     NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu, concrete_jac = true,
         autodiff = AutoSparseForwardDiff()));
 nothing # hide
