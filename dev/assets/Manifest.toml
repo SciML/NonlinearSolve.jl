@@ -211,9 +211,9 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "ChainRulesCore", "DataStructures", "DocStringExtensions", "EnumX", "EnzymeCore", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "Parameters", "PreallocationTools", "PrecompileTools", "Printf", "RecursiveArrayTools", "Reexport", "Requires", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Static", "StaticArraysCore", "Statistics", "Tricks", "TruncatedStacktraces", "ZygoteRules"]
-git-tree-sha1 = "d5a64797f46c37ea59da9e4dcc86b208cb150182"
+git-tree-sha1 = "95b6df71e218379a831874215b0effaac791d7d7"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "6.133.0"
+version = "6.133.1"
 
     [deps.DiffEqBase.extensions]
     DiffEqBaseDistributionsExt = "Distributions"
@@ -327,9 +327,9 @@ version = "1.0.4"
 
 [[deps.EnzymeCore]]
 deps = ["Adapt"]
-git-tree-sha1 = "1091d4bbc2f2f7840a65fc0496c782b955dd82fb"
+git-tree-sha1 = "42fbaf6858c7eabb58cdfdcdd1b160cfbae2416b"
 uuid = "f151be2c-9106-41f4-ab19-57ee4f262869"
-version = "0.6.0"
+version = "0.6.1"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
