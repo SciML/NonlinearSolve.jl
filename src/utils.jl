@@ -163,3 +163,11 @@ function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
         return f(u, p)
     end
 end
+
+"""
+    __matmul!(C, A, B)
+
+Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
+"""
+__matmul!(C, A, B) = mul!(C, A, B)
+__matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B

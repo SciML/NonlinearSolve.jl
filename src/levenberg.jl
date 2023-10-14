@@ -192,7 +192,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     if make_new_J
         jacobian!!(cache.J, cache)
-        mul!(cache.JᵀJ, cache.J', cache.J)
+        __matmul!(cache.JᵀJ, cache.J', cache.J)
         cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
         cache.make_new_J = false
         cache.stats.njacs += 1
@@ -216,7 +216,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     mul!(cache.Jv, J, v)
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
     mul!(cache.u_tmp, J', cache.fu_tmp)
-    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.u_tmp),
+    # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
+    linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.a = -cache.du

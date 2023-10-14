@@ -30,6 +30,8 @@ abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm
 
 abstract type AbstractNonlinearSolveCache{iip} end
 
+extension_loaded(::Val) = false
+
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
@@ -60,6 +62,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 include("utils.jl")
+include("algorithms.jl")
 include("linesearch.jl")
 include("raphson.jl")
 include("trustRegion.jl")
@@ -92,7 +95,7 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton, LSOptimSolver
 
 export LineSearch
 

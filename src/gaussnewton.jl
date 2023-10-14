@@ -93,8 +93,8 @@ end
 function perform_step!(cache::GaussNewtonCache{true})
     @unpack u, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
     jacobian!!(J, cache)
-    mul!(JᵀJ, J', J)
-    mul!(Jᵀf, J', fu1)
+    __matmul!(JᵀJ, J', J)
+    __matmul!(Jᵀf, J', fu1)
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = JᵀJ, b = _vec(Jᵀf), linu = _vec(du),

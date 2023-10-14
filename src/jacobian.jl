@@ -65,7 +65,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
     # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
     fu = f.resid_prototype === nothing ? (iip ? _mutable_zero(u) : _mutable(f(u, p))) :
          (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
-    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
+    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac || needsJᵀJ)
         sd = sparsity_detection_alg(f, alg.ad)
         ad = alg.ad
         jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, _maybe_mutable(u, ad)) :
@@ -74,7 +74,9 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         jac_cache = nothing
     end
 
-    J = if !(linsolve_needs_jac || alg_wants_jac)
+    # FIXME: To properly support needsJᵀJ without Jacobian, we need to implement
+    #        a reverse diff operation with the seed being `Jx`, this is not yet implemented
+    J = if !(linsolve_needs_jac || alg_wants_jac || needsJᵀJ)
         # We don't need to construct the Jacobian
         JacVec(uf, u; autodiff = __get_nonsparse_ad(alg.ad))
     else
@@ -114,7 +116,7 @@ __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 __get_nonsparse_ad(ad) = ad
 
 __init_JᵀJ(J::Number) = zero(J)
-__init_JᵀJ(J::AbstractArray) = zeros(eltype(J), size(J, 2), size(J, 2))
+__init_JᵀJ(J::AbstractArray) = J' * J
 __init_JᵀJ(J::StaticArray) = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
 
 ## Special Handling for Scalars
