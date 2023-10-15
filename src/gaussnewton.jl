@@ -41,8 +41,8 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     precs
 end
 
-function GaussNewton(; concrete_jac = nothing, linsolve = NormalCholeskyFactorization(),
-    precs = DEFAULT_PRECS, adkwargs...)
+function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+    adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
