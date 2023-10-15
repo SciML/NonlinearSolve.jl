@@ -1,4 +1,5 @@
 using NonlinearSolve, LinearSolve, LinearAlgebra, Test, Random
+import LeastSquaresOptim
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -25,22 +26,11 @@ prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
-sol = solve(prob_oop, GaussNewton(; linsolve = NormalCholeskyFactorization());
-    maxiters = 1000, abstol = 1e-8)
-@test SciMLBase.successful_retcode(sol)
-@test norm(sol.resid) < 1e-6
+nlls_problems = [prob_oop, prob_iip]
+solvers = [GaussNewton(), LevenbergMarquardt(), LSOptimSolver(:lm), LSOptimSolver(:dogleg)]
 
-sol = solve(prob_iip, GaussNewton(; linsolve = NormalCholeskyFactorization());
-    maxiters = 1000, abstol = 1e-8)
-@test SciMLBase.successful_retcode(sol)
-@test norm(sol.resid) < 1e-6
-
-sol = solve(prob_oop, LevenbergMarquardt(; linsolve = NormalCholeskyFactorization());
-    maxiters = 1000, abstol = 1e-8)
-@test SciMLBase.successful_retcode(sol)
-@test norm(sol.resid) < 1e-6
-
-sol = solve(prob_iip, LevenbergMarquardt(; linsolve = NormalCholeskyFactorization());
-    maxiters = 1000, abstol = 1e-8)
-@test SciMLBase.successful_retcode(sol)
-@test norm(sol.resid) < 1e-6
+for prob in nlls_problems, solver in solvers
+    @time sol = solve(prob, solver; maxiters = 1000, abstol = 1e-8)
+    @test SciMLBase.successful_retcode(sol)
+    @test norm(sol.resid) < 1e-6
+end

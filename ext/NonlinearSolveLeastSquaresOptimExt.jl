@@ -41,9 +41,12 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LSOptimSolver
     f! = FunctionWrapper{iip}(prob.f, prob.p)
     g! = prob.f.jac === nothing ? nothing : FunctionWrapper{iip}(prob.f.jac, prob.p)
 
-    lsoprob = LSO.LeastSquaresProblem(; x = prob.u0, f!, y = prob.f.resid_prototype, g!,
-        J = prob.f.jac_prototype, alg.autodiff,
-        output_length = length(prob.f.resid_prototype))
+    resid_prototype = prob.f.resid_prototype === nothing ?
+                      (!iip ? prob.f(prob.u0, prob.p) : zeros(prob.u0)) :
+                      prob.f.resid_prototype
+
+    lsoprob = LSO.LeastSquaresProblem(; x = prob.u0, f!, y = resid_prototype, g!,
+        J = prob.f.jac_prototype, alg.autodiff, output_length = length(resid_prototype))
     allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, _lso_solver(alg))
 
     return LeastSquaresOptimCache(prob, alg, allocated_prob,
