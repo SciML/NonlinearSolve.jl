@@ -27,10 +27,15 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
 nlls_problems = [prob_oop, prob_iip]
-solvers = [GaussNewton(), LevenbergMarquardt(), LSOptimSolver(:lm), LSOptimSolver(:dogleg)]
+solvers = [
+    GaussNewton(),
+    LevenbergMarquardt(),
+    LSOptimSolver(:lm),
+    LSOptimSolver(:dogleg),
+]
 
 for prob in nlls_problems, solver in solvers
-    @time sol = solve(prob, solver; maxiters = 1000, abstol = 1e-8)
+    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test SciMLBase.successful_retcode(sol)
     @test norm(sol.resid) < 1e-6
 end

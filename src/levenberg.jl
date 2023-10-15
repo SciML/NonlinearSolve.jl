@@ -13,8 +13,8 @@ numerically-difficult nonlinear systems.
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-      ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-      `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -203,8 +203,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
     mul!(cache.u_tmp, J', fu1)
     @. cache.mat_tmp = JᵀJ + λ * DᵀD
-    linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp, b = _vec(cache.u_tmp),
-        linu = _vec(cache.du), p = p, reltol = cache.abstol)
+    linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
+        b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. cache.v = -cache.du
 
@@ -280,8 +280,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     if linsolve === nothing
         cache.v = -cache.mat_tmp \ (J' * fu1)
     else
-        linres = dolinsolve(alg.precs, linsolve; A = -cache.mat_tmp, b = _vec(J' * fu1),
-            linu = _vec(cache.v), p, reltol = cache.abstol)
+        linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
+            b = _vec(J' * fu1), linu = _vec(cache.v), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
 
@@ -291,7 +291,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         cache.a = -cache.mat_tmp \
                   _vec(J' * ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))
     else
-        linres = dolinsolve(alg.precs, linsolve; A = -cache.mat_tmp,
+        linres = dolinsolve(alg.precs, linsolve;
             b = _mutable(_vec(J' *
                               ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
             linu = _vec(cache.a), p, reltol = cache.abstol)

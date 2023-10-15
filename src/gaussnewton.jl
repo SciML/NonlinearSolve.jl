@@ -1,6 +1,6 @@
 """
-    GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-        adkwargs...)
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced GaussNewton implementation with support for efficient handling of sparse
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
@@ -41,8 +41,8 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     precs
 end
 
-function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-    adkwargs...)
+function GaussNewton(; concrete_jac = nothing, linsolve = CholeskyFactorization(),
+    precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
@@ -97,8 +97,8 @@ function perform_step!(cache::GaussNewtonCache{true})
     __matmul!(Jᵀf, J', fu1)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = JᵀJ, b = _vec(Jᵀf), linu = _vec(du),
-        p, reltol = cache.abstol)
+    linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(JᵀJ), b = _vec(Jᵀf),
+        linu = _vec(du), p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. u = u - du
     f(cache.fu_new, u, p)
@@ -125,8 +125,8 @@ function perform_step!(cache::GaussNewtonCache{false})
     if linsolve === nothing
         cache.du = fu1 / cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.JᵀJ, b = _vec(cache.Jᵀf),
-            linu = _vec(cache.du), p, reltol = cache.abstol)
+        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.JᵀJ),
+            b = _vec(cache.Jᵀf), linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
     cache.u = @. u - cache.du  # `u` might not support mutation

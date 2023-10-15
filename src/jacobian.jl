@@ -95,14 +95,14 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         Jᵀfu = J' * fu
     end
 
-    linprob = LinearProblem(needsJᵀJ ? JᵀJ : J, needsJᵀJ ? _vec(Jᵀfu) : _vec(fu);
-        u0 = _vec(du))
+    linprob = LinearProblem(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J,
+        needsJᵀJ ? _vec(Jᵀfu) : _vec(fu); u0 = _vec(du))
 
     weight = similar(u)
     recursivefill!(weight, true)
 
-    Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-            nothing)..., weight)
+    Pl, Pr = wrapprecs(alg.precs(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J, nothing, u, p,
+            nothing, nothing, nothing, nothing, nothing)..., weight)
     linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
         linsolve_kwargs...)
 
@@ -118,6 +118,12 @@ __get_nonsparse_ad(ad) = ad
 __init_JᵀJ(J::Number) = zero(J)
 __init_JᵀJ(J::AbstractArray) = J' * J
 __init_JᵀJ(J::StaticArray) = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
+
+__maybe_symmetric(x) = Symmetric(x)
+__maybe_symmetric(x::Number) = x
+# LinearSolve with `nothing` doesn't dispatch correctly here
+__maybe_symmetric(x::StaticArray) = x
+__maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u::Number, p,
