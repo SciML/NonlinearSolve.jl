@@ -68,6 +68,7 @@ include("levenberg.jl")
 include("gaussnewton.jl")
 include("jacobian.jl")
 include("ad.jl")
+include("default.jl")
 
 import PrecompileTools
 
@@ -95,6 +96,7 @@ export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
+export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
 export LineSearch
 
