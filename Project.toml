@@ -25,9 +25,11 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [weakdeps]
+FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 
 [extensions]
+NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 
 [compat]
@@ -37,6 +39,7 @@ ConcreteStructs = "0.2"
 DiffEqBase = "6.130"
 EnumX = "1"
 Enzyme = "0.11"
+FastLevenbergMarquardt = "0.1"
 FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 LeastSquaresOptim = "0.8"
@@ -57,6 +60,7 @@ julia = "1.9"
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -72,4 +76,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim"]
+test = ["Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim", "FastLevenbergMarquardt"]

@@ -4,7 +4,7 @@ using NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import LeastSquaresOptim as LSO
 
-extension_loaded(::Val{:LeastSquaresOptim}) = true
+NonlinearSolve.extension_loaded(::Val{:LeastSquaresOptim}) = true
 
 function _lso_solver(::LSOptimSolver{alg, linsolve}) where {alg, linsolve}
     ls = linsolve == :qr ? LSO.QR() :

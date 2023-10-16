@@ -95,7 +95,8 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton, LSOptimSolver
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton
+export LSOptimSolver, FastLevenbergMarquardtSolver
 
 export LineSearch
 
