@@ -4,9 +4,7 @@ using NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import LeastSquaresOptim as LSO
 
-NonlinearSolve.extension_loaded(::Val{:LeastSquaresOptim}) = true
-
-function _lso_solver(::LSOptimSolver{alg, linsolve}) where {alg, linsolve}
+function _lso_solver(::LeastSquaresOptimJL{alg, linsolve}) where {alg, linsolve}
     ls = linsolve == :qr ? LSO.QR() :
          (linsolve == :cholesky ? LSO.Cholesky() :
           (linsolve == :lsmr ? LSO.LSMR() : nothing))
@@ -19,7 +17,7 @@ function _lso_solver(::LSOptimSolver{alg, linsolve}) where {alg, linsolve}
     end
 end
 
-@concrete struct LeastSquaresOptimCache
+@concrete struct LeastSquaresOptimJLCache
     prob
     alg
     allocated_prob
@@ -34,8 +32,8 @@ end
 (f::FunctionWrapper{true})(du, u) = f.f(du, u, f.p)
 (f::FunctionWrapper{false})(du, u) = (du .= f.f(u, f.p))
 
-function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LSOptimSolver, args...;
-    abstol = 1e-8, reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
+function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresOptimJL,
+    args...; abstol = 1e-8, reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
 
     f! = FunctionWrapper{iip}(prob.f, prob.p)
@@ -49,12 +47,12 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LSOptimSolver
         J = prob.f.jac_prototype, alg.autodiff, output_length = length(resid_prototype))
     allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, _lso_solver(alg))
 
-    return LeastSquaresOptimCache(prob, alg, allocated_prob,
+    return LeastSquaresOptimJLCache(prob, alg, allocated_prob,
         (; x_tol = abstol, f_tol = reltol, iterations = maxiters, show_trace = verbose,
             kwargs...))
 end
 
-function SciMLBase.solve!(cache::LeastSquaresOptimCache)
+function SciMLBase.solve!(cache::LeastSquaresOptimJLCache)
     res = LSO.optimize!(cache.allocated_prob; cache.kwargs...)
     maxiters = cache.kwargs[:iterations]
     retcode = res.x_converged || res.f_converged || res.g_converged ? ReturnCode.Success :

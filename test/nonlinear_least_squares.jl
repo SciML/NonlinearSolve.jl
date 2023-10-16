@@ -27,7 +27,8 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
 nlls_problems = [prob_oop, prob_iip]
-solvers = [GaussNewton(), LevenbergMarquardt(), LSOptimSolver(:lm), LSOptimSolver(:dogleg)]
+solvers = [GaussNewton(), LevenbergMarquardt(), LeastSquaresOptimJL(:lm),
+    LeastSquaresOptimJL(:dogleg)]
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
@@ -43,7 +44,7 @@ end
 prob = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target), jac = jac!), θ_init, x)
 
-solvers = [FastLevenbergMarquardtSolver(:cholesky), FastLevenbergMarquardtSolver(:qr)]
+solvers = [FastLevenbergMarquardtJL(:cholesky), FastLevenbergMarquardtJL(:qr)]
 
 for solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)

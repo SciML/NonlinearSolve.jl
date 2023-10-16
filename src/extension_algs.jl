@@ -1,9 +1,10 @@
-# Define Algorithms extended via extensions
+# This file only include the algorithm struct to be exported by LinearSolve.jl. The main
+# functionality is implemented as package extensions
 """
-    LSOptimSolver(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
+    LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
 
-Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl) for solving
-`NonlinearLeastSquaresProblem`.
+Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl)
+for solving `NonlinearLeastSquaresProblem`.
 
 ## Arguments:
 
@@ -16,25 +17,24 @@ Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquare
 !!! note
     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
 """
-struct LSOptimSolver{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
+struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
     autodiff::Symbol
 end
 
-function LSOptimSolver(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
+function LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
     @assert alg in (:lm, :dogleg)
     @assert linsolve === nothing || linsolve in (:qr, :cholesky, :lsmr)
     @assert autodiff in (:central, :forward)
 
-    if !extension_loaded(Val(:LeastSquaresOptim))
-        @warn "LeastSquaresOptim.jl is not loaded! It needs to be explicitly loaded \
-               before `solve(prob, LSOptimSolver())` is called."
+    if Base.get_extension(@__MODULE__, :NonlinearSolveLeastSquaresOptimExt) === nothing
+        error("LeastSquaresOptimJL requires LeastSquaresOptim.jl to be loaded")
     end
 
-    return LSOptimSolver{alg, linsolve}(autodiff)
+    return LeastSquaresOptimJL{alg, linsolve}(autodiff)
 end
 
 """
-    FastLevenbergMarquardtSolver(linsolve = :cholesky)
+    FastLevenbergMarquardtJL(linsolve = :cholesky)
 
 Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl) for solving
 `NonlinearLeastSquaresProblem`.
@@ -53,7 +53,7 @@ Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenberg
 !!! note
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
-@concrete struct FastLevenbergMarquardtSolver{linsolve} <: AbstractNonlinearSolveAlgorithm
+@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm
     factor
     factoraccept
     factorreject
@@ -64,17 +64,16 @@ Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenberg
     maxfactor
 end
 
-function FastLevenbergMarquardtSolver(linsolve::Symbol = :cholesky; factor = 1e-6,
+function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
     factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
     minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32)
     @assert linsolve in (:qr, :cholesky)
     @assert factorupdate in (:marquardt, :nielson)
 
-    if !extension_loaded(Val(:FastLevenbergMarquardt))
-        @warn "FastLevenbergMarquardt.jl is not loaded! It needs to be explicitly loaded \
-               before `solve(prob, FastLevenbergMarquardtSolver())` is called."
+    if Base.get_extension(@__MODULE__, :NonlinearSolveFastLevenbergMarquardtExt) === nothing
+        error("LeastSquaresOptimJL requires FastLevenbergMarquardt.jl to be loaded")
     end
 
-    return FastLevenbergMarquardtSolver{linsolve}(factor, factoraccept, factorreject,
+    return FastLevenbergMarquardtJL{linsolve}(factor, factoraccept, factorreject,
         factorupdate, minscale, maxscale, minfactor, maxfactor)
 end

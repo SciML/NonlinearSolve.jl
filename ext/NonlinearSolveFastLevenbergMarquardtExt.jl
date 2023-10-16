@@ -4,9 +4,7 @@ using ArrayInterface, NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import FastLevenbergMarquardt as FastLM
 
-NonlinearSolve.extension_loaded(::Val{:FastLevenbergMarquardt}) = true
-
-function _fast_lm_solver(::FastLevenbergMarquardtSolver{linsolve}, x) where {linsolve}
+function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve == :cholesky
         return FastLM.CholeskySolver(ArrayInterface.undefmatrix(x))
     elseif linsolve == :qr
@@ -16,7 +14,7 @@ function _fast_lm_solver(::FastLevenbergMarquardtSolver{linsolve}, x) where {lin
     end
 end
 
-@concrete struct FastLMCache
+@concrete struct FastLevenbergMarquardtJLCache
     f!
     J!
     prob
@@ -34,7 +32,7 @@ end
 (f::InplaceFunction{false})(fx, x, p) = (fx .= f.f(x, p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
-    alg::FastLevenbergMarquardtSolver, args...; abstol = 1e-8, reltol = 1e-8,
+    alg::FastLevenbergMarquardtJL, args...; abstol = 1e-8, reltol = 1e-8,
     verbose = false, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
 
@@ -52,13 +50,13 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
     solver = _fast_lm_solver(alg, prob.u0)
     LM = FastLM.LMWorkspace(prob.u0, resid_prototype, J)
 
-    return FastLMCache(f!, J!, prob, alg, LM, solver,
+    return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
         (; xtol = abstol, ftol = reltol, maxit = maxiters, alg.factor, alg.factoraccept,
             alg.factorreject, alg.minscale, alg.maxscale, alg.factorupdate, alg.minfactor,
             alg.maxfactor, kwargs...))
 end
 
-function SciMLBase.solve!(cache::FastLMCache)
+function SciMLBase.solve!(cache::FastLevenbergMarquardtJLCache)
     res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(cache.f!, cache.J!,
         cache.lmworkspace, cache.prob.p; cache.solver, cache.kwargs...)
     stats = SciMLBase.NLStats(nfev, njev, -1, -1, iter)
