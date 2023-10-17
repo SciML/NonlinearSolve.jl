@@ -56,10 +56,10 @@ if VERSION >= v"1.7"
     @test (@ballocated benchmark_scalar(sf, csu0)) == 0
 end
 
-# Halley
+# SimpleHalley
 function benchmark_scalar(f, u0)
     probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, Halley()))
+    sol = (solve(probN, SimpleHalley()))
 end
 
 function ff(u, p)
@@ -139,7 +139,7 @@ using ForwardDiff
 f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
 
 for alg in (SimpleNewtonRaphson(), LBroyden(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), Halley(), BROYDEN_SOLVERS...)
+    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS...)
     g = function (p)
         probN = NonlinearProblem{false}(f, csu0, p)
         sol = solve(probN, alg, abstol = 1e-9)
@@ -162,7 +162,7 @@ end
 # Scalar
 f, u0 = (u, p) -> u * u - p, 1.0
 for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     g = function (p)
         probN = NonlinearProblem{false}(f, oftype(p, u0), p)
         sol = solve(probN, alg)
@@ -271,7 +271,7 @@ for alg in [Bisection(), Falsi(), Ridder(), Brent(), ITP()]
 end
 
 for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), Halley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
+    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     global g, p
     g = function (p)
         probN = NonlinearProblem{false}(f, 0.5, p)
@@ -288,7 +288,7 @@ probN = NonlinearProblem(f, u0)
 
 for alg in (SimpleNewtonRaphson(), SimpleNewtonRaphson(; autodiff = false),
     SimpleTrustRegion(),
-    SimpleTrustRegion(; autodiff = false), Halley(), Halley(; autodiff = false),
+    SimpleTrustRegion(; autodiff = false), SimpleHalley(), SimpleHalley(; autodiff = false),
     Klement(), SimpleDFSane(),
     BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
     sol = solve(probN, alg)
