@@ -36,6 +36,11 @@ or more precision / more stable linear solver choice is required).
     precs
 end
 
+# When somethin's strange, and numerical
+# who you gonna call?
+# Robusters!
+const Robusters = RobustMultiNewton
+
 function RobustMultiNewton(; concrete_jac = nothing, linsolve = nothing, 
         precs = DEFAULT_PRECS, adkwargs...)
 
