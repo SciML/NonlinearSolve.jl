@@ -3,5 +3,5 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 
 [compat]
-CUDA = "3.12"
-NonlinearSolve = "1"
+CUDA = "5"
+NonlinearSolve = "2"
