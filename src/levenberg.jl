@@ -14,7 +14,8 @@ numerically-difficult nonlinear systems.
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    `nothing` which means that a default is selected according to the problem specification!
+    Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -86,6 +87,12 @@ numerically-difficult nonlinear systems.
     min_damping_D::T
 end
 
+function set_ad(alg::LevenbergMarquardt{CJ}, ad) where {CJ}
+    return LevenbergMarquardt{CJ}(ad, alg.linsolve, alg.precs, alg.damping_initial,
+        alg.damping_increase_factor, alg.damping_decrease_factor,
+        alg.finite_diff_step_geodesic, alg.α_geodesic, alg.b_uphill, alg.min_damping_D)
+end
+
 function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, damping_initial::Real = 1.0, damping_increase_factor::Real = 2.0,
     damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic::Real = 0.1,
@@ -141,9 +148,10 @@ end
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
-        NonlinearLeastSquaresProblem{uType, iip}}, alg::LevenbergMarquardt,
+        NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)

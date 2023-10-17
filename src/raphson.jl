@@ -10,7 +10,8 @@ for large-scale and numerically-difficult nonlinear systems.
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    `nothing` which means that a default is selected according to the problem specification!
+    Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -34,6 +35,10 @@ for large-scale and numerically-difficult nonlinear systems.
     linsolve
     precs
     linesearch
+end
+
+function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
+    return NewtonRaphson{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
@@ -65,9 +70,10 @@ end
     lscache
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::NewtonRaphson, args...;
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphson, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)

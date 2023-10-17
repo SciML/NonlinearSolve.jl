@@ -97,7 +97,8 @@ for large-scale and numerically-difficult nonlinear systems.
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    `nothing` which means that a default is selected according to the problem specification!.
+    Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -162,6 +163,13 @@ for large-scale and numerically-difficult nonlinear systems.
     max_shrink_times::Int
 end
 
+function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
+    return TrustRegion{CJ}(ad, alg.linsolve, alg.precs, alg.radius_update_scheme,
+        alg.max_trust_radius, alg.initial_trust_radius, alg.step_threshold,
+        alg.shrink_threshold, alg.expand_threshold, alg.shrink_factor, alg.expand_factor,
+        alg.max_shrink_times)
+end
+
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
     radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
     max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
@@ -222,9 +230,10 @@ end
     stats::NLStats
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, args...;
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-8, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     u_prev = zero(u)

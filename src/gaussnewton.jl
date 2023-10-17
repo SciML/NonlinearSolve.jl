@@ -14,7 +14,8 @@ for large-scale and numerically-difficult nonlinear least squares problems.
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    `nothing` which means that a default is selected according to the problem specification!
+    Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -39,6 +40,10 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     ad::AD
     linsolve
     precs
+end
+
+function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
+    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs)
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = CholeskyFactorization(),
@@ -71,9 +76,10 @@ end
     stats::NLStats
 end
 
-function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg::GaussNewton,
+function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
     args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
+    alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     if iip

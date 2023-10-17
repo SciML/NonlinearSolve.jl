@@ -13,28 +13,41 @@ end
 @inline DEFAULT_NORM(u::AbstractArray) = sqrt(real(sum(UNITLESS_ABS2, u)) / length(u))
 @inline DEFAULT_NORM(u) = norm(u)
 
-alg_autodiff(alg::AbstractNewtonAlgorithm{<:AbstractFiniteDifferencesMode}) = false
-alg_autodiff(alg::AbstractNewtonAlgorithm) = true
-alg_autodiff(alg) = false
-
 """
     default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
         standardtag = Val{true}(), diff_type = Val{:forward})
 
 Construct the AD type from the arguments. This is mostly needed for compatibility with older
 code.
+
+!!! warning
+    `chunk_size`, `standardtag`, `diff_type`, and `autodiff::Union{Val, Bool}` are
+    deprecated and will be removed in v3. Update your code to directly specify
+    `autodiff=<ADTypes>`.
 """
-function default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
-    standardtag = Val{true}(), diff_type = Val{:forward}())
-    ad = _unwrap_val(autodiff)
-    # Old API
-    if ad isa Bool
-        # FIXME: standardtag is not the Tag
-        ad && return AutoForwardDiff(; chunksize = _unwrap_val(chunk_size),
-            tag = _unwrap_val(standardtag))
-        return AutoFiniteDiff(; fdtype = diff_type)
+function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
+    standardtag = missing, diff_type = missing)
+    # If using the new API short circuit
+    autodiff === nothing && return nothing
+    autodiff isa ADTypes.AbstractADType && return autodiff
+
+    # Deprecate the old version
+    if chunk_size !== missing || standardtag !== missing || diff_type !== missing ||
+       autodiff !== missing
+        Base.depwarn("`chunk_size`, `standardtag`, `diff_type`, \
+            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed in\
+             v3. Update your code to directly specify autodiff=<ADTypes>",
+            :default_adargs_to_adtype)
     end
-    return ad
+    chunk_size === missing && (chunk_size = Val{0}())
+    standardtag === missing && (standardtag = Val{true}())
+    diff_type === missing && (diff_type = Val{:forward}())
+    autodiff === missing && (autodiff = Val{true}())
+
+    ad = _unwrap_val(autodiff)
+    tag = _unwrap_val(standardtag)
+    ad && return AutoForwardDiff{_unwrap_val(chunk_size), typeof(tag)}(tag)
+    return AutoFiniteDiff(; fdtype = diff_type)
 end
 
 """
@@ -171,3 +184,27 @@ Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
 """
 __matmul!(C, A, B) = mul!(C, A, B)
 __matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
+
+# Concretize Algorithms
+function get_concrete_algorithm(alg, prob)
+    !hasfield(typeof(alg), :ad) && return alg
+    alg.ad isa ADTypes.AbstractADType && return alg
+
+    # Figure out the default AD
+    # Now that we have handed trivial cases, we can allow extending this function
+    # for specific algorithms
+    return __get_concrete_algorithm(alg, prob)
+end
+
+function __get_concrete_algorithm(alg, prob)
+    @unpack sparsity, jac_prototype = prob.f
+    use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
+    ad = if eltype(prob.u0) <: Complex
+        # Use Finite Differencing
+        use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
+    else
+        use_sparse_ad ? AutoSparseForwardDiff() :
+        AutoForwardDiff{ForwardDiff.pickchunksize(length(prob.u0)), Nothing}(nothing)
+    end
+    return set_ad(alg, ad)
+end
