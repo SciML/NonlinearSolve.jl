@@ -32,7 +32,7 @@ A nonlinear system $$f(u) = 0$$ is specified by defining a function `f(u,p)`,
 where `p` are the parameters of the system. For example, the following solves
 the vector equation $$f(u) = u^2 - p$$ for a vector of equations:
 
-```@example
+```@example 1
 using NonlinearSolve
 
 f(u, p) = u .* u .- p
@@ -52,24 +52,24 @@ AbstractArray for automatic differentiation.
 To investigate the solution, one can look at the elements of the `NonlinearSolution`.
 The most important value is `sol.u`: this is the `u` that satisfies `f(u) = 0`. For example:
 
-```@example
+```@example 1
 u = sol.u
 ```
 
-```@example
+```@example 1
 f(u, p)
 ```
 
 This final value, the difference of the solution against zero, can also be found with `sol.resid`:
 
-```@example
+```@example 1
 sol.resid
 ```
 
 To know if the solution converged, or why the solution had not converged we can check the return
 code (`retcode`):
 
-```@example
+```@example 1
 sol.retcode
 ```
 
@@ -84,7 +84,7 @@ SciMLBase.successful_retcode(sol)
 If we're curious about what it took to solve this equation, then you're in luck because all of the
 details can be found in `sol.stats`:
 
-```@example
+```@example 1
 sol.stats
 ```
 
@@ -96,7 +96,7 @@ While `sol = solve(prob)` worked for our case here, in many situations you may n
 deeply with how the solving process is done. First things first, you can specify the solver using the
 positional arguments. For example, let's set the solver to `TrustRegion()`:
 
-```@example
+```@example 1
 solve(prob, TrustRegion())
 ```
 
@@ -104,7 +104,7 @@ For a complete list of solver choices, see [the nonlinear system solvers page](@
 
 Next we can modify the tolerances. Here let's set some really low tolerances to force a tight solution:
 
-```@example
+```@example 1
 solve(prob, TrustRegion(), reltol=1e-12, abstol=1e-12)
 ```
 
@@ -118,7 +118,7 @@ For scalar rootfinding problems, bracketing methods exist in NonlinearSolve. The
 methods is that with bracketing methods, instead of giving a `u0` initial condition, you pass a `uspan (a,b)`
 bracket in which the zero is expected to live. For example:
 
-```@example
+```@example 1
 using NonlinearSolve
 f(u, p) = u * u - 2.0
 uspan = (1.0, 2.0) # brackets
@@ -130,7 +130,7 @@ All of the same option handling from before works just as before, now just with 
 (see the [bracketing solvers](@ref bracketing) page for more details). For example, let's set the solver
 to `ITP()` and set a high absolute tolerance:
 
-```@example
+```@example 1
 sol = solve(prob_int, ITP(), abstol = 0.01)
 ```
 

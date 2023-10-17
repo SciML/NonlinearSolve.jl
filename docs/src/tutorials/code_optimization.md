@@ -1,5 +1,32 @@
 # [Code Optimization for Solving Nonlinear Systems](@id code_optimization)
 
+## Code Optimization in Julia
+
+Before starting this tutorial, we recommend the reader to check out one of the
+many tutorials for optimization Julia code. The following is an incomplete
+list:
+
+  - [The Julia Performance Tips](https://docs.julialang.org/en/v1/manual/performance-tips/)
+  - [MIT 18.337 Course Notes on Optimizing Serial Code](https://mitmath.github.io/18337/lecture2/optimizing)
+  - [What scientists must know about hardware to write fast code](https://viralinstruction.com/posts/hardware/)
+
+User-side optimizations are important because, for sufficiently difficult problems,
+most time will be spent inside your `f` function, the function you are
+trying to solve. “Efficient solvers" are those that reduce the required
+number of `f` calls to hit the error tolerance. The main ideas for optimizing
+your nonlinear solver code, or any Julia function, are the following:
+
+  - Make it non-allocating
+  - Use StaticArrays for small arrays
+  - Use broadcast fusion
+  - Make it type-stable
+  - Reduce redundant calculations
+  - Make use of BLAS calls
+  - Optimize algorithm choice
+
+We'll discuss these strategies in the context of nonlinear solvers.
+Let's start with small systems.
+
 ## Optimizing Nonlinear Solver Code for Small Systems
 
 ```@example
