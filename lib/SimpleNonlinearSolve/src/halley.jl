@@ -4,7 +4,7 @@ SimpleHalley(; chunk_size = Val{0}(), autodiff = Val{true}(),
                                  diff_type = Val{:forward})
 ```
 
-A low-overhead implementation of Halley's Method. This method is non-allocating on scalar
+A low-overhead implementation of SimpleHalley's Method. This method is non-allocating on scalar
 and static array problems.
 
 !!! note
@@ -49,7 +49,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     T = typeof(x)
 
     if SciMLBase.isinplace(prob)
-        error("Halley currently only supports out-of-place nonlinear problems")
+        error("SimpleHalley currently only supports out-of-place nonlinear problems")
     end
 
     atol = abstol !== nothing ? abstol :
