@@ -23,7 +23,7 @@ These methods are suited for any general nonlinear root-finding problem , i.e. `
 ```@docs
 SimpleNewtonRaphson
 Broyden
-Halley
+SimpleHalley
 Klement
 SimpleTrustRegion
 SimpleDFSane

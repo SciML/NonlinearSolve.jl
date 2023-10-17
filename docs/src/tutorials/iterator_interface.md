@@ -1,4 +1,8 @@
-# Nonlinear Solver Iterator Interface
+# [Nonlinear Solver Iterator Interface](@id iterator)
+
+!!! warn
+
+    This iterator interface will be expanded with a `step!` function soon!
 
 There is an iterator form of the nonlinear solver which mirrors the DiffEq integrator interface:
 

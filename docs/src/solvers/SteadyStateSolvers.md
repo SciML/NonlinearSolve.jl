@@ -1,4 +1,4 @@
-# Steady State Solvers
+# [Steady State Solvers](@id ss_solvers)
 
 `solve(prob::SteadyStateProblem,alg;kwargs)`
 
