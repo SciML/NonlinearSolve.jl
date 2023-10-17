@@ -1,4 +1,4 @@
-using NonlinearSolve
+using NonlinearSolve, Test
 
 f(u, p) = u .* u .- 2
 u0 = [1.0, 1.0]
@@ -20,3 +20,19 @@ end
 
 prob = NonlinearProblem(f, [2.0,2.0,2.0], [1.0, 2.0, 2.5])
 sol = solve(prob)
+@test SciMLBase.successful_retcode(sol)
+
+# https://github.com/SciML/NonlinearSolve.jl/issues/187
+
+f(u, p) = 0.5/1.5*log.(u./(1.0.-u)) .- 2.0*u .+1.0
+
+uspan = (0.02, 0.1)
+prob = IntervalNonlinearProblem(f, uspan)
+sol = solve(prob)
+@test SciMLBase.successful_retcode(sol)
+
+u0 = 0.06
+p = 2.0
+prob = NonlinearProblem(f, u0, p)
+solver = solve(prob)
+@test SciMLBase.successful_retcode(sol)
