@@ -46,7 +46,7 @@ function RobustMultiNewton(; concrete_jac = nothing, linsolve = nothing,
     return RobustMultiNewton{_unwrap_val(concrete_jac)}(adkwargs, linsolve, precs)
 end
 
-@concrete mutable struct RobustMultiNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct RobustMultiNewtonCache{iip, N} <: AbstractNonlinearSolveCache{iip}
     caches
     alg
     current::Int
@@ -67,8 +67,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::RobustMultiNe
 
     # Partially Type Unstable but can't do much since some upstream caches -- LineSearches
     # and SparseDiffTools cause the instability
-    return RobustMultiNewtonCache{iip}(map(solver -> SciMLBase.__init(prob, solver, args...;
-                kwargs...), algs), alg, 1)
+    return RobustMultiNewtonCache{iip, length(algs)}(map(solver -> SciMLBase.__init(prob,
+                solver, args...; kwargs...), algs), alg, 1)
 end
 
 """
@@ -110,7 +110,7 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
         precs)
 end
 
-@concrete mutable struct FastShortcutNonlinearPolyalgCache{iip} <:
+@concrete mutable struct FastShortcutNonlinearPolyalgCache{iip, N} <:
                          AbstractNonlinearSolveCache{iip}
     caches
     alg
@@ -136,7 +136,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
         TrustRegion(; linsolve, precs,
             radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
 
-    return FastShortcutNonlinearPolyalgCache{iip}(map(solver -> SciMLBase.__init(prob,
+    return FastShortcutNonlinearPolyalgCache{iip, length(algs)}(map(solver -> SciMLBase.__init(prob,
                 solver, args...; kwargs...), algs), alg, 1)
 end
 
@@ -159,6 +159,8 @@ end
         ]
     else
         [
+            # FIXME: Broyden and Klement are type unstable
+            #        (upstream SimpleNonlinearSolve.jl issue)
             !iip ? :(Klement()) : nothing, # Klement not yet implemented for IIP
             !iip ? :(Broyden()) : nothing, # Broyden not yet implemented for IIP
             :(NewtonRaphson(; linsolve, precs, adkwargs...)),
