@@ -262,9 +262,6 @@ function perform_step!(cache::DFSaneCache{false})
     σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
-    if isdefined(Main, :Infiltrator)
-    Main.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
-        end
     @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
     η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
@@ -345,4 +342,35 @@ function SciMLBase.solve!(cache::DFSaneCache)
 
     SciMLBase.build_solution(cache.prob, cache.alg, cache.uₙ, cache.fuₙ;
                              retcode = cache.retcode, stats = cache.stats)
+end
+
+function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
+  abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+  cache.p = p
+  if iip
+      recursivecopy!(cache.uₙ, u0)
+      recursivecopy!(cache.uₙ₋₁, u0)
+      cache.f(cache.fuₙ, cache.uₙ, p)
+      cache.f(cache.fuₙ₋₁, cache.uₙ, p)
+  else
+      cache.uₙ = u0
+      cache.uₙ₋₁ = u0
+      cache.fuₙ = cache.f(cache.uₙ, p)
+      cache.fuₙ₋₁ = cache.f(cache.uₙ, p)
+  end
+
+  cache.f₍ₙₒᵣₘ₎ₙ₋₁ = norm(fuₙ₋₁)^nₑₓₚ
+  cache.f₍ₙₒᵣₘ₎₀ = cache.f₍ₙₒᵣₘ₎ₙ₋₁
+  fill!(cache.ℋ, cache.f₍ₙₒᵣₘ₎ₙ₋₁, cache.M)
+
+  T = eltype(cache.uₙ)
+  cache.σₙ = T(cache.alg.σ_1)
+
+  cache.abstol = abstol
+  cache.maxiters = maxiters
+  cache.stats.nf = 1
+  cache.stats.nsteps = 1
+  cache.force_stop = false
+  cache.retcode = ReturnCode.Default
+  return cache
 end
