@@ -46,6 +46,19 @@ include("batched/raphson.jl")
 include("batched/dfsane.jl")
 include("batched/broyden.jl")
 
+## Default algorithm
+
+# Set the default bracketing method to ITP
+
+function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
+    SciMLBase.solve(prob, ITP(); kwargs...)
+end
+
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
+    args...; kwargs...)
+    SciMLBase.solve(prob, ITP(), args...; kwargs...)
+end
+
 import PrecompileTools
 
 PrecompileTools.@compile_workload begin
