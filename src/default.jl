@@ -171,58 +171,6 @@ function SciMLBase.__solve(prob::NonlinearProblem{uType, iip},
         sols[idx].retcode, sols[idx].stats, original = sols[idx])
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem{uType, true}, alg::FastShortcutNonlinearPolyalg, args...;
-    kwargs...) where {uType}
-
-    adkwargs = alg.adkwargs
-    linsolve = alg.linsolve
-    precs = alg.precs
-
-    sol1 = SciMLBase.__solve(prob, NewtonRaphson(;linsolve, precs, adkwargs...), args...; kwargs...)
-    if SciMLBase.successful_retcode(sol1)
-        return SciMLBase.build_solution(prob, alg, sol1.u, sol1.resid;
-                                        sol1.retcode, sol1.stats)
-    end
-
-    sol2 = SciMLBase.__solve(prob, NewtonRaphson(;linsolve, precs, linesearch=BackTracking(), adkwargs...), args...; kwargs...)
-    if SciMLBase.successful_retcode(sol2)
-        return SciMLBase.build_solution(prob, alg, sol2.u, sol2.resid;
-                                        sol2.retcode, sol2.stats)
-    end
-
-    sol3 = SciMLBase.__solve(prob, TrustRegion(;linsolve, precs, adkwargs...), args...; kwargs...)
-    if SciMLBase.successful_retcode(sol3)
-        return SciMLBase.build_solution(prob, alg, sol3.u, sol3.resid;
-                                        sol3.retcode, sol3.stats)
-    end
-
-    sol4 = SciMLBase.__solve(prob,  TrustRegion(;linsolve, precs, radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...), args...; kwargs...)
-    if SciMLBase.successful_retcode(sol4)
-        return SciMLBase.build_solution(prob, alg, sol4.u, sol4.resid;
-                                        sol4.retcode, sol4.stats)
-    end
-
-    resids = (sol1.resid, sol2.resid, sol3.resid, sol4.resid)
-    minfu, idx = findmin(DEFAULT_NORM, resids)
-
-    if idx == 1
-        SciMLBase.build_solution(prob, alg, sol1.u, sol1.resid;
-                                        sol1.retcode, sol1.stats)
-    elseif idx == 2
-        SciMLBase.build_solution(prob, alg, sol2.u, sol2.resid;
-                                        sol2.retcode, sol2.stats)
-    elseif idx == 3
-        SciMLBase.build_solution(prob, alg, sol3.u, sol3.resid;
-                                sol3.retcode, sol3.stats)
-    elseif idx == 4
-        SciMLBase.build_solution(prob, alg, sol4.u, sol4.resid;
-                                sol4.retcode, sol4.stats)
-    else
-        error("Unreachable reached, 박정석")
-    end
-
-end
-
 ## General shared polyalg functions
 
 function perform_step!(cache::Union{RobustMultiNewtonCache,
