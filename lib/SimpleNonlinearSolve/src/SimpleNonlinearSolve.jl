@@ -88,8 +88,7 @@ PrecompileTools.@compile_workload begin
     end
 end
 
-# DiffEq styled algorithms
-export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, Halley, Klement,
+export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, SimpleHalley, Klement,
     Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, ITP
 export BatchedBroyden, BatchedSimpleNewtonRaphson, BatchedSimpleDFSane
 

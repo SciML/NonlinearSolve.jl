@@ -1,6 +1,6 @@
 """
 ```julia
-Halley(; chunk_size = Val{0}(), autodiff = Val{true}(),
+SimpleHalley(; chunk_size = Val{0}(), autodiff = Val{true}(),
                                  diff_type = Val{:forward})
 ```
 
@@ -28,8 +28,8 @@ and static array problems.
   `Val{:forward}` for forward finite differences. For more details on the choices, see the
   [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
 """
-struct Halley{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
-    function Halley(; chunk_size = Val{0}(), autodiff = Val{true}(),
+struct SimpleHalley{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
+    function SimpleHalley(; chunk_size = Val{0}(), autodiff = Val{true}(),
         diff_type = Val{:forward})
         new{SciMLBase._unwrap_val(chunk_size), SciMLBase._unwrap_val(autodiff),
             SciMLBase._unwrap_val(diff_type)}()
@@ -37,7 +37,7 @@ struct Halley{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::Halley, args...; abstol = nothing,
+    alg::SimpleHalley, args...; abstol = nothing,
     reltol = nothing,
     maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
