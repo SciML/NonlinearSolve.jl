@@ -390,3 +390,148 @@ end
         end
     end
 end
+
+
+# --- DFSane tests ---
+
+@testset "DFSane" begin
+    function benchmark_nlsolve_oop(f, u0, p=2.0)
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, DFSane(), abstol=1e-9)
+    end
+
+    function benchmark_nlsolve_iip(f, u0, p=2.0)
+        prob = NonlinearProblem{true}(f, u0, p)
+        return solve(prob, DFSane(), abstol=1e-9)
+    end
+
+    u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
+        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), DFSane(),
+            abstol=1e-9)
+        @test (@ballocated solve!($cache)) < 200
+    end
+
+    @testset "[IIP] u0: $(typeof(u0))" for u0 in ([
+        1.0, 1.0],)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
+            DFSane(), abstol=1e-9)
+        @test (@ballocated solve!($cache)) ≤ 64
+    end
+
+
+    @testset "[OOP] [Immutable AD]" begin
+        broken_forwarddiff = [1.6, 2.9, 3.0, 3.5, 4.0, 81.0]
+        for p in 1.1:0.1:100.0
+            res = abs.(benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p).u)
+
+            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
+                @test_broken all(res .≈ sqrt(p))
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                        @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
+            elseif p in broken_forwarddiff
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                        @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
+            else
+                @test all(res .≈ sqrt(p))
+                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                            @SVector[1.0, 1.0], p).u[end], p)), 1 / (2 * sqrt(p)))
+            end
+        end
+    end
+
+    @testset "[OOP] [Scalar AD]" begin
+        broken_forwarddiff = [1.6, 2.9, 3.0, 3.5, 4.0, 81.0]
+        for p in 1.1:0.1:100.0
+            res = abs(benchmark_nlsolve_oop(quadratic_f, 1.0, p).u)
+
+            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
+                @test_broken res ≈ sqrt(p)
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
+            elseif p in broken_forwarddiff
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
+            else
+                @test res ≈ sqrt(p)
+                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u, p)), 1 / (2 * sqrt(p)))
+            end
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    # Iterator interface
+    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
+        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
+        cache = init(probN, DFSane(); maxiters=100, abstol=1e-10)
+        sols = zeros(length(p_range))
+        for (i, p) in enumerate(p_range)
+            reinit!(cache, iip ? [cache.uₙ[1]] : cache.uₙ; p=p)
+            sol = solve!(cache)
+            sols[i] = iip ? sol.u[1] : sol.u
+        end
+        return sols
+    end
+    p = range(0.01, 2, length=200)
+    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false))) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true))) ≈ sqrt.(p)
+
+
+    # Test that `DFSane` passes a test that `NewtonRaphson` fails on.
+    @testset "Newton Raphson Fails" begin
+        u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+        p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
+    end
+
+    # Test kwargs in `DFSane`
+    @testset "Keyword Arguments" begin
+        σ_min = [1e-10, 1e-5, 1e-4]
+        σ_max = [1e10, 1e5, 1e4]
+        σ_1 = [1.0, 0.5, 2.0]
+        M = [10, 1, 100]
+        γ = [1e-4, 1e-3, 1e-5]
+        τ_min = [0.1, 0.2, 0.3]
+        τ_max = [0.5, 0.8, 0.9]
+        nexp = [2, 1, 2]
+        η_strategy = [
+            (f_1, k, x, F) -> f_1 / k^2,
+            (f_1, k, x, F) -> f_1 / k^3,
+            (f_1, k, x, F) -> f_1 / k^4,
+        ]
+
+        list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
+            η_strategy)
+        for options in list_of_options
+            local probN, sol, alg
+            alg = DFSane(σ_min=options[1],
+                σ_max=options[2],
+                σ_1=options[3],
+                M=options[4],
+                γ=options[5],
+                τ_min=options[6],
+                τ_max=options[7],
+                n_exp=options[8],
+                η_strategy=options[9])
+
+            probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
+            sol = solve(probN, alg, abstol=1e-11)
+            println(abs.(quadratic_f(sol.u, 2.0)))
+            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
+        end
+    end
+end

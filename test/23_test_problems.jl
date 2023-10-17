@@ -61,3 +61,13 @@ end
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
+
+# DFSane
+@testset "DFSane test problem library" begin
+    alg_ops = (DFSane(),)
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 2, 3, 5, 6, 8, 12, 13, 14, 21]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
