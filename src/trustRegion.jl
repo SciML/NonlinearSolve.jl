@@ -28,14 +28,14 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
     """
     `RadiusUpdateSchemes.NLsolve`
 
-    The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl) trust region dogleg implementation. 
+    The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl) trust region dogleg implementation.
     """
     NLsolve
 
     """
     `RadiusUpdateSchemes.NocedalWright`
 
-    Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291]. 
+    Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291].
     """
     NocedalWright
 
@@ -239,7 +239,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     u_gauss_newton = zero(u)
 
     loss_new = loss
-    H = zero(J)
+    H = zero(J' * J)
     g = _mutable_zero(fu1)
     shrink_counter = 0
     fu_new = zero(fu1)
@@ -341,7 +341,7 @@ function perform_step!(cache::TrustRegionCache{true})
         mul!(cache.g, J', fu)
         cache.stats.njacs += 1
 
-        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent 
+        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
         # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
         linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu),
             linu = _vec(u_gauss_newton),
@@ -450,12 +450,12 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.make_new_J = false
         end
 
-        # trust region update 
-        if r < 1 // 10 # cache.shrink_threshold 
-            cache.trust_r *= 1 // 2 # cache.shrink_factor 
-        elseif r >= 9 // 10 # cache.expand_threshold 
-            cache.trust_r = 2 * norm(cache.du) # cache.expand_factor * norm(cache.du) 
-        elseif r >= 1 // 2 # cache.p1 
+        # trust region update
+        if r < 1 // 10 # cache.shrink_threshold
+            cache.trust_r *= 1 // 2 # cache.shrink_factor
+        elseif r >= 9 // 10 # cache.expand_threshold
+            cache.trust_r = 2 * norm(cache.du) # cache.expand_factor * norm(cache.du)
+        elseif r >= 1 // 2 # cache.p1
             cache.trust_r = max(cache.trust_r, 2 * norm(cache.du)) # cache.expand_factor * norm(cache.du))
         end
 

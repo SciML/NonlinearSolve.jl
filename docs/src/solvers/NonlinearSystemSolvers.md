@@ -16,7 +16,7 @@ it will make sure to work.
 
 If one is looking for more robustness then `RobustMultiNewton` is a good choice.
 It attempts a set of the most robust methods in succession and only fails if
-all of the methods fail to converge. Additionally, `DynamicSS` can be a good choice 
+all of the methods fail to converge. Additionally, `DynamicSS` can be a good choice
 for high stability.
 
 As a balance, `NewtonRaphson` is a good choice for most problems that aren't too
@@ -25,13 +25,13 @@ but more stable. If the problem is well-conditioned, `Klement` or `Broyden`
 may be faster, but highly dependent on the eigenvalues of the Jacobian being
 sufficiently small.
 
-`NewtonRaphson` and `TrustRegion` are designed for for large systems. 
+`NewtonRaphson` and `TrustRegion` are designed for for large systems.
 They can make use of sparsity patterns for sparse automatic differentiation
 and sparse linear solving of very large systems. Meanwhile,
 `SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which is specialized for
 small equations. They are non-allocating on static arrays and thus really well-optimized
 for small systems, thus usually outperforming the other methods when such types are
-used for `u0`. 
+used for `u0`.
 
 ## Full List of Methods
 
@@ -57,7 +57,7 @@ features, but have a bit of overhead on very small problems.
     large-scale and numerically-difficult nonlinear systems.
   - `RobustMultiNewton()`: A polyalgorithm that mixes highly robust methods (line searches and
     trust regions) in order to be as robust as possible for difficult problems. If this method
-    fails to converge, then one can be pretty certain that most (all?) other choices would 
+    fails to converge, then one can be pretty certain that most (all?) other choices would
     likely fail.
   - `FastShortcutNonlinearPolyalg`: The default method. A polyalgorithm that mixes fast methods
     with fallbacks to robust methods to allow for solving easy problems quickly without sacrificing
