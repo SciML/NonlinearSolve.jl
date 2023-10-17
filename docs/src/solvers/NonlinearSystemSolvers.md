@@ -71,6 +71,9 @@ methods excel at small problems and problems defined with static arrays.
 
   - `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method.
   - `Broyden()`: The classic Broyden's quasi-Newton method.
+  - `LBroyden()`: A low-memory Broyden implementation, similar to L-BFGS. This method is
+    common in machine learning contexts but is known to be unstable in comparison to many
+    other choices.
   - `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
     than Broyden's method, and it seems to be in the cases that have been tried, but more
     benchmarking is required.
@@ -78,6 +81,9 @@ methods excel at small problems and problems defined with static arrays.
     for more robust fitting over basic Newton methods, though potentially with a cost.
   - `SimpleDFSane()`: A low-overhead implementation of the df-sane method for solving
     large-scale nonlinear systems of equations.
+  - `SimpleHalley()`: A low-overhead implementation of the Halley method. This is a higher order
+    method and thus can converge faster to low tolerances than a Newton method. Requires higher
+    order derivatives, so best used when automatic differentiation is available.
 
 !!! note
     
@@ -102,7 +108,6 @@ This is a wrapper package for importing solvers from NLsolve.jl into the SciML i
 
 Submethod choices for this algorithm include:
 
-  - `:fixedpoint`: Fixed-point iteration
   - `:anderson`: Anderson-accelerated fixed-point iteration
   - `:newton`: Classical Newton method with an optional line search
   - `:trust_region`: Trust region Newton method (the default choice)
