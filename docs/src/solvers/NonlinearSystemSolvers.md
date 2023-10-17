@@ -7,22 +7,31 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
-`NewtonRaphson` is a good choice for most problems. For large
-systems, it can make use of sparsity patterns for sparse automatic differentiation
-and sparse linear solving of very large systems. That said, as a classic Newton
-method, its stability region can be smaller than other methods. Meanwhile,
-`SimpleNewtonRaphson` is an implementation which is specialized for
-small equations. It is non-allocating on static arrays and thus really well-optimized
+The default method `FastShortcutNonlinearPolyalg` is a good choice for most
+problems. It is a polyalgorithm that attempts to use a fast algorithm
+(Klement, Broyden) and if that fails it falls back to a more robust
+algorithm (`NewtonRaphson`) before falling back the most robust varient of
+`TrustRegion`. For basic problems this will be very fast, for harder problems
+it will make sure to work.
+
+If one is looking for more robustness then `RobustMultiNewton` is a good choice.
+It attempts a set of the most robust methods in succession and only fails if
+all of the methods fail to converge. Additionally, `DynamicSS` can be a good choice 
+for high stability.
+
+As a balance, `NewtonRaphson` is a good choice for most problems that aren't too
+difficult yet need high performance, and  `TrustRegion` is a bit less performant
+but more stable. If the problem is well-conditioned, `Klement` or `Broyden`
+may be faster, but highly dependent on the eigenvalues of the Jacobian being
+sufficiently small.
+
+`NewtonRaphson` and `TrustRegion` are designed for for large systems. 
+They can make use of sparsity patterns for sparse automatic differentiation
+and sparse linear solving of very large systems. Meanwhile,
+`SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which is specialized for
+small equations. They are non-allocating on static arrays and thus really well-optimized
 for small systems, thus usually outperforming the other methods when such types are
-used for `u0`. `DynamicSS` can be a good choice for high stability.
-
-For a system which is very non-stiff (i.e., the condition number of the Jacobian
-is small, or the eigenvalues of the Jacobian are within a few orders of magnitude),
-then `NLSolveJL`'s `:anderson` can be a good choice.
-
-!!! note
-    
-    `TrustRegion` and `SimpleTrustRegion` are still in development.
+used for `u0`. 
 
 ## Full List of Methods
 
@@ -46,6 +55,13 @@ features, but have a bit of overhead on very small problems.
     improvements suggested in the [paper](https://arxiv.org/abs/1201.5885) "Improvements to
     the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". Designed for
     large-scale and numerically-difficult nonlinear systems.
+  - `RobustMultiNewton()`: A polyalgorithm that mixes highly robust methods (line searches and
+    trust regions) in order to be as robust as possible for difficult problems. If this method
+    fails to converge, then one can be pretty certain that most (all?) other choices would 
+    likely fail.
+  - `FastShortcutNonlinearPolyalg`: The default method. A polyalgorithm that mixes fast methods
+    with fallbacks to robust methods to allow for solving easy problems quickly without sacrificing
+    robustnes on the hard problems.
 
 ### SimpleNonlinearSolve.jl
 
