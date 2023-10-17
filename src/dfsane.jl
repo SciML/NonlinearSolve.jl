@@ -68,21 +68,21 @@ function DFSane(; σ_min = 1e-10,
                 η_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2,
                 max_inner_iterations = 1000)
     return DFSane{typeof(σ_min), typeof(η_strategy)}(σ_min,
-                                            σ_max,
-                                            σ_1,
-                                            M,
-                                            γ,
-                                            τ_min,
-                                            τ_max,
-                                            n_exp,
-                                            η_strategy,
-                                            max_inner_iterations)
+                                                     σ_max,
+                                                     σ_1,
+                                                     M,
+                                                     γ,
+                                                     τ_min,
+                                                     τ_max,
+                                                     n_exp,
+                                                     η_strategy,
+                                                     max_inner_iterations)
 end
-mutable struct DFSaneCache{iip, fType, algType, uType, resType, T, pType,
+mutable struct DFSaneCache{iip, algType, uType, resType, T, pType,
                            INType,
                            tolType,
                            probType}
-    f::fType
+    f::Function
     alg::algType
     uₙ::uType
     uₙ₋₁::uType
@@ -109,19 +109,19 @@ mutable struct DFSaneCache{iip, fType, algType, uType, resType, T, pType,
     abstol::tolType
     prob::probType
     stats::NLStats
-    function DFSaneCache{iip}(f::fType, alg::algType, uₙ::uType, uₙ₋₁::uType,
+    function DFSaneCache{iip}(f::Function, alg::algType, uₙ::uType, uₙ₋₁::uType,
                               fuₙ::resType, fuₙ₋₁::resType, 𝒹::uType, ℋ::Vector{T},
                               f₍ₙₒᵣₘ₎ₙ₋₁::T, f₍ₙₒᵣₘ₎₀::T, M::Int, σₙ::T, σₘᵢₙ::T, σₘₐₓ::T,
                               α₁::T, γ::T, τₘᵢₙ::T, τₘₐₓ::T, nₑₓₚ::Int, p::pType,
                               force_stop::Bool, maxiters::Int, internalnorm::INType,
                               retcode::SciMLBase.ReturnCode.T, abstol::tolType,
                               prob::probType,
-                              stats::NLStats) where {iip, fType, algType, uType,
+                              stats::NLStats) where {iip, algType, uType,
                                                      resType, T, pType, INType,
                                                      tolType,
                                                      probType
                                                      }
-        new{iip, fType, algType, uType, resType, T, pType, INType, tolType,
+        new{iip, algType, uType, resType, T, pType, INType, tolType,
             probType
             }(f, alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, M, σₙ,
               σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ,
@@ -146,7 +146,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
 
     p = prob.p
     T = eltype(uₙ)
-    σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σ_min), T(alg.σ_max), T(alg.γ), T(alg.τ_min), T(alg.τ_max)
+    σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σ_min), T(alg.σ_max), T(alg.γ), T(alg.τ_min),
+                                T(alg.τ_max)
     α₁ = one(T)
     γ = T(alg.γ)
     f₍ₙₒᵣₘ₎ₙ₋₁ = α₁
@@ -262,16 +263,16 @@ function perform_step!(cache::DFSaneCache{false})
     σₙ = sign(σₙ) * clamp(abs(σₙ), σₘᵢₙ, σₘₐₓ)
 
     # Line search direction
-    @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
+    cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
-    η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
+    η = alg.η_strategy(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
 
     f̄ = maximum(cache.ℋ)
     α₊ = α₁
     α₋ = α₁
-    @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
+    cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
 
-    cache.fuₙ .= f(cache.uₙ)
+    cache.fuₙ = f(cache.uₙ)
     f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     for _ in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
@@ -282,9 +283,9 @@ function perform_step!(cache::DFSaneCache{false})
                    (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
                    τₘᵢₙ * α₊,
                    τₘₐₓ * α₊)
-        @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹
+        cache.uₙ = @. cache.uₙ₋₁ - α₋ * cache.𝒹
 
-        cache.fuₙ .= f(cache.uₙ)
+        cache.fuₙ = f(cache.uₙ)
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
 
         f₍ₙₒᵣₘ₎ₙ .≤ 𝒸 && break
@@ -293,8 +294,8 @@ function perform_step!(cache::DFSaneCache{false})
                    τₘᵢₙ * α₋,
                    τₘₐₓ * α₋)
 
-        @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
-        cache.fuₙ .= f(cache.uₙ)
+        cache.uₙ = @. cache.uₙ₋₁ + α₊ * cache.𝒹
+        cache.fuₙ = f(cache.uₙ)
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
@@ -303,11 +304,11 @@ function perform_step!(cache::DFSaneCache{false})
     end
 
     # Update spectral parameter
-    @. cache.uₙ₋₁ = cache.uₙ - cache.uₙ₋₁
-    @. cache.fuₙ₋₁ = cache.fuₙ - cache.fuₙ₋₁
+    cache.uₙ₋₁ = @. cache.uₙ - cache.uₙ₋₁
+    cache.fuₙ₋₁ = @. cache.fuₙ - cache.fuₙ₋₁
 
     α₊ = sum(abs2, cache.uₙ₋₁)
-    @. cache.uₙ₋₁ = cache.uₙ₋₁ * cache.fuₙ₋₁
+    cache.uₙ₋₁ = @. cache.uₙ₋₁ * cache.fuₙ₋₁
     α₋ = sum(cache.uₙ₋₁)
     cache.σₙ = α₊ / α₋
 
@@ -318,8 +319,8 @@ function perform_step!(cache::DFSaneCache{false})
     end
 
     # Take step
-    @. cache.uₙ₋₁ = cache.uₙ
-    @. cache.fuₙ₋₁ = cache.fuₙ
+    cache.uₙ₋₁ = cache.uₙ
+    cache.fuₙ₋₁ = cache.fuₙ
     cache.f₍ₙₒᵣₘ₎ₙ₋₁ = f₍ₙₒᵣₘ₎ₙ
 
     # Update history
@@ -345,32 +346,34 @@ function SciMLBase.solve!(cache::DFSaneCache)
 end
 
 function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
-  abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
-  cache.p = p
-  if iip
-      recursivecopy!(cache.uₙ, u0)
-      recursivecopy!(cache.uₙ₋₁, u0)
-      cache.f(cache.fuₙ, cache.uₙ, p)
-      cache.f(cache.fuₙ₋₁, cache.uₙ, p)
-  else
-      cache.uₙ = u0
-      cache.uₙ₋₁ = u0
-      cache.fuₙ = cache.f(cache.uₙ, p)
-      cache.fuₙ₋₁ = cache.f(cache.uₙ, p)
-  end
+                           abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(cache.uₙ, u0)
+        recursivecopy!(cache.uₙ₋₁, u0)
+        cache.f = (dx, x) -> cache.prob.f(dx, x, p)
+        cache.f(cache.fuₙ, cache.uₙ)
+        cache.f(cache.fuₙ₋₁, cache.uₙ)
+    else
+        cache.uₙ = u0
+        cache.uₙ₋₁ = u0
+        cache.f = (x) -> cache.prob.f(x, p)
+        cache.fuₙ = cache.f(cache.uₙ)
+        cache.fuₙ₋₁ = cache.f(cache.uₙ)
+    end
 
-  cache.f₍ₙₒᵣₘ₎ₙ₋₁ = norm(fuₙ₋₁)^nₑₓₚ
-  cache.f₍ₙₒᵣₘ₎₀ = cache.f₍ₙₒᵣₘ₎ₙ₋₁
-  fill!(cache.ℋ, cache.f₍ₙₒᵣₘ₎ₙ₋₁, cache.M)
+    cache.f₍ₙₒᵣₘ₎ₙ₋₁ = norm(cache.fuₙ₋₁)^cache.nₑₓₚ
+    cache.f₍ₙₒᵣₘ₎₀ = cache.f₍ₙₒᵣₘ₎ₙ₋₁
+    fill!(cache.ℋ, cache.f₍ₙₒᵣₘ₎ₙ₋₁)
 
-  T = eltype(cache.uₙ)
-  cache.σₙ = T(cache.alg.σ_1)
+    T = eltype(cache.uₙ)
+    cache.σₙ = T(cache.alg.σ_1)
 
-  cache.abstol = abstol
-  cache.maxiters = maxiters
-  cache.stats.nf = 1
-  cache.stats.nsteps = 1
-  cache.force_stop = false
-  cache.retcode = ReturnCode.Default
-  return cache
+    cache.abstol = abstol
+    cache.maxiters = maxiters
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    return cache
 end
