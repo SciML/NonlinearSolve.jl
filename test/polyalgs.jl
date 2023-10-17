@@ -24,15 +24,15 @@ sol = solve(prob)
 
 # https://github.com/SciML/NonlinearSolve.jl/issues/187
 
-f(u, p) = 0.5/1.5*log.(u./(1.0.-u)) .- 2.0*u .+1.0
+ff(u, p) = 0.5/1.5*log.(u./(1.0.-u)) .- 2.0*u .+1.0
 
 uspan = (0.02, 0.1)
-prob = IntervalNonlinearProblem(f, uspan)
+prob = IntervalNonlinearProblem(ff, uspan)
 sol = solve(prob)
 @test SciMLBase.successful_retcode(sol)
 
 u0 = 0.06
 p = 2.0
-prob = NonlinearProblem(f, u0, p)
+prob = NonlinearProblem(ff, u0, p)
 solver = solve(prob)
 @test SciMLBase.successful_retcode(sol)
