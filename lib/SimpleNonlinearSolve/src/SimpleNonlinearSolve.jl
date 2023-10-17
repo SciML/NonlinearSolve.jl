@@ -36,7 +36,7 @@ include("ridder.jl")
 include("brent.jl")
 include("dfsane.jl")
 include("ad.jl")
-include("SimpleHalley.jl")
+include("halley.jl")
 include("alefeld.jl")
 include("itp.jl")
 
