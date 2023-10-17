@@ -1,4 +1,4 @@
-# Nonlinear Solutions
+# [Nonlinear Solutions](@id solution)
 
 ```@docs
 SciMLBase.NonlinearSolution

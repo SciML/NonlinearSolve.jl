@@ -1,4 +1,4 @@
-# Nonlinear Problems
+# [Nonlinear Problems](@id problems)
 
 ## The Three Types of Nonlinear Problems
 

@@ -1,4 +1,4 @@
-# Interval Rootfinding Methods (Bracketing Solvers)
+# [Interval Rootfinding Methods (Bracketing Solvers)](@id bracketing)
 
 `solve(prob::IntervalNonlinearProblem,alg;kwargs)`
 
