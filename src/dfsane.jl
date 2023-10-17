@@ -131,7 +131,7 @@ end
 function perform_step!(cache::DFSaneCache{true})
     @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
 
-    f = iip ? (dx, x) -> cache.prob.f(dx, x, cache.p) : (x) -> cache.prob.f(x, cache.p)
+    f = (dx, x) -> cache.prob.f(dx, x, cache.p)
 
     T = eltype(cache.uₙ)
     n = cache.stats.nsteps
@@ -208,7 +208,7 @@ end
 function perform_step!(cache::DFSaneCache{false})
     @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
 
-    f = iip ? (dx, x) -> cache.prob.f(dx, x, cache.p) : (x) -> cache.prob.f(x, cache.p)
+    f = x -> cache.prob.f(x, cache.p)
 
     T = eltype(cache.uₙ)
     n = cache.stats.nsteps
