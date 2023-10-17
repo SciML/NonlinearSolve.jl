@@ -1,7 +1,7 @@
 # Put in a separate page so it can be used by SciMLDocs.jl
 
 pages = ["index.md",
-    "tutorials/getting_started.md"
+    "tutorials/getting_started.md",
     "Tutorials" => Any[
         "tutorials/code_optimization.md",
         "tutorials/large_systems.md",
