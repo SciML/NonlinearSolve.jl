@@ -146,13 +146,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane,
 
     p = prob.p
     T = eltype(uₙ)
-    σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σₘᵢₙ), T(alg.σₘₐₓ), T(alg.γ), T(alg.τₘᵢₙ), T(alg.τₘₐₓ)
+    σₘᵢₙ, σₘₐₓ, γ, τₘᵢₙ, τₘₐₓ = T(alg.σ_min), T(alg.σ_max), T(alg.γ), T(alg.τ_min), T(alg.τ_max)
     α₁ = one(T)
     γ = T(alg.γ)
     f₍ₙₒᵣₘ₎ₙ₋₁ = α₁
-    σₙ = T(alg.σ₁)
+    σₙ = T(alg.σ_1)
     M = alg.M
-    nₑₓₚ = alg.nₑₓₚ
+    nₑₓₚ = alg.n_exp
     𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
 
     if iip
@@ -187,7 +187,7 @@ function perform_step!(cache::DFSaneCache{true})
     # Line search direction
     @. cache.𝒹 = -σₙ * cache.fuₙ₋₁
 
-    η = alg.ηₛ(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
+    η = alg.η_strategy(f₍ₙₒᵣₘ₎₀, n, cache.uₙ₋₁, cache.fuₙ₋₁)
 
     f̄ = maximum(cache.ℋ)
     α₊ = α₁
