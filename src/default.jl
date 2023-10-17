@@ -142,20 +142,33 @@ end
 
 # This version doesn't allocate all the caches!
 @generated function SciMLBase.__solve(prob::NonlinearProblem{uType, iip},
-    alg::FastShortcutNonlinearPolyalg, args...; kwargs...) where {uType, iip}
+    alg::Union{FastShortcutNonlinearPolyalg, RobustMultiNewton}, args...;
+    kwargs...) where {uType, iip}
     calls = [:(@unpack adkwargs, linsolve, precs = alg)]
 
-    algs = [
-        !iip ? :(Klement()) : nothing, # Klement not yet implemented for IIP
-        !iip ? :(Broyden()) : nothing, # Broyden not yet implemented for IIP
-        :(NewtonRaphson(; linsolve, precs, adkwargs...)),
-        :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
-        :(TrustRegion(; linsolve, precs, adkwargs...)),
-        :(TrustRegion(; linsolve, precs,
-            radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...)),
-    ]
+    algs = if parameterless_type(alg) == RobustMultiNewton
+        [
+            :(TrustRegion(; linsolve, precs, adkwargs...)),
+            :(TrustRegion(; linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...)),
+            :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
+            :(TrustRegion(; linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.NLsolve, adkwargs...)),
+            :(TrustRegion(; linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Fan, adkwargs...)),
+        ]
+    else
+        [
+            !iip ? :(Klement()) : nothing, # Klement not yet implemented for IIP
+            !iip ? :(Broyden()) : nothing, # Broyden not yet implemented for IIP
+            :(NewtonRaphson(; linsolve, precs, adkwargs...)),
+            :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
+            :(TrustRegion(; linsolve, precs, adkwargs...)),
+            :(TrustRegion(; linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...)),
+        ]
+    end
     filter!(!isnothing, algs)
-    counter = 1
     sol_syms = [gensym("sol") for i in 1:length(algs)]
     for i in 1:length(algs)
         cur_sol = sol_syms[i]
