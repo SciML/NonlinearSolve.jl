@@ -225,7 +225,8 @@ end
         radius_update_scheme in radius_update_schemes
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, TrustRegion(; autodiff, radius_update_scheme)).u .≈ sqrt(2.0))
+        @test all(solve(probN, TrustRegion(; autodiff, radius_update_scheme)).u .≈
+                  sqrt(2.0))
     end
 
     # Test that `TrustRegion` passes a test that `NewtonRaphson` fails on.

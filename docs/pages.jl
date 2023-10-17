@@ -2,8 +2,7 @@
 
 pages = ["index.md",
     "tutorials/getting_started.md",
-    "Tutorials" => Any[
-        "tutorials/code_optimization.md",
+    "Tutorials" => Any["tutorials/code_optimization.md",
         "tutorials/large_systems.md",
         "tutorials/small_compile.md",
         "tutorials/termination_conditions.md",
