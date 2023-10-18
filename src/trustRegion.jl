@@ -28,14 +28,14 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
     """
     `RadiusUpdateSchemes.NLsolve`
 
-    The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl) trust region dogleg implementation. 
+    The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl) trust region dogleg implementation.
     """
     NLsolve
 
     """
     `RadiusUpdateSchemes.NocedalWright`
 
-    Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291]. 
+    Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291].
     """
     NocedalWright
 
@@ -97,7 +97,8 @@ for large-scale and numerically-difficult nonlinear systems.
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+    `nothing` which means that a default is selected according to the problem specification!.
+    Valid choices are types from ADTypes.jl.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
     then the Jacobian will not be constructed and instead direct Jacobian-vector products
     `J*v` are computed using forward-mode automatic differentiation or finite differencing
@@ -162,6 +163,13 @@ for large-scale and numerically-difficult nonlinear systems.
     max_shrink_times::Int
 end
 
+function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
+    return TrustRegion{CJ}(ad, alg.linsolve, alg.precs, alg.radius_update_scheme,
+        alg.max_trust_radius, alg.initial_trust_radius, alg.step_threshold,
+        alg.shrink_threshold, alg.expand_threshold, alg.shrink_factor, alg.expand_factor,
+        alg.max_shrink_times)
+end
+
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
     radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
     max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
@@ -222,9 +230,10 @@ end
     stats::NLStats
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, args...;
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-8, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     u_prev = zero(u)
@@ -239,7 +248,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::TrustRegion, 
     u_gauss_newton = zero(u)
 
     loss_new = loss
-    H = zero(J)
+    H = zero(J' * J)
     g = _mutable_zero(fu1)
     shrink_counter = 0
     fu_new = zero(fu1)
@@ -341,7 +350,7 @@ function perform_step!(cache::TrustRegionCache{true})
         mul!(cache.g, J', fu)
         cache.stats.njacs += 1
 
-        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent 
+        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
         # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
         linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu),
             linu = _vec(u_gauss_newton),
@@ -450,12 +459,12 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.make_new_J = false
         end
 
-        # trust region update 
-        if r < 1 // 10 # cache.shrink_threshold 
-            cache.trust_r *= 1 // 2 # cache.shrink_factor 
-        elseif r >= 9 // 10 # cache.expand_threshold 
-            cache.trust_r = 2 * norm(cache.du) # cache.expand_factor * norm(cache.du) 
-        elseif r >= 1 // 2 # cache.p1 
+        # trust region update
+        if r < 1 // 10 # cache.shrink_threshold
+            cache.trust_r *= 1 // 2 # cache.shrink_factor
+        elseif r >= 9 // 10 # cache.expand_threshold
+            cache.trust_r = 2 * norm(cache.du) # cache.expand_factor * norm(cache.du)
+        elseif r >= 1 // 2 # cache.p1
             cache.trust_r = max(cache.trust_r, 2 * norm(cache.du)) # cache.expand_factor * norm(cache.du))
         end
 
