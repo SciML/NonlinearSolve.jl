@@ -2,11 +2,23 @@
 
 These are the native solvers of NonlinearSolve.jl.
 
-## Solver API
+## Core Nonlinear Solvers
 
 ```@docs
 NewtonRaphson
 TrustRegion
+```
+
+## Polyalgorithms
+
+```@docs
+FastShortcutNonlinearPolyalg
+RobustMultiNewton
+```
+
+## Nonlinear Least Squares Solvers
+
+```@docs
 LevenbergMarquardt
 GaussNewton
 ```
