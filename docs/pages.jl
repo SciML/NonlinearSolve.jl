@@ -1,9 +1,11 @@
 # Put in a separate page so it can be used by SciMLDocs.jl
 
 pages = ["index.md",
-    "tutorials/getting_started.md",
-    "Tutorials" => Any["tutorials/code_optimization.md",
-        "tutorials/large_systems.md",
+    "Getting Started with Nonlinear Rootfinding in Julia" => "tutorials/getting_started.md",
+    "Tutorials" => Any[
+        "Code Optimization for Small Nonlinear Systems" => "tutorials/code_optimization.md",
+        "Handling Large Ill-Conditioned and Sparse Systems" => "tutorials/large_systems.md",
+        "Symbolic System Definition and Acceleration via ModelingToolkit" => "tutorials/modelingtoolkit.md",
         "tutorials/small_compile.md",
         "tutorials/termination_conditions.md",
         "tutorials/iterator_interface.md"],
