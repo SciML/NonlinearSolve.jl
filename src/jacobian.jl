@@ -98,6 +98,12 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
     linprob = LinearProblem(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J,
         needsJᵀJ ? _vec(Jᵀfu) : _vec(fu); u0 = _vec(du))
 
+    if alg isa PseudoTransient
+        alpha = convert(eltype(u), alg.alpha_initial)
+        J_new = J - (1 / alpha) * I
+        linprob = LinearProblem(J_new, _vec(fu); u0 = _vec(du))
+    end
+
     weight = similar(u)
     recursivefill!(weight, true)
 
