@@ -1,3 +1,21 @@
+"""
+PseudoTransient{nothing, AutoForwardDiff{0, Bool}, Nothing, typeof(NonlinearSolve.DEFAULT_PRECS), Float64}(AutoForwardDiff{0, Bool}(true), 
+nothing, NonlinearSolve.DEFAULT_PRECS, 0.001)
+
+An implementation of PseudoTransient method that is used to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping to
+integrate an initial value of nonlinear problem until sufficient accuracy in the desired steady-state is achieved to switch over to Newton's method and 
+gain a rapid convergence. This implementation specifically uses "switched evolution relaxation" SER method. For detail information about the time-stepping and algorithm,
+please see the paper: [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations, 
+SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
+
+### Keyword Arguments
+
+- `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small, you are going to need more iterations to converge.
+
+
+
+
+"""
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
