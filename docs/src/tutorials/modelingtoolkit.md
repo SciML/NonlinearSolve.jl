@@ -48,7 +48,7 @@ We can tell MTK to generate a computable form of this analytical Jacobian via `j
 use efficient forms:
 
 ```@example mtk
-prob = NonlinearProblem(ns, guess, ps, jac = true)
+prob = NonlinearProblem(ns, u0, ps, jac = true)
 sol = solve(prob, NewtonRaphson())
 ```
 
@@ -90,7 +90,7 @@ Using ModelingToolkit, we can build and solve the simplified system:
 
 ```@example mtk
 u0 = [u5 .=> 1.0]
-prob = NonlinearProblem(sys, u0, ps)
+prob = NonlinearProblem(sys, u0)
 sol = solve(prob, NewtonRaphson())
 ```
 
