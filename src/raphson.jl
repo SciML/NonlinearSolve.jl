@@ -1,6 +1,6 @@
 """
-    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, adkwargs...)
+    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = LineSearch(),
+        precs = DEFAULT_PRECS, reuse = true, reusetol = 1e-6, adkwargs...)
 
 An advanced NewtonRaphson implementation with support for efficient handling of sparse
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
@@ -29,6 +29,10 @@ for large-scale and numerically-difficult nonlinear systems.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
+  - `reuse`: Determines if the Jacobian is reused between (quasi-)Newton steps. Defaults to
+    `true`. If `true` we check how far we stepped with the same Jacobian, and automatically
+    take a new Jacobian if we stepped more than `reusetol` or if convergence slows or starts
+    to diverge. If `false`, the Jacobian is updated in each step.
 """
 @concrete struct NewtonRaphson{CJ, AD} <:
                  AbstractNewtonAlgorithm{CJ, AD}
@@ -36,24 +40,38 @@ for large-scale and numerically-difficult nonlinear systems.
     linsolve
     precs
     linesearch
+    reusetol
+    reuse::Bool
 end
 
 function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
-    return NewtonRaphson{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
+    return NewtonRaphson{CJ}(ad,
+        alg.linsolve,
+        alg.precs,
+        alg.linesearch,
+        alg.reusetol,
+        alg.reuse)
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+    linesearch = LineSearch(), precs = DEFAULT_PRECS, reuse = true, reusetol = 1e-6,
+    adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
+    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad,
+        linsolve,
+        precs,
+        linesearch,
+        reusetol,
+        reuse)
 end
 
 @concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
-    u_prev
+    uprev
+    Δu
     fu1
     fu2
     du
@@ -81,6 +99,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
+    uprev = deepcopy(u0)
+    Δu = zero(u0)
+
     fu1 = evaluate_f(prob, u)
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
@@ -88,15 +109,30 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
 
-    return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
+    return NewtonRaphsonCache{iip}(f, alg, u, uprev, Δu, fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du = cache
-    jacobian!!(J, cache)
+    @unpack u, uprev, Δu, fu1, f, p, alg, J, linsolve, du = cache
+    @unpack reuse = alg
+
+    if reuse
+        # check how far we stepped
+        @. Δu += u - uprev
+        update = cache.internalnorm(Δu) > alg.reusetol
+        if update || cache.stats.njacs == 0
+            jacobian!!(J, cache)
+            cache.stats.njacs += 1
+            Δu .*= false
+        end
+    else
+        jacobian!!(J, cache)
+        cache.stats.njacs += 1
+    end
+    cache.uprev .= u
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
@@ -112,16 +148,32 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 
     @. u_prev = u
     cache.stats.nf += 1
-    cache.stats.njacs += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
     return nothing
 end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
+    @unpack u, uprev, Δu, fu1, f, p, alg, linsolve = cache
+    @unpack reuse = alg
 
-    cache.J = jacobian!!(cache.J, cache)
+    if reuse
+        # check how far we stepped
+        cache.Δu += u - uprev
+        update = cache.internalnorm(Δu) > alg.reusetol
+        if update || cache.stats.njacs == 0
+            cache.J = jacobian!!(cache.J, cache)
+            cache.stats.njacs += 1
+            cache.Δu *= false
+        end
+    else
+        cache.J = jacobian!!(cache.J, cache)
+        # cache.Δu *= false
+        cache.stats.njacs += 1
+    end
+
+    cache.uprev = u
+
     # u = u - J \ fu
     if linsolve === nothing
         cache.du = fu1 / cache.J
@@ -140,7 +192,6 @@ function perform_step!(cache::NewtonRaphsonCache{false})
 
     cache.u_prev = cache.u
     cache.stats.nf += 1
-    cache.stats.njacs += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
     return nothing

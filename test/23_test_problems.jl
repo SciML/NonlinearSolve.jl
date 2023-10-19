@@ -30,12 +30,15 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
     end
 end
 
-@testset "NewtonRaphson 23 Test Problems" begin
-    alg_ops = (NewtonRaphson(),)
+# NewtonRaphson
+@testset "NewtonRaphson test problem library" begin
+    alg_ops = (NewtonRaphson(; reuse = false),
+        NewtonRaphson(; reuse = true, reusetol = 1e-6))
 
     # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 6]
+    broken_tests[alg_ops[2]] = [1, 6]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
