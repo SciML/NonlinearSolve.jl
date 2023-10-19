@@ -82,7 +82,7 @@ equations(sys)
 
 How did it do this? Let's look at the `observed` to see the relationships that it found:
 
-```@example
+```@example mtk
 observed(sys)
 ```
 
