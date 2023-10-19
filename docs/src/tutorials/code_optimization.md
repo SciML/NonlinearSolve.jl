@@ -1,6 +1,6 @@
-# [Code Optimization for Solving Nonlinear Systems](@id code_optimization)
+# [Code Optimization for Small Nonlinear Systems in Julia](@id code_optimization)
 
-## Code Optimization in Julia
+## General Code Optimization in Julia
 
 Before starting this tutorial, we recommend the reader to check out one of the
 many tutorials for optimization Julia code. The following is an incomplete
@@ -29,30 +29,145 @@ Let's start with small systems.
 
 ## Optimizing Nonlinear Solver Code for Small Systems
 
-```@example
-using NonlinearSolve, StaticArrays
+Take for example a prototypical small nonlinear solver code in its out-of-place form:
 
-f(u, p) = u .* u .- p
-u0 = @SVector[1.0, 1.0]
-p = 2.0
-probN = NonlinearProblem(f, u0, p)
-sol = solve(probN, NewtonRaphson(), reltol = 1e-9)
-```
+```@example small_opt
+using NonlinearSolve
 
-## Using Jacobian Free Newton Krylov (JNFK) Methods
-
-If we want to solve the first example, without constructing the entire Jacobian
-
-```@example
-using NonlinearSolve, LinearSolve
-
-function f!(res, u, p)
-    @. res = u * u - p
+function f(u, p) 
+    u .* u .- p
 end
 u0 = [1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f!, u0, p)
-
-linsolve = LinearSolve.KrylovJL_GMRES()
-sol = solve(prob, NewtonRaphson(; linsolve), reltol = 1e-9)
+prob = NonlinearProblem(f, u0, p)
+sol = solve(prob, NewtonRaphson())
 ```
+
+We can use BenchmarkTools.jl to get more precise timings:
+
+```@example small_opt
+using BenchmarkTools
+
+@btime solve(prob, NewtonRaphson())
+```
+
+Note that this way of writing the function is a shorthand for:
+
+```@example small_opt
+function f(u, p) 
+    [u[1] * u[1] - p, u[2] * u[2] - p]
+end
+```
+
+where the function `f` returns an array. This is a common pattern from things like MATLAB's `fzero`
+or SciPy's `scipy.optimize.fsolve`. However, by design it's very slow. I nthe benchmark you can see
+that there are many allocations. These allocations cause the memory allocator to take more time
+than the actual numerics itself, which is one of the reasons why codes from MATLAB and Python end up
+slow.
+
+In order to avoid this issue, we can use a non-allocating "in-place" approach. Written out by hand,
+this looks like:
+
+```@example small_opt
+function f(du, u, p) 
+    du[1] = u[1] * u[1] - p
+    du[2] = u[2] * u[2] - p
+    nothing
+end
+
+prob = NonlinearProblem(f, u0, p)
+@btime  sol = solve(prob, NewtonRaphson())
+```
+
+Notice how much faster this already runs! We can make this code even simpler by using
+the `.=` in-place broadcasting.
+
+```@example small_opt
+function f(du, u, p) 
+    du .= u .* u .- p
+end
+
+@btime  sol = solve(prob, NewtonRaphson())
+```
+
+## Further Optimizations for Small Nonlinear Solves with Static Arrays and SimpleNonlinearSolve
+
+Allocations are only expensive if they are “heap allocations”. For a more
+in-depth definition of heap allocations,
+[there are many sources online](http://net-informations.com/faq/net/stack-heap.htm).
+But a good working definition is that heap allocations are variable-sized slabs
+of memory which have to be pointed to, and this pointer indirection costs time.
+Additionally, the heap has to be managed, and the garbage controllers has to
+actively keep track of what's on the heap.
+
+However, there's an alternative to heap allocations, known as stack allocations.
+The stack is statically-sized (known at compile time) and thus its accesses are
+quick. Additionally, the exact block of memory is known in advance by the
+compiler, and thus re-using the memory is cheap. This means that allocating on
+the stack has essentially no cost!
+
+Arrays have to be heap allocated because their size (and thus the amount of
+memory they take up) is determined at runtime. But there are structures in
+Julia which are stack-allocated. `struct`s for example are stack-allocated
+“value-type”s. `Tuple`s are a stack-allocated collection. The most useful data
+structure for NonlinearSolve though is the `StaticArray` from the package
+[StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl). These arrays
+have their length determined at compile-time. They are created using macros
+attached to normal array expressions, for example:
+
+```@example small_opt
+using StaticArrays
+A = SA[2.0, 3.0, 5.0]
+typeof(A) # SVector{3, Float64} (alias for SArray{Tuple{3}, Float64, 1, 3})
+```
+
+Notice that the `3` after `SVector` gives the size of the `SVector`. It cannot
+be changed. Additionally, `SVector`s are immutable, so we have to create a new
+`SVector` to change values. But remember, we don't have to worry about
+allocations because this data structure is stack-allocated. `SArray`s have
+numerous extra optimizations as well: they have fast matrix multiplication,
+fast QR factorizations, etc. which directly make use of the information about
+the size of the array. Thus, when possible, they should be used.
+
+Unfortunately, static arrays can only be used for sufficiently small arrays.
+After a certain size, they are forced to heap allocate after some instructions
+and their compile time balloons. Thus, static arrays shouldn't be used if your
+system has more than ~20 variables. Additionally, only the native Julia
+algorithms can fully utilize static arrays.
+
+Let's ***optimize our nonlinear solve using static arrays***. Note that in this case, we
+want to use the out-of-place allocating form, but this time we want to output
+a static array. Doing it with broadcasting looks like:
+
+```@example small_opt
+function f_SA(u, p) 
+    u .* u .- p
+end
+u0 = SA[1.0, 1.0]
+p = 2.0
+prob = NonlinearProblem(f_SA, u0, p)
+@btime solve(prob, NewtonRaphson())
+```
+
+Note that only change here is that `u0` is made into a StaticArray! If we needed to write `f` out
+for a more complex nonlinear case, then we'd simply do the following:
+
+```@example small_opt
+function f_SA(u, p) 
+    SA[u[1] * u[1] - p, u[2] * u[2] - p]
+end
+
+@btime solve(prob, NewtonRaphson())
+```
+
+However, notice that this did not give us a speedup but rather a slowdown. This is because many of the
+methods in NonlinearSolve.jl are designed to scale to larger problems, and thus aggressively do things
+like caching which is good for large problems but not good for these smaller problems and static arrays.
+In order to see the full benefit, we need to move to one of the methods from SimpleNonlinearSolve.jl
+which are designed for these small-scale static examples. Let's now use `SimpleNewtonRaphson`:
+
+```@example small_opt
+@btime solve(prob, SimpleNewtonRaphson())
+```
+
+And there we go, around 100ns from our starting point of almost 6μs!

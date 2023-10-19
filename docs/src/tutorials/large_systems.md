@@ -1,6 +1,9 @@
-# [Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl](@id large_systems)
+# [Efficiently Solving Large Sparse Ill-Conditioned Nonlinear Systems in Julia](@id large_systems)
 
-This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving ill-conditioned nonlinear systems requires specializing the linear solver on properties of the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` linear solve and the ``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential equation (BRUSS) using NonlinearSolve.jl.
+This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving ill-conditioned nonlinear systems 
+requires specializing the linear solver on properties of the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` 
+linear solve and the ``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of 
+NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential equation (BRUSS) using NonlinearSolve.jl.
 
 ## Definition of the Brusselator Equation
 
@@ -179,7 +182,9 @@ nothing # hide
 
 Notice that this acceleration does not require the definition of a sparsity
 pattern, and can thus be an easier way to scale for large problems. For more
-information on linear solver choices, see the [linear solver documentation](https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear). `linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
+information on linear solver choices, see the 
+[linear solver documentation](https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear). 
+`linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
 
 !!! note
     
