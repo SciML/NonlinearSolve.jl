@@ -58,7 +58,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     fu = evaluate_f(prob, u)
     J⁻¹ = __init_identity_jacobian(u, fu)
     return GeneralBroydenCache{iip}(f, alg, u, _mutable_zero(u), fu, zero(fu),
-        zero(fu), p, J⁻¹, zero(fu'), _mutable_zero(u), false, 0, alg.max_resets,
+        zero(fu), p, J⁻¹, zero(_vec(fu)'), _mutable_zero(u), false, 0, alg.max_resets,
         maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
 end
@@ -67,7 +67,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
     @unpack f, p, du, fu, fu2, dfu, u, J⁻¹, J⁻¹df, J⁻¹₂ = cache
     T = eltype(u)
 
-    mul!(du, J⁻¹, -fu)
+    mul!(_vec(du), J⁻¹, -_vec(fu))
     α = perform_linesearch!(cache.lscache, u, du)
     axpy!(α, du, u)
     f(fu2, u, p)
@@ -85,10 +85,10 @@ function perform_step!(cache::GeneralBroydenCache{true})
         J⁻¹[diagind(J⁻¹)] .= T(1)
         cache.resets += 1
     else
-        mul!(J⁻¹df, J⁻¹, dfu)
-        mul!(J⁻¹₂, du', J⁻¹)
+        mul!(_vec(J⁻¹df), J⁻¹, _vec(dfu))
+        mul!(J⁻¹₂, _vec(du)', J⁻¹)
         du .= (du .- J⁻¹df) ./ (dot(du, J⁻¹df) .+ T(1e-5))
-        mul!(J⁻¹, reshape(du, :, 1), J⁻¹₂, 1, 1)
+        mul!(J⁻¹, _vec(du), J⁻¹₂, 1, 1)
     end
     fu .= fu2
 
@@ -99,7 +99,7 @@ function perform_step!(cache::GeneralBroydenCache{false})
     @unpack f, p = cache
     T = eltype(cache.u)
 
-    cache.du = cache.J⁻¹ * -cache.fu
+    cache.du = _restructure(cache.du, cache.J⁻¹ * -_vec(cache.fu))
     α = perform_linesearch!(cache.lscache, cache.u, cache.du)
     cache.u = cache.u .+ α * cache.du
     cache.fu2 = f(cache.u, p)
@@ -119,10 +119,10 @@ function perform_step!(cache::GeneralBroydenCache{false})
         cache.J⁻¹ = J⁻¹
         cache.resets += 1
     else
-        cache.J⁻¹df = cache.J⁻¹ * cache.dfu
-        cache.J⁻¹₂ = cache.du' * cache.J⁻¹
+        cache.J⁻¹df = _restructure(cache.J⁻¹df, cache.J⁻¹ * _vec(cache.dfu))
+        cache.J⁻¹₂ = _vec(cache.du)' * cache.J⁻¹
         cache.du = (cache.du .- cache.J⁻¹df) ./ (dot(cache.du, cache.J⁻¹df) .+ T(1e-5))
-        cache.J⁻¹ = cache.J⁻¹ .+ cache.du * cache.J⁻¹₂
+        cache.J⁻¹ = cache.J⁻¹ .+ _vec(cache.du) * cache.J⁻¹₂
     end
     cache.fu = cache.fu2
 

@@ -97,7 +97,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 
     # Line Search
     α = perform_linesearch!(cache.lscache, u, du)
-    axpy!(α, du, u)
+    axpy!(-α, du, u)
     f(cache.fu1, u, p)
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)

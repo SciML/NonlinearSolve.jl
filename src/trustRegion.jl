@@ -419,7 +419,8 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.loss_new = get_loss(fu_new)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
-    cache.r = -(loss - cache.loss_new) / (dot(_vec(du), _vec(g)) + dot(_vec(du), H, _vec(du)) / 2)
+    cache.r = -(loss - cache.loss_new) /
+              (dot(_vec(du), _vec(g)) + dot(_vec(du), H, _vec(du)) / 2)
     @unpack r = cache
 
     if radius_update_scheme === RadiusUpdateSchemes.Simple

@@ -301,7 +301,9 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     else
         linres = dolinsolve(alg.precs, linsolve;
             b = _mutable(_vec(J' *  #((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
-                         _vec(((2 / h) .* ((_vec(f(u .+ h .* _restructure(u,v), p)) .- _vec(fu1)) ./ h .- J * _vec(v)))))),
+                              _vec(((2 / h) .*
+                                    ((_vec(f(u .+ h .* _restructure(u, v), p)) .-
+                                      _vec(fu1)) ./ h .- J * _vec(v)))))),
             linu = _vec(cache.a), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
@@ -311,7 +313,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
     if 2 * norm(cache.a) ≤ α_geodesic * norm_v
-        cache.δ = _restructure(cache.δ,_vec(v) .+ _vec(cache.a) ./ 2)
+        cache.δ = _restructure(cache.δ, _vec(v) .+ _vec(cache.a) ./ 2)
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
         cache.stats.nf += 1
@@ -327,7 +329,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
                 return nothing
             end
             cache.fu1 = fu_new
-            cache.v_old = _restructure(cache.v_old,v)
+            cache.v_old = _restructure(cache.v_old, v)
             cache.norm_v_old = norm_v
             cache.loss_old = loss
             cache.λ_factor = 1 / cache.damping_decrease_factor
