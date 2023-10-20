@@ -35,8 +35,8 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     if chunk_size !== missing || standardtag !== missing || diff_type !== missing ||
        autodiff !== missing
         Base.depwarn("`chunk_size`, `standardtag`, `diff_type`, \
-            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed in\
-             v3. Update your code to directly specify autodiff=<ADTypes>",
+            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed \
+             in v3. Update your code to directly specify autodiff=<ADTypes>",
             :default_adargs_to_adtype)
     end
     chunk_size === missing && (chunk_size = Val{0}())
@@ -210,4 +210,14 @@ function __get_concrete_algorithm(alg, prob)
         AutoForwardDiff{ForwardDiff.pickchunksize(length(prob.u0)), Nothing}(nothing)
     end
     return set_ad(alg, ad)
+end
+
+__init_identity_jacobian(u::Number, _) = u
+function __init_identity_jacobian(u, fu)
+    return convert(parameterless_type(_mutable(u)),
+        Matrix{eltype(u)}(I, length(fu), length(u)))
+end
+function __init_identity_jacobian(u::StaticArray, fu)
+    return convert(MArray{Tuple{length(fu), length(u)}},
+        Matrix{eltype(u)}(I, length(fu), length(u)))
 end

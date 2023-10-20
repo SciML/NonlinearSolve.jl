@@ -26,6 +26,8 @@ import UnPack: @unpack
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
 
+abstract type AbstractNonlinearSolveLineSearchAlgorithm end
+
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
@@ -105,6 +107,6 @@ export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, Pseu
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
-export LineSearch
+export LineSearch, LiFukushimaLineSearch
 
 end # module

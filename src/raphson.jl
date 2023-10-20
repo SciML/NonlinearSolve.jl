@@ -82,7 +82,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
 
     return NewtonRaphsonCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
-        NLStats(1, 0, 0, 0, 0), LineSearchCache(alg.linesearch, f, u, p, fu1, Val(iip)))
+        NLStats(1, 0, 0, 0, 0),
+        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)))
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -96,7 +97,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 
     # Line Search
     α = perform_linesearch!(cache.lscache, u, du)
-    @. u = u - α * du
+    axpy!(α, du, u)
     f(cache.fu1, u, p)
 
     cache.internalnorm(fu1) < cache.abstol && (cache.force_stop = true)

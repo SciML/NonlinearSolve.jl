@@ -8,19 +8,28 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
         x = dict["start"]
         res = similar(x)
         nlprob = NonlinearProblem(problem, x)
-        @testset "$(dict["title"])" begin
+        @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
-                sol = solve(nlprob, alg, abstol = 1e-18, reltol = 1e-18)
-                problem(res, sol.u, nothing)
-                broken = idx in broken_tests[alg] ? true : false
-                @test norm(res)≤ϵ broken=broken
+                try
+                    sol = solve(nlprob, alg, abstol = 1e-18, reltol = 1e-18)
+                    problem(res, sol.u, nothing)
+                    broken = idx in broken_tests[alg] ? true : false
+                    @test norm(res)≤ϵ broken=broken
+                catch
+                    broken = idx in broken_tests[alg] ? true : false
+                    if broken
+                        @test false broken=true
+                    else
+                        @test 1 == 2
+                    end
+                end
             end
         end
     end
 end
 
 # NewtonRaphson
-@testset "NewtonRaphson test problem library" begin
+@testset "NewtonRaphson 23 Test Problems" begin
     alg_ops = (NewtonRaphson(),)
 
     # dictionary with indices of test problems where method does not converge to small residual
@@ -30,7 +39,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testset "TrustRegion test problem library" begin
+@testset "TrustRegion 23 Test Problems" begin
     alg_ops = (TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Simple),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Hei),
@@ -50,7 +59,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testset "TrustRegion test problem library" begin
+@testset "LevenbergMarquardt 23 Test Problems" begin
     alg_ops = (LevenbergMarquardt(; linsolve = NormalCholeskyFactorization()),
         LevenbergMarquardt(; α_geodesic = 0.1, linsolve = NormalCholeskyFactorization()))
 
@@ -62,12 +71,24 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-# DFSane
-@testset "DFSane test problem library" begin
+@testset "DFSane 23 Test Problems" begin
     alg_ops = (DFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 3, 5, 6, 8, 12, 13, 14, 21]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
+
+@testset "GeneralBroyden 23 Test Problems" begin
+    alg_ops = (GeneralBroyden(),
+        GeneralBroyden(; linesearch = LiFukushimaLineSearch(; beta = 0.1)),
+        GeneralBroyden(; linesearch = BackTracking()))
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 3, 4, 5, 6, 8, 11, 12, 13, 14, 21]
+    broken_tests[alg_ops[2]] = [1, 2, 3, 4, 5, 6, 9, 11, 13, 22]
+    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 8, 11, 12, 13, 14, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
