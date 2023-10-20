@@ -209,21 +209,22 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
-    mul!(cache.u_tmp, J', fu1)
+    mul!(_vec(cache.u_tmp), J', _vec(fu1))
     @. cache.mat_tmp = JᵀJ + λ * DᵀD
     linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
         b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    @. cache.v = -cache.du
+    _vec(cache.v) .= .-_vec(cache.du)
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, α_geodesic, h = cache
-    f(cache.fu_tmp, u .+ h .* v, p)
+    _vec(cache.du) .= _vec(u) .+ h .* _vec(v)
+    f(cache.fu_tmp, cache.du, p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
-    mul!(cache.Jv, J, v)
+    mul!(_vec(cache.Jv), J, _vec(v))
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
-    mul!(cache.u_tmp, J', cache.fu_tmp)
+    mul!(_vec(cache.u_tmp), J', _vec(cache.fu_tmp))
     # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
     linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_tmp),
         linu = _vec(cache.du), p = p, reltol = cache.abstol)
@@ -235,7 +236,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
     if 2 * norm(cache.a) ≤ α_geodesic * norm_v
-        @. cache.δ = v + cache.a / 2
+        _vec(cache.δ) .= _vec(v) .+ _vec(cache.a) ./ 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
         cache.stats.nf += 1
@@ -251,7 +252,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
                 return nothing
             end
             cache.fu1 .= cache.fu_tmp
-            cache.v_old .= v
+            _vec(cache.v_old) .= _vec(v)
             cache.norm_v_old = norm_v
             cache.loss_old = loss
             cache.λ_factor = 1 / cache.damping_decrease_factor
