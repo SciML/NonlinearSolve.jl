@@ -86,3 +86,6 @@ end
 @inline _vec(v) = vec(v)
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v
+
+@inline _restructure(y::Number, x::Number) = x
+@inline _restructure(y, x) = ArrayInterface.restructure(y,x)
