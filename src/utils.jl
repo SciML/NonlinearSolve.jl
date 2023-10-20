@@ -74,6 +74,9 @@ end
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v
 
+@inline _restructure(y,x) = restructure(y,x)
+@inline _restructure(y::Number,x::Number) = x
+
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,

@@ -92,7 +92,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
     if needsJᵀJ
         JᵀJ = __init_JᵀJ(J)
         # FIXME: This needs to be handled better for JacVec Operator
-        Jᵀfu = J' * fu
+        Jᵀfu = J' * _vec(fu)
     end
 
     linprob = LinearProblem(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J,

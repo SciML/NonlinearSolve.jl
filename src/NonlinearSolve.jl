@@ -5,6 +5,7 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
 end
 
 using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
+import ArrayInterface: restructure
 import ForwardDiff
 
 import ADTypes: AbstractFiniteDifferencesMode
