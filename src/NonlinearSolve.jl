@@ -67,6 +67,7 @@ include("trustRegion.jl")
 include("levenberg.jl")
 include("gaussnewton.jl")
 include("dfsane.jl")
+include("pseudotransient.jl")
 include("jacobian.jl")
 include("ad.jl")
 include("default.jl")
@@ -95,7 +96,7 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
