@@ -82,3 +82,7 @@ function dogleg_method(H, g, Δ)
     tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
     return δsd + tau * δN_δsd
 end
+
+@inline _vec(v) = vec(v)
+@inline _vec(v::Number) = v
+@inline _vec(v::AbstractVector) = v

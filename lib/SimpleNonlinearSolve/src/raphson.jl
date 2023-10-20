@@ -100,7 +100,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = dfx \ fx
+        Δx = ArrayInterface.restructure(fx, dfx \ _vec(fx))
         x -= Δx
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)

@@ -75,7 +75,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                 F = lu(J, check = false)
             end
 
-            tmp = F \ fₙ₋₁
+            tmp = ArrayInterface.restructure(fₙ₋₁, F \ _vec(fₙ₋₁))
             xₙ = xₙ₋₁ - tmp
             fₙ = f(xₙ)
 
@@ -92,10 +92,10 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             Δfₙ = fₙ - fₙ₋₁
 
             # Prevent division by 0
-            denominator = max.(J' .^ 2 * Δxₙ .^ 2, 1e-9)
+            denominator = ArrayInterface.restructure(Δxₙ, max.(J' .^ 2 * _vec(Δxₙ) .^ 2, 1e-9))
 
-            k = (Δfₙ - J * Δxₙ) ./ denominator
-            J += (k * Δxₙ' .* J) * J
+            k = (Δfₙ - ArrayInterface.restructure(Δxₙ, J * _vec(Δxₙ))) ./ denominator
+            J += (_vec(k) * _vec(Δxₙ)' .* J) * J
 
             xₙ₋₁ = xₙ
             fₙ₋₁ = fₙ
