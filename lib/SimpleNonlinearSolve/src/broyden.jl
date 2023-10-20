@@ -58,12 +58,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
     xₙ₋₁ = x
     fₙ₋₁ = fₙ
     for _ in 1:maxiters
-        xₙ = xₙ₋₁ - J⁻¹ * fₙ₋₁
+        xₙ = xₙ₋₁ - _restructure(xₙ₋₁, J⁻¹ * _vec(fₙ₋₁))
         fₙ = f(xₙ)
         Δxₙ = xₙ - xₙ₋₁
         Δfₙ = fₙ - fₙ₋₁
-        J⁻¹Δfₙ = J⁻¹ * Δfₙ
-        J⁻¹ += ((Δxₙ .- J⁻¹Δfₙ) ./ (Δxₙ' * J⁻¹Δfₙ)) * (Δxₙ' * J⁻¹)
+        J⁻¹Δfₙ = _restructure(Δfₙ, J⁻¹ * _vec(Δfₙ))
+        J⁻¹ += _restructure(J⁻¹, ((_vec(Δxₙ) .- _vec(J⁻¹Δfₙ)) ./ (_vec(Δxₙ)' * _vec(J⁻¹Δfₙ))) * (_vec(Δxₙ)' * J⁻¹))
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
