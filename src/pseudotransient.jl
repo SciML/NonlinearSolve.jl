@@ -27,7 +27,6 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small, 
   you are going to need more iterations to converge.
 
