@@ -162,7 +162,7 @@ end
             # FIXME: Broyden and Klement are type unstable
             #        (upstream SimpleNonlinearSolve.jl issue)
             !iip ? :(Klement()) : nothing, # Klement not yet implemented for IIP
-            !iip ? :(Broyden()) : nothing, # Broyden not yet implemented for IIP
+            :(GeneralBroyden()),
             :(NewtonRaphson(; linsolve, precs, adkwargs...)),
             :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
             :(TrustRegion(; linsolve, precs, adkwargs...)),

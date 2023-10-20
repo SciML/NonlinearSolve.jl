@@ -92,7 +92,8 @@ function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip
     g₀ = _mutable_zero(u)
 
     autodiff = if iip && (ls.autodiff isa AutoZygote || ls.autodiff isa AutoSparseZygote)
-        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling back to finite differencing."
+        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling \
+               back to finite differencing."
         AutoFiniteDiff()
     else
         ls.autodiff

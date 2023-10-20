@@ -69,18 +69,21 @@ include("levenberg.jl")
 include("gaussnewton.jl")
 include("dfsane.jl")
 include("pseudotransient.jl")
+include("broyden.jl")
+include("klement.jl")
 include("jacobian.jl")
 include("ad.jl")
 include("default.jl")
 
 import PrecompileTools
 
-@static if VERSION >= v"1.10"
+@static if VERSION ≥ v"1.10-"
     PrecompileTools.@compile_workload begin
         for T in (Float32, Float64)
             prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
+            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
+                nothing)
 
             for alg in precompile_algs
                 solve(prob, alg, abstol = T(1e-2))
@@ -97,7 +100,8 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
+    GeneralBroyden, GeneralKlement
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
