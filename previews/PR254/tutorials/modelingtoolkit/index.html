@@ -20,9 +20,9 @@ ps = [σ =&gt; 10.0
 
 prob = NonlinearProblem(ns, u0, ps)
 sol = solve(prob, NewtonRaphson())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: 3-element Vector{Float64}:
-  0.0
- -5.861075866041436e-17
- -2.1979034497655384e-17</code></pre><h2 id="Symbolic-Derivations-of-Extra-Functions"><a class="docs-heading-anchor" href="#Symbolic-Derivations-of-Extra-Functions">Symbolic Derivations of Extra Functions</a><a id="Symbolic-Derivations-of-Extra-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Symbolic-Derivations-of-Extra-Functions" title="Permalink"></a></h2><p>As a symbolic system, ModelingToolkit can be used to represent the equations and derive new forms. For example, let&#39;s look at the equations:</p><pre><code class="language-julia hljs">equations(ns)</code></pre><p class="math-container">\[ \begin{align}
+ 0.0
+ 0.0
+ 0.0</code></pre><h2 id="Symbolic-Derivations-of-Extra-Functions"><a class="docs-heading-anchor" href="#Symbolic-Derivations-of-Extra-Functions">Symbolic Derivations of Extra Functions</a><a id="Symbolic-Derivations-of-Extra-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Symbolic-Derivations-of-Extra-Functions" title="Permalink"></a></h2><p>As a symbolic system, ModelingToolkit can be used to represent the equations and derive new forms. For example, let&#39;s look at the equations:</p><pre><code class="language-julia hljs">equations(ns)</code></pre><p class="math-container">\[ \begin{align}
 0 =&amp; \left(  - x + y \right) \sigma \\
 0 =&amp;  - y + x \left(  - z + \rho \right) \\
 0 =&amp; x y - z \beta
@@ -38,9 +38,9 @@ y &amp; x &amp;  - \beta \\
 \end{equation}
  \]</p><p>We can tell MTK to generate a computable form of this analytical Jacobian via <code>jac = true</code> to help the solver use efficient forms:</p><pre><code class="language-julia hljs">prob = NonlinearProblem(ns, u0, ps, jac = true)
 sol = solve(prob, NewtonRaphson())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: 3-element Vector{Float64}:
-  0.0
- -5.861075866041436e-17
- -2.1979034497655384e-17</code></pre><h2 id="Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing"><a class="docs-heading-anchor" href="#Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing">Symbolic Simplification of Nonlinear Systems via Tearing</a><a id="Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing-1"></a><a class="docs-heading-anchor-permalink" href="#Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing" title="Permalink"></a></h2><p>One of the major reasons for using ModelingToolkit is to allow structural simplification of the systems. It&#39;s very easy to write down a mathematical model that, in theory, could be solved more simply. Let&#39;s take a look at a quick system:</p><pre><code class="language-julia hljs">@variables u1 u2 u3 u4 u5
+ 0.0
+ 0.0
+ 0.0</code></pre><h2 id="Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing"><a class="docs-heading-anchor" href="#Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing">Symbolic Simplification of Nonlinear Systems via Tearing</a><a id="Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing-1"></a><a class="docs-heading-anchor-permalink" href="#Symbolic-Simplification-of-Nonlinear-Systems-via-Tearing" title="Permalink"></a></h2><p>One of the major reasons for using ModelingToolkit is to allow structural simplification of the systems. It&#39;s very easy to write down a mathematical model that, in theory, could be solved more simply. Let&#39;s take a look at a quick system:</p><pre><code class="language-julia hljs">@variables u1 u2 u3 u4 u5
 eqs = [
     0 ~ u1 - sin(u5),
     0 ~ u2 - cos(u1),
