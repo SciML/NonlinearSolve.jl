@@ -562,9 +562,9 @@ version = "0.21.4"
 
 [[deps.JuliaFormatter]]
 deps = ["CSTParser", "CommonMark", "DataStructures", "Glob", "Pkg", "PrecompileTools", "Tokenize"]
-git-tree-sha1 = "80031f6e58b09b0de4553bf63d9a36ec5db57967"
+git-tree-sha1 = "0bac3374ff3aa798148669ecb5559ba20c8b0e73"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
-version = "1.0.39"
+version = "1.0.40"
 
 [[deps.JumpProcesses]]
 deps = ["ArrayInterface", "DataStructures", "DiffEqBase", "DocStringExtensions", "FunctionWrappers", "Graphs", "LinearAlgebra", "Markdown", "PoissonRandom", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "SciMLBase", "StaticArrays", "TreeViews", "UnPack"]
@@ -1092,9 +1092,9 @@ version = "0.6.39"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "ChainRulesCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces", "ZygoteRules"]
-git-tree-sha1 = "6134c8970f82f23c43d3580d79c3e47acf232083"
+git-tree-sha1 = "9c4f861661e72d9257834d8e517d4511e91ca43b"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.4.1"
+version = "2.4.2"
 
     [deps.SciMLBase.extensions]
     SciMLBasePyCallExt = "PyCall"
