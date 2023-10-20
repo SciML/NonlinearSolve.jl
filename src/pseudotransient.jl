@@ -28,7 +28,7 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small, 
-  you are going to need more iterations to converge.
+    you are going to need more iterations to converge but it can be more stable.
 
 
 
