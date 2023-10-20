@@ -2,8 +2,7 @@
 
 pages = ["index.md",
     "Getting Started with Nonlinear Rootfinding in Julia" => "tutorials/getting_started.md",
-    "Tutorials" => Any[
-        "Code Optimization for Small Nonlinear Systems" => "tutorials/code_optimization.md",
+    "Tutorials" => Any["Code Optimization for Small Nonlinear Systems" => "tutorials/code_optimization.md",
         "Handling Large Ill-Conditioned and Sparse Systems" => "tutorials/large_systems.md",
         "Symbolic System Definition and Acceleration via ModelingToolkit" => "tutorials/modelingtoolkit.md",
         "tutorials/small_compile.md",

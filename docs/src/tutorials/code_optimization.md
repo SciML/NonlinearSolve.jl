@@ -34,7 +34,7 @@ Take for example a prototypical small nonlinear solver code in its out-of-place 
 ```@example small_opt
 using NonlinearSolve
 
-function f(u, p) 
+function f(u, p)
     u .* u .- p
 end
 u0 = [1.0, 1.0]
@@ -54,7 +54,7 @@ using BenchmarkTools
 Note that this way of writing the function is a shorthand for:
 
 ```@example small_opt
-function f(u, p) 
+function f(u, p)
     [u[1] * u[1] - p, u[2] * u[2] - p]
 end
 ```
@@ -69,25 +69,25 @@ In order to avoid this issue, we can use a non-allocating "in-place" approach. W
 this looks like:
 
 ```@example small_opt
-function f(du, u, p) 
+function f(du, u, p)
     du[1] = u[1] * u[1] - p
     du[2] = u[2] * u[2] - p
     nothing
 end
 
 prob = NonlinearProblem(f, u0, p)
-@btime  sol = solve(prob, NewtonRaphson())
+@btime sol = solve(prob, NewtonRaphson())
 ```
 
 Notice how much faster this already runs! We can make this code even simpler by using
 the `.=` in-place broadcasting.
 
 ```@example small_opt
-function f(du, u, p) 
+function f(du, u, p)
     du .= u .* u .- p
 end
 
-@btime  sol = solve(prob, NewtonRaphson())
+@btime sol = solve(prob, NewtonRaphson())
 ```
 
 ## Further Optimizations for Small Nonlinear Solves with Static Arrays and SimpleNonlinearSolve
@@ -140,7 +140,7 @@ want to use the out-of-place allocating form, but this time we want to output
 a static array. Doing it with broadcasting looks like:
 
 ```@example small_opt
-function f_SA(u, p) 
+function f_SA(u, p)
     u .* u .- p
 end
 u0 = SA[1.0, 1.0]
@@ -153,7 +153,7 @@ Note that only change here is that `u0` is made into a StaticArray! If we needed
 for a more complex nonlinear case, then we'd simply do the following:
 
 ```@example small_opt
-function f_SA(u, p) 
+function f_SA(u, p)
     SA[u[1] * u[1] - p, u[2] * u[2] - p]
 end
 
