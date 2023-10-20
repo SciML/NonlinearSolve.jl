@@ -172,7 +172,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     else
         d = similar(u)
         d .= min_damping_D
-        DᵀD = Diagonal(d)
+        DᵀD = Diagonal(_vec(d))
     end
 
     loss = internalnorm(fu1)
@@ -289,7 +289,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
         cache.v = -cache.mat_tmp \ (J' * fu1)
     else
         linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
-            b = _vec(J' * fu1), linu = _vec(cache.v), p, reltol = cache.abstol)
+            b = _vec(J' * _vec(fu1)), linu = _vec(cache.v), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
 
@@ -301,7 +301,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     else
         linres = dolinsolve(alg.precs, linsolve;
             b = _mutable(_vec(J' *
-                              ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
+                         _vec(((2 / h) .* (_vec(f(u .+ h .* _restructure(u,v), p)) .- _vec(fu1) ./ h .- J * _vec(v)))))),
             linu = _vec(cache.a), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
