@@ -311,7 +311,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
     # Require acceptable steps to satisfy the following condition.
     norm_v = norm(v)
     if 2 * norm(cache.a) ≤ α_geodesic * norm_v
-        cache.δ = v .+ cache.a ./ 2
+        cache.δ = _restructure(cache.δ,_vec(v) .+ _vec(cache.a) ./ 2)
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
         cache.stats.nf += 1
@@ -327,7 +327,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
                 return nothing
             end
             cache.fu1 = fu_new
-            cache.v_old = v
+            cache.v_old = _restructure(cache.v_old,v)
             cache.norm_v_old = norm_v
             cache.loss_old = loss
             cache.λ_factor = 1 / cache.damping_decrease_factor
