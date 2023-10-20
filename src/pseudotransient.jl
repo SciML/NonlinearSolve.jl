@@ -1,6 +1,6 @@
 """
-PseudoTransient{nothing, AutoForwardDiff{0, Bool}, Nothing, typeof(NonlinearSolve.DEFAULT_PRECS), Float64}(AutoForwardDiff{0, Bool}(true), 
-nothing, NonlinearSolve.DEFAULT_PRECS, 0.001)
+    PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
 
 An implementation of PseudoTransient method that is used to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping to
 integrate an initial value of nonlinear problem until sufficient accuracy in the desired steady-state is achieved to switch over to Newton's method and 
