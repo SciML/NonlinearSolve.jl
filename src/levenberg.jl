@@ -218,8 +218,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, α_geodesic, h = cache
-    _vec(cache.du) .= _vec(u) .+ h .* _vec(v)
-    f(cache.fu_tmp, cache.du, p)
+    _vec(cache.u_tmp) .= _vec(u) .+ h .* _vec(v)
+    f(cache.fu_tmp, cache.u_tmp, p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
     mul!(_vec(cache.Jv), J, _vec(v))
