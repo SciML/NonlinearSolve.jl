@@ -11,7 +11,7 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   [8913a72c] NonlinearSolve v2.3.0 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
   [c100e077] NonlinearSolveMINPACK v0.1.4
   [e9a6253c] SciMLNLSolve v0.1.9
-  [727e6d20] SimpleNonlinearSolve v0.1.22
+  [727e6d20] SimpleNonlinearSolve v0.1.23
   [90137ffa] StaticArrays v1.6.5
   [9672c7b4] SteadyStateDiffEq v1.16.1
   [c3572dad] Sundials v4.20.0
@@ -21,10 +21,10 @@ Build Info:
   Official https://julialang.org/ release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+  CPU: 2 × Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-14.0.6 (ORCJIT, icelake-server)
+  LLVM: libLLVM-14.0.6 (ORCJIT, skylake-avx512)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Manifest.toml`
   [47edcb42] ADTypes v0.2.4
   [a4c015fc] ANSIColoredPrinters v0.0.1
@@ -162,7 +162,7 @@ Platform Info:
   [e9a6253c] SciMLNLSolve v0.1.9
   [c0aeaf25] SciMLOperators v0.3.6
   [efcf1570] Setfield v1.1.1
-  [727e6d20] SimpleNonlinearSolve v0.1.22
+  [727e6d20] SimpleNonlinearSolve v0.1.23
   [699a6c99] SimpleTraits v0.9.4
   [ce78b400] SimpleUnPack v1.1.0
   [66db9d55] SnoopPrecompile v1.0.3
@@ -184,7 +184,7 @@ Platform Info:
   [d1185830] SymbolicUtils v1.4.0
   [0c5d862f] Symbolics v5.10.0
   [3783bdb8] TableTraits v1.0.1
-  [bd369af6] Tables v1.11.0
+  [bd369af6] Tables v1.11.1
   [8290d209] ThreadingUtilities v0.5.2
   [a759f4b9] TimerOutputs v0.5.23
   [0796e94c] Tokenize v0.5.25
@@ -251,4 +251,4 @@ Platform Info:
   [8e850b90] libblastrampoline_jll v5.8.0+0
   [8e850ede] nghttp2_jll v1.48.0+0
   [3f19e933] p7zip_jll v17.4.0+0
-Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v2.3.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v2.3.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Friday 20 October 2023 11:15">Friday 20 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v2.3.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v2.3.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Friday 20 October 2023 17:16">Friday 20 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
