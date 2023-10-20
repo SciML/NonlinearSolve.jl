@@ -214,12 +214,11 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
         b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    _vec(cache.v) .= .-_vec(cache.du)
+    _vec(cache.v) .= -1 .* _vec(cache.du)
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, α_geodesic, h = cache
-    _vec(cache.u_tmp) .= _vec(u) .+ h .* _vec(v)
-    f(cache.fu_tmp, cache.u_tmp, p)
+    f(cache.fu_tmp, _restructure(u, _vec(u) .+ h .* _vec(v)), p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
     mul!(_vec(cache.Jv), J, _vec(v))
@@ -301,8 +300,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
                   _vec(J' * ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))
     else
         linres = dolinsolve(alg.precs, linsolve;
-            b = _mutable(_vec(J' *
-                         _vec(((2 / h) .* (_vec(f(u .+ h .* _restructure(u,v), p)) .- _vec(fu1) ./ h .- J * _vec(v)))))),
+            b = _mutable(_vec(J' *  #((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
+                         _vec(((2 / h) .* ((_vec(f(u .+ h .* _restructure(u,v), p)) .- _vec(fu1)) ./ h .- J * _vec(v)))))),
             linu = _vec(cache.a), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
