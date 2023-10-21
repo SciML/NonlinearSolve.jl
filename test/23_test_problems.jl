@@ -92,3 +92,14 @@ end
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
+
+@testset "GeneralKlement 23 Test Problems" begin
+    alg_ops = (GeneralKlement(),
+        GeneralKlement(; linesearch = BackTracking()))
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 2, 3, 4, 5, 6, 7, 13, 22]
+    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 7, 11, 12, 22]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end

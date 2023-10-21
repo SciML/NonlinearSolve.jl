@@ -52,10 +52,13 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         cache.stats.nsteps += 1
     end
 
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
+    # The solver might have set a different `retcode`
+    if cache.retcode == ReturnCode.Default
+        if cache.stats.nsteps == cache.maxiters
+            cache.retcode = ReturnCode.MaxIters
+        else
+            cache.retcode = ReturnCode.Success
+        end
     end
 
     return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, get_fu(cache);
@@ -85,7 +88,7 @@ import PrecompileTools
             prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
             precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-                nothing)
+                PseudoTransient(), GeneralBroyden(), GeneralKlement(), nothing)
 
             for alg in precompile_algs
                 solve(prob, alg, abstol = T(1e-2))

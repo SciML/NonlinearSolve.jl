@@ -67,6 +67,8 @@ features, but have a bit of overhead on very small problems.
     robustnes on the hard problems.
   - `GeneralBroyden()`: Generalization of Broyden's Quasi-Newton Method with Line Search and
     Automatic Jacobian Resetting. This is a fast method but unstable for most problems!
+  - `GeneralKlement()`: Generalization of Klement's Quasi-Newton Method with Line Search and
+    Automatic Jacobian Resetting. This is a fast method but unstable for most problems!
 
 ### SimpleNonlinearSolve.jl
 

@@ -113,10 +113,7 @@ function perform_step!(cache::GeneralBroydenCache{false})
     cache.dfu = cache.fu2 .- cache.fu
     if cache.resets < cache.max_resets &&
        (all(x -> abs(x) ≤ 1e-12, cache.du) || all(x -> abs(x) ≤ 1e-12, cache.dfu))
-        J⁻¹ = similar(cache.J⁻¹)
-        fill!(J⁻¹, 0)
-        J⁻¹[diagind(J⁻¹)] .= T(1)
-        cache.J⁻¹ = J⁻¹
+        cache.J⁻¹ = __init_identity_jacobian(cache.u, cache.fu)
         cache.resets += 1
     else
         cache.J⁻¹df = _restructure(cache.J⁻¹df, cache.J⁻¹ * _vec(cache.dfu))
