@@ -63,7 +63,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
         Δxₙ = xₙ - xₙ₋₁
         Δfₙ = fₙ - fₙ₋₁
         J⁻¹Δfₙ = _restructure(Δfₙ, J⁻¹ * _vec(Δfₙ))
-        J⁻¹ += _restructure(J⁻¹, ((_vec(Δxₙ) .- _vec(J⁻¹Δfₙ)) ./ (_vec(Δxₙ)' * _vec(J⁻¹Δfₙ))) * (_vec(Δxₙ)' * J⁻¹))
+        J⁻¹ += _restructure(J⁻¹,
+            ((_vec(Δxₙ) .- _vec(J⁻¹Δfₙ)) ./ (_vec(Δxₙ)' * _vec(J⁻¹Δfₙ))) *
+            (_vec(Δxₙ)' * J⁻¹))
 
         if termination_condition(fₙ, xₙ, xₙ₋₁, atol, rtol)
             return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.Success)
