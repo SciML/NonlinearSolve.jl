@@ -8,6 +8,9 @@ These are the native solvers of NonlinearSolve.jl.
 NewtonRaphson
 TrustRegion
 PseudoTransient
+DFSane
+GeneralBroyden
+GeneralKlement
 ```
 
 ## Polyalgorithms

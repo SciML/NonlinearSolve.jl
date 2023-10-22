@@ -81,7 +81,6 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
 end
 
 """
-```julia
     TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
         radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple,
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,

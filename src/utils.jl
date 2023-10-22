@@ -221,3 +221,28 @@ function __init_identity_jacobian(u::StaticArray, fu)
     return convert(MArray{Tuple{length(fu), length(u)}},
         Matrix{eltype(u)}(I, length(fu), length(u)))
 end
+
+# Check Singular Matrix
+_issingular(x::Number) = iszero(x)
+@generated function _issingular(x::T) where {T}
+    hasmethod(issingular, Tuple{T}) && return :(issingular(x))
+    return :(__issingular(x))
+end
+__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(T)))
+__issingular(x) = false ## If SciMLOperator and such
+
+# If factorization is LU then perform that and update the linsolve cache
+# else check if the matrix is singular
+function _try_factorize_and_check_singular!(linsolve, X)
+    if linsolve.cacheval isa LU
+        # LU Factorization was used
+        linsolve.A = X
+        linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
+            linsolve.u)
+        linsolve.isfresh = false
+
+        return !issuccess(linsolve.cacheval), true
+    end
+    return _issingular(X), false
+end
+_try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false

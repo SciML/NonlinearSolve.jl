@@ -1,15 +1,36 @@
+"""
+    GeneralKlement(; max_resets = 5, linsolve = nothing,
+                     linesearch = LineSearch(), precs = DEFAULT_PRECS)
+
+An implementation of `Klement` with line search, preconditioning and customizable linear
+solves.
+
+## Keyword Arguments
+
+  - `max_resets`: the maximum number of resets to perform. Defaults to `5`.
+  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
+    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
+    LinearSolve.jl default algorithm choice. For more information on available algorithm
+    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
+    preconditioners. For more information on specifying preconditioners for LinearSolve
+    algorithms, consult the
+    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
+    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
+    used here directly, and they will be converted to the correct `LineSearch`.
+"""
 @concrete struct GeneralKlement <: AbstractNewtonAlgorithm{false, Nothing}
     max_resets::Int
     linsolve
     precs
     linesearch
-    singular_tolerance
 end
 
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
-    linesearch = LineSearch(), precs = DEFAULT_PRECS, singular_tolerance = nothing)
+    linesearch = LineSearch(), precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return GeneralKlement(max_resets, linsolve, precs, linesearch, singular_tolerance)
+    return GeneralKlement(max_resets, linsolve, precs, linesearch)
 end
 
 @concrete mutable struct GeneralKlementCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -27,7 +48,6 @@ end
     Jᵀ²du
     Jdu
     resets
-    singular_tolerance
     force_stop
     maxiters::Int
     internalnorm
@@ -51,20 +71,20 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralKlemen
     if u isa Number
         linsolve = nothing
     else
+        # For General Julia Arrays default to LU Factorization
+        linsolve_alg = alg.linsolve === nothing && u isa Array ? LUFactorization() :
+                       nothing
         weight = similar(u)
         recursivefill!(weight, true)
         Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
                 nothing)..., weight)
         linprob = LinearProblem(J, _vec(fu); u0 = _vec(fu))
-        linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
+        linsolve = init(linprob, linsolve_alg; alias_A = true, alias_b = true, Pl, Pr,
             linsolve_kwargs...)
     end
 
-    singular_tolerance = alg.singular_tolerance === nothing ? inv(sqrt(eps(eltype(u)))) :
-                         eltype(u)(alg.singular_tolerance)
-
     return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), _mutable_zero(u), p, linsolve,
-        J, zero(J), zero(J), zero(fu), zero(fu), 0, singular_tolerance, false,
+        J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
 end
@@ -73,21 +93,23 @@ function perform_step!(cache::GeneralKlementCache{true})
     @unpack u, fu, f, p, alg, J, linsolve, du = cache
     T = eltype(J)
 
-    # FIXME: How can we do this faster?
-    if cond(J) > cache.singular_tolerance
+    singular, fact_done = _try_factorize_and_check_singular!(linsolve, J)
+
+    if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
             cache.retcode = ReturnCode.Unstable
             return nothing
         end
+        fact_done = false
         fill!(J, zero(T))
         J[diagind(J)] .= T(1)
         cache.resets += 1
     end
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = J, b = -_vec(fu), linu = _vec(du),
-        p, reltol = cache.abstol)
+    linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
+        b = -_vec(fu), linu = _vec(du), p, reltol = cache.abstol)
     cache.linsolve = linres.cache
 
     # Line Search
@@ -108,7 +130,8 @@ function perform_step!(cache::GeneralKlementCache{true})
     mul!(cache.Jᵀ²du, cache.J_cache, cache.Jdu)
     mul!(cache.Jdu, J, _vec(du))
     cache.fu .= cache.fu2 .- cache.fu
-    cache.fu .= (cache.fu .- _restructure(cache.fu, cache.Jdu)) ./ max.(cache.Jᵀ²du, eps(T))
+    cache.fu .= _restructure(cache.fu,
+        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(T)))
     mul!(cache.J_cache, _vec(cache.fu), _vec(du)')
     cache.J_cache .*= J
     mul!(cache.J_cache2, cache.J_cache, J)
@@ -123,14 +146,16 @@ function perform_step!(cache::GeneralKlementCache{false})
     @unpack fu, f, p, alg, J, linsolve = cache
     T = eltype(J)
 
-    # FIXME: How can we do this faster?
-    if cond(J) > cache.singular_tolerance
+    singular, fact_done = _try_factorize_and_check_singular!(linsolve, J)
+
+    if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
             cache.retcode = ReturnCode.Unstable
             return nothing
         end
-        cache.J = __init_identity_jacobian(u, fu)
+        fact_done = false
+        cache.J = __init_identity_jacobian(cache.u, fu)
         cache.resets += 1
     end
 
@@ -138,8 +163,8 @@ function perform_step!(cache::GeneralKlementCache{false})
     if linsolve === nothing
         cache.du = -fu / cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = J, b = -_vec(fu),
-            linu = _vec(cache.du), p, reltol = cache.abstol)
+        linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
+            b = -_vec(fu), linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
 
@@ -161,7 +186,8 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.Jᵀ²du = cache.J_cache * cache.Jdu
     cache.Jdu = J * _vec(cache.du)
     cache.fu = cache.fu2 .- cache.fu
-    cache.fu = (cache.fu .- _restructure(cache.fu, cache.Jdu)) ./ max.(cache.Jᵀ²du, eps(T))
+    cache.fu = _restructure(cache.fu,
+        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(T)))
     cache.J_cache = ((_vec(cache.fu) * _vec(cache.du)') .* J) * J
     cache.J = J .+ cache.J_cache
 
