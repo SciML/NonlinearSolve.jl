@@ -71,6 +71,10 @@ features, but have a bit of overhead on very small problems.
   - `GeneralKlement()`: Generalization of Klement's Quasi-Newton Method with Line Search and
     Automatic Jacobian Resetting. This is a fast method but unstable when the condition number of
     the Jacobian matrix is sufficiently large.
+  - `LimitedMemoryBroyden()`: An advanced version of `LBroyden` which uses a limited memory
+    Broyden method. This is a fast method but unstable when the condition number of
+    the Jacobian matrix is sufficiently large. It is recommended to use `GeneralBroyden` or
+    `GeneralKlement` instead unless the memory usage is a concern.
 
 ### SimpleNonlinearSolve.jl
 

@@ -213,10 +213,12 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         mat_tmp = zero(JᵀJ)
         rhs_tmp = nothing
     else
-        mat_tmp = similar(JᵀJ, length(fu1) + length(u), length(u))
+        # Preserve Types
+        mat_tmp = vcat(J, DᵀD)
         fill!(mat_tmp, zero(eltype(u)))
-        rhs_tmp = similar(mat_tmp, length(fu1) + length(u))
+        rhs_tmp = vcat(fu1, u)
         fill!(rhs_tmp, zero(eltype(u)))
+        linsolve = __setup_linsolve(mat_tmp, rhs_tmp, u, p, alg)
     end
 
     return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, fu1,

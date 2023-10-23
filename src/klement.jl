@@ -27,6 +27,10 @@ solves.
     linesearch
 end
 
+function set_linsolve(alg::GeneralKlement, linsolve)
+    return GeneralKlement(alg.max_resets, linsolve, alg.precs, alg.linesearch)
+end
+
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
     linesearch = LineSearch(), precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
@@ -60,7 +64,7 @@ end
 
 get_fu(cache::GeneralKlementCache) = cache.fu
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralKlement, args...;
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
@@ -70,17 +74,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralKlemen
 
     if u isa Number
         linsolve = nothing
+        alg = alg_
     else
         # For General Julia Arrays default to LU Factorization
-        linsolve_alg = alg.linsolve === nothing && u isa Array ? LUFactorization() :
+        linsolve_alg = alg_.linsolve === nothing && u isa Array ? LUFactorization() :
                        nothing
-        weight = similar(u)
-        recursivefill!(weight, true)
-        Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-                nothing)..., weight)
-        linprob = LinearProblem(J, _vec(fu); u0 = _vec(fu))
-        linsolve = init(linprob, linsolve_alg; alias_A = true, alias_b = true, Pl, Pr,
-            linsolve_kwargs...)
+        alg = set_linsolve(alg_, linsolve_alg)
+        linsolve = __setup_linsolve(J, _vec(fu), _vec(u), p, alg)
     end
 
     return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), _mutable_zero(u), p, linsolve,

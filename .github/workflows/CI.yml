@@ -16,8 +16,7 @@ jobs:
     strategy:
       matrix:
         group:
-          - Core
-          - 23TestProblems
+          - All
         version:
           - '1'
     steps:
