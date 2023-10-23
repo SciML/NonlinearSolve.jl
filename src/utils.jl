@@ -61,7 +61,6 @@ function value_derivative(f::F, x::R) where {F, R}
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
 
-# Todo: improve this dispatch
 function value_derivative(f::F, x::SVector) where {F}
     f(x), ForwardDiff.jacobian(f, x)
 end
@@ -206,8 +205,7 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        use_sparse_ad ? AutoSparseForwardDiff() :
-        AutoForwardDiff{ForwardDiff.pickchunksize(length(prob.u0)), Nothing}(nothing)
+        use_sparse_ad ? AutoSparseForwardDiff() : AutoForwardDiff{nothing, Nothing}(nothing)
     end
     return set_ad(alg, ad)
 end

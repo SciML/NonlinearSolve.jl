@@ -10,6 +10,11 @@ An advanced Levenberg-Marquardt implementation with the improvements suggested i
 algorithm for nonlinear least-squares minimization". Designed for large-scale and
 numerically-difficult nonlinear systems.
 
+If no `linsolve` is provided or a variant of `QR` is provided, then we will use an efficient
+routine for the factorization without constructing `JᵀJ` and `Jᵀf`. For more details see
+"Chapter 10: Implementation of the Levenberg-Marquardt Method" of
+["Numerical Optimization" by Jorge Nocedal & Stephen J. Wright](https://link.springer.com/book/10.1007/978-0-387-40065-5).
+
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
@@ -104,7 +109,8 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end
 
-@concrete mutable struct LevenbergMarquardtCache{iip} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct LevenbergMarquardtCache{iip, fastqr} <:
+                         AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -144,6 +150,8 @@ end
     u_tmp
     Jv
     mat_tmp
+    rhs_tmp
+    J²
     stats::NLStats
 end
 
@@ -155,8 +163,26 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
-    uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_kwargs, linsolve_with_JᵀJ = Val(true))
+
+    # Use QR if the user did not specify a linear solver
+    if (alg.linsolve === nothing || alg.linsolve isa QRFactorization ||
+        alg.linsolve isa FastQRFactorization) && !(u isa Number)
+        linsolve_with_JᵀJ = Val(false)
+    else
+        linsolve_with_JᵀJ = Val(true)
+    end
+
+    if _unwrap_val(linsolve_with_JᵀJ)
+        uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p,
+            Val(iip); linsolve_kwargs, linsolve_with_JᵀJ)
+        J² = nothing
+    else
+        uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+            linsolve_kwargs, linsolve_with_JᵀJ)
+        JᵀJ = similar(u)
+        J² = similar(J)
+        v = similar(du)
+    end
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
@@ -182,16 +208,26 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     δ = _mutable_zero(u)
     make_new_J = true
     fu_tmp = zero(fu1)
-    mat_tmp = zero(JᵀJ)
 
-    return LevenbergMarquardtCache{iip}(f, alg, u, fu1, fu2, du, p, uf, linsolve, J,
+    if _unwrap_val(linsolve_with_JᵀJ)
+        mat_tmp = zero(JᵀJ)
+        rhs_tmp = nothing
+    else
+        mat_tmp = similar(JᵀJ, length(fu1) + length(u), length(u))
+        fill!(mat_tmp, zero(eltype(u)))
+        rhs_tmp = similar(mat_tmp, length(fu1) + length(u))
+        fill!(rhs_tmp, zero(eltype(u)))
+    end
+
+    return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, fu1,
+        fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob, DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        zero(u), zero(fu1), mat_tmp, NLStats(1, 0, 0, 0, 0))
+        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0))
 end
 
-function perform_step!(cache::LevenbergMarquardtCache{true})
+function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fastqr}
     @unpack fu1, f, make_new_J = cache
     if iszero(fu1)
         cache.force_stop = true
@@ -200,8 +236,14 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     if make_new_J
         jacobian!!(cache.J, cache)
-        __matmul!(cache.JᵀJ, cache.J', cache.J)
-        cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
+        if fastqr
+            cache.J² .= cache.J .^ 2
+            sum!(cache.JᵀJ', cache.J²)
+            cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
+        else
+            __matmul!(cache.JᵀJ, cache.J', cache.J)
+            cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
+        end
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
@@ -209,26 +251,42 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
 
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
-    mul!(_vec(cache.u_tmp), J', _vec(fu1))
-    @. cache.mat_tmp = JᵀJ + λ * DᵀD
-    linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
-        b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-    _vec(cache.v) .= -1 .* _vec(cache.du)
+    if fastqr
+        cache.mat_tmp[1:length(fu1), :] .= cache.J
+        cache.mat_tmp[(length(fu1) + 1):end, :] .= λ .* cache.DᵀD
+        cache.rhs_tmp[1:length(fu1)] .= _vec(fu1)
+        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+            b = cache.rhs_tmp, linu = _vec(cache.du), p = p, reltol = cache.abstol)
+        _vec(cache.v) .= -_vec(cache.du)
+    else
+        mul!(_vec(cache.u_tmp), J', _vec(fu1))
+        @. cache.mat_tmp = JᵀJ + λ * DᵀD
+        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
+            b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+        _vec(cache.v) .= -_vec(cache.du)
+    end
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, α_geodesic, h = cache
-    f(cache.fu_tmp, _restructure(u, _vec(u) .+ h .* _vec(v)), p)
+    cache.u_tmp .= _restructure(cache.u_tmp, _vec(u) .+ h .* _vec(v))
+    f(cache.fu_tmp, cache.u_tmp, p)
 
     # The following lines do: cache.a = -J \ cache.fu_tmp
+    # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
     mul!(_vec(cache.Jv), J, _vec(v))
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
-    mul!(_vec(cache.u_tmp), J', _vec(cache.fu_tmp))
-    # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
-    linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_tmp),
-        linu = _vec(cache.du), p = p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-    @. cache.a = -cache.du
+    if fastqr
+        cache.rhs_tmp[1:length(fu1)] .= _vec(cache.fu_tmp)
+        linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.du),
+            p = p, reltol = cache.abstol)
+    else
+        mul!(_vec(cache.u_tmp), J', _vec(cache.fu_tmp))
+        linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_tmp),
+            linu = _vec(cache.du), p = p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+        @. cache.a = -cache.du
+    end
     cache.stats.nsolve += 2
     cache.stats.nfactors += 2
 
@@ -263,7 +321,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true})
     return nothing
 end
 
-function perform_step!(cache::LevenbergMarquardtCache{false})
+function perform_step!(cache::LevenbergMarquardtCache{false, fastqr}) where {fastqr}
     @unpack fu1, f, make_new_J = cache
     if iszero(fu1)
         cache.force_stop = true
@@ -272,40 +330,55 @@ function perform_step!(cache::LevenbergMarquardtCache{false})
 
     if make_new_J
         cache.J = jacobian!!(cache.J, cache)
-        cache.JᵀJ = cache.J' * cache.J
-        if cache.JᵀJ isa Number
-            cache.DᵀD = max(cache.DᵀD, cache.JᵀJ)
+        if fastqr
+            cache.JᵀJ = _vec(sum(cache.J .^ 2; dims = 1))
+            cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
         else
-            cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
+            cache.JᵀJ = cache.J' * cache.J
+            if cache.JᵀJ isa Number
+                cache.DᵀD = max(cache.DᵀD, cache.JᵀJ)
+            else
+                cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
+            end
         end
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
     @unpack u, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
 
-    cache.mat_tmp = JᵀJ + λ * DᵀD
     # Usual Levenberg-Marquardt step ("velocity").
-    if linsolve === nothing
-        cache.v = -cache.mat_tmp \ (J' * fu1)
+    if fastqr
+        cache.mat_tmp = vcat(J, λ .* cache.DᵀD)
+        cache.rhs_tmp[1:length(fu1)] .= -_vec(fu1)
+        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+            b = cache.rhs_tmp, linu = _vec(cache.v), p = p, reltol = cache.abstol)
     else
-        linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
-            b = _vec(J' * _vec(fu1)), linu = _vec(cache.v), p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
+        cache.mat_tmp = JᵀJ + λ * DᵀD
+        if linsolve === nothing
+            cache.v = -cache.mat_tmp \ (J' * fu1)
+        else
+            linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
+                b = _vec(J' * _vec(fu1)), linu = _vec(cache.v), p, reltol = cache.abstol)
+            cache.linsolve = linres.cache
+        end
     end
 
     @unpack v, h, α_geodesic = cache
     # Geodesic acceleration (step_size = v + a / 2).
-    if linsolve === nothing
-        cache.a = -cache.mat_tmp \
-                  _vec(J' * ((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))
-    else
+    rhs_term = _vec(((2 / h) .* ((_vec(f(u .+ h .* _restructure(u, v), p)) .-
+                       _vec(fu1)) ./ h .- J * _vec(v))))
+    if fastqr
+        cache.rhs_tmp[1:length(fu1)] .= -_vec(rhs_term)
         linres = dolinsolve(alg.precs, linsolve;
-            b = _mutable(_vec(J' *  #((2 / h) .* ((f(u .+ h .* v, p) .- fu1) ./ h .- J * v)))),
-                              _vec(((2 / h) .*
-                                    ((_vec(f(u .+ h .* _restructure(u, v), p)) .-
-                                      _vec(fu1)) ./ h .- J * _vec(v)))))),
-            linu = _vec(cache.a), p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
+            b = cache.rhs_tmp, linu = _vec(cache.a), p = p, reltol = cache.abstol)
+    else
+        if linsolve === nothing
+            cache.a = -cache.mat_tmp \ _vec(J' * rhs_term)
+        else
+            linres = dolinsolve(alg.precs, linsolve; b = _mutable(_vec(J' * rhs_term)),
+                linu = _vec(cache.a), p, reltol = cache.abstol)
+            cache.linsolve = linres.cache
+        end
     end
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
