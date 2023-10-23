@@ -164,9 +164,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
 
-    # Use QR if the user did not specify a linear solver
-    if (alg.linsolve === nothing || alg.linsolve isa QRFactorization ||
-        alg.linsolve isa FastQRFactorization) && !(u isa Number)
+    if !needs_square_A(alg.linsolve) && !(u isa Number) && !(u isa StaticArray)
         linsolve_with_JᵀJ = Val(false)
     else
         linsolve_with_JᵀJ = Val(true)

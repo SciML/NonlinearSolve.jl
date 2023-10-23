@@ -71,6 +71,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
     J = __init_identity_jacobian(u, fu)
+    du = _mutable_zero(u)
 
     if u isa Number
         linsolve = nothing
@@ -80,10 +81,10 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         linsolve_alg = alg_.linsolve === nothing && u isa Array ? LUFactorization() :
                        nothing
         alg = set_linsolve(alg_, linsolve_alg)
-        linsolve = __setup_linsolve(J, _vec(fu), _vec(u), p, alg)
+        linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
     end
 
-    return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), _mutable_zero(u), p, linsolve,
+    return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), du, p, linsolve,
         J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))

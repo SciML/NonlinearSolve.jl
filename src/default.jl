@@ -159,8 +159,8 @@ end
         ]
     else
         [
-            :(GeneralBroyden()),
             :(GeneralKlement()),
+            :(GeneralBroyden()),
             :(NewtonRaphson(; linsolve, precs, adkwargs...)),
             :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
             :(TrustRegion(; linsolve, precs, adkwargs...)),

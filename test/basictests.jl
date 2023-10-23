@@ -352,7 +352,8 @@ end
             AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
             AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, LevenbergMarquardt(; autodiff)).u .≈ sqrt(2.0))
+        @test all(solve(probN, LevenbergMarquardt(; autodiff); abstol = 1e-9,
+            reltol = 1e-9).u .≈ sqrt(2.0))
     end
 
     # Test that `LevenbergMarquardt` passes a test that `NewtonRaphson` fails on.
@@ -368,7 +369,7 @@ end
     @testset "Keyword Arguments" begin
         damping_initial = [0.5, 2.0, 5.0]
         damping_increase_factor = [1.5, 3.0, 10.0]
-        damping_decrease_factor = Float64[2, 5, 10]
+        damping_decrease_factor = Float64[2, 5, 12]
         finite_diff_step_geodesic = [0.02, 0.2, 0.3]
         α_geodesic = [0.6, 0.8, 0.9]
         b_uphill = Float64[0, 1, 2]
@@ -379,14 +380,14 @@ end
             min_damping_D)
         for options in list_of_options
             local probN, sol, alg
-            alg = LevenbergMarquardt(damping_initial = options[1],
+            alg = LevenbergMarquardt(; damping_initial = options[1],
                 damping_increase_factor = options[2],
                 damping_decrease_factor = options[3],
                 finite_diff_step_geodesic = options[4], α_geodesic = options[5],
                 b_uphill = options[6], min_damping_D = options[7])
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
-            sol = solve(probN, alg, abstol = 1e-10)
+            sol = solve(probN, alg, abstol = 1e-12)
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
     end

@@ -256,3 +256,30 @@ function _try_factorize_and_check_singular!(linsolve, X)
     return _issingular(X), false
 end
 _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
+
+# Needs Square Matrix
+"""
+    needs_square_A(alg)
+
+Returns `true` if the algorithm requires a square matrix.
+"""
+needs_square_A(::Nothing) = false
+function needs_square_A(alg)
+    try
+        A = [1.0 2.0;
+            3.0 4.0;
+            5.0 6.0]
+        b = ones(Float64, 3)
+        solve(LinearProblem(A, b), alg)
+        return false
+    catch err
+        return true
+    end
+end
+for alg in (:QRFactorization, :FastQRFactorization, NormalCholeskyFactorization,
+    NormalBunchKaufmanFactorization)
+    @eval needs_square_A(::$(alg)) = false
+end
+for kralg in (LinearSolve.Krylov.lsmr!, LinearSolve.Krylov.craigmr!)
+    @eval needs_square_A(::KrylovJL{$(typeof(kralg))}) = false
+end

@@ -82,9 +82,7 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
 
-    # Use QR if the user did not specify a linear solver
-    if alg.linsolve === nothing || alg.linsolve isa QRFactorization ||
-       alg.linsolve isa FastQRFactorization
+    if !needs_square_A(alg.linsolve) && !(u isa Number) && !(u isa StaticArray)
         linsolve_with_JᵀJ = Val(false)
     else
         linsolve_with_JᵀJ = Val(true)
