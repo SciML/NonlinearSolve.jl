@@ -257,6 +257,9 @@ function _try_factorize_and_check_singular!(linsolve, X)
 end
 _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
 
+_reshape(x, args...) = reshape(x, args...)
+_reshape(x::Number, args...) = x
+
 # Needs Square Matrix
 """
     needs_square_A(alg)

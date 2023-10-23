@@ -82,7 +82,7 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
 
-    if !needs_square_A(alg.linsolve) && !(u isa Number) && !(u isa StaticArray)
+    if !needs_square_A(alg.linsolve) && !(u0 isa Number) && !(u0 isa StaticArray)
         linsolve_with_JᵀJ = Val(false)
     else
         linsolve_with_JᵀJ = Val(true)

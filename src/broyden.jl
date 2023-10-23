@@ -66,8 +66,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
     return GeneralBroydenCache{iip}(f, alg, u, _mutable_zero(u), fu, zero(fu),
-        zero(fu), p, J⁻¹, zero(_vec(fu)'), _mutable_zero(u), false, 0, alg.max_resets,
-        maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
+        zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
+        alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
         reset_check, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
 end

@@ -249,12 +249,12 @@ end
         return nothing
     end
     mul!(xᵀVᵀ[:, 1:η], x', Vᵀ)
-    mul!(y', xᵀVᵀ[:, 1:η], U)
+    mul!(reshape(y, 1, :), xᵀVᵀ[:, 1:η], U)
     return nothing
 end
 
 @views function __lbroyden_rmatvec(U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
     # Computes xᵀ × Vᵀ × U
     size(U, 1) == 0 && return x
-    return (x' * Vᵀ) * U
+    return (reshape(x, 1, :) * Vᵀ) * U
 end
