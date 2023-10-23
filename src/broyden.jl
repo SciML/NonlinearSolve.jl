@@ -1,13 +1,14 @@
 # Sadly `Broyden` is taken up by SimpleNonlinearSolve.jl
 """
-    GeneralBroyden(max_resets, linesearch)
-    GeneralBroyden(; max_resets = 3, linesearch = LineSearch())
+    GeneralBroyden(; max_resets = 3, linesearch = LineSearch(), reset_tolerance = nothing)
 
 An implementation of `Broyden` with reseting and line search.
 
 ## Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `3`.
+  - `reset_tolerance`: the tolerance for the reset check. Defaults to
+    `sqrt(eps(eltype(u)))`.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`. It is
@@ -16,12 +17,14 @@ An implementation of `Broyden` with reseting and line search.
 """
 @concrete struct GeneralBroyden <: AbstractNewtonAlgorithm{false, Nothing}
     max_resets::Int
+    reset_tolerance
     linesearch
 end
 
-function GeneralBroyden(; max_resets = 3, linesearch = LineSearch())
+function GeneralBroyden(; max_resets = 3, linesearch = LineSearch(),
+    reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return GeneralBroyden(max_resets, linesearch)
+    return GeneralBroyden(max_resets, reset_tolerance, linesearch)
 end
 
 @concrete mutable struct GeneralBroydenCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -43,6 +46,8 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reset_tolerance
+    reset_check
     prob
     stats::NLStats
     lscache
@@ -57,9 +62,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
     J⁻¹ = __init_identity_jacobian(u, fu)
+    reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
+                      alg.reset_tolerance
+    reset_check = x -> abs(x) ≤ reset_tolerance
     return GeneralBroydenCache{iip}(f, alg, u, _mutable_zero(u), fu, zero(fu),
         zero(fu), p, J⁻¹, zero(_vec(fu)'), _mutable_zero(u), false, 0, alg.max_resets,
-        maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
+        maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
+        reset_check, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
 end
 
@@ -79,8 +88,13 @@ function perform_step!(cache::GeneralBroydenCache{true})
 
     # Update the inverse jacobian
     dfu .= fu2 .- fu
-    if cache.resets < cache.max_resets &&
-       (all(x -> abs(x) ≤ 1e-12, du) || all(x -> abs(x) ≤ 1e-12, dfu))
+
+    if all(cache.reset_check, du) || all(cache.reset_check, dfu)
+        if cache.resets ≥ cache.max_resets
+            cache.retcode = ReturnCode.Unstable
+            cache.force_stop = true
+            return nothing
+        end
         fill!(J⁻¹, 0)
         J⁻¹[diagind(J⁻¹)] .= T(1)
         cache.resets += 1
@@ -111,8 +125,12 @@ function perform_step!(cache::GeneralBroydenCache{false})
 
     # Update the inverse jacobian
     cache.dfu = cache.fu2 .- cache.fu
-    if cache.resets < cache.max_resets &&
-       (all(x -> abs(x) ≤ 1e-12, cache.du) || all(x -> abs(x) ≤ 1e-12, cache.dfu))
+    if all(cache.reset_check, cache.du) || all(cache.reset_check, cache.dfu)
+        if cache.resets ≥ cache.max_resets
+            cache.retcode = ReturnCode.Unstable
+            cache.force_stop = true
+            return nothing
+        end
         cache.J⁻¹ = __init_identity_jacobian(cache.u, cache.fu)
         cache.resets += 1
     else
@@ -141,6 +159,7 @@ function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = ca
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1
+    cache.resets = 0
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     return cache

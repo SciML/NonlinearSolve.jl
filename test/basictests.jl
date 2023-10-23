@@ -843,3 +843,93 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 end
+
+# --- LimitedMemoryBroyden tests ---
+
+@testset "LimitedMemoryBroyden" begin
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+    end
+
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch())
+        prob = NonlinearProblem{true}(f, u0, p)
+        return solve(prob, LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+    end
+
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
+            LiFukushimaLineSearch()),
+        ad in (AutoFiniteDiff(), AutoZygote())
+
+        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+            cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
+                LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+            @test (@ballocated solve!($cache)) < 200
+        end
+
+        @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
+            ad isa AutoZygote && continue
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
+                LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+            @test (@ballocated solve!($cache)) ≤ 64
+        end
+    end
+
+    @testset "[OOP] [Immutable AD]" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(((x, y),) -> isapprox(x, y; atol = 1e-3), zip(res.u, res_true))
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p).u[end], p)≈1 / (2 * sqrt(p)) atol=1e-3
+        end
+    end
+
+    @testset "[OOP] [Scalar AD]" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+                res_true = sqrt(p)
+                res.u ≈ res_true
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
+                p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    # Iterator interface
+    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
+        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
+        cache = init(probN, LimitedMemoryBroyden(); maxiters = 100, abstol = 1e-10)
+        sols = zeros(length(p_range))
+        for (i, p) in enumerate(p_range)
+            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
+            sol = solve!(cache)
+            sols[i] = iip ? sol.u[1] : sol.u
+        end
+        return sols
+    end
+    p = range(0.01, 2, length = 200)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false))≈sqrt.(p) atol=1e-2
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true))≈sqrt.(p) atol=1e-2
+end

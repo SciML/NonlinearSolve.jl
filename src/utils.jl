@@ -222,6 +222,18 @@ function __init_identity_jacobian(u::StaticArray, fu)
         Matrix{eltype(u)}(I, length(fu), length(u)))
 end
 
+function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)
+    Vᵀ = convert(MArray{Tuple{length(u), threshold}},
+        zeros(eltype(u), length(u), threshold))
+    U = convert(MArray{Tuple{threshold, length(u)}}, zeros(eltype(u), threshold, length(u)))
+    return U, Vᵀ
+end
+function __init_low_rank_jacobian(u, fu, threshold::Int)
+    Vᵀ = convert(parameterless_type(_mutable(u)), zeros(eltype(u), length(u), threshold))
+    U = convert(parameterless_type(_mutable(u)), zeros(eltype(u), threshold, length(u)))
+    return U, Vᵀ
+end
+
 # Check Singular Matrix
 _issingular(x::Number) = iszero(x)
 @generated function _issingular(x::T) where {T}

@@ -76,6 +76,7 @@ include("dfsane.jl")
 include("pseudotransient.jl")
 include("broyden.jl")
 include("klement.jl")
+include("lbroyden.jl")
 include("jacobian.jl")
 include("ad.jl")
 include("default.jl")
@@ -106,7 +107,7 @@ end
 export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    GeneralBroyden, GeneralKlement
+    GeneralBroyden, GeneralKlement, LimitedMemoryBroyden
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
