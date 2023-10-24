@@ -177,7 +177,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     else
         uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
             linsolve_kwargs, linsolve_with_JᵀJ)
-        JᵀJ = similar(u)
+        JᵀJ = similar(_vec(u))
         J² = similar(J)
         v = similar(du)
     end
@@ -214,7 +214,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         # Preserve Types
         mat_tmp = vcat(J, DᵀD)
         fill!(mat_tmp, zero(eltype(u)))
-        rhs_tmp = vcat(fu1, u)
+        rhs_tmp = vcat(_vec(fu1), _vec(u))
         fill!(rhs_tmp, zero(eltype(u)))
         linsolve = __setup_linsolve(mat_tmp, rhs_tmp, u, p, alg)
     end
