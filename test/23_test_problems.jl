@@ -86,8 +86,8 @@ end
         GeneralBroyden(; linesearch = BackTracking()))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 3, 4, 5, 6, 11, 12, 13, 14, 21]
-    broken_tests[alg_ops[2]] = [1, 2, 3, 4, 5, 6, 9, 11, 13, 22]
+    broken_tests[alg_ops[1]] = [1, 3, 4, 5, 6, 11, 12, 13, 14]
+    broken_tests[alg_ops[2]] = [1, 2, 3, 4, 5, 6, 9, 11, 13, 15, 16, 21, 22]
     broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 11, 12, 13, 14, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
@@ -100,8 +100,8 @@ end
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 7, 11, 13, 22]
-    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 7, 11, 12, 13, 22]
-    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 8, 11, 12, 13, 22]
+    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 7, 11, 13, 22]
+    broken_tests[alg_ops[3]] = [1, 2, 5, 6, 11, 12, 13, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end

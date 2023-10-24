@@ -78,7 +78,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
 
     mul!(_vec(du), J⁻¹, -_vec(fu))
     α = perform_linesearch!(cache.lscache, u, du)
-    axpy!(α, du, u)
+    _axpy!(α, du, u)
     f(fu2, u, p)
 
     cache.internalnorm(fu2) < cache.abstol && (cache.force_stop = true)

@@ -260,7 +260,13 @@ _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
 _reshape(x, args...) = reshape(x, args...)
 _reshape(x::Number, args...) = x
 
+@generated function _axpy!(α, x, y)
+    hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
+    return :(@. y += α * x)
+end
+
 # Needs Square Matrix
+# FIXME: Remove once https://github.com/SciML/LinearSolve.jl/pull/400 is merged and tagged
 """
     needs_square_A(alg)
 

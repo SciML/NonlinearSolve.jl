@@ -29,12 +29,14 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
 nlls_problems = [prob_oop, prob_iip]
 solvers = [
     GaussNewton(),
-    GaussNewton(; linsolve = CholeskyFactorization()),
-    LevenbergMarquardt(),
-    LevenbergMarquardt(; linsolve = CholeskyFactorization()),
+    GaussNewton(; linsolve = LUFactorization()),
     LeastSquaresOptimJL(:lm),
     LeastSquaresOptimJL(:dogleg),
 ]
+
+# Compile time on v"1.9" is too high!
+VERSION ≥ v"1.10-" && append!(solvers,
+    [LevenbergMarquardt(), LevenbergMarquardt(; linsolve = LUFactorization())])
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)

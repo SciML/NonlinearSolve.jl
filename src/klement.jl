@@ -115,7 +115,7 @@ function perform_step!(cache::GeneralKlementCache{true})
 
     # Line Search
     α = perform_linesearch!(cache.lscache, u, du)
-    axpy!(α, du, u)
+    _axpy!(α, du, u)
     f(cache.fu2, u, p)
 
     cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
