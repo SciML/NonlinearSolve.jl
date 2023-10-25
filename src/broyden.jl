@@ -101,7 +101,8 @@ function perform_step!(cache::GeneralBroydenCache{true})
     else
         mul!(_vec(J⁻¹df), J⁻¹, _vec(dfu))
         mul!(J⁻¹₂, _vec(du)', J⁻¹)
-        du .= (du .- J⁻¹df) ./ (dot(du, J⁻¹df) .+ T(1e-5))
+        denom = dot(du, J⁻¹df)
+        du .= (du .- J⁻¹df) ./ ifelse(iszero(denom), T(1e-5), denom)
         mul!(J⁻¹, _vec(du), J⁻¹₂, 1, 1)
     end
     fu .= fu2
@@ -136,7 +137,8 @@ function perform_step!(cache::GeneralBroydenCache{false})
     else
         cache.J⁻¹df = _restructure(cache.J⁻¹df, cache.J⁻¹ * _vec(cache.dfu))
         cache.J⁻¹₂ = _vec(cache.du)' * cache.J⁻¹
-        cache.du = (cache.du .- cache.J⁻¹df) ./ (dot(cache.du, cache.J⁻¹df) .+ T(1e-5))
+        denom = dot(cache.du, cache.J⁻¹df)
+        cache.du = (cache.du .- cache.J⁻¹df) ./ ifelse(iszero(denom), T(1e-5), denom)
         cache.J⁻¹ = cache.J⁻¹ .+ _vec(cache.du) * cache.J⁻¹₂
     end
     cache.fu = cache.fu2

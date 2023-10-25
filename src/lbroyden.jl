@@ -123,8 +123,8 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         __lbroyden_matvec!(_vec(cache.vᵀ_cache), cache.Ux, U_part, Vᵀ_part, _vec(cache.du))
         __lbroyden_rmatvec!(_vec(cache.u_cache), cache.xᵀVᵀ, U_part, Vᵀ_part,
             _vec(cache.dfu))
-        cache.u_cache .= (du .- cache.u_cache) ./
-                         (dot(cache.vᵀ_cache, cache.dfu) .+ T(1e-5))
+        denom = dot(cache.vᵀ_cache, cache.dfu)
+        cache.u_cache .= (du .- cache.u_cache) ./ ifelse(iszero(denom), T(1e-5), denom)
 
         idx = mod1(cache.iterations_since_reset + 1, size(cache.U, 1))
         selectdim(cache.U, 1, idx) .= _vec(cache.u_cache)
@@ -179,8 +179,8 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
             __lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.du)))
         cache.u_cache = _restructure(cache.u_cache,
             __lbroyden_rmatvec(U_part, Vᵀ_part, _vec(cache.dfu)))
-        cache.u_cache = (cache.du .- cache.u_cache) ./
-                        (dot(cache.vᵀ_cache, cache.dfu) .+ T(1e-5))
+        denom = dot(cache.vᵀ_cache, cache.dfu)
+        cache.u_cache = (cache.du .- cache.u_cache) ./ ifelse(iszero(denom), T(1e-5), denom)
 
         idx = mod1(cache.iterations_since_reset + 1, size(cache.U, 1))
         selectdim(cache.U, 1, idx) .= _vec(cache.u_cache)
