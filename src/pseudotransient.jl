@@ -29,10 +29,6 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small, 
     you are going to need more iterations to converge but it can be more stable.
-
-
-
-
 """
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -92,19 +88,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     else
         fu1 = _mutable(f(u, p))
     end
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg,
-        f,
-        u,
-        p,
-        Val(iip);
+    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
     alpha = convert(eltype(u), alg.alpha_initial)
     res_norm = internalnorm(fu1)
 
     return PseudoTransientCache{iip}(f, alg, u, fu1, fu2, du, p, alpha, res_norm, uf,
-        linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob,
-        NLStats(1, 0, 0, 0, 0))
+        linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
+        prob, NLStats(1, 0, 0, 0, 0))
 end
 
 function perform_step!(cache::PseudoTransientCache{true})

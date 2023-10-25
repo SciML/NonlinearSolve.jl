@@ -43,7 +43,6 @@ See also the implementation in [SimpleNonlinearSolve.jl](https://github.com/SciM
 - `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
   algorithm. Defaults to `1000`.
 """
-
 struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
     σ_min::T
     σ_max::T

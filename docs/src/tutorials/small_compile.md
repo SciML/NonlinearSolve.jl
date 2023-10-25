@@ -19,18 +19,18 @@ sol = solve(prob, SimpleNewtonRaphson())
 
 However, there are a few downsides to SimpleNonlinearSolve's `SimpleX` style algorithms to note:
 
-1. SimpleNonlinearSolve.jl's methods are not hooked into the LinearSolve.jl system, and thus do not have
-   the ability to specify linear solvers, use sparse matrices, preconditioners, and all of the other features
-   which are required to scale for very large systems of equations.
-2. SimpleNonlinearSolve.jl's methods have less robust error handling and termination conditions, and thus
-   these methods are missing some flexibility and give worse hints for debugging.
-3. SimpleNonlinearSolve.jl's methods are focused on out-of-place support. There is some in-place support,
-   but it's designed for simple smaller systems and so some optimizations are missing.
+ 1. SimpleNonlinearSolve.jl's methods are not hooked into the LinearSolve.jl system, and thus do not have
+    the ability to specify linear solvers, use sparse matrices, preconditioners, and all of the other features
+    which are required to scale for very large systems of equations.
+ 2. SimpleNonlinearSolve.jl's methods have less robust error handling and termination conditions, and thus
+    these methods are missing some flexibility and give worse hints for debugging.
+ 3. SimpleNonlinearSolve.jl's methods are focused on out-of-place support. There is some in-place support,
+    but it's designed for simple smaller systems and so some optimizations are missing.
 
 However, the major upsides of SimpleNonlinearSolve.jl are:
 
-1. The methods are optimized and non-allocating on StaticArrays
-2. The methods are minimal in compilation
+ 1. The methods are optimized and non-allocating on StaticArrays
+ 2. The methods are minimal in compilation
 
 As such, you can use the code as shown above to have very low startup with good methods, but for more scaling and debuggability
 we recommend the full NonlinearSolve.jl. But that said,
