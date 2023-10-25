@@ -35,7 +35,7 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     if chunk_size !== missing || standardtag !== missing || diff_type !== missing ||
        autodiff !== missing
         Base.depwarn("`chunk_size`, `standardtag`, `diff_type`, \
-            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed in\
+            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed in \
              v3. Update your code to directly specify autodiff=<ADTypes>",
             :default_adargs_to_adtype)
     end
