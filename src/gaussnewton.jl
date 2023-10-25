@@ -36,7 +36,7 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     Jacobian-Free version of `GaussNewton` doesn't work yet, and it forces jacobian
     construction. This will be fixed in the near future.
 """
-@concrete struct GaussNewton{CJ, AD, TC} <: AbstractNewtonAlgorithm{CJ, AD, TC}
+@concrete struct GaussNewton{CJ, AD, TC} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs

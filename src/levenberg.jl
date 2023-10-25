@@ -75,7 +75,7 @@ numerically-difficult nonlinear systems.
     `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
 """
 @concrete struct LevenbergMarquardt{CJ, AD, T, TC <: NLSolveTerminationCondition} <:
-                 AbstractNewtonAlgorithm{CJ, AD, TC}
+                 AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
@@ -157,7 +157,7 @@ end
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
-    NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
+        NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
     internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}

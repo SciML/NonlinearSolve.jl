@@ -135,7 +135,7 @@ end
         termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
             reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, NewtonRaphson(; termination_condition)).u .≈ sqrt(2.0))
+        @test all(solve(probN, NewtonRaphson(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 

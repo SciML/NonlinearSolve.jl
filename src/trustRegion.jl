@@ -149,7 +149,7 @@ for large-scale and numerically-difficult nonlinear systems.
     Support for the OOP version is planned!
 """
 @concrete struct TrustRegion{CJ, AD, MTR, TC <: NLSolveTerminationCondition} <:
-                 AbstractNewtonAlgorithm{CJ, AD, TC}
+                 AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
