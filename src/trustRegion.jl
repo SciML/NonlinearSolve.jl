@@ -148,7 +148,7 @@ for large-scale and numerically-difficult nonlinear systems.
     `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
     Support for the OOP version is planned!
 """
-@concrete struct TrustRegion{CJ, AD, MTR, TC <: NLSolveTerminationCondition} <:
+@concrete struct TrustRegion{CJ, AD, MTR} <:
                  AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
@@ -162,7 +162,6 @@ for large-scale and numerically-difficult nonlinear systems.
     shrink_factor::MTR
     expand_factor::MTR
     max_shrink_times::Int
-    termination_condition::TC
 end
 
 function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
@@ -177,15 +176,11 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
     max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
     step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
     expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
-    expand_factor::Real = 2 // 1, max_shrink_times::Int = 32,
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-        abstol = nothing,
-        reltol = nothing), adkwargs...)
+    expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
         max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, max_shrink_times,
-        termination_condition)
+        expand_threshold, shrink_factor, expand_factor, max_shrink_times)
 end
 
 @concrete mutable struct TrustRegionCache{iip, trustType, floatType} <:
@@ -236,10 +231,12 @@ end
     ϵ::floatType
     stats::NLStats
     tc_storage
+    termination_condition
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
     alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing,
     internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
@@ -342,22 +339,23 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         initial_trust_radius = convert(trustType, 1.0)
     end
 
-    tc = alg.termination_condition
-    mode = DiffEqBase.get_termination_mode(tc)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u))
 
-    atol = _get_tolerance(abstol, tc.abstol, eltype(u))
-    rtol = _get_tolerance(reltol, tc.reltol, eltype(u))
+    mode = DiffEqBase.get_termination_mode(termination_condition)
 
     storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
               nothing
 
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, atol, rtol, prob,
+        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
         H, g, shrink_counter, du, u_tmp, u_gauss_newton, u_cauchy, fu_new, make_new_J, r,
         p1, p2, p3, p4, ϵ,
-        NLStats(1, 0, 0, 0, 0), storage)
+        NLStats(1, 0, 0, 0, 0), storage, termination_condition)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -433,10 +431,9 @@ function retrospective_step!(cache::TrustRegionCache)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
-    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme = cache
+    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme, tc_storage = cache
 
-    tc_storage = cache.tc_storage
-    termination_condition = cache.alg.termination_condition(tc_storage)
+    termination_condition = cache.termination_condition(tc_storage)
 
     cache.loss_new = get_loss(fu_new)
 

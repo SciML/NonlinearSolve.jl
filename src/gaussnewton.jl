@@ -36,11 +36,10 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     Jacobian-Free version of `GaussNewton` doesn't work yet, and it forces jacobian
     construction. This will be fixed in the near future.
 """
-@concrete struct GaussNewton{CJ, AD, TC} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct GaussNewton{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
-    termination_condition::TC
 end
 
 function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
@@ -48,15 +47,11 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = NormalCholeskyFactorization(),
-    precs = DEFAULT_PRECS,
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.AbsNorm;
-        abstol = nothing,
-        reltol = nothing), adkwargs...)
+    precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad,
         linsolve,
-        precs,
-        termination_condition)
+        precs)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -84,10 +79,12 @@ end
     prob
     stats::NLStats
     tc_storage
+    termination_condition
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing,
     internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
@@ -102,29 +99,30 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_with_JᵀJ = Val(true))
 
-    tc = alg.termination_condition
-    mode = DiffEqBase.get_termination_mode(tc)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
 
-    atol = _get_tolerance(abstol, tc.abstol, eltype(u))
-    rtol = _get_tolerance(reltol, tc.reltol, eltype(u))
+    mode = DiffEqBase.get_termination_mode(termination_condition)
 
     storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
               nothing
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
         linsolve, J,
-        JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, atol, rtol,
-        prob, NLStats(1, 0, 0, 0, 0), storage)
+        JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
+        reltol,
+        prob, NLStats(1, 0, 0, 0, 0), storage, termination_condition)
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du, tc_storage = cache
     jacobian!!(J, cache)
     __matmul!(JᵀJ, J', J)
     __matmul!(Jᵀf, J', fu1)
 
-    tc_storage = cache.tc_storage
-    termination_condition = cache.alg.termination_condition(tc_storage)
+    termination_condition = cache.termination_condition(tc_storage)
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(JᵀJ), b = _vec(Jᵀf),
@@ -151,10 +149,9 @@ function perform_step!(cache::GaussNewtonCache{true})
 end
 
 function perform_step!(cache::GaussNewtonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
+    @unpack u, u_prev, fu1, f, p, alg, linsolve, tc_storage = cache
 
-    tc_storage = cache.tc_storage
-    termination_condition = cache.alg.termination_condition(tc_storage)
+    termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)
 

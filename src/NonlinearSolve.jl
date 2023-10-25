@@ -14,7 +14,7 @@ import EnumX: @enumx
 import ForwardDiff: Dual
 import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
 import RecursiveArrayTools: ArrayPartition,
-    AbstractVectorOfArray, recursivecopy!, recursivefill!
+    AbstractVectorOfArray, recursivecopy!, recursivefill!, recursive_unitless_bottom_eltype
 import Reexport: @reexport
 import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
 import StaticArraysCore: StaticArray, SVector, SArray, MArray

@@ -211,13 +211,13 @@ end
 
 function _get_tolerance(η, tc_η, ::Type{T}) where {T}
     fallback_η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
-    return ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η))
+    return T(ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η)))
 end
 
 function _init_termination_elements(abstol,
     reltol,
     termination_condition,
-    ::Type{T}) where {T}
+    ::Type{T}; mode = NLSolveTerminationMode.NLSolveDefault) where {T}
     if termination_condition !== nothing
         abstol !== nothing ?
         (abstol != termination_condition.abstol ?
@@ -233,7 +233,7 @@ function _init_termination_elements(abstol,
     else
         abstol = _get_tolerance(abstol, nothing, T)
         reltol = _get_tolerance(reltol, nothing, T)
-        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+        termination_condition = NLSolveTerminationCondition(mode;
             abstol,
             reltol)
         return abstol, reltol, termination_condition

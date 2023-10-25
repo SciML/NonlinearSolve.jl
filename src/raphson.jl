@@ -107,10 +107,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, tc_storage = cache
     jacobian!!(J, cache)
 
-    tc_storage = cache.tc_storage
     termination_condition = cache.termination_condition(tc_storage)
 
     # u = u - J \ fu

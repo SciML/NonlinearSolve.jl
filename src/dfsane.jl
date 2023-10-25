@@ -89,12 +89,16 @@ end
     internalnorm
     retcode::SciMLBase.ReturnCode.T
     abstol
+    reltol
     prob
     stats::NLStats
+    termination_condition
+    tc_storage
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args...;
-    alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing, internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     uₙ = alias_u0 ? prob.u0 : deepcopy(prob.u0)
 
@@ -123,14 +127,27 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
     f₍ₙₒᵣₘ₎₀ = f₍ₙₒᵣₘ₎ₙ₋₁
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
+
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        T)
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
     return DFSaneCache{iip}(alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀,
         M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, p, false, maxiters,
-        internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0))
+        internalnorm, ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0),
+        termination_condition, storage)
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
+    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M, tc_storage = cache
 
+    termination_condition = cache.termination_condition(tc_storage)
     f = (dx, x) -> cache.prob.f(dx, x, cache.p)
 
     T = eltype(cache.uₙ)
@@ -175,7 +192,7 @@ function perform_step!(cache::DFSaneCache{true})
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
-    if cache.internalnorm(cache.fuₙ) < cache.abstol
+    if termination_condition(cache.fuₙ, cache.uₙ, cache.uₙ₋₁, cache.abstol, cache.reltol)
         cache.force_stop = true
     end
 
@@ -206,8 +223,9 @@ function perform_step!(cache::DFSaneCache{true})
 end
 
 function perform_step!(cache::DFSaneCache{false})
-    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
+    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M, tc_storage = cache
 
+    termination_condition = cache.termination_condition(tc_storage)
     f = x -> cache.prob.f(x, cache.p)
 
     T = eltype(cache.uₙ)
@@ -250,7 +268,7 @@ function perform_step!(cache::DFSaneCache{false})
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
-    if cache.internalnorm(cache.fuₙ) < cache.abstol
+    if termination_condition(cache.fuₙ, cache.uₙ, cache.uₙ₋₁, cache.abstol, cache.reltol)
         cache.force_stop = true
     end
 

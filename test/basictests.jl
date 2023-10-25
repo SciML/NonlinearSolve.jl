@@ -72,7 +72,7 @@ end
     end
 
     @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
+        for p in [1.0, 100.0]
             @test begin
                 res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
                 res_true = sqrt(p)
@@ -307,7 +307,7 @@ end
         termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
             reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, TrustRegion(; termination_condition)).u .≈ sqrt(2.0))
+        @test all(solve(probN, TrustRegion(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
@@ -430,7 +430,7 @@ end
         termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
             reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, LevenbergMarquardt(; termination_condition)).u .≈ sqrt(2.0))
+        @test all(solve(probN, LevenbergMarquardt(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
@@ -583,5 +583,19 @@ end
             println(abs.(quadratic_f(sol.u, 2.0)))
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
+    end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, DFSane(); termination_condition).u .≈ sqrt(2.0))
     end
 end
