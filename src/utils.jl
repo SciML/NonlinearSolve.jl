@@ -244,13 +244,13 @@ function _get_reinit_termination_condition(cache, abstol, reltol, termination_co
     if termination_condition != cache.termination_condition
         if abstol != cache.abstol
             if abstol != termination_condition.abstol
-                error("Incompatible absolute tolerances found")
+                error("Incompatible absolute tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.")
             end
         end
 
         if reltol != cache.reltol
             if reltol != termination_condition.reltol
-                error("Incompatible relative tolerances found")
+                error("Incompatible absolute tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.")
             end
         end
         termination_condition

@@ -315,7 +315,8 @@ function SciMLBase.solve!(cache::DFSaneCache)
 end
 
 function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.uₙ, u0)
@@ -336,7 +337,14 @@ function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p
     T = eltype(cache.uₙ)
     cache.σₙ = T(cache.alg.σ_1)
 
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
+
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

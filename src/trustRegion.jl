@@ -724,7 +724,8 @@ end
 get_fu(cache::TrustRegionCache) = cache.fu
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -734,7 +735,14 @@ function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache
         cache.u = u0
         cache.fu = cache.f(cache.u, p)
     end
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
+
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1
