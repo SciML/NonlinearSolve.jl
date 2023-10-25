@@ -265,30 +265,6 @@ _reshape(x::Number, args...) = x
     return :(@. y += α * x)
 end
 
-# Needs Square Matrix
-# FIXME: Remove once https://github.com/SciML/LinearSolve.jl/pull/400 is merged and tagged
-"""
-    needs_square_A(alg)
-
-Returns `true` if the algorithm requires a square matrix.
-"""
-needs_square_A(::Nothing) = false
-function needs_square_A(alg)
-    try
-        A = [1.0 2.0;
-            3.0 4.0;
-            5.0 6.0]
-        b = ones(Float64, 3)
-        solve(LinearProblem(A, b), alg)
-        return false
-    catch err
-        return true
-    end
-end
-for alg in (:QRFactorization, :FastQRFactorization, NormalCholeskyFactorization,
-    NormalBunchKaufmanFactorization)
-    @eval needs_square_A(::$(alg)) = false
-end
-for kralg in (LinearSolve.Krylov.lsmr!, LinearSolve.Krylov.craigmr!)
-    @eval needs_square_A(::KrylovJL{$(typeof(kralg))}) = false
-end
+_needs_square_A(_, ::Number) = true
+_needs_square_A(_, ::StaticArray) = true
+_needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)

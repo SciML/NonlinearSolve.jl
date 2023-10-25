@@ -109,7 +109,7 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end
 
-@concrete mutable struct LevenbergMarquardtCache{iip, fastqr} <:
+@concrete mutable struct LevenbergMarquardtCache{iip, fastls} <:
                          AbstractNonlinearSolveCache{iip}
     f
     alg
@@ -164,11 +164,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
 
-    if !needs_square_A(alg.linsolve) && !(u isa Number) && !(u isa StaticArray)
-        linsolve_with_JᵀJ = Val(false)
-    else
-        linsolve_with_JᵀJ = Val(true)
-    end
+    linsolve_with_JᵀJ = Val(_needs_square_A(alg, u0))
 
     if _unwrap_val(linsolve_with_JᵀJ)
         uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p,
@@ -227,7 +223,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0))
 end
 
-function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fastqr}
+function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fastls}
     @unpack fu1, f, make_new_J = cache
     if iszero(fu1)
         cache.force_stop = true
@@ -236,7 +232,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fast
 
     if make_new_J
         jacobian!!(cache.J, cache)
-        if fastqr
+        if fastls
             cache.J² .= cache.J .^ 2
             sum!(cache.JᵀJ', cache.J²)
             cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
@@ -251,7 +247,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fast
 
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
-    if fastqr
+    if fastls
         cache.mat_tmp[1:length(fu1), :] .= cache.J
         cache.mat_tmp[(length(fu1) + 1):end, :] .= λ .* cache.DᵀD
         cache.rhs_tmp[1:length(fu1)] .= _vec(fu1)
@@ -276,7 +272,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fast
     # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
     mul!(_vec(cache.Jv), J, _vec(v))
     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
-    if fastqr
+    if fastls
         cache.rhs_tmp[1:length(fu1)] .= _vec(cache.fu_tmp)
         linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.du),
             p = p, reltol = cache.abstol)
@@ -321,7 +317,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastqr}) where {fast
     return nothing
 end
 
-function perform_step!(cache::LevenbergMarquardtCache{false, fastqr}) where {fastqr}
+function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fastls}
     @unpack fu1, f, make_new_J = cache
     if iszero(fu1)
         cache.force_stop = true
@@ -330,7 +326,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastqr}) where {fas
 
     if make_new_J
         cache.J = jacobian!!(cache.J, cache)
-        if fastqr
+        if fastls
             cache.JᵀJ = _vec(sum(cache.J .^ 2; dims = 1))
             cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
         else
@@ -347,7 +343,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastqr}) where {fas
     @unpack u, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
-    if fastqr
+    if fastls
         cache.mat_tmp = vcat(J, λ .* cache.DᵀD)
         cache.rhs_tmp[1:length(fu1)] .= -_vec(fu1)
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
@@ -367,7 +363,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastqr}) where {fas
     # Geodesic acceleration (step_size = v + a / 2).
     rhs_term = _vec(((2 / h) .* ((_vec(f(u .+ h .* _restructure(u, v), p)) .-
                        _vec(fu1)) ./ h .- J * _vec(v))))
-    if fastqr
+    if fastls
         cache.rhs_tmp[1:length(fu1)] .= -_vec(rhs_term)
         linres = dolinsolve(alg.precs, linsolve;
             b = cache.rhs_tmp, linu = _vec(cache.a), p = p, reltol = cache.abstol)
