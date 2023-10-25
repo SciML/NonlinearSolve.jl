@@ -27,6 +27,10 @@ solves.
     linesearch
 end
 
+function set_linsolve(alg::GeneralKlement, linsolve)
+    return GeneralKlement(alg.max_resets, linsolve, alg.precs, alg.linesearch)
+end
+
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
     linesearch = LineSearch(), precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
@@ -60,30 +64,27 @@ end
 
 get_fu(cache::GeneralKlementCache) = cache.fu
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralKlement, args...;
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
     alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
     J = __init_identity_jacobian(u, fu)
+    du = _mutable_zero(u)
 
     if u isa Number
         linsolve = nothing
+        alg = alg_
     else
         # For General Julia Arrays default to LU Factorization
-        linsolve_alg = alg.linsolve === nothing && u isa Array ? LUFactorization() :
+        linsolve_alg = alg_.linsolve === nothing && u isa Array ? LUFactorization() :
                        nothing
-        weight = similar(u)
-        recursivefill!(weight, true)
-        Pl, Pr = wrapprecs(alg.precs(J, nothing, u, p, nothing, nothing, nothing, nothing,
-                nothing)..., weight)
-        linprob = LinearProblem(J, _vec(fu); u0 = _vec(fu))
-        linsolve = init(linprob, linsolve_alg; alias_A = true, alias_b = true, Pl, Pr,
-            linsolve_kwargs...)
+        alg = set_linsolve(alg_, linsolve_alg)
+        linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
     end
 
-    return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), _mutable_zero(u), p, linsolve,
+    return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), du, p, linsolve,
         J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
@@ -114,7 +115,7 @@ function perform_step!(cache::GeneralKlementCache{true})
 
     # Line Search
     α = perform_linesearch!(cache.lscache, u, du)
-    axpy!(α, du, u)
+    _axpy!(α, du, u)
     f(cache.fu2, u, p)
 
     cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)

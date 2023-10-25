@@ -14,12 +14,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         group:
-          - Core
-          - 23TestProblems
+          - All
         version:
           - '1'
+          - '~1.10.0-0'
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1

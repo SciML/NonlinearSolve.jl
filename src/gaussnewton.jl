@@ -46,7 +46,7 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
     return GaussNewton{CJ}(ad, alg.linsolve, alg.precs)
 end
 
-function GaussNewton(; concrete_jac = nothing, linsolve = CholeskyFactorization(),
+function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
@@ -81,6 +81,9 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
+
+    linsolve_with_JᵀJ = Val(_needs_square_A(alg, u0))
+
     u = alias_u0 ? u0 : deepcopy(u0)
     if iip
         fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
@@ -88,8 +91,15 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     else
         fu1 = f(u, p)
     end
-    uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_with_JᵀJ = Val(true))
+
+    if SciMLBase._unwrap_val(linsolve_with_JᵀJ)
+        uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p,
+            Val(iip); linsolve_with_JᵀJ)
+    else
+        uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p,
+            Val(iip); linsolve_with_JᵀJ)
+        JᵀJ, Jᵀf = nothing, nothing
+    end
 
     return GaussNewtonCache{iip}(f, alg, u, fu1, fu2, zero(fu1), du, p, uf, linsolve, J,
         JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
@@ -99,12 +109,20 @@ end
 function perform_step!(cache::GaussNewtonCache{true})
     @unpack u, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
     jacobian!!(J, cache)
-    __matmul!(JᵀJ, J', J)
-    __matmul!(Jᵀf, J', fu1)
 
-    # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(JᵀJ), b = _vec(Jᵀf),
-        linu = _vec(du), p, reltol = cache.abstol)
+    if JᵀJ !== nothing
+        __matmul!(JᵀJ, J', J)
+        __matmul!(Jᵀf, J', fu1)
+    end
+
+    # u = u - JᵀJ \ Jᵀfu
+    if cache.JᵀJ === nothing
+        linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
+            p, reltol = cache.abstol)
+    else
+        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(JᵀJ), b = _vec(Jᵀf),
+            linu = _vec(du), p, reltol = cache.abstol)
+    end
     cache.linsolve = linres.cache
     @. u = u - du
     f(cache.fu_new, u, p)
@@ -125,14 +143,22 @@ function perform_step!(cache::GaussNewtonCache{false})
 
     cache.J = jacobian!!(cache.J, cache)
 
-    cache.JᵀJ = cache.J' * cache.J
-    cache.Jᵀf = cache.J' * fu1
+    if cache.JᵀJ !== nothing
+        cache.JᵀJ = cache.J' * cache.J
+        cache.Jᵀf = cache.J' * fu1
+    end
+
     # u = u - J \ fu
     if linsolve === nothing
         cache.du = fu1 / cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.JᵀJ),
-            b = _vec(cache.Jᵀf), linu = _vec(cache.du), p, reltol = cache.abstol)
+        if cache.JᵀJ === nothing
+            linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
+                linu = _vec(cache.du), p, reltol = cache.abstol)
+        else
+            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.JᵀJ),
+                b = _vec(cache.Jᵀf), linu = _vec(cache.du), p, reltol = cache.abstol)
+        end
         cache.linsolve = linres.cache
     end
     cache.u = @. u - cache.du  # `u` might not support mutation

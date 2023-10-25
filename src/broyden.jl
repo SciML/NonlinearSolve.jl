@@ -66,8 +66,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
     return GeneralBroydenCache{iip}(f, alg, u, _mutable_zero(u), fu, zero(fu),
-        zero(fu), p, J⁻¹, zero(_vec(fu)'), _mutable_zero(u), false, 0, alg.max_resets,
-        maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
+        zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
+        alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
         reset_check, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
 end
@@ -78,7 +78,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
 
     mul!(_vec(du), J⁻¹, -_vec(fu))
     α = perform_linesearch!(cache.lscache, u, du)
-    axpy!(α, du, u)
+    _axpy!(α, du, u)
     f(fu2, u, p)
 
     cache.internalnorm(fu2) < cache.abstol && (cache.force_stop = true)
@@ -101,7 +101,8 @@ function perform_step!(cache::GeneralBroydenCache{true})
     else
         mul!(_vec(J⁻¹df), J⁻¹, _vec(dfu))
         mul!(J⁻¹₂, _vec(du)', J⁻¹)
-        du .= (du .- J⁻¹df) ./ (dot(du, J⁻¹df) .+ T(1e-5))
+        denom = dot(du, J⁻¹df)
+        du .= (du .- J⁻¹df) ./ ifelse(iszero(denom), T(1e-5), denom)
         mul!(J⁻¹, _vec(du), J⁻¹₂, 1, 1)
     end
     fu .= fu2
@@ -136,7 +137,8 @@ function perform_step!(cache::GeneralBroydenCache{false})
     else
         cache.J⁻¹df = _restructure(cache.J⁻¹df, cache.J⁻¹ * _vec(cache.dfu))
         cache.J⁻¹₂ = _vec(cache.du)' * cache.J⁻¹
-        cache.du = (cache.du .- cache.J⁻¹df) ./ (dot(cache.du, cache.J⁻¹df) .+ T(1e-5))
+        denom = dot(cache.du, cache.J⁻¹df)
+        cache.du = (cache.du .- cache.J⁻¹df) ./ ifelse(iszero(denom), T(1e-5), denom)
         cache.J⁻¹ = cache.J⁻¹ .+ _vec(cache.du) * cache.J⁻¹₂
     end
     cache.fu = cache.fu2

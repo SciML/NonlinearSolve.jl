@@ -50,8 +50,8 @@ jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 
 # Build Jacobian Caches
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{iip};
-    linsolve_kwargs = (;),
-    linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false)) where {iip, needsJᵀJ}
+    linsolve_kwargs = (;), lininit::Val{linsolve_init} = Val(true),
+    linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false)) where {iip, needsJᵀJ, linsolve_init}
     uf = JacobianWrapper{iip}(f, p)
 
     haslinsolve = hasfield(typeof(alg), :linsolve)
@@ -95,25 +95,28 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f, u, p, ::Val{ii
         Jᵀfu = J' * _vec(fu)
     end
 
-    linprob = LinearProblem(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J,
-        needsJᵀJ ? _vec(Jᵀfu) : _vec(fu); u0 = _vec(du))
-
-    if alg isa PseudoTransient
-        alpha = convert(eltype(u), alg.alpha_initial)
-        J_new = J - (1 / alpha) * I
-        linprob = LinearProblem(J_new, _vec(fu); u0 = _vec(du))
+    if linsolve_init
+        linprob_A = alg isa PseudoTransient ?
+                    (J - (1 / (convert(eltype(u), alg.alpha_initial))) * I) :
+                    (needsJᵀJ ? __maybe_symmetric(JᵀJ) : J)
+        linsolve = __setup_linsolve(linprob_A, needsJᵀJ ? Jᵀfu : fu, du, p, alg)
+    else
+        linsolve = nothing
     end
+
+    needsJᵀJ && return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
+    return uf, linsolve, J, fu, jac_cache, du
+end
+
+function __setup_linsolve(A, b, u, p, alg)
+    linprob = LinearProblem(A, _vec(b); u0 = _vec(u))
 
     weight = similar(u)
     recursivefill!(weight, true)
 
-    Pl, Pr = wrapprecs(alg.precs(needsJᵀJ ? __maybe_symmetric(JᵀJ) : J, nothing, u, p,
-            nothing, nothing, nothing, nothing, nothing)..., weight)
-    linsolve = init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr,
-        linsolve_kwargs...)
-
-    needsJᵀJ && return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
-    return uf, linsolve, J, fu, jac_cache, du
+    Pl, Pr = wrapprecs(alg.precs(A, nothing, u, p, nothing, nothing, nothing, nothing,
+            nothing)..., weight)
+    return init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
 end
 
 __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()

@@ -61,7 +61,6 @@ function value_derivative(f::F, x::R) where {F, R}
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
 
-# Todo: improve this dispatch
 function value_derivative(f::F, x::SVector) where {F}
     f(x), ForwardDiff.jacobian(f, x)
 end
@@ -206,8 +205,7 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        use_sparse_ad ? AutoSparseForwardDiff() :
-        AutoForwardDiff{ForwardDiff.pickchunksize(length(prob.u0)), Nothing}(nothing)
+        use_sparse_ad ? AutoSparseForwardDiff() : AutoForwardDiff{nothing, Nothing}(nothing)
     end
     return set_ad(alg, ad)
 end
@@ -258,3 +256,15 @@ function _try_factorize_and_check_singular!(linsolve, X)
     return _issingular(X), false
 end
 _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
+
+_reshape(x, args...) = reshape(x, args...)
+_reshape(x::Number, args...) = x
+
+@generated function _axpy!(α, x, y)
+    hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
+    return :(@. y += α * x)
+end
+
+_needs_square_A(_, ::Number) = true
+_needs_square_A(_, ::StaticArray) = true
+_needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)

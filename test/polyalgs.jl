@@ -1,4 +1,4 @@
-using NonlinearSolve, Test
+using NonlinearSolve, Test, NaNMath
 
 f(u, p) = u .* u .- 2
 u0 = [1.0, 1.0]
@@ -38,7 +38,8 @@ sol = solve(prob)
 @test SciMLBase.successful_retcode(sol)
 
 # https://github.com/SciML/NonlinearSolve.jl/issues/187
-ff(u, p) = 0.5 / 1.5 * log.(u ./ (1.0 .- u)) .- 2.0 * u .+ 1.0
+# If we use a General Nonlinear Solver the solution might go out of the domain!
+ff(u, p) = 0.5 / 1.5 * NaNMath.log.(u ./ (1.0 .- u)) .- 2.0 * u .+ 1.0
 
 uspan = (0.02, 0.1)
 prob = IntervalNonlinearProblem(ff, uspan)
@@ -48,5 +49,5 @@ sol = solve(prob)
 u0 = 0.06
 p = 2.0
 prob = NonlinearProblem(ff, u0, p)
-solver = solve(prob)
+sol = solve(prob)
 @test SciMLBase.successful_retcode(sol)
