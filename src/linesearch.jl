@@ -26,7 +26,15 @@ function LineSearch(; method = Static(), autodiff = AutoFiniteDiff(), alpha = tr
     return LineSearch(method, autodiff, alpha)
 end
 
-@concrete mutable struct LineSearchCache
+@inline function init_linesearch_cache(ls::LineSearch, args...)
+    return init_linesearch_cache(ls.method, ls, args...)
+end
+
+# LineSearches.jl doesn't have a supertype so default to that
+init_linesearch_cache(_, ls, f, u, p, fu, iip) = LineSearchesJLCache(ls, f, u, p, fu, iip)
+
+# Wrapper over LineSearches.jl algorithms
+@concrete mutable struct LineSearchesJLCache
     f
     ϕ
     dϕ
@@ -35,11 +43,11 @@ end
     ls
 end
 
-function LineSearchCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
+function LineSearchesJLCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
     eval_f(u, du, α) = eval_f(u - α * du)
     eval_f(u) = f(u, p)
 
-    ls.method isa Static && return LineSearchCache(eval_f, nothing, nothing, nothing,
+    ls.method isa Static && return LineSearchesJLCache(eval_f, nothing, nothing, nothing,
         convert(typeof(u), ls.α), ls)
 
     g(u, fu) = last(value_derivative(Base.Fix2(f, p), u)) * fu
@@ -73,11 +81,11 @@ function LineSearchCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
         return ϕdϕ_internal
     end
 
-    return LineSearchCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
+    return LineSearchesJLCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
 end
 
-function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip}
-    fu = iip ? fu1 : nothing
+function LineSearchesJLCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip}
+    fu = iip ? deepcopy(fu1) : nothing
     u_ = _mutable_zero(u)
 
     function eval_f(u, du, α)
@@ -86,13 +94,14 @@ function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip
     end
     eval_f(u) = evaluate_f(f, u, p, IIP; fu)
 
-    ls.method isa Static && return LineSearchCache(eval_f, nothing, nothing, nothing,
+    ls.method isa Static && return LineSearchesJLCache(eval_f, nothing, nothing, nothing,
         convert(eltype(u), ls.α), ls)
 
     g₀ = _mutable_zero(u)
 
     autodiff = if iip && (ls.autodiff isa AutoZygote || ls.autodiff isa AutoSparseZygote)
-        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling back to finite differencing."
+        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling \
+               back to finite differencing."
         AutoFiniteDiff()
     else
         ls.autodiff
@@ -137,10 +146,10 @@ function LineSearchCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip
         return ϕdϕ_internal
     end
 
-    return LineSearchCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
+    return LineSearchesJLCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
 end
 
-function perform_linesearch!(cache::LineSearchCache, u, du)
+function perform_linesearch!(cache::LineSearchesJLCache, u, du)
     cache.ls.method isa Static && return cache.α
 
     ϕ = cache.ϕ(u, du)
@@ -153,4 +162,121 @@ function perform_linesearch!(cache::LineSearchCache, u, du)
     dϕ₀ ≥ 0 && return cache.α
 
     return first(cache.ls.method(ϕ, cache.dϕ(u, du), cache.ϕdϕ(u, du), cache.α, ϕ₀, dϕ₀))
+end
+
+"""
+    LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.5, sigma_1 = 0.001,
+        eta = 0.1, nan_max_iter = 5, maxiters = 50)
+
+A derivative-free line search and global convergence of Broyden-like method for nonlinear
+equations by Dong-Hui Li & Masao Fukushima. For more details see
+https://doi.org/10.1080/10556780008805782
+"""
+struct LiFukushimaLineSearch{T} <: AbstractNonlinearSolveLineSearchAlgorithm
+    λ₀::T
+    β::T
+    σ₁::T
+    σ₂::T
+    η::T
+    ρ::T
+    nan_max_iter::Int
+    maxiters::Int
+end
+
+function LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.1, sigma_1 = 0.001,
+    sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
+    T = promote_type(typeof(lambda_0), typeof(beta), typeof(sigma_1), typeof(eta),
+        typeof(rho), typeof(sigma_2))
+    return LiFukushimaLineSearch{T}(lambda_0, beta, sigma_1, sigma_2, eta, rho,
+        nan_max_iter, maxiters)
+end
+
+@concrete mutable struct LiFukushimaLineSearchCache{iip}
+    f
+    p
+    u_cache
+    fu_cache
+    alg
+    α
+end
+
+function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f, _u, p, _fu,
+    ::Val{iip}) where {iip}
+    fu = iip ? deepcopy(_fu) : nothing
+    u = iip ? deepcopy(_u) : nothing
+    return LiFukushimaLineSearchCache{iip}(f, p, u, fu, alg, ls.α)
+end
+
+function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) where {iip}
+    (; β, σ₁, σ₂, η, λ₀, ρ, nan_max_iter, maxiters) = cache.alg
+    λ₂ = λ₀
+    λ₁ = λ₂
+
+    if iip
+        cache.f(cache.fu_cache, u, cache.p)
+        fx_norm = norm(cache.fu_cache, 2)
+    else
+        fx_norm = norm(cache.f(u, cache.p), 2)
+    end
+
+    # Non-Blocking exit if the norm is NaN or Inf
+    !isfinite(fx_norm) && return cache.α
+
+    # Early Terminate based on Eq. 2.7
+    if iip
+        cache.u_cache .= u .+ du
+        cache.f(cache.fu_cache, cache.u_cache, cache.p)
+        fxλ_norm = norm(cache.fu_cache, 2)
+    else
+        fxλ_norm = norm(cache.f(u .+ du, cache.p), 2)
+    end
+
+    fxλ_norm ≤ ρ * fx_norm - σ₂ * norm(du, 2)^2 && return cache.α
+
+    if iip
+        cache.u_cache .= u .+ λ₂ .* du
+        cache.f(cache.fu_cache, cache.u_cache, cache.p)
+        fxλp_norm = norm(cache.fu_cache, 2)
+    else
+        fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+    end
+
+    if !isfinite(fxλp_norm)
+        # Backtrack a finite number of steps
+        nan_converged = false
+        for _ in 1:nan_max_iter
+            λ₁, λ₂ = λ₂, β * λ₂
+
+            if iip
+                cache.u_cache .= u .+ λ₂ .* du
+                cache.f(cache.fu_cache, cache.u_cache, cache.p)
+                fxλp_norm = norm(cache.fu_cache, 2)
+            else
+                fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+            end
+
+            nan_converged = isfinite(fxλp_norm)
+            nan_converged && break
+        end
+
+        # Non-Blocking exit if the norm is still NaN or Inf
+        !nan_converged && return cache.α
+    end
+
+    for _ in 1:maxiters
+        if iip
+            cache.u_cache .= u .+ λ₂ .* du
+            cache.f(cache.fu_cache, cache.u_cache, cache.p)
+            fxλp_norm = norm(cache.fu_cache, 2)
+        else
+            fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+        end
+
+        converged = fxλp_norm ≤ (1 + η) * fx_norm - σ₁ * λ₂^2 * norm(du, 2)^2
+
+        converged && break
+        λ₁, λ₂ = λ₂, β * λ₂
+    end
+
+    return λ₂
 end

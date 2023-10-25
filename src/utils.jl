@@ -35,8 +35,8 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     if chunk_size !== missing || standardtag !== missing || diff_type !== missing ||
        autodiff !== missing
         Base.depwarn("`chunk_size`, `standardtag`, `diff_type`, \
-            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed in\
-             v3. Update your code to directly specify autodiff=<ADTypes>",
+            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed \
+             in v3. Update your code to directly specify autodiff=<ADTypes>",
             :default_adargs_to_adtype)
     end
     chunk_size === missing && (chunk_size = Val{0}())
@@ -61,7 +61,6 @@ function value_derivative(f::F, x::R) where {F, R}
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end
 
-# Todo: improve this dispatch
 function value_derivative(f::F, x::SVector) where {F}
     f(x), ForwardDiff.jacobian(f, x)
 end
@@ -73,6 +72,9 @@ end
 @inline _vec(v) = vec(v)
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v
+
+@inline _restructure(y, x) = restructure(y, x)
+@inline _restructure(y::Number, x::Number) = x
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
@@ -203,8 +205,7 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        use_sparse_ad ? AutoSparseForwardDiff() :
-        AutoForwardDiff{ForwardDiff.pickchunksize(length(prob.u0)), Nothing}(nothing)
+        use_sparse_ad ? AutoSparseForwardDiff() : AutoForwardDiff{nothing, Nothing}(nothing)
     end
     return set_ad(alg, ad)
 end
@@ -265,3 +266,62 @@ function _get_reinit_termination_condition(cache, abstol, reltol, termination_co
             termination_condition.safe_termination_options)
     end
 end
+
+__init_identity_jacobian(u::Number, _) = u
+function __init_identity_jacobian(u, fu)
+    return convert(parameterless_type(_mutable(u)),
+        Matrix{eltype(u)}(I, length(fu), length(u)))
+end
+function __init_identity_jacobian(u::StaticArray, fu)
+    return convert(MArray{Tuple{length(fu), length(u)}},
+        Matrix{eltype(u)}(I, length(fu), length(u)))
+end
+
+function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)
+    Vᵀ = convert(MArray{Tuple{length(u), threshold}},
+        zeros(eltype(u), length(u), threshold))
+    U = convert(MArray{Tuple{threshold, length(u)}}, zeros(eltype(u), threshold, length(u)))
+    return U, Vᵀ
+end
+function __init_low_rank_jacobian(u, fu, threshold::Int)
+    Vᵀ = convert(parameterless_type(_mutable(u)), zeros(eltype(u), length(u), threshold))
+    U = convert(parameterless_type(_mutable(u)), zeros(eltype(u), threshold, length(u)))
+    return U, Vᵀ
+end
+
+# Check Singular Matrix
+_issingular(x::Number) = iszero(x)
+@generated function _issingular(x::T) where {T}
+    hasmethod(issingular, Tuple{T}) && return :(issingular(x))
+    return :(__issingular(x))
+end
+__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(T)))
+__issingular(x) = false ## If SciMLOperator and such
+
+# If factorization is LU then perform that and update the linsolve cache
+# else check if the matrix is singular
+function _try_factorize_and_check_singular!(linsolve, X)
+    if linsolve.cacheval isa LU
+        # LU Factorization was used
+        linsolve.A = X
+        linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
+            linsolve.u)
+        linsolve.isfresh = false
+
+        return !issuccess(linsolve.cacheval), true
+    end
+    return _issingular(X), false
+end
+_try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
+
+_reshape(x, args...) = reshape(x, args...)
+_reshape(x::Number, args...) = x
+
+@generated function _axpy!(α, x, y)
+    hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
+    return :(@. y += α * x)
+end
+
+_needs_square_A(_, ::Number) = true
+_needs_square_A(_, ::StaticArray) = true
+_needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)

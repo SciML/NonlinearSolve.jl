@@ -55,13 +55,26 @@ features, but have a bit of overhead on very small problems.
     improvements suggested in the [paper](https://arxiv.org/abs/1201.5885) "Improvements to
     the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". Designed for
     large-scale and numerically-difficult nonlinear systems.
+  - `PseudoTransient()`: A pseudo-transient method which mixes the stability of Euler-type
+    stepping with the convergence speed of a Newton method. Good for highly unstable
+    systems.
   - `RobustMultiNewton()`: A polyalgorithm that mixes highly robust methods (line searches and
     trust regions) in order to be as robust as possible for difficult problems. If this method
     fails to converge, then one can be pretty certain that most (all?) other choices would
     likely fail.
-  - `FastShortcutNonlinearPolyalg`: The default method. A polyalgorithm that mixes fast methods
+  - `FastShortcutNonlinearPolyalg()`: The default method. A polyalgorithm that mixes fast methods
     with fallbacks to robust methods to allow for solving easy problems quickly without sacrificing
     robustnes on the hard problems.
+  - `GeneralBroyden()`: Generalization of Broyden's Quasi-Newton Method with Line Search and
+    Automatic Jacobian Resetting. This is a fast method but unstable when the condition number of
+    the Jacobian matrix is sufficiently large.
+  - `GeneralKlement()`: Generalization of Klement's Quasi-Newton Method with Line Search and
+    Automatic Jacobian Resetting. This is a fast method but unstable when the condition number of
+    the Jacobian matrix is sufficiently large.
+  - `LimitedMemoryBroyden()`: An advanced version of `LBroyden` which uses a limited memory
+    Broyden method. This is a fast method but unstable when the condition number of
+    the Jacobian matrix is sufficiently large. It is recommended to use `GeneralBroyden` or
+    `GeneralKlement` instead unless the memory usage is a concern.
 
 ### SimpleNonlinearSolve.jl
 

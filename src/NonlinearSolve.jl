@@ -5,10 +5,11 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
 end
 
 using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
+import ArrayInterface: restructure
 import ForwardDiff
 
 import ADTypes: AbstractFiniteDifferencesMode
-import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable
+import ArrayInterface: undefmatrix, matrix_colors, parameterless_type, ismutable, issingular
 import ConcreteStructs: @concrete
 import EnumX: @enumx
 import ForwardDiff: Dual
@@ -24,6 +25,8 @@ import UnPack: @unpack
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
+
+abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
@@ -49,10 +52,13 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         cache.stats.nsteps += 1
     end
 
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
+    # The solver might have set a different `retcode`
+    if cache.retcode == ReturnCode.Default
+        if cache.stats.nsteps == cache.maxiters
+            cache.retcode = ReturnCode.MaxIters
+        else
+            cache.retcode = ReturnCode.Success
+        end
     end
 
     return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, get_fu(cache);
@@ -67,18 +73,23 @@ include("trustRegion.jl")
 include("levenberg.jl")
 include("gaussnewton.jl")
 include("dfsane.jl")
+include("pseudotransient.jl")
+include("broyden.jl")
+include("klement.jl")
+include("lbroyden.jl")
 include("jacobian.jl")
 include("ad.jl")
 include("default.jl")
 
 import PrecompileTools
 
-@static if VERSION >= v"1.10"
+@static if VERSION ≥ v"1.10-"
     PrecompileTools.@compile_workload begin
         for T in (Float32, Float64)
             prob = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 
-            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt())
+            precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
+                PseudoTransient(), GeneralBroyden(), GeneralKlement(), nothing)
 
             for alg in precompile_algs
                 solve(prob, alg, abstol = T(1e-2))
@@ -95,10 +106,11 @@ end
 
 export RadiusUpdateSchemes
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton
+export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
+    GeneralBroyden, GeneralKlement, LimitedMemoryBroyden
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
-export LineSearch
+export LineSearch, LiFukushimaLineSearch
 
 end # module

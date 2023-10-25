@@ -81,7 +81,6 @@ states as `RadiusUpdateSchemes.T`. Simply put the desired scheme as follows:
 end
 
 """
-```julia
     TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
         radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple,
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
@@ -363,7 +362,7 @@ function perform_step!(cache::TrustRegionCache{true})
     if cache.make_new_J
         jacobian!!(J, cache)
         mul!(cache.H, J', J)
-        mul!(cache.g, J', fu)
+        mul!(_vec(cache.g), J', _vec(fu))
         cache.stats.njacs += 1
 
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
@@ -394,9 +393,9 @@ function perform_step!(cache::TrustRegionCache{false})
     if make_new_J
         J = jacobian!!(cache.J, cache)
         cache.H = J' * J
-        cache.g = J' * fu
+        cache.g = _restructure(fu, J' * _vec(fu))
         cache.stats.njacs += 1
-        cache.u_gauss_newton = -1 .* (cache.H \ cache.g)
+        cache.u_gauss_newton = -1 .* _restructure(cache.g, cache.H \ _vec(cache.g))
     end
 
     # Compute the Newton step.
@@ -438,7 +437,8 @@ function trust_region_step!(cache::TrustRegionCache)
     cache.loss_new = get_loss(fu_new)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
-    cache.r = -(loss - cache.loss_new) / (dot(du, g) + dot(du, H, du) / 2)
+    cache.r = -(loss - cache.loss_new) /
+              (dot(_vec(du), _vec(g)) + dot(_vec(du), H, _vec(du)) / 2)
     @unpack r = cache
 
     if radius_update_scheme === RadiusUpdateSchemes.Simple
@@ -638,7 +638,7 @@ function dogleg!(cache::TrustRegionCache{true})
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g) # length of the gradient
-    d_cauchy = l_grad^3 / dot(cache.g, cache.H, cache.g) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy >= trust_r
         @. cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return
@@ -668,7 +668,7 @@ function dogleg!(cache::TrustRegionCache{false})
 
     ## Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g)
-    d_cauchy = l_grad^3 / dot(cache.g, cache.H, cache.g) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy > trust_r # cauchy point lies outside of trust region
         cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return
