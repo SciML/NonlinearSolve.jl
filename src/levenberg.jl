@@ -233,7 +233,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
     if make_new_J
         jacobian!!(cache.J, cache)
         if fastls
-            cache.J² .= cache.J .^ 2
+            cache.J² .= abs2.(cache.J)
             sum!(cache.JᵀJ', cache.J²)
             cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
         else
@@ -327,7 +327,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
     if make_new_J
         cache.J = jacobian!!(cache.J, cache)
         if fastls
-            cache.JᵀJ = _vec(sum(cache.J .^ 2; dims = 1))
+            cache.JᵀJ = _vec(sum(abs2, cache.J; dims = 1))
             cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
         else
             cache.JᵀJ = cache.J' * cache.J
