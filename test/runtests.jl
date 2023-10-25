@@ -17,10 +17,7 @@ end
         @time @safetestset "Sparsity Tests" include("sparse.jl")
         @time @safetestset "Polyalgs" include("polyalgs.jl")
         @time @safetestset "Matrix Resizing" include("matrix_resizing.jl")
-        if VERSION ≥ v"1.10-"
-            # Takes too long to compile on older versions
-            @time @safetestset "Nonlinear Least Squares" include("nonlinear_least_squares.jl")
-        end
+        @time @safetestset "Nonlinear Least Squares" include("nonlinear_least_squares.jl")
     end
 
     if GROUP == "All" || GROUP == "23TestProblems"
