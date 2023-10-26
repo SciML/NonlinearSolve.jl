@@ -109,10 +109,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
         JᵀJ, Jᵀf = nothing, nothing
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u); mode = NLSolveTerminationMode.AbsNorm)
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 

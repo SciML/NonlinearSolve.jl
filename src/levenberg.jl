@@ -185,10 +185,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         v = similar(du)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u); mode = NLSolveTerminationMode.AbsNorm)
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
