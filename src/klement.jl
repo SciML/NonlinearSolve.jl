@@ -58,9 +58,12 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     prob
     stats::NLStats
     lscache
+    termination_condition
+    tc_storage
 end
 
 get_fu(cache::GeneralKlementCache) = cache.fu
