@@ -1,4 +1,4 @@
-# Faster Startup and and Static Compilation
+# [Faster Startup and and Static Compilation](@id fast_startup)
 
 In many instances one may want a very lightweight version of NonlinearSolve.jl. For this case there
 exists the solver package SimpleNonlinearSolve.jl. SimpleNonlinearSolve.jl solvers all satisfy the
