@@ -79,7 +79,8 @@ routine for the factorization without constructing `JᵀJ` and `Jᵀf`. For more
     [this paper](https://arxiv.org/abs/1201.5885) to use a minimum value of the elements in
     `DᵀD` to prevent the damping from being too small. Defaults to `1e-8`.
 """
-@concrete struct LevenbergMarquardt{CJ, AD, T} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct LevenbergMarquardt{CJ, AD, T} <:
+                 AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
@@ -114,6 +115,7 @@ end
     f
     alg
     u
+    u_prev
     fu1
     fu2
     du
@@ -127,6 +129,7 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     prob
     DᵀD
     JᵀJ
@@ -153,11 +156,15 @@ end
     rhs_tmp
     J²
     stats::NLStats
+    termination_condition
+    tc_storage
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
-    args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing,
+    internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
@@ -177,6 +184,11 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         J² = similar(J)
         v = similar(du)
     end
+
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
 
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
@@ -203,6 +215,11 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     make_new_J = true
     fu_tmp = zero(fu1)
 
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
     if _unwrap_val(linsolve_with_JᵀJ)
         mat_tmp = zero(JᵀJ)
         rhs_tmp = nothing
@@ -215,16 +232,22 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         linsolve = __setup_linsolve(mat_tmp, rhs_tmp, u, p, alg)
     end
 
-    return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, fu1,
+    return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, copy(u),
+        fu1,
         fu2, du, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, prob, DᵀD,
+        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
+        DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0))
+        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0),
+        termination_condition, storage)
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fastls}
-    @unpack fu1, f, make_new_J = cache
+    @unpack fu1, f, make_new_J, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
+
     if iszero(fu1)
         cache.force_stop = true
         return nothing
@@ -243,7 +266,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
+    @unpack u, u_prev, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
@@ -300,7 +323,11 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
-            if loss < cache.abstol
+            if termination_condition(cache.fu_tmp,
+                cache.u,
+                u_prev,
+                cache.abstol,
+                cache.reltol)
                 cache.force_stop = true
                 return nothing
             end
@@ -312,13 +339,17 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
             cache.make_new_J = true
         end
     end
+    @. u_prev = u
     cache.λ *= cache.λ_factor
     cache.λ_factor = cache.damping_increase_factor
     return nothing
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fastls}
-    @unpack fu1, f, make_new_J = cache
+    @unpack fu1, f, make_new_J, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
+
     if iszero(fu1)
         cache.force_stop = true
         return nothing
@@ -340,7 +371,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         cache.make_new_J = false
         cache.stats.njacs += 1
     end
-    @unpack u, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
+
+    @unpack u, u_prev, p, λ, JᵀJ, DᵀD, J, linsolve, alg = cache
 
     # Usual Levenberg-Marquardt step ("velocity").
     if fastls
@@ -393,7 +425,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u += δ
-            if loss < cache.abstol
+            if termination_condition(fu_new, cache.u, u_prev, cache.abstol, cache.reltol)
                 cache.force_stop = true
                 return nothing
             end
@@ -405,6 +437,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
             cache.make_new_J = true
         end
     end
+    cache.u_prev = @. cache.u
     cache.λ *= cache.λ_factor
     cache.λ_factor = cache.damping_increase_factor
     return nothing

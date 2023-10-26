@@ -49,13 +49,16 @@ end
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad,
+        linsolve,
+        precs)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
+    u_prev
     fu1
     fu2
     fu_new
@@ -72,12 +75,17 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     prob
     stats::NLStats
+    tc_storage
+    termination_condition
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
-    args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing,
+    internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
@@ -101,14 +109,28 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
         JᵀJ, Jᵀf = nothing, nothing
     end
 
-    return GaussNewtonCache{iip}(f, alg, u, fu1, fu2, zero(fu1), du, p, uf, linsolve, J,
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
+    return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
+        linsolve, J,
         JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        prob, NLStats(1, 0, 0, 0, 0))
+        reltol,
+        prob, NLStats(1, 0, 0, 0, 0), storage, termination_condition)
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
-    @unpack u, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du, tc_storage = cache
     jacobian!!(J, cache)
+
+    termination_condition = cache.termination_condition(tc_storage)
 
     if JᵀJ !== nothing
         __matmul!(JᵀJ, J', J)
@@ -127,9 +149,15 @@ function perform_step!(cache::GaussNewtonCache{true})
     @. u = u - du
     f(cache.fu_new, u, p)
 
-    (cache.internalnorm(cache.fu_new .- cache.fu1) < cache.abstol ||
-     cache.internalnorm(cache.fu_new) < cache.abstol) &&
+    (termination_condition(cache.fu_new .- cache.fu1,
+        cache.u,
+        u_prev,
+        cache.abstol,
+        cache.reltol) ||
+     termination_condition(cache.fu_new, cache.u, u_prev, cache.abstol, cache.reltol)) &&
         (cache.force_stop = true)
+
+    @. u_prev = u
     cache.fu1 .= cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1
@@ -139,7 +167,9 @@ function perform_step!(cache::GaussNewtonCache{true})
 end
 
 function perform_step!(cache::GaussNewtonCache{false})
-    @unpack u, fu1, f, p, alg, linsolve = cache
+    @unpack u, u_prev, fu1, f, p, alg, linsolve, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)
 
@@ -164,7 +194,10 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.u = @. u - cache.du  # `u` might not support mutation
     cache.fu_new = f(cache.u, p)
 
-    (cache.internalnorm(cache.fu_new) < cache.abstol) && (cache.force_stop = true)
+    termination_condition(cache.fu_new, cache.u, u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
+
+    cache.u_prev = @. cache.u
     cache.fu1 = cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1
@@ -174,7 +207,9 @@ function perform_step!(cache::GaussNewtonCache{false})
 end
 
 function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -184,7 +219,14 @@ function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache
         cache.u = u0
         cache.fu1 = cache.f(cache.u, p)
     end
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
+
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

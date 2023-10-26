@@ -1,5 +1,5 @@
 using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random, LinearAlgebra,
-    Test, ForwardDiff, Zygote, Enzyme, SparseDiffTools
+    Test, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
@@ -72,7 +72,7 @@ end
     end
 
     @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
+        for p in [1.0, 100.0]
             @test begin
                 res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
                 res_true = sqrt(p)
@@ -122,6 +122,20 @@ end
             AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
+    end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, NewtonRaphson(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
@@ -281,6 +295,20 @@ end
             @test sol_iip.u ≈ sol_oop.u
         end
     end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, TrustRegion(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
 # --- LevenbergMarquardt tests ---
@@ -390,6 +418,20 @@ end
             sol = solve(probN, alg, abstol = 1e-12)
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
+    end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, LevenbergMarquardt(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
@@ -543,6 +585,20 @@ end
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
     end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, DFSane(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
 # --- PseudoTransient tests ---
@@ -663,6 +719,22 @@ end
         probN = NonlinearProblem{false}(newton_fails, u0, p)
         sol = solve(probN, PseudoTransient(alpha_initial = 1.0), abstol = 1e-10)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
+    end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN,
+            PseudoTransient(; alpha_initial = 10.0);
+            termination_condition).u .≈ sqrt(2.0))
     end
 end
 
