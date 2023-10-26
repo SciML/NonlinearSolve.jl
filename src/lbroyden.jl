@@ -34,6 +34,7 @@ end
     f
     alg
     u
+    u_prev
     du
     fu
     fu2
@@ -53,17 +54,21 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     reset_tolerance
     reset_check
     prob
     stats::NLStats
     lscache
+    termination_condition
+    tc_storage
 end
 
 get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemoryBroyden,
-    args...; alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing, internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -80,23 +85,38 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
-    return LimitedMemoryBroydenCache{iip}(f, alg, u, du, fu, zero(fu),
+
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u))
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
+    return LimitedMemoryBroydenCache{iip}(f, alg, u, zero(u), du, fu, zero(fu),
         zero(fu), p, U, Vᵀ, similar(u, threshold), similar(u, 1, threshold),
         zero(u), zero(u), false, 0, 0, alg.max_resets, maxiters, internalnorm,
-        ReturnCode.Default, abstol, reset_tolerance, reset_check, prob,
+        ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
+        storage)
 end
 
 function perform_step!(cache::LimitedMemoryBroydenCache{true})
-    @unpack f, p, du, u = cache
+    @unpack f, p, du, u, tc_storage = cache
     T = eltype(u)
+
+    termination_condition = cache.termination_condition(tc_storage)
 
     α = perform_linesearch!(cache.lscache, u, du)
     _axpy!(α, du, u)
     f(cache.fu2, u, p)
 
-    cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -138,20 +158,25 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         cache.iterations_since_reset += 1
     end
 
+    cache.u_prev .= cache.u
     cache.fu .= cache.fu2
 
     return nothing
 end
 
 function perform_step!(cache::LimitedMemoryBroydenCache{false})
-    @unpack f, p = cache
+    @unpack f, p, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
+
     T = eltype(cache.u)
 
     α = perform_linesearch!(cache.lscache, cache.u, cache.du)
     cache.u = cache.u .+ α * cache.du
     cache.fu2 = f(cache.u, p)
 
-    cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -194,6 +219,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         cache.iterations_since_reset += 1
     end
 
+    cache.u_prev = @. cache.u
     cache.fu = cache.fu2
 
     return nothing

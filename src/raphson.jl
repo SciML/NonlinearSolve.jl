@@ -135,9 +135,8 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
+    @unpack u, u_prev, fu1, f, p, alg, linsolve, tc_storage = cache
 
-    tc_storage = cache.tc_storage
     termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)

@@ -31,6 +31,7 @@ end
     f
     alg
     u
+    u_prev
     du
     fu
     fu2
@@ -46,17 +47,21 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     reset_tolerance
     reset_check
     prob
     stats::NLStats
     lscache
+    termination_condition
+    tc_storage
 end
 
 get_fu(cache::GeneralBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyden, args...;
-    alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing, internalnorm = DEFAULT_NORM,
     kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -65,15 +70,29 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
-    return GeneralBroydenCache{iip}(f, alg, u, _mutable_zero(u), fu, zero(fu),
+
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u))
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+    return GeneralBroydenCache{iip}(f, alg, u, zero(u), _mutable_zero(u), fu, zero(fu),
         zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
-        alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reset_tolerance,
+        alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reltol,
+        reset_tolerance,
         reset_check, prob, NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
+        storage)
 end
 
 function perform_step!(cache::GeneralBroydenCache{true})
-    @unpack f, p, du, fu, fu2, dfu, u, J⁻¹, J⁻¹df, J⁻¹₂ = cache
+    @unpack f, p, du, fu, fu2, dfu, u, u_prev, J⁻¹, J⁻¹df, J⁻¹₂, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
     T = eltype(u)
 
     mul!(_vec(du), J⁻¹, -_vec(fu))
@@ -81,7 +100,8 @@ function perform_step!(cache::GeneralBroydenCache{true})
     _axpy!(α, du, u)
     f(fu2, u, p)
 
-    cache.internalnorm(fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(fu2, u, u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -106,12 +126,16 @@ function perform_step!(cache::GeneralBroydenCache{true})
         mul!(J⁻¹, _vec(du), J⁻¹₂, 1, 1)
     end
     fu .= fu2
+    @. u_prev = u
 
     return nothing
 end
 
 function perform_step!(cache::GeneralBroydenCache{false})
-    @unpack f, p = cache
+    @unpack f, p, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
+
     T = eltype(cache.u)
 
     cache.du = _restructure(cache.du, cache.J⁻¹ * -_vec(cache.fu))
@@ -119,7 +143,8 @@ function perform_step!(cache::GeneralBroydenCache{false})
     cache.u = cache.u .+ α * cache.du
     cache.fu2 = f(cache.u, p)
 
-    cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -142,12 +167,15 @@ function perform_step!(cache::GeneralBroydenCache{false})
         cache.J⁻¹ = cache.J⁻¹ .+ _vec(cache.du) * cache.J⁻¹₂
     end
     cache.fu = cache.fu2
+    cache.u_prev = @. cache.u
 
     return nothing
 end
 
 function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -157,7 +185,14 @@ function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = ca
         cache.u = u0
         cache.fu = cache.f(cache.u, p)
     end
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
+
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

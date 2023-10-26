@@ -41,6 +41,7 @@ end
     f
     alg
     u
+    u_prev
     fu
     fu2
     du
@@ -65,7 +66,8 @@ end
 get_fu(cache::GeneralKlementCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
-    alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;), kwargs...) where {uType, iip}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -84,15 +86,29 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
     end
 
-    return GeneralKlementCache{iip}(f, alg, u, fu, zero(fu), du, p, linsolve,
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u))
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
+    return GeneralKlementCache{iip}(f, alg, u, zero(u), fu, zero(fu), du, p, linsolve,
         J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
-        maxiters, internalnorm, ReturnCode.Default, abstol, prob, NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)))
+        maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
+        NLStats(1, 0, 0, 0, 0),
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
+        storage)
 end
 
 function perform_step!(cache::GeneralKlementCache{true})
-    @unpack u, fu, f, p, alg, J, linsolve, du = cache
+    @unpack u, u_prev, fu, f, p, alg, J, linsolve, du, tc_storage = cache
     T = eltype(J)
+
+    termination_condition = cache.termination_condition(tc_storage)
 
     singular, fact_done = _try_factorize_and_check_singular!(linsolve, J)
 
@@ -118,7 +134,8 @@ function perform_step!(cache::GeneralKlementCache{true})
     _axpy!(α, du, u)
     f(cache.fu2, u, p)
 
-    cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(cache.fu2, u, u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
     cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
@@ -138,13 +155,17 @@ function perform_step!(cache::GeneralKlementCache{true})
     mul!(cache.J_cache2, cache.J_cache, J)
     J .+= cache.J_cache2
 
+    @. u_prev = u
     cache.fu .= cache.fu2
 
     return nothing
 end
 
 function perform_step!(cache::GeneralKlementCache{false})
-    @unpack fu, f, p, alg, J, linsolve = cache
+    @unpack fu, f, p, alg, J, linsolve, tc_storage = cache
+
+    termination_condition = cache.termination_condition(tc_storage)
+
     T = eltype(J)
 
     singular, fact_done = _try_factorize_and_check_singular!(linsolve, J)
@@ -174,7 +195,10 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.u = @. cache.u + α * cache.du  # `u` might not support mutation
     cache.fu2 = f(cache.u, p)
 
-    cache.internalnorm(cache.fu2) < cache.abstol && (cache.force_stop = true)
+    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
+
+    cache.u_prev = @. cache.u
     cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
@@ -198,7 +222,9 @@ function perform_step!(cache::GeneralKlementCache{false})
 end
 
 function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -208,7 +234,14 @@ function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = ca
         cache.u = u0
         cache.fu = cache.f(cache.u, p)
     end
+
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1
