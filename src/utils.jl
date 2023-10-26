@@ -314,14 +314,17 @@ function _try_factorize_and_check_singular!(linsolve, X)
 end
 _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
 
-_reshape(x, args...) = reshape(x, args...)
-_reshape(x::Number, args...) = x
+@inline _reshape(x, args...) = reshape(x, args...)
+@inline _reshape(x::Number, args...) = x
 
 @generated function _axpy!(α, x, y)
     hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
     return :(@. y += α * x)
 end
 
-_needs_square_A(_, ::Number) = true
-_needs_square_A(_, ::StaticArray) = true
-_needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
+@inline _needs_square_A(_, ::Number) = true
+@inline _needs_square_A(_, ::StaticArray) = true
+@inline _needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
+
+# Define special concatenation for certain Array combinations
+@inline _vcat(x, y) = vcat(x, y)
