@@ -724,7 +724,8 @@ end
 get_fu(cache::TrustRegionCache) = cache.fu
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, termination_condition = cache.termination_condition,
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
     maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip

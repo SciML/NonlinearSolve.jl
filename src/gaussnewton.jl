@@ -131,7 +131,7 @@ function perform_step!(cache::GaussNewtonCache{true})
     jacobian!!(J, cache)
 
     termination_condition = cache.termination_condition(tc_storage)
-  
+
     if JᵀJ !== nothing
         __matmul!(JᵀJ, J', J)
         __matmul!(Jᵀf, J', fu1)

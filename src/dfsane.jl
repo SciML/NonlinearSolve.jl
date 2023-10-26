@@ -314,7 +314,8 @@ function SciMLBase.solve!(cache::DFSaneCache)
 end
 
 function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
-    abstol = cache.abstol, termination_condition = cache.termination_condition,
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
     maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip

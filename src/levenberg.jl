@@ -219,7 +219,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
 
     storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
               nothing
-  
+
     if _unwrap_val(linsolve_with_JᵀJ)
         mat_tmp = zero(JᵀJ)
         rhs_tmp = nothing
@@ -232,19 +232,22 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         linsolve = __setup_linsolve(mat_tmp, rhs_tmp, u, p, alg)
     end
 
-    return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, fu1,
+    return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, copy(u),
+        fu1,
         fu2, du, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob, DᵀD,
+        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
+        DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0), termination_condition, storage)
+        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0),
+        termination_condition, storage)
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fastls}
     @unpack fu1, f, make_new_J, tc_storage = cache
 
     termination_condition = cache.termination_condition(tc_storage)
-  
+
     if iszero(fu1)
         cache.force_stop = true
         return nothing
