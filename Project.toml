@@ -25,14 +25,17 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [weakdeps]
+BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 
 [extensions]
+NonlinearSolveBandedMatricesExt = "BandedMatrices"
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 
 [compat]
+BandedMatrices = "1"
 ADTypes = "0.2"
 ArrayInterface = "6.0.24, 7"
 ConcreteStructs = "0.2"
@@ -58,6 +61,7 @@ Zygote = "0.6"
 julia = "1.9"
 
 [extras]
+BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
@@ -77,4 +81,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim", "FastLevenbergMarquardt", "NaNMath"]
+test = ["Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim", "FastLevenbergMarquardt", "NaNMath", "BandedMatrices"]

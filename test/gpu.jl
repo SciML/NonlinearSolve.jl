@@ -1,4 +1,4 @@
-using CUDA, NonlinearSolve
+using CUDA, NonlinearSolve, LinearSolve
 
 CUDA.allowscalar(false)
 
