@@ -3,9 +3,9 @@
         precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
 
 An implementation of PseudoTransient method that is used to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping to
-integrate an initial value of nonlinear problem until sufficient accuracy in the desired steady-state is achieved to switch over to Newton's method and 
+integrate an initial value of nonlinear problem until sufficient accuracy in the desired steady-state is achieved to switch over to Newton's method and
 gain a rapid convergence. This implementation specifically uses "switched evolution relaxation" SER method. For detail information about the time-stepping and algorithm,
-please see the paper: [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations, 
+please see the paper: [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations,
 SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
 
 ### Keyword Arguments
@@ -27,7 +27,7 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small, 
+  - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small,
     you are going to need more iterations to converge but it can be more stable.
 """
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
@@ -52,6 +52,7 @@ end
     f
     alg
     u
+    u_prev
     fu1
     fu2
     du
@@ -67,15 +68,19 @@ end
     internalnorm
     retcode::ReturnCode.T
     abstol
+    reltol
     prob
     stats::NLStats
+    termination_condition
+    tc_storage
 end
 
 isinplace(::PseudoTransientCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
     args...;
-    alias_u0 = false, maxiters = 1000, abstol = 1e-6, internalnorm = DEFAULT_NORM,
+    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    termination_condition = nothing, internalnorm = DEFAULT_NORM,
     linsolve_kwargs = (;),
     kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
@@ -93,15 +98,29 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     alpha = convert(eltype(u), alg.alpha_initial)
     res_norm = internalnorm(fu1)
 
-    return PseudoTransientCache{iip}(f, alg, u, fu1, fu2, du, p, alpha, res_norm, uf,
+    abstol, reltol, termination_condition = _init_termination_elements(abstol,
+        reltol,
+        termination_condition,
+        eltype(u))
+
+    mode = DiffEqBase.get_termination_mode(termination_condition)
+
+    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
+              nothing
+
+    return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
+        uf,
         linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        prob, NLStats(1, 0, 0, 0, 0))
+        reltol,
+        prob, NLStats(1, 0, 0, 0, 0), termination_condition, storage)
 end
 
 function perform_step!(cache::PseudoTransientCache{true})
-    @unpack u, fu1, f, p, alg, J, linsolve, du, alpha = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha, tc_storage = cache
     jacobian!!(J, cache)
     J_new = J - (1 / alpha) * I
+
+    termination_condition = cache.termination_condition(tc_storage)
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = J_new, b = _vec(fu1), linu = _vec(du),
@@ -114,7 +133,10 @@ function perform_step!(cache::PseudoTransientCache{true})
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
 
-    new_norm < cache.abstol && (cache.force_stop = true)
+    termination_condition(fu1, u, u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
+
+    @. u_prev = u
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -123,7 +145,10 @@ function perform_step!(cache::PseudoTransientCache{true})
 end
 
 function perform_step!(cache::PseudoTransientCache{false})
-    @unpack u, fu1, f, p, alg, linsolve, alpha = cache
+    @unpack u, u_prev, fu1, f, p, alg, linsolve, alpha, tc_storage = cache
+
+    tc_storage = cache.tc_storage
+    termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)
     # u = u - J \ fu
@@ -141,7 +166,9 @@ function perform_step!(cache::PseudoTransientCache{false})
     new_norm = cache.internalnorm(fu1)
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
-    new_norm < cache.abstol && (cache.force_stop = true)
+    termination_condition(fu1, cache.u, u_prev, cache.abstol, cache.reltol) &&
+        (cache.force_stop = true)
+    cache.u_prev = @. cache.u
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -167,7 +194,9 @@ end
 
 function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
     alpha_new,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+    abstol = cache.abstol, reltol = cache.reltol,
+    termination_condition = cache.termination_condition,
+    maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -177,9 +206,17 @@ function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = c
         cache.u = u0
         cache.fu1 = cache.f(cache.u, p)
     end
+
+    termination_condition = _get_reinit_termination_condition(cache,
+        abstol,
+        reltol,
+        termination_condition)
+
     cache.alpha = convert(eltype(cache.u), alpha_new)
     cache.res_norm = cache.internalnorm(cache.fu1)
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.termination_condition = termination_condition
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

@@ -720,6 +720,22 @@ end
         sol = solve(probN, PseudoTransient(alpha_initial = 1.0), abstol = 1e-10)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
     end
+
+    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+        u0 in (1.0, [1.0, 1.0])
+
+        if mode ∈
+           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
+            NLSolveTerminationMode.AbsSafeBest)
+            continue
+        end
+        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
+            reltol = nothing)
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN,
+            PseudoTransient(; alpha_initial = 10.0);
+            termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
 # --- GeneralBroyden tests ---
