@@ -208,7 +208,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         rhs_tmp = nothing
     else
         # Preserve Types
-        mat_tmp = vcat(J, DᵀD)
+        mat_tmp = _vcat(J, DᵀD)
         fill!(mat_tmp, zero(eltype(u)))
         rhs_tmp = vcat(_vec(fu1), _vec(u))
         fill!(rhs_tmp, zero(eltype(u)))
