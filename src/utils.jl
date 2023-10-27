@@ -206,6 +206,8 @@ function get_concrete_algorithm(alg, prob)
     return __get_concrete_algorithm(alg, prob)
 end
 
+struct NonlinearSolveTag end
+
 function __get_concrete_algorithm(alg, prob)
     @unpack sparsity, jac_prototype = prob.f
     use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
@@ -213,7 +215,8 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        use_sparse_ad ? AutoSparseForwardDiff() : AutoForwardDiff{nothing, Nothing}(nothing)
+        tag = NonlinearSolveTag()
+        use_sparse_ad ? AutoSparseForwardDiff(; tag) : AutoForwardDiff(; tag)
     end
     return set_ad(alg, ad)
 end
