@@ -51,7 +51,7 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
     return PseudoTransient{_unwrap_val(concrete_jac)}(ad, linsolve, precs, alpha_initial)
 end
 
-@concrete mutable struct PseudoTransientCache{iip}
+@concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -77,8 +77,6 @@ end
     termination_condition
     tc_storage
 end
-
-isinplace(::PseudoTransientCache{iip}) where {iip} = iip
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
@@ -174,22 +172,6 @@ function perform_step!(cache::PseudoTransientCache{false})
     return nothing
 end
 
-function SciMLBase.solve!(cache::PseudoTransientCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
-        cache.retcode, cache.stats)
-end
-
 function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
     alpha_new,
     abstol = cache.abstol, reltol = cache.reltol,
@@ -205,9 +187,7 @@ function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = c
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
 
     cache.alpha = convert(eltype(cache.u), alpha_new)

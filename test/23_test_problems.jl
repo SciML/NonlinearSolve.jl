@@ -11,8 +11,9 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg, abstol = 1e-18, reltol = 1e-18)
+                    sol = solve(nlprob, alg)
                     problem(res, sol.u, nothing)
+
                     broken = idx in broken_tests[alg] ? true : false
                     @test norm(res)≤ϵ broken=broken
                 catch
