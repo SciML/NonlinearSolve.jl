@@ -127,8 +127,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
     alg::FastShortcutNonlinearPolyalg, args...; kwargs...) where {uType, iip}
     @unpack adkwargs, linsolve, precs = alg
 
-    algs = (
-        GeneralKlement(; linsolve, precs),
+    algs = (GeneralKlement(; linsolve, precs),
         GeneralBroyden(),
         NewtonRaphson(; linsolve, precs, adkwargs...),
         NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...),

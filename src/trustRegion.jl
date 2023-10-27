@@ -388,11 +388,16 @@ function perform_step!(cache::TrustRegionCache{false})
         cache.g = _restructure(fu, J' * _vec(fu))
         cache.stats.njacs += 1
 
-        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
-        # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
-        linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = -_vec(fu),
-            linu = _vec(cache.u_gauss_newton), p = p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
+        if cache.linsolve === nothing
+            # Scalar
+            cache.u_gauss_newton = -cache.H \ cache.g
+        else
+            # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
+            # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
+            linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = -_vec(fu),
+                linu = _vec(cache.u_gauss_newton), p = p, reltol = cache.abstol)
+            cache.linsolve = linres.cache
+        end
     end
 
     # Compute the Newton step.
