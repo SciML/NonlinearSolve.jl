@@ -119,7 +119,6 @@ function perform_step!(cache::PseudoTransientCache{true})
     else
         J .= J - (1 / alpha) * I
     end
-    #J_new = J - (1 / alpha) * I
 
     termination_condition = cache.termination_condition(tc_storage)
 
@@ -156,7 +155,7 @@ function perform_step!(cache::PseudoTransientCache{false})
     cache.J = cache.J - (1 / alpha) * I
     # u = u - J \ fu
     if linsolve === nothing
-        cache.du = fu1 / (cache.J)
+        cache.du = fu1 / cache.J
     else
         linres = dolinsolve(alg.precs, linsolve; A = cache.J,
             b = _vec(fu1),
