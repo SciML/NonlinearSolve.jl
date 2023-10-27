@@ -114,12 +114,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
     𝒹, uₙ₋₁, fuₙ, fuₙ₋₁ = copy(uₙ), copy(uₙ), copy(uₙ), copy(uₙ)
 
     if iip
-        # f = (dx, x) -> prob.f(dx, x, p)
-        # f(fuₙ₋₁, uₙ₋₁)
         prob.f(fuₙ₋₁, uₙ₋₁, p)
     else
-        # f = (x) -> prob.f(x, p)
-        fuₙ₋₁ = prob.f(uₙ₋₁, p) # f(uₙ₋₁)
+        fuₙ₋₁ = prob.f(uₙ₋₁, p)
     end
 
     f₍ₙₒᵣₘ₎ₙ₋₁ = norm(fuₙ₋₁)^nₑₓₚ
@@ -127,10 +124,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        T)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, T)
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -167,14 +162,13 @@ function perform_step!(cache::DFSaneCache{true})
 
     f(cache.fuₙ, cache.uₙ)
     f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
-    for _ in 1:(cache.alg.max_inner_iterations)
+    for jjj in 1:(cache.alg.max_inner_iterations)
         𝒸 = f̄ + η - γ * α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁
 
         f₍ₙₒᵣₘ₎ₙ ≤ 𝒸 && break
 
         α₊ = clamp(α₊^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₊ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-            τₘᵢₙ * α₊,
-            τₘₐₓ * α₊)
+            τₘᵢₙ * α₊, τₘₐₓ * α₊)
         @. cache.uₙ = cache.uₙ₋₁ - α₋ * cache.𝒹
 
         f(cache.fuₙ, cache.uₙ)
@@ -183,8 +177,7 @@ function perform_step!(cache::DFSaneCache{true})
         f₍ₙₒᵣₘ₎ₙ .≤ 𝒸 && break
 
         α₋ = clamp(α₋^2 * f₍ₙₒᵣₘ₎ₙ₋₁ / (f₍ₙₒᵣₘ₎ₙ + (T(2) * α₋ - T(1)) * f₍ₙₒᵣₘ₎ₙ₋₁),
-            τₘᵢₙ * α₋,
-            τₘₐₓ * α₋)
+            τₘᵢₙ * α₋, τₘₐₓ * α₋)
 
         @. cache.uₙ = cache.uₙ₋₁ + α₊ * cache.𝒹
         f(cache.fuₙ, cache.uₙ)
@@ -207,7 +200,7 @@ function perform_step!(cache::DFSaneCache{true})
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
         test_norm = sqrt(sum(abs2, cache.fuₙ₋₁))
-        cache.σₙ = clamp(1.0 / test_norm, 1, 1e5)
+        cache.σₙ = clamp(T(1) / test_norm, T(1), T(1e5))
     end
 
     # Take step
@@ -283,7 +276,7 @@ function perform_step!(cache::DFSaneCache{false})
     # Spectral parameter bounds check
     if abs(cache.σₙ) > σₘₐₓ || abs(cache.σₙ) < σₘᵢₙ
         test_norm = sqrt(sum(abs2, cache.fuₙ₋₁))
-        cache.σₙ = clamp(1.0 / test_norm, 1, 1e5)
+        cache.σₙ = clamp(T(1) / test_norm, T(1), T(1e5))
     end
 
     # Take step
@@ -337,9 +330,7 @@ function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p
     T = eltype(cache.uₙ)
     cache.σₙ = T(cache.alg.σ_1)
 
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
 
     cache.abstol = abstol

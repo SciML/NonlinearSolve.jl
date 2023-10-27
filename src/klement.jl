@@ -238,10 +238,9 @@ function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = ca
         cache.fu = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
+
     cache.abstol = abstol
     cache.reltol = reltol
     cache.termination_condition = termination_condition

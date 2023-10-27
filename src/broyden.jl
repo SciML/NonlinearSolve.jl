@@ -185,9 +185,8 @@ function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = ca
         cache.u = u0
         cache.fu = cache.f(cache.u, p)
     end
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
 
     cache.abstol = abstol

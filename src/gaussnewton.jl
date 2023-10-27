@@ -109,10 +109,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
         JᵀJ, Jᵀf = nothing, nothing
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u); mode = NLSolveTerminationMode.AbsNorm)
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u); mode = NLSolveTerminationMode.AbsNorm)
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -120,10 +118,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
               nothing
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
-        linsolve, J,
-        JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        reltol,
-        prob, NLStats(1, 0, 0, 0, 0), storage, termination_condition)
+        linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), storage, termination_condition)
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
@@ -149,10 +145,7 @@ function perform_step!(cache::GaussNewtonCache{true})
     @. u = u - du
     f(cache.fu_new, u, p)
 
-    (termination_condition(cache.fu_new .- cache.fu1,
-        cache.u,
-        u_prev,
-        cache.abstol,
+    (termination_condition(cache.fu_new .- cache.fu1, cache.u, u_prev, cache.abstol,
         cache.reltol) ||
      termination_condition(cache.fu_new, cache.u, u_prev, cache.abstol, cache.reltol)) &&
         (cache.force_stop = true)
@@ -219,9 +212,8 @@ function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache
         cache.u = u0
         cache.fu1 = cache.f(cache.u, p)
     end
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
 
     cache.abstol = abstol

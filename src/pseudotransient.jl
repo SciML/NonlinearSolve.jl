@@ -2,10 +2,13 @@
     PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
 
-An implementation of PseudoTransient method that is used to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping to
-integrate an initial value of nonlinear problem until sufficient accuracy in the desired steady-state is achieved to switch over to Newton's method and
-gain a rapid convergence. This implementation specifically uses "switched evolution relaxation" SER method. For detail information about the time-stepping and algorithm,
-please see the paper: [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations,
+An implementation of PseudoTransient method that is used to solve steady state problems in
+an accelerated manner. It uses an adaptive time-stepping to integrate an initial value of
+nonlinear problem until sufficient accuracy in the desired steady-state is achieved to
+switch over to Newton's method and gain a rapid convergence. This implementation
+specifically uses "switched evolution relaxation" SER method. For detail information about
+the time-stepping and algorithm, please see the paper:
+[Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations,
 SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
 
 ### Keyword Arguments
@@ -48,7 +51,7 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
     return PseudoTransient{_unwrap_val(concrete_jac)}(ad, linsolve, precs, alpha_initial)
 end
 
-@concrete mutable struct PseudoTransientCache{iip}
+@concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -75,14 +78,10 @@ end
     tc_storage
 end
 
-isinplace(::PseudoTransientCache{iip}) where {iip} = iip
-
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
-    args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
     termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;),
-    kwargs...) where {uType, iip}
+    linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
 
     @unpack f, u0, p = prob
@@ -99,9 +98,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     res_norm = internalnorm(fu1)
 
     abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
+        reltol, termination_condition, eltype(u))
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -111,8 +108,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
         uf,
         linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        reltol,
-        prob, NLStats(1, 0, 0, 0, 0), termination_condition, storage)
+        reltol, prob, NLStats(1, 0, 0, 0, 0), termination_condition, storage)
 end
 
 function perform_step!(cache::PseudoTransientCache{true})
@@ -176,22 +172,6 @@ function perform_step!(cache::PseudoTransientCache{false})
     return nothing
 end
 
-function SciMLBase.solve!(cache::PseudoTransientCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, cache.fu1;
-        cache.retcode, cache.stats)
-end
-
 function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
     alpha_new,
     abstol = cache.abstol, reltol = cache.reltol,
@@ -207,9 +187,7 @@ function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = c
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
 
     cache.alpha = convert(eltype(cache.u), alpha_new)

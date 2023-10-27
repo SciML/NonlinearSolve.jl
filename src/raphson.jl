@@ -179,10 +179,9 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache,
-        abstol,
-        reltol,
+    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
         termination_condition)
+
     cache.abstol = abstol
     cache.reltol = reltol
     cache.termination_condition = termination_condition

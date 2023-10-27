@@ -215,46 +215,44 @@ function _get_tolerance(η, tc_η, ::Type{T}) where {T}
     return T(ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η)))
 end
 
-function _init_termination_elements(abstol,
-    reltol,
-    termination_condition,
-    ::Type{T}; mode = NLSolveTerminationMode.NLSolveDefault) where {T}
+function _init_termination_elements(abstol, reltol, termination_condition,
+    ::Type{T}; mode = NLSolveTerminationMode.AbsNorm) where {T}
     if termination_condition !== nothing
-        abstol !== nothing ?
-        (abstol != termination_condition.abstol ?
-         error("Incompatible absolute tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.") :
-         nothing) : nothing
-        reltol !== nothing ?
-        (reltol != termination_condition.abstol ?
-         error("Incompatible relative tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.") :
-         nothing) : nothing
+        if abstol !== nothing && abstol != termination_condition.abstol
+            error("Incompatible absolute tolerances found. The tolerances supplied as the \
+                keyword argument and the one supplied in the termination condition should \
+                be same.")
+        end
+        if reltol !== nothing && reltol != termination_condition.reltol
+            error("Incompatible relative tolerances found. The tolerances supplied as the \
+                keyword argument and the one supplied in the termination condition should \
+                be same.")
+        end
         abstol = _get_tolerance(abstol, termination_condition.abstol, T)
         reltol = _get_tolerance(reltol, termination_condition.reltol, T)
         return abstol, reltol, termination_condition
     else
         abstol = _get_tolerance(abstol, nothing, T)
         reltol = _get_tolerance(reltol, nothing, T)
-        termination_condition = NLSolveTerminationCondition(mode;
-            abstol,
-            reltol)
+        termination_condition = NLSolveTerminationCondition(mode; abstol, reltol)
         return abstol, reltol, termination_condition
     end
 end
 
 function _get_reinit_termination_condition(cache, abstol, reltol, termination_condition)
     if termination_condition != cache.termination_condition
-        if abstol != cache.abstol
-            if abstol != termination_condition.abstol
-                error("Incompatible absolute tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.")
-            end
+        if abstol != cache.abstol && abstol != termination_condition.abstol
+            error("Incompatible absolute tolerances found. The tolerances supplied as the \
+                   keyword argument and the one supplied in the termination condition \
+                   should be same.")
         end
 
-        if reltol != cache.reltol
-            if reltol != termination_condition.reltol
-                error("Incompatible absolute tolerances found. The tolerances supplied as the keyword argument and the one supplied in the termination condition should be same.")
-            end
+        if reltol != cache.reltol && reltol != termination_condition.reltol
+            error("Incompatible absolute tolerances found. The tolerances supplied as the \
+                   keyword argument and the one supplied in the termination condition \
+                   should be same.")
         end
-        termination_condition
+        return termination_condition
     else
         # Build the termination_condition with new abstol and reltol
         return NLSolveTerminationCondition{
