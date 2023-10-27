@@ -114,12 +114,17 @@ end
 function perform_step!(cache::PseudoTransientCache{true})
     @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha, tc_storage = cache
     jacobian!!(J, cache)
-    J_new = J - (1 / alpha) * I
+    if J isa SciMLBase.AbstractSciMLOperator
+        J = J - (1 / alpha) * I
+    else
+        J .= J - (1 / alpha) * I
+    end
+    #J_new = J - (1 / alpha) * I
 
     termination_condition = cache.termination_condition(tc_storage)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = J_new, b = _vec(fu1), linu = _vec(du),
+    linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
         p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     @. u = u - du
@@ -147,11 +152,13 @@ function perform_step!(cache::PseudoTransientCache{false})
     termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)
+
+    cache.J = cache.J - (1 / alpha) * I
     # u = u - J \ fu
     if linsolve === nothing
-        cache.du = fu1 / (cache.J - (1 / alpha) * I)
+        cache.du = fu1 / (cache.J)
     else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.J - (1 / alpha) * I,
+        linres = dolinsolve(alg.precs, linsolve; A = cache.J,
             b = _vec(fu1),
             linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
