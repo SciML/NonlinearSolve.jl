@@ -128,7 +128,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
     if cache.iterations_since_reset > size(cache.U, 1) &&
        (all(cache.reset_check, du) || all(cache.reset_check, cache.dfu))
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end
@@ -188,7 +188,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
     if cache.iterations_since_reset > size(cache.U, 1) &&
        (all(cache.reset_check, cache.du) || all(cache.reset_check, cache.dfu))
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end

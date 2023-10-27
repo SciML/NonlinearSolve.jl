@@ -141,11 +141,6 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
-
-!!! warning
-
-    `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
-    Support for the OOP version is planned!
 """
 @concrete struct TrustRegion{CJ, AD, MTR} <:
                  AbstractNewtonAlgorithm{CJ, AD}
@@ -250,7 +245,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         linsolve_kwargs)
     u_tmp = zero(u)
     u_cauchy = zero(u)
-    u_gauss_newton = zero(u)
+    u_gauss_newton = _mutable_zero(u)
 
     loss_new = loss
     H = zero(J' * J)
@@ -338,10 +333,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         initial_trust_radius = convert(trustType, 1.0)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u))
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -368,8 +361,7 @@ function perform_step!(cache::TrustRegionCache{true})
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
         # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
         linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu),
-            linu = _vec(u_gauss_newton),
-            p = p, reltol = cache.abstol)
+            linu = _vec(u_gauss_newton), p = p, reltol = cache.abstol)
         cache.linsolve = linres.cache
         @. cache.u_gauss_newton = -1 * u_gauss_newton
     end
@@ -395,7 +387,12 @@ function perform_step!(cache::TrustRegionCache{false})
         cache.H = J' * J
         cache.g = _restructure(fu, J' * _vec(fu))
         cache.stats.njacs += 1
-        cache.u_gauss_newton = -1 .* _restructure(cache.g, cache.H \ _vec(cache.g))
+
+        # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
+        # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
+        linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = -_vec(fu),
+            linu = _vec(cache.u_gauss_newton), p = p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
     end
 
     # Compute the Newton step.
@@ -718,8 +715,16 @@ function jvp!(cache::TrustRegionCache{true})
 end
 
 function not_terminated(cache::TrustRegionCache)
-    return !cache.force_stop && cache.stats.nsteps < cache.maxiters &&
-           cache.shrink_counter < cache.alg.max_shrink_times
+    non_shrink_terminated = cache.force_stop || cache.stats.nsteps ≥ cache.maxiters
+    # Terminated due to convergence or maxiters
+    non_shrink_terminated && return false
+    # Terminated due to too many shrink
+    shrink_terminated = cache.shrink_counter ≥ cache.alg.max_shrink_times
+    if shrink_terminated
+        cache.retcode = ReturnCode.ConvergenceFailure
+        return false
+    end
+    return true
 end
 get_fu(cache::TrustRegionCache) = cache.fu
 

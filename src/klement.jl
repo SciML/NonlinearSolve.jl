@@ -118,7 +118,7 @@ function perform_step!(cache::GeneralKlementCache{true})
     if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             return nothing
         end
         fact_done = false
@@ -176,7 +176,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             return nothing
         end
         fact_done = false

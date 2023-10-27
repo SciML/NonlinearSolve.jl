@@ -111,7 +111,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
 
     if all(cache.reset_check, du) || all(cache.reset_check, dfu)
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end
@@ -153,7 +153,7 @@ function perform_step!(cache::GeneralBroydenCache{false})
     cache.dfu = cache.fu2 .- cache.fu
     if all(cache.reset_check, cache.du) || all(cache.reset_check, cache.dfu)
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end

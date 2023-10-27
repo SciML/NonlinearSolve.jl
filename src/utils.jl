@@ -13,6 +13,14 @@ end
 @inline DEFAULT_NORM(u::AbstractArray) = sqrt(real(sum(UNITLESS_ABS2, u)) / length(u))
 @inline DEFAULT_NORM(u) = norm(u)
 
+# Ignores NaN
+function __findmin(f, x)
+    return findmin(x) do xᵢ
+        fx = f(xᵢ)
+        return isnan(fx) ? Inf : fx
+    end
+end
+
 """
     default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
         standardtag = Val{true}(), diff_type = Val{:forward})
@@ -210,9 +218,13 @@ function __get_concrete_algorithm(alg, prob)
     return set_ad(alg, ad)
 end
 
+__cvt_real(::Type{T}, ::Nothing) where {T} = nothing
+__cvt_real(::Type{T}, x) where {T} = real(T(x))
+
 function _get_tolerance(η, tc_η, ::Type{T}) where {T}
     fallback_η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
-    return T(ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η)))
+    return ifelse(η !== nothing, __cvt_real(T, η),
+        ifelse(tc_η !== nothing, __cvt_real(T, tc_η), fallback_η))
 end
 
 function _init_termination_elements(abstol, reltol, termination_condition,

@@ -128,8 +128,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
     @unpack adkwargs, linsolve, precs = alg
 
     algs = (
-        # Klement(),
-        # Broyden(),
+        GeneralKlement(; linsolve, precs),
+        GeneralBroyden(),
         NewtonRaphson(; linsolve, precs, adkwargs...),
         NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...),
         TrustRegion(; linsolve, precs, adkwargs...),
@@ -159,7 +159,7 @@ end
         ]
     else
         [
-            :(GeneralKlement()),
+            :(GeneralKlement(; linsolve, precs)),
             :(GeneralBroyden()),
             :(NewtonRaphson(; linsolve, precs, adkwargs...)),
             :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
@@ -191,7 +191,7 @@ end
     push!(calls,
         quote
             resids = tuple($(Tuple(resids)...))
-            minfu, idx = findmin(DEFAULT_NORM, resids)
+            minfu, idx = __findmin(DEFAULT_NORM, resids)
         end)
 
     for i in 1:length(algs)
@@ -249,7 +249,7 @@ end
             retcode = ReturnCode.MaxIters
 
             fus = tuple($(Tuple(resids)...))
-            minfu, idx = findmin(cache.caches[1].internalnorm, fus)
+            minfu, idx = __findmin(cache.caches[1].internalnorm, fus)
             stats = cache.caches[idx].stats
             u = cache.caches[idx].u
 
