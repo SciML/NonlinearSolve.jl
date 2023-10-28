@@ -216,7 +216,7 @@ function __get_concrete_algorithm(alg, prob)
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
         tag = NonlinearSolveTag()
-        use_sparse_ad ? AutoSparseForwardDiff(; tag) : AutoForwardDiff(; tag)
+        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(; tag)
     end
     return set_ad(alg, ad)
 end
