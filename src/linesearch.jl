@@ -31,7 +31,9 @@ end
 end
 
 # LineSearches.jl doesn't have a supertype so default to that
-init_linesearch_cache(_, ls, f, u, p, fu, iip) = LineSearchesJLCache(ls, f, u, p, fu, iip)
+function init_linesearch_cache(_, ls, f::F, u, p, fu, iip) where {F <: Function}
+    return LineSearchesJLCache(ls, f, u, p, fu, iip)
+end
 
 # Wrapper over LineSearches.jl algorithms
 @concrete mutable struct LineSearchesJLCache
@@ -43,7 +45,8 @@ init_linesearch_cache(_, ls, f, u, p, fu, iip) = LineSearchesJLCache(ls, f, u, p
     ls
 end
 
-function LineSearchesJLCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
+function LineSearchesJLCache(ls::LineSearch, f::F, u::Number, p, _,
+    ::Val{false}) where {F <: Function}
     eval_f(u, du, α) = eval_f(u - α * du)
     eval_f(u) = f(u, p)
 
@@ -84,7 +87,8 @@ function LineSearchesJLCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
     return LineSearchesJLCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
 end
 
-function LineSearchesJLCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip}
+function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1,
+    IIP::Val{iip}) where {iip, F <: Function}
     fu = iip ? deepcopy(fu1) : nothing
     u_ = _mutable_zero(u)
 
@@ -200,8 +204,8 @@ end
     α
 end
 
-function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f, _u, p, _fu,
-    ::Val{iip}) where {iip}
+function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f::F, _u, p, _fu,
+    ::Val{iip}) where {iip, F <: Function}
     fu = iip ? deepcopy(_fu) : nothing
     u = iip ? deepcopy(_u) : nothing
     return LiFukushimaLineSearchCache{iip}(f, p, u, fu, alg, ls.α)
