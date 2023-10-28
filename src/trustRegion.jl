@@ -394,9 +394,10 @@ function perform_step!(cache::TrustRegionCache{false})
         else
             # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
             # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
-            linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = -_vec(fu),
+            linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = _vec(fu),
                 linu = _vec(cache.u_gauss_newton), p = p, reltol = cache.abstol)
             cache.linsolve = linres.cache
+            @. cache.u_gauss_newton *= -1
         end
     end
 
