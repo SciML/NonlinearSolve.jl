@@ -114,10 +114,19 @@ end
 function perform_step!(cache::PseudoTransientCache{true})
     @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha, tc_storage = cache
     jacobian!!(J, cache)
+    inv_alpha = inv(alpha)
+
     if J isa SciMLBase.AbstractSciMLOperator
-        J = J - (1 / alpha) * I
+        J = J - inv_alpha * I
     else
-        J .= J - (1 / alpha) * I
+        idxs = diagind(J)
+        if fast_scalar_indexing(J)
+            @inbounds for i in axes(J, 1)
+                J[i, i] = J[i, i] - inv_alpha
+            end
+        else
+            @.. broadcast=false @view(J[idxs])=@view(J[idxs]) - inv_alpha
+        end
     end
 
     termination_condition = cache.termination_condition(tc_storage)
@@ -151,8 +160,9 @@ function perform_step!(cache::PseudoTransientCache{false})
     termination_condition = cache.termination_condition(tc_storage)
 
     cache.J = jacobian!!(cache.J, cache)
+    inv_alpha = inv(alpha)
 
-    cache.J = cache.J - (1 / alpha) * I
+    cache.J = cache.J - inv_alpha * I
     # u = u - J \ fu
     if linsolve === nothing
         cache.du = fu1 / cache.J

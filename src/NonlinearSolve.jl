@@ -9,11 +9,12 @@ import PrecompileTools
 
 PrecompileTools.@recompile_invalidations begin
     using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
+    using FastBroadcast: @.., True, False
     import ArrayInterface: restructure
 
     import ADTypes: AbstractFiniteDifferencesMode
     import ArrayInterface: undefmatrix,
-        matrix_colors, parameterless_type, ismutable, issingular
+        matrix_colors, parameterless_type, ismutable, issingular,fast_scalar_indexing
     import ConcreteStructs: @concrete
     import EnumX: @enumx
     import ForwardDiff
