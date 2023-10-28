@@ -97,8 +97,8 @@ end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args...;
     alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    kwargs...) where {uType, iip, F}
     uₙ = alias_u0 ? prob.u0 : deepcopy(prob.u0)
 
     p = prob.p

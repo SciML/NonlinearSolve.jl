@@ -163,9 +163,8 @@ end
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing,
-    internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -231,10 +230,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     end
 
     return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, copy(u),
-        fu1,
-        fu2, du, p, uf, linsolve, J,
-        jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
-        DᵀD,
+        fu1, fu2, du, p, uf, linsolve, J, jac_cache, false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, reltol, prob, DᵀD,
         JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
         b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
         zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0),
@@ -321,11 +318,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
-            if termination_condition(cache.fu_tmp,
-                cache.u,
-                u_prev,
-                cache.abstol,
-                cache.reltol)
+            if termination_condition(cache.fu_tmp, u, u_prev, cache.abstol, cache.reltol)
                 cache.force_stop = true
                 return nothing
             end

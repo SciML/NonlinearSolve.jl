@@ -228,21 +228,21 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
 
     # Early Terminate based on Eq. 2.7
     if iip
-        cache.u_cache .= u .+ du
+        cache.u_cache .= u .- du
         cache.f(cache.fu_cache, cache.u_cache, cache.p)
         fxλ_norm = norm(cache.fu_cache, 2)
     else
-        fxλ_norm = norm(cache.f(u .+ du, cache.p), 2)
+        fxλ_norm = norm(cache.f(u .- du, cache.p), 2)
     end
 
     fxλ_norm ≤ ρ * fx_norm - σ₂ * norm(du, 2)^2 && return cache.α
 
     if iip
-        cache.u_cache .= u .+ λ₂ .* du
+        cache.u_cache .= u .- λ₂ .* du
         cache.f(cache.fu_cache, cache.u_cache, cache.p)
         fxλp_norm = norm(cache.fu_cache, 2)
     else
-        fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+        fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
     end
 
     if !isfinite(fxλp_norm)
@@ -252,11 +252,11 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
             λ₁, λ₂ = λ₂, β * λ₂
 
             if iip
-                cache.u_cache .= u .+ λ₂ .* du
+                cache.u_cache .= u .- λ₂ .* du
                 cache.f(cache.fu_cache, cache.u_cache, cache.p)
                 fxλp_norm = norm(cache.fu_cache, 2)
             else
-                fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+                fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
             end
 
             nan_converged = isfinite(fxλp_norm)
@@ -269,11 +269,11 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
 
     for _ in 1:maxiters
         if iip
-            cache.u_cache .= u .+ λ₂ .* du
+            cache.u_cache .= u .- λ₂ .* du
             cache.f(cache.fu_cache, cache.u_cache, cache.p)
             fxλp_norm = norm(cache.fu_cache, 2)
         else
-            fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+            fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
         end
 
         converged = fxλp_norm ≤ (1 + η) * fx_norm - σ₁ * λ₂^2 * norm(du, 2)^2

@@ -86,12 +86,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
 
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
-    if iip
-        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
-        f(fu1, u, p)
-    else
-        fu1 = _mutable(f(u, p))
-    end
+    fu1 = evaluate_f(prob, u)
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
     alpha = convert(eltype(u), alg.alpha_initial)

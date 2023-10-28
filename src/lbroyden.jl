@@ -68,8 +68,8 @@ get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemoryBroyden,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     if u isa Number
@@ -81,15 +81,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     fu = evaluate_f(prob, u)
     threshold = min(alg.threshold, maxiters)
     U, Vᵀ = __init_low_rank_jacobian(u, fu, threshold)
-    du = -fu
+    du = copy(fu)
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u))
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -112,7 +110,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
     termination_condition = cache.termination_condition(tc_storage)
 
     α = perform_linesearch!(cache.lscache, u, du)
-    _axpy!(α, du, u)
+    _axpy!(-α, du, u)
     f(cache.fu2, u, p)
 
     termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
@@ -134,7 +132,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         end
         cache.iterations_since_reset = 0
         cache.resets += 1
-        cache.du .= -cache.fu
+        cache.du .= cache.fu
     else
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
@@ -154,7 +152,6 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
         __lbroyden_matvec!(_vec(cache.du), cache.Ux, U_part, Vᵀ_part, _vec(cache.fu2))
-        cache.du .*= -1
         cache.iterations_since_reset += 1
     end
 
@@ -172,7 +169,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
     T = eltype(cache.u)
 
     α = perform_linesearch!(cache.lscache, cache.u, cache.du)
-    cache.u = cache.u .+ α * cache.du
+    cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
 
     termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
@@ -194,7 +191,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         end
         cache.iterations_since_reset = 0
         cache.resets += 1
-        cache.du = -cache.fu
+        cache.du = cache.fu
     else
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
@@ -215,7 +212,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
         cache.du = _restructure(cache.du,
-            -__lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.fu2)))
+            __lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.fu2)))
         cache.iterations_since_reset += 1
     end
 

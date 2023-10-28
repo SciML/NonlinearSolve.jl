@@ -70,8 +70,8 @@ get_fu(cache::GeneralKlementCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
     alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
@@ -89,10 +89,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u))
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -129,12 +127,12 @@ function perform_step!(cache::GeneralKlementCache{true})
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
-        b = -_vec(fu), linu = _vec(du), p, reltol = cache.abstol)
+        b = _vec(fu), linu = _vec(du), p, reltol = cache.abstol)
     cache.linsolve = linres.cache
 
     # Line Search
     α = perform_linesearch!(cache.lscache, u, du)
-    _axpy!(α, du, u)
+    _axpy!(-α, du, u)
     f(cache.fu2, u, p)
 
     termination_condition(cache.fu2, u, u_prev, cache.abstol, cache.reltol) &&
@@ -146,6 +144,7 @@ function perform_step!(cache::GeneralKlementCache{true})
     cache.force_stop && return nothing
 
     # Update the Jacobian
+    cache.du .*= -1
     cache.J_cache .= cache.J' .^ 2
     cache.Jdu .= _vec(du) .^ 2
     mul!(cache.Jᵀ²du, cache.J_cache, cache.Jdu)
@@ -186,22 +185,22 @@ function perform_step!(cache::GeneralKlementCache{false})
 
     # u = u - J \ fu
     if linsolve === nothing
-        cache.du = -fu / cache.J
+        cache.du = fu / cache.J
     else
         linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
-            b = -_vec(fu), linu = _vec(cache.du), p, reltol = cache.abstol)
+            b = _vec(fu), linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
 
     # Line Search
     α = perform_linesearch!(cache.lscache, cache.u, cache.du)
-    cache.u = @. cache.u + α * cache.du  # `u` might not support mutation
+    cache.u = @. cache.u - α * cache.du  # `u` might not support mutation
     cache.fu2 = f(cache.u, p)
 
     termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
         (cache.force_stop = true)
 
-    cache.u_prev = @. cache.u
+    cache.u_prev = cache.u
     cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
@@ -209,6 +208,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.force_stop && return nothing
 
     # Update the Jacobian
+    cache.du = -cache.du
     cache.J_cache = cache.J' .^ 2
     cache.Jdu = _vec(cache.du) .^ 2
     cache.Jᵀ²du = cache.J_cache * cache.Jdu

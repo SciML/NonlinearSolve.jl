@@ -61,8 +61,8 @@ get_fu(cache::GeneralBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyden, args...;
     alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
@@ -71,10 +71,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
+    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
+        termination_condition, eltype(u))
 
     mode = DiffEqBase.get_termination_mode(termination_condition)
 
@@ -83,8 +81,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     return GeneralBroydenCache{iip}(f, alg, u, zero(u), _mutable_zero(u), fu, zero(fu),
         zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
         alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reltol,
-        reset_tolerance,
-        reset_check, prob, NLStats(1, 0, 0, 0, 0),
+        reset_tolerance, reset_check, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
         storage)
 end
@@ -95,9 +92,9 @@ function perform_step!(cache::GeneralBroydenCache{true})
     termination_condition = cache.termination_condition(tc_storage)
     T = eltype(u)
 
-    mul!(_vec(du), J⁻¹, -_vec(fu))
+    mul!(_vec(du), J⁻¹, _vec(fu))
     α = perform_linesearch!(cache.lscache, u, du)
-    _axpy!(α, du, u)
+    _axpy!(-α, du, u)
     f(fu2, u, p)
 
     termination_condition(fu2, u, u_prev, cache.abstol, cache.reltol) &&
@@ -119,6 +116,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
         J⁻¹[diagind(J⁻¹)] .= T(1)
         cache.resets += 1
     else
+        du .*= -1
         mul!(_vec(J⁻¹df), J⁻¹, _vec(dfu))
         mul!(J⁻¹₂, _vec(du)', J⁻¹)
         denom = dot(du, J⁻¹df)
@@ -138,9 +136,9 @@ function perform_step!(cache::GeneralBroydenCache{false})
 
     T = eltype(cache.u)
 
-    cache.du = _restructure(cache.du, cache.J⁻¹ * -_vec(cache.fu))
+    cache.du = _restructure(cache.du, cache.J⁻¹ * _vec(cache.fu))
     α = perform_linesearch!(cache.lscache, cache.u, cache.du)
-    cache.u = cache.u .+ α * cache.du
+    cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
 
     termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
@@ -160,6 +158,7 @@ function perform_step!(cache::GeneralBroydenCache{false})
         cache.J⁻¹ = __init_identity_jacobian(cache.u, cache.fu)
         cache.resets += 1
     else
+        cache.du = -cache.du
         cache.J⁻¹df = _restructure(cache.J⁻¹df, cache.J⁻¹ * _vec(cache.dfu))
         cache.J⁻¹₂ = _vec(cache.du)' * cache.J⁻¹
         denom = dot(cache.du, cache.J⁻¹df)

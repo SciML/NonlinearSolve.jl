@@ -49,9 +49,7 @@ end
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
     precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad,
-        linsolve,
-        precs)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -84,21 +82,15 @@ end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
     args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing,
-    internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+    kwargs...) where {uType, iip, F}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
 
     linsolve_with_JᵀJ = Val(_needs_square_A(alg, u0))
 
     u = alias_u0 ? u0 : deepcopy(u0)
-    if iip
-        fu1 = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
-        f(fu1, u, p)
-    else
-        fu1 = f(u, p)
-    end
+    fu1 = evaluate_f(prob, u)
 
     if SciMLBase._unwrap_val(linsolve_with_JᵀJ)
         uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p,
