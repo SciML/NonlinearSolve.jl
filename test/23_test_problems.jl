@@ -83,32 +83,20 @@ end
 
 # Broyden and Klement Tests are quite flaky and failure seems to be platform dependent
 # needs additional investigation before we can enable them
-#=
 @testset "GeneralBroyden 23 Test Problems" begin
-    alg_ops = (GeneralBroyden(),
-        GeneralBroyden(; linesearch = LiFukushimaLineSearch(; beta = 0.1)),
-        GeneralBroyden(; linesearch = BackTracking()))
+    alg_ops = (GeneralBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 3, 4, 5, 6, 11, 12, 13, 14, 21]
-    broken_tests[alg_ops[2]] = [1, 2, 3, 4, 5, 6, 9, 11, 13, 22]
-    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 11, 12, 13, 14, 21]
+    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
 @testset "GeneralKlement 23 Test Problems" begin
-    alg_ops = (GeneralKlement(),
-        GeneralKlement(; linesearch = BackTracking()),
-        GeneralKlement(; linesearch = HagerZhang()))
+    alg_ops = (GeneralKlement(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 7, 11, 13, 22]
-    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 7, 11, 12, 13, 22]
-    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 8, 11, 12, 13, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
-=#
-
-# NOTE: Not adding LimitedMemoryBroyden here since it fails on most of the preoblems

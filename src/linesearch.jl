@@ -162,10 +162,7 @@ function perform_linesearch!(cache::LineSearchesJLCache, u, du)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
-    # This case is sometimes possible for large optimization problems
-    dϕ₀ ≥ 0 && return cache.α
-
-    return first(cache.ls.method(ϕ, cache.dϕ(u, du), cache.ϕdϕ(u, du), cache.α, ϕ₀, dϕ₀))
+    return first(cache.ls.method(ϕ, dϕ, ϕdϕ, cache.α, ϕ₀, dϕ₀))
 end
 
 """
@@ -252,11 +249,11 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
             λ₁, λ₂ = λ₂, β * λ₂
 
             if iip
-                cache.u_cache .= u .- λ₂ .* du
+                cache.u_cache .= u .+ λ₂ .* du
                 cache.f(cache.fu_cache, cache.u_cache, cache.p)
                 fxλp_norm = norm(cache.fu_cache, 2)
             else
-                fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
+                fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
             end
 
             nan_converged = isfinite(fxλp_norm)

@@ -25,7 +25,7 @@ An implementation of `LimitedMemoryBroyden` with reseting and line search.
 end
 
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = LineSearch(),
-    threshold::Int = 10, reset_tolerance = nothing)
+    threshold::Int = 27, reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return LimitedMemoryBroyden(max_resets, threshold, linesearch, reset_tolerance)
 end
@@ -134,6 +134,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         cache.resets += 1
         cache.du .= cache.fu
     else
+        cache.du .*= -1
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
@@ -193,6 +194,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         cache.resets += 1
         cache.du = cache.fu
     else
+        cache.du = -cache.du
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
