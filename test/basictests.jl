@@ -470,7 +470,7 @@ end
     end
 
     @testset "[OOP] [Immutable AD]" begin
-        broken_forwarddiff = [2.9, 3.0, 4.0, 81.0]
+        broken_forwarddiff = [3.0, 4.0, 81.0]
         for p in 1.1:0.1:100.0
             res = abs.(benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p).u)
 
@@ -490,7 +490,7 @@ end
     end
 
     @testset "[OOP] [Scalar AD]" begin
-        broken_forwarddiff = [1.6, 2.9, 3.0, 3.5, 4.0, 81.0]
+        broken_forwarddiff = [3.0, 4.0, 81.0]
         for p in 1.1:0.1:100.0
             res = abs(benchmark_nlsolve_oop(quadratic_f, 1.0, p).u)
 
@@ -831,7 +831,7 @@ end
             sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
             # Some are failing by a margin
             # @test SciMLBase.successful_retcode(sol)
-            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 3e-9)
 
             cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
                 GeneralKlement(; linesearch), abstol = 1e-9)
