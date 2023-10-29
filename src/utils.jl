@@ -21,6 +21,8 @@ function __findmin(f, x)
     end
 end
 
+struct NonlinearSolveTag end
+
 """
     default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
         standardtag = Val{true}(), diff_type = Val{:forward})
@@ -53,7 +55,7 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     autodiff === missing && (autodiff = Val{true}())
 
     ad = _unwrap_val(autodiff)
-    tag = _unwrap_val(standardtag)
+    tag = _unwrap_val(standardtag) ? NonlinearSolveTag() : nothing
     ad && return AutoForwardDiff{_unwrap_val(chunk_size), typeof(tag)}(tag)
     return AutoFiniteDiff(; fdtype = diff_type)
 end
@@ -205,8 +207,6 @@ function get_concrete_algorithm(alg, prob)
     # for specific algorithms
     return __get_concrete_algorithm(alg, prob)
 end
-
-struct NonlinearSolveTag end
 
 function __get_concrete_algorithm(alg, prob)
     @unpack sparsity, jac_prototype = prob.f
