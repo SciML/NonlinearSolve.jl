@@ -55,8 +55,8 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     autodiff === missing && (autodiff = Val{true}())
 
     ad = _unwrap_val(autodiff)
-    tag = _unwrap_val(standardtag) ? NonlinearSolveTag() : nothing
-    ad && return AutoForwardDiff{_unwrap_val(chunk_size), typeof(tag)}(tag)
+    # We don't really know the typeof the input yet, so we can't use the correct tag!
+    ad && return AutoForwardDiff{_unwrap_val(chunk_size), Nothing}(nothing)
     return AutoFiniteDiff(; fdtype = diff_type)
 end
 
@@ -215,7 +215,7 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        tag = NonlinearSolveTag()
+        tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0))
         (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(; tag)
     end
     return set_ad(alg, ad)
