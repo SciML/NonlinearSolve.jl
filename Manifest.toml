@@ -164,7 +164,7 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "ChainRulesCore", "DataStructures", "DocStringExtensions", "EnumX", "EnzymeCore", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "Parameters", "PreallocationTools", "PrecompileTools", "Printf", "RecursiveArrayTools", "Reexport", "Requires", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Static", "StaticArraysCore", "Statistics", "Tricks", "TruncatedStacktraces", "ZygoteRules"]
-git-tree-sha1 = "4e661d0beddac31da05e71b79afd769232622de8"
+git-tree-sha1 = "0ab52aef95c5cc71e9a8c9d26919ce1f7fb472fa"
 repo-rev = "ap/tstable_termination"
 repo-url = "https://github.com/SciML/DiffEqBase.jl"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"

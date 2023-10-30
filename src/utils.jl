@@ -230,8 +230,7 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
         if isinplace(cache)
             cache.prob.f(get_fu(cache), u, cache.prob.p)
         else
-            cache.u = u
-            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
+            set_fu!(cache, cache.prob.f(u, cache.prob.p))
         end
         cache.force_stop = true
     end
@@ -252,8 +251,7 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
         if isinplace(cache)
             cache.prob.f(get_fu(cache), u, cache.prob.p)
         else
-            cache.u = u
-            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
+            set_fu!(cache, cache.prob.f(u, cache.prob.p))
         end
         cache.force_stop = true
     end
@@ -271,11 +269,11 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
             cache.retcode = ReturnCode.Unstable
         end
         if isinplace(cache)
-            copyto!(u, tc_cache.u)
-            cache.prob.f(get_fu(cache), u, cache.prob.p)
+            copyto!(get_u(cache), tc_cache.u)
+            cache.prob.f(get_fu(cache), get_u(cache), cache.prob.p)
         else
-            cache.u = tc_cache.u
-            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
+            set_u!(cache, tc_cache.u)
+            set_fu!(cache, cache.prob.f(get_u(cache), cache.prob.p))
         end
         cache.force_stop = true
     end
