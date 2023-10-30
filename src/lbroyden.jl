@@ -101,6 +101,11 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
     @unpack f, p, du, u = cache
     T = eltype(u)
 
+<<<<<<< HEAD
+=======
+    termination_condition = cache.termination_condition(tc_storage)
+
+>>>>>>> a83cf9c (Use the new Termination Condition API)
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu2, u, p)
