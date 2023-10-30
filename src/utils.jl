@@ -176,7 +176,7 @@ end
 
 Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
 """
-__matmul!(C, A, B) = mul!(C, A, B)``
+__matmul!(C, A, B) = mul!(C, A, B)
 __matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
 
 # Concretize Algorithms
@@ -273,7 +273,6 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
         cache.force_stop = true
     end
 end
-# FIXME: Purge things till here!
 
 __init_identity_jacobian(u::Number, _) = u
 function __init_identity_jacobian(u, fu)

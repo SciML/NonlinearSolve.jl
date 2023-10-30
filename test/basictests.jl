@@ -133,7 +133,10 @@ const TERMINATION_CONDITIONS = [
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -298,7 +301,10 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, TrustRegion(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -415,7 +421,10 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -550,7 +559,10 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, DFSane(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -671,7 +683,10 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0);
             termination_condition).u .≈ sqrt(2.0))
@@ -769,7 +784,10 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1a0df4e (Improve termination conditions)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, GeneralBroyden(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -866,9 +884,14 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, GeneralKlement(); termination_condition).u .≈ sqrt(2.0))
+=======
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN,GeneralKlement(); termination_condition).u .≈ sqrt(2.0))
+>>>>>>> 1a0df4e (Improve termination conditions)
     end
 end
 
@@ -967,9 +990,14 @@ end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
+<<<<<<< HEAD
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LimitedMemoryBroyden();
+=======
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, LimitedMemoryBroyden();
+>>>>>>> 1a0df4e (Improve termination conditions)
             termination_condition).u .≈ sqrt(2.0))
     end
 end
