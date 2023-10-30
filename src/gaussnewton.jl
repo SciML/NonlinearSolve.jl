@@ -47,7 +47,7 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, adkwargs...)
+        precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
 end
@@ -81,9 +81,9 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
-    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    kwargs...) where {uType, iip, F}
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        kwargs...) where {uType, iip, F}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
 
@@ -192,9 +192,9 @@ function perform_step!(cache::GaussNewtonCache{false})
 end
 
 function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

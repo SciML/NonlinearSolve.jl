@@ -215,8 +215,8 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0))
-        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(; tag)
+        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(;
+            tag = NonlinearSolveTag())
     end
     return set_ad(alg, ad)
 end

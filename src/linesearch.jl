@@ -195,7 +195,7 @@ struct LiFukushimaLineSearch{T} <: AbstractNonlinearSolveLineSearchAlgorithm
 end
 
 function LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.1, sigma_1 = 0.001,
-    sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
+        sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
     T = promote_type(typeof(lambda_0), typeof(beta), typeof(sigma_1), typeof(eta),
         typeof(rho), typeof(sigma_2))
     return LiFukushimaLineSearch{T}(lambda_0, beta, sigma_1, sigma_2, eta, rho,
@@ -212,7 +212,7 @@ end
 end
 
 function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f::F, _u, p, _fu,
-    ::Val{iip}) where {iip, F}
+        ::Val{iip}) where {iip, F}
     fu = iip ? deepcopy(_fu) : nothing
     u = iip ? deepcopy(_u) : nothing
     return LiFukushimaLineSearchCache{iip}(f, p, u, fu, alg, ls.α)

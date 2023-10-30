@@ -32,7 +32,7 @@ function set_linsolve(alg::GeneralKlement, linsolve)
 end
 
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
-    linesearch = LineSearch(), precs = DEFAULT_PRECS)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GeneralKlement(max_resets, linsolve, precs, linesearch)
 end
@@ -69,9 +69,9 @@ end
 get_fu(cache::GeneralKlementCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
@@ -225,9 +225,9 @@ function perform_step!(cache::GeneralKlementCache{false})
 end
 
 function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

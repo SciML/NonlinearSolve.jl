@@ -44,7 +44,7 @@ abstract type AbstractNonlinearSolveCache{iip} end
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
-    alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
+        alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
     return solve!(cache)
 end

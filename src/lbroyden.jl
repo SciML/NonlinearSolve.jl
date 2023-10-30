@@ -25,7 +25,7 @@ An implementation of `LimitedMemoryBroyden` with reseting and line search.
 end
 
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = LineSearch(),
-    threshold::Int = 27, reset_tolerance = nothing)
+        threshold::Int = 27, reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return LimitedMemoryBroyden(max_resets, threshold, linesearch, reset_tolerance)
 end
@@ -67,9 +67,9 @@ end
 get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemoryBroyden,
-    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    kwargs...) where {uType, iip, F}
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     if u isa Number
@@ -225,7 +225,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
 end
 
 function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -247,7 +247,7 @@ function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; 
 end
 
 @views function __lbroyden_matvec!(y::AbstractVector, Ux::AbstractVector,
-    U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
+        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
     # Computes Vᵀ × U × x
     η = size(U, 1)
     if η == 0
@@ -266,7 +266,7 @@ end
 end
 
 @views function __lbroyden_rmatvec!(y::AbstractVector, xᵀVᵀ::AbstractMatrix,
-    U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
+        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
     # Computes xᵀ × Vᵀ × U
     η = size(U, 1)
     if η == 0

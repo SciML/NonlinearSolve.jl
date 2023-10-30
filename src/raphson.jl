@@ -43,7 +43,7 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-    linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
@@ -76,9 +76,9 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphson, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -160,9 +160,9 @@ function perform_step!(cache::NewtonRaphsonCache{false})
 end
 
 function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

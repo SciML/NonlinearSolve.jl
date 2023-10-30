@@ -57,8 +57,8 @@ struct DFSane{T, F} <: AbstractNonlinearSolveAlgorithm
 end
 
 function DFSane(; σ_min = 1e-10, σ_max = 1e+10, σ_1 = 1.0, M = 10, γ = 1e-4, τ_min = 0.1,
-    τ_max = 0.5, n_exp = 2, η_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2,
-    max_inner_iterations = 1000)
+        τ_max = 0.5, n_exp = 2, η_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2,
+        max_inner_iterations = 1000)
     return DFSane{typeof(σ_min), typeof(η_strategy)}(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max,
         n_exp, η_strategy, max_inner_iterations)
 end
@@ -96,9 +96,9 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    kwargs...) where {uType, iip, F}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        kwargs...) where {uType, iip, F}
     uₙ = alias_u0 ? prob.u0 : deepcopy(prob.u0)
 
     p = prob.p
@@ -307,9 +307,9 @@ function SciMLBase.solve!(cache::DFSaneCache)
 end
 
 function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.uₙ, u0)

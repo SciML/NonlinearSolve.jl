@@ -22,7 +22,7 @@ An implementation of `Broyden` with reseting and line search.
 end
 
 function GeneralBroyden(; max_resets = 3, linesearch = LineSearch(),
-    reset_tolerance = nothing)
+        reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GeneralBroyden(max_resets, reset_tolerance, linesearch)
 end
@@ -60,9 +60,9 @@ end
 get_fu(cache::GeneralBroydenCache) = cache.fu
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyden, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    kwargs...) where {uType, iip, F}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
@@ -172,9 +172,9 @@ function perform_step!(cache::GeneralBroydenCache{false})
 end
 
 function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

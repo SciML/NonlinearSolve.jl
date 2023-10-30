@@ -166,11 +166,11 @@ function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
 end
 
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-    radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
-    max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
-    step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
-    expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
-    expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
+        radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
         max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
@@ -229,10 +229,10 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing,
-    internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing,
+        internalnorm = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -735,9 +735,9 @@ end
 get_fu(cache::TrustRegionCache) = cache.fu
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

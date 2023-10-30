@@ -27,7 +27,7 @@ end
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-        linesearch = LineSearch())
+            linesearch = LineSearch())
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, NewtonRaphson(; linsolve, precs, linesearch), abstol = 1e-9)
     end
@@ -598,7 +598,7 @@ end
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-        alpha_initial = 10.0)
+            alpha_initial = 10.0)
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, PseudoTransient(; linsolve, precs, alpha_initial), abstol = 1e-9)
     end

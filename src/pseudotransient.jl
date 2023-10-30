@@ -46,7 +46,7 @@ function set_ad(alg::PseudoTransient{CJ}, ad) where {CJ}
 end
 
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return PseudoTransient{_unwrap_val(concrete_jac)}(ad, linsolve, precs, alpha_initial)
 end
@@ -79,9 +79,9 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
-    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
 
     @unpack f, u0, p = prob
@@ -182,10 +182,10 @@ function perform_step!(cache::PseudoTransientCache{false})
 end
 
 function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
-    alpha_new,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        alpha_new,
+        abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = cache.termination_condition,
+        maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)

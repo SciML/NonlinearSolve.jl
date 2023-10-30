@@ -100,10 +100,11 @@ function set_ad(alg::LevenbergMarquardt{CJ}, ad) where {CJ}
 end
 
 function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, damping_initial::Real = 1.0, damping_increase_factor::Real = 2.0,
-    damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic::Real = 0.1,
-    α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
-    adkwargs...)
+        precs = DEFAULT_PRECS, damping_initial::Real = 1.0,
+        damping_increase_factor::Real = 2.0,
+        damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic::Real = 0.1,
+        α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
+        adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return LevenbergMarquardt{_unwrap_val(concrete_jac)}(ad, linsolve, precs,
         damping_initial, damping_increase_factor, damping_decrease_factor,
@@ -161,10 +162,10 @@ end
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
-        NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
-    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
+            NonlinearLeastSquaresProblem{uType, iip}}, alg_::LevenbergMarquardt,
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
