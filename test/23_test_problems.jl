@@ -11,7 +11,8 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg; termination_condition = AbsNormTerminationMode())
+                    sol = solve(nlprob, alg;
+                        termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
                     broken = idx in broken_tests[alg] ? true : false
