@@ -1,17 +1,4 @@
-
-@inline UNITLESS_ABS2(x) = real(abs2(x))
-@inline DEFAULT_NORM(u::Union{AbstractFloat, Complex}) = @fastmath abs(u)
-@inline function DEFAULT_NORM(u::Array{T}) where {T <: Union{AbstractFloat, Complex}}
-    return sqrt(real(sum(abs2, u)) / length(u))
-end
-@inline function DEFAULT_NORM(u::StaticArray{<:Union{AbstractFloat, Complex}})
-    return sqrt(real(sum(abs2, u)) / length(u))
-end
-@inline function DEFAULT_NORM(u::AbstractVectorOfArray)
-    return sum(sqrt(real(sum(UNITLESS_ABS2, _u)) / length(_u)) for _u in u.u)
-end
-@inline DEFAULT_NORM(u::AbstractArray) = sqrt(real(sum(UNITLESS_ABS2, u)) / length(u))
-@inline DEFAULT_NORM(u) = norm(u)
+const DEFAULT_NORM = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM
 
 # Ignores NaN
 function __findmin(f, x)
@@ -36,7 +23,7 @@ code.
     `autodiff=<ADTypes>`.
 """
 function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
-    standardtag = missing, diff_type = missing)
+        standardtag = missing, diff_type = missing)
     # If using the new API short circuit
     autodiff === nothing && return nothing
     autodiff isa ADTypes.AbstractADType && return autodiff
@@ -89,8 +76,8 @@ end
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
-    du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
-    cachedata = nothing, reltol = nothing) where {P}
+        du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
+        cachedata = nothing, reltol = nothing) where {P}
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
@@ -167,7 +154,7 @@ _maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
 function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
-        NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
+            NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
         fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
@@ -194,7 +181,7 @@ end
 
 Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
 """
-__matmul!(C, A, B) = mul!(C, A, B)
+__matmul!(C, A, B) = mul!(C, A, B)``
 __matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
 
 # Concretize Algorithms
@@ -216,11 +203,20 @@ function __get_concrete_algorithm(alg, prob)
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
         (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(;
-            tag = NonlinearSolveTag())
+            tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0)))
     end
     return set_ad(alg, ad)
 end
 
+function init_termination_cache(abstol, reltol, u, ::Nothing)
+    return init_termination_cache(abstol, reltol, u, AbsNormTerminationMode())
+end
+function init_termination_cache(abstol, reltol, u, tc::AbstractNonlinearTerminationMode)
+    tc_cache = init(u, tc; abstol, reltol)
+    return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
+end
+
+# FIXME: Remove the functions below when we have migrated to the new type stable API
 __cvt_real(::Type{T}, ::Nothing) where {T} = nothing
 __cvt_real(::Type{T}, x) where {T} = real(T(x))
 
@@ -231,7 +227,7 @@ function _get_tolerance(η, tc_η, ::Type{T}) where {T}
 end
 
 function _init_termination_elements(abstol, reltol, termination_condition,
-    ::Type{T}; mode = NLSolveTerminationMode.AbsNorm) where {T}
+        ::Type{T}; mode = NLSolveTerminationMode.AbsNorm) where {T}
     if termination_condition !== nothing
         if abstol !== nothing && abstol != termination_condition.abstol
             error("Incompatible absolute tolerances found. The tolerances supplied as the \
@@ -279,6 +275,7 @@ function _get_reinit_termination_condition(cache, abstol, reltol, termination_co
             termination_condition.safe_termination_options)
     end
 end
+# FIXME: Purge things till here!
 
 __init_identity_jacobian(u::Number, _) = u
 function __init_identity_jacobian(u, fu)

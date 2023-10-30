@@ -30,6 +30,7 @@ PrecompileTools.@recompile_invalidations begin
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
+import DiffEqBase: AbstractNonlinearTerminationMode
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}

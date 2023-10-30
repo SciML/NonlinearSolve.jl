@@ -61,7 +61,7 @@ end
     reltol
     prob
     stats::NLStats
-    lscache
+    ls_cache
     termination_condition
     tc_storage
 end
@@ -131,7 +131,7 @@ function perform_step!(cache::GeneralKlementCache{true})
     cache.linsolve = linres.cache
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, u, du)
+    α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu2, u, p)
 
@@ -193,7 +193,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     end
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, cache.u, cache.du)
+    α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     cache.u = @. cache.u - α * cache.du  # `u` might not support mutation
     cache.fu2 = f(cache.u, p)
 
