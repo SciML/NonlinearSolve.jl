@@ -74,8 +74,7 @@ end
     reltol
     prob
     stats::NLStats
-    termination_condition
-    tc_storage
+    tc_cache
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
@@ -92,22 +91,16 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     alpha = convert(eltype(u), alg.alpha_initial)
     res_norm = internalnorm(fu1)
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol, termination_condition, eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
 
     return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
-        uf,
-        linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        reltol, prob, NLStats(1, 0, 0, 0, 0), termination_condition, storage)
+        uf, linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache)
 end
 
 function perform_step!(cache::PseudoTransientCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha, tc_storage = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha = cache
     jacobian!!(J, cache)
     inv_alpha = inv(alpha)
 
@@ -124,8 +117,6 @@ function perform_step!(cache::PseudoTransientCache{true})
         end
     end
 
-    termination_condition = cache.termination_condition(tc_storage)
-
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
         p, reltol = cache.abstol)
@@ -137,8 +128,7 @@ function perform_step!(cache::PseudoTransientCache{true})
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
 
-    termination_condition(fu1, u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
     @. u_prev = u
     cache.stats.nf += 1
@@ -149,10 +139,7 @@ function perform_step!(cache::PseudoTransientCache{true})
 end
 
 function perform_step!(cache::PseudoTransientCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve, alpha, tc_storage = cache
-
-    tc_storage = cache.tc_storage
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack u, u_prev, fu1, f, p, alg, linsolve, alpha = cache
 
     cache.J = jacobian!!(cache.J, cache)
     inv_alpha = inv(alpha)
@@ -171,9 +158,10 @@ function perform_step!(cache::PseudoTransientCache{false})
     new_norm = cache.internalnorm(fu1)
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
-    termination_condition(fu1, cache.u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
-    cache.u_prev = @. cache.u
+
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
+
+    cache.u_prev = cache.u
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -182,9 +170,8 @@ function perform_step!(cache::PseudoTransientCache{false})
 end
 
 function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
-        alpha_new,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = cache.termination_condition,
+        alpha = cache.alpha, abstol = cache.abstol, reltol = cache.reltol,
+        termination_condition = get_termination_mode(cache.tc_cache),
         maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
@@ -196,14 +183,14 @@ function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = c
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 
-    cache.alpha = convert(eltype(cache.u), alpha_new)
+    cache.alpha = convert(eltype(cache.u), alpha)
     cache.res_norm = cache.internalnorm(cache.fu1)
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

@@ -63,7 +63,8 @@ function DFSane(; σ_min = 1e-10, σ_max = 1e+10, σ_1 = 1.0, M = 10, γ = 1e-4,
         n_exp, η_strategy, max_inner_iterations)
 end
 
-@concrete mutable struct DFSaneCache{iip}
+# FIXME: Someone please make this code conform to the style of the remaining solvers
+@concrete mutable struct DFSaneCache{iip} <: AbstractNonlinearSolveCache{iip}
     alg
     uₙ
     uₙ₋₁
@@ -91,9 +92,12 @@ end
     reltol
     prob
     stats::NLStats
-    termination_condition
-    tc_storage
+    tc_cache
 end
+
+get_fu(cache::DFSaneCache) = cache.fuₙ
+set_fu!(cache::DFSaneCache, fu) = (cache.fuₙ = fu)
+get_u(cache::DFSaneCache) = cache.uₙ
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
@@ -124,24 +128,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
 
     ℋ = fill(f₍ₙₒᵣₘ₎ₙ₋₁, M)
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
-        termination_condition, T)
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fuₙ₋₁, uₙ₋₁,
+        termination_condition)
 
     return DFSaneCache{iip}(alg, uₙ, uₙ₋₁, fuₙ, fuₙ₋₁, 𝒹, ℋ, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀,
         M, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, p, false, maxiters,
         internalnorm, ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0),
-        termination_condition, storage)
+        tc_cache)
 end
 
 function perform_step!(cache::DFSaneCache{true})
-    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M, tc_storage = cache
+    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
 
-    termination_condition = cache.termination_condition(tc_storage)
     f = (dx, x) -> cache.prob.f(dx, x, cache.p)
 
     T = eltype(cache.uₙ)
@@ -184,9 +182,7 @@ function perform_step!(cache::DFSaneCache{true})
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
-    if termination_condition(cache.fuₙ, cache.uₙ, cache.uₙ₋₁, cache.abstol, cache.reltol)
-        cache.force_stop = true
-    end
+    check_and_update!(cache, cache.fuₙ, cache.uₙ, cache.uₙ₋₁)
 
     # Update spectral parameter
     @. cache.uₙ₋₁ = cache.uₙ - cache.uₙ₋₁
@@ -215,9 +211,8 @@ function perform_step!(cache::DFSaneCache{true})
 end
 
 function perform_step!(cache::DFSaneCache{false})
-    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M, tc_storage = cache
+    @unpack alg, f₍ₙₒᵣₘ₎ₙ₋₁, f₍ₙₒᵣₘ₎₀, σₙ, σₘᵢₙ, σₘₐₓ, α₁, γ, τₘᵢₙ, τₘₐₓ, nₑₓₚ, M = cache
 
-    termination_condition = cache.termination_condition(tc_storage)
     f = x -> cache.prob.f(x, cache.p)
 
     T = eltype(cache.uₙ)
@@ -260,9 +255,7 @@ function perform_step!(cache::DFSaneCache{false})
         f₍ₙₒᵣₘ₎ₙ = norm(cache.fuₙ)^nₑₓₚ
     end
 
-    if termination_condition(cache.fuₙ, cache.uₙ, cache.uₙ₋₁, cache.abstol, cache.reltol)
-        cache.force_stop = true
-    end
+    check_and_update!(cache, cache.fuₙ, cache.uₙ, cache.uₙ₋₁)
 
     # Update spectral parameter
     cache.uₙ₋₁ = @. cache.uₙ - cache.uₙ₋₁
@@ -290,26 +283,9 @@ function perform_step!(cache::DFSaneCache{false})
     return nothing
 end
 
-function SciMLBase.solve!(cache::DFSaneCache)
-    while !cache.force_stop && cache.stats.nsteps < cache.maxiters
-        cache.stats.nsteps += 1
-        perform_step!(cache)
-    end
-
-    if cache.stats.nsteps == cache.maxiters
-        cache.retcode = ReturnCode.MaxIters
-    else
-        cache.retcode = ReturnCode.Success
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.uₙ, cache.fuₙ;
-        retcode = cache.retcode, stats = cache.stats)
-end
-
 function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = cache.termination_condition,
-        maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.uₙ, u0)
@@ -330,12 +306,12 @@ function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.uₙ; p = cache.p
     T = eltype(cache.uₙ)
     cache.σₙ = T(cache.alg.σ_1)
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fuₙ, cache.uₙ,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

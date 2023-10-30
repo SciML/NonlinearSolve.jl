@@ -85,7 +85,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, u,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
 
     return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
@@ -108,11 +108,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     _axpy!(-α, du, u)
     f(cache.fu1, u, p)
 
-    if cache.tc_cache(cache.fu1, cache.u, u_prev)
-        # Stores the best solution in cache!
-        cache.tc_cache.u !== nothing && copyto!(cache.u, cache.tc_cache.u)
-        cache.force_stop = true
-    end
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
     @. u_prev = u
     cache.stats.nf += 1
@@ -140,11 +136,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
-    if cache.tc_cache(cache.fu1, cache.u, u_prev)
-        # Stores the best solution in cache!
-        cache.tc_cache.u !== nothing && (cache.u = cache.tc_cache.u)
-        cache.force_stop = true
-    end
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
     cache.u_prev = cache.u
     cache.stats.nf += 1
@@ -155,9 +147,8 @@ function perform_step!(cache::NewtonRaphsonCache{false})
 end
 
 function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = get_termination_mode(cache.tc_cache),
-        maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -168,7 +159,7 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.u,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 
     cache.abstol = abstol

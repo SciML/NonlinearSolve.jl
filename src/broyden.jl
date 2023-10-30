@@ -53,11 +53,11 @@ end
     prob
     stats::NLStats
     ls_cache
-    termination_condition
-    tc_storage
+    tc_cache
 end
 
 get_fu(cache::GeneralBroydenCache) = cache.fu
+set_fu!(cache::GeneralBroydenCache, fu) = (cache.fu = fu)
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyden, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
@@ -71,25 +71,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
-        termination_condition, eltype(u))
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
+        termination_condition)
 
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
     return GeneralBroydenCache{iip}(f, alg, u, zero(u), _mutable_zero(u), fu, zero(fu),
         zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
         alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reltol,
         reset_tolerance, reset_check, prob, NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
-        storage)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::GeneralBroydenCache{true})
-    @unpack f, p, du, fu, fu2, dfu, u, u_prev, J⁻¹, J⁻¹df, J⁻¹₂, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack f, p, du, fu, fu2, dfu, u, u_prev, J⁻¹, J⁻¹df, J⁻¹₂ = cache
     T = eltype(u)
 
     mul!(_vec(du), J⁻¹, _vec(fu))
@@ -97,8 +90,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
     _axpy!(-α, du, u)
     f(fu2, u, p)
 
-    termination_condition(fu2, u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, fu2, u, u_prev)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -130,9 +122,7 @@ function perform_step!(cache::GeneralBroydenCache{true})
 end
 
 function perform_step!(cache::GeneralBroydenCache{false})
-    @unpack f, p, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack f, p = cache
 
     T = eltype(cache.u)
 
@@ -141,8 +131,7 @@ function perform_step!(cache::GeneralBroydenCache{false})
     cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
 
-    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -172,9 +161,8 @@ function perform_step!(cache::GeneralBroydenCache{false})
 end
 
 function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = cache.termination_condition,
-        maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -185,12 +173,12 @@ function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = ca
         cache.fu = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

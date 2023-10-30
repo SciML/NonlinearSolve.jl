@@ -76,8 +76,8 @@ end
     reltol
     prob
     stats::NLStats
-    tc_storage
-    termination_condition
+    tc_cache_1
+    tc_cache_2
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
@@ -101,24 +101,18 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
         JᵀJ, Jᵀf = nothing, nothing
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
-        termination_condition, eltype(u); mode = NLSolveTerminationMode.AbsNorm)
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
+    _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu1, u, termination_condition)
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
         linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), storage, termination_condition)
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2)
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du, tc_storage = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
     jacobian!!(J, cache)
-
-    termination_condition = cache.termination_condition(tc_storage)
 
     if JᵀJ !== nothing
         __matmul!(JᵀJ, J', J)
@@ -137,10 +131,11 @@ function perform_step!(cache::GaussNewtonCache{true})
     @. u = u - du
     f(cache.fu_new, u, p)
 
-    (termination_condition(cache.fu_new .- cache.fu1, cache.u, u_prev, cache.abstol,
-        cache.reltol) ||
-     termination_condition(cache.fu_new, cache.u, u_prev, cache.abstol, cache.reltol)) &&
-        (cache.force_stop = true)
+    check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
+    if !cache.force_stop
+        cache.fu1 .= cache.fu_new .- cache.fu1
+        check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
+    end
 
     @. u_prev = u
     cache.fu1 .= cache.fu_new
@@ -152,9 +147,7 @@ function perform_step!(cache::GaussNewtonCache{true})
 end
 
 function perform_step!(cache::GaussNewtonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
 
     cache.J = jacobian!!(cache.J, cache)
 
@@ -179,10 +172,13 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.u = @. u - cache.du  # `u` might not support mutation
     cache.fu_new = f(cache.u, p)
 
-    termination_condition(cache.fu_new, cache.u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
+    if !cache.force_stop
+        cache.fu1 = cache.fu_new .- cache.fu1
+        check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
+    end
 
-    cache.u_prev = @. cache.u
+    cache.u_prev = cache.u
     cache.fu1 = cache.fu_new
     cache.stats.nf += 1
     cache.stats.njacs += 1
@@ -192,9 +188,8 @@ function perform_step!(cache::GaussNewtonCache{false})
 end
 
 function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = cache.termination_condition,
-        maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -205,12 +200,15 @@ function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
+        termination_condition)
+    _, _, tc_cache_2 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache_1 = tc_cache_1
+    cache.tc_cache_2 = tc_cache_2
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

@@ -34,7 +34,7 @@ function f(du, u, p)
 end
 
 prob = NonlinearProblem(f, [2.0, 2.0, 2.0], [1.0, 2.0, 2.5])
-sol = solve(prob)
+sol = solve(prob; abstol=1e-9)
 @test SciMLBase.successful_retcode(sol)
 
 # https://github.com/SciML/NonlinearSolve.jl/issues/187
@@ -43,11 +43,11 @@ ff(u, p) = 0.5 / 1.5 * NaNMath.log.(u ./ (1.0 .- u)) .- 2.0 * u .+ 1.0
 
 uspan = (0.02, 0.1)
 prob = IntervalNonlinearProblem(ff, uspan)
-sol = solve(prob)
+sol = solve(prob; abstol=1e-9)
 @test SciMLBase.successful_retcode(sol)
 
 u0 = 0.06
 p = 2.0
 prob = NonlinearProblem(ff, u0, p)
-sol = solve(prob)
+sol = solve(prob; abstol=1e-9)
 @test SciMLBase.successful_retcode(sol)

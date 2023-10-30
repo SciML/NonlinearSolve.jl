@@ -181,7 +181,7 @@ end
 
 Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
 """
-__matmul!(C, A, B) = mul!(C, A, B)``
+__matmul!(C, A, B) = mul!(C, A, B)
 __matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
 
 # Concretize Algorithms
@@ -208,74 +208,78 @@ function __get_concrete_algorithm(alg, prob)
     return set_ad(alg, ad)
 end
 
-function init_termination_cache(abstol, reltol, u, ::Nothing)
-    return init_termination_cache(abstol, reltol, u, AbsNormTerminationMode())
+function init_termination_cache(abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(abstol, reltol, du, u, AbsSafeBestTerminationMode())
 end
-function init_termination_cache(abstol, reltol, u, tc::AbstractNonlinearTerminationMode)
-    tc_cache = init(u, tc; abstol, reltol)
+function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
+    tc_cache = init(du, u, tc; abstol, reltol)
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
 
-# FIXME: Remove the functions below when we have migrated to the new type stable API
-__cvt_real(::Type{T}, ::Nothing) where {T} = nothing
-__cvt_real(::Type{T}, x) where {T} = real(T(x))
-
-function _get_tolerance(η, tc_η, ::Type{T}) where {T}
-    fallback_η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
-    return ifelse(η !== nothing, __cvt_real(T, η),
-        ifelse(tc_η !== nothing, __cvt_real(T, tc_η), fallback_η))
+function check_and_update!(cache, fu, u, uprev)
+    return check_and_update!(cache.tc_cache, cache, fu, u, uprev)
 end
-
-function _init_termination_elements(abstol, reltol, termination_condition,
-        ::Type{T}; mode = NLSolveTerminationMode.AbsNorm) where {T}
-    if termination_condition !== nothing
-        if abstol !== nothing && abstol != termination_condition.abstol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                keyword argument and the one supplied in the termination condition should \
-                be same.")
+function check_and_update!(tc_cache, cache, fu, u, uprev)
+    return check_and_update!(tc_cache, cache, fu, u, uprev,
+        DiffEqBase.get_termination_mode(tc_cache))
+end
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        # Just a sanity measure!
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, cache.prob.p)
+        else
+            cache.u = u
+            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
         end
-        if reltol !== nothing && reltol != termination_condition.reltol
-            error("Incompatible relative tolerances found. The tolerances supplied as the \
-                keyword argument and the one supplied in the termination condition should \
-                be same.")
-        end
-        abstol = _get_tolerance(abstol, termination_condition.abstol, T)
-        reltol = _get_tolerance(reltol, termination_condition.reltol, T)
-        return abstol, reltol, termination_condition
-    else
-        abstol = _get_tolerance(abstol, nothing, T)
-        reltol = _get_tolerance(reltol, nothing, T)
-        termination_condition = NLSolveTerminationCondition(mode; abstol, reltol)
-        return abstol, reltol, termination_condition
+        cache.force_stop = true
     end
 end
-
-function _get_reinit_termination_condition(cache, abstol, reltol, termination_condition)
-    if termination_condition != cache.termination_condition
-        if abstol != cache.abstol && abstol != termination_condition.abstol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                   keyword argument and the one supplied in the termination condition \
-                   should be same.")
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractSafeNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
+            cache.retcode = ReturnCode.Success
         end
-
-        if reltol != cache.reltol && reltol != termination_condition.reltol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                   keyword argument and the one supplied in the termination condition \
-                   should be same.")
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
+            cache.retcode = ReturnCode.ConvergenceFailure
         end
-        return termination_condition
-    else
-        # Build the termination_condition with new abstol and reltol
-        return NLSolveTerminationCondition{
-            DiffEqBase.get_termination_mode(termination_condition),
-            eltype(abstol),
-            typeof(termination_condition.safe_termination_options),
-        }(abstol,
-            reltol,
-            termination_condition.safe_termination_options)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
+            cache.retcode = ReturnCode.Unstable
+        end
+        # Just a sanity measure!
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, cache.prob.p)
+        else
+            cache.u = u
+            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
+        end
+        cache.force_stop = true
     end
 end
-# FIXME: Purge things till here!
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractSafeBestNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
+            cache.retcode = ReturnCode.Success
+        end
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
+            cache.retcode = ReturnCode.ConvergenceFailure
+        end
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
+            cache.retcode = ReturnCode.Unstable
+        end
+        if isinplace(cache)
+            copyto!(u, tc_cache.u)
+            cache.prob.f(get_fu(cache), u, cache.prob.p)
+        else
+            cache.u = tc_cache.u
+            set_fu!(cache, cache.prob.f(cache.u, cache.prob.p))
+        end
+        cache.force_stop = true
+    end
+end
 
 __init_identity_jacobian(u::Number, _) = u
 function __init_identity_jacobian(u, fu)

@@ -224,15 +224,13 @@ end
     p4::floatType
     ϵ::floatType
     stats::NLStats
-    tc_storage
-    termination_condition
+    tc_cache
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing,
-        internalnorm = DEFAULT_NORM,
-        linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
+        kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -333,21 +331,15 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         initial_trust_radius = convert(trustType, 1.0)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
-        termination_condition, eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
 
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
         H, g, shrink_counter, du, u_tmp, u_gauss_newton, u_cauchy, fu_new, make_new_J, r,
-        p1, p2, p3, p4, ϵ,
-        NLStats(1, 0, 0, 0, 0), storage, termination_condition)
+        p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0), tc_cache)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -433,9 +425,7 @@ function retrospective_step!(cache::TrustRegionCache)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
-    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme = cache
 
     cache.loss_new = get_loss(fu_new)
 
@@ -466,13 +456,7 @@ function trust_region_step!(cache::TrustRegionCache)
             # No need to make a new J, no step was taken, so we try again with a smaller trust_r
             cache.make_new_J = false
         end
-        if iszero(cache.fu) || termination_condition(cache.fu,
-            cache.u,
-            cache.u_prev,
-            cache.abstol,
-            cache.reltol)
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.NLsolve
         # accept/reject decision
@@ -494,9 +478,7 @@ function trust_region_step!(cache::TrustRegionCache)
         end
 
         # convergence test
-        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.NocedalWright
         # accept/reject decision
@@ -515,9 +497,7 @@ function trust_region_step!(cache::TrustRegionCache)
         end
 
         # convergence test
-        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         if r > cache.step_threshold
@@ -538,15 +518,8 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) *
                         cache.internalnorm(du)
 
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
         if r < cache.shrink_threshold
@@ -568,15 +541,8 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * cache.internalnorm(jvp!(cache))
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
         #Fan's update scheme
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
         if r < cache.shrink_threshold
@@ -597,15 +563,8 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * (cache.internalnorm(cache.fu)^0.99)
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
         if r > cache.step_threshold
             take_step!(cache)
@@ -620,13 +579,7 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r *= cache.p2
             cache.shrink_counter += 1
         end
-        if iszero(cache.fu) || termination_condition(cache.fu,
-            cache.u,
-            cache.u_prev,
-            cache.abstol,
-            cache.reltol)
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
     end
 end
 
@@ -733,11 +686,11 @@ function not_terminated(cache::TrustRegionCache)
     return true
 end
 get_fu(cache::TrustRegionCache) = cache.fu
+set_fu!(cache::TrustRegionCache, fu) = (cache.fu = fu)
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = cache.termination_condition,
-        maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -748,12 +701,12 @@ function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache
         cache.fu = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

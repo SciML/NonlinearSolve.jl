@@ -30,7 +30,9 @@ PrecompileTools.@recompile_invalidations begin
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
-import DiffEqBase: AbstractNonlinearTerminationMode
+import DiffEqBase: AbstractNonlinearTerminationMode,
+    AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
+    NonlinearSafeTerminationReturnCode, get_termination_mode
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
@@ -54,6 +56,8 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.stats.nsteps < cache.maxiters
 end
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu1 = fu)
+get_u(cache::AbstractNonlinearSolveCache) = cache.u
 
 function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     while not_terminated(cache)
@@ -70,7 +74,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, get_fu(cache);
+    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
         cache.retcode, cache.stats)
 end
 
@@ -113,5 +117,11 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
 export LineSearch, LiFukushimaLineSearch
+
+# Export the termination conditions from DiffEqBase
+export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
+    NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+    AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+    RelSafeBestTerminationMode, AbsSafeBestTerminationMode
 
 end # module

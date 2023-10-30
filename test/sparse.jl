@@ -52,7 +52,6 @@ fill!(jac_prototype, 0)
 ff = NonlinearFunction(brusselator_2d_loop; jac_prototype)
 prob_brusselator_2d = NonlinearProblem(ff, u0, p)
 
-# for autodiff in [false, ]
 sol = solve(prob_brusselator_2d, NewtonRaphson())
 @test norm(sol.resid) < 1e-8
 @test !all(iszero, jac_prototype)

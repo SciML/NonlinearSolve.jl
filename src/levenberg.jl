@@ -157,8 +157,8 @@ end
     rhs_tmp
     J²
     stats::NLStats
-    termination_condition
-    tc_storage
+    tc_cache_1
+    tc_cache_2
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
@@ -185,9 +185,6 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         v = similar(du)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol, reltol,
-        termination_condition, eltype(u); mode = NLSolveTerminationMode.AbsNorm)
-
     λ = convert(eltype(u), alg.damping_initial)
     λ_factor = convert(eltype(u), alg.damping_increase_factor)
     damping_increase_factor = convert(eltype(u), alg.damping_increase_factor)
@@ -213,10 +210,14 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     make_new_J = true
     fu_tmp = zero(fu1)
 
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
+    if prob isa NonlinearLeastSquaresProblem
+        _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu1, u,
+            termination_condition)
+    else
+        tc_cache_2 = nothing
+    end
 
     if _unwrap_val(linsolve_with_JᵀJ)
         mat_tmp = zero(JᵀJ)
@@ -232,22 +233,14 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
 
     return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, copy(u),
         fu1, fu2, du, p, uf, linsolve, J, jac_cache, false, maxiters, internalnorm,
-        ReturnCode.Default, abstol, reltol, prob, DᵀD,
-        JᵀJ, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h, α_geodesic,
-        b_uphill, min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp,
-        zero(u), zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0),
-        termination_condition, storage)
+        ReturnCode.Default, abstol, reltol, prob, DᵀD, JᵀJ, λ, λ_factor,
+        damping_increase_factor, damping_decrease_factor, h, α_geodesic, b_uphill,
+        min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp, zero(u),
+        zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2)
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fastls}
-    @unpack fu1, f, make_new_J, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
-
-    if iszero(fu1)
-        cache.force_stop = true
-        return nothing
-    end
+    @unpack fu1, f, make_new_J = cache
 
     if make_new_J
         jacobian!!(cache.J, cache)
@@ -319,9 +312,11 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u .+= δ
-            if termination_condition(cache.fu_tmp, u, u_prev, cache.abstol, cache.reltol)
-                cache.force_stop = true
-                return nothing
+            check_and_update!(cache.tc_cache_1, cache, cache.fu_tmp, cache.u, cache.u_prev)
+            if !cache.force_stop && cache.tc_cache_2 !== nothing
+                # For NLLS Problems
+                cache.fu1 .= cache.fu_tmp .- cache.fu1
+                check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
             end
             cache.fu1 .= cache.fu_tmp
             _vec(cache.v_old) .= _vec(v)
@@ -338,14 +333,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fastls}
-    @unpack fu1, f, make_new_J, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
-
-    if iszero(fu1)
-        cache.force_stop = true
-        return nothing
-    end
+    @unpack fu1, f, make_new_J = cache
 
     if make_new_J
         cache.J = jacobian!!(cache.J, cache)
@@ -417,9 +405,11 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if (1 - β)^b_uphill * loss ≤ loss_old
             # Accept step.
             cache.u += δ
-            if termination_condition(fu_new, cache.u, u_prev, cache.abstol, cache.reltol)
-                cache.force_stop = true
-                return nothing
+            check_and_update!(cache.tc_cache_1, cache, fu_new, cache.u, cache.u_prev)
+            if !cache.force_stop && cache.tc_cache_2 !== nothing
+                # For NLLS Problems
+                cache.fu1 = fu_new .- cache.fu1
+                check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
             end
             cache.fu1 = fu_new
             cache.v_old = _restructure(cache.v_old, v)
