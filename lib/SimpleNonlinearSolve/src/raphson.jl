@@ -61,7 +61,9 @@ function SimpleNewtonRaphson(; batched = false,
         SciMLBase._unwrap_val(diff_type)}()
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem,
+const SimpleGaussNewton = SimpleNewtonRaphson
+
+function SciMLBase.__solve(prob::Union{NonlinearProblem,NonlinearLeastSquaresProblem},
     alg::SimpleNewtonRaphson, args...; abstol = nothing,
     reltol = nothing,
     maxiters = 1000, kwargs...)
@@ -72,6 +74,10 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
     if SciMLBase.isinplace(prob)
         error("SimpleNewtonRaphson currently only supports out-of-place nonlinear problems")
+    end
+
+    if prob isa NonlinearLeastSquaresProblem && !(typeof(prob.u0) <: Union{Number, AbstractVector})
+        error("SimpleGaussNewton only supports Number and AbstactVector types. Please convert any problem of AbstractArray into one with u0 as AbstractVector")
     end
 
     atol = abstol !== nothing ? abstol :
@@ -100,7 +106,13 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         end
         iszero(fx) &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-        Δx = _restructure(fx, dfx \ _vec(fx))
+
+        if prob isa NonlinearProblem
+            Δx = _restructure(fx, dfx \ _vec(fx))
+        else
+            Δx = dfx \ fx
+        end
+
         x -= Δx
         if isapprox(x, xo, atol = atol, rtol = rtol)
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)

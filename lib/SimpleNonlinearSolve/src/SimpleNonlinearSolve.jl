@@ -89,7 +89,7 @@ PrecompileTools.@compile_workload begin
 end
 
 export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, SimpleHalley, Klement,
-    Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, ITP
+    Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, ITP, SimpleGaussNewton
 export BatchedBroyden, BatchedSimpleNewtonRaphson, BatchedSimpleDFSane
 
 end # module
