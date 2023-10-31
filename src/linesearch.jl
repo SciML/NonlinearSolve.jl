@@ -26,22 +26,22 @@ function LineSearch(; method = nothing, autodiff = AutoFiniteDiff(), alpha = tru
     return LineSearch(method, autodiff, alpha)
 end
 
-@inline function init_linesearch_cache(ls::LineSearch, args...)
-    return init_linesearch_cache(ls.method, ls, args...)
+@inline function init_linesearch_cache(ls::LineSearch, f::F, u, p, fu, iip) where {F}
+    return init_linesearch_cache(ls.method, ls, f, u, p, fu, iip)
 end
 
 @concrete struct NoLineSearchCache
     α
 end
 
-function init_linesearch_cache(::Nothing, ls, f::F, u, p, fu, iip) where {F}
+function init_linesearch_cache(::Nothing, ls::LineSearch, f::F, u, p, fu, iip) where {F}
     return NoLineSearchCache(convert(eltype(u), ls.α))
 end
 
 perform_linesearch!(cache::NoLineSearchCache, u, du) = cache.α
 
 # LineSearches.jl doesn't have a supertype so default to that
-function init_linesearch_cache(_, ls, f::F, u, p, fu, iip) where {F}
+function init_linesearch_cache(_, ls::LineSearch, f::F, u, p, fu, iip) where {F}
     return LineSearchesJLCache(ls, f, u, p, fu, iip)
 end
 
