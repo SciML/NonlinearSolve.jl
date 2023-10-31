@@ -167,9 +167,7 @@ function perform_step!(cache::PseudoTransientCache{false})
     if linsolve === nothing
         cache.du = fu1 / cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.J,
-            b = _vec(fu1),
-            linu = _vec(cache.du), p, reltol = cache.abstol)
+        linres = dolinsolve(alg.precs, linsolve; A = cache.J,b = _vec(fu1),linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
     cache.u = @. u - cache.du  # `u` might not support mutation

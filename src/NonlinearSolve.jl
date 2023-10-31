@@ -9,7 +9,7 @@ import PrecompileTools
 
 PrecompileTools.@recompile_invalidations begin
     using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
-    using FastBroadcast: @.., True, False
+    using FastBroadcast: @..
     import ArrayInterface: restructure
 
     import ADTypes: AbstractFiniteDifferencesMode
