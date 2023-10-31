@@ -37,6 +37,7 @@ NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 
 [compat]
 ADTypes = "0.2"
+ArrayInterface = "6.0.24, 7"
 BandedMatrices = "1"
 ConcreteStructs = "0.2"
 DiffEqBase = "6.130"
