@@ -48,8 +48,8 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
 
     ad = _unwrap_val(autodiff)
     # We don't really know the typeof the input yet, so we can't use the correct tag!
-    ad && return AutoForwardDiff{_unwrap_val(chunk_size), NonlinearSolveTag}(
-        NonlinearSolveTag())
+    ad &&
+        return AutoForwardDiff{_unwrap_val(chunk_size), NonlinearSolveTag}(NonlinearSolveTag())
     return AutoFiniteDiff(; fdtype = diff_type)
 end
 
