@@ -41,6 +41,13 @@ end
 u0 = init_brusselator_2d(xyd_brusselator)
 prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
 sol = solve(prob_brusselator_2d, NewtonRaphson())
+@test norm(sol.resid) < 1e-8
+
+sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseForwardDiff()))
+@test norm(sol.resid) < 1e-8
+
+sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff()))
+@test norm(sol.resid) < 1e-8
 
 du0 = copy(u0)
 jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p), du0,
@@ -57,7 +64,8 @@ sol = solve(prob_brusselator_2d, NewtonRaphson())
 @test !all(iszero, jac_prototype)
 
 sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff()))
-@test norm(sol.resid) < 1e-6
+@test norm(sol.resid) < 1e-8
 
 cache = init(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
 @test maximum(cache.jac_cache.coloring.colorvec) == 12
+@test cache.alg.ad isa AutoSparseForwardDiff

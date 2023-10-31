@@ -10,6 +10,11 @@ end
 
 struct NonlinearSolveTag end
 
+function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}}, f::F,
+        x::AbstractArray{T}) where {T, F}
+    return true
+end
+
 """
     default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
         standardtag = Val{true}(), diff_type = Val{:forward})
@@ -43,7 +48,8 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
 
     ad = _unwrap_val(autodiff)
     # We don't really know the typeof the input yet, so we can't use the correct tag!
-    ad && return AutoForwardDiff{_unwrap_val(chunk_size), Nothing}(nothing)
+    ad && return AutoForwardDiff{_unwrap_val(chunk_size), NonlinearSolveTag}(;
+        tag = NonlinearSolveTag())
     return AutoFiniteDiff(; fdtype = diff_type)
 end
 
@@ -115,17 +121,6 @@ function wrapprecs(_Pl, _Pr, weight)
     end
 
     return Pl, Pr
-end
-
-function _nfcount(N, ::Type{diff_type}) where {diff_type}
-    if diff_type === Val{:complex}
-        tmp = N
-    elseif diff_type === Val{:forward}
-        tmp = N + 1
-    else
-        tmp = 2N
-    end
-    return tmp
 end
 
 get_loss(fu) = norm(fu)^2 / 2
@@ -203,7 +198,7 @@ function __get_concrete_algorithm(alg, prob)
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
         (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(;
-            tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0)))
+            tag = NonlinearSolveTag())
     end
     return set_ad(alg, ad)
 end
