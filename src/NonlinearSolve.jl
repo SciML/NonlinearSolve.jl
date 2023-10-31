@@ -58,7 +58,7 @@ end
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu1 = fu)
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
-set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
+SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
 function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     while not_terminated(cache)

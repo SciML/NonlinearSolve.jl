@@ -98,7 +98,7 @@ end
 get_fu(cache::DFSaneCache) = cache.fuₙ
 set_fu!(cache::DFSaneCache, fu) = (cache.fuₙ = fu)
 get_u(cache::DFSaneCache) = cache.uₙ
-set_u!(cache::DFSaneCache, u) = (cache.uₙ = u)
+SciMLBase.set_u!(cache::DFSaneCache, u) = (cache.uₙ = u)
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
