@@ -42,7 +42,7 @@ end
 const Robusters = RobustMultiNewton
 
 function RobustMultiNewton(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, adkwargs...)
+        precs = DEFAULT_PRECS, adkwargs...)
     return RobustMultiNewton{_unwrap_val(concrete_jac)}(adkwargs, linsolve, precs)
 end
 
@@ -53,7 +53,7 @@ end
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::RobustMultiNewton,
-    args...; kwargs...) where {uType, iip}
+        args...; kwargs...) where {uType, iip}
     @unpack adkwargs, linsolve, precs = alg
 
     algs = (TrustRegion(; linsolve, precs, adkwargs...),
@@ -105,7 +105,7 @@ for more performance and then tries more robust techniques if the faster ones fa
 end
 
 function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, adkwargs...)
+        precs = DEFAULT_PRECS, adkwargs...)
     return FastShortcutNonlinearPolyalg{_unwrap_val(concrete_jac)}(adkwargs, linsolve,
         precs)
 end
@@ -118,18 +118,17 @@ end
 end
 
 function FastShortcutNonlinearPolyalgCache(; concrete_jac = nothing, linsolve = nothing,
-    precs = DEFAULT_PRECS, adkwargs...)
+        precs = DEFAULT_PRECS, adkwargs...)
     return FastShortcutNonlinearPolyalgCache{_unwrap_val(concrete_jac)}(adkwargs, linsolve,
         precs)
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip},
-    alg::FastShortcutNonlinearPolyalg, args...; kwargs...) where {uType, iip}
+        alg::FastShortcutNonlinearPolyalg, args...; kwargs...) where {uType, iip}
     @unpack adkwargs, linsolve, precs = alg
 
-    algs = (
-        # Klement(),
-        # Broyden(),
+    algs = (GeneralKlement(; linsolve, precs),
+        GeneralBroyden(),
         NewtonRaphson(; linsolve, precs, adkwargs...),
         NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...),
         TrustRegion(; linsolve, precs, adkwargs...),
@@ -142,8 +141,8 @@ end
 
 # This version doesn't allocate all the caches!
 @generated function SciMLBase.__solve(prob::NonlinearProblem{uType, iip},
-    alg::Union{FastShortcutNonlinearPolyalg, RobustMultiNewton}, args...;
-    kwargs...) where {uType, iip}
+        alg::Union{FastShortcutNonlinearPolyalg, RobustMultiNewton}, args...;
+        kwargs...) where {uType, iip}
     calls = [:(@unpack adkwargs, linsolve, precs = alg)]
 
     algs = if parameterless_type(alg) == RobustMultiNewton
@@ -159,7 +158,7 @@ end
         ]
     else
         [
-            :(GeneralKlement()),
+            :(GeneralKlement(; linsolve, precs)),
             :(GeneralBroyden()),
             :(NewtonRaphson(; linsolve, precs, adkwargs...)),
             :(NewtonRaphson(; linsolve, precs, linesearch = BackTracking(), adkwargs...)),
@@ -191,7 +190,7 @@ end
     push!(calls,
         quote
             resids = tuple($(Tuple(resids)...))
-            minfu, idx = findmin(DEFAULT_NORM, resids)
+            minfu, idx = __findmin(DEFAULT_NORM, resids)
         end)
 
     for i in 1:length(algs)
@@ -211,7 +210,7 @@ end
 ## General shared polyalg functions
 
 @generated function SciMLBase.solve!(cache::Union{RobustMultiNewtonCache{iip, N},
-    FastShortcutNonlinearPolyalgCache{iip, N}}) where {iip, N}
+        FastShortcutNonlinearPolyalgCache{iip, N}}) where {iip, N}
     calls = [
         quote
             1 ≤ cache.current ≤ length(cache.caches) ||
@@ -249,7 +248,7 @@ end
             retcode = ReturnCode.MaxIters
 
             fus = tuple($(Tuple(resids)...))
-            minfu, idx = findmin(cache.caches[1].internalnorm, fus)
+            minfu, idx = __findmin(cache.caches[1].internalnorm, fus)
             stats = cache.caches[idx].stats
             u = cache.caches[idx].u
 
@@ -261,7 +260,7 @@ end
 end
 
 function SciMLBase.reinit!(cache::Union{RobustMultiNewtonCache,
-        FastShortcutNonlinearPolyalgCache}, args...; kwargs...)
+            FastShortcutNonlinearPolyalgCache}, args...; kwargs...)
     for c in cache.caches
         SciMLBase.reinit!(c, args...; kwargs...)
     end
@@ -270,11 +269,11 @@ end
 ## Defaults
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-    kwargs...) where {uType, iip}
+        kwargs...) where {uType, iip}
     SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-    kwargs...) where {uType, iip}
+        kwargs...) where {uType, iip}
     SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
 end

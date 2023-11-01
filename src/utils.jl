@@ -1,17 +1,19 @@
+const DEFAULT_NORM = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM
 
-@inline UNITLESS_ABS2(x) = real(abs2(x))
-@inline DEFAULT_NORM(u::Union{AbstractFloat, Complex}) = @fastmath abs(u)
-@inline function DEFAULT_NORM(u::Array{T}) where {T <: Union{AbstractFloat, Complex}}
-    return sqrt(real(sum(abs2, u)) / length(u))
+# Ignores NaN
+function __findmin(f, x)
+    return findmin(x) do xᵢ
+        fx = f(xᵢ)
+        return isnan(fx) ? Inf : fx
+    end
 end
-@inline function DEFAULT_NORM(u::StaticArray{<:Union{AbstractFloat, Complex}})
-    return sqrt(real(sum(abs2, u)) / length(u))
+
+struct NonlinearSolveTag end
+
+function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}}, f::F,
+        x::AbstractArray{T}) where {T, F}
+    return true
 end
-@inline function DEFAULT_NORM(u::AbstractVectorOfArray)
-    return sum(sqrt(real(sum(UNITLESS_ABS2, _u)) / length(_u)) for _u in u.u)
-end
-@inline DEFAULT_NORM(u::AbstractArray) = sqrt(real(sum(UNITLESS_ABS2, u)) / length(u))
-@inline DEFAULT_NORM(u) = norm(u)
 
 """
     default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
@@ -26,7 +28,7 @@ code.
     `autodiff=<ADTypes>`.
 """
 function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
-    standardtag = missing, diff_type = missing)
+        standardtag = missing, diff_type = missing)
     # If using the new API short circuit
     autodiff === nothing && return nothing
     autodiff isa ADTypes.AbstractADType && return autodiff
@@ -45,8 +47,9 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
     autodiff === missing && (autodiff = Val{true}())
 
     ad = _unwrap_val(autodiff)
-    tag = _unwrap_val(standardtag)
-    ad && return AutoForwardDiff{_unwrap_val(chunk_size), typeof(tag)}(tag)
+    # We don't really know the typeof the input yet, so we can't use the correct tag!
+    ad &&
+        return AutoForwardDiff{_unwrap_val(chunk_size), NonlinearSolveTag}(NonlinearSolveTag())
     return AutoFiniteDiff(; fdtype = diff_type)
 end
 
@@ -79,8 +82,8 @@ end
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
-    du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
-    cachedata = nothing, reltol = nothing) where {P}
+        du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
+        cachedata = nothing, reltol = nothing) where {P}
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
@@ -120,17 +123,6 @@ function wrapprecs(_Pl, _Pr, weight)
     return Pl, Pr
 end
 
-function _nfcount(N, ::Type{diff_type}) where {diff_type}
-    if diff_type === Val{:complex}
-        tmp = N
-    elseif diff_type === Val{:forward}
-        tmp = N + 1
-    else
-        tmp = 2N
-    end
-    return tmp
-end
-
 get_loss(fu) = norm(fu)^2 / 2
 
 function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-function for adaptive trust region method
@@ -157,7 +149,7 @@ _maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
 function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
-        NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
+            NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
         fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
@@ -205,63 +197,80 @@ function __get_concrete_algorithm(alg, prob)
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        use_sparse_ad ? AutoSparseForwardDiff() : AutoForwardDiff{nothing, Nothing}(nothing)
+        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(;
+            tag = NonlinearSolveTag())
     end
     return set_ad(alg, ad)
 end
 
-function _get_tolerance(η, tc_η, ::Type{T}) where {T}
-    fallback_η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
-    return T(ifelse(η !== nothing, η, ifelse(tc_η !== nothing, tc_η, fallback_η)))
+function init_termination_cache(abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(abstol, reltol, du, u, AbsSafeBestTerminationMode())
+end
+function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
+    tc_cache = init(du, u, tc; abstol, reltol)
+    return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
 
-function _init_termination_elements(abstol, reltol, termination_condition,
-    ::Type{T}; mode = NLSolveTerminationMode.AbsNorm) where {T}
-    if termination_condition !== nothing
-        if abstol !== nothing && abstol != termination_condition.abstol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                keyword argument and the one supplied in the termination condition should \
-                be same.")
+function check_and_update!(cache, fu, u, uprev)
+    return check_and_update!(cache.tc_cache, cache, fu, u, uprev)
+end
+function check_and_update!(tc_cache, cache, fu, u, uprev)
+    return check_and_update!(tc_cache, cache, fu, u, uprev,
+        DiffEqBase.get_termination_mode(tc_cache))
+end
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        # Just a sanity measure!
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, cache.prob.p)
+        else
+            set_fu!(cache, cache.prob.f(u, cache.prob.p))
         end
-        if reltol !== nothing && reltol != termination_condition.reltol
-            error("Incompatible relative tolerances found. The tolerances supplied as the \
-                keyword argument and the one supplied in the termination condition should \
-                be same.")
-        end
-        abstol = _get_tolerance(abstol, termination_condition.abstol, T)
-        reltol = _get_tolerance(reltol, termination_condition.reltol, T)
-        return abstol, reltol, termination_condition
-    else
-        abstol = _get_tolerance(abstol, nothing, T)
-        reltol = _get_tolerance(reltol, nothing, T)
-        termination_condition = NLSolveTerminationCondition(mode; abstol, reltol)
-        return abstol, reltol, termination_condition
+        cache.force_stop = true
     end
 end
-
-function _get_reinit_termination_condition(cache, abstol, reltol, termination_condition)
-    if termination_condition != cache.termination_condition
-        if abstol != cache.abstol && abstol != termination_condition.abstol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                   keyword argument and the one supplied in the termination condition \
-                   should be same.")
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractSafeNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
+            cache.retcode = ReturnCode.Success
         end
-
-        if reltol != cache.reltol && reltol != termination_condition.reltol
-            error("Incompatible absolute tolerances found. The tolerances supplied as the \
-                   keyword argument and the one supplied in the termination condition \
-                   should be same.")
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
+            cache.retcode = ReturnCode.ConvergenceFailure
         end
-        return termination_condition
-    else
-        # Build the termination_condition with new abstol and reltol
-        return NLSolveTerminationCondition{
-            DiffEqBase.get_termination_mode(termination_condition),
-            eltype(abstol),
-            typeof(termination_condition.safe_termination_options),
-        }(abstol,
-            reltol,
-            termination_condition.safe_termination_options)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
+            cache.retcode = ReturnCode.Unstable
+        end
+        # Just a sanity measure!
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, cache.prob.p)
+        else
+            set_fu!(cache, cache.prob.f(u, cache.prob.p))
+        end
+        cache.force_stop = true
+    end
+end
+function check_and_update!(tc_cache, cache, fu, u, uprev,
+        mode::AbstractSafeBestNonlinearTerminationMode)
+    if tc_cache(fu, u, uprev)
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
+            cache.retcode = ReturnCode.Success
+        end
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
+            cache.retcode = ReturnCode.ConvergenceFailure
+        end
+        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
+            cache.retcode = ReturnCode.Unstable
+        end
+        if isinplace(cache)
+            copyto!(get_u(cache), tc_cache.u)
+            cache.prob.f(get_fu(cache), get_u(cache), cache.prob.p)
+        else
+            set_u!(cache, tc_cache.u)
+            set_fu!(cache, cache.prob.f(get_u(cache), cache.prob.p))
+        end
+        cache.force_stop = true
     end
 end
 

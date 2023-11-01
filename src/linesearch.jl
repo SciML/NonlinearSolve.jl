@@ -8,7 +8,7 @@ differentiation for fast Vector Jacobian Products.
 
 ### Arguments
 
-  - `method`: the line search algorithm to use. Defaults to `Static()`, which means that the
+  - `method`: the line search algorithm to use. Defaults to `nothing`, which means that the
     step size is fixed to the value of `alpha`.
   - `autodiff`: the automatic differentiation backend to use for the line search. Defaults to
     `AutoFiniteDiff()`, which means that finite differencing is used to compute the VJP.
@@ -22,17 +22,31 @@ differentiation for fast Vector Jacobian Products.
     α
 end
 
-function LineSearch(; method = Static(), autodiff = AutoFiniteDiff(), alpha = true)
+function LineSearch(; method = nothing, autodiff = AutoFiniteDiff(), alpha = true)
     return LineSearch(method, autodiff, alpha)
 end
 
-@inline function init_linesearch_cache(ls::LineSearch, args...)
-    return init_linesearch_cache(ls.method, ls, args...)
+@inline function init_linesearch_cache(ls::LineSearch, f::F, u, p, fu, iip) where {F}
+    return init_linesearch_cache(ls.method, ls, f, u, p, fu, iip)
 end
 
-# LineSearches.jl doesn't have a supertype so default to that
-init_linesearch_cache(_, ls, f, u, p, fu, iip) = LineSearchesJLCache(ls, f, u, p, fu, iip)
+@concrete struct NoLineSearchCache
+    α
+end
 
+function init_linesearch_cache(::Nothing, ls::LineSearch, f::F, u, p, fu, iip) where {F}
+    return NoLineSearchCache(convert(eltype(u), ls.α))
+end
+
+perform_linesearch!(cache::NoLineSearchCache, u, du) = cache.α
+
+# LineSearches.jl doesn't have a supertype so default to that
+function init_linesearch_cache(_, ls::LineSearch, f::F, u, p, fu, iip) where {F}
+    return LineSearchesJLCache(ls, f, u, p, fu, iip)
+end
+
+# FIXME: The closures lead to too many unnecessary runtime dispatches which leads to the
+#        massive increase in precompilation times.
 # Wrapper over LineSearches.jl algorithms
 @concrete mutable struct LineSearchesJLCache
     f
@@ -43,7 +57,7 @@ init_linesearch_cache(_, ls, f, u, p, fu, iip) = LineSearchesJLCache(ls, f, u, p
     ls
 end
 
-function LineSearchesJLCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
+function LineSearchesJLCache(ls::LineSearch, f::F, u::Number, p, _, ::Val{false}) where {F}
     eval_f(u, du, α) = eval_f(u - α * du)
     eval_f(u) = f(u, p)
 
@@ -84,7 +98,7 @@ function LineSearchesJLCache(ls::LineSearch, f, u::Number, p, _, ::Val{false})
     return LineSearchesJLCache(eval_f, ϕ, dϕ, ϕdϕ, convert(eltype(u), ls.α), ls)
 end
 
-function LineSearchesJLCache(ls::LineSearch, f, u, p, fu1, IIP::Val{iip}) where {iip}
+function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) where {iip, F}
     fu = iip ? deepcopy(fu1) : nothing
     u_ = _mutable_zero(u)
 
@@ -158,10 +172,7 @@ function perform_linesearch!(cache::LineSearchesJLCache, u, du)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
-    # This case is sometimes possible for large optimization problems
-    dϕ₀ ≥ 0 && return cache.α
-
-    return first(cache.ls.method(ϕ, cache.dϕ(u, du), cache.ϕdϕ(u, du), cache.α, ϕ₀, dϕ₀))
+    return first(cache.ls.method(ϕ, dϕ, ϕdϕ, cache.α, ϕ₀, dϕ₀))
 end
 
 """
@@ -184,7 +195,7 @@ struct LiFukushimaLineSearch{T} <: AbstractNonlinearSolveLineSearchAlgorithm
 end
 
 function LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.1, sigma_1 = 0.001,
-    sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
+        sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
     T = promote_type(typeof(lambda_0), typeof(beta), typeof(sigma_1), typeof(eta),
         typeof(rho), typeof(sigma_2))
     return LiFukushimaLineSearch{T}(lambda_0, beta, sigma_1, sigma_2, eta, rho,
@@ -200,8 +211,8 @@ end
     α
 end
 
-function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f, _u, p, _fu,
-    ::Val{iip}) where {iip}
+function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f::F, _u, p, _fu,
+        ::Val{iip}) where {iip, F}
     fu = iip ? deepcopy(_fu) : nothing
     u = iip ? deepcopy(_u) : nothing
     return LiFukushimaLineSearchCache{iip}(f, p, u, fu, alg, ls.α)
@@ -224,21 +235,21 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
 
     # Early Terminate based on Eq. 2.7
     if iip
-        cache.u_cache .= u .+ du
+        cache.u_cache .= u .- du
         cache.f(cache.fu_cache, cache.u_cache, cache.p)
         fxλ_norm = norm(cache.fu_cache, 2)
     else
-        fxλ_norm = norm(cache.f(u .+ du, cache.p), 2)
+        fxλ_norm = norm(cache.f(u .- du, cache.p), 2)
     end
 
     fxλ_norm ≤ ρ * fx_norm - σ₂ * norm(du, 2)^2 && return cache.α
 
     if iip
-        cache.u_cache .= u .+ λ₂ .* du
+        cache.u_cache .= u .- λ₂ .* du
         cache.f(cache.fu_cache, cache.u_cache, cache.p)
         fxλp_norm = norm(cache.fu_cache, 2)
     else
-        fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+        fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
     end
 
     if !isfinite(fxλp_norm)
@@ -265,11 +276,11 @@ function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) wher
 
     for _ in 1:maxiters
         if iip
-            cache.u_cache .= u .+ λ₂ .* du
+            cache.u_cache .= u .- λ₂ .* du
             cache.f(cache.fu_cache, cache.u_cache, cache.p)
             fxλp_norm = norm(cache.fu_cache, 2)
         else
-            fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
+            fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
         end
 
         converged = fxλp_norm ≤ (1 + η) * fx_norm - σ₁ * λ₂^2 * norm(du, 2)^2

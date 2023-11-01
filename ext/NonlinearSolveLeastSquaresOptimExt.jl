@@ -33,7 +33,7 @@ end
 (f::FunctionWrapper{false})(du, u) = (du .= f.f(u, f.p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresOptimJL,
-    args...; abstol = 1e-8, reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
+        args...; abstol = 1e-8, reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
 
     f! = FunctionWrapper{iip}(prob.f, prob.p)

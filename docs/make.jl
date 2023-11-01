@@ -1,5 +1,5 @@
 using Documenter, NonlinearSolve, SimpleNonlinearSolve, Sundials, SciMLNLSolve,
-    NonlinearSolveMINPACK, SteadyStateDiffEq
+    NonlinearSolveMINPACK, SteadyStateDiffEq, SciMLBase, DiffEqBase
 
 cp("./docs/Manifest.toml", "./docs/src/assets/Manifest.toml", force = true)
 cp("./docs/Project.toml", "./docs/src/assets/Project.toml", force = true)
@@ -8,9 +8,8 @@ include("pages.jl")
 
 makedocs(sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
-    modules = [NonlinearSolve, NonlinearSolve.SciMLBase, NonlinearSolve.DiffEqBase,
-        SimpleNonlinearSolve, Sundials, SciMLNLSolve, NonlinearSolveMINPACK,
-        SteadyStateDiffEq],
+    modules = [NonlinearSolve, SciMLBase, DiffEqBase, SimpleNonlinearSolve, Sundials,
+        SciMLNLSolve, NonlinearSolveMINPACK, SteadyStateDiffEq],
     clean = true, doctest = false, linkcheck = true,
     linkcheck_ignore = ["https://twitter.com/ChrisRackauckas/status/1544743542094020615"],
     warnonly = [:missing_docs, :cross_references],
