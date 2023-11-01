@@ -499,7 +499,7 @@ end
         cache = init(probN, DFSane(); maxiters = 100, abstol = 1e-10)
         sols = zeros(length(p_range))
         for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.uₙ[1]] : cache.uₙ; p = p)
+            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
             sol = solve!(cache)
             sols[i] = iip ? sol.u[1] : sol.u
         end
