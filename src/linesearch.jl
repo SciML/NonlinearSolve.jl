@@ -122,6 +122,7 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
     end
 
     function g!(u, fu)
+        # FIXME: Upstream patch to allow non-square Jacobians
         op = VecJac((args...) -> f(args..., p), u; autodiff)
         if iip
             mul!(g₀, op, fu)

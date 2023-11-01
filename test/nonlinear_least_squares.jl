@@ -27,14 +27,16 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
 nlls_problems = [prob_oop, prob_iip]
-solvers = [
-    GaussNewton(),
-    GaussNewton(; linsolve = LUFactorization()),
-    LevenbergMarquardt(),
-    LevenbergMarquardt(; linsolve = LUFactorization()),
-    LeastSquaresOptimJL(:lm),
-    LeastSquaresOptimJL(:dogleg),
-]
+solvers = vec(Any[GaussNewton(; linsolve, linesearch)
+               for linsolve in [nothing, LUFactorization()],
+linesearch in [Static(), BackTracking(), HagerZhang(), StrongWolfe(), MoreThuente()]])
+append!(solvers,
+    [
+        LevenbergMarquardt(),
+        LevenbergMarquardt(; linsolve = LUFactorization()),
+        LeastSquaresOptimJL(:lm),
+        LeastSquaresOptimJL(:dogleg),
+    ])
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
