@@ -26,7 +26,7 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
 end
 
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:AbstractArray},
-            false, <:Dual{T, V, P}}, alg::AbstractNewtonAlgorithm, args...;
+            false, <:Dual{T, V, P}}, alg::AbstractNonlinearSolveAlgorithm, args...;
         kwargs...) where {T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
@@ -34,8 +34,8 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:Abstr
 end
 
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:AbstractArray},
-            false, <:AbstractArray{<:Dual{T, V, P}}}, alg::AbstractNewtonAlgorithm, args...;
-        kwargs...) where {T, V, P}
+            false, <:AbstractArray{<:Dual{T, V, P}}}, alg::AbstractNonlinearSolveAlgorithm,
+        args...; kwargs...) where {T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
     return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode)

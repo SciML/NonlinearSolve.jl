@@ -102,7 +102,7 @@ PrecompileTools.@compile_workload begin
             NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p, T[0.1], T[2]))
 
         precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-            PseudoTransient(), GeneralBroyden(), GeneralKlement(), nothing)
+            PseudoTransient(), GeneralBroyden(), GeneralKlement(), DFSane(), nothing)
 
         for prob in probs, alg in precompile_algs
             solve(prob, alg, abstol = T(1e-2))
