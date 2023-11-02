@@ -56,7 +56,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
            real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
     rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
 
-    if typeof(x) <: Number
+    if x isa Number
         xo = oftype(one(eltype(x)), Inf)
     else
         xo = map(x -> oftype(one(eltype(x)), Inf), x)
