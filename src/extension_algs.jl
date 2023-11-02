@@ -65,8 +65,8 @@ Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenberg
 end
 
 function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
-    factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-    minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32)
+        factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32)
     @assert linsolve in (:qr, :cholesky)
     @assert factorupdate in (:marquardt, :nielson)
 

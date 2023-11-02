@@ -14,7 +14,7 @@ PrecompileTools.@recompile_invalidations begin
 
     import ADTypes: AbstractFiniteDifferencesMode
     import ArrayInterface: undefmatrix,
-        matrix_colors, parameterless_type, ismutable, issingular,fast_scalar_indexing
+        matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
     import ConcreteStructs: @concrete
     import EnumX: @enumx
     import ForwardDiff
@@ -30,6 +30,9 @@ PrecompileTools.@recompile_invalidations begin
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
+import DiffEqBase: AbstractNonlinearTerminationMode,
+    AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
+    NonlinearSafeTerminationReturnCode, get_termination_mode
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
@@ -44,7 +47,7 @@ abstract type AbstractNonlinearSolveCache{iip} end
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
-    alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
+        alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
     return solve!(cache)
 end
@@ -53,6 +56,9 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.stats.nsteps < cache.maxiters
 end
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu1 = fu)
+get_u(cache::AbstractNonlinearSolveCache) = cache.u
+SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
 function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     while not_terminated(cache)
@@ -69,7 +75,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-    return SciMLBase.build_solution(cache.prob, cache.alg, cache.u, get_fu(cache);
+    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
         cache.retcode, cache.stats)
 end
 
@@ -96,7 +102,7 @@ PrecompileTools.@compile_workload begin
             NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p, T[0.1], T[2]))
 
         precompile_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-            PseudoTransient(), GeneralBroyden(), GeneralKlement(), nothing)
+            PseudoTransient(), GeneralBroyden(), GeneralKlement(), DFSane(), nothing)
 
         for prob in probs, alg in precompile_algs
             solve(prob, alg, abstol = T(1e-2))
@@ -112,5 +118,11 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export RobustMultiNewton, FastShortcutNonlinearPolyalg
 
 export LineSearch, LiFukushimaLineSearch
+
+# Export the termination conditions from DiffEqBase
+export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
+    NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+    AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+    RelSafeBestTerminationMode, AbsSafeBestTerminationMode
 
 end # module

@@ -32,8 +32,8 @@ end
 (f::InplaceFunction{false})(fx, x, p) = (fx .= f.f(x, p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
-    alg::FastLevenbergMarquardtJL, args...; abstol = 1e-8, reltol = 1e-8,
-    verbose = false, maxiters = 1000, kwargs...)
+        alg::FastLevenbergMarquardtJL, args...; abstol = 1e-8, reltol = 1e-8,
+        verbose = false, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
 
     @assert prob.f.jac!==nothing "FastLevenbergMarquardt requires a Jacobian!"

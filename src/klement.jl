@@ -32,7 +32,7 @@ function set_linsolve(alg::GeneralKlement, linsolve)
 end
 
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
-    linesearch = LineSearch(), precs = DEFAULT_PRECS)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GeneralKlement(max_resets, linsolve, precs, linesearch)
 end
@@ -61,17 +61,17 @@ end
     reltol
     prob
     stats::NLStats
-    lscache
-    termination_condition
-    tc_storage
+    ls_cache
+    tc_cache
 end
 
 get_fu(cache::GeneralKlementCache) = cache.fu
+set_fu!(cache::GeneralKlementCache, fu) = (cache.fu = fu)
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
@@ -89,36 +89,26 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
+        termination_condition)
 
     return GeneralKlementCache{iip}(f, alg, u, zero(u), fu, zero(fu), du, p, linsolve,
         J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
-        storage)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::GeneralKlementCache{true})
-    @unpack u, u_prev, fu, f, p, alg, J, linsolve, du, tc_storage = cache
+    @unpack u, u_prev, fu, f, p, alg, J, linsolve, du = cache
     T = eltype(J)
-
-    termination_condition = cache.termination_condition(tc_storage)
 
     singular, fact_done = _try_factorize_and_check_singular!(linsolve, J)
 
     if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             return nothing
         end
         fact_done = false
@@ -129,16 +119,15 @@ function perform_step!(cache::GeneralKlementCache{true})
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
-        b = -_vec(fu), linu = _vec(du), p, reltol = cache.abstol)
+        b = _vec(fu), linu = _vec(du), p, reltol = cache.abstol)
     cache.linsolve = linres.cache
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, u, du)
-    _axpy!(α, du, u)
+    α = perform_linesearch!(cache.ls_cache, u, du)
+    _axpy!(-α, du, u)
     f(cache.fu2, u, p)
 
-    termination_condition(cache.fu2, u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
@@ -146,6 +135,7 @@ function perform_step!(cache::GeneralKlementCache{true})
     cache.force_stop && return nothing
 
     # Update the Jacobian
+    cache.du .*= -1
     cache.J_cache .= cache.J' .^ 2
     cache.Jdu .= _vec(du) .^ 2
     mul!(cache.Jᵀ²du, cache.J_cache, cache.Jdu)
@@ -165,9 +155,7 @@ function perform_step!(cache::GeneralKlementCache{true})
 end
 
 function perform_step!(cache::GeneralKlementCache{false})
-    @unpack fu, f, p, alg, J, linsolve, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack fu, f, p, alg, J, linsolve = cache
 
     T = eltype(J)
 
@@ -176,7 +164,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     if singular
         if cache.resets == alg.max_resets
             cache.force_stop = true
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             return nothing
         end
         fact_done = false
@@ -186,22 +174,20 @@ function perform_step!(cache::GeneralKlementCache{false})
 
     # u = u - J \ fu
     if linsolve === nothing
-        cache.du = -fu / cache.J
+        cache.du = fu / cache.J
     else
         linres = dolinsolve(alg.precs, linsolve; A = ifelse(fact_done, nothing, J),
-            b = -_vec(fu), linu = _vec(cache.du), p, reltol = cache.abstol)
+            b = _vec(fu), linu = _vec(cache.du), p, reltol = cache.abstol)
         cache.linsolve = linres.cache
     end
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, cache.u, cache.du)
-    cache.u = @. cache.u + α * cache.du  # `u` might not support mutation
+    α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
+    cache.u = @. cache.u - α * cache.du  # `u` might not support mutation
     cache.fu2 = f(cache.u, p)
 
-    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
-
-    cache.u_prev = @. cache.u
+    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
+    cache.u_prev = cache.u
     cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
@@ -209,6 +195,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.force_stop && return nothing
 
     # Update the Jacobian
+    cache.du = -cache.du
     cache.J_cache = cache.J' .^ 2
     cache.Jdu = _vec(cache.du) .^ 2
     cache.Jᵀ²du = cache.J_cache * cache.Jdu
@@ -225,9 +212,8 @@ function perform_step!(cache::GeneralKlementCache{false})
 end
 
 function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -238,12 +224,12 @@ function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = ca
         cache.fu = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

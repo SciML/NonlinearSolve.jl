@@ -43,13 +43,10 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-    linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad,
-        linsolve,
-        precs,
-        linesearch)
+    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
 end
 
 @concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -73,16 +70,14 @@ end
     reltol
     prob
     stats::NLStats
-    lscache
-    termination_condition
-    tc_storage
+    ls_cache
+    tc_cache
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphson, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing,
-    internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -90,28 +85,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
 
     return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)),
-        termination_condition, storage)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, tc_storage = cache
+    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du = cache
     jacobian!!(J, cache)
-
-    termination_condition = cache.termination_condition(tc_storage)
 
     # u = u - J \ fu
     linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
@@ -119,12 +104,11 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     cache.linsolve = linres.cache
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, u, du)
+    α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu1, u, p)
 
-    termination_condition(cache.fu1, u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
     @. u_prev = u
     cache.stats.nf += 1
@@ -135,9 +119,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
 
     cache.J = jacobian!!(cache.J, cache)
     # u = u - J \ fu
@@ -150,14 +132,13 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     end
 
     # Line Search
-    α = perform_linesearch!(cache.lscache, u, cache.du)
+    α = perform_linesearch!(cache.ls_cache, u, cache.du)
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
-    termination_condition(cache.fu1, cache.u, u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
-    cache.u_prev = @. cache.u
+    cache.u_prev = cache.u
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
@@ -166,9 +147,8 @@ function perform_step!(cache::NewtonRaphsonCache{false})
 end
 
 function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -179,12 +159,12 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
         cache.fu1 = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

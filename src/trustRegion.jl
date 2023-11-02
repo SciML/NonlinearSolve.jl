@@ -141,11 +141,6 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
-
-!!! warning
-
-    `linsolve` and `precs` are used exclusively for the inplace version of the algorithm.
-    Support for the OOP version is planned!
 """
 @concrete struct TrustRegion{CJ, AD, MTR} <:
                  AbstractNewtonAlgorithm{CJ, AD}
@@ -171,11 +166,11 @@ function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
 end
 
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-    radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
-    max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
-    step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
-    expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
-    expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
+        radius_update_scheme::RadiusUpdateSchemes.T = RadiusUpdateSchemes.Simple, #defaults to conventional radius update
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
         max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
@@ -229,15 +224,13 @@ end
     p4::floatType
     ϵ::floatType
     stats::NLStats
-    tc_storage
-    termination_condition
+    tc_cache
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
-    alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing,
-    internalnorm = DEFAULT_NORM,
-    linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
+        kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -250,7 +243,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         linsolve_kwargs)
     u_tmp = zero(u)
     u_cauchy = zero(u)
-    u_gauss_newton = zero(u)
+    u_gauss_newton = _mutable_zero(u)
 
     loss_new = loss
     H = zero(J' * J)
@@ -338,23 +331,15 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         initial_trust_radius = convert(trustType, 1.0)
     end
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+        termination_condition)
 
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
         H, g, shrink_counter, du, u_tmp, u_gauss_newton, u_cauchy, fu_new, make_new_J, r,
-        p1, p2, p3, p4, ϵ,
-        NLStats(1, 0, 0, 0, 0), storage, termination_condition)
+        p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0), tc_cache)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -368,8 +353,7 @@ function perform_step!(cache::TrustRegionCache{true})
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
         # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
         linres = dolinsolve(alg.precs, linsolve, A = J, b = _vec(fu),
-            linu = _vec(u_gauss_newton),
-            p = p, reltol = cache.abstol)
+            linu = _vec(u_gauss_newton), p = p, reltol = cache.abstol)
         cache.linsolve = linres.cache
         @. cache.u_gauss_newton = -1 * u_gauss_newton
     end
@@ -395,7 +379,18 @@ function perform_step!(cache::TrustRegionCache{false})
         cache.H = J' * J
         cache.g = _restructure(fu, J' * _vec(fu))
         cache.stats.njacs += 1
-        cache.u_gauss_newton = -1 .* _restructure(cache.g, cache.H \ _vec(cache.g))
+
+        if cache.linsolve === nothing
+            # Scalar
+            cache.u_gauss_newton = -cache.H \ cache.g
+        else
+            # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
+            # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
+            linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J, b = _vec(fu),
+                linu = _vec(cache.u_gauss_newton), p = p, reltol = cache.abstol)
+            cache.linsolve = linres.cache
+            @. cache.u_gauss_newton *= -1
+        end
     end
 
     # Compute the Newton step.
@@ -430,9 +425,7 @@ function retrospective_step!(cache::TrustRegionCache)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
-    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack fu_new, du, g, H, loss, max_trust_r, radius_update_scheme = cache
 
     cache.loss_new = get_loss(fu_new)
 
@@ -463,13 +456,7 @@ function trust_region_step!(cache::TrustRegionCache)
             # No need to make a new J, no step was taken, so we try again with a smaller trust_r
             cache.make_new_J = false
         end
-        if iszero(cache.fu) || termination_condition(cache.fu,
-            cache.u,
-            cache.u_prev,
-            cache.abstol,
-            cache.reltol)
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.NLsolve
         # accept/reject decision
@@ -491,9 +478,7 @@ function trust_region_step!(cache::TrustRegionCache)
         end
 
         # convergence test
-        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.NocedalWright
         # accept/reject decision
@@ -512,9 +497,7 @@ function trust_region_step!(cache::TrustRegionCache)
         end
 
         # convergence test
-        if iszero(cache.fu) || cache.internalnorm(cache.fu) < cache.abstol
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         if r > cache.step_threshold
@@ -535,15 +518,8 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) *
                         cache.internalnorm(du)
 
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.Yuan
         if r < cache.shrink_threshold
@@ -565,15 +541,8 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * cache.internalnorm(jvp!(cache))
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
         #Fan's update scheme
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
         if r < cache.shrink_threshold
@@ -594,15 +563,8 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * (cache.internalnorm(cache.fu)^0.99)
-        if iszero(cache.fu) ||
-           termination_condition(cache.fu,
-               cache.u,
-               cache.u_prev,
-               cache.abstol,
-               cache.reltol) ||
-           cache.internalnorm(g) < cache.ϵ
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
+        cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
         if r > cache.step_threshold
             take_step!(cache)
@@ -617,13 +579,7 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r *= cache.p2
             cache.shrink_counter += 1
         end
-        if iszero(cache.fu) || termination_condition(cache.fu,
-            cache.u,
-            cache.u_prev,
-            cache.abstol,
-            cache.reltol)
-            cache.force_stop = true
-        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
     end
 end
 
@@ -718,15 +674,23 @@ function jvp!(cache::TrustRegionCache{true})
 end
 
 function not_terminated(cache::TrustRegionCache)
-    return !cache.force_stop && cache.stats.nsteps < cache.maxiters &&
-           cache.shrink_counter < cache.alg.max_shrink_times
+    non_shrink_terminated = cache.force_stop || cache.stats.nsteps ≥ cache.maxiters
+    # Terminated due to convergence or maxiters
+    non_shrink_terminated && return false
+    # Terminated due to too many shrink
+    shrink_terminated = cache.shrink_counter ≥ cache.alg.max_shrink_times
+    if shrink_terminated
+        cache.retcode = ReturnCode.ConvergenceFailure
+        return false
+    end
+    return true
 end
 get_fu(cache::TrustRegionCache) = cache.fu
+set_fu!(cache::TrustRegionCache, fu) = (cache.fu = fu)
 
 function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, reltol = cache.reltol,
-    termination_condition = cache.termination_condition,
-    maxiters = cache.maxiters) where {iip}
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -737,12 +701,12 @@ function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache
         cache.fu = cache.f(cache.u, p)
     end
 
-    termination_condition = _get_reinit_termination_condition(cache, abstol, reltol,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.termination_condition = termination_condition
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1

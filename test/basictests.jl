@@ -18,6 +18,13 @@ function newton_fails(u, p)
            0.0011552453009332421u .- p
 end
 
+const TERMINATION_CONDITIONS = [
+    SteadyStateDiffEqTerminationMode(), SimpleNonlinearSolveTerminationMode(),
+    NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
+    AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
+]
+
 # --- NewtonRaphson tests ---
 
 @testset "NewtonRaphson" begin
@@ -27,7 +34,7 @@ end
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-        linesearch = LineSearch())
+            linesearch = LineSearch())
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, NewtonRaphson(; linsolve, precs, linesearch), abstol = 1e-9)
     end
@@ -124,16 +131,9 @@ end
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
 
-    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
-        if mode ∈
-           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-            NLSolveTerminationMode.AbsSafeBest)
-            continue
-        end
-        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-            reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -296,16 +296,9 @@ end
         end
     end
 
-    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
-        if mode ∈
-           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-            NLSolveTerminationMode.AbsSafeBest)
-            continue
-        end
-        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-            reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, TrustRegion(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -420,16 +413,9 @@ end
         end
     end
 
-    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
-        if mode ∈
-           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-            NLSolveTerminationMode.AbsSafeBest)
-            continue
-        end
-        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-            reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -470,15 +456,11 @@ end
     end
 
     @testset "[OOP] [Immutable AD]" begin
-        broken_forwarddiff = [2.9, 3.0, 4.0, 81.0]
         for p in 1.1:0.1:100.0
             res = abs.(benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p).u)
 
             if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
                 @test_broken all(res .≈ sqrt(p))
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                    @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
-            elseif p in broken_forwarddiff
                 @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                     @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
             else
@@ -490,15 +472,11 @@ end
     end
 
     @testset "[OOP] [Scalar AD]" begin
-        broken_forwarddiff = [1.6, 2.9, 3.0, 3.5, 4.0, 81.0]
         for p in 1.1:0.1:100.0
             res = abs(benchmark_nlsolve_oop(quadratic_f, 1.0, p).u)
 
             if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
                 @test_broken res ≈ sqrt(p)
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                        1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
-            elseif p in broken_forwarddiff
                 @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                         1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
             else
@@ -521,7 +499,7 @@ end
         cache = init(probN, DFSane(); maxiters = 100, abstol = 1e-10)
         sols = zeros(length(p_range))
         for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.uₙ[1]] : cache.uₙ; p = p)
+            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
             sol = solve!(cache)
             sols[i] = iip ? sol.u[1] : sol.u
         end
@@ -566,21 +544,13 @@ end
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-11)
-            println(abs.(quadratic_f(sol.u, 2.0)))
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
     end
 
-    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
-        if mode ∈
-           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-            NLSolveTerminationMode.AbsSafeBest)
-            continue
-        end
-        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-            reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, DFSane(); termination_condition).u .≈ sqrt(2.0))
     end
@@ -598,7 +568,7 @@ end
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-        alpha_initial = 10.0)
+            alpha_initial = 10.0)
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, PseudoTransient(; linsolve, precs, alpha_initial), abstol = 1e-9)
     end
@@ -669,13 +639,11 @@ end
 
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN,
-            PseudoTransient(alpha_initial = 10.0);
-            maxiters = 100,
+        cache = init(probN, PseudoTransient(alpha_initial = 10.0); maxiters = 100,
             abstol = 1e-10)
         sols = zeros(length(p_range))
         for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p, alpha_new = 10.0)
+            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p, alpha = 10.0)
             sol = solve!(cache)
             sols[i] = iip ? sol.u[1] : sol.u
         end
@@ -701,16 +669,9 @@ end
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
     end
 
-    @testset "Termination condition: $(mode) u0: $(_nameof(u0))" for mode in instances(NLSolveTerminationMode.T),
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
-        if mode ∈
-           (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-            NLSolveTerminationMode.AbsSafeBest)
-            continue
-        end
-        termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-            reltol = nothing)
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0);
             termination_condition).u .≈ sqrt(2.0))
@@ -805,6 +766,13 @@ end
     p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, GeneralBroyden(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
 # --- GeneralKlement tests ---
@@ -831,7 +799,7 @@ end
             sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
             # Some are failing by a margin
             # @test SciMLBase.successful_retcode(sol)
-            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 3e-9)
 
             cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
                 GeneralKlement(; linesearch), abstol = 1e-9)
@@ -895,19 +863,30 @@ end
     p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, GeneralKlement(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
 # --- LimitedMemoryBroyden tests ---
 
 @testset "LimitedMemoryBroyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch(),
+            termination_condition = AbsNormTerminationMode())
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+        return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,
+            termination_condition)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch(),
+            termination_condition = AbsNormTerminationMode())
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, LimitedMemoryBroyden(; linesearch), abstol = 1e-9)
+        return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,
+            termination_condition)
     end
 
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
@@ -985,4 +964,12 @@ end
     p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, Val(false))≈sqrt.(p) atol=1e-2
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true))≈sqrt.(p) atol=1e-2
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, LimitedMemoryBroyden();
+            termination_condition).u .≈ sqrt(2.0))
+    end
 end

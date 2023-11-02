@@ -15,7 +15,7 @@ prob = NonlinearProblem(f, u0)
 # TrustRegion is broken
 # LimitedMemoryBroyden will diverge!
 for alg in (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-    PseudoTransient(; alpha_initial = 10.0f0), GeneralKlement(), GeneralBroyden(),
+    PseudoTransient(; alpha_initial = 1.0f0), GeneralKlement(), GeneralBroyden(),
     LimitedMemoryBroyden())
     @test_nowarn sol = solve(prob, alg; abstol = 1.0f-8, reltol = 1.0f-8)
 end
@@ -27,7 +27,7 @@ prob = NonlinearProblem{false}(f, u0)
 # TrustRegion is broken
 # LimitedMemoryBroyden will diverge!
 for alg in (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-    PseudoTransient(; alpha_initial = 10.0f0), GeneralKlement(), GeneralBroyden(),
+    PseudoTransient(; alpha_initial = 1.0f0), GeneralKlement(), GeneralBroyden(),
     LimitedMemoryBroyden())
     @test_nowarn sol = solve(prob, alg; abstol = 1.0f-8, reltol = 1.0f-8)
 end

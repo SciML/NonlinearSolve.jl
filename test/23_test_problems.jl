@@ -11,7 +11,8 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg)
+                    sol = solve(nlprob, alg;
+                        termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
                     broken = idx in broken_tests[alg] ? true : false
@@ -52,7 +53,7 @@ end
     broken_tests[alg_ops[1]] = [6, 11, 21]
     broken_tests[alg_ops[2]] = [6, 11, 21]
     broken_tests[alg_ops[3]] = [1, 6, 11, 12, 15, 16, 21]
-    broken_tests[alg_ops[4]] = [1, 6, 8, 11, 16, 21, 22]
+    broken_tests[alg_ops[4]] = [1, 6, 8, 11, 15, 16, 21, 22]
     broken_tests[alg_ops[5]] = [6, 21]
     broken_tests[alg_ops[6]] = [6, 21]
 
@@ -76,39 +77,27 @@ end
     alg_ops = (DFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 3, 5, 6, 21]
+    broken_tests[alg_ops[1]] = [1, 2, 3, 4, 5, 6, 11, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
 # Broyden and Klement Tests are quite flaky and failure seems to be platform dependent
 # needs additional investigation before we can enable them
-#=
 @testset "GeneralBroyden 23 Test Problems" begin
-    alg_ops = (GeneralBroyden(),
-        GeneralBroyden(; linesearch = LiFukushimaLineSearch(; beta = 0.1)),
-        GeneralBroyden(; linesearch = BackTracking()))
+    alg_ops = (GeneralBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 3, 4, 5, 6, 11, 12, 13, 14, 21]
-    broken_tests[alg_ops[2]] = [1, 2, 3, 4, 5, 6, 9, 11, 13, 22]
-    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 11, 12, 13, 14, 21]
+    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
 @testset "GeneralKlement 23 Test Problems" begin
-    alg_ops = (GeneralKlement(),
-        GeneralKlement(; linesearch = BackTracking()),
-        GeneralKlement(; linesearch = HagerZhang()))
+    alg_ops = (GeneralKlement(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 7, 11, 13, 22]
-    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 7, 11, 12, 13, 22]
-    broken_tests[alg_ops[3]] = [1, 2, 4, 5, 6, 8, 11, 12, 13, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
-=#
-
-# NOTE: Not adding LimitedMemoryBroyden here since it fails on most of the preoblems

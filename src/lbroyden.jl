@@ -25,7 +25,7 @@ An implementation of `LimitedMemoryBroyden` with reseting and line search.
 end
 
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = LineSearch(),
-    threshold::Int = 10, reset_tolerance = nothing)
+        threshold::Int = 27, reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return LimitedMemoryBroyden(max_resets, threshold, linesearch, reset_tolerance)
 end
@@ -59,17 +59,17 @@ end
     reset_check
     prob
     stats::NLStats
-    lscache
-    termination_condition
-    tc_storage
+    ls_cache
+    tc_cache
 end
 
 get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
+set_fu!(cache::LimitedMemoryBroydenCache, fu) = (cache.fu = fu)
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemoryBroyden,
-    args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-    termination_condition = nothing, internalnorm = DEFAULT_NORM,
-    kwargs...) where {uType, iip}
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     if u isa Number
@@ -81,42 +81,31 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     fu = evaluate_f(prob, u)
     threshold = min(alg.threshold, maxiters)
     U, Vᵀ = __init_low_rank_jacobian(u, fu, threshold)
-    du = -fu
+    du = copy(fu)
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
-    abstol, reltol, termination_condition = _init_termination_elements(abstol,
-        reltol,
-        termination_condition,
-        eltype(u))
-
-    mode = DiffEqBase.get_termination_mode(termination_condition)
-
-    storage = mode ∈ DiffEqBase.SAFE_TERMINATION_MODES ? NLSolveSafeTerminationResult() :
-              nothing
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
+        termination_condition)
 
     return LimitedMemoryBroydenCache{iip}(f, alg, u, zero(u), du, fu, zero(fu),
         zero(fu), p, U, Vᵀ, similar(u, threshold), similar(u, 1, threshold),
         zero(u), zero(u), false, 0, 0, alg.max_resets, maxiters, internalnorm,
         ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), termination_condition,
-        storage)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::LimitedMemoryBroydenCache{true})
-    @unpack f, p, du, u, tc_storage = cache
+    @unpack f, p, du, u = cache
     T = eltype(u)
 
-    termination_condition = cache.termination_condition(tc_storage)
-
-    α = perform_linesearch!(cache.lscache, u, du)
-    _axpy!(α, du, u)
+    α = perform_linesearch!(cache.ls_cache, u, du)
+    _axpy!(-α, du, u)
     f(cache.fu2, u, p)
 
-    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -128,14 +117,15 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
     if cache.iterations_since_reset > size(cache.U, 1) &&
        (all(cache.reset_check, du) || all(cache.reset_check, cache.dfu))
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end
         cache.iterations_since_reset = 0
         cache.resets += 1
-        cache.du .= -cache.fu
+        cache.du .= cache.fu
     else
+        cache.du .*= -1
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
@@ -154,7 +144,6 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
         __lbroyden_matvec!(_vec(cache.du), cache.Ux, U_part, Vᵀ_part, _vec(cache.fu2))
-        cache.du .*= -1
         cache.iterations_since_reset += 1
     end
 
@@ -165,18 +154,15 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
 end
 
 function perform_step!(cache::LimitedMemoryBroydenCache{false})
-    @unpack f, p, tc_storage = cache
-
-    termination_condition = cache.termination_condition(tc_storage)
+    @unpack f, p = cache
 
     T = eltype(cache.u)
 
-    α = perform_linesearch!(cache.lscache, cache.u, cache.du)
-    cache.u = cache.u .+ α * cache.du
+    α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
+    cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
 
-    termination_condition(cache.fu2, cache.u, cache.u_prev, cache.abstol, cache.reltol) &&
-        (cache.force_stop = true)
+    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
@@ -188,14 +174,15 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
     if cache.iterations_since_reset > size(cache.U, 1) &&
        (all(cache.reset_check, cache.du) || all(cache.reset_check, cache.dfu))
         if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.Unstable
+            cache.retcode = ReturnCode.ConvergenceFailure
             cache.force_stop = true
             return nothing
         end
         cache.iterations_since_reset = 0
         cache.resets += 1
-        cache.du = -cache.fu
+        cache.du = cache.fu
     else
+        cache.du = -cache.du
         idx = min(cache.iterations_since_reset, size(cache.U, 1))
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
@@ -215,7 +202,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         U_part = selectdim(cache.U, 1, 1:idx)
         Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
         cache.du = _restructure(cache.du,
-            -__lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.fu2)))
+            __lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.fu2)))
         cache.iterations_since_reset += 1
     end
 
@@ -226,7 +213,8 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
 end
 
 function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; p = cache.p,
-    abstol = cache.abstol, maxiters = cache.maxiters) where {iip}
+        termination_condition = get_termination_mode(cache.tc_cache),
+        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters) where {iip}
     cache.p = p
     if iip
         recursivecopy!(cache.u, u0)
@@ -236,7 +224,13 @@ function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; 
         cache.u = u0
         cache.fu = cache.f(cache.u, p)
     end
+
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
+        termination_condition)
+
     cache.abstol = abstol
+    cache.reltol = reltol
+    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1
@@ -248,7 +242,7 @@ function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; 
 end
 
 @views function __lbroyden_matvec!(y::AbstractVector, Ux::AbstractVector,
-    U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
+        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
     # Computes Vᵀ × U × x
     η = size(U, 1)
     if η == 0
@@ -267,7 +261,7 @@ end
 end
 
 @views function __lbroyden_rmatvec!(y::AbstractVector, xᵀVᵀ::AbstractMatrix,
-    U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
+        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
     # Computes xᵀ × Vᵀ × U
     η = size(U, 1)
     if η == 0
