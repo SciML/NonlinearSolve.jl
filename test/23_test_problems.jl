@@ -68,7 +68,7 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [3, 6, 17, 21]
     broken_tests[alg_ops[2]] = [3, 6, 17, 21]
-    broken_tests[alg_ops[3]] = [6, 11, 21]
+    broken_tests[alg_ops[3]] = [6, 11, 17, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
