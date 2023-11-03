@@ -356,7 +356,7 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
 
     # Usual Levenberg-Marquardt step ("velocity").
     if fastls
-        cache.mat_tmp = vcat(J, λ * cache.DᵀD)
+        cache.mat_tmp = _vcat(J, λ * cache.DᵀD)
         cache.rhs_tmp[1:length(fu1)] .= -_vec(fu1)
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
             b = cache.rhs_tmp, linu = _vec(cache.v), p = p, reltol = cache.abstol)
