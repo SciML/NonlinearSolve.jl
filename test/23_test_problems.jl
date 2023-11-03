@@ -11,7 +11,7 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg;
+                    sol = solve(nlprob, alg; maxiters = 1_000_000,
                         termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
@@ -33,7 +33,7 @@ end
 # NewtonRaphson
 @testset "NewtonRaphson test problem library" begin
     alg_ops = (NewtonRaphson(; reuse = false),
-        NewtonRaphson(; reuse = true, reusetol = 1e-6))
+        NewtonRaphson(; reuse = true))
 
     # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)

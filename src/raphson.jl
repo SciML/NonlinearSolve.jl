@@ -54,7 +54,7 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, reuse = true, reusetol = 1e-6,
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, reuse = true, reusetol = 1e-1,
         adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
@@ -73,6 +73,7 @@ end
     u_prev
     Δu
     fu1
+    res_norm_prev
     fu2
     du
     p
@@ -99,30 +100,34 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
-    u_prev = deepcopy(u0)
-    Δu = zero(u0)
+    u_prev = copy(u)
+    Δu = zero(u)
 
     fu1 = evaluate_f(prob, u)
+    res_norm_prev = internalnorm(fu1)
+
     uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
 
-    return NewtonRaphsonCache{iip}(f, alg, u, u_prev, Δu, fu1, fu2, du, p, uf, linsolve, J,
+    return NewtonRaphsonCache{iip}(f, alg, u, u_prev, Δu, fu1, res_norm_prev, fu2, du, p,
+        uf,
+        linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), tc_cache)
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, u_prev, Δu, fu1, f, p, alg, J, linsolve, du = cache
+    @unpack u, u_prev, Δu, fu1, res_norm_prev, f, p, alg, J, linsolve, du = cache
     @unpack reuse = alg
 
     if reuse
-        # check how far we stepped
-        @. Δu += u - u_prev
-        update = cache.internalnorm(Δu) > alg.reusetol
+        # check if residual increased and check how far we stepped
+        res_norm = cache.internalnorm(fu1)
+        update = (res_norm > res_norm_prev) || (cache.internalnorm(Δu) > alg.reusetol)
         if update || cache.stats.njacs == 0
             jacobian!!(J, cache)
             cache.stats.njacs += 1
@@ -135,6 +140,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
             linres = dolinsolve(alg.precs, linsolve; b = _vec(fu1), linu = _vec(du),
                 p, reltol = cache.abstol)
         end
+        cache.res_norm_prev = res_norm
     else
         jacobian!!(J, cache)
         cache.stats.njacs += 1
@@ -151,7 +157,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     f(cache.fu1, u, p)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
-
+    @. Δu += u - u_prev
     @. u_prev = u
     cache.stats.nf += 1
     cache.stats.nsolve += 1
@@ -160,17 +166,16 @@ function perform_step!(cache::NewtonRaphsonCache{true})
 end
 
 function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, u_prev, Δu, fu1, f, p, alg, linsolve = cache
+    @unpack u, u_prev, Δu, fu1, res_norm_prev, f, p, alg, linsolve = cache
     @unpack reuse = alg
 
     if reuse
-        # check how far we stepped
-        cache.Δu += u - u_prev
-        update = cache.internalnorm(Δu) > alg.reusetol
+        # check if residual increased and check how far we stepped
+        res_norm = cache.internalnorm(fu1)
+        update = (res_norm > res_norm_prev) || (cache.internalnorm(Δu) > alg.reusetol)
         if update || cache.stats.njacs == 0
             cache.J = jacobian!!(cache.J, cache)
             cache.stats.njacs += 1
-            cache.Δu *= false
             # u = u - J \ fu
             if linsolve === nothing
                 cache.du = fu1 / cache.J
@@ -189,6 +194,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
                 cache.linsolve = linres.cache
             end
         end
+        cache.res_norm_prev = res_norm
     else
         cache.J = jacobian!!(cache.J, cache)
         # cache.Δu *= false
@@ -210,7 +216,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     cache.fu1 = f(cache.u, p)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
-
+    cache.Δu = @. cache.u - cache.u_prev
     cache.u_prev = cache.u
     cache.stats.nf += 1
     cache.stats.nsolve += 1
