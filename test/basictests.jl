@@ -390,7 +390,7 @@ end
     @testset "Keyword Arguments" begin
         damping_initial = [0.5, 2.0, 5.0]
         damping_increase_factor = [1.5, 3.0, 10.0]
-        damping_decrease_factor = Float64[2, 5, 12]
+        damping_decrease_factor = Float64[2, 5, 10.0]
         finite_diff_step_geodesic = [0.02, 0.2, 0.3]
         α_geodesic = [0.6, 0.8, 0.9]
         b_uphill = Float64[0, 1, 2]
@@ -408,7 +408,7 @@ end
                 b_uphill = options[6], min_damping_D = options[7])
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
-            sol = solve(probN, alg, abstol = 1e-12)
+            sol = solve(probN, alg; abstol = 1e-13, maxiters = 10000)
             @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
         end
     end

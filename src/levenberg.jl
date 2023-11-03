@@ -260,7 +260,7 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
     if fastls
-        cache.mat_tmp[1:length(fu1), :] .= cache.J
+        copyto!(@view(cache.mat_tmp[1:length(fu1), :]), cache.J)
         cache.mat_tmp[(length(fu1) + 1):end, :] .= λ .* cache.DᵀD
         cache.rhs_tmp[1:length(fu1)] .= _vec(fu1)
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
@@ -299,8 +299,8 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
     cache.stats.nfactors += 2
 
     # Require acceptable steps to satisfy the following condition.
-    norm_v = norm(v)
-    if 2 * norm(cache.a) ≤ α_geodesic * norm_v
+    norm_v = cache.internalnorm(v)
+    if 2 * cache.internalnorm(cache.a) ≤ α_geodesic * norm_v
         _vec(cache.δ) .= _vec(v) .+ _vec(cache.a) ./ 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
@@ -392,8 +392,8 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
     cache.stats.nfactors += 1
 
     # Require acceptable steps to satisfy the following condition.
-    norm_v = norm(v)
-    if 2 * norm(cache.a) ≤ α_geodesic * norm_v
+    norm_v = cache.internalnorm(v)
+    if 2 * cache.internalnorm(cache.a) ≤ α_geodesic * norm_v
         cache.δ = _restructure(cache.δ, _vec(v) .+ _vec(cache.a) ./ 2)
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
