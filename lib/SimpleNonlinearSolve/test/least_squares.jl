@@ -11,7 +11,7 @@ function loss_function(θ, p)
     return abs2.(ŷ .- y_target)
 end
 
-θ_init = θ_true .+ randn!(similar(θ_true)) * 0.1
+θ_init = θ_true .+ 0.1
 prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 sol = solve(prob_oop, SimpleNewtonRaphson())
 sol = solve(prob_oop, SimpleGaussNewton())
