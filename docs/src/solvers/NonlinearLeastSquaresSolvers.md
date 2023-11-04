@@ -57,7 +57,23 @@ And the choices for `linsolve` are:
 
 ### MINPACK.jl
 
+MINPACK.jl methods are fine for medium-sized nonlinear solves. They are the FORTRAN
+standard methods which are used in many places, such as SciPy. However, our benchmarks
+demonstrate that these methods are not robust or stable. In addition, they are slower
+than the standard methods and do not scale due to lack of sparse Jacobian support.
+Thus they are only recommended for benchmarking and testing code conversions.
+
+  - `CMINPACK()`: A wrapper for using the classic MINPACK method through [MINPACK.jl](https://github.com/sglyon/MINPACK.jl)
+
+Submethod choices for this algorithm include:
+
+  - `:hybr`: Modified version of Powell's algorithm.
+  - `:lm`: Levenberg-Marquardt.
+  - `:lmdif`: Advanced Levenberg-Marquardt
+  - `:hybrd`: Advanced modified version of Powell's algorithm
+  
 ### Optimization.jl
 
-`NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem` and used with any solver of
+`NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem` 
+and used with any solver of
 [Optimization.jl](https://github.com/SciML/Optimization.jl).

@@ -16,6 +16,7 @@ end
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
         @time @safetestset "Sparsity Tests" include("sparse.jl")
         @time @safetestset "Polyalgs" include("polyalgs.jl")
+        @time @safetestset "MINPACK" include("minpack.jl")
         @time @safetestset "Matrix Resizing" include("matrix_resizing.jl")
         @time @safetestset "Nonlinear Least Squares" include("nonlinear_least_squares.jl")
         @time @safetestset "Infeasible Problems" include("infeasible.jl")
