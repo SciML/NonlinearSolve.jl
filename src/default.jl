@@ -252,12 +252,21 @@ end
 
 ## Defaults
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-        kwargs...) where {uType, iip}
-    SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-        kwargs...) where {uType, iip}
-    SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+end
+
+# FIXME: We default to using LM currently. But once we have line searches for GN implemented
+#        we should default to a polyalgorithm.
+function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__init(prob, LevenbergMarquardt(), args...; kwargs...)
+end
+
+function SciMLBase.__solve(prob::NonlinearLeastSquaresProblem, ::Nothing, args...;
+        kwargs...)
+    return SciMLBase.__solve(prob, LevenbergMarquardt(), args...; kwargs...)
 end

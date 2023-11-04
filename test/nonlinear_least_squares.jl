@@ -36,6 +36,7 @@ append!(solvers,
         LevenbergMarquardt(; linsolve = LUFactorization()),
         LeastSquaresOptimJL(:lm),
         LeastSquaresOptimJL(:dogleg),
+	nothing,
     ])
 
 for prob in nlls_problems, solver in solvers
