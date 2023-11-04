@@ -113,7 +113,7 @@ computationally expensive than direct methods.
   - `DynamicSS()` : Uses an ODE solver to find the steady state. Automatically
     terminates when close to the steady state.
 
-### SciMLNLSolve.jl
+### NLsolve.jl
 
 This is a wrapper package for importing solvers from NLsolve.jl into the SciML interface.
 
@@ -127,8 +127,11 @@ Submethod choices for this algorithm include:
 
 ### MINPACK.jl
 
-MINPACK.jl methods are good for medium-sized nonlinear solves. It does not scale due to
-the lack of sparse Jacobian support, though the methods are very robust and stable.
+MINPACK.jl methods are fine for medium-sized nonlinear solves. They are the FORTRAN
+standard methods which are used in many places, such as SciPy. However, our benchmarks
+demonstrate that these methods are not robust or stable. In addition, they are slower
+than the standard methods and do not scale due to lack of sparse Jacobian support.
+Thus they are only recommended for benchmarking and testing code conversions.
 
   - `CMINPACK()`: A wrapper for using the classic MINPACK method through [MINPACK.jl](https://github.com/sglyon/MINPACK.jl)
 

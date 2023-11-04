@@ -20,6 +20,7 @@ end
         @time @safetestset "Matrix Resizing" include("matrix_resizing.jl")
         @time @safetestset "Nonlinear Least Squares" include("nonlinear_least_squares.jl")
         @time @safetestset "Infeasible Problems" include("infeasible.jl")
+        @time @safetestset "NLsolve.jl" include("nlsolve.jl")
     end
 
     if GROUP == "All" || GROUP == "23TestProblems"

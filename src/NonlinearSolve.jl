@@ -149,6 +149,7 @@ export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, Pseu
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+export CMINPACK, NLSolveJL
 
 export LineSearch, LiFukushimaLineSearch
 

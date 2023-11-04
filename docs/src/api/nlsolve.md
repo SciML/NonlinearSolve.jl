@@ -6,8 +6,8 @@ the package before using these solvers:
 
 ```julia
 using Pkg
-Pkg.add("SciMLNLSolve")
-using SciMLNLSolve
+Pkg.add("NLsolve")
+using NLsolve
 ```
 
 ## Solver API
