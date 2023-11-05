@@ -28,7 +28,7 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
 
 nlls_problems = [prob_oop, prob_iip]
 solvers = vec(Any[GaussNewton(; linsolve, linesearch)
-               for linsolve in [nothing, LUFactorization()],
+                  for linsolve in [nothing, LUFactorization()],
 linesearch in [Static(), BackTracking(), HagerZhang(), StrongWolfe(), MoreThuente()]])
 append!(solvers,
     [
