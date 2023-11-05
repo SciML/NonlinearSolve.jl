@@ -1,5 +1,5 @@
 """
-    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
+    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = LineSearch(),
         precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced NewtonRaphson implementation with support for efficient handling of sparse
