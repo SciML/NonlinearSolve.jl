@@ -16,7 +16,9 @@ GeneralKlement
 ## Polyalgorithms
 
 ```@docs
+NonlinearSolvePolyAlgorithm
 FastShortcutNonlinearPolyalg
+FastShortcutNLLSPolyalg
 RobustMultiNewton
 ```
 

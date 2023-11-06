@@ -1,5 +1,5 @@
 """
-    GaussNewton(; concrete_jac = nothing, linsolve = nothing,
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing, linesearch = LineSearch(),
         precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced GaussNewton implementation with support for efficient handling of sparse
@@ -30,6 +30,9 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
+    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
+    used here directly, and they will be converted to the correct `LineSearch`.
 
 !!! warning
 
@@ -40,16 +43,18 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     ad::AD
     linsolve
     precs
+    linesearch
 end
 
 function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
-    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs)
+    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, adkwargs...)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs)
+    linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -78,6 +83,7 @@ end
     stats::NLStats
     tc_cache_1
     tc_cache_2
+    ls_cache
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
@@ -107,7 +113,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
         linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2)
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2,
+        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)))
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
@@ -128,7 +135,8 @@ function perform_step!(cache::GaussNewtonCache{true})
             linu = _vec(du), p, reltol = cache.abstol)
     end
     cache.linsolve = linres.cache
-    @. u = u - du
+    α = perform_linesearch!(cache.ls_cache, u, du)
+    _axpy!(-α, du, u)
     f(cache.fu_new, u, p)
 
     check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
@@ -169,7 +177,8 @@ function perform_step!(cache::GaussNewtonCache{false})
         end
         cache.linsolve = linres.cache
     end
-    cache.u = @. u - cache.du  # `u` might not support mutation
+    α = perform_linesearch!(cache.ls_cache, u, cache.du)
+    cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu_new = f(cache.u, p)
 
     check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)

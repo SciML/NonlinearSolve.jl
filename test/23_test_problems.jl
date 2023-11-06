@@ -88,7 +88,7 @@ end
 # Broyden and Klement Tests are quite flaky and failure seems to be platform dependent
 # needs additional investigation before we can enable them
 @testset "GeneralBroyden 23 Test Problems" begin
-    alg_ops = (GeneralBroyden(),)
+    alg_ops = (GeneralBroyden(; max_resets = 10),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]

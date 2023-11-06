@@ -122,7 +122,7 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
     end
 
     function g!(u, fu)
-        op = VecJac((args...) -> f(args..., p), u; autodiff)
+        op = VecJac(f, u, p; fu = fu1, autodiff)
         if iip
             mul!(g₀, op, fu)
             return g₀
