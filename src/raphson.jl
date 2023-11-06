@@ -30,7 +30,7 @@ for large-scale and numerically-difficult nonlinear systems.
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
   - `reuse`: Determines if the Jacobian is reused between (quasi-)Newton steps. Defaults to
-    `true`. If `true` we check how far we stepped with the same Jacobian, and automatically
+    `false`. If `true` we check how far we stepped with the same Jacobian, and automatically
     take a new Jacobian if we stepped more than `reusetol` or if convergence slows or starts
     to diverge. If `false`, the Jacobian is updated in each step.
 """
@@ -54,7 +54,7 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, reuse = true, reusetol = 1e-1,
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, reuse = false, reusetol = 1e-1,
         adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
