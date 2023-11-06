@@ -302,7 +302,7 @@ _issingular(x::Number) = iszero(x)
     hasmethod(issingular, Tuple{T}) && return :(issingular(x))
     return :(__issingular(x))
 end
-__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(T)))
+__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
 __issingular(x) = false ## If SciMLOperator and such
 
 # If factorization is LU then perform that and update the linsolve cache

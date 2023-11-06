@@ -8,7 +8,7 @@ An implementation of `Broyden` with reseting and line search.
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `3`.
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
-    `sqrt(eps(eltype(u)))`.
+    `sqrt(eps(real(eltype(u))))`.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`. It is
@@ -67,7 +67,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
     J⁻¹ = __init_identity_jacobian(u, fu)
-    reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
+    reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
