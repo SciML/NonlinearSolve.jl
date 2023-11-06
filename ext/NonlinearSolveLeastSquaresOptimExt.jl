@@ -33,17 +33,19 @@ end
 (f::FunctionWrapper{false})(du, u) = (du .= f.f(u, f.p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresOptimJL,
-        args...; abstol = 1e-8, reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
+        args...; alias_u0 = false, abstol = 1e-8, reltol = 1e-8, verbose = false,
+        maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
+    u = alias_u0 ? prob.u0 : deepcopy(prob.u0)
 
     f! = FunctionWrapper{iip}(prob.f, prob.p)
     g! = prob.f.jac === nothing ? nothing : FunctionWrapper{iip}(prob.f.jac, prob.p)
 
     resid_prototype = prob.f.resid_prototype === nothing ?
-                      (!iip ? prob.f(prob.u0, prob.p) : zeros(prob.u0)) :
+                      (!iip ? prob.f(u, prob.p) : zeros(u)) :
                       prob.f.resid_prototype
 
-    lsoprob = LSO.LeastSquaresProblem(; x = prob.u0, f!, y = resid_prototype, g!,
+    lsoprob = LSO.LeastSquaresProblem(; x = u, f!, y = resid_prototype, g!,
         J = prob.f.jac_prototype, alg.autodiff, output_length = length(resid_prototype))
     allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, _lso_solver(alg))
 

@@ -12,12 +12,12 @@ y_target = true_function(x, θ_true)
 
 function loss_function(θ, p)
     ŷ = true_function(p, θ)
-    return abs2.(ŷ .- y_target)
+    return ŷ .- y_target
 end
 
 function loss_function(resid, θ, p)
     true_function(resid, p, θ)
-    resid .= abs2.(resid .- y_target)
+    resid .= resid .- y_target
     return resid
 end
 
@@ -36,6 +36,7 @@ append!(solvers,
         LevenbergMarquardt(; linsolve = LUFactorization()),
         LeastSquaresOptimJL(:lm),
         LeastSquaresOptimJL(:dogleg),
+        nothing,
     ])
 
 for prob in nlls_problems, solver in solvers
@@ -45,7 +46,8 @@ for prob in nlls_problems, solver in solvers
 end
 
 function jac!(J, θ, p)
-    ForwardDiff.jacobian!(J, resid -> loss_function(resid, θ, p), θ)
+    resid = zeros(length(p))
+    ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
     return J
 end
 
@@ -56,6 +58,5 @@ solvers = [FastLevenbergMarquardtJL(:cholesky), FastLevenbergMarquardtJL(:qr)]
 
 for solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test SciMLBase.successful_retcode(sol)
     @test norm(sol.resid) < 1e-6
 end

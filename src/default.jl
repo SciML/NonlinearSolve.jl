@@ -250,14 +250,57 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
     return NonlinearSolvePolyAlgorithm(algs, Val(:NLS))
 end
 
-## Defaults
+"""
+    FastShortcutNLLSPolyalg(; concrete_jac = nothing, linsolve = nothing,
+                              precs = DEFAULT_PRECS, adkwargs...)
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-        kwargs...) where {uType, iip}
-    SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
+for more performance and then tries more robust techniques if the faster ones fail.
+
+### Keyword Arguments
+
+  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
+    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
+  - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
+    then the Jacobian will not be constructed and instead direct Jacobian-vector products
+    `J*v` are computed using forward-mode automatic differentiation or finite differencing
+    tricks (without ever constructing the Jacobian). However, if the Jacobian is still needed,
+    for example for a preconditioner, `concrete_jac = true` can be passed in order to force
+    the construction of the Jacobian.
+  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
+    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
+    LinearSolve.jl default algorithm choice. For more information on available algorithm
+    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
+    preconditioners. For more information on specifying preconditioners for LinearSolve
+    algorithms, consult the
+    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+"""
+function FastShortcutNLLSPolyalg(; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, adkwargs...)
+    algs = (GaussNewton(; concrete_jac, linsolve, precs, adkwargs...),
+        GaussNewton(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
+            adkwargs...),
+        LevenbergMarquardt(; concrete_jac, linsolve, precs, adkwargs...))
+    return NonlinearSolvePolyAlgorithm(algs, Val(:NLLS))
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem{uType, iip}, alg::Nothing, args...;
-        kwargs...) where {uType, iip}
-    SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+## Defaults
+
+function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+end
+
+function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+end
+
+function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__init(prob, FastShortcutNLLSPolyalg(), args...; kwargs...)
+end
+
+function SciMLBase.__solve(prob::NonlinearLeastSquaresProblem, ::Nothing, args...;
+        kwargs...)
+    return SciMLBase.__solve(prob, FastShortcutNLLSPolyalg(), args...; kwargs...)
 end
