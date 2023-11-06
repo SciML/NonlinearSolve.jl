@@ -296,8 +296,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     return SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
 end
 
-# FIXME: We default to using LM currently. But once we have line searches for GN implemented
-#        we should default to a polyalgorithm.
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
     return SciMLBase.__init(prob, FastShortcutNLLSPolyalg(), args...; kwargs...)
 end
