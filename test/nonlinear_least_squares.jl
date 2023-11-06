@@ -12,12 +12,12 @@ y_target = true_function(x, θ_true)
 
 function loss_function(θ, p)
     ŷ = true_function(p, θ)
-    return abs2.(ŷ .- y_target)
+    return ŷ .- y_target
 end
 
 function loss_function(resid, θ, p)
     true_function(resid, p, θ)
-    resid .= abs2.(resid .- y_target)
+    resid .= resid .- y_target
     return resid
 end
 
