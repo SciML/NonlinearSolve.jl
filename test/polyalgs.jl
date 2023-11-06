@@ -4,12 +4,16 @@ f(u, p) = u .* u .- 2
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{false}(f, u0)
 
+custom_polyalg = NonlinearSolvePolyAlgorithm((GeneralBroyden(), LimitedMemoryBroyden()))
+
 # Uses the `__solve` function
 @time solver = solve(probN; abstol = 1e-9)
 @test SciMLBase.successful_retcode(solver)
 @time solver = solve(probN, RobustMultiNewton(); abstol = 1e-9)
 @test SciMLBase.successful_retcode(solver)
 @time solver = solve(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
+@test SciMLBase.successful_retcode(solver)
+@time solver = solve(probN, custom_polyalg; abstol = 1e-9)
 @test SciMLBase.successful_retcode(solver)
 
 # Test the caching interface
@@ -20,6 +24,9 @@ cache = init(probN, RobustMultiNewton(); abstol = 1e-9);
 @time solver = solve!(cache)
 @test SciMLBase.successful_retcode(solver)
 cache = init(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9);
+@time solver = solve!(cache)
+@test SciMLBase.successful_retcode(solver)
+cache = init(probN, custom_polyalg; abstol = 1e-9);
 @time solver = solve!(cache)
 @test SciMLBase.successful_retcode(solver)
 
