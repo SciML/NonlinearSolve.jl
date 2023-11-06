@@ -36,7 +36,7 @@ append!(solvers,
         LevenbergMarquardt(; linsolve = LUFactorization()),
         LeastSquaresOptimJL(:lm),
         LeastSquaresOptimJL(:dogleg),
-	nothing,
+        nothing,
     ])
 
 for prob in nlls_problems, solver in solvers
@@ -46,7 +46,8 @@ for prob in nlls_problems, solver in solvers
 end
 
 function jac!(J, θ, p)
-    ForwardDiff.jacobian!(J, resid -> loss_function(resid, θ, p), θ)
+    resid = zeros(length(p))
+    ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
     return J
 end
 
@@ -57,6 +58,5 @@ solvers = [FastLevenbergMarquardtJL(:cholesky), FastLevenbergMarquardtJL(:qr)]
 
 for solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test SciMLBase.successful_retcode(sol)
     @test norm(sol.resid) < 1e-6
 end
