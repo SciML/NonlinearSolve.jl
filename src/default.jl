@@ -166,7 +166,7 @@ end
 
 """
     RobustMultiNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-                        adkwargs...)
+        adkwargs...)
 
 A polyalgorithm focused on robustness. It uses a mixture of Newton methods with different
 globalizing techniques (trust region updates, line searches, etc.) in order to find a
@@ -212,7 +212,7 @@ end
 
 """
     FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothing,
-                                   precs = DEFAULT_PRECS, adkwargs...)
+        precs = DEFAULT_PRECS, must_use_jacobian::Val = Val(false), adkwargs...)
 
 A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
 for more performance and then tries more robust techniques if the faster ones fail.
@@ -238,15 +238,25 @@ for more performance and then tries more robust techniques if the faster ones fa
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 """
 function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, adkwargs...)
-    algs = (GeneralKlement(; linsolve, precs),
-        GeneralBroyden(),
-        NewtonRaphson(; concrete_jac, linsolve, precs, adkwargs...),
-        NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-            adkwargs...),
-        TrustRegion(; concrete_jac, linsolve, precs, adkwargs...),
-        TrustRegion(; concrete_jac, linsolve, precs,
-            radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
+        precs = DEFAULT_PRECS, must_use_jacobian::Val{JAC} = Val(false),
+        adkwargs...) where {JAC}
+    if JAC
+        algs = (NewtonRaphson(; concrete_jac, linsolve, precs, adkwargs...),
+            NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
+                adkwargs...),
+            TrustRegion(; concrete_jac, linsolve, precs, adkwargs...),
+            TrustRegion(; concrete_jac, linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
+    else
+        algs = (GeneralKlement(; linsolve, precs),
+            GeneralBroyden(),
+            NewtonRaphson(; concrete_jac, linsolve, precs, adkwargs...),
+            NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
+                adkwargs...),
+            TrustRegion(; concrete_jac, linsolve, precs, adkwargs...),
+            TrustRegion(; concrete_jac, linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
+    end
     return NonlinearSolvePolyAlgorithm(algs, Val(:NLS))
 end
 
@@ -288,12 +298,22 @@ end
 
 ## Defaults
 
+## TODO: In the long run we want to use an `Assumptions` API like LinearSolve to specify
+##       the conditioning of the Jacobian and such
+## Defaults to a fast and robust poly algorithm in most cases. If the user went through
+## the trouble of specifying a custom jacobian function, we should use algorithms that
+## can use that!
+
 function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
-    return SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+    must_use_jacobian = Val(prob.f.jac !== nothing)
+    return SciMLBase.__init(prob, FastShortcutNonlinearPolyalg(; must_use_jacobian),
+        args...; kwargs...)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
-    return SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(), args...; kwargs...)
+    must_use_jacobian = Val(prob.f.jac !== nothing)
+    return SciMLBase.__solve(prob, FastShortcutNonlinearPolyalg(; must_use_jacobian),
+        args...; kwargs...)
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
