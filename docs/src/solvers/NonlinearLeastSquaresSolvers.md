@@ -7,7 +7,10 @@ Solves the nonlinear least squares problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
-`LevenbergMarquardt` is a good choice for most problems.
+The default method `FastShortcutNLLSPolyalg` is a good choice for most
+problems. It is a polyalgorithm that attempts to use a fast algorithm
+(`GaussNewton`) and if that fails it falls back to a more robust
+algorithm (`LevenbergMarquardt`).
 
 ## Full List of Methods
 
@@ -21,10 +24,3 @@ Solves the nonlinear least squares problem defined by `prob` using the algorithm
     problems.
   - `SimpleNewtonRaphson()`: Simple Gauss Newton Implementation with `QRFactorization` to
     solve a linear least squares problem at each step!
-
-## Example usage
-
-```julia
-using NonlinearSolve
-sol = solve(prob, LevenbergMarquardt())
-```
