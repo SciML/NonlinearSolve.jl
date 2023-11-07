@@ -10,11 +10,6 @@ using DiffEqBase
 
 @reexport using SciMLBase
 
-using PackageExtensionCompat
-function __init__()
-    @require_extensions
-end
-
 const NNlibExtLoaded = Ref{Bool}(false)
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
