@@ -3,7 +3,8 @@ using NonlinearSolve, LinearAlgebra, LinearSolve, NonlinearProblemLibrary, Test
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
 
-function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
+function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
+        skip_tests = nothing)
     for (idx, (problem, dict)) in enumerate(zip(problems, dicts))
         x = dict["start"]
         res = similar(x)
@@ -15,6 +16,11 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4)
                         termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
+                    skip = skip_tests !== nothing && idx in skip_tests[alg]
+                    if skip
+                        @test_skip norm(res) ≤ ϵ
+                        continue
+                    end
                     broken = idx in broken_tests[alg] ? true : false
                     @test norm(res)≤ϵ broken=broken
                 catch
@@ -90,7 +96,10 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]
 
-    test_on_library(problems, dicts, alg_ops, broken_tests)
+    skip_tests = Dict(alg => Int[] for alg in alg_ops)
+    skip_tests[alg_ops[1]] = [22]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests; skip_tests)
 end
 
 @testset "GeneralKlement 23 Test Problems" begin

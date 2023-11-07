@@ -142,7 +142,7 @@ function perform_step!(cache::GeneralKlementCache{true})
     mul!(cache.Jdu, J, _vec(du))
     cache.fu .= cache.fu2 .- cache.fu
     cache.fu .= _restructure(cache.fu,
-        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(T)))
+        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(real(T))))
     mul!(cache.J_cache, _vec(cache.fu), _vec(du)')
     cache.J_cache .*= J
     mul!(cache.J_cache2, cache.J_cache, J)
@@ -202,7 +202,7 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.Jdu = J * _vec(cache.du)
     cache.fu = cache.fu2 .- cache.fu
     cache.fu = _restructure(cache.fu,
-        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(T)))
+        (_vec(cache.fu) .- cache.Jdu) ./ max.(cache.Jᵀ²du, eps(real(T))))
     cache.J_cache = ((_vec(cache.fu) * _vec(cache.du)') .* J) * J
     cache.J = J .+ cache.J_cache
 

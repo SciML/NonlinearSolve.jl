@@ -8,7 +8,7 @@ An implementation of `LimitedMemoryBroyden` with reseting and line search.
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `3`.
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
-    `sqrt(eps(eltype(u)))`.
+    `sqrt(eps(real(eltype(u))))`.
   - `threshold`: the number of vectors to store in the low rank approximation. Defaults
     to `10`.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
@@ -82,7 +82,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     threshold = min(alg.threshold, maxiters)
     U, Vᵀ = __init_low_rank_jacobian(u, fu, threshold)
     du = copy(fu)
-    reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(eltype(u))) :
+    reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
