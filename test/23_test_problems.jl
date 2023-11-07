@@ -103,10 +103,10 @@ end
 end
 
 @testset "PseudoTransient 23 Test Problems" begin
-    alg_ops = (PseudoTransient(;alpha_initial = 10.0),)
+    alg_ops = (PseudoTransient(; alpha_initial = 10.0),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 6,9,18,21,22]
+    broken_tests[alg_ops[1]] = [1, 6, 9, 18, 21, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
