@@ -8,7 +8,7 @@ y_target = true_function(x, θ_true)
 
 function loss_function(θ, p)
     ŷ = true_function(p, θ)
-    return abs2.(ŷ .- y_target)
+    return ŷ .- y_target
 end
 
 θ_init = θ_true .+ 0.1
