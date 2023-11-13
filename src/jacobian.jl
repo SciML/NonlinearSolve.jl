@@ -54,7 +54,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
     fu = f.resid_prototype === nothing ? (iip ? _mutable_zero(u) : _mutable(f(u, p))) :
          (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
-    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac || needsJᵀJ)
+    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac) #  || needsJᵀJ)
         sd = sparsity_detection_alg(f, alg.ad)
         ad = alg.ad
         jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, _maybe_mutable(u, ad)) :
@@ -92,9 +92,9 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     du = _mutable_zero(u)
 
     if needsJᵀJ
-        JᵀJ = __init_JᵀJ(J)
-        # FIXME: This needs to be handled better for JacVec Operator
-        Jᵀfu = J' * _vec(fu)
+        # TODO: Pass in `jac_transpose_autodiff`
+        JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u;
+            jac_autodiff = __get_nonsparse_ad(alg.ad))
     end
 
     if linsolve_init
@@ -120,21 +120,68 @@ function __setup_linsolve(A, b, u, p, alg)
             nothing)..., weight)
     return init(linprob, alg.linsolve; alias_A = true, alias_b = true, Pl, Pr)
 end
+__setup_linsolve(A::KrylovJᵀJ, b, u, p, alg) = __setup_linsolve(A.JᵀJ, b, u, p, alg)
 
 __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
 __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
 __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 __get_nonsparse_ad(ad) = ad
 
-__init_JᵀJ(J::Number) = zero(J)
-__init_JᵀJ(J::AbstractArray) = J' * J
-__init_JᵀJ(J::StaticArray) = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
+__init_JᵀJ(J::Number, args...; kwargs...) = zero(J), zero(J)
+function __init_JᵀJ(J::AbstractArray, fu, args...; kwargs...)
+    JᵀJ = J' * J
+    Jᵀfu = J' * fu
+    return JᵀJ, Jᵀfu
+end
+function __init_JᵀJ(J::StaticArray, fu, args...; kwargs...)
+    JᵀJ = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
+    return JᵀJ, J' * fu
+end
+function __init_JᵀJ(J::FunctionOperator, fu, uf, u, args...;
+        jac_transpose_autodiff = nothing, jac_autodiff = nothing, kwargs...)
+    autodiff = __concrete_jac_transpose_autodiff(jac_transpose_autodiff, jac_autodiff, uf)
+    Jᵀ = VecJac(uf, u; autodiff)
+    JᵀJ_op = SciMLOperators.cache_operator(Jᵀ * J, u)
+    JᵀJ = KrylovJᵀJ(JᵀJ_op, Jᵀ)
+    Jᵀfu = Jᵀ * fu
+    return JᵀJ, Jᵀfu
+end
+
+@concrete struct KrylovJᵀJ
+    JᵀJ
+    Jᵀ
+end
+
+SciMLBase.isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
+
+function __concrete_jac_transpose_autodiff(jac_transpose_autodiff, jac_autodiff, uf)
+    if jac_transpose_autodiff === nothing
+        if isinplace(uf)
+            # VecJac can be only FiniteDiff
+            return AutoFiniteDiff()
+        else
+            # Short circuit if we see that FiniteDiff was used for J computation
+            jac_autodiff isa AutoFiniteDiff && return jac_autodiff
+            # Check if Zygote is loaded then use Zygote else use FiniteDiff
+            if haskey(Base.loaded_modules,
+                Base.PkgId(Base.UUID("e88e6eb3-aa80-5325-afca-941959d7151f"), "Zygote"))
+                return AutoZygote()
+            else
+                return AutoFiniteDiff()
+            end
+        end
+    else
+        return __get_nonsparse_ad(jac_transpose_autodiff)
+    end
+end
 
 __maybe_symmetric(x) = Symmetric(x)
 __maybe_symmetric(x::Number) = x
 # LinearSolve with `nothing` doesn't dispatch correctly here
 __maybe_symmetric(x::StaticArray) = x
 __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
+__maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+__maybe_symmetric(x::KrylovJᵀJ) = x
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, p,
@@ -144,4 +191,38 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, 
     uf = SciMLBase.JacobianWrapper{false}(f, p)
     needsJᵀJ && return uf, nothing, u, nothing, nothing, u, u, u
     return uf, nothing, u, nothing, nothing, u
+end
+
+function __update_JᵀJ!(iip::Val, cache, sym::Symbol, J)
+    return __update_JᵀJ!(iip, cache, sym, getproperty(cache, sym), J)
+end
+__update_JᵀJ!(::Val{false}, cache, sym::Symbol, _, J) = setproperty!(cache, sym, J' * J)
+__update_JᵀJ!(::Val{true}, cache, sym::Symbol, _, J) = mul!(getproperty(cache, sym), J', J)
+__update_JᵀJ!(::Val{false}, cache, sym::Symbol, H::KrylovJᵀJ, J) = H
+__update_JᵀJ!(::Val{true}, cache, sym::Symbol, H::KrylovJᵀJ, J) = H
+
+function __update_Jᵀf!(iip::Val, cache, sym1::Symbol, sym2::Symbol, J, fu)
+    return __update_Jᵀf!(iip, cache, sym1, sym2, getproperty(cache, sym2), J, fu)
+end
+function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
+    return setproperty!(cache, sym1, J' * fu)
+end
+function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
+    return mul!(getproperty(cache, sym1), J', fu)
+end
+function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
+    return setproperty!(cache, sym1, H.Jᵀ * fu)
+end
+function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
+    return mul!(getproperty(cache, sym1), H.Jᵀ, fu)
+end
+
+# Left-Right Multiplication
+__lr_mul(::Val, H, g) = dot(g, H, g)
+## TODO: Use a cache here to avoid allocations
+__lr_mul(::Val{false}, H::KrylovJᵀJ, g) = dot(g, H.JᵀJ, g)
+function __lr_mul(::Val{true}, H::KrylovJᵀJ, g)
+    c = similar(g)
+    mul!(c, H.JᵀJ, g)
+    return dot(g, c)
 end

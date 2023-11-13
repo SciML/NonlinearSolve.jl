@@ -239,15 +239,19 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     fu_prev = zero(fu1)
 
     loss = get_loss(fu1)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_kwargs)
+    # uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+    # linsolve_kwargs)
+    uf, _, J, fu2, jac_cache, du, H, g = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_kwargs, linsolve_with_JᵀJ = Val(true), lininit = Val(false))
+    linsolve = u isa Number ? nothing : __setup_linsolve(J, fu2, u, p, alg)
+
     u_tmp = zero(u)
     u_cauchy = zero(u)
     u_gauss_newton = _mutable_zero(u)
 
     loss_new = loss
-    H = zero(J' * J)
-    g = _mutable_zero(fu1)
+    # H = zero(J' * J)
+    # g = _mutable_zero(fu1)
     shrink_counter = 0
     fu_new = zero(fu1)
     make_new_J = true
@@ -346,8 +350,10 @@ function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_gauss_newton, alg, linsolve = cache
     if cache.make_new_J
         jacobian!!(J, cache)
-        mul!(cache.H, J', J)
-        mul!(_vec(cache.g), J', _vec(fu))
+        __update_JᵀJ!(Val{true}(), cache, :H, J)
+        # mul!(cache.H, J', J)
+        __update_Jᵀf!(Val{true}(), cache, :g, :H, J, fu)
+        # mul!(_vec(cache.g), J', _vec(fu))
         cache.stats.njacs += 1
 
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
@@ -376,8 +382,8 @@ function perform_step!(cache::TrustRegionCache{false})
 
     if make_new_J
         J = jacobian!!(cache.J, cache)
-        cache.H = J' * J
-        cache.g = _restructure(fu, J' * _vec(fu))
+        __update_JᵀJ!(Val{false}(), cache, :H, J)
+        __update_Jᵀf!(Val{false}(), cache, :g, :H, J, fu)
         cache.stats.njacs += 1
 
         if cache.linsolve === nothing
@@ -431,7 +437,7 @@ function trust_region_step!(cache::TrustRegionCache)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
     cache.r = -(loss - cache.loss_new) /
-              (dot(_vec(du), _vec(g)) + dot(_vec(du), H, _vec(du)) / 2)
+              (dot(_vec(du), _vec(g)) + __lr_mul(Val(isinplace(cache)), H, _vec(du)) / 2)
     @unpack r = cache
 
     if radius_update_scheme === RadiusUpdateSchemes.Simple
@@ -594,7 +600,7 @@ function dogleg!(cache::TrustRegionCache{true})
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g) # length of the gradient
-    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / __lr_mul(Val{true}(), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy >= trust_r
         @. cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return
@@ -624,7 +630,7 @@ function dogleg!(cache::TrustRegionCache{false})
 
     ## Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g)
-    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / __lr_mul(Val{false}(), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy > trust_r # cauchy point lies outside of trust region
         cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return

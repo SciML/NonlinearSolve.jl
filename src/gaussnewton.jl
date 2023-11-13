@@ -6,10 +6,6 @@ An advanced GaussNewton implementation with support for efficient handling of sp
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
 for large-scale and numerically-difficult nonlinear least squares problems.
 
-!!! note
-    In most practical situations, users should prefer using `LevenbergMarquardt` instead! It
-    is a more general extension of `Gauss-Newton` Method.
-
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
@@ -33,11 +29,6 @@ for large-scale and numerically-difficult nonlinear least squares problems.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
-
-!!! warning
-
-    Jacobian-Free version of `GaussNewton` doesn't work yet, and it forces jacobian
-    construction. This will be fixed in the near future.
 """
 @concrete struct GaussNewton{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
