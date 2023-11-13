@@ -106,7 +106,8 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
         adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return LevenbergMarquardt{_unwrap_val(concrete_jac)}(ad, linsolve, precs,
+    _concrete_jac = ifelse(concrete_jac === nothing, true, concrete_jac)
+    return LevenbergMarquardt{_unwrap_val(_concrete_jac)}(ad, linsolve, precs,
         damping_initial, damping_increase_factor, damping_decrease_factor,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end

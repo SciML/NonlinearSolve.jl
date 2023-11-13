@@ -1,3 +1,7 @@
+@concrete struct KrylovJᵀJ
+    JᵀJ
+    Jᵀ
+end
 sparsity_detection_alg(_, _) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
@@ -54,7 +58,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     # NOTE: The deepcopy is needed here since we are using the resid_prototype elsewhere
     fu = f.resid_prototype === nothing ? (iip ? _mutable_zero(u) : _mutable(f(u, p))) :
          (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
-    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac) #  || needsJᵀJ)
+    if !has_analytic_jac && (linsolve_needs_jac || alg_wants_jac)
         sd = sparsity_detection_alg(f, alg.ad)
         ad = alg.ad
         jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, _maybe_mutable(u, ad)) :
@@ -145,11 +149,6 @@ function __init_JᵀJ(J::FunctionOperator, fu, uf, u, args...;
     JᵀJ = KrylovJᵀJ(JᵀJ_op, Jᵀ)
     Jᵀfu = Jᵀ * fu
     return JᵀJ, Jᵀfu
-end
-
-@concrete struct KrylovJᵀJ
-    JᵀJ
-    Jᵀ
 end
 
 SciMLBase.isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
