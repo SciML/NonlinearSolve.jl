@@ -113,8 +113,8 @@ function perform_step!(cache::GaussNewtonCache{true})
     jacobian!!(J, cache)
 
     if JᵀJ !== nothing
-        __matmul!(JᵀJ, J', J)
-        __matmul!(Jᵀf, J', fu1)
+        __update_JᵀJ!(Val{true}(), cache, :JᵀJ, J)
+        __update_Jᵀf!(Val{true}(), cache, :Jᵀf, :JᵀJ, J, fu1)
     end
 
     # u = u - JᵀJ \ Jᵀfu
@@ -151,8 +151,8 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.J = jacobian!!(cache.J, cache)
 
     if cache.JᵀJ !== nothing
-        cache.JᵀJ = cache.J' * cache.J
-        cache.Jᵀf = cache.J' * fu1
+        __update_JᵀJ!(Val{false}(), cache, :JᵀJ, cache.J)
+        __update_Jᵀf!(Val{false}(), cache, :Jᵀf, :JᵀJ, cache.J, fu1)
     end
 
     # u = u - J \ fu

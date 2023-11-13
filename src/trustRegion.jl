@@ -239,10 +239,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     fu_prev = zero(fu1)
 
     loss = get_loss(fu1)
-    # uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
-    # linsolve_kwargs)
     uf, _, J, fu2, jac_cache, du, H, g = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs, linsolve_with_JᵀJ = Val(true), lininit = Val(false))
+    g = _restructure(fu1, g)
     linsolve = u isa Number ? nothing : __setup_linsolve(J, fu2, du, p, alg)
 
     u_tmp = zero(u)
@@ -250,8 +249,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     u_gauss_newton = _mutable_zero(u)
 
     loss_new = loss
-    # H = zero(J' * J)
-    # g = _mutable_zero(fu1)
     shrink_counter = 0
     fu_new = zero(fu1)
     make_new_J = true
@@ -351,9 +348,7 @@ function perform_step!(cache::TrustRegionCache{true})
     if cache.make_new_J
         jacobian!!(J, cache)
         __update_JᵀJ!(Val{true}(), cache, :H, J)
-        # mul!(cache.H, J', J)
-        __update_Jᵀf!(Val{true}(), cache, :g, :H, J, fu)
-        # mul!(_vec(cache.g), J', _vec(fu))
+        __update_Jᵀf!(Val{true}(), cache, :g, :H, J, _vec(fu))
         cache.stats.njacs += 1
 
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
@@ -383,7 +378,7 @@ function perform_step!(cache::TrustRegionCache{false})
     if make_new_J
         J = jacobian!!(cache.J, cache)
         __update_JᵀJ!(Val{false}(), cache, :H, J)
-        __update_Jᵀf!(Val{false}(), cache, :g, :H, J, fu)
+        __update_Jᵀf!(Val{false}(), cache, :g, :H, J, _vec(fu))
         cache.stats.njacs += 1
 
         if cache.linsolve === nothing
@@ -420,8 +415,8 @@ function retrospective_step!(cache::TrustRegionCache)
         cache.H = J' * J
         cache.g = J' * fu
     else
-        mul!(cache.H, J', J)
-        mul!(cache.g, J', fu)
+        __update_JᵀJ!(Val{isinplace(cache)}(), cache, :H, J)
+        __update_Jᵀf!(Val{isinplace(cache)}(), cache, :g, :H, J, fu)
     end
     cache.stats.njacs += 1
     @unpack H, g, du = cache

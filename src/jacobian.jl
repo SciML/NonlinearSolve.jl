@@ -180,7 +180,7 @@ __maybe_symmetric(x::Number) = x
 __maybe_symmetric(x::StaticArray) = x
 __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
 __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
-__maybe_symmetric(x::KrylovJᵀJ) = x
+__maybe_symmetric(x::KrylovJᵀJ) = x.JᵀJ
 
 ## Special Handling for Scalars
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, p,
@@ -204,16 +204,16 @@ function __update_Jᵀf!(iip::Val, cache, sym1::Symbol, sym2::Symbol, J, fu)
     return __update_Jᵀf!(iip, cache, sym1, sym2, getproperty(cache, sym2), J, fu)
 end
 function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
-    return setproperty!(cache, sym1, J' * fu)
+    return setproperty!(cache, sym1, _restructure(getproperty(cache, sym1), J' * fu))
 end
 function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
-    return mul!(getproperty(cache, sym1), J', fu)
+    return mul!(_vec(getproperty(cache, sym1)), J', fu)
 end
 function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
-    return setproperty!(cache, sym1, H.Jᵀ * fu)
+    return setproperty!(cache, sym1, _restructure(getproperty(cache, sym1), H.Jᵀ * fu))
 end
 function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
-    return mul!(getproperty(cache, sym1), H.Jᵀ, fu)
+    return mul!(_vec(getproperty(cache, sym1)), H.Jᵀ, fu)
 end
 
 # Left-Right Multiplication
