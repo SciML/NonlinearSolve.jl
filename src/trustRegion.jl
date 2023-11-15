@@ -600,7 +600,7 @@ function dogleg!(cache::TrustRegionCache{true})
         return
     end
 
-    # Take the intersection of dogled with trust region if Cauchy point lies inside the trust region
+    # Take the intersection of dogleg with trust region if Cauchy point lies inside the trust region
     @. u_cauchy = -(d_cauchy / l_grad) * cache.g # compute Cauchy point
     @. u_tmp = u_gauss_newton - u_cauchy # calf of the dogleg -- use u_tmp to avoid allocation
 
@@ -630,7 +630,7 @@ function dogleg!(cache::TrustRegionCache{false})
         return
     end
 
-    # Take the intersection of dogled with trust region if Cauchy point lies inside the trust region
+    # Take the intersection of dogleg with trust region if Cauchy point lies inside the trust region
     u_cauchy = -(d_cauchy / l_grad) * cache.g # compute Cauchy point
     u_tmp = u_gauss_newton - u_cauchy # calf of the dogleg
     a = dot(u_tmp, u_tmp)

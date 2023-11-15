@@ -10,7 +10,7 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 The default method `FastShortcutNonlinearPolyalg` is a good choice for most
 problems. It is a polyalgorithm that attempts to use a fast algorithm
 (Klement, Broyden) and if that fails it falls back to a more robust
-algorithm (`NewtonRaphson`) before falling back the most robust varient of
+algorithm (`NewtonRaphson`) before falling back the most robust variant of
 `TrustRegion`. For basic problems this will be very fast, for harder problems
 it will make sure to work.
 
