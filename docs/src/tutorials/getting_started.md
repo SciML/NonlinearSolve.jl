@@ -11,13 +11,13 @@ There are three types of nonlinear systems:
 
  1. The "standard nonlinear system", i.e. the `NonlinearProblem`. This is a
     system of equations with an initial condition where you want to satisfy
-    all equations simultaniously.
+    all equations simultaneously.
  2. The "interval rootfinding problem", i.e. the `IntervalNonlinearProblem`.
     This is the case where you're given an interval `[a,b]` and need to find
     where `f(u) = 0` for `u` inside the bounds.
  3. The "steady state problem", i.e. find the `u` such that `u' = f(u) = 0`.
     While related to (1), it's not entirely the same because there's a uniquely
-    defined privledged root.
+    defined privileged root.
  4. The nonlinear least squares problem, which is an overconstrained nonlinear
     system (i.e. more equations than states) which might not be satisfiable, i.e.
     there may be no `u` such that `f(u) = 0`, and thus we find the `u` which
@@ -77,7 +77,7 @@ There are multiple return codes which can mean the solve was successful, and thu
 general command `SciMLBase.successful_retcode` to check whether the solution process exited as
 intended:
 
-```@exmaple
+```@example
 SciMLBase.successful_retcode(sol)
 ```
 

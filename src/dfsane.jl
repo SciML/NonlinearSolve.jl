@@ -6,8 +6,8 @@
 
 A low-overhead and allocation-free implementation of the df-sane method for solving large-scale nonlinear
 systems of equations. For in depth information about all the parameters and the algorithm,
-see the paper: [W LaCruz, JM Martinez, and M Raydan (2006), Spectral residual mathod without
-gradient information for solving large-scale nonlinear systems of equations, Mathematics of
+see the paper: [W LaCruz, JM Martinez, and M Raydan (2006), Spectral Residual Method without
+Gradient Information for Solving Large-Scale Nonlinear Systems of Equations, Mathematics of
 Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_Spectral_Residual_Method_without_Gradient_Information_for_Solving_Large-Scale_Nonlinear_Systems_of_Equations)
 
 ### Keyword Arguments
