@@ -1,14 +1,3 @@
-@concrete struct JacobianWrapper{iip} <: Function
-    f
-    p
-end
-
-# Previous Implementation did not hold onto `iip`, but this causes problems in packages
-# where we check for the presence of function signatures to check which dispatch to call
-(uf::JacobianWrapper{false})(u) = uf.f(u, uf.p)
-(uf::JacobianWrapper{false})(res, u) = (vec(res) .= vec(uf.f(u, uf.p)))
-(uf::JacobianWrapper{true})(res, u) = uf.f(res, u, uf.p)
-
 sparsity_detection_alg(_, _) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
@@ -52,7 +41,7 @@ jacobian!!(::Number, cache) = last(value_derivative(cache.uf, cache.u))
 function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val{iip};
         linsolve_kwargs = (;), lininit::Val{linsolve_init} = Val(true),
         linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false)) where {iip, needsJᵀJ, linsolve_init, F}
-    uf = JacobianWrapper{iip}(f, p)
+    uf = SciMLBase.JacobianWrapper{iip}(f, p)
 
     haslinsolve = hasfield(typeof(alg), :linsolve)
 
@@ -152,7 +141,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, 
         ::Val{false}; linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false),
         kwargs...) where {needsJᵀJ, F}
     # NOTE: Scalar `u` assumes scalar output from `f`
-    uf = JacobianWrapper{false}(f, p)
+    uf = SciMLBase.JacobianWrapper{false}(f, p)
     needsJᵀJ && return uf, nothing, u, nothing, nothing, u, u, u
     return uf, nothing, u, nothing, nothing, u
 end
