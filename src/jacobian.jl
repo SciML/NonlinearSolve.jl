@@ -77,8 +77,21 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     # FIXME: To properly support needsJᵀJ without Jacobian, we need to implement
     #        a reverse diff operation with the seed being `Jx`, this is not yet implemented
     J = if !(linsolve_needs_jac || alg_wants_jac || needsJᵀJ)
-        # We don't need to construct the Jacobian
-        JacVec(uf, u; autodiff = __get_nonsparse_ad(alg.ad))
+        if f.jvp === nothing
+            # We don't need to construct the Jacobian
+            JacVec(uf, u; autodiff = __get_nonsparse_ad(alg.ad))
+        else
+            if iip
+                jvp = (_, u, v) -> (du = similar(fu); f.jvp(du, v, u, p); du)
+                jvp! = (du, _, u, v) -> f.jvp(du, v, u, p)
+            else
+                jvp = (_, u, v) -> f.jvp(v, u, p)
+                jvp! = (du, _, u, v) -> (du .= f.jvp(v, u, p))
+            end
+            op = SparseDiffTools.FwdModeAutoDiffVecProd(f, u, (), jvp, jvp!)
+            FunctionOperator(op, u, fu; isinplace = Val(true), outofplace = Val(false),
+                p, islinear = true)
+        end
     else
         if has_analytic_jac
             f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
