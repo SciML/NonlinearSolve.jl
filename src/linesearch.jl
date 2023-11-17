@@ -122,7 +122,7 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
     end
 
     function g!(u, fu)
-        op = VecJac(f, u, p; fu = fu1, autodiff)
+        op = VecJac(SciMLBase.JacobianWrapper(f, p), u; fu = fu1, autodiff)
         if iip
             mul!(g₀, op, fu)
             return g₀

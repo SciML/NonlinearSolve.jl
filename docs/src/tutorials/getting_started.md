@@ -77,7 +77,7 @@ There are multiple return codes which can mean the solve was successful, and thu
 general command `SciMLBase.successful_retcode` to check whether the solution process exited as
 intended:
 
-```@example
+```@example 1
 SciMLBase.successful_retcode(sol)
 ```
 
