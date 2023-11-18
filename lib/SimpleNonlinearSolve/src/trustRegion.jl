@@ -134,8 +134,8 @@ function SciMLBase.__solve(prob::NonlinearProblem,
     end
 
     fₖ = 0.5 * norm(F)^2
-    H = ∇f * ∇f
-    g = ∇f * F
+    H = ∇f' * ∇f
+    g = ∇f' * F
     shrink_counter = 0
 
     for k in 1:maxiters
@@ -188,8 +188,8 @@ function SciMLBase.__solve(prob::NonlinearProblem,
                 Δ = min(t₂ * Δ, Δₘₐₓ)
             end
             fₖ = fₖ₊₁
-            H = ∇f * ∇f
-            g = ∇f * F
+            H = ∇f' * ∇f
+            g = ∇f' * F
         end
     end
     return SciMLBase.build_solution(prob, alg, x, F; retcode = ReturnCode.MaxIters)
