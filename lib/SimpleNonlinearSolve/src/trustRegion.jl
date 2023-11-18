@@ -68,7 +68,7 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
         diff_type = Val{:forward},
         max_trust_radius::Real = 0.0,
         initial_trust_radius::Real = 0.0,
-        step_threshold::Real = 0.1,
+        step_threshold::Real = 0.0001,
         shrink_threshold::Real = 0.25,
         expand_threshold::Real = 0.75,
         shrink_factor::Real = 0.25,
