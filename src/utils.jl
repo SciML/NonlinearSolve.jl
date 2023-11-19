@@ -276,8 +276,10 @@ end
 
 __init_identity_jacobian(u::Number, _) = u
 function __init_identity_jacobian(u, fu)
-    return convert(parameterless_type(_mutable(u)),
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+    J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    fill!(J, 0)
+    J[diagind(J)] .= 1
+    return J
 end
 function __init_identity_jacobian(u::StaticArray, fu)
     return convert(MArray{Tuple{length(fu), length(u)}},
@@ -291,8 +293,10 @@ function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)
     return U, Vᵀ
 end
 function __init_low_rank_jacobian(u, fu, threshold::Int)
-    Vᵀ = convert(parameterless_type(_mutable(u)), zeros(eltype(u), length(u), threshold))
-    U = convert(parameterless_type(_mutable(u)), zeros(eltype(u), threshold, length(u)))
+    Vᵀ = similar(u, promote_type(eltype(u), eltype(fu)), length(u), threshold)
+    U = similar(u, promote_type(eltype(u), eltype(fu)), threshold, length(u))
+    fill!(Vᵀ, 0)
+    fill!(U, 0)
     return U, Vᵀ
 end
 
