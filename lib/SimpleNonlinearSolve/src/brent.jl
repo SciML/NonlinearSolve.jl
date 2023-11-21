@@ -2,7 +2,6 @@
 `Brent()`
 
 A non-allocating Brent method
-
 """
 struct Brent <: AbstractBracketingAlgorithm end
 

@@ -2,7 +2,6 @@
 `Ridder()`
 
 A non-allocating ridder method
-
 """
 struct Ridder <: AbstractBracketingAlgorithm end
 

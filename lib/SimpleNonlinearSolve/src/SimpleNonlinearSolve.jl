@@ -1,90 +1,96 @@
 module SimpleNonlinearSolve
 
-using Reexport
-using FiniteDiff, ForwardDiff
-using ForwardDiff: Dual
-using StaticArraysCore
-using LinearAlgebra
-import ArrayInterface
-using DiffEqBase
+import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
 
-@reexport using SciMLBase
+@recompile_invalidations begin
+    using ADTypes,
+        ArrayInterface, ConcreteStructs, DiffEqBase, Reexport, LinearAlgebra,
+        SciMLBase
 
-const NNlibExtLoaded = Ref{Bool}(false)
+    import DiffEqBase: AbstractNonlinearTerminationMode,
+        AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
+        NonlinearSafeTerminationReturnCode, get_termination_mode
+    using FiniteDiff, ForwardDiff
+    import ForwardDiff: Dual
+    import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray
+end
 
-abstract type AbstractSimpleNonlinearSolveAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
+@reexport using ADTypes, SciMLBase
+
+# const NNlibExtLoaded = Ref{Bool}(false)
+
+abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
-abstract type AbstractNewtonAlgorithm{CS, AD, FDT} <: AbstractSimpleNonlinearSolveAlgorithm end
-abstract type AbstractImmutableNonlinearSolver <: AbstractSimpleNonlinearSolveAlgorithm end
-abstract type AbstractBatchedNonlinearSolveAlgorithm <:
-              AbstractSimpleNonlinearSolveAlgorithm end
+abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
-include("bisection.jl")
-include("falsi.jl")
+# include("bisection.jl")
+# include("falsi.jl")
 include("raphson.jl")
 include("broyden.jl")
-include("lbroyden.jl")
-include("klement.jl")
-include("trustRegion.jl")
-include("ridder.jl")
-include("brent.jl")
-include("dfsane.jl")
-include("ad.jl")
-include("halley.jl")
-include("alefeld.jl")
-include("itp.jl")
+# include("lbroyden.jl")
+# include("klement.jl")
+# include("trustRegion.jl")
+# include("ridder.jl")
+# include("brent.jl")
+# include("dfsane.jl")
+# include("ad.jl")
+# include("halley.jl")
+# include("alefeld.jl")
+# include("itp.jl")
 
-# Batched Solver Support
-include("batched/utils.jl")
-include("batched/raphson.jl")
-include("batched/dfsane.jl")
-include("batched/broyden.jl")
+# # Batched Solver Support
+# include("batched/utils.jl")
+# include("batched/raphson.jl")
+# include("batched/dfsane.jl")
+# include("batched/broyden.jl")
 
-## Default algorithm
+# ## Default algorithm
 
-# Set the default bracketing method to ITP
+# # Set the default bracketing method to ITP
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
-    SciMLBase.solve(prob, ITP(); kwargs...)
-end
+# function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
+#     SciMLBase.solve(prob, ITP(); kwargs...)
+# end
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
-        args...; kwargs...)
-    SciMLBase.solve(prob, ITP(), args...; kwargs...)
-end
+# function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
+#     args...; kwargs...)
+#     SciMLBase.solve(prob, ITP(), args...; kwargs...)
+# end
 
-import PrecompileTools
+# import PrecompileTools
 
-PrecompileTools.@compile_workload begin
-    for T in (Float32, Float64)
-        prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-        for alg in (SimpleNewtonRaphson, SimpleHalley, Broyden, Klement, SimpleTrustRegion,
-            SimpleDFSane)
-            solve(prob_no_brack, alg(), abstol = T(1e-2))
-        end
+# PrecompileTools.@compile_workload begin
+#     for T in (Float32, Float64)
+#         prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+#         for alg in (SimpleNewtonRaphson, SimpleHalley, Broyden, Klement, SimpleTrustRegion,
+#             SimpleDFSane)
+#             solve(prob_no_brack, alg(), abstol = T(1e-2))
+#         end
 
-        #=
-        for alg in (SimpleNewtonRaphson,)
-            for u0 in ([1., 1.], StaticArraysCore.SA[1.0, 1.0])
-                u0 = T.(.1)
-                probN = NonlinearProblem{false}((u,p) -> u .* u .- p, u0, T(2))
-                solve(probN, alg(), tol = T(1e-2))
-            end
-        end
-        =#
+#         #=
+#         for alg in (SimpleNewtonRaphson,)
+#             for u0 in ([1., 1.], StaticArraysCore.SA[1.0, 1.0])
+#                 u0 = T.(.1)
+#                 probN = NonlinearProblem{false}((u,p) -> u .* u .- p, u0, T(2))
+#                 solve(probN, alg(), tol = T(1e-2))
+#             end
+#         end
+#         =#
 
-        prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
-            T.((0.0, 2.0)),
-            T(2))
-        for alg in (Bisection, Falsi, Ridder, Brent, Alefeld, ITP)
-            solve(prob_brack, alg(), abstol = T(1e-2))
-        end
-    end
-end
+#         prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
+#             T.((0.0, 2.0)),
+#             T(2))
+#         for alg in (Bisection, Falsi, Ridder, Brent, Alefeld, ITP)
+#             solve(prob_brack, alg(), abstol = T(1e-2))
+#         end
+#     end
+# end
 
-export Bisection, Brent, Broyden, LBroyden, SimpleDFSane, Falsi, SimpleHalley, Klement,
-    Ridder, SimpleNewtonRaphson, SimpleTrustRegion, Alefeld, ITP, SimpleGaussNewton
-export BatchedBroyden, BatchedSimpleNewtonRaphson, BatchedSimpleDFSane
+export SimpleBroyden, SimpleGaussNewton, SimpleNewtonRaphson
+# export Bisection, Brent, LBroyden, SimpleDFSane, Falsi, SimpleHalley, Klement,
+#     Ridder, SimpleTrustRegion, Alefeld, ITP
+# export BatchedBroyden, BatchedSimpleDFSane
 
 end # module
