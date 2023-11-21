@@ -305,6 +305,12 @@ end
 __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
 __issingular(x) = false ## If SciMLOperator and such
 
+# Safe getproperty
+@generated function _getproperty(s::S, ::Val{X}) where {S, X}
+    hasfield(S, X) && return :(s.$X)
+    return :(nothing)
+end
+
 # If factorization is LU then perform that and update the linsolve cache
 # else check if the matrix is singular
 function _try_factorize_and_check_singular!(linsolve, X)

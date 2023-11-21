@@ -141,9 +141,12 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
+  - `vjp_autodiff`: Automatic Differentiation Backend used for vector-jacobian products.
+    This is applicable if the linear solver doesn't require a concrete jacobian, for eg.,
+    Krylov Methods. Defaults to `nothing`, which means if the problem is out of place and
+    `Zygote` is loaded then, we use `AutoZygote`. In all other, cases `FiniteDiff` is used.
 """
-@concrete struct TrustRegion{CJ, AD, MTR} <:
-                 AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct TrustRegion{CJ, AD, MTR} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
@@ -156,13 +159,14 @@ for large-scale and numerically-difficult nonlinear systems.
     shrink_factor::MTR
     expand_factor::MTR
     max_shrink_times::Int
+    vjp_autodiff
 end
 
 function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
     return TrustRegion{CJ}(ad, alg.linsolve, alg.precs, alg.radius_update_scheme,
         alg.max_trust_radius, alg.initial_trust_radius, alg.step_threshold,
         alg.shrink_threshold, alg.expand_threshold, alg.shrink_factor, alg.expand_factor,
-        alg.max_shrink_times)
+        alg.max_shrink_times, alg.vjp_autodiff)
 end
 
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
@@ -170,11 +174,12 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
         step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
         expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
-        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, vjp_autodiff = nothing,
+        adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
         max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, max_shrink_times)
+        expand_threshold, shrink_factor, expand_factor, max_shrink_times, vjp_autodiff)
 end
 
 @concrete mutable struct TrustRegionCache{iip, trustType, floatType} <:
@@ -422,7 +427,7 @@ function retrospective_step!(cache::TrustRegionCache)
     @unpack H, g, du = cache
 
     return -(get_loss(fu_prev) - get_loss(fu)) /
-           (dot(du, g) + dot(du, H, du) / 2)
+           (dot(_vec(du), _vec(g)) + __lr_mul(Val(isinplace(cache)), H, _vec(du)) / 2)
 end
 
 function trust_region_step!(cache::TrustRegionCache)

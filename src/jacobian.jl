@@ -2,6 +2,9 @@
     JᵀJ
     Jᵀ
 end
+
+SciMLBase.isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
+
 sparsity_detection_alg(_, _) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
@@ -67,12 +70,10 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
         jac_cache = nothing
     end
 
-    # FIXME: To properly support needsJᵀJ without Jacobian, we need to implement
-    #        a reverse diff operation with the seed being `Jx`, this is not yet implemented
-    J = if !(linsolve_needs_jac || alg_wants_jac || needsJᵀJ)
+    J = if !(linsolve_needs_jac || alg_wants_jac)
         if f.jvp === nothing
             # We don't need to construct the Jacobian
-            JacVec(uf, u; autodiff = __get_nonsparse_ad(alg.ad))
+            JacVec(uf, u; fu, autodiff = __get_nonsparse_ad(alg.ad))
         else
             if iip
                 jvp = (_, u, v) -> (du = similar(fu); f.jvp(du, v, u, p); du)
@@ -96,9 +97,9 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     du = _mutable_zero(u)
 
     if needsJᵀJ
-        # TODO: Pass in `jac_transpose_autodiff`
-        JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u;
-            jac_autodiff = __get_nonsparse_ad(alg.ad))
+        JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u; f,
+            vjp_autodiff = __get_nonsparse_ad(_getproperty(alg, Val(:vjp_autodiff))),
+            jvp_autodiff = __get_nonsparse_ad(alg.ad))
     end
 
     if linsolve_init
@@ -141,26 +142,29 @@ function __init_JᵀJ(J::StaticArray, fu, args...; kwargs...)
     JᵀJ = MArray{Tuple{size(J, 2), size(J, 2)}, eltype(J)}(undef)
     return JᵀJ, J' * fu
 end
-function __init_JᵀJ(J::FunctionOperator, fu, uf, u, args...;
-        jac_transpose_autodiff = nothing, jac_autodiff = nothing, kwargs...)
-    autodiff = __concrete_jac_transpose_autodiff(jac_transpose_autodiff, jac_autodiff, uf)
-    Jᵀ = VecJac(uf, u; autodiff)
+function __init_JᵀJ(J::FunctionOperator, fu, uf, u, args...; f = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing, kwargs...)
+    # FIXME: Proper fix to this requires the FunctionOperator patch
+    if f !== nothing && f.vjp !== nothing
+        @warn "Currently we don't make use of user provided `jvp`. This is planned to be \
+               fixed in the near future."
+    end
+    autodiff = __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
+    Jᵀ = VecJac(uf, u; fu, autodiff)
     JᵀJ_op = SciMLOperators.cache_operator(Jᵀ * J, u)
     JᵀJ = KrylovJᵀJ(JᵀJ_op, Jᵀ)
     Jᵀfu = Jᵀ * fu
     return JᵀJ, Jᵀfu
 end
 
-SciMLBase.isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
-
-function __concrete_jac_transpose_autodiff(jac_transpose_autodiff, jac_autodiff, uf)
-    if jac_transpose_autodiff === nothing
+function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
+    if vjp_autodiff === nothing
         if isinplace(uf)
             # VecJac can be only FiniteDiff
             return AutoFiniteDiff()
         else
             # Short circuit if we see that FiniteDiff was used for J computation
-            jac_autodiff isa AutoFiniteDiff && return jac_autodiff
+            jvp_autodiff isa AutoFiniteDiff && return jvp_autodiff
             # Check if Zygote is loaded then use Zygote else use FiniteDiff
             if haskey(Base.loaded_modules,
                 Base.PkgId(Base.UUID("e88e6eb3-aa80-5325-afca-941959d7151f"), "Zygote"))
@@ -170,7 +174,13 @@ function __concrete_jac_transpose_autodiff(jac_transpose_autodiff, jac_autodiff,
             end
         end
     else
-        return __get_nonsparse_ad(jac_transpose_autodiff)
+        ad = __get_nonsparse_ad(vjp_autodiff)
+        if isinplace(uf) && ad isa AutoZygote
+            @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. \
+                Falling back to finite differencing."
+            return AutoFiniteDiff()
+        end
+        return ad
     end
 end
 

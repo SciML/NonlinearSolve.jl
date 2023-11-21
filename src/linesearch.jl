@@ -131,6 +131,10 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
     end
 
     function g!(u, fu)
+        if f.jvp !== nothing
+            @warn "Currently we don't make use of user provided `jvp` in linesearch. This \
+                   is planned to be fixed in the near future." maxlog=1
+        end
         op = VecJac(SciMLBase.JacobianWrapper(f, p), u; fu = fu1, autodiff)
         if iip
             mul!(g₀, op, fu)

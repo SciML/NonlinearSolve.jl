@@ -142,41 +142,52 @@ end
 # --- TrustRegion tests ---
 
 @testset "TrustRegion" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; radius_update_scheme, kwargs...)
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; radius_update_scheme, linsolve = nothing,
+            vjp_autodiff = nothing, kwargs...)
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, TrustRegion(; radius_update_scheme); abstol = 1e-9, kwargs...)
+        return solve(prob, TrustRegion(; radius_update_scheme, linsolve, vjp_autodiff);
+            abstol = 1e-9, kwargs...)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; radius_update_scheme, kwargs...)
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; radius_update_scheme, linsolve = nothing,
+            vjp_autodiff = nothing, kwargs...)
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, TrustRegion(; radius_update_scheme); abstol = 1e-9, kwargs...)
+        return solve(prob, TrustRegion(; radius_update_scheme, linsolve, vjp_autodiff);
+            abstol = 1e-9, kwargs...)
     end
 
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
         RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+    linear_solvers = [nothing, LUFactorization(), KrylovJL_GMRES()]
 
-    @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme)" for u0 in u0s,
-        radius_update_scheme in radius_update_schemes
+    @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in u0s,
+        radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
 
-        sol = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme)
+        !(u0 isa Array) && linsolve !== nothing && continue
+
+        abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
+
+        sol = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme, linsolve, abstol)
         @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        @test all(abs.(sol.u .* sol.u .- 2) .< abstol)
 
         cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
-            TrustRegion(; radius_update_scheme); abstol = 1e-9)
+            TrustRegion(; radius_update_scheme, linsolve); abstol)
         @test (@ballocated solve!($cache)) < 200
     end
 
-    @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme)" for u0 in ([
-            1.0, 1.0],), radius_update_scheme in radius_update_schemes
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0; radius_update_scheme)
+    @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in ([
+            1.0, 1.0],), radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
+        abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0; radius_update_scheme, linsolve,
+            abstol)
         @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        @test all(abs.(sol.u .* sol.u .- 2) .< abstol)
 
         cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-            TrustRegion(; radius_update_scheme); abstol = 1e-9)
+            TrustRegion(; radius_update_scheme); abstol)
         @test (@ballocated solve!($cache)) ≤ 64
     end
 

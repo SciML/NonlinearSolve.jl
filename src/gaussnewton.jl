@@ -29,23 +29,30 @@ for large-scale and numerically-difficult nonlinear least squares problems.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
+  - `vjp_autodiff`: Automatic Differentiation Backend used for vector-jacobian products.
+    This is applicable if the linear solver doesn't require a concrete jacobian, for eg.,
+    Krylov Methods. Defaults to `nothing`, which means if the problem is out of place and
+    `Zygote` is loaded then, we use `AutoZygote`. In all other, cases `FiniteDiff` is used.
 """
 @concrete struct GaussNewton{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
     linesearch
+    vjp_autodiff
 end
 
 function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
-    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
+    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch, alg.vjp_autodiff)
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, vjp_autodiff = nothing,
+        adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch,
+        vjp_autodiff)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
