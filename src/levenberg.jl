@@ -366,9 +366,10 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if linsolve === nothing
             cache.v = -cache.mat_tmp \ (J' * fu1)
         else
-            linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
+            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
                 b = _vec(J' * _vec(fu1)), linu = _vec(cache.v), p, reltol = cache.abstol)
             cache.linsolve = linres.cache
+            cache.v .*= -1
         end
     end
 
@@ -384,9 +385,11 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if linsolve === nothing
             cache.a = -cache.mat_tmp \ _vec(J' * rhs_term)
         else
-            linres = dolinsolve(alg.precs, linsolve; b = _mutable(_vec(J' * rhs_term)),
-                linu = _vec(cache.a), p, reltol = cache.abstol)
+            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
+                b = _mutable(_vec(J' * rhs_term)), linu = _vec(cache.a), p,
+                reltol = cache.abstol, reuse_A_if_factorization = true)
             cache.linsolve = linres.cache
+            cache.a .*= -1
         end
     end
     cache.stats.nsolve += 1
