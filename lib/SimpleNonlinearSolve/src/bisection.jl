@@ -1,5 +1,5 @@
 """
-`Bisection(; exact_left = false, exact_right = false)`
+    Bisection(; exact_left = false, exact_right = false)
 
 A common bisection method.
 
@@ -10,83 +10,48 @@ A common bisection method.
   - `exact_right`: whether to enforce whether the right side of the interval must be exactly
     zero for the returned result. Defaults to false.
 """
-struct Bisection <: AbstractBracketingAlgorithm
-    exact_left::Bool
-    exact_right::Bool
-end
-
-function Bisection(; exact_left = false, exact_right = false)
-    Bisection(exact_left, exact_right)
+@kwdef struct Bisection <: AbstractBracketingAlgorithm
+    exact_left::Bool = false
+    exact_right::Bool = false
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
         maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
         kwargs...)
+    @assert !isinplace(prob) "Bisection only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
+
     if iszero(fl)
-        return SciMLBase.build_solution(prob, alg, left, fl;
-            retcode = ReturnCode.ExactSolutionLeft, left = left,
-            right = right)
+        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
+            left, right)
     end
+
     if iszero(fr)
-        return SciMLBase.build_solution(prob, alg, right, fr;
-            retcode = ReturnCode.ExactSolutionRight, left = left,
-            right = right)
+        return build_solution(prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
+            left, right)
     end
 
-    i = 1
-    if !iszero(fr)
-        while i < maxiters
-            mid = (left + right) / 2
-            (mid == left || mid == right) &&
-                return SciMLBase.build_solution(prob, alg, left, fl;
-                    retcode = ReturnCode.FloatingPointLimit,
-                    left = left, right = right)
-            fm = f(mid)
-            if abs((right - left) / 2) < abstol
-                return SciMLBase.build_solution(prob, alg, mid, fm;
-                    retcode = ReturnCode.Success,
-                    left = left, right = right)
-            end
-            if iszero(fm)
-                right = mid
-                break
-            end
-            if sign(fl) == sign(fm)
-                fl = fm
-                left = mid
-            else
-                fr = fm
-                right = mid
-            end
-            i += 1
-        end
-    end
-
-    while i < maxiters
+    for _ in 1:maxiters
         mid = (left + right) / 2
-        (mid == left || mid == right) &&
-            return SciMLBase.build_solution(prob, alg, left, fl;
-                retcode = ReturnCode.FloatingPointLimit,
-                left = left, right = right)
+        if (mid == left || mid == right)
+            return build_solution(prob, alg, left, fl; left, right,
+                retcode = ReturnCode.FloatingPointLimit)
+        end
+
         fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(prob, alg, mid, fm;
-                retcode = ReturnCode.Success,
-                left = left, right = right)
+        if abs((right - left) / 2) < abstol || iszero(fm)
+            return build_solution(prob, alg, mid, fm; left, right,
+                retcode = ReturnCode.Success)
         end
-        if iszero(fm)
-            right = mid
-            fr = fm
+
+        if sign(fl * fm) < 0
+            right, fr = mid, fm
         else
-            left = mid
-            fl = fm
+            left, fl = mid, fm
         end
-        i += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left = left, right = right)
+    return build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
 end

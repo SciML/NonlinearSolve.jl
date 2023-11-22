@@ -25,23 +25,26 @@ abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorit
 abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
-# include("bisection.jl")
-# include("falsi.jl")
+
+# Nonlinear Solvera
 include("raphson.jl")
 include("broyden.jl")
 # include("lbroyden.jl")
 include("klement.jl")
 # include("trustRegion.jl")
+# include("halley.jl")
+# include("dfsane.jl")
+
+# Interval Nonlinear Solvers
+include("bisection.jl")
+# include("falsi.jl")
 # include("ridder.jl")
 # include("brent.jl")
-# include("dfsane.jl")
-# include("ad.jl")
-# include("halley.jl")
 # include("alefeld.jl")
 # include("itp.jl")
 
-# # Batched Solver Support
-# include("batched/dfsane.jl")
+# AD
+# include("ad.jl")
 
 # ## Default algorithm
 
@@ -86,8 +89,8 @@ include("klement.jl")
 # end
 
 export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
+export Bisection
 # export Bisection, Brent, LBroyden, SimpleDFSane, Falsi, SimpleHalley,
 #     Ridder, SimpleTrustRegion, Alefeld, ITP
-# export BatchedSimpleDFSane
 
 end # module
