@@ -8,7 +8,7 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
+    using DiffEqBase, LinearAlgebra, LinearSolve, Printf, SparseArrays, SparseDiffTools
     using FastBroadcast: @..
     import ArrayInterface: restructure
 
@@ -79,11 +79,14 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
+    trace = _getproperty(cache, Val{:trace}())
+
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode, cache.stats)
+        cache.retcode, cache.stats, trace)
 end
 
 include("utils.jl")
+include("trace.jl")
 include("extension_algs.jl")
 include("linesearch.jl")
 include("raphson.jl")

@@ -30,8 +30,7 @@ for large-scale and numerically-difficult nonlinear systems.
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
 """
-@concrete struct NewtonRaphson{CJ, AD} <:
-                 AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct NewtonRaphson{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
@@ -72,12 +71,13 @@ end
     stats::NLStats
     ls_cache
     tc_cache
+    trace
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphson, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing, internalnorm = DEFAULT_NORM,
-        linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
+        kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
@@ -88,10 +88,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
 
+    ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip))
+    trace = init_nonlinearsolve_trace(u, fu1, J, du; kwargs...)
+
     return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
-        NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), tc_cache)
+        NLStats(1, 0, 0, 0, 0), ls_cache, tc_cache, trace)
 end
 
 function perform_step!(cache::NewtonRaphsonCache{true})
@@ -107,6 +109,8 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu1, u, p)
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, u, cache.fu1, J, du)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
@@ -135,6 +139,9 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     α = perform_linesearch!(cache.ls_cache, u, cache.du)
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu1, cache.J,
+        cache.du)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
