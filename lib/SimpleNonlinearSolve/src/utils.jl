@@ -58,9 +58,9 @@ function init_J(x)
     return J
 end
 
-function dogleg_method(H, g, Δ)
+function dogleg_method(J, f, g, Δ)
     # Compute the Newton step.
-    δN = -H \ g
+    δN = J \ (-f)
     # Test if the full step is within the trust region.
     if norm(δN) ≤ Δ
         return δN

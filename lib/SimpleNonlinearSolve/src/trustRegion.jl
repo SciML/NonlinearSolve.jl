@@ -140,7 +140,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
     for k in 1:maxiters
         # Solve the trust region subproblem.
-        δ = dogleg_method(H, g, Δ)
+        δ = dogleg_method(∇f, F, g, Δ)
         xₖ₊₁ = x + δ
         Fₖ₊₁ = f(xₖ₊₁)
         fₖ₊₁ = 0.5 * norm(Fₖ₊₁)^2
