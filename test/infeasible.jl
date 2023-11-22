@@ -29,8 +29,8 @@ function f1(u, p)
     v_x = 8.550491684548064e-12 + u[1]
     v_y = 6631.60076191005 + u[2]
     v_z = 3600.665431405663 + u[3]
-    r = @SVector [x, y, z]
-    v = @SVector [v_x, v_y, v_z]
+    r = [x, y, z]
+    v = [v_x, v_y, v_z]
     h = cross(r, v)
     ev = cross(v, h) / μ - r / norm(r)
     i = acos(h[3] / norm(h))

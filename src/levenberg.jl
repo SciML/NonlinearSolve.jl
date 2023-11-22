@@ -106,7 +106,8 @@ function LevenbergMarquardt(; concrete_jac = nothing, linsolve = nothing,
         α_geodesic::Real = 0.75, b_uphill::Real = 1.0, min_damping_D::AbstractFloat = 1e-8,
         adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
-    return LevenbergMarquardt{_unwrap_val(concrete_jac)}(ad, linsolve, precs,
+    _concrete_jac = ifelse(concrete_jac === nothing, true, concrete_jac)
+    return LevenbergMarquardt{_unwrap_val(_concrete_jac)}(ad, linsolve, precs,
         damping_initial, damping_increase_factor, damping_decrease_factor,
         finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
 end
@@ -365,9 +366,10 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if linsolve === nothing
             cache.v = -cache.mat_tmp \ (J' * fu1)
         else
-            linres = dolinsolve(alg.precs, linsolve; A = -__maybe_symmetric(cache.mat_tmp),
+            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
                 b = _vec(J' * _vec(fu1)), linu = _vec(cache.v), p, reltol = cache.abstol)
             cache.linsolve = linres.cache
+            cache.v .*= -1
         end
     end
 
@@ -383,9 +385,11 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         if linsolve === nothing
             cache.a = -cache.mat_tmp \ _vec(J' * rhs_term)
         else
-            linres = dolinsolve(alg.precs, linsolve; b = _mutable(_vec(J' * rhs_term)),
-                linu = _vec(cache.a), p, reltol = cache.abstol)
+            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
+                b = _mutable(_vec(J' * rhs_term)), linu = _vec(cache.a), p,
+                reltol = cache.abstol, reuse_A_if_factorization = true)
             cache.linsolve = linres.cache
+            cache.a .*= -1
         end
     end
     cache.stats.nsolve += 1

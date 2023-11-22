@@ -1,5 +1,5 @@
 """
-    LineSearch(method = Static(), autodiff = AutoFiniteDiff(), alpha = true)
+    LineSearch(method = nothing, autodiff = nothing, alpha = true)
 
 Wrapper over algorithms from
 [LineSeaches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl/). Allows automatic
@@ -13,7 +13,7 @@ differentiation for fast Vector Jacobian Products.
   - `autodiff`: the automatic differentiation backend to use for the line search. Defaults to
     `AutoFiniteDiff()`, which means that finite differencing is used to compute the VJP.
     `AutoZygote()` will be faster in most cases, but it requires `Zygote.jl` to be manually
-    installed and loaded
+    installed and loaded.
   - `alpha`: the initial step size to use. Defaults to `true` (which is equivalent to `1`).
 """
 @concrete struct LineSearch
@@ -22,7 +22,7 @@ differentiation for fast Vector Jacobian Products.
     α
 end
 
-function LineSearch(; method = nothing, autodiff = AutoFiniteDiff(), alpha = true)
+function LineSearch(; method = nothing, autodiff = nothing, alpha = true)
     return LineSearch(method, autodiff, alpha)
 end
 
@@ -113,15 +113,27 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
 
     g₀ = _mutable_zero(u)
 
-    autodiff = if iip && (ls.autodiff isa AutoZygote || ls.autodiff isa AutoSparseZygote)
-        @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. Falling \
-               back to finite differencing."
-        AutoFiniteDiff()
+    autodiff = if ls.autodiff === nothing
+        if !iip && is_extension_loaded(Val{:Zygote}())
+            AutoZygote()
+        else
+            AutoFiniteDiff()
+        end
     else
-        ls.autodiff
+        if iip && (ls.autodiff isa AutoZygote || ls.autodiff isa AutoSparseZygote)
+            @warn "Attempting to use Zygote.jl for linesearch on an in-place problem. \
+                Falling back to finite differencing."
+            AutoFiniteDiff()
+        else
+            ls.autodiff
+        end
     end
 
     function g!(u, fu)
+        if f.jvp !== nothing
+            @warn "Currently we don't make use of user provided `jvp` in linesearch. This \
+                   is planned to be fixed in the near future." maxlog=1
+        end
         op = VecJac(SciMLBase.JacobianWrapper(f, p), u; fu = fu1, autodiff)
         if iip
             mul!(g₀, op, fu)

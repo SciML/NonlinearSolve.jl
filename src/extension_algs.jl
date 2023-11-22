@@ -8,13 +8,15 @@ for solving `NonlinearLeastSquaresProblem`.
 
 ## Arguments:
 
-- `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
-- `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If
-  `nothing`, then `LeastSquaresOptim.jl` will choose the best linear solver based
-  on the Jacobian structure.
-- `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or `:forward`.
+  - `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
+  - `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If `nothing`,
+    then `LeastSquaresOptim.jl` will choose the best linear solver based on the Jacobian
+    structure.
+  - `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or
+    `:forward`.
 
 !!! note
+
     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
 """
 struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
@@ -36,21 +38,24 @@ end
 """
     FastLevenbergMarquardtJL(linsolve = :cholesky)
 
-Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl) for solving
-`NonlinearLeastSquaresProblem`.
+Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl)
+for solving `NonlinearLeastSquaresProblem`.
 
 !!! warning
+
     This is not really the fastest solver. It is called that since the original package
     is called "Fast". `LevenbergMarquardt()` is almost always a better choice.
 
 !!! warning
+
     This algorithm requires the jacobian function to be provided!
 
 ## Arguments:
 
-- `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
+  - `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
 
 !!! note
+
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
 @concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm

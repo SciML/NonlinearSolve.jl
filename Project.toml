@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "2.8.2"
+version = "2.9.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -30,11 +30,13 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
 NonlinearSolveBandedMatricesExt = "BandedMatrices"
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
+NonlinearSolveZygoteExt = "Zygote"
 
 [compat]
 ADTypes = "0.2"
@@ -50,7 +52,7 @@ FiniteDiff = "2"
 ForwardDiff = "0.10.3"
 LeastSquaresOptim = "0.8"
 LineSearches = "7"
-LinearAlgebra = "1.9"
+LinearAlgebra = "<0.0.1, 1"
 LinearSolve = "2.12"
 NonlinearProblemLibrary = "0.1"
 PrecompileTools = "1"
@@ -59,7 +61,7 @@ Reexport = "0.2, 1"
 SciMLBase = "2.8.2"
 SciMLOperators = "0.3"
 SimpleNonlinearSolve = "0.1.23"
-SparseArrays = "1.9"
+SparseArrays = "<0.0.1, 1"
 SparseDiffTools = "2.12"
 StaticArraysCore = "1.4"
 UnPack = "1.0"

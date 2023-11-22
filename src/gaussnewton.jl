@@ -6,10 +6,6 @@ An advanced GaussNewton implementation with support for efficient handling of sp
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
 for large-scale and numerically-difficult nonlinear least squares problems.
 
-!!! note
-    In most practical situations, users should prefer using `LevenbergMarquardt` instead! It
-    is a more general extension of `Gauss-Newton` Method.
-
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
@@ -33,28 +29,30 @@ for large-scale and numerically-difficult nonlinear least squares problems.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
-
-!!! warning
-
-    Jacobian-Free version of `GaussNewton` doesn't work yet, and it forces jacobian
-    construction. This will be fixed in the near future.
+  - `vjp_autodiff`: Automatic Differentiation Backend used for vector-jacobian products.
+    This is applicable if the linear solver doesn't require a concrete jacobian, for eg.,
+    Krylov Methods. Defaults to `nothing`, which means if the problem is out of place and
+    `Zygote` is loaded then, we use `AutoZygote`. In all other, cases `FiniteDiff` is used.
 """
 @concrete struct GaussNewton{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
     linesearch
+    vjp_autodiff
 end
 
 function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
-    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
+    return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch, alg.vjp_autodiff)
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+        linesearch = LineSearch(), precs = DEFAULT_PRECS, vjp_autodiff = nothing,
+        adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
+    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch,
+        vjp_autodiff)
 end
 
 @concrete mutable struct GaussNewtonCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -122,8 +120,8 @@ function perform_step!(cache::GaussNewtonCache{true})
     jacobian!!(J, cache)
 
     if JᵀJ !== nothing
-        __matmul!(JᵀJ, J', J)
-        __matmul!(Jᵀf, J', fu1)
+        __update_JᵀJ!(Val{true}(), cache, :JᵀJ, J)
+        __update_Jᵀf!(Val{true}(), cache, :Jᵀf, :JᵀJ, J, fu1)
     end
 
     # u = u - JᵀJ \ Jᵀfu
@@ -160,8 +158,8 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.J = jacobian!!(cache.J, cache)
 
     if cache.JᵀJ !== nothing
-        cache.JᵀJ = cache.J' * cache.J
-        cache.Jᵀf = cache.J' * fu1
+        __update_JᵀJ!(Val{false}(), cache, :JᵀJ, cache.J)
+        __update_Jᵀf!(Val{false}(), cache, :Jᵀf, :JᵀJ, cache.J, fu1)
     end
 
     # u = u - J \ fu

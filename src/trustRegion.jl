@@ -141,9 +141,12 @@ for large-scale and numerically-difficult nonlinear systems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
+  - `vjp_autodiff`: Automatic Differentiation Backend used for vector-jacobian products.
+    This is applicable if the linear solver doesn't require a concrete jacobian, for eg.,
+    Krylov Methods. Defaults to `nothing`, which means if the problem is out of place and
+    `Zygote` is loaded then, we use `AutoZygote`. In all other, cases `FiniteDiff` is used.
 """
-@concrete struct TrustRegion{CJ, AD, MTR} <:
-                 AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct TrustRegion{CJ, AD, MTR} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
@@ -156,13 +159,14 @@ for large-scale and numerically-difficult nonlinear systems.
     shrink_factor::MTR
     expand_factor::MTR
     max_shrink_times::Int
+    vjp_autodiff
 end
 
 function set_ad(alg::TrustRegion{CJ}, ad) where {CJ}
     return TrustRegion{CJ}(ad, alg.linsolve, alg.precs, alg.radius_update_scheme,
         alg.max_trust_radius, alg.initial_trust_radius, alg.step_threshold,
         alg.shrink_threshold, alg.expand_threshold, alg.shrink_factor, alg.expand_factor,
-        alg.max_shrink_times)
+        alg.max_shrink_times, alg.vjp_autodiff)
 end
 
 function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
@@ -170,11 +174,12 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
         step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
         expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
-        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, adkwargs...)
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, vjp_autodiff = nothing,
+        adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
         max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, max_shrink_times)
+        expand_threshold, shrink_factor, expand_factor, max_shrink_times, vjp_autodiff)
 end
 
 @concrete mutable struct TrustRegionCache{iip, trustType, floatType} <:
@@ -239,15 +244,16 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     fu_prev = zero(fu1)
 
     loss = get_loss(fu1)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
-        linsolve_kwargs)
+    uf, _, J, fu2, jac_cache, du, H, g = jacobian_caches(alg, f, u, p, Val(iip);
+        linsolve_kwargs, linsolve_with_JᵀJ = Val(true), lininit = Val(false))
+    g = _restructure(fu1, g)
+    linsolve = u isa Number ? nothing : __setup_linsolve(J, fu2, du, p, alg)
+
     u_tmp = zero(u)
     u_cauchy = zero(u)
     u_gauss_newton = _mutable_zero(u)
 
     loss_new = loss
-    H = zero(J' * J)
-    g = _mutable_zero(fu1)
     shrink_counter = 0
     fu_new = zero(fu1)
     make_new_J = true
@@ -346,8 +352,8 @@ function perform_step!(cache::TrustRegionCache{true})
     @unpack make_new_J, J, fu, f, u, p, u_gauss_newton, alg, linsolve = cache
     if cache.make_new_J
         jacobian!!(J, cache)
-        mul!(cache.H, J', J)
-        mul!(_vec(cache.g), J', _vec(fu))
+        __update_JᵀJ!(Val{true}(), cache, :H, J)
+        __update_Jᵀf!(Val{true}(), cache, :g, :H, J, _vec(fu))
         cache.stats.njacs += 1
 
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
@@ -376,8 +382,8 @@ function perform_step!(cache::TrustRegionCache{false})
 
     if make_new_J
         J = jacobian!!(cache.J, cache)
-        cache.H = J' * J
-        cache.g = _restructure(fu, J' * _vec(fu))
+        __update_JᵀJ!(Val{false}(), cache, :H, J)
+        __update_Jᵀf!(Val{false}(), cache, :g, :H, J, _vec(fu))
         cache.stats.njacs += 1
 
         if cache.linsolve === nothing
@@ -414,14 +420,14 @@ function retrospective_step!(cache::TrustRegionCache)
         cache.H = J' * J
         cache.g = J' * fu
     else
-        mul!(cache.H, J', J)
-        mul!(cache.g, J', fu)
+        __update_JᵀJ!(Val{isinplace(cache)}(), cache, :H, J)
+        __update_Jᵀf!(Val{isinplace(cache)}(), cache, :g, :H, J, fu)
     end
     cache.stats.njacs += 1
     @unpack H, g, du = cache
 
     return -(get_loss(fu_prev) - get_loss(fu)) /
-           (dot(du, g) + dot(du, H, du) / 2)
+           (dot(_vec(du), _vec(g)) + __lr_mul(Val(isinplace(cache)), H, _vec(du)) / 2)
 end
 
 function trust_region_step!(cache::TrustRegionCache)
@@ -431,7 +437,7 @@ function trust_region_step!(cache::TrustRegionCache)
 
     # Compute the ratio of the actual reduction to the predicted reduction.
     cache.r = -(loss - cache.loss_new) /
-              (dot(_vec(du), _vec(g)) + dot(_vec(du), H, _vec(du)) / 2)
+              (dot(_vec(du), _vec(g)) + __lr_mul(Val(isinplace(cache)), H, _vec(du)) / 2)
     @unpack r = cache
 
     if radius_update_scheme === RadiusUpdateSchemes.Simple
@@ -594,7 +600,7 @@ function dogleg!(cache::TrustRegionCache{true})
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g) # length of the gradient
-    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / __lr_mul(Val{true}(), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy >= trust_r
         @. cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return
@@ -624,7 +630,7 @@ function dogleg!(cache::TrustRegionCache{false})
 
     ## Take intersection of steepest descent direction and trust region if Cauchy point lies outside of trust region
     l_grad = norm(cache.g)
-    d_cauchy = l_grad^3 / dot(_vec(cache.g), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
+    d_cauchy = l_grad^3 / __lr_mul(Val{false}(), cache.H, _vec(cache.g)) # distance of the cauchy point from the current iterate
     if d_cauchy > trust_r # cauchy point lies outside of trust region
         cache.du = -(trust_r / l_grad) * cache.g # step to the end of the trust region
         return

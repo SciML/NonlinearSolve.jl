@@ -23,6 +23,7 @@ Construct the AD type from the arguments. This is mostly needed for compatibilit
 code.
 
 !!! warning
+
     `chunk_size`, `standardtag`, `diff_type`, and `autodiff::Union{Val, Bool}` are
     deprecated and will be removed in v3. Update your code to directly specify
     `autodiff=<ADTypes>`.
@@ -82,16 +83,28 @@ end
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
-        du = nothing, u = nothing, p = nothing, t = nothing, weight = nothing,
-        cachedata = nothing, reltol = nothing) where {P}
-    A !== nothing && (linsolve.A = A)
+        du = nothing, p = nothing, weight = nothing, cachedata = nothing, reltol = nothing,
+        reuse_A_if_factorization = false) where {P}
+    # Some Algorithms would reuse factorization but it causes the cache to not reset in
+    # certain cases
+    if A !== nothing
+        alg = linsolve.alg
+        if (alg isa LinearSolve.AbstractFactorization) ||
+           (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
+              LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)))
+            # Factorization Algorithm
+            !reuse_A_if_factorization && (linsolve.A = A)
+        else
+            linsolve.A = A
+        end
+    end
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
 
     Plprev = linsolve.Pl isa ComposePreconditioner ? linsolve.Pl.outer : linsolve.Pl
     Prprev = linsolve.Pr isa ComposePreconditioner ? linsolve.Pr.outer : linsolve.Pr
 
-    _Pl, _Pr = precs(linsolve.A, du, u, p, nothing, A !== nothing, Plprev, Prprev,
+    _Pl, _Pr = precs(linsolve.A, du, linu, p, nothing, A !== nothing, Plprev, Prprev,
         cachedata)
     if (_Pl !== nothing || _Pr !== nothing)
         _weight = weight === nothing ?
@@ -304,6 +317,12 @@ _issingular(x::Number) = iszero(x)
 end
 __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
 __issingular(x) = false ## If SciMLOperator and such
+
+# Safe getproperty
+@generated function _getproperty(s::S, ::Val{X}) where {S, X}
+    hasfield(S, X) && return :(s.$X)
+    return :(nothing)
+end
 
 # If factorization is LU then perform that and update the linsolve cache
 # else check if the matrix is singular
