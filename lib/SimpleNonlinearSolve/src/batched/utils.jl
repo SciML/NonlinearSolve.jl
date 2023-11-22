@@ -27,9 +27,9 @@ function _construct_batched_problem_structure(prob)
 end
 
 function _construct_batched_problem_structure(u0::AbstractArray{T, N},
-    f,
-    p,
-    ::Val{iip}) where {T, N, iip}
+        f,
+        p,
+        ::Val{iip}) where {T, N, iip}
     # Reconstruct `u`
     reconstruct = N == 2 ? identity : Base.Fix2(reshape, size(u0))
     # Standardize `u`

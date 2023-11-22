@@ -64,16 +64,16 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     expand_factor::T
     max_shrink_times::Int
     function SimpleTrustRegion(; chunk_size = Val{0}(),
-        autodiff = Val{true}(),
-        diff_type = Val{:forward},
-        max_trust_radius::Real = 0.0,
-        initial_trust_radius::Real = 0.0,
-        step_threshold::Real = 0.0001,
-        shrink_threshold::Real = 0.25,
-        expand_threshold::Real = 0.75,
-        shrink_factor::Real = 0.25,
-        expand_factor::Real = 2.0,
-        max_shrink_times::Int = 32)
+            autodiff = Val{true}(),
+            diff_type = Val{:forward},
+            max_trust_radius::Real = 0.0,
+            initial_trust_radius::Real = 0.0,
+            step_threshold::Real = 0.0001,
+            shrink_threshold::Real = 0.25,
+            expand_threshold::Real = 0.75,
+            shrink_factor::Real = 0.25,
+            expand_factor::Real = 2.0,
+            max_shrink_times::Int = 32)
         new{typeof(initial_trust_radius),
             SciMLBase._unwrap_val(chunk_size),
             SciMLBase._unwrap_val(autodiff),
@@ -89,9 +89,9 @@ struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::SimpleTrustRegion, args...; abstol = nothing,
-    reltol = nothing,
-    maxiters = 1000, kwargs...)
+        alg::SimpleTrustRegion, args...; abstol = nothing,
+        reltol = nothing,
+        maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     T = typeof(x)
@@ -147,7 +147,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
         # Compute the ratio of the actual to predicted reduction.
         model = -(δ' * g + 0.5 * δ' * H * δ)
-        r = (fₖ - fₖ₊₁) / model 
+        r = (fₖ - fₖ₊₁) / model
 
         # Update the trust region radius.
         if r < η₂

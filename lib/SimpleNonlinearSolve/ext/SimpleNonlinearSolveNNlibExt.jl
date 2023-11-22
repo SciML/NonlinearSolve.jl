@@ -10,11 +10,11 @@ function __init__()
 end
 
 @views function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::BatchedBroyden;
-    abstol = nothing,
-    reltol = nothing,
-    maxiters = 1000,
-    kwargs...)
+        alg::BatchedBroyden;
+        abstol = nothing,
+        reltol = nothing,
+        maxiters = 1000,
+        kwargs...)
     iip = isinplace(prob)
 
     u, f, reconstruct = _construct_batched_problem_structure(prob)

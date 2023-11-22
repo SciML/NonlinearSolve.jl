@@ -29,19 +29,19 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
 end
 
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-        iip,
-        <:Dual{T, V, P}},
-    alg::AbstractSimpleNonlinearSolveAlgorithm,
-    args...; kwargs...) where {iip, T, V, P}
+            iip,
+            <:Dual{T, V, P}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...; kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
         retcode = sol.retcode)
 end
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-        iip,
-        <:AbstractArray{<:Dual{T, V, P}}},
-    alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
-    kwargs...) where {iip, T, V, P}
+            iip,
+            <:AbstractArray{<:Dual{T, V, P}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
+        kwargs...) where {iip, T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
         retcode = sol.retcode)
@@ -50,9 +50,9 @@ end
 # avoid ambiguities
 for Alg in [Bisection]
     @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
-            <:Dual{T, V, P}},
-        alg::$Alg, args...;
-        kwargs...) where {uType, iip, T, V, P}
+                <:Dual{T, V, P}},
+            alg::$Alg, args...;
+            kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
         return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials),
             sol.resid; retcode = sol.retcode,
@@ -61,13 +61,13 @@ for Alg in [Bisection]
         #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
     end
     @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
-            <:AbstractArray{
-                <:Dual{T,
-                    V,
-                    P},
-            }},
-        alg::$Alg, args...;
-        kwargs...) where {uType, iip, T, V, P}
+                <:AbstractArray{
+                    <:Dual{T,
+                        V,
+                        P},
+                }},
+            alg::$Alg, args...;
+            kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
         return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials),
             sol.resid; retcode = sol.retcode,

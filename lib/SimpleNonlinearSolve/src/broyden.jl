@@ -18,9 +18,9 @@ struct Broyden{TC <: NLSolveTerminationCondition} <:
 end
 
 function Broyden(; batched = false,
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-        abstol = nothing,
-        reltol = nothing))
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
     if batched
         @assert NNlibExtLoaded[] "Please install and load `NNlib.jl` to use batched Broyden."
         return BatchedBroyden(termination_condition)
@@ -29,7 +29,7 @@ function Broyden(; batched = false,
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::Broyden, args...;
-    abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
     f = Base.Fix2(prob.f, prob.p)
