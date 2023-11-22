@@ -166,12 +166,8 @@ function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
             # Short circuit if we see that FiniteDiff was used for J computation
             jvp_autodiff isa AutoFiniteDiff && return jvp_autodiff
             # Check if Zygote is loaded then use Zygote else use FiniteDiff
-            if haskey(Base.loaded_modules,
-                Base.PkgId(Base.UUID("e88e6eb3-aa80-5325-afca-941959d7151f"), "Zygote"))
-                return AutoZygote()
-            else
-                return AutoFiniteDiff()
-            end
+            is_extension_loaded(Val{:Zygote}()) && return AutoZygote()
+            return AutoFiniteDiff()
         end
     else
         ad = __get_nonsparse_ad(vjp_autodiff)

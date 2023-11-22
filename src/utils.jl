@@ -23,6 +23,7 @@ Construct the AD type from the arguments. This is mostly needed for compatibilit
 code.
 
 !!! warning
+
     `chunk_size`, `standardtag`, `diff_type`, and `autodiff::Union{Val, Bool}` are
     deprecated and will be removed in v3. Update your code to directly specify
     `autodiff=<ADTypes>`.

@@ -114,8 +114,7 @@ function LineSearchesJLCache(ls::LineSearch, f::F, u, p, fu1, IIP::Val{iip}) whe
     g₀ = _mutable_zero(u)
 
     autodiff = if ls.autodiff === nothing
-        if !iip && haskey(Base.loaded_modules,
-            Base.PkgId(Base.UUID("e88e6eb3-aa80-5325-afca-941959d7151f"), "Zygote"))
+        if !iip && is_extension_loaded(Val{:Zygote}())
             AutoZygote()
         else
             AutoFiniteDiff()

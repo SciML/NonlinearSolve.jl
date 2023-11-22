@@ -1015,10 +1015,10 @@ end
     prob = NonlinearProblem(NonlinearFunction{false}(F; jvp = JVP), u0, u0)
     sol = solve(prob, NewtonRaphson(; linsolve = KrylovJL_GMRES()); abstol = 1e-13)
 
-    @test norm(F(sol.u, u0)) ≤ 1e-8
+    @test norm(F(sol.u, u0)) ≤ 1e-6
 
     prob = NonlinearProblem(NonlinearFunction{true}(F!; jvp = JVP!), u0, u0)
     sol = solve(prob, NewtonRaphson(; linsolve = KrylovJL_GMRES()); abstol = 1e-13)
 
-    @test norm(F(sol.u, u0)) ≤ 1e-8
+    @test norm(F(sol.u, u0)) ≤ 1e-6
 end

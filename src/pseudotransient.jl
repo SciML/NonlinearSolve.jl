@@ -12,6 +12,7 @@ the time-stepping and algorithm, please see the paper:
 SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
 
 ### Keyword Arguments
+
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
     `nothing` which means that a default is selected according to the problem specification!

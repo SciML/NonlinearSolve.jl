@@ -30,11 +30,13 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
 NonlinearSolveBandedMatricesExt = "BandedMatrices"
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
+NonlinearSolveZygoteExt = "Zygote"
 
 [compat]
 ADTypes = "0.2"

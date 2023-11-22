@@ -38,6 +38,9 @@ import DiffEqBase: AbstractNonlinearTerminationMode,
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
 
+# Type-Inference Friendly Check for Extension Loading
+is_extension_loaded(::Val) = false
+
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
