@@ -1,86 +1,85 @@
 """
-`Falsi`: A non-allocating regula falsi method
+    Falsi()
+
+A non-allocating regula falsi method
 """
 struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
-        maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-        kwargs...)
+        maxiters = 1000, abstol = nothing, kwargs...)
+    @assert !isinplace(prob) "`Falsi` only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
+    abstol = _get_tolerance(abstol,
+        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+
     if iszero(fl)
-        return SciMLBase.build_solution(prob, alg, left, fl;
-            retcode = ReturnCode.ExactSolutionLeft, left = left,
-            right = right)
-    elseif iszero(fr)
-        return SciMLBase.build_solution(prob, alg, right, fr;
-            retcode = ReturnCode.ExactSolutionRight, left = left,
-            right = right)
+        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
+            left, right)
     end
 
+    if iszero(fr)
+        return build_solution(prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
+            left, right)
+    end
+
+    # Regula Falsi Steps
     i = 1
-    if !iszero(fr)
-        while i < maxiters
-            if nextfloat_tdir(left, prob.tspan...) == right
-                return SciMLBase.build_solution(prob, alg, left, fl;
-                    retcode = ReturnCode.FloatingPointLimit,
-                    left = left, right = right)
-            end
-            mid = (fr * left - fl * right) / (fr - fl)
-            for i in 1:10
-                mid = max_tdir(left, prevfloat_tdir(mid, prob.tspan...), prob.tspan...)
-            end
-            if mid == right || mid == left
-                break
-            end
-            fm = f(mid)
-            if abs((right - left) / 2) < abstol
-                return SciMLBase.build_solution(prob, alg, mid, fm;
-                    retcode = ReturnCode.Success,
-                    left = left, right = right)
-            end
-            if iszero(fm)
-                right = mid
-                break
-            end
-            if sign(fl) == sign(fm)
-                fl = fm
-                left = mid
-            else
-                fr = fm
-                right = mid
-            end
-            i += 1
+    while i < maxiters
+        if __nextfloat_tdir(left, prob.tspan...) == right
+            return build_solution(prob, alg, left, fl; left, right,
+                retcode = ReturnCode.FloatingPointLimit)
         end
+
+        mid = (fr * left - fl * right) / (fr - fl)
+        for _ in 1:10
+            mid = __max_tdir(left, __prevfloat_tdir(mid, prob.tspan...), prob.tspan...)
+        end
+
+        (mid == left || mid == right) && break
+
+        fm = f(mid)
+        if abs((right - left) / 2) < abstol
+            return build_solution(prob, alg, mid, fm; left, right,
+                retcode = ReturnCode.Success)
+        end
+
+        if abs(fm) < abstol
+            right = mid
+            break
+        end
+
+        if sign(fl) == sign(fm)
+            fl, left = fm, mid
+        else
+            fr, right = fm, mid
+        end
+        i += 1
     end
 
     while i < maxiters
         mid = (left + right) / 2
-        (mid == left || mid == right) &&
-            return SciMLBase.build_solution(prob, alg, left, fl;
-                retcode = ReturnCode.FloatingPointLimit,
-                left = left, right = right)
-        fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(prob, alg, mid, fm;
-                retcode = ReturnCode.Success,
-                left = left, right = right)
+        if (mid == left || mid == right)
+            return build_solution(prob, alg, left, fl; left, right,
+                retcode = ReturnCode.FloatingPointLimit)
         end
-        if iszero(fm)
-            right = mid
-            fr = fm
-        elseif sign(fm) == sign(fl)
-            left = mid
-            fl = fm
+
+        fm = f(mid)
+        if abs((right - left) / 2) < abstol || abs(fm) < abstol
+            return build_solution(prob, alg, mid, fm; left, right,
+                retcode = ReturnCode.Success)
+        end
+
+        if sign(fl * fm) < 0
+            right, fr = mid, fm
         else
-            right = mid
-            fr = fm
+            left, fl = mid, fm
         end
         i += 1
     end
 
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left = left, right = right)
+        left, right)
 end

@@ -1,58 +1,51 @@
 """
-```julia
-SimpleTrustRegion(; chunk_size = Val{0}(),
-                    autodiff = Val{true}(),
-                    diff_type = Val{:forward},
-                    max_trust_radius::Real = 0.0,
-                    initial_trust_radius::Real = 0.0,
-                    step_threshold::Real = 0.1,
-                    shrink_threshold::Real = 0.25,
-                    expand_threshold::Real = 0.75,
-                    shrink_factor::Real = 0.25,
-                    expand_factor::Real = 2.0,
-                    max_shrink_times::Int = 32
-```
+    SimpleTrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
+                        diff_type = Val{:forward}, max_trust_radius::Real = 0.0,
+                        initial_trust_radius::Real = 0.0, step_threshold::Real = 0.1,
+                        shrink_threshold::Real = 0.25, expand_threshold::Real = 0.75,
+                        shrink_factor::Real = 0.25, expand_factor::Real = 2.0,
+                        max_shrink_times::Int = 32)
 
 A low-overhead implementation of a trust-region solver.
 
 ### Keyword Arguments
 
-- `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
-  system. This allows for multiple derivative columns to be computed simultaneously,
-  improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
-  default chunk size mechanism. For more details, see the documentation for
-  [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
-- `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
-  Note that this argument is ignored if an analytical Jacobian is passed; as that will be
-  used instead. Defaults to `Val{true}`, which means ForwardDiff.jl is used by default.
-  If `Val{false}`, then FiniteDiff.jl is used for finite differencing.
-- `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
-  `Val{:forward}` for forward finite differences. For more details on the choices, see the
-  [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
-- `max_trust_radius`: the maximum radius of the trust region. Defaults to
-  `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
-- `initial_trust_radius`: the initial trust region radius. Defaults to
-  `max_trust_radius / 11`.
-- `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
-  compared with a value `r`, which is the actual reduction in the objective function divided
-  by the predicted reduction. If `step_threshold > r` the model is not a good approximation,
-  and the step is rejected. Defaults to `0.1`. For more details, see
-  [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
-- `shrink_threshold`: the threshold for shrinking the trust region radius. In every
-  iteration, the threshold is compared with a value `r` which is the actual reduction in the
-  objective function divided by the predicted reduction. If `shrink_threshold > r` the trust
-  region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details, see
-  [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
-- `expand_threshold`: the threshold for expanding the trust region radius. If a step is
-  taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is also
-  made to see if `expand_threshold < r`. If that is true, the trust region radius is
-  expanded by `expand_factor`. Defaults to `0.75`.
-- `shrink_factor`: the factor to shrink the trust region radius with if
-  `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
-- `expand_factor`: the factor to expand the trust region radius with if
-  `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
-- `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
-  row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
+  - `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
+    system. This allows for multiple derivative columns to be computed simultaneously,
+    improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
+    default chunk size mechanism. For more details, see the documentation for
+    [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
+  - `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
+    Note that this argument is ignored if an analytical Jacobian is passed; as that will be
+    used instead. Defaults to `Val{true}`, which means ForwardDiff.jl is used by default.
+    If `Val{false}`, then FiniteDiff.jl is used for finite differencing.
+  - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
+    `Val{:forward}` for forward finite differences. For more details on the choices, see the
+    [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+  - `max_trust_radius`: the maximum radius of the trust region. Defaults to
+    `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
+  - `initial_trust_radius`: the initial trust region radius. Defaults to
+    `max_trust_radius / 11`.
+  - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
+    compared with a value `r`, which is the actual reduction in the objective function divided
+    by the predicted reduction. If `step_threshold > r` the model is not a good approximation,
+    and the step is rejected. Defaults to `0.1`. For more details, see
+    [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
+  - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
+    iteration, the threshold is compared with a value `r` which is the actual reduction in the
+    objective function divided by the predicted reduction. If `shrink_threshold > r` the trust
+    region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details, see
+    [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
+  - `expand_threshold`: the threshold for expanding the trust region radius. If a step is
+    taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is also
+    made to see if `expand_threshold < r`. If that is true, the trust region radius is
+    expanded by `expand_factor`. Defaults to `0.75`.
+  - `shrink_factor`: the factor to shrink the trust region radius with if
+    `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
+  - `expand_factor`: the factor to expand the trust region radius with if
+    `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
+  - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
+    row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
 """
 struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
     max_trust_radius::T

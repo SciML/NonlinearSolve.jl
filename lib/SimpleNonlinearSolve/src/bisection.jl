@@ -9,6 +9,10 @@ A common bisection method.
     zero for the returned result. Defaults to false.
   - `exact_right`: whether to enforce whether the right side of the interval must be exactly
     zero for the returned result. Defaults to false.
+
+!!! warning
+
+    Currently, the keyword arguments are not implemented.
 """
 @kwdef struct Bisection <: AbstractBracketingAlgorithm
     exact_left::Bool = false
@@ -16,12 +20,14 @@ A common bisection method.
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
-        maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-        kwargs...)
-    @assert !isinplace(prob) "Bisection only supports OOP problems."
+        maxiters = 1000, abstol = nothing, kwargs...)
+    @assert !isinplace(prob) "`Bisection` only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
+
+    abstol = _get_tolerance(abstol,
+        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)
         return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
@@ -41,7 +47,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
         end
 
         fm = f(mid)
-        if abs((right - left) / 2) < abstol || iszero(fm)
+        if abs((right - left) / 2) < abstol || abs(fm) < abstol
             return build_solution(prob, alg, mid, fm; left, right,
                 retcode = ReturnCode.Success)
         end

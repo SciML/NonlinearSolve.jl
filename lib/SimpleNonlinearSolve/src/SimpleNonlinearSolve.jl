@@ -33,11 +33,11 @@ include("broyden.jl")
 include("klement.jl")
 # include("trustRegion.jl")
 # include("halley.jl")
-# include("dfsane.jl")
+include("dfsane.jl")
 
 # Interval Nonlinear Solvers
 include("bisection.jl")
-# include("falsi.jl")
+include("falsi.jl")
 # include("ridder.jl")
 # include("brent.jl")
 # include("alefeld.jl")
@@ -88,9 +88,9 @@ include("bisection.jl")
 #     end
 # end
 
-export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
-export Bisection
-# export Bisection, Brent, LBroyden, SimpleDFSane, Falsi, SimpleHalley,
+export SimpleBroyden, SimpleDFSane, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
+export Bisection, Falsi
+# export Bisection, Brent, LBroyden, SimpleHalley,
 #     Ridder, SimpleTrustRegion, Alefeld, ITP
 
 end # module

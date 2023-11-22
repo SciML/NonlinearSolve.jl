@@ -5,22 +5,35 @@ function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:SimpleNonlinearSolveTag
     return true
 end
 
-# """
-#   prevfloat_tdir(x, x0, x1)
+"""
+    __prevfloat_tdir(x, x0, x1)
 
-# Move `x` one floating point towards x0.
-# """
-# function prevfloat_tdir(x, x0, x1)
-#     x1 > x0 ? prevfloat(x) : nextfloat(x)
-# end
+Move `x` one floating point towards x0.
+"""
+__prevfloat_tdir(x, x0, x1) = ifelse(x1 > x0, prevfloat(x), nextfloat(x))
 
-# function nextfloat_tdir(x, x0, x1)
-#     x1 > x0 ? nextfloat(x) : prevfloat(x)
-# end
+"""
+    __nextfloat_tdir(x, x0, x1)
 
-# function max_tdir(a, b, x0, x1)
-#     x1 > x0 ? max(a, b) : min(a, b)
-# end
+Move `x` one floating point towards x1.
+"""
+__nextfloat_tdir(x, x0, x1) = ifelse(x1 > x0, nextfloat(x), prevfloat(x))
+
+"""
+    __max_tdir(a, b, x0, x1)
+
+Return the maximum of `a` and `b` if `x1 > x0`, otherwise return the minimum.
+"""
+__max_tdir(a, b, x0, x1) = ifelse(x1 > x0, max(a, b), min(a, b))
+
+__cvt_real(::Type{T}, ::Nothing) where {T} = nothing
+__cvt_real(::Type{T}, x) where {T} = real(T(x))
+
+_get_tolerance(η, ::Type{T}) where {T} = __cvt_real(T, η)
+function _get_tolerance(::Nothing, ::Type{T}) where {T}
+    η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
+    return _get_tolerance(η, T)
+end
 
 __standard_tag(::Nothing, x) = ForwardDiff.Tag(SimpleNonlinearSolveTag(), eltype(x))
 __standard_tag(tag::ForwardDiff.Tag, _) = tag
