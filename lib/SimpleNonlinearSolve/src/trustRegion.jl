@@ -147,7 +147,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
 
         # Compute the ratio of the actual to predicted reduction.
         model = -(δ' * g + 0.5 * δ' * H * δ)
-        r = model \ (fₖ - fₖ₊₁)
+        r = (fₖ - fₖ₊₁) / model 
 
         # Update the trust region radius.
         if r < η₂
