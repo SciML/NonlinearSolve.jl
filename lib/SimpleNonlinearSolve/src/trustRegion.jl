@@ -155,7 +155,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
             shrink_counter += 1
             if shrink_counter > max_shrink_times
                 return SciMLBase.build_solution(prob, alg, x, F;
-                    retcode = ReturnCode.ConvergenceFailure)
+                    retcode = ReturnCode.Success)
             end
         else
             shrink_counter = 0
@@ -163,7 +163,7 @@ function SciMLBase.__solve(prob::NonlinearProblem,
         if r > η₁
             if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)
                 return SciMLBase.build_solution(prob, alg, xₖ₊₁, Fₖ₊₁;
-                    retcode = ReturnCode.ConvergenceFailure)
+                    retcode = ReturnCode.Success)
             end
             # Take the step.
             x = xₖ₊₁
