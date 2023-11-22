@@ -110,7 +110,7 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     _axpy!(-α, du, u)
     f(cache.fu1, u, p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, u, cache.fu1, J, du)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, u, cache.fu1, J, du, α)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
@@ -141,7 +141,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     cache.fu1 = f(cache.u, p)
 
     update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu1, cache.J,
-        cache.du)
+        cache.du, α)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
