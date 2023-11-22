@@ -13,7 +13,7 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
     using FiniteDiff, ForwardDiff
     import ForwardDiff: Dual
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray
+    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray
 end
 
 @reexport using ADTypes, SciMLBase
@@ -30,7 +30,7 @@ include("utils.jl")
 include("raphson.jl")
 include("broyden.jl")
 # include("lbroyden.jl")
-# include("klement.jl")
+include("klement.jl")
 # include("trustRegion.jl")
 # include("ridder.jl")
 # include("brent.jl")
@@ -41,10 +41,7 @@ include("broyden.jl")
 # include("itp.jl")
 
 # # Batched Solver Support
-# include("batched/utils.jl")
-# include("batched/raphson.jl")
 # include("batched/dfsane.jl")
-# include("batched/broyden.jl")
 
 # ## Default algorithm
 
@@ -88,9 +85,9 @@ include("broyden.jl")
 #     end
 # end
 
-export SimpleBroyden, SimpleGaussNewton, SimpleNewtonRaphson
-# export Bisection, Brent, LBroyden, SimpleDFSane, Falsi, SimpleHalley, Klement,
+export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
+# export Bisection, Brent, LBroyden, SimpleDFSane, Falsi, SimpleHalley,
 #     Ridder, SimpleTrustRegion, Alefeld, ITP
-# export BatchedBroyden, BatchedSimpleDFSane
+# export BatchedSimpleDFSane
 
 end # module

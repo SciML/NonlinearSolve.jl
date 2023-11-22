@@ -1,106 +1,69 @@
 """
-```julia
-Klement()
-```
+    SimpleKlement()
 
 A low-overhead implementation of [Klement](https://jatm.com.br/jatm/article/view/373).
-This method is non-allocating on scalar problems.
 """
-struct Klement <: AbstractSimpleNonlinearSolveAlgorithm end
+struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.__solve(prob::NonlinearProblem,
-        alg::Klement, args...; abstol = nothing,
-        reltol = nothing,
-        maxiters = 1000, kwargs...)
-    f = Base.Fix2(prob.f, prob.p)
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        termination_condition = nothing, kwargs...)
+    f = isinplace(prob) ? (du, u) -> prob.f(du, u, prob.p) : u -> prob.f(u, prob.p)
     x = float(prob.u0)
-    fₙ = f(x)
     T = eltype(x)
-    singular_tol = 1e-9
+    fx = _get_fx(prob, x)
 
-    if SciMLBase.isinplace(prob)
-        error("Klement currently only supports out-of-place nonlinear problems")
-    end
+    singular_tol = eps(T)^(2 // 3)
 
-    atol = abstol !== nothing ? abstol :
-           real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
-    rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+        termination_condition)
 
-    xₙ = x
-    xₙ₋₁ = x
-    fₙ₋₁ = fₙ
+    δx, fprev, xo, δf, d = __copy(fx), __copy(fx), __copy(x), __copy(fx), __copy(x)
+    J = __init_identity_jacobian(fx, x)
+    J_cache, δx² = __copy(J), __copy(x)
 
-    # x is scalar
-    if x isa Number
-        J = 1.0
-        for _ in 1:maxiters
-            xₙ = xₙ₋₁ - fₙ₋₁ / J
-            fₙ = f(xₙ)
-
-            iszero(fₙ) &&
-                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                    retcode = ReturnCode.Success)
-
-            if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
-                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                    retcode = ReturnCode.Success)
-            end
-
-            Δxₙ = xₙ - xₙ₋₁
-            Δfₙ = fₙ - fₙ₋₁
-
-            # Prevent division by 0
-            denominator = max(J^2 * Δxₙ^2, 1e-9)
-
-            k = (Δfₙ - J * Δxₙ) / denominator
-            J += (k * Δxₙ * J) * J
+    for _ in 1:maxiters
+        if x isa Number
+            J < singular_tol && (J = __init_identity_jacobian!!(J))
+            F = J
+        else
+            F = lu(J; check = false)
 
             # Singularity test
-            if J < singular_tol
-                J = 1.0
+            if any(x -> abs(x) < singular_tol, @view(F.U[diagind(F.U)]))
+                J = __init_identity_jacobian!!(J)
+                F = lu(J; check = false)
             end
-
-            xₙ₋₁ = xₙ
-            fₙ₋₁ = fₙ
         end
-        # x is a vector
-    else
-        J = init_J(x)
-        for _ in 1:maxiters
-            F = lu(J, check = false)
 
-            # Singularity test
-            if any(abs.(F.U[diagind(F.U)]) .< singular_tol)
-                J = init_J(xₙ)
-                F = lu(J, check = false)
-            end
+        δx = __copyto!!(δx, fprev)
+        δx = __ldiv!!(F, δx)
+        x = __sub!!(x, xo, δx)
+        fx = __eval_f(prob, f, fx, x)
 
-            tmp = _restructure(fₙ₋₁, F \ _vec(fₙ₋₁))
-            xₙ = xₙ₋₁ - tmp
-            fₙ = f(xₙ)
+        # Termination Checks
+        tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
+        tc_sol !== nothing && return tc_sol
 
-            iszero(fₙ) &&
-                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                    retcode = ReturnCode.Success)
+        δx = __neg!!(δx)
+        δf = __sub!!(δf, fx, fprev)
 
-            if isapprox(xₙ, xₙ₋₁, atol = atol, rtol = rtol)
-                return SciMLBase.build_solution(prob, alg, xₙ, fₙ;
-                    retcode = ReturnCode.Success)
-            end
+        # Prevent division by 0
+        δx² = __broadcast!!(δx², abs2, δx)
+        J_cache = __broadcast!!(J_cache, abs2, J)
+        d = _restructure(d, __mul!!(_vec(d), J_cache', _vec(δx²)))
+        d = __broadcast!!(d, Base.Fix2(max, singular_tol), d)
 
-            Δxₙ = xₙ - xₙ₋₁
-            Δfₙ = fₙ - fₙ₋₁
+        δx² = _restructure(δx², __mul!!(_vec(δx²), J, _vec(δx)))
+        δf = __sub!!(δf, δx²)
+        δf = __broadcast!!(δf, /, δf, d)
 
-            # Prevent division by 0
-            denominator = _restructure(Δxₙ, max.(J' .^ 2 * _vec(Δxₙ) .^ 2, 1e-9))
+        J_cache = __mul!!(J_cache, _vec(δf), _vec(δx)')
+        J_cache = __broadcast!!(J_cache, *, J_cache, J)
+        J_cache = __mul!!(J_cache, J_cache, J)
 
-            k = (Δfₙ - _restructure(Δxₙ, J * _vec(Δxₙ))) ./ denominator
-            J += (_vec(k) * _vec(Δxₙ)' .* J) * J
-
-            xₙ₋₁ = xₙ
-            fₙ₋₁ = fₙ
-        end
+        J = __add!!(J, J_cache)
     end
 
-    return SciMLBase.build_solution(prob, alg, xₙ, fₙ; retcode = ReturnCode.MaxIters)
+    return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end

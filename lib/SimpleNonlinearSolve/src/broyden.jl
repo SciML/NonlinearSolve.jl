@@ -32,6 +32,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         tc_sol !== nothing && return tc_sol
 
         J⁻¹δf = _restructure(J⁻¹δf, __mul!!(_vec(J⁻¹δf), J⁻¹, _vec(δf)))
+        δx = __neg!!(δx)
         d = dot(δx, J⁻¹δf)
         xᵀJ⁻¹ = _restructure(xᵀJ⁻¹, __mul!!(_vec(xᵀJ⁻¹), _vec(δx)', J⁻¹))
 

@@ -22,9 +22,6 @@ end
 #     x1 > x0 ? max(a, b) : min(a, b)
 # end
 
-# alg_autodiff(alg::AbstractNewtonAlgorithm{CS, AD, FDT}) where {CS, AD, FDT} = AD
-# diff_type(alg::AbstractNewtonAlgorithm{CS, AD, FDT}) where {CS, AD, FDT} = FDT
-
 __standard_tag(::Nothing, x) = ForwardDiff.Tag(SimpleNonlinearSolveTag(), eltype(x))
 __standard_tag(tag::ForwardDiff.Tag, _) = tag
 __standard_tag(tag, x) = ForwardDiff.Tag(tag, eltype(x))
@@ -86,6 +83,26 @@ function value_and_jacobian(ad, f::F, y, x::X, p, cache; J = nothing) where {F, 
     end
 end
 
+function value_and_jacobian(ad, f::F, y, x::Number, p, cache; J = nothing) where {F}
+    if DiffEqBase.has_jac(f)
+        return f(x, p), f.jac(x, p)
+    elseif ad isa AutoForwardDiff
+        T = typeof(__standard_tag(ad.tag, x))
+        out = f(ForwardDiff.Dual{T}(x, one(x)), p)
+        return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+    elseif ad isa AutoFiniteDiff
+        _f = Base.Fix2(f, p)
+        return _f(x), FiniteDiff.finite_difference_derivative(_f, x, ad.fdtype)
+    else
+        throw(ArgumentError("Unsupported AD method: $(ad)"))
+    end
+end
+
+"""
+    jacobian_cache(ad, f, y, x, p) --> J, cache
+
+Returns a Jacobian Matrix and a cache for the Jacobian computation.
+"""
 function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
     if isinplace(f)
         _f = (du, u) -> f(du, u, p)
@@ -114,45 +131,29 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
     end
 end
 
-# """
-#   value_derivative(f, x)
+jacobian_cache(ad, f::F, y, x::Number, p) where {F} = nothing, nothing
 
-# Compute `f(x), d/dx f(x)` in the most efficient way.
-# """
-# function value_derivative(f::F, x::R) where {F, R}
-#     T = typeof(ForwardDiff.Tag(f, R))
-#     out = f(ForwardDiff.Dual{T}(x, one(x)))
-#     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-# end
-# value_derivative(f::F, x::AbstractArray) where {F} = f(x), ForwardDiff.jacobian(f, x)
-
-# """
-#     value_derivative!(J, y, f!, x, cfg = JacobianConfig(f!, y, x))
-
-# Inplace version of [`SimpleNonlinearSolve.value_derivative`](@ref).
-# """
-# function value_derivative!(J::AbstractMatrix,
-#     y::AbstractArray,
-#     f!::F,
-#     x::AbstractArray,
-#     cfg::ForwardDiff.JacobianConfig = ForwardDiff.JacobianConfig(f!, y, x)) where {F}
-#     ForwardDiff.jacobian!(J, f!, y, x, cfg)
-#     return y, J
-# end
-
-# value(x) = x
-# value(x::Dual) = ForwardDiff.value(x)
-# value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
-
-__init_identity_jacobian(u::Number, _) = u
+__init_identity_jacobian(u::Number, _) = one(u)
+__init_identity_jacobian!!(J::Number) = one(J)
 function __init_identity_jacobian(u, fu)
     J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
     J[diagind(J)] .= one(eltype(J))
     return J
 end
+function __init_identity_jacobian!!(J)
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= one(eltype(J))
+    return J
+end
 function __init_identity_jacobian(u::StaticArray, fu)
-    return convert(MArray{Tuple{length(fu), length(u)}},
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+    S1, S2 = length(fu), length(u)
+    J = SMatrix{S1, S2, eltype(u)}(ntuple(i -> ifelse(i ∈ 1:(S1 + 1):(S1 * S2), 1, 0),
+        S1 * S2))
+    return J
+end
+function __init_identity_jacobian!!(J::StaticArray{S1, S2}) where {S1, S2}
+    return SMMatrix{S1, S2, eltype(J)}(ntuple(i -> ifelse(i ∈ 1:(S1 + 1):(S1 * S2), 1, 0),
+        S1 * S2))
 end
 
 # function dogleg_method(J, f, g, Δ)
@@ -300,6 +301,14 @@ end
     return x .+ Δx
 end
 
+@inline __add!!(::Number, x, Δx) = x + Δx
+@inline __add!!(::SArray, x, Δx) = x .+ Δx
+@inline __add!!(y::Union{MArray, Array}, x, Δx) = (@. y = x + Δx)
+@inline function __add!!(y::AbstractArray, x, Δx)
+    ArrayInterface.can_setindex(y) && return (@. y = x + Δx)
+    return x .+ Δx
+end
+
 @inline __copy(x::Union{Number, SArray}) = x
 @inline __copy(x::Union{Number, SArray}, _) = x
 @inline __copy(x::Union{MArray, Array}) = copy(x)
@@ -318,6 +327,30 @@ end
 @inline function __mul!!(y::AbstractArray, A, b)
     ArrayInterface.can_setindex(y) && return (mul!(y, A, b); y)
     return A * b
+end
+
+@inline __neg!!(x::Union{Number, SArray}) = -x
+@inline __neg!!(x::Union{MArray, Array}) = (@. x .*= -one(eltype(x)))
+@inline function __neg!!(x::AbstractArray)
+    ArrayInterface.can_setindex(x) && return (@. x .*= -one(eltype(x)))
+    return -x
+end
+
+@inline __ldiv!!(A, b::Union{Number, SArray}) = A \ b
+@inline __ldiv!!(A, b::Union{MArray, Array}) = (ldiv!(A, b); b)
+@inline function __ldiv!!(A, b::AbstractArray)
+    ArrayInterface.can_setindex(b) && return (ldiv!(A, b); b)
+    return A \ b
+end
+
+@inline __broadcast!!(y::Union{Number, SArray}, f::F, x, args...) where {F} = f.(x, args...)
+@inline function __broadcast!!(y::Union{MArray, Array}, f::F, x, args...) where {F}
+    @. y = f(x, args...)
+    return y
+end
+@inline function __broadcast!!(y::AbstractArray, f::F, x, args...) where {F}
+    ArrayInterface.can_setindex(y) && return (@. y = f(x, args...))
+    return f.(x, args...)
 end
 
 @inline __eval_f(prob, f, fx, x) = isinplace(prob) ? (f(fx, x); fx) : f(x)
