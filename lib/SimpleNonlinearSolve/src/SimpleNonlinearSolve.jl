@@ -40,7 +40,7 @@ include("klement.jl")
 include("bisection.jl")
 include("falsi.jl")
 include("ridder.jl")
-# include("brent.jl")
+include("brent.jl")
 # include("alefeld.jl")
 # include("itp.jl")
 
@@ -90,8 +90,8 @@ include("ridder.jl")
 # end
 
 export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
-# SimpleDFSane, SimpleTrustRegion, SimpleHalley
-export Bisection, Falsi, Ridder
-# export , Brent, LBroyden, Alefeld, ITP
+# SimpleDFSane, SimpleTrustRegion, SimpleHalley, LBroyden
+export Bisection, Brent, Falsi, Ridder
+# export  Alefeld, ITP
 
 end # module
