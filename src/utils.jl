@@ -354,3 +354,10 @@ end
 
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
+
+__zero(x::AbstractArray) = zero(x)
+__zero(x) = x
+LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
+LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
+LazyArrays.applied_size(::typeof(__zero), x) = size(x)
+LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)

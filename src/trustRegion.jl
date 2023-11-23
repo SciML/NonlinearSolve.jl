@@ -340,7 +340,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
 
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,

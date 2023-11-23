@@ -146,7 +146,9 @@ __copy(x) = x
     trace_level::Tr
 end
 
-reset!(trace::NonlinearSolveTrace) = resize!(trace.history, 0)
+function reset!(trace::NonlinearSolveTrace)
+    (trace.history !== nothing && resize!(trace.history, 0))
+end
 
 function Base.show(io::IO, trace::NonlinearSolveTrace)
     for entry in trace.history
@@ -166,7 +168,7 @@ function init_nonlinearsolve_trace(alg, ::Val{show_trace},
         trace_level::AbstractNonlinearSolveTraceLevel, ::Val{store_trace}, u, fu, J,
         δu, ::Val{uses_jac_inverse}) where {show_trace, store_trace, uses_jac_inverse}
     if show_trace
-        Base.printstyled("\nAlgorithm: "; italic = true)
+        print("\nAlgorithm: ")
         Base.printstyled(alg, "\n\n"; color = :green, bold = true)
     end
     J_ = uses_jac_inverse ? (trace_level isa TraceMinimal ? J : inv(J)) : J
@@ -205,8 +207,8 @@ function update_trace!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, fu, J, δu
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 0)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 0)
+    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
+    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
     (show_now || store_now) && (entry = __trace_entry(trace.trace_level, iter, u, fu, J,
         δu, α))
     store_now && push!(trace.history, entry)
@@ -226,8 +228,8 @@ function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, 
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 0)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 0)
+    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
+    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
     if show_now || store_now
         J_ = trace.trace_level isa TraceMinimal ? J : inv(J)
         entry = __trace_entry(trace.trace_level, iter, u, fu, J_, δu, α)

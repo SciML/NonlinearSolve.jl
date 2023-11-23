@@ -109,7 +109,7 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
     _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu1, u, termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
         linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,

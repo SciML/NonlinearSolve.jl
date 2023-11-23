@@ -221,7 +221,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         tc_cache_2 = nothing
     end
 
-    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
 
     if _unwrap_val(linsolve_with_JᵀJ)
         mat_tmp = zero(JᵀJ)

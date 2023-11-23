@@ -95,7 +95,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
 
     return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
         uf, linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,

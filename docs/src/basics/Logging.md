@@ -1,4 +1,4 @@
-# [Logging the Solve Process](@ logging_api)
+# Logging the Solve Process
 
 All NonlinearSolve.jl native solvers allow storing and displaying the trace of the nonlinear
 solve process. This is controlled by 3 keyword arguments to `solve`:
@@ -48,6 +48,11 @@ sol = solve(prob; trace_level = TraceAll(), store_trace = Val(true));
 
 sol.trace
 ```
+
+!!! note
+    
+    For `iteration == 0` only the `norm(fu, Inf)` is guaranteed to be meaningful. The other
+    values being meaningful are solver dependent.
 
 ## API
 
