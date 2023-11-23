@@ -50,7 +50,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
 end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
-    args...; kwargs...)
+        args...; kwargs...)
     SciMLBase.solve(prob, ITP(), args...; kwargs...)
 end
 

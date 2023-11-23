@@ -7,18 +7,18 @@ alg_autodiff(alg::BatchedSimpleNewtonRaphson{CS, AD, FDT}) where {CS, AD, FDT} =
 diff_type(alg::BatchedSimpleNewtonRaphson{CS, AD, FDT}) where {CS, AD, FDT} = FDT
 
 function BatchedSimpleNewtonRaphson(; chunk_size = Val{0}(),
-    autodiff = Val{true}(),
-    diff_type = Val{:forward},
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-        abstol = nothing,
-        reltol = nothing))
+        autodiff = Val{true}(),
+        diff_type = Val{:forward},
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing))
     return BatchedSimpleNewtonRaphson{SciMLBase._unwrap_val(chunk_size),
         SciMLBase._unwrap_val(autodiff),
         SciMLBase._unwrap_val(diff_type), typeof(termination_condition)}(termination_condition)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::BatchedSimpleNewtonRaphson;
-    abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
     iip &&
         @assert alg_autodiff(alg) "Inplace BatchedSimpleNewtonRaphson currently only supports autodiff."

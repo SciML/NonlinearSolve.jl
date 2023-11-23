@@ -36,10 +36,10 @@ value_derivative(f::F, x::AbstractArray) where {F} = f(x), ForwardDiff.jacobian(
 Inplace version of [`SimpleNonlinearSolve.value_derivative`](@ref).
 """
 function value_derivative!(J::AbstractMatrix,
-    y::AbstractArray,
-    f!::F,
-    x::AbstractArray,
-    cfg::ForwardDiff.JacobianConfig = ForwardDiff.JacobianConfig(f!, y, x)) where {F}
+        y::AbstractArray,
+        f!::F,
+        x::AbstractArray,
+        cfg::ForwardDiff.JacobianConfig = ForwardDiff.JacobianConfig(f!, y, x)) where {F}
     ForwardDiff.jacobian!(J, f!, y, x, cfg)
     return y, J
 end
@@ -58,9 +58,9 @@ function init_J(x)
     return J
 end
 
-function dogleg_method(H, g, Δ)
+function dogleg_method(J, f, g, Δ)
     # Compute the Newton step.
-    δN = -H \ g
+    δN = J \ (-f)
     # Test if the full step is within the trust region.
     if norm(δN) ≤ Δ
         return δN

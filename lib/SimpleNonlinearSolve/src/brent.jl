@@ -7,8 +7,8 @@ A non-allocating Brent method
 struct Brent <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
-    maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-    kwargs...)
+        maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
+        kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     fa, fb = f(a), f(b)

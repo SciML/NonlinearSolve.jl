@@ -4,8 +4,8 @@
 struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
-    maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-    kwargs...)
+        maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
+        kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)

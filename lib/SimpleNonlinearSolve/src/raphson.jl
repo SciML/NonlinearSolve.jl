@@ -34,10 +34,10 @@ and static array problems.
 struct SimpleNewtonRaphson{CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT} end
 
 function SimpleNewtonRaphson(; batched = false,
-    chunk_size = Val{0}(),
-    autodiff = Val{true}(),
-    diff_type = Val{:forward},
-    termination_condition = missing)
+        chunk_size = Val{0}(),
+        autodiff = Val{true}(),
+        diff_type = Val{:forward},
+        termination_condition = missing)
     if !ismissing(termination_condition) && !batched
         throw(ArgumentError("`termination_condition` is currently only supported for batched problems"))
     end
@@ -63,10 +63,10 @@ end
 
 const SimpleGaussNewton = SimpleNewtonRaphson
 
-function SciMLBase.__solve(prob::Union{NonlinearProblem,NonlinearLeastSquaresProblem},
-    alg::SimpleNewtonRaphson, args...; abstol = nothing,
-    reltol = nothing,
-    maxiters = 1000, kwargs...)
+function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::SimpleNewtonRaphson, args...; abstol = nothing,
+        reltol = nothing,
+        maxiters = 1000, kwargs...)
     f = Base.Fix2(prob.f, prob.p)
     x = float(prob.u0)
     fx = float(prob.u0)
@@ -76,7 +76,8 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem,NonlinearLeastSquaresPro
         error("SimpleNewtonRaphson currently only supports out-of-place nonlinear problems")
     end
 
-    if prob isa NonlinearLeastSquaresProblem && !(typeof(prob.u0) <: Union{Number, AbstractVector})
+    if prob isa NonlinearLeastSquaresProblem &&
+       !(typeof(prob.u0) <: Union{Number, AbstractVector})
         error("SimpleGaussNewton only supports Number and AbstactVector types. Please convert any problem of AbstractArray into one with u0 as AbstractVector")
     end
 

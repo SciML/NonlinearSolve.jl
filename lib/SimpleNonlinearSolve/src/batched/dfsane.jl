@@ -16,12 +16,12 @@ Base.@kwdef struct BatchedSimpleDFSane{T, F, TC <: NLSolveTerminationCondition} 
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem,
-    alg::BatchedSimpleDFSane,
-    args...;
-    abstol = nothing,
-    reltol = nothing,
-    maxiters = 100,
-    kwargs...)
+        alg::BatchedSimpleDFSane,
+        args...;
+        abstol = nothing,
+        reltol = nothing,
+        maxiters = 100,
+        kwargs...)
     iip = isinplace(prob)
 
     u, f, reconstruct = _construct_batched_problem_structure(prob)

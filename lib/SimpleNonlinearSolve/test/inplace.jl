@@ -4,8 +4,8 @@ using SimpleNonlinearSolve,
 
 # Supported Solvers: BatchedBroyden, BatchedSimpleDFSane, BatchedSimpleNewtonRaphson
 function f!(du::AbstractArray{<:Number, N},
-    u::AbstractArray{<:Number, N},
-    p::AbstractVector) where {N}
+        u::AbstractArray{<:Number, N},
+        p::AbstractVector) where {N}
     u_ = reshape(u, :, size(u, N))
     du .= reshape(sum(abs2, u_; dims = 1) .- u_ .- reshape(p, 1, :), size(u))
     return du

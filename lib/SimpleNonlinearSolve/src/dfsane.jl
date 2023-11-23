@@ -65,13 +65,13 @@ struct SimpleDFSane{T, TC} <: AbstractSimpleNonlinearSolveAlgorithm
 end
 
 function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-    M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
-    nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2,
-    termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
-        abstol = nothing,
-        reltol = nothing),
-    batched::Bool = false,
-    max_inner_iterations = 1000)
+        M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2,
+        termination_condition = NLSolveTerminationCondition(NLSolveTerminationMode.NLSolveDefault;
+            abstol = nothing,
+            reltol = nothing),
+        batched::Bool = false,
+        max_inner_iterations = 1000)
     if batched
         return BatchedSimpleDFSane(; σₘᵢₙ = σ_min,
             σₘₐₓ = σ_max,
@@ -98,8 +98,8 @@ function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane,
-    args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-    kwargs...)
+        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
+        kwargs...)
     tc = alg.termination_condition
     mode = DiffEqBase.get_termination_mode(tc)
 
