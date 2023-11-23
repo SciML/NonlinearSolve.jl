@@ -1,33 +1,29 @@
 """
-```julia
-ITP(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
-```
+    ITP(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
 
 ITP (Interpolate Truncate & Project)
 
-Use the [ITP method](https://en.wikipedia.org/wiki/ITP_method) to find
-a root of a bracketed function, with a convergence rate between 1 and 1.62.
+Use the [ITP method](https://en.wikipedia.org/wiki/ITP_method) to find a root of a bracketed
+function, with a convergence rate between 1 and 1.62.
 
-This method was introduced in the paper "An Enhancement of the Bisection Method
-Average Performance Preserving Minmax Optimality"
-(https://doi.org/10.1145/3423597) by I. F. D. Oliveira and R. H. C. Takahashi.
+This method was introduced in the paper "An Enhancement of the Bisection Method Average
+Performance Preserving Minmax Optimality" (https://doi.org/10.1145/3423597) by
+I. F. D. Oliveira and R. H. C. Takahashi.
 
 # Tuning Parameters
 
 The following keyword parameters are accepted.
 
-  - `n₀::Int = 1`, the 'slack'. Must not be negative.\n
-    When n₀ = 0 the worst-case is identical to that of bisection,
-    but increacing n₀ provides greater oppotunity for superlinearity.
-  - `κ₁::Float64 = 0.1`. Must not be negative.\n
-    The recomended value is `0.2/(x₂ - x₁)`.
-    Lower values produce tighter asymptotic behaviour, while higher values
-    improve the steady-state behaviour when truncation is not helpful.
-  - `κ₂::Real = 2`. Must lie in [1, 1+ϕ ≈ 2.62).\n
-    Higher values allow for a greater convergence rate,
-    but also make the method more succeptable to worst-case performance.
-    In practice, κ=1,2 seems to work well due to the computational simplicity,
-    as κ₂ is used as an exponent in the method.
+  - `n₀::Int = 1`, the 'slack'. Must not be negative. When n₀ = 0 the worst-case is
+    identical to that of bisection, but increacing n₀ provides greater oppotunity for
+    superlinearity.
+  - `κ₁::Float64 = 0.1`. Must not be negative. The recomended value is `0.2/(x₂ - x₁)`.
+    Lower values produce tighter asymptotic behaviour, while higher values improve the
+    steady-state behaviour when truncation is not helpful.
+  - `κ₂::Real = 2`. Must lie in [1, 1+ϕ ≈ 2.62). Higher values allow for a greater
+    convergence rate, but also make the method more succeptable to worst-case performance.
+    In practice, κ=1,2 seems to work well due to the computational simplicity, as κ₂ is used
+    as an exponent in the method.
 
 ### Worst Case Performance
 
@@ -36,44 +32,45 @@ n½ + `n₀` iterations, where n½ is the number of iterations using bisection
 
 ### Asymptotic Performance
 
-If `f` is twice differentiable and the root is simple,
-then with `n₀` > 0 the convergence rate is √`κ₂`.
+If `f` is twice differentiable and the root is simple, then with `n₀` > 0 the convergence
+rate is √`κ₂`.
 """
 struct ITP{T} <: AbstractBracketingAlgorithm
     k1::T
     k2::T
     n0::Int
     function ITP(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
-        if k1 < 0
-            error("Hyper-parameter κ₁ should not be negative")
-        end
-        if n0 < 0
-            error("Hyper-parameter n₀ should not be negative")
-        end
+        k1 < 0 && error("Hyper-parameter κ₁ should not be negative")
+        n0 < 0 && error("Hyper-parameter n₀ should not be negative")
         if k2 < 1 || k2 > (1.5 + sqrt(5) / 2)
-            ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where ϕ ≈ 1.618... is the golden ratio")
+            throw(ArgumentError("Hyper-parameter κ₂ should be between 1 and 1 + ϕ where \
+                                 ϕ ≈ 1.618... is the golden ratio"))
         end
         T = promote_type(eltype(k1), eltype(k2))
         return new{T}(k1, k2, n0)
     end
 end
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
-        args...; abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-        maxiters = 1000, kwargs...)
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
+        maxiters = 1000, abstol = nothing, kwargs...)
+    @assert !isinplace(prob) "`Bisection` only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
-    left, right = prob.tspan # a and b
+    left, right = prob.tspan
     fl, fr = f(left), f(right)
-    ϵ = abstol
+
+    abstol = _get_tolerance(abstol,
+        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+
     if iszero(fl)
-        return SciMLBase.build_solution(prob, alg, left, fl;
-            retcode = ReturnCode.ExactSolutionLeft, left = left,
-            right = right)
-    elseif iszero(fr)
-        return SciMLBase.build_solution(prob, alg, right, fr;
-            retcode = ReturnCode.ExactSolutionRight, left = left,
-            right = right)
+        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
+            left, right)
     end
+
+    if iszero(fr)
+        return build_solution(prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
+            left, right)
+    end
+    ϵ = abstol
     #defining variables/cache
     k1 = alg.k1
     k2 = alg.k2
@@ -112,9 +109,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
         end
 
         if abs((left - right) / 2) < ϵ
-            return SciMLBase.build_solution(prob, alg, mid, f(mid);
-                retcode = ReturnCode.Success,
-                left = left, right = right)
+            return build_solution(prob, alg, mid, f(mid); retcode = ReturnCode.Success,
+                left, right)
         end
 
         ## Update ##
@@ -130,20 +126,18 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP,
             left = xp
             fl = yp
         else
-            return SciMLBase.build_solution(prob, alg, xp, yps;
-                retcode = ReturnCode.Success, left = xp,
-                right = xp)
+            return build_solution(prob, alg, xp, yps; retcode = ReturnCode.Success,
+                left = xp, right = xp)
         end
         i += 1
         mid = (left + right) / 2
         ϵ_s /= 2
 
-        if nextfloat_tdir(left, prob.tspan...) == right
-            return SciMLBase.build_solution(prob, alg, left, fl;
-                retcode = ReturnCode.FloatingPointLimit, left = left,
-                right = right)
+        if __nextfloat_tdir(left, prob.tspan...) == right
+            return build_solution(prob, alg, left, fl; left, right,
+                retcode = ReturnCode.FloatingPointLimit)
         end
     end
-    return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left = left, right = right)
+
+    return build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
 end

@@ -41,8 +41,8 @@ include("bisection.jl")
 include("falsi.jl")
 include("ridder.jl")
 include("brent.jl")
-# include("alefeld.jl")
-# include("itp.jl")
+include("alefeld.jl")
+include("itp.jl")
 
 # AD
 # include("ad.jl")
@@ -62,9 +62,9 @@ include("brent.jl")
 
 # import PrecompileTools
 
-# PrecompileTools.@compile_workload begin
-#     for T in (Float32, Float64)
-#         prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+@setup_workload begin
+    for T in (Float32, Float64)
+        # prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
 #         for alg in (SimpleNewtonRaphson, SimpleHalley, Broyden, Klement, SimpleTrustRegion,
 #             SimpleDFSane)
 #             solve(prob_no_brack, alg(), abstol = T(1e-2))
@@ -80,18 +80,19 @@ include("brent.jl")
 #         end
 #         =#
 
-#         prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
-#             T.((0.0, 2.0)),
-#             T(2))
-#         for alg in (Bisection, Falsi, Ridder, Brent, Alefeld, ITP)
-#             solve(prob_brack, alg(), abstol = T(1e-2))
-#         end
-#     end
-# end
+        prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
+            T.((0.0, 2.0)), T(2))
+        algs = [Bisection(), Falsi(), Ridder(), Brent(), Alefeld(), ITP()]
+        @compile_workload begin
+            for alg in algs
+                solve(prob_brack, alg, abstol = T(1e-2))
+            end
+        end
+    end
+end
 
 export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
 # SimpleDFSane, SimpleTrustRegion, SimpleHalley, LBroyden
-export Bisection, Brent, Falsi, Ridder
-# export  Alefeld, ITP
+export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module

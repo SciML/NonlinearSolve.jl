@@ -30,7 +30,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
     if !iszero(fr)
         while i < maxiters
             mid = (left + right) / 2
-            if (mid == left || mid == right)
+            (mid == left || mid == right) &&
                 return build_solution(prob, alg, left, fl; left, right,
                     retcode = ReturnCode.FloatingPointLimit)
             fm = f(mid)
@@ -70,7 +70,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
 
     sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
         maxiters = maxiters - i, prob, alg)
-    sol !== nothing && return sol
+        sol !== nothing && return sol
 
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
         left, right)
