@@ -76,6 +76,7 @@ end
     prob
     stats::NLStats
     tc_cache
+    trace
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransient,
@@ -94,10 +95,11 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
 
     return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
         uf, linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache)
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
 function perform_step!(cache::PseudoTransientCache{true})
@@ -124,6 +126,9 @@ function perform_step!(cache::PseudoTransientCache{true})
     cache.linsolve = linres.cache
     @. u = u - du
     f(fu1, u, p)
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+        cache.du)
 
     new_norm = cache.internalnorm(fu1)
     cache.alpha *= cache.res_norm / new_norm
@@ -157,6 +162,9 @@ function perform_step!(cache::PseudoTransientCache{false})
     cache.u = @. u - cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
+        cache.du)
+
     new_norm = cache.internalnorm(fu1)
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
@@ -185,6 +193,7 @@ function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = c
         cache.fu1 = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 

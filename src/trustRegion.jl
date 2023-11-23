@@ -230,6 +230,7 @@ end
     ϵ::floatType
     stats::NLStats
     tc_cache
+    trace
 end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
@@ -339,13 +340,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
 
     return TrustRegionCache{iip}(f, alg, u_prev, u, fu_prev, fu1, fu2, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
         H, g, shrink_counter, du, u_tmp, u_gauss_newton, u_cauchy, fu_new, make_new_J, r,
-        p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0), tc_cache)
+        p1, p2, p3, p4, ϵ, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
 function perform_step!(cache::TrustRegionCache{true})
@@ -462,6 +464,8 @@ function trust_region_step!(cache::TrustRegionCache)
             # No need to make a new J, no step was taken, so we try again with a smaller trust_r
             cache.make_new_J = false
         end
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
     elseif radius_update_scheme === RadiusUpdateSchemes.NLsolve
@@ -483,6 +487,8 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r = max(cache.trust_r, 2 * norm(cache.du)) # cache.expand_factor * norm(cache.du))
         end
 
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         # convergence test
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
@@ -502,6 +508,8 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r = min(2 * cache.trust_r, cache.max_trust_r)
         end
 
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         # convergence test
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
 
@@ -524,6 +532,8 @@ function trust_region_step!(cache::TrustRegionCache)
         cache.trust_r = rfunc(r, shrink_threshold, p1, p3, p4, p2) *
                         cache.internalnorm(du)
 
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
         cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
 
@@ -547,6 +557,9 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * cache.internalnorm(jvp!(cache))
+
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
         cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
         #Fan's update scheme
@@ -569,6 +582,9 @@ function trust_region_step!(cache::TrustRegionCache)
 
         @unpack p1 = cache
         cache.trust_r = p1 * (cache.internalnorm(cache.fu)^0.99)
+
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
         cache.internalnorm(g) < cache.ϵ && (cache.force_stop = true)
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
@@ -585,6 +601,9 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.trust_r *= cache.p2
             cache.shrink_counter += 1
         end
+
+        update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu, cache.J,
+            @~(cache.u.-cache.u_prev))
         check_and_update!(cache, cache.fu, cache.u, cache.u_prev)
     end
 end
@@ -707,6 +726,7 @@ function SciMLBase.reinit!(cache::TrustRegionCache{iip}, u0 = cache.u; p = cache
         cache.fu = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 

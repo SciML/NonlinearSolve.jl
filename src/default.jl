@@ -82,7 +82,7 @@ end
                         fu = get_fu($(cache_syms[i]))
                         return SciMLBase.build_solution($(sol_syms[i]).prob, cache.alg, u,
                             fu; retcode = ReturnCode.Success, stats,
-                            original = $(sol_syms[i]))
+                            original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
                     end
                     cache.current = $(i + 1)
                 end
@@ -103,7 +103,7 @@ end
             u = cache.caches[idx].u
 
             return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u,
-                fus[idx]; retcode, stats)
+                fus[idx]; retcode, stats, cache.caches[idx].trace)
         end)
 
     return Expr(:block, calls...)
@@ -125,7 +125,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                         if SciMLBase.successful_retcode($(cur_sol))
                             return SciMLBase.build_solution(prob, alg, $(cur_sol).u,
                                 $(cur_sol).resid; $(cur_sol).retcode, $(cur_sol).stats,
-                                original = $(cur_sol))
+                                original = $(cur_sol), trace = $(cur_sol).trace)
                         end
                     end)
             end
@@ -147,7 +147,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                         if idx == $i
                             return SciMLBase.build_solution(prob, alg, $(sol_syms[i]).u,
                                 $(sol_syms[i]).resid; $(sol_syms[i]).retcode,
-                                $(sol_syms[i]).stats)
+                                $(sol_syms[i]).stats, $(sol_syms[i]).trace)
                         end
                     end)
             end

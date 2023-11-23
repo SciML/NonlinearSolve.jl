@@ -1,5 +1,5 @@
 """
-    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = LineSearch(),
+    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
         precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced NewtonRaphson implementation with support for efficient handling of sparse
@@ -41,8 +41,8 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
     return NewtonRaphson{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch)
 end
 
-function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, adkwargs...)
+function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
+        precs = DEFAULT_PRECS, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
@@ -89,7 +89,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
         termination_condition)
 
     ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip))
-    trace = init_nonlinearsolve_trace(u, fu1, J, du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, J, du; kwargs...)
 
     return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
@@ -110,7 +110,8 @@ function perform_step!(cache::NewtonRaphsonCache{true})
     _axpy!(-α, du, u)
     f(cache.fu1, u, p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, u, cache.fu1, J, du, α)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+        cache.du, α)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
 
@@ -140,7 +141,7 @@ function perform_step!(cache::NewtonRaphsonCache{false})
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu1 = f(cache.u, p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, cache.u, cache.fu1, cache.J,
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
         cache.du, α)
 
     check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
@@ -166,6 +167,7 @@ function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cac
         cache.fu1 = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
 

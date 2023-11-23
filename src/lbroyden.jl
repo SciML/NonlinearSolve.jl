@@ -1,5 +1,5 @@
 """
-    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = LineSearch(),
+    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Int = 10, reset_tolerance = nothing)
 
 An implementation of `LimitedMemoryBroyden` with reseting and line search.
@@ -24,7 +24,7 @@ An implementation of `LimitedMemoryBroyden` with reseting and line search.
     reset_tolerance
 end
 
-function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = LineSearch(),
+function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Int = 27, reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return LimitedMemoryBroyden(max_resets, threshold, linesearch, reset_tolerance)
@@ -61,6 +61,7 @@ end
     stats::NLStats
     ls_cache
     tc_cache
+    trace
 end
 
 get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
@@ -88,13 +89,17 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
+    U_part = selectdim(U, 1, 1:0)
+    Vᵀ_part = selectdim(Vᵀ, 2, 1:0)
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(*, Vᵀ_part, U_part), du;
+        kwargs...)
 
     return LimitedMemoryBroydenCache{iip}(f, alg, u, zero(u), du, fu, zero(fu),
         zero(fu), p, U, Vᵀ, similar(u, threshold), similar(u, 1, threshold),
         zero(u), zero(u), false, 0, 0, alg.max_resets, maxiters, internalnorm,
         ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
 function perform_step!(cache::LimitedMemoryBroydenCache{true})
@@ -104,6 +109,12 @@ function perform_step!(cache::LimitedMemoryBroydenCache{true})
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu2, u, p)
+
+    idx = min(cache.iterations_since_reset, size(cache.U, 1))
+    U_part = selectdim(cache.U, 1, 1:idx)
+    Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2,
+        ApplyArray(*, Vᵀ_part, U_part), du, α)
 
     check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
@@ -161,6 +172,12 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
+
+    idx = min(cache.iterations_since_reset, size(cache.U, 1))
+    U_part = selectdim(cache.U, 1, 1:idx)
+    Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2,
+        ApplyArray(*, Vᵀ_part, U_part), cache.du, α)
 
     check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
@@ -225,6 +242,7 @@ function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; 
         cache.fu = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 

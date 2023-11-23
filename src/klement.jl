@@ -1,6 +1,6 @@
 """
     GeneralKlement(; max_resets = 5, linsolve = nothing,
-                     linesearch = LineSearch(), precs = DEFAULT_PRECS)
+                     linesearch = nothing, precs = DEFAULT_PRECS)
 
 An implementation of `Klement` with line search, preconditioning and customizable linear
 solves.
@@ -32,7 +32,7 @@ function set_linsolve(alg::GeneralKlement, linsolve)
 end
 
 function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS)
+        linesearch = nothing, precs = DEFAULT_PRECS)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GeneralKlement(max_resets, linsolve, precs, linesearch)
 end
@@ -63,6 +63,7 @@ end
     stats::NLStats
     ls_cache
     tc_cache
+    trace
 end
 
 get_fu(cache::GeneralKlementCache) = cache.fu
@@ -91,12 +92,13 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu, J, du; kwargs...)
 
     return GeneralKlementCache{iip}(f, alg, u, zero(u), fu, zero(fu), du, p, linsolve,
         J, zero(J), zero(J), _vec(zero(fu)), _vec(zero(fu)), 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
 function perform_step!(cache::GeneralKlementCache{true})
@@ -126,6 +128,9 @@ function perform_step!(cache::GeneralKlementCache{true})
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu2, u, p)
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2, J,
+        cache.du, α)
 
     check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
@@ -186,6 +191,9 @@ function perform_step!(cache::GeneralKlementCache{false})
     cache.u = @. cache.u - α * cache.du  # `u` might not support mutation
     cache.fu2 = f(cache.u, p)
 
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2, J,
+        cache.du, α)
+
     check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.u_prev = cache.u
     cache.stats.nf += 1
@@ -224,6 +232,7 @@ function SciMLBase.reinit!(cache::GeneralKlementCache{iip}, u0 = cache.u; p = ca
         cache.fu = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
