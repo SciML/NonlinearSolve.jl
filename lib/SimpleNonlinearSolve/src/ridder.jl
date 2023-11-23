@@ -1,25 +1,28 @@
 """
-`Ridder()`
+    Ridder()
 
-A non-allocating ridder method
+A non-allocating ridder method.
 """
 struct Ridder <: AbstractBracketingAlgorithm end
 
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
-        maxiters = 1000, abstol = min(eps(prob.tspan[1]), eps(prob.tspan[2])),
-        kwargs...)
+        maxiters = 1000, abstol = nothing, kwargs...)
+    @assert !isinplace(prob) "`Ridder` only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
+    abstol = _get_tolerance(abstol,
+        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+
     if iszero(fl)
-        return SciMLBase.build_solution(prob, alg, left, fl;
-            retcode = ReturnCode.ExactSolutionLeft, left = left,
-            right = right)
-    elseif iszero(fr)
-        return SciMLBase.build_solution(prob, alg, right, fr;
-            retcode = ReturnCode.ExactSolutionRight, left = left,
-            right = right)
+        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
+            left, right)
+    end
+
+    if iszero(fr)
+        return build_solution(prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
+            left, right)
     end
 
     xo = oftype(left, Inf)
@@ -27,23 +30,21 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
     if !iszero(fr)
         while i < maxiters
             mid = (left + right) / 2
-            (mid == left || mid == right) &&
-                return SciMLBase.build_solution(prob, alg, left, fl;
-                    retcode = ReturnCode.FloatingPointLimit,
-                    left = left, right = right)
+            if (mid == left || mid == right)
+                return build_solution(prob, alg, left, fl; left, right,
+                    retcode = ReturnCode.FloatingPointLimit)
             fm = f(mid)
             s = sqrt(fm^2 - fl * fr)
-            iszero(s) &&
-                return SciMLBase.build_solution(prob, alg, left, fl;
-                    retcode = ReturnCode.Failure,
-                    left = left, right = right)
+            if iszero(s)
+                return build_solution(prob, alg, left, fl; left, right,
+                    retcode = ReturnCode.Failure)
+            end
             x = mid + (mid - left) * sign(fl - fr) * fm / s
             fx = f(x)
             xo = x
             if abs((right - left) / 2) < abstol
-                return SciMLBase.build_solution(prob, alg, mid, fm;
-                    retcode = ReturnCode.Success,
-                    left = left, right = right)
+                return build_solution(prob, alg, mid, fm; retcode = ReturnCode.Success,
+                    left, right)
             end
             if iszero(fx)
                 right = x
@@ -67,28 +68,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
         end
     end
 
-    while i < maxiters
-        mid = (left + right) / 2
-        (mid == left || mid == right) &&
-            return SciMLBase.build_solution(prob, alg, left, fl;
-                retcode = ReturnCode.FloatingPointLimit,
-                left = left, right = right)
-        fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(prob, alg, mid, fm;
-                retcode = ReturnCode.Success,
-                left = left, right = right)
-        end
-        if iszero(fm)
-            right = mid
-            fr = fm
-        else
-            left = mid
-            fl = fm
-        end
-        i += 1
-    end
+    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
+        maxiters = maxiters - i, prob, alg)
+    sol !== nothing && return sol
 
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left = left, right = right)
+        left, right)
 end

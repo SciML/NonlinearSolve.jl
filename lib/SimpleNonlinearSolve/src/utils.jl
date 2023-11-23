@@ -134,7 +134,7 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
         if DiffEqBase.has_jac(f)
             return nothing, nothing
         elseif ad isa AutoForwardDiff
-            J = ArrayInterface.can_setindex(x) ? similar(y, length(fx), length(x)) : nothing
+            J = ArrayInterface.can_setindex(x) ? similar(y, length(y), length(x)) : nothing
             return J, __get_jacobian_config(ad, _f, x)
         elseif ad isa AutoFiniteDiff
             return nothing, FiniteDiff.JacobianCache(copy(x), copy(y), copy(y), ad.fdtype)
@@ -150,6 +150,7 @@ __init_identity_jacobian(u::Number, _) = one(u)
 __init_identity_jacobian!!(J::Number) = one(J)
 function __init_identity_jacobian(u, fu)
     J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    fill!(J, zero(eltype(J)))
     J[diagind(J)] .= one(eltype(J))
     return J
 end
@@ -281,89 +282,5 @@ function check_termination(tc_cache, fx, x, xo, prob, alg,
     return nothing
 end
 
-# MaybeInplace
-@inline __copyto!!(::Number, x) = x
-@inline __copyto!!(::SArray, x) = x
-@inline __copyto!!(y::Union{MArray, Array}, x) = copyto!(y, x)
-@inline function __copyto!!(y::AbstractArray, x)
-    ArrayInterface.can_setindex(y) && return copyto!(y, x)
-    return x
-end
-
-@inline __sub!!(x::Number, Δx) = x - Δx
-@inline __sub!!(x::SArray, Δx) = x .- Δx
-@inline __sub!!(x::Union{MArray, Array}, Δx) = (x .-= Δx)
-@inline function __sub!!(x::AbstractArray, Δx)
-    ArrayInterface.can_setindex(x) && return (x .-= Δx)
-    return x .- Δx
-end
-
-@inline __sub!!(::Number, x, Δx) = x - Δx
-@inline __sub!!(::SArray, x, Δx) = x .- Δx
-@inline __sub!!(y::Union{MArray, Array}, x, Δx) = (@. y = x - Δx)
-@inline function __sub!!(y::AbstractArray, x, Δx)
-    ArrayInterface.can_setindex(y) && return (@. y = x - Δx)
-    return x .- Δx
-end
-
-@inline __add!!(x::Number, Δx) = x + Δx
-@inline __add!!(x::SArray, Δx) = x .+ Δx
-@inline __add!!(x::Union{MArray, Array}, Δx) = (x .+= Δx)
-@inline function __add!!(x::AbstractArray, Δx)
-    ArrayInterface.can_setindex(x) && return (x .+= Δx)
-    return x .+ Δx
-end
-
-@inline __add!!(::Number, x, Δx) = x + Δx
-@inline __add!!(::SArray, x, Δx) = x .+ Δx
-@inline __add!!(y::Union{MArray, Array}, x, Δx) = (@. y = x + Δx)
-@inline function __add!!(y::AbstractArray, x, Δx)
-    ArrayInterface.can_setindex(y) && return (@. y = x + Δx)
-    return x .+ Δx
-end
-
-@inline __copy(x::Union{Number, SArray}) = x
-@inline __copy(x::Union{Number, SArray}, _) = x
-@inline __copy(x::Union{MArray, Array}) = copy(x)
-@inline __copy(::Union{MArray, Array}, y) = copy(y)
-@inline function __copy(x::AbstractArray)
-    ArrayInterface.can_setindex(x) && return copy(x)
-    return x
-end
-@inline function __copy(x::AbstractArray, y)
-    ArrayInterface.can_setindex(x) && return copy(y)
-    return x
-end
-
-@inline __mul!!(::Union{Number, SArray}, A, b) = A * b
-@inline __mul!!(y::Union{MArray, Array}, A, b) = (mul!(y, A, b); y)
-@inline function __mul!!(y::AbstractArray, A, b)
-    ArrayInterface.can_setindex(y) && return (mul!(y, A, b); y)
-    return A * b
-end
-
-@inline __neg!!(x::Union{Number, SArray}) = -x
-@inline __neg!!(x::Union{MArray, Array}) = (@. x .*= -one(eltype(x)))
-@inline function __neg!!(x::AbstractArray)
-    ArrayInterface.can_setindex(x) && return (@. x .*= -one(eltype(x)))
-    return -x
-end
-
-@inline __ldiv!!(A, b::Union{Number, SArray}) = A \ b
-@inline __ldiv!!(A, b::Union{MArray, Array}) = (ldiv!(A, b); b)
-@inline function __ldiv!!(A, b::AbstractArray)
-    ArrayInterface.can_setindex(b) && return (ldiv!(A, b); b)
-    return A \ b
-end
-
-@inline __broadcast!!(y::Union{Number, SArray}, f::F, x, args...) where {F} = f.(x, args...)
-@inline function __broadcast!!(y::Union{MArray, Array}, f::F, x, args...) where {F}
-    @. y = f(x, args...)
-    return y
-end
-@inline function __broadcast!!(y::AbstractArray, f::F, x, args...) where {F}
-    ArrayInterface.can_setindex(y) && return (@. y = f(x, args...))
-    return f.(x, args...)
-end
-
-@inline __eval_f(prob, f, fx, x) = isinplace(prob) ? (f(fx, x); fx) : f(x)
+@inline __eval_f(prob, fx, x) = isinplace(prob) ? (prob.f(fx, x, prob.p); fx) :
+                                prob.f(x, prob.p)

@@ -39,17 +39,57 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
             left, right)
     end
 
-    for _ in 1:maxiters
+    i = 1
+    if !iszero(fr)
+        while i < maxiters
+            mid = (left + right) / 2
+            (mid == left || mid == right) &&
+                return build_solution(prob, alg, left, fl; left, right,
+                    retcode = ReturnCode.FloatingPointLimit)
+            fm = f(mid)
+            if abs((right - left) / 2) < abstol
+                return build_solution(prob, alg, mid, fm; retcode = ReturnCode.Success,
+                    left, right)
+            end
+            if iszero(fm)
+                right = mid
+                break
+            end
+            if sign(fl) == sign(fm)
+                fl = fm
+                left = mid
+            else
+                fr = fm
+                right = mid
+            end
+            i += 1
+        end
+    end
+
+    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
+        maxiters = maxiters - i, prob, alg)
+
+    sol !== nothing && return sol
+
+    return build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
+end
+
+function __bisection(left, right, fl, fr, f::F; abstol, maxiters, prob, alg) where {F}
+    i = 1
+    sol = nothing
+    while i < maxiters
         mid = (left + right) / 2
         if (mid == left || mid == right)
-            return build_solution(prob, alg, left, fl; left, right,
+            sol = build_solution(prob, alg, left, fl; left, right,
                 retcode = ReturnCode.FloatingPointLimit)
+            break
         end
 
         fm = f(mid)
         if abs((right - left) / 2) < abstol || abs(fm) < abstol
-            return build_solution(prob, alg, mid, fm; left, right,
+            sol = build_solution(prob, alg, mid, fm; left, right,
                 retcode = ReturnCode.Success)
+            break
         end
 
         if sign(fl * fm) < 0
@@ -57,7 +97,9 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
         else
             left, fl = mid, fm
         end
+
+        i += 1
     end
 
-    return build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
+    return sol, i, left, right, fl, fr
 end

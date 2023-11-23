@@ -54,116 +54,116 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...)
 
-    f = isinplace(prob) ? (du, u) -> prob.f(du, u, prob.p) : u -> prob.f(u, prob.p)
+    # f = isinplace(prob) ? (du, u) -> prob.f(du, u, prob.p) : u -> prob.f(u, prob.p)
 
-    x = float(prob.u0)
-    fx = _get_fx(prob, x)
-    T = eltype(x)
+    # x = float(prob.u0)
+    # fx = _get_fx(prob, x)
+    # T = eltype(x)
 
-    σ_min = T(alg.σ_min)
-    σ_max = T(alg.σ_max)
-    σ_k = T(alg.σ_1)
+    # σ_min = T(alg.σ_min)
+    # σ_max = T(alg.σ_max)
+    # σ_k = T(alg.σ_1)
 
-    M = alg.M
-    γ = T(alg.γ)
-    τ_min = T(alg.τ_min)
-    τ_max = T(alg.τ_max)
-    nexp = alg.nexp
-    η_strategy = alg.η_strategy
+    # M = alg.M
+    # γ = T(alg.γ)
+    # τ_min = T(alg.τ_min)
+    # τ_max = T(alg.τ_max)
+    # nexp = alg.nexp
+    # η_strategy = alg.η_strategy
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
-        termination_condition)
+    # abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    #     termination_condition)
 
-    ff = if isinplace(prob)
-        function (_fx, x)
-            f(_fx, x)
-            f_k = norm(_fx)^nexp
-            return f_k, _fx
-        end
-    else
-        function (x)
-            _fx = f(x)
-            f_k = norm(_fx)^nexp
-            return f_k, _fx
-        end
-    end
+    # ff = if isinplace(prob)
+    #     function (_fx, x)
+    #         f(_fx, x)
+    #         f_k = norm(_fx)^nexp
+    #         return f_k, _fx
+    #     end
+    # else
+    #     function (x)
+    #         _fx = f(x)
+    #         f_k = norm(_fx)^nexp
+    #         return f_k, _fx
+    #     end
+    # end
 
-    generate_history(f_k, M) = fill(f_k, M)
+    # generate_history(f_k, M) = fill(f_k, M)
 
-    f_k, F_k = isinplace(prob) ? ff(fx, x) : ff(x)
-    F_k = __copy(F_k)
-    α_1 = one(T)
-    f_1 = f_k
-    history_f_k = generate_history(f_k, M)
+    # f_k, F_k = isinplace(prob) ? ff(fx, x) : ff(x)
+    # F_k = __copy(F_k)
+    # α_1 = one(T)
+    # f_1 = f_k
+    # history_f_k = generate_history(f_k, M)
 
-    # Generate the cache
-    d, xo, x_cache, δx, δf = __copy(x), __copy(x), __copy(x), __copy(x), __copy(x)
-    α_tp, α_tm = __copy(x), __copy(x)
+    # # Generate the cache
+    # d, xo, x_cache, δx, δf = __copy(x), __copy(x), __copy(x), __copy(x), __copy(x)
+    # α_tp, α_tm = __copy(x), __copy(x)
 
-    for k in 1:maxiters
-        # Spectral parameter range check
-        σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
+    # for k in 1:maxiters
+    #     # Spectral parameter range check
+    #     σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
 
-        # Line search direction
-        d = __broadcast!!(d, *, -σ_k, F_k)
+    #     # Line search direction
+    #     d = __broadcast!!(d, *, -σ_k, F_k)
 
-        η = η_strategy(f_1, k, x, F_k)
-        f̄ = maximum(history_f_k)
-        α_p = α_1
-        α_m = α_1
+    #     η = η_strategy(f_1, k, x, F_k)
+    #     f̄ = maximum(history_f_k)
+    #     α_p = α_1
+    #     α_m = α_1
 
-        x_cache = __broadcast!!(x_cache, *, α_p, d)
-        x = __broadcast!!(x, +, x_cache)
+    #     x_cache = __broadcast!!(x_cache, *, α_p, d)
+    #     x = __broadcast!!(x, +, x_cache)
 
-        f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
+    #     f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
 
-        # FIXME: This part is not correctly implemented
-        while true
-            criteria = f̄ + η - γ * α_p^2 * f_k
-            f_new ≤ criteria && break
+    #     # FIXME: This part is not correctly implemented
+    #     while true
+    #         criteria = f̄ + η - γ * α_p^2 * f_k
+    #         f_new ≤ criteria && break
 
-            if ArrayInterface.can_setindex(α_tp) && !(x isa Number)
-                @. α_tp = α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
-            else
-                α_tp = @. α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
-            end
-            x_cache = __broadcast!!(x_cache, *, α_m, d)
-            x = __broadcast!!(x, -, x_cache)
-            f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
+    #         if ArrayInterface.can_setindex(α_tp) && !(x isa Number)
+    #             @. α_tp = α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
+    #         else
+    #             α_tp = @. α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
+    #         end
+    #         x_cache = __broadcast!!(x_cache, *, α_m, d)
+    #         x = __broadcast!!(x, -, x_cache)
+    #         f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
 
-            f_new ≤ criteria && break
+    #         f_new ≤ criteria && break
 
-            if ArrayInterface.can_setindex(α_tm) && !(x isa Number)
-                @. α_tm = α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
-                @. α_p = clamp(α_tp, τ_min * α_p, τ_max * α_p)
-                @. α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
-            else
-                α_tm = @. α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
-                α_p = @. clamp(α_tp, τ_min * α_p, τ_max * α_p)
-                α_m = @. clamp(α_tm, τ_min * α_m, τ_max * α_m)
-            end
-            x_cache = __broadcast!!(x_cache, *, α_p, d)
-            x = __broadcast!!(x, +, x_cache)
-            f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
-        end
+    #         if ArrayInterface.can_setindex(α_tm) && !(x isa Number)
+    #             @. α_tm = α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
+    #             @. α_p = clamp(α_tp, τ_min * α_p, τ_max * α_p)
+    #             @. α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
+    #         else
+    #             α_tm = @. α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
+    #             α_p = @. clamp(α_tp, τ_min * α_p, τ_max * α_p)
+    #             α_m = @. clamp(α_tm, τ_min * α_m, τ_max * α_m)
+    #         end
+    #         x_cache = __broadcast!!(x_cache, *, α_p, d)
+    #         x = __broadcast!!(x, +, x_cache)
+    #         f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
+    #     end
 
-        tc_sol = check_termination(tc_cache, f_new, x, xo, prob, alg)
-        tc_sol !== nothing && return tc_sol
+    #     tc_sol = check_termination(tc_cache, f_new, x, xo, prob, alg)
+    #     tc_sol !== nothing && return tc_sol
 
-        # Update spectral parameter
-        δx = __broadcast!!(δx, -, x, xo)
-        δf = __broadcast!!(δf, -, F_new, F_k)
+    #     # Update spectral parameter
+    #     δx = __broadcast!!(δx, -, x, xo)
+    #     δf = __broadcast!!(δf, -, F_new, F_k)
 
-        σ_k = dot(δx, δx) / dot(δx, δf)
+    #     σ_k = dot(δx, δx) / dot(δx, δf)
 
-        # Take step
-        xo = __copyto!!(xo, x)
-        F_k = __copyto!!(F_k, F_new)
-        f_k = f_new
+    #     # Take step
+    #     xo = __copyto!!(xo, x)
+    #     F_k = __copyto!!(F_k, F_new)
+    #     f_k = f_new
 
-        # Store function value
-        history_f_k[k % M + 1] = f_new
-    end
+    #     # Store function value
+    #     history_f_k[k % M + 1] = f_new
+    # end
 
-    return build_solution(prob, alg, x, F_k; retcode = ReturnCode.MaxIters)
+    # return build_solution(prob, alg, x, F_k; retcode = ReturnCode.MaxIters)
 end

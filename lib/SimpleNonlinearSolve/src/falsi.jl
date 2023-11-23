@@ -1,7 +1,7 @@
 """
     Falsi()
 
-A non-allocating regula falsi method
+A non-allocating regula falsi method.
 """
 struct Falsi <: AbstractBracketingAlgorithm end
 
@@ -26,59 +26,44 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
     end
 
     # Regula Falsi Steps
-    i = 1
-    while i < maxiters
-        if __nextfloat_tdir(left, prob.tspan...) == right
-            return build_solution(prob, alg, left, fl; left, right,
-                retcode = ReturnCode.FloatingPointLimit)
-        end
+    i = 0
+    if !iszero(fr)
+        while i < maxiters
+            if __nextfloat_tdir(left, prob.tspan...) == right
+                return build_solution(prob, alg, left, fl; left, right,
+                    retcode = ReturnCode.FloatingPointLimit)
+            end
 
-        mid = (fr * left - fl * right) / (fr - fl)
-        for _ in 1:10
-            mid = __max_tdir(left, __prevfloat_tdir(mid, prob.tspan...), prob.tspan...)
-        end
+            mid = (fr * left - fl * right) / (fr - fl)
+            for _ in 1:10
+                mid = __max_tdir(left, __prevfloat_tdir(mid, prob.tspan...), prob.tspan...)
+            end
 
-        (mid == left || mid == right) && break
+            (mid == left || mid == right) && break
 
-        fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            return build_solution(prob, alg, mid, fm; left, right,
-                retcode = ReturnCode.Success)
-        end
+            fm = f(mid)
+            if abs((right - left) / 2) < abstol
+                return build_solution(prob, alg, mid, fm; left, right,
+                    retcode = ReturnCode.Success)
+            end
 
-        if abs(fm) < abstol
-            right = mid
-            break
-        end
+            if abs(fm) < abstol
+                right = mid
+                break
+            end
 
-        if sign(fl) == sign(fm)
-            fl, left = fm, mid
-        else
-            fr, right = fm, mid
+            if sign(fl) == sign(fm)
+                fl, left = fm, mid
+            else
+                fr, right = fm, mid
+            end
+            i += 1
         end
-        i += 1
     end
 
-    while i < maxiters
-        mid = (left + right) / 2
-        if (mid == left || mid == right)
-            return build_solution(prob, alg, left, fl; left, right,
-                retcode = ReturnCode.FloatingPointLimit)
-        end
-
-        fm = f(mid)
-        if abs((right - left) / 2) < abstol || abs(fm) < abstol
-            return build_solution(prob, alg, mid, fm; left, right,
-                retcode = ReturnCode.Success)
-        end
-
-        if sign(fl * fm) < 0
-            right, fr = mid, fm
-        else
-            left, fl = mid, fm
-        end
-        i += 1
-    end
+    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
+        maxiters = maxiters - i, prob, alg)
+    sol !== nothing && return sol
 
     return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
         left, right)

@@ -9,7 +9,7 @@ and static array problems.
 
     As part of the decreased overhead, this method omits some of the higher level error
     catching of the other methods. Thus, to see better error messages, use one of the other
-    methods like `NewtonRaphson`
+    methods like `NewtonRaphson`.
 
 ### Keyword Arguments
 
@@ -27,9 +27,9 @@ const SimpleGaussNewton = SimpleNewtonRaphson
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...; abstol = nothing, reltol = nothing,
         maxiters = 1000, termination_condition = nothing, kwargs...)
-    x = float(prob.u0)
+    @bb x = copy(float(prob.u0))
     fx = _get_fx(prob, x)
-    xo = __copy(x)
+    @bb xo = copy(x)
     J, jac_cache = jacobian_cache(alg.ad, prob.f, fx, x, prob.p)
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
@@ -48,9 +48,9 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
             tc_sol !== nothing && return tc_sol
         end
 
-        xo = __copyto!!(xo, x)
+        @bb copyto!(xo, x)
         Δx = _restructure(x, dfx \ _vec(fx))
-        x = __sub!!(x, Δx)
+        @bb x .-= Δx
     end
 
     return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
