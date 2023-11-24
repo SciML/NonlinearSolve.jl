@@ -2,7 +2,7 @@
 
 julia_version = "1.9.4"
 manifest_format = "2.0"
-project_hash = "1887df1ef21a133f9f1f8bd6a9ca9adda3fbb8bb"
+project_hash = "5a045f76afd1492f94c6085e0e408e053284168e"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "332e5d7baeff8497b923b730b994fa480601efc7"
@@ -1370,10 +1370,10 @@ weakdeps = ["ChainRulesCore", "InverseFunctions"]
     StatsFunsInverseFunctionsExt = "InverseFunctions"
 
 [[deps.SteadyStateDiffEq]]
-deps = ["DiffEqBase", "DiffEqCallbacks", "LinearAlgebra", "NLsolve", "Reexport", "SciMLBase"]
-git-tree-sha1 = "2ca69f4be3294e4cd987d83d6019037d420d9fc1"
+deps = ["ConcreteStructs", "DiffEqBase", "DiffEqCallbacks", "LinearAlgebra", "Reexport", "SciMLBase"]
+git-tree-sha1 = "a735fd5053724cf4de31c81b4e2cc429db844be5"
 uuid = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
-version = "1.16.1"
+version = "2.0.1"
 
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface", "ThreadingUtilities"]
