@@ -161,13 +161,11 @@ function __init_identity_jacobian!!(J)
 end
 function __init_identity_jacobian(u::StaticArray, fu)
     S1, S2 = length(fu), length(u)
-    J = SMatrix{S1, S2, eltype(u)}(ntuple(i -> ifelse(i ∈ 1:(S1 + 1):(S1 * S2), 1, 0),
-        S1 * S2))
+    J = SMatrix{S1, S2, eltype(u)}(I)
     return J
 end
 function __init_identity_jacobian!!(J::StaticArray{S1, S2}) where {S1, S2}
-    return SMMatrix{S1, S2, eltype(J)}(ntuple(i -> ifelse(i ∈ 1:(S1 + 1):(S1 * S2), 1, 0),
-        S1 * S2))
+    return SMMatrix{S1, S2, eltype(J)}(I)
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},

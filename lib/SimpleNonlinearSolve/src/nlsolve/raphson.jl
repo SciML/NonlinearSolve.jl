@@ -47,8 +47,8 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
         end
 
         @bb copyto!(xo, x)
-        Δx = _restructure(x, dfx \ _vec(fx))
-        @bb x .-= Δx
+        δx = _restructure(x, dfx \ _vec(fx))
+        @bb x .-= δx
     end
 
     return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
