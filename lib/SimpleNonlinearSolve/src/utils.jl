@@ -170,6 +170,20 @@ function __init_identity_jacobian!!(J::StaticArray{S1, S2}) where {S1, S2}
         S1 * S2))
 end
 
+function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
+        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
+    T = promote_type(T1, T2)
+    fuSize, uSize = Size(fu), Size(u)
+    Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
+    U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
+    return U, Vᵀ
+end
+function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
+    Vᵀ = similar(u, threshold, length(u))
+    U = similar(u, length(fu), threshold)
+    return U, Vᵀ
+end
+
 @inline _vec(v) = vec(v)
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v
@@ -200,10 +214,17 @@ end
 
 # Termination Conditions Support
 # Taken directly from NonlinearSolve.jl
+# The default here is different from NonlinearSolve since the userbases are assumed to be
+# different. NonlinearSolve is more for robust / cached solvers while SimpleNonlinearSolve
+# is meant for low overhead solvers, users can opt into the other termination modes but the
+# default is to use the least overhead version.
 function init_termination_cache(abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(abstol, reltol, du, u, AbsSafeBestTerminationMode())
+    return init_termination_cache(abstol, reltol, du, u, AbsNormTerminationMode())
 end
 function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
+    T = promote_type(eltype(du), eltype(u))
+    abstol !== nothing && (abstol = T(abstol))
+    reltol !== nothing && (reltol = T(reltol))
     tc_cache = init(du, u, tc; abstol, reltol)
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
@@ -256,6 +277,10 @@ function check_termination(tc_cache, fx, x, xo, prob, alg,
     end
     return nothing
 end
+
+@inline value(x) = x
+@inline value(x::Dual) = ForwardDiff.value(x)
+@inline value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
 
 @inline __eval_f(prob, fx, x) = isinplace(prob) ? (prob.f(fx, x, prob.p); fx) :
                                 prob.f(x, prob.p)

@@ -13,7 +13,7 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
-    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray
+    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, MMatrix, Size
 end
 
 @reexport using ADTypes, SciMLBase
@@ -24,16 +24,16 @@ abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm e
 
 include("utils.jl")
 
-# Nonlinear Solvera
+## Nonlinear Solvers
 include("nlsolve/raphson.jl")
 include("nlsolve/broyden.jl")
-# include("nlsolve/lbroyden.jl")
+include("nlsolve/lbroyden.jl")
 include("nlsolve/klement.jl")
 include("nlsolve/trustRegion.jl")
 # include("nlsolve/halley.jl")
 # include("nlsolve/dfsane.jl")
 
-# Interval Nonlinear Solvers
+## Interval Nonlinear Solvers
 include("bracketing/bisection.jl")
 include("bracketing/falsi.jl")
 include("bracketing/ridder.jl")
@@ -42,7 +42,7 @@ include("bracketing/alefeld.jl")
 include("bracketing/itp.jl")
 
 # AD
-# include("ad.jl")
+include("ad.jl")
 
 ## Default algorithm
 
@@ -58,34 +58,22 @@ end
 
 @setup_workload begin
     for T in (Float32, Float64)
-        prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+        prob_no_brack_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+        prob_no_brack_iip = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p,
+            T.([1.0, 1.0, 1.0]), T(2))
+        prob_no_brack_oop = NonlinearProblem{false}((u, p) -> u .* u .- p,
+            T.([1.0, 1.0, 1.0]), T(2))
+
         algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(),
-            SimpleTrustRegion()]
+            SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2)]
 
         @compile_workload begin
             for alg in algs
-                solve(prob_no_brack, alg, abstol = T(1e-2))
+                solve(prob_no_brack_scalar, alg, abstol = T(1e-2))
+                solve(prob_no_brack_iip, alg, abstol = T(1e-2))
+                solve(prob_no_brack_oop, alg, abstol = T(1e-2))
             end
         end
-
-        prob_no_brack = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p,
-            T.([1.0, 1.0]), T(2))
-
-        @compile_workload begin
-            for alg in algs
-                solve(prob_no_brack, alg, abstol = T(1e-2))
-            end
-        end
-
-        #=
-        for alg in (SimpleNewtonRaphson,)
-            for u0 in ([1., 1.], StaticArraysCore.SA[1.0, 1.0])
-                u0 = T.(.1)
-                probN = NonlinearProblem{false}((u,p) -> u .* u .- p, u0, T(2))
-                solve(probN, alg(), tol = T(1e-2))
-            end
-        end
-        =#
 
         prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
             T.((0.0, 2.0)), T(2))
@@ -98,9 +86,9 @@ end
     end
 end
 
-export SimpleBroyden,
-    SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson, SimpleTrustRegion
-# SimpleDFSane, SimpleHalley, LBroyden
+export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleLimitedMemoryBroyden,
+    SimpleNewtonRaphson, SimpleTrustRegion
+# SimpleDFSane, SimpleHalley
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module

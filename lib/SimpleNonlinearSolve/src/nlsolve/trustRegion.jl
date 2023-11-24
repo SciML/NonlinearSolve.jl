@@ -1,9 +1,8 @@
 """
     SimpleTrustRegion(; autodiff = AutoForwardDiff(), max_trust_radius::Real = 0.0,
-                        initial_trust_radius::Real = 0.0, step_threshold::Real = 0.1,
-                        shrink_threshold::Real = 0.25, expand_threshold::Real = 0.75,
-                        shrink_factor::Real = 0.25, expand_factor::Real = 2.0,
-                        max_shrink_times::Int = 32)
+        initial_trust_radius::Real = 0.0, step_threshold::Real = 0.1,
+        shrink_threshold::Real = 0.25, expand_threshold::Real = 0.75,
+        shrink_factor::Real = 0.25, expand_factor::Real = 2.0, max_shrink_times::Int = 32)
 
 A low-overhead implementation of a trust-region solver. This method is non-allocating on
 scalar and static array problems.
@@ -105,7 +104,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
-                    retcode = ReturnCode.ConvergenceFailure)
+                retcode = ReturnCode.ConvergenceFailure)
         else
             shrink_counter = 0
         end

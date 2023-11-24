@@ -1,7 +1,7 @@
 function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     f = prob.f
     p = value(prob.p)
-
+    u0 = value(prob.u0)
     if prob isa IntervalNonlinearProblem
         tspan = value(prob.tspan)
         newprob = IntervalNonlinearProblem(f, tspan, p; prob.kwargs...)
@@ -13,66 +13,57 @@ function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     sol = solve(newprob, alg, args...; kwargs...)
 
     uu = sol.u
-    if p isa Number
-        f_p = ForwardDiff.derivative(Base.Fix1(f, uu), p)
+    f_p = scalar_nlsolve_∂f_∂p(f, uu, p)
+    f_x = scalar_nlsolve_∂f_∂u(f, uu, p)
+
+    z_arr = -inv(f_x) * f_p
+
+    pp = prob.p
+    sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
+    if uu isa Number
+        partials = sum(sumfun, zip(z_arr, pp))
+    elseif p isa Number
+        partials = sumfun((z_arr, pp))
     else
-        f_p = ForwardDiff.gradient(Base.Fix1(f, uu), p)
+        partials = sum(sumfun, zip(eachcol(z_arr), pp))
     end
 
-    f_x = ForwardDiff.derivative(Base.Fix2(f, p), uu)
-    pp = prob.p
-    sumfun = let f_x′ = -f_x
-        ((fp, p),) -> (fp / f_x′) * ForwardDiff.partials(p)
-    end
-    partials = sum(sumfun, zip(f_p, pp))
     return sol, partials
 end
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-            iip,
-            <:Dual{T, V, P}},
-        alg::AbstractSimpleNonlinearSolveAlgorithm,
-        args...; kwargs...) where {iip, T, V, P}
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:AbstractArray},
+            false, <:Dual{T, V, P}}, alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
+        kwargs...) where {T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
-        retcode = sol.retcode)
+    dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode)
 end
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, StaticArraysCore.SVector},
-            iip,
-            <:AbstractArray{<:Dual{T, V, P}}},
-        alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
-        kwargs...) where {iip, T, V, P}
+
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:AbstractArray},
+            false, <:AbstractArray{<:Dual{T, V, P}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...) where {T, V, P}
     sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-    return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials), sol.resid;
-        retcode = sol.retcode)
+    dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode)
 end
 
 # avoid ambiguities
 for Alg in [Bisection]
     @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
-                <:Dual{T, V, P}},
-            alg::$Alg, args...;
-            kwargs...) where {uType, iip, T, V, P}
+                <:Dual{T, V, P}}, alg::$Alg, args...; kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-        return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials),
-            sol.resid; retcode = sol.retcode,
+        dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
+        return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode,
             left = Dual{T, V, P}(sol.left, partials),
             right = Dual{T, V, P}(sol.right, partials))
-        #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
     end
     @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
-                <:AbstractArray{
-                    <:Dual{T,
-                        V,
-                        P},
-                }},
-            alg::$Alg, args...;
+                <:AbstractArray{<:Dual{T, V, P}}}, alg::$Alg, args...;
             kwargs...) where {uType, iip, T, V, P}
         sol, partials = scalar_nlsolve_ad(prob, alg, args...; kwargs...)
-        return SciMLBase.build_solution(prob, alg, Dual{T, V, P}(sol.u, partials),
-            sol.resid; retcode = sol.retcode,
+        dual_soln = scalar_nlsolve_dual_soln(sol.u, partials, prob.p)
+        return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode,
             left = Dual{T, V, P}(sol.left, partials),
             right = Dual{T, V, P}(sol.right, partials))
-        #return BracketingSolution(Dual{T,V,P}(sol.left, partials), Dual{T,V,P}(sol.right, partials), sol.retcode, sol.resid)
     end
 end

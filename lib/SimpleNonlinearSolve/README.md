@@ -50,3 +50,5 @@ For more details on the bracketing methods, refer to the [Tutorials](https://doc
   - `Broyden` and `Klement` have been renamed to `SimpleBroyden` and `SimpleKlement` to
     avoid conflicts with `NonlinearSolve.jl`'s `GeneralBroyden` and `GeneralKlement`, which
     will be renamed to `Broyden` and `Klement` in the future.
+  - `LBroyden` has been renamed to `SimpleLimitedMemoryBroyden` to make it consistent with
+    `NonlinearSolve.jl`'s `LimitedMemoryBroyden`.
