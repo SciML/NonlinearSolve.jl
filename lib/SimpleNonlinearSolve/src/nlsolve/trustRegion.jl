@@ -1,27 +1,17 @@
 """
-    SimpleTrustRegion(; chunk_size = Val{0}(), autodiff = Val{true}(),
-                        diff_type = Val{:forward}, max_trust_radius::Real = 0.0,
+    SimpleTrustRegion(; autodiff = AutoForwardDiff(), max_trust_radius::Real = 0.0,
                         initial_trust_radius::Real = 0.0, step_threshold::Real = 0.1,
                         shrink_threshold::Real = 0.25, expand_threshold::Real = 0.75,
                         shrink_factor::Real = 0.25, expand_factor::Real = 2.0,
                         max_shrink_times::Int = 32)
 
-A low-overhead implementation of a trust-region solver.
+A low-overhead implementation of a trust-region solver. This method is non-allocating on
+scalar and static array problems.
 
 ### Keyword Arguments
 
-  - `chunk_size`: the chunk size used by the internal ForwardDiff.jl automatic differentiation
-    system. This allows for multiple derivative columns to be computed simultaneously,
-    improving performance. Defaults to `0`, which is equivalent to using ForwardDiff.jl's
-    default chunk size mechanism. For more details, see the documentation for
-    [ForwardDiff.jl](https://juliadiff.org/ForwardDiff.jl/stable/).
-  - `autodiff`: whether to use forward-mode automatic differentiation for the Jacobian.
-    Note that this argument is ignored if an analytical Jacobian is passed; as that will be
-    used instead. Defaults to `Val{true}`, which means ForwardDiff.jl is used by default.
-    If `Val{false}`, then FiniteDiff.jl is used for finite differencing.
-  - `diff_type`: the type of finite differencing used if `autodiff = false`. Defaults to
-    `Val{:forward}` for forward finite differences. For more details on the choices, see the
-    [FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) documentation.
+  - `autodiff`: determines the backend used for the Jacobian. Defaults to
+    `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
   - `max_trust_radius`: the maximum radius of the trust region. Defaults to
     `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
@@ -47,143 +37,126 @@ A low-overhead implementation of a trust-region solver.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
 """
-struct SimpleTrustRegion{T, CS, AD, FDT} <: AbstractNewtonAlgorithm{CS, AD, FDT}
-    max_trust_radius::T
-    initial_trust_radius::T
-    step_threshold::T
-    shrink_threshold::T
-    expand_threshold::T
-    shrink_factor::T
-    expand_factor::T
-    max_shrink_times::Int
-    function SimpleTrustRegion(; chunk_size = Val{0}(),
-            autodiff = Val{true}(),
-            diff_type = Val{:forward},
-            max_trust_radius::Real = 0.0,
-            initial_trust_radius::Real = 0.0,
-            step_threshold::Real = 0.0001,
-            shrink_threshold::Real = 0.25,
-            expand_threshold::Real = 0.75,
-            shrink_factor::Real = 0.25,
-            expand_factor::Real = 2.0,
-            max_shrink_times::Int = 32)
-        new{typeof(initial_trust_radius),
-            SciMLBase._unwrap_val(chunk_size),
-            SciMLBase._unwrap_val(autodiff),
-            SciMLBase._unwrap_val(diff_type)}(max_trust_radius,
-            initial_trust_radius,
-            step_threshold,
-            shrink_threshold,
-            expand_threshold,
-            shrink_factor,
-            expand_factor,
-            max_shrink_times)
-    end
+@kwdef @concrete struct SimpleTrustRegion <: AbstractNewtonAlgorithm
+    autodiff = AutoForwardDiff()
+    max_trust_radius = 0.0
+    initial_trust_radius = 0.0
+    step_threshold = 0.0001
+    shrink_threshold = 0.25
+    expand_threshold = 0.75
+    shrink_factor = 0.25
+    expand_factor = 2.0
+    max_shrink_times::Int = 32
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem,
-        alg::SimpleTrustRegion, args...; abstol = nothing,
-        reltol = nothing,
-        maxiters = 1000, kwargs...)
-    f = Base.Fix2(prob.f, prob.p)
-    x = float(prob.u0)
-    T = typeof(x)
-    Δₘₐₓ = float(alg.max_trust_radius)
-    Δ = float(alg.initial_trust_radius)
-    η₁ = float(alg.step_threshold)
-    η₂ = float(alg.shrink_threshold)
-    η₃ = float(alg.expand_threshold)
-    t₁ = float(alg.shrink_factor)
-    t₂ = float(alg.expand_factor)
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args...;
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        termination_condition = nothing, kwargs...)
+    @bb x = copy(float(prob.u0))
+    T = eltype(real(x))
+    Δₘₐₓ = T(alg.max_trust_radius)
+    Δ = T(alg.initial_trust_radius)
+    η₁ = T(alg.step_threshold)
+    η₂ = T(alg.shrink_threshold)
+    η₃ = T(alg.expand_threshold)
+    t₁ = T(alg.shrink_factor)
+    t₂ = T(alg.expand_factor)
     max_shrink_times = alg.max_shrink_times
 
-    if SciMLBase.isinplace(prob)
-        error("SimpleTrustRegion currently only supports out-of-place nonlinear problems")
-    end
+    fx = _get_fx(prob, x)
+    @bb xo = copy(x)
+    J, jac_cache = jacobian_cache(alg.autodiff, prob.f, fx, x, prob.p)
+    fx, ∇f = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
-    atol = abstol !== nothing ? abstol :
-           real(oneunit(eltype(T))) * (eps(real(one(eltype(T)))))^(4 // 5)
-    rtol = reltol !== nothing ? reltol : eps(real(one(eltype(T))))^(4 // 5)
-
-    if DiffEqBase.has_jac(prob.f)
-        ∇f = prob.f.jac(x, prob.p)
-        F = f(x)
-    elseif alg_autodiff(alg)
-        F, ∇f = value_derivative(f, x)
-    elseif x isa AbstractArray
-        F = f(x)
-        ∇f = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x), F)
-    else
-        F = f(x)
-        ∇f = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg), eltype(x), F)
-    end
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+        termination_condition)
 
     # Set default trust region radius if not specified by user.
-    if Δₘₐₓ == 0.0
-        Δₘₐₓ = max(norm(F), maximum(x) - minimum(x))
-    end
-    if Δ == 0.0
-        Δ = Δₘₐₓ / 11
-    end
+    Δₘₐₓ == 0 && (Δₘₐₓ = max(norm(fx), maximum(x) - minimum(x)))
+    Δ == 0 && (Δ = Δₘₐₓ / 11)
 
-    fₖ = 0.5 * norm(F)^2
+    fₖ = 0.5 * norm(fx)^2
     H = ∇f' * ∇f
-    g = ∇f' * F
+    g = ∇f' * fx
     shrink_counter = 0
 
+    @bb δsd = copy(x)
+    @bb δN_δsd = copy(x)
+    @bb δN = copy(x)
+    @bb Hδ = copy(x)
+    dogleg_cache = (; δsd, δN_δsd, δN)
+
+    F = fx
     for k in 1:maxiters
         # Solve the trust region subproblem.
-        δ = dogleg_method(∇f, F, g, Δ)
-        xₖ₊₁ = x + δ
-        Fₖ₊₁ = f(xₖ₊₁)
-        fₖ₊₁ = 0.5 * norm(Fₖ₊₁)^2
+        δ = dogleg_method!!(dogleg_cache, ∇f, fx, g, Δ)
+        @bb @. x = xo + δ
+
+        fx = __eval_f(prob, fx, x)
+
+        fₖ₊₁ = norm(fx)^2 / T(2)
 
         # Compute the ratio of the actual to predicted reduction.
-        model = -(δ' * g + 0.5 * δ' * H * δ)
-        r = (fₖ - fₖ₊₁) / model
+        @bb Hδ = H × δ
+        r = (fₖ₊₁ - fₖ) / (dot(δ', g) + dot(δ', Hδ) / T(2))
 
         # Update the trust region radius.
         if r < η₂
             Δ = t₁ * Δ
             shrink_counter += 1
-            if shrink_counter > max_shrink_times
-                return SciMLBase.build_solution(prob, alg, x, F;
-                    retcode = ReturnCode.Success)
-            end
+            shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
+                    retcode = ReturnCode.ConvergenceFailure)
         else
             shrink_counter = 0
         end
-        if r > η₁
-            if isapprox(xₖ₊₁, x, atol = atol, rtol = rtol)
-                return SciMLBase.build_solution(prob, alg, xₖ₊₁, Fₖ₊₁;
-                    retcode = ReturnCode.Success)
-            end
-            # Take the step.
-            x = xₖ₊₁
-            F = Fₖ₊₁
-            if alg_autodiff(alg)
-                F, ∇f = value_derivative(f, x)
-            elseif x isa AbstractArray
-                ∇f = FiniteDiff.finite_difference_jacobian(f, x, diff_type(alg), eltype(x),
-                    F)
-            else
-                ∇f = FiniteDiff.finite_difference_derivative(f, x, diff_type(alg),
-                    eltype(x),
-                    F)
-            end
 
-            iszero(F) &&
-                return SciMLBase.build_solution(prob, alg, x, F;
-                    retcode = ReturnCode.Success)
+        if r > η₁
+            # Termination Checks
+            tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
+            tc_sol !== nothing && return tc_sol
+
+            # Take the step.
+            @bb @. xo = x
+
+            fx, ∇f = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
             # Update the trust region radius.
-            if r > η₃ && norm(δ) ≈ Δ
-                Δ = min(t₂ * Δ, Δₘₐₓ)
-            end
+            (r > η₃) && (norm(δ) ≈ Δ) && (Δ = min(t₂ * Δ, Δₘₐₓ))
             fₖ = fₖ₊₁
-            H = ∇f' * ∇f
-            g = ∇f' * F
+
+            @bb H = transpose(∇f) × ∇f
+            @bb g = transpose(∇f) × fx
         end
     end
-    return SciMLBase.build_solution(prob, alg, x, F; retcode = ReturnCode.MaxIters)
+
+    return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+end
+
+function dogleg_method!!(cache, J, f, g, Δ)
+    (; δsd, δN_δsd, δN) = cache
+
+    # Compute the Newton step.
+    @bb δN .= J \ f
+    @bb δN .*= -1
+    # Test if the full step is within the trust region.
+    (norm(δN) ≤ Δ) && return δN
+
+    # Calcualte Cauchy point, optimum along the steepest descent direction.
+    @bb δsd .= g
+    @bb @. δsd *= -1
+    norm_δsd = norm(δsd)
+    if (norm_δsd ≥ Δ)
+        @bb @. δsd *= Δ / norm_δsd
+        return δsd
+    end
+
+    # Find the intersection point on the boundary.
+    @bb @. δN_δsd = δN - δsd
+    dot_δN_δsd = dot(δN_δsd, δN_δsd)
+    dot_δsd_δN_δsd = dot(δsd, δN_δsd)
+    dot_δsd = dot(δsd, δsd)
+    fact = dot_δsd_δN_δsd^2 - dot_δN_δsd * (dot_δsd - Δ^2)
+    tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
+    @bb @. δsd += tau * δN_δsd
+    return δsd
 end

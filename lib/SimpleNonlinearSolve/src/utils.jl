@@ -170,31 +170,6 @@ function __init_identity_jacobian!!(J::StaticArray{S1, S2}) where {S1, S2}
         S1 * S2))
 end
 
-# function dogleg_method(J, f, g, Δ)
-#     # Compute the Newton step.
-#     δN = J \ (-f)
-#     # Test if the full step is within the trust region.
-#     if norm(δN) ≤ Δ
-#         return δN
-#     end
-
-#     # Calcualte Cauchy point, optimum along the steepest descent direction.
-#     δsd = -g
-#     norm_δsd = norm(δsd)
-#     if norm_δsd ≥ Δ
-#         return δsd .* Δ / norm_δsd
-#     end
-
-#     # Find the intersection point on the boundary.
-#     δN_δsd = δN - δsd
-#     dot_δN_δsd = dot(δN_δsd, δN_δsd)
-#     dot_δsd_δN_δsd = dot(δsd, δN_δsd)
-#     dot_δsd = dot(δsd, δsd)
-#     fact = dot_δsd_δN_δsd^2 - dot_δN_δsd * (dot_δsd - Δ^2)
-#     tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
-#     return δsd + tau * δN_δsd
-# end
-
 @inline _vec(v) = vec(v)
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v

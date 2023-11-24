@@ -29,7 +29,7 @@ include("nlsolve/raphson.jl")
 include("nlsolve/broyden.jl")
 # include("nlsolve/lbroyden.jl")
 include("nlsolve/klement.jl")
-# include("nlsolve/trustRegion.jl")
+include("nlsolve/trustRegion.jl")
 # include("nlsolve/halley.jl")
 # include("nlsolve/dfsane.jl")
 
@@ -59,7 +59,8 @@ end
 @setup_workload begin
     for T in (Float32, Float64)
         prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-        algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement()]
+        algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(),
+            SimpleTrustRegion()]
 
         @compile_workload begin
             for alg in algs
@@ -97,8 +98,9 @@ end
     end
 end
 
-export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson
-# SimpleDFSane, SimpleTrustRegion, SimpleHalley, LBroyden
+export SimpleBroyden,
+    SimpleGaussNewton, SimpleKlement, SimpleNewtonRaphson, SimpleTrustRegion
+# SimpleDFSane, SimpleHalley, LBroyden
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module
