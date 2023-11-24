@@ -54,7 +54,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
         end
 
         @bb copyto!(δx, fprev)
-        δx = __ldiv!!(F_, δx)
+        if setindex_trait(δx) === CanSetindex()
+            ldiv!(F_, δx)
+        else
+            δx = F_ \ δx
+        end
         @bb @. x = xo - δx
         fx = __eval_f(prob, fx, x)
 
@@ -74,7 +78,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
         @bb δx² = J × vec(δx)
         @bb @. δf = (δf - δx²) / d
 
-        _vδf, _vδx = vec(δf), vec(δx)
+        _vδf, _vδx = _vec(δf), _vec(δx)
         @bb J_cache = _vδf × transpose(_vδx)
         @bb @. J_cache *= J
         @bb J_cache2 = J_cache × J

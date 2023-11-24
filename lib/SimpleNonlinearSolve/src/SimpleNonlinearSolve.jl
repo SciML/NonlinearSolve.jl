@@ -4,28 +4,25 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
 
 @recompile_invalidations begin
     using ADTypes,
-        ArrayInterface, ConcreteStructs, DiffEqBase, Reexport, LinearAlgebra,
-        SciMLBase
+        ArrayInterface, ConcreteStructs, DiffEqBase, Reexport, LinearAlgebra, SciMLBase
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode
     using FiniteDiff, ForwardDiff
     import ForwardDiff: Dual
+    import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
     import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray
 end
 
 @reexport using ADTypes, SciMLBase
 
-# const NNlibExtLoaded = Ref{Bool}(false)
-
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 
 include("utils.jl")
-include("rewrite_inplace.jl")
 
 # Nonlinear Solvera
 include("nlsolve/raphson.jl")
@@ -50,7 +47,6 @@ include("bracketing/itp.jl")
 ## Default algorithm
 
 # Set the default bracketing method to ITP
-
 function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
     return solve(prob, ITP(); kwargs...)
 end
@@ -59,8 +55,6 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
         args...; kwargs...)
     return solve(prob, ITP(), args...; kwargs...)
 end
-
-# import PrecompileTools
 
 @setup_workload begin
     for T in (Float32, Float64)
