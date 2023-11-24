@@ -58,21 +58,33 @@ end
 
 @setup_workload begin
     for T in (Float32, Float64)
-        # prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-        #         for alg in (SimpleNewtonRaphson, SimpleHalley, Broyden, Klement, SimpleTrustRegion,
-        #             SimpleDFSane)
-        #             solve(prob_no_brack, alg(), abstol = T(1e-2))
-        #         end
+        prob_no_brack = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+        algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement()]
 
-        #         #=
-        #         for alg in (SimpleNewtonRaphson,)
-        #             for u0 in ([1., 1.], StaticArraysCore.SA[1.0, 1.0])
-        #                 u0 = T.(.1)
-        #                 probN = NonlinearProblem{false}((u,p) -> u .* u .- p, u0, T(2))
-        #                 solve(probN, alg(), tol = T(1e-2))
-        #             end
-        #         end
-        #         =#
+        @compile_workload begin
+            for alg in algs
+                solve(prob_no_brack, alg, abstol = T(1e-2))
+            end
+        end
+
+        prob_no_brack = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p,
+            T.([1.0, 1.0]), T(2))
+
+        @compile_workload begin
+            for alg in algs
+                solve(prob_no_brack, alg, abstol = T(1e-2))
+            end
+        end
+
+        #=
+        for alg in (SimpleNewtonRaphson,)
+            for u0 in ([1., 1.], StaticArraysCore.SA[1.0, 1.0])
+                u0 = T.(.1)
+                probN = NonlinearProblem{false}((u,p) -> u .* u .- p, u0, T(2))
+                solve(probN, alg(), tol = T(1e-2))
+            end
+        end
+        =#
 
         prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
             T.((0.0, 2.0)), T(2))
