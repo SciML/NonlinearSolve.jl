@@ -160,6 +160,7 @@ end
     stats::NLStats
     tc_cache_1
     tc_cache_2
+    trace
 end
 
 function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
@@ -220,6 +221,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         tc_cache_2 = nothing
     end
 
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
+
     if _unwrap_val(linsolve_with_JᵀJ)
         mat_tmp = zero(JᵀJ)
         rhs_tmp = nothing
@@ -237,7 +240,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         ReturnCode.Default, abstol, reltol, prob, DᵀD, JᵀJ, λ, λ_factor,
         damping_increase_factor, damping_decrease_factor, h, α_geodesic, b_uphill,
         min_damping_D, v, a, tmp_vec, v_old, loss, δ, loss, make_new_J, fu_tmp, zero(u),
-        zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2)
+        zero(fu1), mat_tmp, rhs_tmp, J², NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2,
+        trace)
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fastls}
@@ -275,6 +279,9 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         cache.linsolve = linres.cache
         _vec(cache.v) .= -_vec(cache.du)
     end
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
+        cache.v)
 
     # Geodesic acceleration (step_size = v + a / 2).
     @unpack v, α_geodesic, h = cache
@@ -372,6 +379,9 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
             cache.v .*= -1
         end
     end
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
+        cache.v)
 
     @unpack v, h, α_geodesic = cache
     # Geodesic acceleration (step_size = v + a / 2).

@@ -90,6 +90,7 @@ end
     prob
     stats::NLStats
     tc_cache
+    trace
 end
 
 get_fu(cache::DFSaneCache) = cache.fu
@@ -113,11 +114,12 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, uprev,
         termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
     return DFSaneCache{iip}(alg, u, uprev, fu, fuprev, du, history, f_norm, f_norm_0, alg.M,
         T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), one(T), T(alg.γ), T(alg.τ_min),
         T(alg.τ_max), alg.n_exp, prob.p, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache)
+        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
 function perform_step!(cache::DFSaneCache{true})
@@ -163,6 +165,9 @@ function perform_step!(cache::DFSaneCache{true})
         prob.f(cache.fu, cache.u, cache.p)
         f_norm = cache.internalnorm(cache.fu)^n_exp
     end
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), nothing,
+        cache.du, α₊)
 
     check_and_update!(cache, cache.fu, cache.u, cache.uprev)
 
@@ -236,6 +241,9 @@ function perform_step!(cache::DFSaneCache{false})
         f_norm = cache.internalnorm(cache.fu)^n_exp
     end
 
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), nothing,
+        cache.du, α₊)
+
     check_and_update!(cache, cache.fu, cache.u, cache.uprev)
 
     # Update spectral parameter
@@ -288,6 +296,7 @@ function SciMLBase.reinit!(cache::DFSaneCache{iip}, u0 = cache.u; p = cache.p,
     T = eltype(cache.u)
     cache.σ_n = T(cache.alg.σ_1)
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 

@@ -28,13 +28,13 @@ const TERMINATION_CONDITIONS = [
 # --- NewtonRaphson tests ---
 
 @testset "NewtonRaphson" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, NewtonRaphson(; linesearch), abstol = 1e-9)
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-            linesearch = LineSearch())
+            linesearch = nothing)
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, NewtonRaphson(; linsolve, precs, linesearch), abstol = 1e-9)
     end
@@ -692,12 +692,12 @@ end
 # --- GeneralBroyden tests ---
 
 @testset "GeneralBroyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, GeneralBroyden(; linesearch), abstol = 1e-9)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing)
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, GeneralBroyden(; linesearch), abstol = 1e-9)
     end
@@ -789,12 +789,12 @@ end
 # --- GeneralKlement tests ---
 
 @testset "GeneralKlement" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, GeneralKlement(; linesearch), abstol = 1e-9)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch())
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing)
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, GeneralKlement(; linesearch), abstol = 1e-9)
     end
@@ -886,14 +886,14 @@ end
 # --- LimitedMemoryBroyden tests ---
 
 @testset "LimitedMemoryBroyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = LineSearch(),
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
             termination_condition = AbsNormTerminationMode())
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,
             termination_condition)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = LineSearch(),
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
             termination_condition = AbsNormTerminationMode())
         prob = NonlinearProblem{true}(f, u0, p)
         return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,

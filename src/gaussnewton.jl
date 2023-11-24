@@ -1,5 +1,5 @@
 """
-    GaussNewton(; concrete_jac = nothing, linsolve = nothing, linesearch = LineSearch(),
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
         precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced GaussNewton implementation with support for efficient handling of sparse
@@ -47,7 +47,7 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = LineSearch(), precs = DEFAULT_PRECS, vjp_autodiff = nothing,
+        linesearch = nothing, precs = DEFAULT_PRECS, vjp_autodiff = nothing,
         adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
@@ -82,6 +82,7 @@ end
     tc_cache_1
     tc_cache_2
     ls_cache
+    trace
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::GaussNewton,
@@ -108,11 +109,12 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu1, u,
         termination_condition)
     _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu1, u, termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
 
     return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
         linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
         abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2,
-        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)))
+        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), trace)
 end
 
 function perform_step!(cache::GaussNewtonCache{true})
@@ -136,6 +138,9 @@ function perform_step!(cache::GaussNewtonCache{true})
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(cache.fu_new, u, p)
+
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+        cache.du, α)
 
     check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
     if !cache.force_stop
@@ -179,6 +184,9 @@ function perform_step!(cache::GaussNewtonCache{false})
     cache.u = @. u - α * cache.du  # `u` might not support mutation
     cache.fu_new = f(cache.u, p)
 
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
+        cache.du, α)
+
     check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
     if !cache.force_stop
         cache.fu1 = cache.fu_new .- cache.fu1
@@ -207,6 +215,7 @@ function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache
         cache.fu1 = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
         termination_condition)
     _, _, tc_cache_2 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,

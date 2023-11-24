@@ -8,7 +8,9 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase, LinearAlgebra, LinearSolve, SparseArrays, SparseDiffTools
+    using DiffEqBase,
+        LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
+        SparseDiffTools
     using FastBroadcast: @..
     import ArrayInterface: restructure
 
@@ -50,6 +52,32 @@ abstract type AbstractNonlinearSolveCache{iip} end
 
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
+function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
+    str = "$(nameof(typeof(alg)))("
+    modifiers = String[]
+    if _getproperty(alg, Val(:ad)) !== nothing
+        push!(modifiers, "ad = $(nameof(typeof(alg.ad)))()")
+    end
+    if _getproperty(alg, Val(:linsolve)) !== nothing
+        push!(modifiers, "linsolve = $(nameof(typeof(alg.linsolve)))()")
+    end
+    if _getproperty(alg, Val(:linesearch)) !== nothing
+        ls = alg.linesearch
+        if ls isa LineSearch
+            ls.method !== nothing &&
+                push!(modifiers, "linesearch = $(nameof(typeof(ls.method)))()")
+        else
+            push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
+        end
+    end
+    if _getproperty(alg, Val(:radius_update_scheme)) !== nothing
+        push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
+    end
+    str = str * join(modifiers, ", ")
+    print(io, "$(str))")
+    return nothing
+end
+
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = init(prob, alg, args...; kwargs...)
@@ -79,11 +107,18 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
+    trace = _getproperty(cache, Val{:trace}())
+    if trace !== nothing
+        update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
+            nothing, nothing; last = Val(true))
+    end
+
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode, cache.stats)
+        cache.retcode, cache.stats, trace)
 end
 
 include("utils.jl")
+include("trace.jl")
 include("extension_algs.jl")
 include("linesearch.jl")
 include("raphson.jl")
@@ -161,5 +196,8 @@ export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
     NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
     AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
     RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+
+# Tracing Functionality
+export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
 
 end # module

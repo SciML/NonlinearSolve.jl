@@ -1,6 +1,6 @@
 # Sadly `Broyden` is taken up by SimpleNonlinearSolve.jl
 """
-    GeneralBroyden(; max_resets = 3, linesearch = LineSearch(), reset_tolerance = nothing)
+    GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance = nothing)
 
 An implementation of `Broyden` with reseting and line search.
 
@@ -21,7 +21,7 @@ An implementation of `Broyden` with reseting and line search.
     linesearch
 end
 
-function GeneralBroyden(; max_resets = 3, linesearch = LineSearch(),
+function GeneralBroyden(; max_resets = 3, linesearch = nothing,
         reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GeneralBroyden(max_resets, reset_tolerance, linesearch)
@@ -54,6 +54,7 @@ end
     stats::NLStats
     ls_cache
     tc_cache
+    trace
 end
 
 get_fu(cache::GeneralBroydenCache) = cache.fu
@@ -66,6 +67,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     @unpack f, u0, p = prob
     u = alias_u0 ? u0 : deepcopy(u0)
     fu = evaluate_f(prob, u)
+    du = _mutable_zero(u)
     J⁻¹ = __init_identity_jacobian(u, fu)
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
                       alg.reset_tolerance
@@ -73,12 +75,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu, J⁻¹, du; uses_jac_inverse = Val(true),
+        kwargs...)
 
-    return GeneralBroydenCache{iip}(f, alg, u, zero(u), _mutable_zero(u), fu, zero(fu),
+    return GeneralBroydenCache{iip}(f, alg, u, zero(u), du, fu, zero(fu),
         zero(fu), p, J⁻¹, zero(_reshape(fu, 1, :)), _mutable_zero(u), false, 0,
         alg.max_resets, maxiters, internalnorm, ReturnCode.Default, abstol, reltol,
         reset_tolerance, reset_check, prob, NLStats(1, 0, 0, 0, 0),
-        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
 function perform_step!(cache::GeneralBroydenCache{true})
@@ -89,6 +93,9 @@ function perform_step!(cache::GeneralBroydenCache{true})
     α = perform_linesearch!(cache.ls_cache, u, du)
     _axpy!(-α, du, u)
     f(fu2, u, p)
+
+    update_trace_with_invJ!(cache.trace, cache.stats.nsteps + 1, get_u(cache),
+        get_fu(cache), J⁻¹, du, α)
 
     check_and_update!(cache, fu2, u, u_prev)
     cache.stats.nf += 1
@@ -130,6 +137,9 @@ function perform_step!(cache::GeneralBroydenCache{false})
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     cache.u = cache.u .- α * cache.du
     cache.fu2 = f(cache.u, p)
+
+    update_trace_with_invJ!(cache.trace, cache.stats.nsteps + 1, get_u(cache),
+        get_fu(cache), cache.J⁻¹, cache.du, α)
 
     check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
     cache.stats.nf += 1
@@ -173,6 +183,7 @@ function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = ca
         cache.fu = cache.f(cache.u, p)
     end
 
+    reset!(cache.trace)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
         termination_condition)
 
