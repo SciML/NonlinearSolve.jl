@@ -2,7 +2,7 @@ using SafeTestsets, Test
 
 const GROUP = get(ENV, "GROUP", "All")
 
-@time @testset "SimpleNonlinearSolve.jl"
+@time @testset "SimpleNonlinearSolve.jl" begin
     if GROUP == "All" || GROUP == "Core"
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
         @time @safetestset "Matrix Resizing Tests" include("matrix_resizing_tests.jl")
