@@ -30,8 +30,8 @@ include("nlsolve/broyden.jl")
 include("nlsolve/lbroyden.jl")
 include("nlsolve/klement.jl")
 include("nlsolve/trustRegion.jl")
-# include("nlsolve/halley.jl")
-# include("nlsolve/dfsane.jl")
+include("nlsolve/halley.jl")
+include("nlsolve/dfsane.jl")
 
 ## Interval Nonlinear Solvers
 include("bracketing/bisection.jl")
@@ -64,7 +64,7 @@ end
         prob_no_brack_oop = NonlinearProblem{false}((u, p) -> u .* u .- p,
             T.([1.0, 1.0, 1.0]), T(2))
 
-        algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(),
+        algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
             SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2)]
 
         @compile_workload begin
@@ -86,9 +86,8 @@ end
     end
 end
 
-export SimpleBroyden, SimpleGaussNewton, SimpleKlement, SimpleLimitedMemoryBroyden,
-    SimpleNewtonRaphson, SimpleTrustRegion
-# SimpleDFSane, SimpleHalley
+export SimpleBroyden, SimpleDFSane, SimpleGaussNewton, SimpleHalley, SimpleKlement,
+    SimpleLimitedMemoryBroyden, SimpleNewtonRaphson, SimpleTrustRegion
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module

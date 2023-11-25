@@ -53,117 +53,91 @@ end
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...)
+    x = float(copy(prob.u0))
+    fx = _get_fx(prob, x)
+    T = eltype(x)
 
-    # f = isinplace(prob) ? (du, u) -> prob.f(du, u, prob.p) : u -> prob.f(u, prob.p)
+    σ_min = T(alg.σ_min)
+    σ_max = T(alg.σ_max)
+    σ_k = T(alg.σ_1)
 
-    # x = float(prob.u0)
-    # fx = _get_fx(prob, x)
-    # T = eltype(x)
+    (; M, nexp, η_strategy) = alg
+    γ = T(alg.γ)
+    τ_min = T(alg.τ_min)
+    τ_max = T(alg.τ_max)
 
-    # σ_min = T(alg.σ_min)
-    # σ_max = T(alg.σ_max)
-    # σ_k = T(alg.σ_1)
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+        termination_condition)
 
-    # M = alg.M
-    # γ = T(alg.γ)
-    # τ_min = T(alg.τ_min)
-    # τ_max = T(alg.τ_max)
-    # nexp = alg.nexp
-    # η_strategy = alg.η_strategy
+    fx_norm = norm(fx)^nexp
+    α_1 = one(T)
+    f_1 = fx_norm
+    history_f_k = fill(fx_norm, M)
 
-    # abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
-    #     termination_condition)
+    # Generate the cache
+    @bb d = copy(x)
+    @bb xo = copy(x)
+    @bb x_cache = copy(x)
+    @bb δx = copy(x)
+    @bb fxo = copy(fx)
+    @bb δf = copy(fx)
 
-    # ff = if isinplace(prob)
-    #     function (_fx, x)
-    #         f(_fx, x)
-    #         f_k = norm(_fx)^nexp
-    #         return f_k, _fx
-    #     end
-    # else
-    #     function (x)
-    #         _fx = f(x)
-    #         f_k = norm(_fx)^nexp
-    #         return f_k, _fx
-    #     end
-    # end
+    k = 0
+    while k < maxiters
+        # Spectral parameter range check
+        σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
 
-    # generate_history(f_k, M) = fill(f_k, M)
+        # Line search direction
+        @bb @. d = -σ_k * fx
 
-    # f_k, F_k = isinplace(prob) ? ff(fx, x) : ff(x)
-    # F_k = __copy(F_k)
-    # α_1 = one(T)
-    # f_1 = f_k
-    # history_f_k = generate_history(f_k, M)
+        η = η_strategy(f_1, k, x, fx)
+        f_bar = maximum(history_f_k)
+        α_p = α_1
+        α_m = α_1
 
-    # # Generate the cache
-    # d, xo, x_cache, δx, δf = __copy(x), __copy(x), __copy(x), __copy(x), __copy(x)
-    # α_tp, α_tm = __copy(x), __copy(x)
+        @bb @. x += α_p * d
 
-    # for k in 1:maxiters
-    #     # Spectral parameter range check
-    #     σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
+        fx = __eval_f(prob, fx, x)
+        fx_norm_new = norm(fx)^nexp
 
-    #     # Line search direction
-    #     d = __broadcast!!(d, *, -σ_k, F_k)
+        while k < maxiters
+            fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm) && break
 
-    #     η = η_strategy(f_1, k, x, F_k)
-    #     f̄ = maximum(history_f_k)
-    #     α_p = α_1
-    #     α_m = α_1
+            α_p = α_p^2 * fx_norm / (fx_norm_new + (T(2) * α_p - T(1)) * fx_norm)
+            @bb @. x -= α_m * d
 
-    #     x_cache = __broadcast!!(x_cache, *, α_p, d)
-    #     x = __broadcast!!(x, +, x_cache)
+            fx = __eval_f(prob, fx, x)
+            fx_norm_new = norm(fx)^nexp
 
-    #     f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
+            fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm) && break
 
-    #     # FIXME: This part is not correctly implemented
-    #     while true
-    #         criteria = f̄ + η - γ * α_p^2 * f_k
-    #         f_new ≤ criteria && break
+            α_tm = α_m^2 * fx_norm / (fx_norm_new + (T(2) * α_m - T(1)) * fx_norm)
+            α_p = clamp(α_p, τ_min * α_p, τ_max * α_p)
+            α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
+            @bb @. x += α_p * d
 
-    #         if ArrayInterface.can_setindex(α_tp) && !(x isa Number)
-    #             @. α_tp = α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
-    #         else
-    #             α_tp = @. α_p^2 * f_k / (f_new + (2 * α_p - 1) * f_k)
-    #         end
-    #         x_cache = __broadcast!!(x_cache, *, α_m, d)
-    #         x = __broadcast!!(x, -, x_cache)
-    #         f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
+            fx = __eval_f(prob, fx, x)
+            fx_norm_new = norm(fx)^nexp
+        end
 
-    #         f_new ≤ criteria && break
+        tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
+        tc_sol !== nothing && return tc_sol
 
-    #         if ArrayInterface.can_setindex(α_tm) && !(x isa Number)
-    #             @. α_tm = α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
-    #             @. α_p = clamp(α_tp, τ_min * α_p, τ_max * α_p)
-    #             @. α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
-    #         else
-    #             α_tm = @. α_m^2 * f_k / (f_new + (2 * α_m - 1) * f_k)
-    #             α_p = @. clamp(α_tp, τ_min * α_p, τ_max * α_p)
-    #             α_m = @. clamp(α_tm, τ_min * α_m, τ_max * α_m)
-    #         end
-    #         x_cache = __broadcast!!(x_cache, *, α_p, d)
-    #         x = __broadcast!!(x, +, x_cache)
-    #         f_new, F_new = isinplace(prob) ? ff(fx, x) : ff(x)
-    #     end
+        # Update spectral parameter
+        @bb @. δx = x - xo
+        @bb @. δf = fx - fxo
 
-    #     tc_sol = check_termination(tc_cache, f_new, x, xo, prob, alg)
-    #     tc_sol !== nothing && return tc_sol
+        σ_k = dot(δx, δx) / dot(δx, δf)
 
-    #     # Update spectral parameter
-    #     δx = __broadcast!!(δx, -, x, xo)
-    #     δf = __broadcast!!(δf, -, F_new, F_k)
+        # Take step
+        @bb copyto!(xo, x)
+        @bb copyto!(fxo, fx)
+        fx_norm = fx_norm_new
 
-    #     σ_k = dot(δx, δx) / dot(δx, δf)
+        # Store function value
+        history_f_k[mod1(k, M)] = fx_norm_new
+        k += 1
+    end
 
-    #     # Take step
-    #     xo = __copyto!!(xo, x)
-    #     F_k = __copyto!!(F_k, F_new)
-    #     f_k = f_new
-
-    #     # Store function value
-    #     history_f_k[k % M + 1] = f_new
-    # end
-
-    # return build_solution(prob, alg, x, F_k; retcode = ReturnCode.MaxIters)
+    return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
