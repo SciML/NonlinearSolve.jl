@@ -58,7 +58,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
         @bb A .*= -1
         bᵢ = dfx \ Aaᵢ
 
-        @bb @. cᵢ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
+        cᵢ_ = _vec(cᵢ)
+        @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
+        cᵢ = _restructure(cᵢ, cᵢ_)
 
         if i == 1
             if iszero(fx)

@@ -76,7 +76,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
 
     fₖ = 0.5 * norm(fx)^2
     H = ∇f' * ∇f
-    g = ∇f' * fx
+    g = _restructure(x, ∇f' * _vec(fx))
     shrink_counter = 0
 
     @bb δsd = copy(x)
@@ -96,7 +96,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         fₖ₊₁ = norm(fx)^2 / T(2)
 
         # Compute the ratio of the actual to predicted reduction.
-        @bb Hδ = H × δ
+        # @show size(H), size(δ)
+        @bb Hδ = H × vec(δ)
         r = (fₖ₊₁ - fₖ) / (dot(δ', g) + dot(δ', Hδ) / T(2))
 
         # Update the trust region radius.
@@ -124,7 +125,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             fₖ = fₖ₊₁
 
             @bb H = transpose(∇f) × ∇f
-            @bb g = transpose(∇f) × fx
+            @bb g = transpose(∇f) × vec(fx)
         end
     end
 
@@ -135,7 +136,7 @@ function dogleg_method!!(cache, J, f, g, Δ)
     (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step.
-    @bb δN .= J \ f
+    @bb δN .= _restructure(δN, J \ _vec(f))
     @bb δN .*= -1
     # Test if the full step is within the trust region.
     (norm(δN) ≤ Δ) && return δN

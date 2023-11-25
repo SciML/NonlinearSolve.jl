@@ -1,9 +1,8 @@
 function scalar_nlsolve_ad(prob, alg, args...; kwargs...)
     f = prob.f
     p = value(prob.p)
-    u0 = value(prob.u0)
     if prob isa IntervalNonlinearProblem
-        tspan = value(prob.tspan)
+        tspan = value.(prob.tspan)
         newprob = IntervalNonlinearProblem(f, tspan, p; prob.kwargs...)
     else
         u0 = value(prob.u0)

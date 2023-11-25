@@ -72,6 +72,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     fx_norm = norm(fx)^nexp
     α_1 = one(T)
     f_1 = fx_norm
+
     history_f_k = fill(fx_norm, M)
 
     # Generate the cache
@@ -118,6 +119,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
 
             fx = __eval_f(prob, fx, x)
             fx_norm_new = norm(fx)^nexp
+
+            k += 1
         end
 
         tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)

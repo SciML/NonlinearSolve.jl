@@ -43,7 +43,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
 
         @bb @. δJ⁻¹n = (δx - J⁻¹δf) / d
 
-        @bb δJ⁻¹ = δJ⁻¹n × transpose(xᵀJ⁻¹)
+        δJ⁻¹n_ = _vec(δJ⁻¹n)
+        xᵀJ⁻¹_ = _vec(xᵀJ⁻¹)
+        @bb δJ⁻¹ = δJ⁻¹n_ × transpose(xᵀJ⁻¹_)
         @bb J⁻¹ .+= δJ⁻¹
 
         @bb copyto!(xo, x)

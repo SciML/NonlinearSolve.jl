@@ -86,16 +86,18 @@ function __bisection(left, right, fl, fr, f::F; abstol, maxiters, prob, alg) whe
         end
 
         fm = f(mid)
-        if abs((right - left) / 2) < abstol || abs(fm) < abstol
+        if abs((right - left) / 2) < abstol
             sol = build_solution(prob, alg, mid, fm; left, right,
                 retcode = ReturnCode.Success)
             break
         end
 
-        if sign(fl * fm) < 0
-            right, fr = mid, fm
+        if iszero(fm)
+            right = mid
+            fr = fm
         else
-            left, fl = mid, fm
+            left = mid
+            fl = fm
         end
 
         i += 1

@@ -55,9 +55,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
 
         @bb copyto!(δx, fprev)
         if setindex_trait(δx) === CanSetindex()
-            ldiv!(F_, δx)
+            ldiv!(F_, _vec(δx))
         else
-            δx = F_ \ δx
+            δx = _restructure(δx, F_ \ _vec(δx))
         end
         @bb @. x = xo - δx
         fx = __eval_f(prob, fx, x)
