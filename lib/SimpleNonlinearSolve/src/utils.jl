@@ -207,8 +207,8 @@ function __init_identity_jacobian(u::StaticArray, fu)
     J = SMatrix{S1, S2, eltype(u)}(I)
     return J
 end
-function __init_identity_jacobian!!(J::StaticArray{S1, S2}) where {S1, S2}
-    return SMMatrix{S1, S2, eltype(J)}(I)
+function __init_identity_jacobian!!(J::SMatrix{S1, S2}) where {S1, S2}
+    return SMatrix{S1, S2, eltype(J)}(I)
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},

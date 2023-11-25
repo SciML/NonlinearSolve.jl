@@ -67,10 +67,17 @@ end
         algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
             SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2)]
 
+        algs_no_iip = [SimpleHalley()]
+
         @compile_workload begin
             for alg in algs
                 solve(prob_no_brack_scalar, alg, abstol = T(1e-2))
                 solve(prob_no_brack_iip, alg, abstol = T(1e-2))
+                solve(prob_no_brack_oop, alg, abstol = T(1e-2))
+            end
+
+            for alg in algs_no_iip
+                solve(prob_no_brack_scalar, alg, abstol = T(1e-2))
                 solve(prob_no_brack_oop, alg, abstol = T(1e-2))
             end
         end

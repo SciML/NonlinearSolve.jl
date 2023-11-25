@@ -47,6 +47,27 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, SVector, <:Abstr
     return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode)
 end
 
+function scalar_nlsolve_∂f_∂p(f, u, p)
+    ff = p isa Number ? ForwardDiff.derivative :
+         (u isa Number ? ForwardDiff.gradient : ForwardDiff.jacobian)
+    return ff(Base.Fix1(f, u), p)
+end
+
+function scalar_nlsolve_∂f_∂u(f, u, p)
+    ff = u isa Number ? ForwardDiff.derivative : ForwardDiff.jacobian
+    return ff(Base.Fix2(f, p), u)
+end
+
+function scalar_nlsolve_dual_soln(u::Number, partials,
+        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}) where {T, V, P}
+    return Dual{T, V, P}(u, partials)
+end
+
+function scalar_nlsolve_dual_soln(u::AbstractArray, partials,
+        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}) where {T, V, P}
+    return map(((uᵢ, pᵢ),) -> Dual{T, V, P}(uᵢ, pᵢ), zip(u, partials))
+end
+
 # avoid ambiguities
 for Alg in [Bisection]
     @eval function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
