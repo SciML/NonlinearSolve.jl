@@ -13,6 +13,7 @@ end
 
 @time begin
     if GROUP == "All" || GROUP == "Core"
+        @time @safetestset "Quality Assurance" include("qa.jl")
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
         @time @safetestset "Sparsity Tests" include("sparse.jl")
         @time @safetestset "Polyalgs" include("polyalgs.jl")
