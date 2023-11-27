@@ -39,13 +39,23 @@ __standard_tag(::Nothing, x) = ForwardDiff.Tag(SimpleNonlinearSolveTag(), eltype
 __standard_tag(tag::ForwardDiff.Tag, _) = tag
 __standard_tag(tag, x) = ForwardDiff.Tag(tag, eltype(x))
 
+__pick_forwarddiff_chunk(x) = ForwardDiff.Chunk(length(x))
+function __pick_forwarddiff_chunk(x::StaticArray)
+    L = prod(Size(x))
+    if L ≤ ForwardDiff.DEFAULT_CHUNK_THRESHOLD
+        return ForwardDiff.Chunk{L}()
+    else
+        return ForwardDiff.Chunk{ForwardDiff.DEFAULT_CHUNK_THRESHOLD}()
+    end
+end
+
 function __get_jacobian_config(ad::AutoForwardDiff{CS}, f, x) where {CS}
-    ck = (CS === nothing || CS ≤ 0) ? ForwardDiff.Chunk(length(x)) : ForwardDiff.Chunk{CS}()
+    ck = (CS === nothing || CS ≤ 0) ? __pick_forwarddiff_chunk(x) : ForwardDiff.Chunk{CS}()
     tag = __standard_tag(ad.tag, x)
     return ForwardDiff.JacobianConfig(f, x, ck, tag)
 end
 function __get_jacobian_config(ad::AutoForwardDiff{CS}, f!, y, x) where {CS}
-    ck = (CS === nothing || CS ≤ 0) ? ForwardDiff.Chunk(length(x)) : ForwardDiff.Chunk{CS}()
+    ck = (CS === nothing || CS ≤ 0) ? __pick_forwarddiff_chunk(x) : ForwardDiff.Chunk{CS}()
     tag = __standard_tag(ad.tag, x)
     return ForwardDiff.JacobianConfig(f!, y, x, ck, tag)
 end
