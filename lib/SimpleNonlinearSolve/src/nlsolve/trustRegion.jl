@@ -96,7 +96,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         fₖ₊₁ = norm(fx)^2 / T(2)
 
         # Compute the ratio of the actual to predicted reduction.
-        # @show size(H), size(δ)
         @bb Hδ = H × vec(δ)
         r = (fₖ₊₁ - fₖ) / (dot(δ', g) + dot(δ', Hδ) / T(2))
 

@@ -156,7 +156,6 @@ end
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @show solve(probN, SimpleHalley(); termination_condition).u
         @test all(solve(probN, SimpleHalley(); termination_condition).u .≈ sqrt(2.0))
     end
 end
@@ -301,6 +300,7 @@ end
 end
 
 @testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Bisection(), Falsi(), ITP())
+    tspan = (1.0, 20.0)
     probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
     tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
     ϵ = eps(1.0) #least possible tol for all methods
@@ -313,6 +313,7 @@ end
 end
 
 @testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Ridder(), Brent())
+    tspan = (1.0, 20.0)
     probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
     tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
     ϵ = eps(1.0) #least possible tol for all methods

@@ -1,4 +1,4 @@
-using SimpleNonlinearSolve, LinearAlgebra, NonlinearProblemLibrary, Test
+using SimpleNonlinearSolve, LinearAlgebra, NonlinearProblemLibrary, DiffEqBase, Test
 
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
@@ -23,7 +23,8 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
                     end
                     broken = idx in broken_tests[alg] ? true : false
                     @test norm(res)≤ϵ broken=broken
-                catch
+                catch e
+                    @error e
                     broken = idx in broken_tests[alg] ? true : false
                     if broken
                         @test false broken=true
@@ -69,7 +70,7 @@ end
     alg_ops = (SimpleBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]
+    broken_tests[alg_ops[1]] = [1, 4, 5, 6, 11, 12, 13, 14]
 
     skip_tests = Dict(alg => Int[] for alg in alg_ops)
     skip_tests[alg_ops[1]] = [22]

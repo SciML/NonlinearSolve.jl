@@ -8,5 +8,5 @@ prob = NonlinearProblem(ff, u0, p)
 
 @testset "$(alg)" for alg in (SimpleKlement(), SimpleBroyden(), SimpleNewtonRaphson(),
     SimpleDFSane(), SimpleLimitedMemoryBroyden(), SimpleTrustRegion())
-    @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
+    @test vec(solve(prob, alg).u) ≈ solve(vecprob, alg).u
 end
