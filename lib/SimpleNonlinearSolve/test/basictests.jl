@@ -1,4 +1,4 @@
-using BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
+using AllocCheck, BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
     LinearAlgebra, Test, ForwardDiff, DiffEqBase
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
@@ -252,6 +252,39 @@ end
         sol = benchmark_nlsolve_oop(newton_fails, u0, p, alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
+    end
+end
+
+# --- Allocation Checks ---
+
+## SimpleDFSane needs to allocate a history vector
+@testset "Allocation Checks: $(_nameof(alg))" for alg in (
+        SimpleNewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 2)),
+        SimpleHalley(; autodiff = AutoForwardDiff(; chunksize = 2)),
+        SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
+        SimpleTrustRegion(; autodiff = AutoForwardDiff(; chunksize = 2)))
+    @check_allocs nlsolve(prob, alg) = DiffEqBase.__solve(prob, alg; abstol = 1e-9)
+
+    nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
+    nlprob_sa = NonlinearProblem{false}(quadratic_f, @SVector[1.0, 1.0], 2.0)
+
+    try
+        nlsolve(nlprob_scalar, alg)
+        @test true
+    catch e
+        @error e
+        @test false
+    end
+
+    # ForwardDiff allocates for hessian since we don't propagate the chunksize
+    # SimpleLimitedMemoryBroyden needs to do views on the low rank matrices so the sizes
+    # are dynamic. This can be fixed but no without maintaining the simplicity of the code
+    try
+        nlsolve(nlprob_sa, alg)
+        @test true
+    catch e
+        @error e
+        @test false broken=(alg isa SimpleHalley || alg isa SimpleLimitedMemoryBroyden)
     end
 end
 
