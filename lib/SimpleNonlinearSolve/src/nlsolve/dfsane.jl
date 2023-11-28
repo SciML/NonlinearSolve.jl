@@ -69,7 +69,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
 
-    fx_norm = norm(fx)^nexp
+    fx_norm = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
     α_1 = one(T)
     f_1 = fx_norm
 
@@ -99,7 +99,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
         @bb @. x += α_p * d
 
         fx = __eval_f(prob, fx, x)
-        fx_norm_new = norm(fx)^nexp
+        fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
         while k < maxiters
             fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm) && break
@@ -108,7 +108,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
             @bb @. x -= α_m * d
 
             fx = __eval_f(prob, fx, x)
-            fx_norm_new = norm(fx)^nexp
+            fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
             fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm) && break
 
@@ -118,7 +118,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
             @bb @. x += α_p * d
 
             fx = __eval_f(prob, fx, x)
-            fx_norm_new = norm(fx)^nexp
+            fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
             k += 1
         end

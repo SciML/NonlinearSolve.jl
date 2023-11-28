@@ -258,9 +258,9 @@ end
 # --- Allocation Checks ---
 
 ## SimpleDFSane needs to allocate a history vector
-@testset "Allocation Checks: $(_nameof(alg))" for alg in ( SimpleNewtonRaphson(),
-        SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-        SimpleTrustRegion())
+@testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
+    SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
+    SimpleTrustRegion())
     @check_allocs nlsolve(prob, alg) = DiffEqBase.__solve(prob, alg; abstol = 1e-9)
 
     nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)

@@ -8,7 +8,8 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-        NonlinearSafeTerminationReturnCode, get_termination_mode
+        NonlinearSafeTerminationReturnCode, get_termination_mode,
+        NONLINEARSOLVE_DEFAULT_NORM
     using FiniteDiff, ForwardDiff
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
