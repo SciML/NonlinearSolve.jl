@@ -2,7 +2,7 @@
 """
     GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance = nothing)
 
-An implementation of `Broyden` with reseting and line search.
+An implementation of `Broyden` with resetting and line search.
 
 ## Arguments
 

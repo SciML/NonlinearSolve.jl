@@ -2,7 +2,7 @@
     LineSearch(method = nothing, autodiff = nothing, alpha = true)
 
 Wrapper over algorithms from
-[LineSeaches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl/). Allows automatic
+[LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl/). Allows automatic
 construction of the objective functions for the line search algorithms utilizing automatic
 differentiation for fast Vector Jacobian Products.
 
