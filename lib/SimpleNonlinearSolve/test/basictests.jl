@@ -1,578 +1,366 @@
-using SimpleNonlinearSolve,
-    StaticArrays, BenchmarkTools, DiffEqBase, LinearAlgebra, Test,
-    NNlib
+using AllocCheck, BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
+    LinearAlgebra, Test, ForwardDiff, DiffEqBase
 
-const BATCHED_BROYDEN_SOLVERS = []
-const BROYDEN_SOLVERS = []
-const BATCHED_LBROYDEN_SOLVERS = []
-const LBROYDEN_SOLVERS = []
-const BATCHED_DFSANE_SOLVERS = []
-const DFSANE_SOLVERS = []
-const BATCHED_RAPHSON_SOLVERS = []
+_nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
-for mode in instances(NLSolveTerminationMode.T)
-    if mode ∈
-       (NLSolveTerminationMode.SteadyStateDefault, NLSolveTerminationMode.RelSafeBest,
-        NLSolveTerminationMode.AbsSafeBest)
-        continue
-    end
+quadratic_f(u, p) = u .* u .- p
+quadratic_f!(du, u, p) = (du .= u .* u .- p)
+quadratic_f2(u, p) = @. p[1] * u * u - p[2]
 
-    termination_condition = NLSolveTerminationCondition(mode; abstol = nothing,
-        reltol = nothing)
-    push!(BROYDEN_SOLVERS, Broyden(; batched = false, termination_condition))
-    push!(BATCHED_BROYDEN_SOLVERS, Broyden(; batched = true, termination_condition))
-    push!(LBROYDEN_SOLVERS, LBroyden(; batched = false, termination_condition))
-    push!(BATCHED_LBROYDEN_SOLVERS, LBroyden(; batched = true, termination_condition))
-    push!(DFSANE_SOLVERS, SimpleDFSane(; batched = false, termination_condition))
-    push!(BATCHED_DFSANE_SOLVERS, SimpleDFSane(; batched = true, termination_condition))
-    push!(BATCHED_RAPHSON_SOLVERS,
-        SimpleNewtonRaphson(; batched = true,
-            termination_condition))
-    push!(BATCHED_RAPHSON_SOLVERS,
-        SimpleNewtonRaphson(; batched = true, autodiff = false,
-            termination_condition))
+function newton_fails(u, p)
+    return 0.010000000000000002 .+
+           10.000000000000002 ./ (1 .+
+            (0.21640425613334457 .+
+             216.40425613334457 ./ (1 .+
+              (0.21640425613334457 .+
+               216.40425613334457 ./
+               (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
+           0.0011552453009332421u .- p
 end
 
-# SimpleNewtonRaphson
-function benchmark_scalar(f, u0)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, SimpleNewtonRaphson()))
-end
-
-function ff(u, p)
-    u .* u .- 2
-end
-const cu0 = @SVector[1.0, 1.0]
-function sf(u, p)
-    u * u - 2
-end
-const csu0 = 1.0
-
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
-
-if VERSION >= v"1.7"
-    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
-end
-
-# SimpleHalley
-function benchmark_scalar(f, u0)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, SimpleHalley()))
-end
-
-function ff(u, p)
-    u .* u .- 2
-end
-const cu0 = @SVector[1.0, 1.0]
-function sf(u, p)
-    u * u - 2
-end
-const csu0 = 1.0
-
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
-
-sol = benchmark_scalar(ff, cu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u .* sol.u .- 2 < [1e-9, 1e-9]
-
-if VERSION >= v"1.7"
-    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
-end
-
-# Broyden
-function benchmark_scalar(f, u0, alg)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, alg))
-end
-
-for alg in BROYDEN_SOLVERS
-    sol = benchmark_scalar(sf, csu0, alg)
-    @test sol.retcode === ReturnCode.Success
-    @test sol.u * sol.u - 2 < 1e-9
-    # FIXME: Termination Condition Implementation is allocating. Not sure how to fix it.
-    # if VERSION >= v"1.7"
-    #     @test (@ballocated benchmark_scalar($sf, $csu0, $termination_condition)) == 0
-    # end
-end
-
-# Klement
-function benchmark_scalar(f, u0)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, Klement()))
-end
-
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
-if VERSION >= v"1.7"
-    @test (@ballocated benchmark_scalar(sf, csu0)) == 0
-end
-
-# SimpleTrustRegion
-function benchmark_scalar(f, u0)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, SimpleTrustRegion()))
-end
-
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
-
-# SimpleDFSane
-function benchmark_scalar(f, u0)
-    probN = NonlinearProblem{false}(f, u0)
-    sol = (solve(probN, SimpleDFSane()))
-end
-
-sol = benchmark_scalar(sf, csu0)
-@test sol.retcode === ReturnCode.Success
-@test sol.u * sol.u - 2 < 1e-9
-
-# AD Tests
-using ForwardDiff
-
-# Immutable
-f, u0 = (u, p) -> u .* u .- p, @SVector[1.0, 1.0]
-
-for alg in (SimpleNewtonRaphson(), LBroyden(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS...)
-    g = function (p)
-        probN = NonlinearProblem{false}(f, csu0, p)
-        sol = solve(probN, alg, abstol = 1e-9)
-        return sol.u[end]
-    end
-
-    for p in 1.1:0.1:100.0
-        res = abs.(g(p))
-        # Not surprising if LBrouden fails to converge
-        if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res) && alg isa LBroyden
-            @test_broken res ≈ sqrt(p)
-            @test_broken abs.(ForwardDiff.derivative(g, p)) ≈ 1 / (2 * sqrt(p))
-        else
-            @test res ≈ sqrt(p)
-            @test abs.(ForwardDiff.derivative(g, p)) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-end
-
-# Scalar
-f, u0 = (u, p) -> u * u - p, 1.0
-for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
-    g = function (p)
-        probN = NonlinearProblem{false}(f, oftype(p, u0), p)
-        sol = solve(probN, alg)
-        return sol.u
-    end
-
-    for p in 1.1:0.1:100.0
-        res = abs.(g(p))
-        # Not surprising if LBrouden fails to converge
-        if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res) && alg isa LBroyden
-            @test_broken res ≈ sqrt(p)
-            @test_broken abs.(ForwardDiff.derivative(g, p)) ≈ 1 / (2 * sqrt(p))
-        else
-            @test res ≈ sqrt(p)
-            @test abs.(ForwardDiff.derivative(g, p)) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-end
-
-tspan = (1.0, 20.0)
-# Falsi
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, Falsi())
-    return sol.left
-end
-
-for p in 1.1:0.1:100.0
-    @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-end
-
-# Ridder
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, Ridder())
-    return sol.left
-end
-
-for p in 1.1:0.1:100.0
-    @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-end
-
-# Brent
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, Brent())
-    return sol.left
-end
-
-for p in 1.1:0.1:100.0
-    @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-end
-
-# ITP
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, ITP())
-    return sol.u
-end
-
-for p in 1.1:0.1:100.0
-    @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-end
-
-# Alefeld
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, typeof(p).(tspan), p)
-    sol = solve(probN, Alefeld())
-    return sol.u
-end
-
-for p in 1.1:0.1:100.0
-    @test g(p) ≈ sqrt(p)
-    @test ForwardDiff.derivative(g, p) ≈ 1 / (2 * sqrt(p))
-end
-
-f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
-t = (p) -> [sqrt(p[2] / p[1])]
-p = [0.9, 50.0]
-g = function (p)
-    probN = IntervalNonlinearProblem{false}(f, tspan, p)
-    sol = solve(probN, Alefeld())
-    return [sol.u]
-end
-
-@test g(p) ≈ [sqrt(p[2] / p[1])]
-@test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
-
-f, tspan = (u, p) -> p[1] * u * u - p[2], (1.0, 100.0)
-t = (p) -> [sqrt(p[2] / p[1])]
-p = [0.9, 50.0]
-for alg in [Bisection(), Falsi(), Ridder(), Brent(), ITP()]
-    global g, p
-    g = function (p)
-        probN = IntervalNonlinearProblem{false}(f, tspan, p)
-        sol = solve(probN, alg)
-        return [sol.left]
-    end
-
-    @test g(p) ≈ [sqrt(p[2] / p[1])]
-    @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
-end
-
-for alg in (SimpleNewtonRaphson(), Klement(), SimpleTrustRegion(),
-    SimpleDFSane(), SimpleHalley(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
-    global g, p
-    g = function (p)
-        probN = NonlinearProblem{false}(f, 0.5, p)
-        sol = solve(probN, alg)
-        return [abs(sol.u)]
-    end
-    @test g(p) ≈ [sqrt(p[2] / p[1])]
-    @test ForwardDiff.jacobian(g, p) ≈ ForwardDiff.jacobian(t, p)
-end
-
-# Error Checks
-f, u0 = (u, p) -> u .* u .- 2.0, @SVector[1.0, 1.0]
-probN = NonlinearProblem(f, u0)
-
-for alg in (SimpleNewtonRaphson(), SimpleNewtonRaphson(; autodiff = false),
-    SimpleTrustRegion(),
-    SimpleTrustRegion(; autodiff = false), SimpleHalley(), SimpleHalley(; autodiff = false),
-    Klement(), SimpleDFSane(),
-    BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
-    sol = solve(probN, alg)
-
-    @test sol.retcode == ReturnCode.Success
-    @test sol.u[end] ≈ sqrt(2.0)
-end
-
-for u0 in [1.0, [1, 1.0]]
-    local f, probN, sol
-    f = (u, p) -> u .* u .- 2.0
-    probN = NonlinearProblem(f, u0)
-    sol = sqrt(2) * u0
-
-    for alg in (SimpleNewtonRaphson(), SimpleNewtonRaphson(; autodiff = false),
-        SimpleTrustRegion(), SimpleTrustRegion(; autodiff = false), Klement(),
-        SimpleDFSane(), BROYDEN_SOLVERS..., LBROYDEN_SOLVERS...)
-        sol2 = solve(probN, alg)
-
-        @test sol2.retcode == ReturnCode.Success
-        @test sol2.u ≈ sol
-    end
-end
-
-# Bisection Tests
-f, tspan = (u, p) -> u .* u .- 2.0, (1.0, 2.0)
-probB = IntervalNonlinearProblem(f, tspan)
-
-# Falsi
-sol = solve(probB, Falsi())
-@test sol.left ≈ sqrt(2.0)
-
-# Bisection
-sol = solve(probB, Bisection())
-@test sol.left ≈ sqrt(2.0)
-
-# Ridder
-sol = solve(probB, Ridder())
-@test sol.left ≈ sqrt(2.0)
-tspan = (sqrt(2.0), 10.0)
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Ridder())
-@test sol.left ≈ sqrt(2.0)
-tspan = (0.0, sqrt(2.0))
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Ridder())
-@test sol.left ≈ sqrt(2.0)
-
-# Brent
-sol = solve(probB, Brent())
-@test sol.left ≈ sqrt(2.0)
-tspan = (sqrt(2.0), 10.0)
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Brent())
-@test sol.left ≈ sqrt(2.0)
-tspan = (0.0, sqrt(2.0))
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Brent())
-@test sol.left ≈ sqrt(2.0)
-
-# Alefeld
-sol = solve(probB, Alefeld())
-@test sol.u ≈ sqrt(2.0)
-tspan = (sqrt(2.0), 10.0)
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Alefeld())
-@test sol.u ≈ sqrt(2.0)
-tspan = (0.0, sqrt(2.0))
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, Alefeld())
-@test sol.u ≈ sqrt(2.0)
-
-# ITP
-sol = solve(probB, ITP())
-@test sol.u ≈ sqrt(2.0)
-tspan = (sqrt(2.0), 10.0)
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, ITP())
-@test sol.u ≈ sqrt(2.0)
-tspan = (0.0, sqrt(2.0))
-probB = IntervalNonlinearProblem(f, tspan)
-sol = solve(probB, ITP())
-@test sol.u ≈ sqrt(2.0)
-
-# Tolerance tests for Interval methods
-f, tspan = (u, p) -> u .* u .- 2.0, (1.0, 10.0)
-probB = IntervalNonlinearProblem(f, tspan)
-tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
-ϵ = eps(1.0) #least possible tol for all methods
-
-for atol in tols
-    sol = solve(probB, Bisection(), abstol = atol)
-    @test abs(sol.u - sqrt(2)) < atol
-    @test abs(sol.u - sqrt(2)) > ϵ #test that the solution is not calculated upto max precision
-    sol = solve(probB, Falsi(), abstol = atol)
-    @test abs(sol.u - sqrt(2)) < atol
-    @test abs(sol.u - sqrt(2)) > ϵ
-    sol = solve(probB, ITP(), abstol = atol)
-    @test abs(sol.u - sqrt(2)) < atol
-    @test abs(sol.u - sqrt(2)) > ϵ
-end
-
-tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
-for atol in tols
-    sol = solve(probB, Ridder(), abstol = atol)
-    @test abs(sol.u - sqrt(2)) < atol
-    @test abs(sol.u - sqrt(2)) > ϵ
-    sol = solve(probB, Brent(), abstol = atol)
-    @test abs(sol.u - sqrt(2)) < atol
-    @test abs(sol.u - sqrt(2)) > ϵ
-end
-
-# Garuntee Tests for Bisection
-f = function (u, p)
-    if u < 2.0
-        return u - 2.0
-    elseif u > 3.0
-        return u - 3.0
-    else
-        return 0.0
-    end
-end
-probB = IntervalNonlinearProblem(f, (0.0, 4.0))
-
-sol = solve(probB, Bisection(; exact_left = true))
-@test f(sol.left, nothing) < 0.0
-@test f(nextfloat(sol.left), nothing) >= 0.0
-
-sol = solve(probB, Bisection(; exact_right = true))
-@test f(sol.right, nothing) >= 0.0
-@test f(prevfloat(sol.right), nothing) <= 0.0
-
-sol = solve(probB, Bisection(; exact_left = true, exact_right = true); immutable = false)
-@test f(sol.left, nothing) < 0.0
-@test f(nextfloat(sol.left), nothing) >= 0.0
-@test f(sol.right, nothing) >= 0.0
-@test f(prevfloat(sol.right), nothing) <= 0.0
-
-# Test that `SimpleTrustRegion` passes a test that `SimpleNewtonRaphson` fails on.
-u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-global g, f
-f = (u, p) -> 0.010000000000000002 .+
-              10.000000000000002 ./ (1 .+
-               (0.21640425613334457 .+
-                216.40425613334457 ./ (1 .+
-                 (0.21640425613334457 .+
-                  216.40425613334457 ./
-                  (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-              0.0011552453009332421u .- p
-g = function (p)
-    probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, SimpleTrustRegion())
-    return sol.u
-end
-p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-u = g(p)
-f(u, p)
-@test all(abs.(f(u, p)) .< 1e-10)
-
-# Test kwars in `SimpleTrustRegion`
-max_trust_radius = [10.0, 100.0, 1000.0]
-initial_trust_radius = [10.0, 1.0, 0.1]
-step_threshold = [0.0, 0.01, 0.25]
-shrink_threshold = [0.25, 0.3, 0.5]
-expand_threshold = [0.5, 0.8, 0.9]
-shrink_factor = [0.1, 0.3, 0.5]
-expand_factor = [1.5, 2.0, 3.0]
-max_shrink_times = [10, 20, 30]
-
-list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-    shrink_threshold, expand_threshold, shrink_factor,
-    expand_factor, max_shrink_times)
-for options in list_of_options
-    local probN, sol, alg
-    alg = SimpleTrustRegion(max_trust_radius = options[1],
-        initial_trust_radius = options[2],
-        step_threshold = options[3],
-        shrink_threshold = options[4],
-        expand_threshold = options[5],
-        shrink_factor = options[6],
-        expand_factor = options[7],
-        max_shrink_times = options[8])
-
-    probN = NonlinearProblem(f, u0, p)
-    sol = solve(probN, alg)
-    @test all(abs.(f(u, p)) .< 1e-10)
-end
-
-# Test that `SimpleDFSane` passes a test that `SimpleNewtonRaphson` fails on.
-u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-global g, f
-f = (u, p) -> 0.010000000000000002 .+
-              10.000000000000002 ./ (1 .+
-               (0.21640425613334457 .+
-                216.40425613334457 ./ (1 .+
-                 (0.21640425613334457 .+
-                  216.40425613334457 ./
-                  (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-              0.0011552453009332421u .- p
-g = function (p)
-    probN = NonlinearProblem{false}(f, u0, p)
-    sol = solve(probN, SimpleDFSane())
-    return sol.u
-end
-p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-u = g(p)
-f(u, p)
-@test all(abs.(f(u, p)) .< 1e-10)
-
-# Test kwars in `SimpleDFSane`
-σ_min = [1e-10, 1e-5, 1e-4]
-σ_max = [1e10, 1e5, 1e4]
-σ_1 = [1.0, 0.5, 2.0]
-M = [10, 1, 100]
-γ = [1e-4, 1e-3, 1e-5]
-τ_min = [0.1, 0.2, 0.3]
-τ_max = [0.5, 0.8, 0.9]
-nexp = [2, 1, 2]
-η_strategy = [
-    (f_1, k, x, F) -> f_1 / k^2,
-    (f_1, k, x, F) -> f_1 / k^3,
-    (f_1, k, x, F) -> f_1 / k^4,
+const TERMINATION_CONDITIONS = [
+    NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
+    AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
 ]
 
-list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
-    η_strategy)
-for options in list_of_options
-    local probN, sol, alg
-    alg = SimpleDFSane(σ_min = options[1],
-        σ_max = options[2],
-        σ_1 = options[3],
-        M = options[4],
-        γ = options[5],
-        τ_min = options[6],
-        τ_max = options[7],
-        nexp = options[8],
-        η_strategy = options[9])
+# --- SimpleNewtonRaphson tests ---
 
-    probN = NonlinearProblem(f, u0, p)
-    sol = solve(probN, alg)
-    @test all(abs.(f(u, p)) .< 1e-10)
+@testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion)
+    # Eval else the alg is type unstable
+    @eval begin
+        function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+            prob = NonlinearProblem{false}(f, u0, p)
+            return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
+        end
+
+        function benchmark_nlsolve_iip(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+            prob = NonlinearProblem{true}(f, u0, p)
+            return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
+        end
+    end
+
+    @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
+        AutoForwardDiff())
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; autodiff)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
+
+        @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; autodiff)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
+    end
+
+    @testset "Allocations: Static Array and Scalars" begin
+        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
+            2.0; autodiff = AutoForwardDiff())) < 200
+        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
+            autodiff = AutoForwardDiff())) == 0
+    end
+
+    @testset "[OOP] Immutable AD" begin
+        for p in [1.0, 100.0]
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(res.u .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    @testset "[OOP] Scalar AD" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+                res_true = sqrt(p)
+                res.u ≈ res_true
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
+                p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, alg(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
-f, u0 = (u, p) -> u .* u .- p, randn(1, 3)
+# --- SimpleHalley tests ---
 
-p = [2.0 1.0 5.0];
-probN = NonlinearProblem{false}(f, u0, p);
+@testset "SimpleHalley" begin
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, SimpleHalley(; autodiff), abstol = 1e-9)
+    end
 
-sol = solve(probN, Broyden(batched = true))
+    @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
+        AutoForwardDiff())
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; autodiff)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
+    end
 
-@test abs.(sol.u) ≈ sqrt.(p)
+    @testset "Allocations: Static Array and Scalars" begin
+        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
+            autodiff = AutoForwardDiff())) == 0
+    end
 
-@testset "Batched Solver: $(nameof(typeof(alg)))" for alg in (BATCHED_BROYDEN_SOLVERS...,
-    BATCHED_LBROYDEN_SOLVERS...,
-    BATCHED_DFSANE_SOLVERS...,
-    BATCHED_RAPHSON_SOLVERS...)
-    sol = solve(probN, alg; abstol = 1e-3, reltol = 1e-3)
+    @testset "[OOP] Immutable AD" begin
+        for p in [1.0, 100.0]
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(res.u .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
 
-    @test sol.retcode == ReturnCode.Success
-    @test abs.(sol.u)≈sqrt.(p) atol=1e-3 rtol=1e-3
+    @testset "[OOP] Scalar AD" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+                res_true = sqrt(p)
+                res.u ≈ res_true
+            end
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
+                p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, SimpleHalley(); termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
-## User specified Jacobian
+# --- SimpleBroyden / SimpleKlement / SimpleLimitedMemoryBroyden tests ---
 
-f, u0 = (u, p) -> u .* u .- p, randn(3)
+@testset "$(_nameof(alg))" for alg in [SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
+    SimpleLimitedMemoryBroyden()]
+    function benchmark_nlsolve_oop(f, u0, p = 2.0)
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, alg, abstol = 1e-9)
+    end
 
-f_jac(u, p) = begin
-    diagm(2 * u)
+    function benchmark_nlsolve_iip(f, u0, p = 2.0)
+        prob = NonlinearProblem{true}(f, u0, p)
+        return solve(prob, alg, abstol = 1e-9)
+    end
+
+    @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    end
+
+    @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+    end
+
+    @testset "Allocations: Static Array and Scalars" begin
+        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
+            2.0)) < 200
+        allocs = alg isa SimpleDFSane ? 144 : 0
+        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0)) == allocs
+    end
+
+    @testset "[OOP] Immutable AD" begin
+        for p in [1.0, 100.0]
+            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+
+            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
+                @test_broken all(res .≈ sqrt(p))
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                    @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
+            else
+                @test all(res .≈ sqrt(p))
+                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                        @SVector[1.0, 1.0], p).u[end], p)), 1 / (2 * sqrt(p)))
+            end
+        end
+    end
+
+    @testset "[OOP] Scalar AD" begin
+        for p in 1.0:0.1:100.0
+            res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+
+            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
+                @test_broken all(res .≈ sqrt(p))
+                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                        1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
+            else
+                @test all(res .≈ sqrt(p))
+                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                            1.0, p).u, p)), 1 / (2 * sqrt(p)))
+            end
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, alg; termination_condition).u .≈ sqrt(2.0))
+    end
 end
 
-p = [2.0, 1.0, 5.0];
+@testset "Newton Fails" begin
+    function benchmark_nlsolve_oop(f, u0, p, alg)
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, alg; abstol = 1e-9)
+    end
 
-probN = NonlinearProblem(NonlinearFunction(f, jac = f_jac), u0, p)
+    u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+    p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-for alg in (SimpleNewtonRaphson(), SimpleTrustRegion())
-    sol = solve(probN, alg)
-    @test abs.(sol.u) ≈ sqrt.(p)
+    for alg in (SimpleDFSane(), SimpleTrustRegion(), SimpleHalley())
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p, alg)
+        @test SciMLBase.successful_retcode(sol)
+        @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
+    end
 end
 
-# Flipped signs & reversed tspan test for bracketing algorithms
-f1(u, p) = u * u - p
-f2(u, p) = p - u * u
+# --- Allocation Checks ---
 
-for alg in (Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder())
+## SimpleDFSane needs to allocate a history vector
+@testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
+    SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
+    SimpleTrustRegion())
+    @check_allocs nlsolve(prob, alg) = DiffEqBase.__solve(prob, alg; abstol = 1e-9)
+
+    nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
+    nlprob_sa = NonlinearProblem{false}(quadratic_f, @SVector[1.0, 1.0], 2.0)
+
+    try
+        nlsolve(nlprob_scalar, alg)
+        @test true
+    catch e
+        @error e
+        @test false
+    end
+
+    # ForwardDiff allocates for hessian since we don't propagate the chunksize
+    # SimpleLimitedMemoryBroyden needs to do views on the low rank matrices so the sizes
+    # are dynamic. This can be fixed but no without maintaining the simplicity of the code
+    try
+        nlsolve(nlprob_sa, alg)
+        @test true
+    catch e
+        @error e
+        @test false broken=(alg isa SimpleHalley || alg isa SimpleLimitedMemoryBroyden)
+    end
+end
+
+# --- Interval Nonlinear Problems ---
+
+@testset "Interval Nonlinear Problem: $(alg)" for alg in (Bisection(), Falsi(), Ridder(),
+    Brent(), ITP(), Alefeld())
+    tspan = (1.0, 20.0)
+
+    function g(p)
+        probN = IntervalNonlinearProblem{false}(quadratic_f, typeof(p).(tspan), p)
+        sol = solve(probN, alg; abstol = 1e-9)
+        return sol.left
+    end
+
+    for p in 1.1:0.1:100.0
+        @test g(p)≈sqrt(p) atol=1e-3 rtol=1e-3
+        @test ForwardDiff.derivative(g, p)≈1 / (2 * sqrt(p)) atol=1e-3 rtol=1e-3
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+
+    function g2(p)
+        probN = IntervalNonlinearProblem{false}((u, p) -> p[1] * u * u - p[2], tspan, p)
+        sol = solve(probN, alg; abstol = 1e-9)
+        return [sol.u]
+    end
+
+    @test g2(p)≈[sqrt(p[2] / p[1])] atol=1e-3 rtol=1e-3
+    @test ForwardDiff.jacobian(g2, p)≈ForwardDiff.jacobian(t, p) atol=1e-3 rtol=1e-3
+
+    probB = IntervalNonlinearProblem{false}(quadratic_f, (1.0, 2.0), 2.0)
+    sol = solve(probB, alg; abstol = 1e-9)
+    @test sol.left≈sqrt(2.0) atol=1e-3 rtol=1e-3
+
+    if !(alg isa Bisection || alg isa Falsi)
+        probB = IntervalNonlinearProblem{false}(quadratic_f, (sqrt(2.0), 10.0), 2.0)
+        sol = solve(probB, alg; abstol = 1e-9)
+        @test sol.left≈sqrt(2.0) atol=1e-3 rtol=1e-3
+
+        probB = IntervalNonlinearProblem{false}(quadratic_f, (0.0, sqrt(2.0)), 2.0)
+        sol = solve(probB, alg; abstol = 1e-9)
+        @test sol.left≈sqrt(2.0) atol=1e-3 rtol=1e-3
+    end
+end
+
+@testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Bisection(), Falsi(), ITP())
+    tspan = (1.0, 20.0)
+    probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
+    tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
+    ϵ = eps(1.0) #least possible tol for all methods
+
+    for atol in tols
+        sol = solve(probB, alg; abstol = atol)
+        @test abs(sol.u - sqrt(2)) < atol
+        @test abs(sol.u - sqrt(2)) > ϵ #test that the solution is not calculated upto max precision
+    end
+end
+
+@testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Ridder(), Brent())
+    tspan = (1.0, 20.0)
+    probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
+    tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
+    ϵ = eps(1.0) #least possible tol for all methods
+
+    for atol in tols
+        sol = solve(probB, alg; abstol = atol)
+        @test abs(sol.u - sqrt(2)) < atol
+        @test abs(sol.u - sqrt(2)) > ϵ #test that the solution is not calculated upto max precision
+    end
+end
+
+@testset "Flipped Signs and Reversed Tspan: $(alg)" for alg in (Alefeld(), Bisection(),
+    Falsi(), Brent(), ITP(), Ridder())
+    f1(u, p) = u * u - p
+    f2(u, p) = p - u * u
+
     for p in 1:4
         inp1 = IntervalNonlinearProblem(f1, (1.0, 2.0), p)
         inp2 = IntervalNonlinearProblem(f2, (1.0, 2.0), p)
@@ -584,3 +372,31 @@ for alg in (Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder())
         @test abs.(solve(inp4, alg).u) ≈ sqrt.(p)
     end
 end
+
+# The following tests were included in the previos versions but these kwargs never did
+# anything!
+# # Garuntee Tests for Bisection
+# f = function (u, p)
+#     if u < 2.0
+#         return u - 2.0
+#     elseif u > 3.0
+#         return u - 3.0
+#     else
+#         return 0.0
+#     end
+# end
+# probB = IntervalNonlinearProblem(f, (0.0, 4.0))
+
+# sol = solve(probB, Bisection(; exact_left = true))
+# @test f(sol.left, nothing) < 0.0
+# @test f(nextfloat(sol.left), nothing) >= 0.0
+
+# sol = solve(probB, Bisection(; exact_right = true))
+# @test f(sol.right, nothing) >= 0.0
+# @test f(prevfloat(sol.right), nothing) <= 0.0
+
+# sol = solve(probB, Bisection(; exact_left = true, exact_right = true); immutable = false)
+# @test f(sol.left, nothing) < 0.0
+# @test f(nextfloat(sol.left), nothing) >= 0.0
+# @test f(sol.right, nothing) >= 0.0
+# @test f(prevfloat(sol.right), nothing) <= 0.0

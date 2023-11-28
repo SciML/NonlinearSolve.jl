@@ -13,7 +13,9 @@ end
 
 θ_init = θ_true .+ 0.1
 prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
-sol = solve(prob_oop, SimpleNewtonRaphson())
-sol = solve(prob_oop, SimpleGaussNewton())
 
-@test norm(sol.resid) < 1e-12
+for solver in [SimpleNewtonRaphson(AutoForwardDiff()), SimpleGaussNewton(AutoForwardDiff()),
+    SimpleNewtonRaphson(AutoFiniteDiff()), SimpleGaussNewton(AutoFiniteDiff())]
+    sol = solve(prob_oop, solver)
+    @test norm(sol.resid) < 1e-12
+end

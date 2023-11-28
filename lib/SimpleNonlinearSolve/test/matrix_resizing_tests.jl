@@ -6,6 +6,7 @@ p = 2.0
 vecprob = NonlinearProblem(ff, vec(u0), p)
 prob = NonlinearProblem(ff, u0, p)
 
-for alg in (Klement(), Broyden(), SimpleNewtonRaphson())
-    @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
+@testset "$(alg)" for alg in (SimpleKlement(), SimpleBroyden(), SimpleNewtonRaphson(),
+    SimpleDFSane(), SimpleLimitedMemoryBroyden(), SimpleTrustRegion())
+    @test vec(solve(prob, alg).u) ≈ solve(vecprob, alg).u
 end
