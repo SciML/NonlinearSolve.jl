@@ -985,7 +985,7 @@ end
     end
 end
 
-# Miscelleneous Tests
+# Miscellaneous Tests
 @testset "Custom JVP" begin
     function F(u::Vector{Float64}, p::Vector{Float64})
         Δ = Tridiagonal(-ones(99), 2 * ones(100), -ones(99))

@@ -2,7 +2,7 @@
     LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Int = 10, reset_tolerance = nothing)
 
-An implementation of `LimitedMemoryBroyden` with reseting and line search.
+An implementation of `LimitedMemoryBroyden` with resetting and line search.
 
 ## Arguments
 
