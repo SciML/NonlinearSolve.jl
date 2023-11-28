@@ -71,10 +71,10 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         termination_condition)
 
     # Set default trust region radius if not specified by user.
-    Δₘₐₓ == 0 && (Δₘₐₓ = max(norm(fx), maximum(x) - minimum(x)))
+    Δₘₐₓ == 0 && (Δₘₐₓ = max(NONLINEARSOLVE_DEFAULT_NORM(fx), maximum(x) - minimum(x)))
     Δ == 0 && (Δ = Δₘₐₓ / 11)
 
-    fₖ = 0.5 * norm(fx)^2
+    fₖ = 0.5 * NONLINEARSOLVE_DEFAULT_NORM(fx)^2
     H = ∇f' * ∇f
     g = _restructure(x, ∇f' * _vec(fx))
     shrink_counter = 0
@@ -93,7 +93,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
 
         fx = __eval_f(prob, fx, x)
 
-        fₖ₊₁ = norm(fx)^2 / T(2)
+        fₖ₊₁ = NONLINEARSOLVE_DEFAULT_NORM(fx)^2 / T(2)
 
         # Compute the ratio of the actual to predicted reduction.
         @bb Hδ = H × vec(δ)
@@ -120,7 +120,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             fx, ∇f = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
             # Update the trust region radius.
-            (r > η₃) && (norm(δ) ≈ Δ) && (Δ = min(t₂ * Δ, Δₘₐₓ))
+            (r > η₃) && (NONLINEARSOLVE_DEFAULT_NORM(δ) ≈ Δ) && (Δ = min(t₂ * Δ, Δₘₐₓ))
             fₖ = fₖ₊₁
 
             @bb H = transpose(∇f) × ∇f
@@ -138,12 +138,12 @@ function dogleg_method!!(cache, J, f, g, Δ)
     @bb δN .= _restructure(δN, J \ _vec(f))
     @bb δN .*= -1
     # Test if the full step is within the trust region.
-    (norm(δN) ≤ Δ) && return δN
+    (NONLINEARSOLVE_DEFAULT_NORM(δN) ≤ Δ) && return δN
 
     # Calcualte Cauchy point, optimum along the steepest descent direction.
     @bb δsd .= g
     @bb @. δsd *= -1
-    norm_δsd = norm(δsd)
+    norm_δsd = NONLINEARSOLVE_DEFAULT_NORM(δsd)
     if (norm_δsd ≥ Δ)
         @bb @. δsd *= Δ / norm_δsd
         return δsd

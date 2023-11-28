@@ -14,6 +14,10 @@ A low-overhead implementation of Halley's Method.
 
   - `autodiff`: determines the backend used for the Hessian. Defaults to
     `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
+
+!!! warning
+
+    Inplace Problems are currently not supported by this method.
 """
 @kwdef @concrete struct SimpleHalley <: AbstractNewtonAlgorithm
     autodiff = AutoForwardDiff()
