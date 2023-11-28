@@ -97,7 +97,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
 
         # Compute the ratio of the actual to predicted reduction.
         @bb Hδ = H × vec(δ)
-        r = (fₖ₊₁ - fₖ) / (dot(δ', g) + dot(δ', Hδ) / T(2))
+        r = (fₖ₊₁ - fₖ) / (dot(δ, g) + dot(δ, Hδ) / T(2))
 
         # Update the trust region radius.
         if r < η₂
