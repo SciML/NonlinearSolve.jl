@@ -85,7 +85,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     @bb Hδ = copy(x)
     dogleg_cache = (; δsd, δN_δsd, δN)
 
-    F = fx
     for k in 1:maxiters
         # Solve the trust region subproblem.
         δ = dogleg_method!!(dogleg_cache, ∇f, fx, g, Δ)
@@ -100,16 +99,16 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         r = (fₖ₊₁ - fₖ) / (dot(δ, g) + dot(δ, Hδ) / T(2))
 
         # Update the trust region radius.
-        if r < η₂
+        if Bool(r ≥ η₂)
+            shrink_counter = 0
+        else
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
                 retcode = ReturnCode.ConvergenceFailure)
-        else
-            shrink_counter = 0
         end
 
-        if r > η₁
+        if Bool(r ≥ η₁)
             # Termination Checks
             tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
             tc_sol !== nothing && return tc_sol
@@ -138,13 +137,14 @@ function dogleg_method!!(cache, J, f, g, Δ)
     @bb δN .= _restructure(δN, J \ _vec(f))
     @bb δN .*= -1
     # Test if the full step is within the trust region.
-    (norm(δN) ≤ Δ) && return δN
+    Bool(norm(δN) ≤ Δ) && return δN
 
     # Calcualte Cauchy point, optimum along the steepest descent direction.
     @bb δsd .= g
     @bb @. δsd *= -1
     norm_δsd = norm(δsd)
-    if (norm_δsd ≥ Δ)
+
+    if Bool(norm_δsd ≥ Δ)
         @bb @. δsd *= Δ / norm_δsd
         return δsd
     end
