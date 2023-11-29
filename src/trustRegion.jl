@@ -248,7 +248,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     uf, _, J, fu2, jac_cache, du, H, g = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs, linsolve_with_JᵀJ = Val(true), lininit = Val(false))
     g = _restructure(fu1, g)
-    linsolve = u isa Number ? nothing : __setup_linsolve(J, fu2, du, p, alg)
+    linsolve = u isa Number ? nothing : linsolve_caches(J, fu2, du, p, alg)
 
     u_tmp = zero(u)
     u_cauchy = zero(u)

@@ -232,7 +232,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
         fill!(mat_tmp, zero(eltype(u)))
         rhs_tmp = vcat(_vec(fu1), _vec(u))
         fill!(rhs_tmp, zero(eltype(u)))
-        linsolve = __setup_linsolve(mat_tmp, rhs_tmp, u, p, alg)
+        linsolve = linsolve_caches(mat_tmp, rhs_tmp, u, p, alg)
     end
 
     return LevenbergMarquardtCache{iip, !_unwrap_val(linsolve_with_JᵀJ)}(f, alg, u, copy(u),

@@ -8,25 +8,24 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase,
-        LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
+    using DiffEqBase, LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
         SparseDiffTools
-    using FastBroadcast: @..
-    import ArrayInterface: restructure
 
     import ADTypes: AbstractFiniteDifferencesMode
-    import ArrayInterface: undefmatrix,
+    import ArrayInterface: undefmatrix, restructure, can_setindex,
         matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
     import ConcreteStructs: @concrete
     import EnumX: @enumx
+    import FastBroadcast: @..
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
+    import MaybeInplace: @bb
     import RecursiveArrayTools: ArrayPartition,
         AbstractVectorOfArray, recursivecopy!, recursivefill!
     import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
     import SciMLOperators: FunctionOperator
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
     import UnPack: @unpack
 
     using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
@@ -55,13 +54,13 @@ isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     str = "$(nameof(typeof(alg)))("
     modifiers = String[]
-    if _getproperty(alg, Val(:ad)) !== nothing
+    if __getproperty(alg, Val(:ad)) !== nothing
         push!(modifiers, "ad = $(nameof(typeof(alg.ad)))()")
     end
-    if _getproperty(alg, Val(:linsolve)) !== nothing
+    if __getproperty(alg, Val(:linsolve)) !== nothing
         push!(modifiers, "linsolve = $(nameof(typeof(alg.linsolve)))()")
     end
-    if _getproperty(alg, Val(:linesearch)) !== nothing
+    if __getproperty(alg, Val(:linesearch)) !== nothing
         ls = alg.linesearch
         if ls isa LineSearch
             ls.method !== nothing &&
@@ -70,7 +69,7 @@ function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
             push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
         end
     end
-    if _getproperty(alg, Val(:radius_update_scheme)) !== nothing
+    if __getproperty(alg, Val(:radius_update_scheme)) !== nothing
         push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
     end
     str = str * join(modifiers, ", ")
@@ -107,7 +106,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-    trace = _getproperty(cache, Val{:trace}())
+    trace = __getproperty(cache, Val{:trace}())
     if trace !== nothing
         update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
             nothing, nothing; last = Val(true))
@@ -134,52 +133,52 @@ include("jacobian.jl")
 include("ad.jl")
 include("default.jl")
 
-@setup_workload begin
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
-    probs_nls = NonlinearProblem[]
-    for T in (Float32, Float64), (fn, u0) in nlfuncs
-        push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
-    end
+# @setup_workload begin
+#     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
+#         (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
+#         (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
+#     probs_nls = NonlinearProblem[]
+#     for T in (Float32, Float64), (fn, u0) in nlfuncs
+#         push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
+#     end
 
-    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
-        GeneralBroyden(), GeneralKlement(), DFSane(), nothing)
+#     nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
+#         GeneralBroyden(), GeneralKlement(), DFSane(), nothing)
 
-    probs_nlls = NonlinearLeastSquaresProblem[]
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
-        (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
-        (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(1)), [0.1, 0.0]),
-        (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(4)), [0.1, 0.1]))
-    for (fn, u0) in nlfuncs
-        push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-    end
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), Float32[0.1, 0.0]),
-        (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
-            Float32[0.1, 0.1]),
-        (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(Float32, 1)), Float32[0.1, 0.0]),
-        (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(Float32, 4)), Float32[0.1, 0.1]))
-    for (fn, u0) in nlfuncs
-        push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
-    end
+#     probs_nlls = NonlinearLeastSquaresProblem[]
+#     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
+#         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
+#         (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
+#                 resid_prototype = zeros(1)), [0.1, 0.0]),
+#         (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+#                 resid_prototype = zeros(4)), [0.1, 0.1]))
+#     for (fn, u0) in nlfuncs
+#         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
+#     end
+#     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), Float32[0.1, 0.0]),
+#         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
+#             Float32[0.1, 0.1]),
+#         (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
+#                 resid_prototype = zeros(Float32, 1)), Float32[0.1, 0.0]),
+#         (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+#                 resid_prototype = zeros(Float32, 4)), Float32[0.1, 0.1]))
+#     for (fn, u0) in nlfuncs
+#         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
+#     end
 
-    nlls_algs = (LevenbergMarquardt(), GaussNewton(),
-        LevenbergMarquardt(; linsolve = LUFactorization()),
-        GaussNewton(; linsolve = LUFactorization()))
+#     nlls_algs = (LevenbergMarquardt(), GaussNewton(),
+#         LevenbergMarquardt(; linsolve = LUFactorization()),
+#         GaussNewton(; linsolve = LUFactorization()))
 
-    @compile_workload begin
-        for prob in probs_nls, alg in nls_algs
-            solve(prob, alg, abstol = 1e-2)
-        end
-        for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg, abstol = 1e-2)
-        end
-    end
-end
+#     @compile_workload begin
+#         for prob in probs_nls, alg in nls_algs
+#             solve(prob, alg, abstol = 1e-2)
+#         end
+#         for prob in probs_nlls, alg in nlls_algs
+#             solve(prob, alg, abstol = 1e-2)
+#         end
+#     end
+# end
 
 export RadiusUpdateSchemes
 

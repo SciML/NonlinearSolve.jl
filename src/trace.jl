@@ -151,8 +151,10 @@ function reset!(trace::NonlinearSolveTrace)
 end
 
 function Base.show(io::IO, trace::NonlinearSolveTrace)
-    for entry in trace.history
-        show(io, entry)
+    if trace.history !== nothing
+        foreach(entry -> show(io, entry), trace.history)
+    else
+        print(io, "Tracing Disabled")
     end
     return nothing
 end

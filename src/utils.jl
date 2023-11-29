@@ -1,5 +1,15 @@
 const DEFAULT_NORM = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM
 
+@concrete mutable struct FakeLinearSolveJLCache
+    A
+    b
+end
+
+@concrete struct FakeLinearSolveJLResult
+    cache
+    u
+end
+
 # Ignores NaN
 function __findmin(f, x)
     return findmin(x) do xᵢ
@@ -55,7 +65,7 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
 end
 
 """
-value_derivative(f, x)
+    value_derivative(f, x)
 
 Compute `f(x), d/dx f(x)` in the most efficient way.
 """
@@ -63,10 +73,6 @@ function value_derivative(f::F, x::R) where {F, R}
     T = typeof(ForwardDiff.Tag(f, R))
     out = f(ForwardDiff.Dual{T}(x, one(x)))
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-end
-
-function value_derivative(f::F, x::SVector) where {F}
-    f(x), ForwardDiff.jacobian(f, x)
 end
 
 @inline value(x) = x
@@ -81,6 +87,15 @@ end
 @inline _restructure(y::Number, x::Number) = x
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
+
+function dolinsolve(precs::P, linsolve::FakeLinearSolveJLCache; A = nothing,
+    linu = nothing, b = nothing, du = nothing, p = nothing, weight = nothing,
+    cachedata = nothing, reltol = nothing, reuse_A_if_factorization = false) where {P}
+    A !== nothing && (linsolve.A = A)
+    b !== nothing && (linsolve.b = b)
+    linres = linsolve.A \ linsolve.b
+    return FakeLinearSolveJLResult(linsolve, linres)
+end
 
 function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
         du = nothing, p = nothing, weight = nothing, cachedata = nothing, reltol = nothing,
@@ -155,33 +170,32 @@ _mutable_zero(x::SArray) = MArray(x)
 _mutable(x) = x
 _mutable(x::SArray) = MArray(x)
 
-_maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
+# __maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
 # The shadow allocated for Enzyme needs to be mutable
-_maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
-_maybe_mutable(x, _) = x
+__maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
+__maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
 function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
-        fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
+        fu = f.resid_prototype === nothing ? similar(u) : f.resid_prototype
         f(fu, u, p)
     else
-        fu = _mutable(f(u, p))
+        fu = f(u, p)
     end
     return fu
 end
 
-evaluate_f(cache, u; fu = nothing) = evaluate_f(cache.f, u, cache.p, Val(cache.iip); fu)
-
-function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
-    if iip
-        f(fu, u, p)
-        return fu
+function evaluate_f(cache, u)
+    @unpack f, p = cache.prob
+    if isinplace(cache)
+        f(get_fu(cache), u, p)
     else
-        return f(u, p)
+        set_fu!(cache, f(u, p))
     end
+    return nothing
 end
 
 """
@@ -206,7 +220,7 @@ end
 function __get_concrete_algorithm(alg, prob)
     @unpack sparsity, jac_prototype = prob.f
     use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
-    ad = if eltype(prob.u0) <: Complex
+    ad = if !ForwardDiff.can_dual(eltype(prob.u0))
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
@@ -310,16 +324,16 @@ function __init_low_rank_jacobian(u, fu, threshold::Int)
 end
 
 # Check Singular Matrix
-_issingular(x::Number) = iszero(x)
-@generated function _issingular(x::T) where {T}
+@inline _issingular(x::Number) = iszero(x)
+@inline @generated function _issingular(x::T) where {T}
     hasmethod(issingular, Tuple{T}) && return :(issingular(x))
     return :(__issingular(x))
 end
-__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
-__issingular(x) = false ## If SciMLOperator and such
+@inline __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
+@inline __issingular(x) = false ## If SciMLOperator and such
 
 # Safe getproperty
-@generated function _getproperty(s::S, ::Val{X}) where {S, X}
+@generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
     return :(nothing)
 end
@@ -348,6 +362,7 @@ _try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
     return :(@. y += α * x)
 end
 
+# Non-square matrix
 @inline _needs_square_A(_, ::Number) = true
 @inline _needs_square_A(_, ::StaticArray) = true
 @inline _needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
@@ -355,9 +370,40 @@ end
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
 
+# LazyArrays for tracing
 __zero(x::AbstractArray) = zero(x)
 __zero(x) = x
 LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
 LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
 LazyArrays.applied_size(::typeof(__zero), x) = size(x)
 LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
+
+# SparseAD --> NonSparseAD
+@inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
+@inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
+@inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
+@inline __get_nonsparse_ad(ad) = ad
+
+# Use Symmetric Matrices if known to be efficient
+@inline __maybe_symmetric(x) = Symmetric(x)
+@inline __maybe_symmetric(x::Number) = x
+## LinearSolve with `nothing` doesn't dispatch correctly here
+@inline __maybe_symmetric(x::StaticArray) = x
+@inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
+@inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+
+# Unalias
+@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
+    # Spend time coping iff we will mutate the array
+    (alias || !can_setindex(typeof(x))) && return x
+    return deepcopy(x)
+end
+
+# Init ones
+@inline function __init_ones(x)
+    w = similar(x)
+    recursivefill!(w, true)
+    return w
+end
+@inline __init_ones(x::StaticArray) = ones(typeof(x))

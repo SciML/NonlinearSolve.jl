@@ -87,7 +87,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         linsolve_alg = alg_.linsolve === nothing && u isa Array ? LUFactorization() :
                        nothing
         alg = set_linsolve(alg_, linsolve_alg)
-        linsolve = __setup_linsolve(J, _vec(fu), _vec(du), p, alg)
+        linsolve = linsolve_caches(J, _vec(fu), _vec(du), p, alg)
     end
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
