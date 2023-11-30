@@ -113,6 +113,8 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
         JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u; f,
             vjp_autodiff = __get_nonsparse_ad(__getproperty(alg, Val(:vjp_autodiff))),
             jvp_autodiff = __get_nonsparse_ad(alg.ad))
+    else
+        JᵀJ, Jᵀfu = nothing, nothing
     end
 
     if linsolve_init
@@ -127,8 +129,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
         linsolve = nothing
     end
 
-    needsJᵀJ && return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
-    return uf, linsolve, J, fu, jac_cache, du
+    return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
 end
 
 ## Special Handling for Scalars

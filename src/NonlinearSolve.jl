@@ -51,8 +51,8 @@ isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
         p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
-        maxiters = cache.maxiters, alias_u0 = false,
-        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
+        maxiters = cache.maxiters, alias_u0 = false, termination_condition = missing,
+        kwargs...) where {iip}
     cache.p = p
     if iip
         recursivecopy!(get_u(cache), u0)
@@ -63,24 +63,40 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
     end
 
     reset!(cache.trace)
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, get_fu(cache),
-        get_u(cache), termination_condition)
+
+    # Some algorithms store multiple termination caches
+    if hasfield(typeof(cache), :tc_cache)
+        # TODO: We need an efficient way to reset this upstream
+        tc = termination_condition === missing ? get_termination_mode(cache.tc_cache) :
+             termination_condition
+        abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, get_fu(cache),
+            get_u(cache), tc)
+        cache.tc_cache = tc_cache
+    end
+
+    if hasfield(typeof(cache), :ls_cache)
+        # TODO: A more efficient way to do this
+        cache.ls_cache = init_linesearch_cache(cache.prob, cache.alg.linesearch, cache.f,
+            get_u(cache), p, get_fu(cache), Val(iip))
+    end
+
+    hasfield(typeof(cache), :uf) && (cache.uf.p = p)
 
     cache.abstol = abstol
     cache.reltol = reltol
-    cache.tc_cache = tc_cache
     cache.maxiters = maxiters
     cache.stats.nf = 1
     cache.stats.nsteps = 1
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
 
-    __reinit_internal!(cache)
+    __reinit_internal!(cache; u0, p, abstol, reltol, maxiters, alias_u0,
+        termination_condition, kwargs...)
 
     return cache
 end
 
-__reinit_internal!(::AbstractNonlinearSolveCache) = nothing
+__reinit_internal!(::AbstractNonlinearSolveCache; kwargs...) = nothing
 
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     str = "$(nameof(typeof(alg)))("
@@ -155,14 +171,14 @@ include("linesearch.jl")
 include("raphson.jl")
 # include("trustRegion.jl")
 # include("levenberg.jl")
-# include("gaussnewton.jl")
+include("gaussnewton.jl")
 # include("dfsane.jl")
 include("pseudotransient.jl")
 include("broyden.jl")
 include("klement.jl")
 include("lbroyden.jl")
 include("jacobian.jl")
-# include("ad.jl")
+include("ad.jl")
 # include("default.jl")
 
 # @setup_workload begin

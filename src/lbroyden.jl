@@ -73,7 +73,6 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     @unpack f, u0, p = prob
     threshold = __get_threshold(alg)
     η = min(__get_unwrapped_threshold(alg), maxiters)
-
     if u0 isa Number || length(u0) ≤ η
         # If u is a number or very small problem then we simply use Broyden
         return SciMLBase.__init(prob,
@@ -81,13 +80,11 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
             alias_u0, maxiters, abstol, internalnorm, kwargs...)
     end
     u = __maybe_unaliased(u0, alias_u0)
-
     fu = evaluate_f(prob, u)
-
     U, Vᵀ = __init_low_rank_jacobian(u, fu, threshold)
 
     @bb du = copy(fu)
-    @bb u_cache = similar(u)
+    @bb u_cache = copy(u)
     @bb fu_cache = copy(fu)
     @bb dfu = similar(fu)
     @bb vᵀ_cache = similar(u)
@@ -176,7 +173,7 @@ function perform_step!(cache::LimitedMemoryBroydenCache{iip}) where {iip}
     return nothing
 end
 
-function __reinit_internal!(cache::LimitedMemoryBroydenCache)
+function __reinit_internal!(cache::LimitedMemoryBroydenCache; kwargs...)
     cache.iterations_since_reset = 0
     return nothing
 end

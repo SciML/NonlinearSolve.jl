@@ -379,9 +379,9 @@ __try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x
 end
 
 # Non-square matrix
-@inline _needs_square_A(_, ::Number) = true
-@inline _needs_square_A(_, ::StaticArray) = true
-@inline _needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
+@inline __needs_square_A(_, ::Number) = true
+# @inline __needs_square_A(_, ::StaticArray) = true
+@inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
 
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)

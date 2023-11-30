@@ -107,7 +107,7 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
         linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    !iip && (cache.du = linres.u)
+    cache.du = _restructure(cache.du, linres.u)
 
     # Line Search
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)

@@ -126,7 +126,7 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
     return nothing
 end
 
-function __reinit_internal!(cache::GeneralBroydenCache)
+function __reinit_internal!(cache::GeneralBroydenCache; kwargs...)
     cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹)
     cache.resets = 0
     return nothing

@@ -126,7 +126,7 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     linres = dolinsolve(alg.precs, cache.linsolve; A,
         b = _vec(cache.fu), linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    !iip && (cache.du = linres.u)
+    cache.du = _restructure(cache.du, linres.u)
 
     # Line Search
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
@@ -163,7 +163,7 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     return nothing
 end
 
-function __reinit_internal!(cache::GeneralKlementCache)
+function __reinit_internal!(cache::GeneralKlementCache; kwargs...)
     cache.J = __reinit_identity_jacobian!!(cache.J)
     cache.resets = 0
     return nothing

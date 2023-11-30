@@ -173,7 +173,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     u = alias_u0 ? u0 : deepcopy(u0)
     fu1 = evaluate_f(prob, u)
 
-    linsolve_with_JᵀJ = Val(_needs_square_A(alg, u0))
+    linsolve_with_JᵀJ = Val(__needs_square_A(alg, u0))
 
     if _unwrap_val(linsolve_with_JᵀJ)
         uf, linsolve, J, fu2, jac_cache, du, JᵀJ, v = jacobian_caches(alg, f, u, p,

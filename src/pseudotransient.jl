@@ -130,7 +130,7 @@ function perform_step!(cache::PseudoTransientCache{iip}) where {iip}
     linres = dolinsolve(alg.precs, cache.linsolve; A, b = _vec(cache.fu),
         linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-    !iip && (cache.du = linres.u)
+    cache.du = _restructure(cache.du, linres.u)
 
     @bb axpy!(-true, cache.du, cache.u)
 
@@ -152,8 +152,9 @@ function perform_step!(cache::PseudoTransientCache{iip}) where {iip}
     return nothing
 end
 
-function __reinit_internal!(cache::PseudoTransientCache)
-    cache.alpha = convert(eltype(cache.u), cache.alg.alpha_initial)
+function __reinit_internal!(cache::PseudoTransientCache; alpha = cache.alg.alpha_initial,
+        kwargs...)
+    cache.alpha = convert(eltype(cache.u), alpha)
     cache.res_norm = cache.internalnorm(cache.fu)
     return nothing
 end
