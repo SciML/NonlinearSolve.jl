@@ -8,9 +8,8 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase,
-        LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
-        SparseDiffTools
+    using ADTypes, DiffEqBase, LazyArrays, LineSearches, LinearAlgebra, LinearSolve, Printf,
+        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, StaticArrays
 
     import ADTypes: AbstractFiniteDifferencesMode
     import ArrayInterface: undefmatrix, restructure, can_setindex,
@@ -26,10 +25,8 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
         AbstractVectorOfArray, recursivecopy!, recursivefill!
     import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
     import SciMLOperators: FunctionOperator
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
+    import StaticArrays: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
     import UnPack: @unpack
-
-    using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve

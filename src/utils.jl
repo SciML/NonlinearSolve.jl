@@ -356,8 +356,8 @@ end
 
 # If factorization is LU then perform that and update the linsolve cache
 # else check if the matrix is singular
-function _try_factorize_and_check_singular!(linsolve, X)
-    if linsolve.cacheval isa LU
+function __try_factorize_and_check_singular!(linsolve, X)
+    if linsolve.cacheval isa LU || linsolve.cacheval isa StaticArrays.LU
         # LU Factorization was used
         linsolve.A = X
         linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
@@ -368,11 +368,9 @@ function _try_factorize_and_check_singular!(linsolve, X)
     end
     return _issingular(X), false
 end
-_try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
+__try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x), false
 
-@inline _reshape(x, args...) = reshape(x, args...)
-@inline _reshape(x::Number, args...) = x
-
+# TODO: Remove. handled in MaybeInplace.jl
 @generated function _axpy!(α, x, y)
     hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
     return :(@. y += α * x)
