@@ -33,13 +33,13 @@ jacobian!!(J, _) = J
 # `!!` notation is from BangBang.jl since J might be jacobian in case of oop `f.jac`
 # and we don't want wasteful `copyto!`
 function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache)
-    @unpack f, uf, u, p, jac_cache, alg, fu2 = cache
+    @unpack f, uf, u, p, jac_cache, alg, fu_cache = cache
     iip = isinplace(cache)
     if iip
         if has_jac(f)
             f.jac(J, u, p)
         else
-            sparse_jacobian!(J, alg.ad, jac_cache, uf, fu2, u)
+            sparse_jacobian!(J, alg.ad, jac_cache, uf, fu_cache, u)
         end
         return J
     else
@@ -116,9 +116,10 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     end
 
     if linsolve_init
-        linprob_A = alg isa PseudoTransient ?
-                    (J - (1 / (convert(eltype(u), alg.alpha_initial))) * I) :
-                    (needsJᵀJ ? __maybe_symmetric(JᵀJ) : J)
+        linprob_A = needsJᵀJ ? __maybe_symmetric(JᵀJ) : J
+        # linprob_A = alg isa PseudoTransient ?
+        #             (J - (1 / (convert(eltype(u), alg.alpha_initial))) * I) :
+        #             (needsJᵀJ ? __maybe_symmetric(JᵀJ) : J)
         linsolve = linsolve_caches(linprob_A, needsJᵀJ ? Jᵀfu : fu, du, p, alg;
             linsolve_kwargs)
     else

@@ -117,8 +117,9 @@ end
 function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.stats.nsteps < cache.maxiters
 end
-get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
-set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu1 = fu)
+
+get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
@@ -152,17 +153,17 @@ include("trace.jl")
 include("extension_algs.jl")
 include("linesearch.jl")
 include("raphson.jl")
-include("trustRegion.jl")
-include("levenberg.jl")
-include("gaussnewton.jl")
-include("dfsane.jl")
-include("pseudotransient.jl")
+# include("trustRegion.jl")
+# include("levenberg.jl")
+# include("gaussnewton.jl")
+# include("dfsane.jl")
+# include("pseudotransient.jl")
 include("broyden.jl")
 include("klement.jl")
-include("lbroyden.jl")
+# include("lbroyden.jl")
 include("jacobian.jl")
-include("ad.jl")
-include("default.jl")
+# include("ad.jl")
+# include("default.jl")
 
 # @setup_workload begin
 #     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),

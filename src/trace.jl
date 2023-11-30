@@ -240,3 +240,23 @@ function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, 
     show_now && show(entry)
     return trace
 end
+
+function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
+    trace = __getproperty(cache, Val(:trace))
+    trace === nothing && return nothing
+
+    J = __getproperty(cache, Val(:J))
+    if J === nothing
+        J_inv = __getproperty(cache, Val(:J⁻¹))
+        if J_inv === nothing
+            update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
+                nothing, cache.du, α)
+        else
+            update_trace_with_invJ!(trace, cache.stats.nsteps + 1, get_u(cache),
+                get_fu(cache), J_inv, cache.du, α)
+        end
+    else
+        update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+            cache.du, α)
+    end
+end

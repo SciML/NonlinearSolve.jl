@@ -31,15 +31,14 @@ end
     f
     alg
     u
-    u_prev
+    u_cache
     du
     fu
-    fu2
+    fu_cache
     dfu
     p
     J⁻¹
-    J⁻¹₂
-    J⁻¹df
+    J⁻¹dfu
     force_stop::Bool
     resets::Int
     max_resets::Int
@@ -57,9 +56,6 @@ end
     trace
 end
 
-get_fu(cache::GeneralBroydenCache) = cache.fu
-set_fu!(cache::GeneralBroydenCache, fu) = (cache.fu = fu)
-
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyden, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
@@ -73,19 +69,18 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
-    @bb u_prev = copy(u)
-    @bb fu2 = copy(fu)
+    @bb u_cache = copy(u)
+    @bb fu_cache = similar(fu)
     @bb dfu = similar(fu)
-    @bb J⁻¹₂ = similar(u)
-    @bb J⁻¹df = similar(u)
+    @bb J⁻¹dfu = similar(u)
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
     trace = init_nonlinearsolve_trace(alg, u, fu, J⁻¹, du; uses_jac_inverse = Val(true),
         kwargs...)
 
-    return GeneralBroydenCache{iip}(f, alg, u, u_prev, du, fu, fu2, dfu, p, J⁻¹,
-        J⁻¹₂, J⁻¹df, false, 0, alg.max_resets, maxiters, internalnorm, ReturnCode.Default,
+    return GeneralBroydenCache{iip}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p,
+        J⁻¹, J⁻¹dfu, false, 0, alg.max_resets, maxiters, internalnorm, ReturnCode.Default,
         abstol, reltol, reset_tolerance, reset_check, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
@@ -97,22 +92,16 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     @bb axpy!(-α, cache.du, cache.u)
 
-    if iip
-        cache.f(cache.fu2, cache.u, cache.p)
-    else
-        cache.fu2 = cache.f(cache.u, cache.p)
-    end
+    evaluate_f(cache, cache.u, cache.p)
 
-    update_trace_with_invJ!(cache.trace, cache.stats.nsteps + 1, get_u(cache),
-        cache.fu2, cache.J⁻¹, cache.du, α)
-
-    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
+    update_trace!(cache, α)
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     cache.stats.nf += 1
 
     cache.force_stop && return nothing
 
     # Update the inverse jacobian
-    @bb @. cache.dfu = cache.fu2 - cache.fu
+    @bb @. cache.dfu = cache.fu - cache.fu_cache
 
     if all(cache.reset_check, cache.du) || all(cache.reset_check, cache.dfu)
         if cache.resets ≥ cache.max_resets
@@ -124,15 +113,15 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
         cache.resets += 1
     else
         @bb cache.du .*= -1
-        @bb cache.J⁻¹df = cache.J⁻¹ × vec(cache.dfu)
-        @bb cache.J⁻¹₂ = cache.J⁻¹ × vec(cache.du)
-        denom = dot(cache.du, cache.J⁻¹df)
-        @bb @. cache.du = (cache.du - cache.J⁻¹df) / ifelse(iszero(denom), T(1e-5), denom)
-        @bb cache.J⁻¹ += vec(cache.du) × transpose(cache.J⁻¹₂)
+        @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
+        @bb cache.u_cache = cache.J⁻¹ × vec(cache.du)
+        denom = dot(cache.du, cache.J⁻¹dfu)
+        @bb @. cache.du = (cache.du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1e-5), denom)
+        @bb cache.J⁻¹ += vec(cache.du) × transpose(cache.u_cache)
     end
 
-    @bb copyto!(cache.fu, cache.fu2)
-    @bb copyto!(cache.u_prev, cache.u)
+    @bb copyto!(cache.fu_cache, cache.fu)
+    @bb copyto!(cache.u_cache, cache.u)
 
     return nothing
 end

@@ -41,17 +41,17 @@ end
     f
     alg
     u
-    u_prev
+    u_cache
     fu
-    fu2
+    fu_cache
     du
     p
     linsolve
     J
     J_cache
-    J_cache2
-    Jᵀ²du
+    J_cache_2
     Jdu
+    Jdu_cache
     resets
     force_stop
     maxiters::Int
@@ -65,9 +65,6 @@ end
     tc_cache
     trace
 end
-
-get_fu(cache::GeneralKlementCache) = cache.fu
-set_fu!(cache::GeneralKlementCache, fu) = (cache.fu = fu)
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
@@ -94,16 +91,16 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         termination_condition)
     trace = init_nonlinearsolve_trace(alg, u, fu, J, du; kwargs...)
 
-    @bb u_prev = copy(u)
-    @bb fu2 = similar(fu)
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
     @bb J_cache = similar(J)
-    @bb J_cache2 = similar(J)
-    @bb Jᵀ²du = similar(fu)
+    @bb J_cache_2 = similar(J)
     @bb Jdu = similar(fu)
+    @bb Jdu_cache = similar(fu)
 
-    return GeneralKlementCache{iip}(f, alg, u, u_prev, fu, fu2, du, p, linsolve, J, J_cache,
-        J_cache2, Jᵀ²du, Jdu, 0, false, maxiters, internalnorm, ReturnCode.Default, abstol,
-        reltol, prob, NLStats(1, 0, 0, 0, 0),
+    return GeneralKlementCache{iip}(f, alg, u, u_cache, fu, fu_cache, du, p, linsolve,
+        J, J_cache, J_cache_2, Jdu, Jdu_cache, 0, false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
@@ -127,24 +124,18 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
         linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-
     !iip && (cache.du = linres.u)
 
     # Line Search
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     @bb axpy!(-α, cache.du, cache.u)
 
-    if iip
-        cache.f(cache.fu2, cache.u, cache.p)
-    else
-        cache.fu2 = cache.f(cache.u, cache.p)
-    end
+    evaluate_f(cache, cache.u, cache.p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2, cache.J,
-        cache.du, α)
+    update_trace!(cache, α)
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
-    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
-    @bb copyto!(cache.u_prev, cache.u)
+    @bb copyto!(cache.u_cache, cache.u)
 
     cache.stats.nf += 1
     cache.stats.nsolve += 1
@@ -155,19 +146,17 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     # Update the Jacobian
     @bb cache.du .*= -1
     @bb cache.J_cache .= cache.J' .^ 2
-    @bb @. cache.Jdu = cache.du ^ 2
-    @bb cache.Jᵀ²du = cache.J_cache × vec(cache.Jdu)
+    @bb @. cache.Jdu = cache.du^2
+    @bb cache.Jdu_cache = cache.J_cache × vec(cache.Jdu)
     @bb cache.Jdu = cache.J × vec(cache.du)
-    @bb @. cache.fu = cache.fu2 - cache.fu
-
-    @bb @. cache.fu = (cache.fu - cache.Jdu) / max(cache.Jᵀ²du, eps(real(T)))
-
+    @bb @. cache.fu_cache = (cache.fu - cache.fu_cache - cache.Jdu) /
+                            max(cache.Jdu_cache, eps(real(T)))
     @bb cache.J_cache = vec(cache.fu) × transpose(_vec(cache.du))
     @bb @. cache.J_cache *= cache.J
-    @bb cache.J_cache2 = cache.J_cache × cache.J
-    @bb cache.J .+= cache.J_cache2
+    @bb cache.J_cache_2 = cache.J_cache × cache.J
+    @bb cache.J .+= cache.J_cache_2
 
-    @bb copyto!(cache.fu, cache.fu2)
+    @bb copyto!(cache.fu_cache, cache.fu)
 
     return nothing
 end

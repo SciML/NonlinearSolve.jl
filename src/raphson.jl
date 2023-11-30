@@ -52,9 +52,9 @@ end
     f
     alg
     u
-    u_prev
-    fu1
-    fu2
+    fu
+    u_cache
+    fu_cache
     du
     p
     uf
@@ -81,19 +81,19 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
     u = __maybe_unaliased(u0, alias_u0)
-    fu1 = evaluate_f(prob, u)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+    fu = evaluate_f(prob, u)
+    uf, linsolve, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
 
-    ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip))
-    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
+    ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip))
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-    @bb u_prev = copy(u)
+    @bb u_cache = copy(u)
 
-    return NewtonRaphsonCache{iip}(f, alg, u, u_prev, fu1, fu2, du, p, uf, linsolve, J,
+    return NewtonRaphsonCache{iip}(f, alg, u, fu, u_cache, fu_cache, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0), ls_cache, tc_cache, trace)
 end
@@ -104,10 +104,9 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     cache.J = jacobian!!(cache.J, cache)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu1),
+    linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
         linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
-
     !iip && (cache.du = linres.u)
 
     # Line Search
@@ -116,12 +115,10 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
 
     evaluate_f(cache, cache.u, cache.p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
-        cache.du, α)
+    update_trace!(cache, α)
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
-    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
-
-    @bb copyto!(cache.u_prev, cache.u)
+    @bb copyto!(cache.u_cache, cache.u)
     cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1

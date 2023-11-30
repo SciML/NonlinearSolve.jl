@@ -327,15 +327,17 @@ end
     return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
 end
 
-function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)
-    Vᵀ = convert(MArray{Tuple{length(u), threshold}},
-        zeros(eltype(u), length(u), threshold))
-    U = convert(MArray{Tuple{threshold, length(u)}}, zeros(eltype(u), threshold, length(u)))
+function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
+        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
+    T = promote_type(T1, T2)
+    fuSize, uSize = Size(fu), Size(u)
+    Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
+    U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
     return U, Vᵀ
 end
-function __init_low_rank_jacobian(u, fu, threshold::Int)
-    Vᵀ = convert(parameterless_type(_mutable(u)), zeros(eltype(u), length(u), threshold))
-    U = convert(parameterless_type(_mutable(u)), zeros(eltype(u), threshold, length(u)))
+function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
+    Vᵀ = similar(u, threshold, length(u))
+    U = similar(u, length(fu), threshold)
     return U, Vᵀ
 end
 
