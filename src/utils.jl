@@ -188,12 +188,11 @@ function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
     return fu
 end
 
-function evaluate_f(cache, u)
-    @unpack f, p = cache.prob
+function evaluate_f(cache, u, p)
     if isinplace(cache)
-        f(get_fu(cache), u, p)
+        cache.prob.f(get_fu(cache), u, p)
     else
-        set_fu!(cache, f(u, p))
+        set_fu!(cache, cache.prob.f(u, p))
     end
     return nothing
 end
@@ -301,14 +300,31 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
     end
 end
 
-__init_identity_jacobian(u::Number, _) = u
-function __init_identity_jacobian(u, fu)
-    return convert(parameterless_type(_mutable(u)),
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+@inline __init_identity_jacobian(u::Number, _) = one(u)
+@inline function __init_identity_jacobian(u, fu)
+    J = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= one(eltype(J))
+    return J
 end
-function __init_identity_jacobian(u::StaticArray, fu)
-    return convert(MArray{Tuple{length(fu), length(u)}},
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray)
+    T = promote_type(eltype(fu), eltype(u))
+    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+end
+@inline function __init_identity_jacobian(u::SArray, fu::SArray)
+    T = promote_type(eltype(fu), eltype(u))
+    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+end
+
+@inline __reinit_identity_jacobian!!(J::Number) = one(J)
+@inline function __reinit_identity_jacobian!!(J::AbstractMatrix)
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= one(eltype(J))
+    return J
+end
+@inline function __reinit_identity_jacobian!!(J::SMatrix)
+    S = Size(J)
+    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
 end
 
 function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)

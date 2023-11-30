@@ -114,7 +114,7 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     @bb axpy!(-α, cache.du, cache.u)
 
-    evaluate_f(cache, cache.u)
+    evaluate_f(cache, cache.u, cache.p)
 
     update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
         cache.du, α)

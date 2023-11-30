@@ -25,7 +25,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
         AbstractVectorOfArray, recursivecopy!, recursivefill!
     import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
     import SciMLOperators: FunctionOperator
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
     import UnPack: @unpack
 
     using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
