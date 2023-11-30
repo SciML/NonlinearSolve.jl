@@ -116,10 +116,11 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val
     end
 
     if linsolve_init
-        linprob_A = needsJᵀJ ? __maybe_symmetric(JᵀJ) : J
-        # linprob_A = alg isa PseudoTransient ?
-        #             (J - (1 / (convert(eltype(u), alg.alpha_initial))) * I) :
-        #             (needsJᵀJ ? __maybe_symmetric(JᵀJ) : J)
+        if alg isa PseudoTransient && J isa SciMLOperators.AbstractSciMLOperator
+            linprob_A = J - inv(convert(eltype(u), alg.alpha_initial)) * I
+        else
+            linprob_A = needsJᵀJ ? __maybe_symmetric(JᵀJ) : J
+        end
         linsolve = linsolve_caches(linprob_A, needsJᵀJ ? Jᵀfu : fu, du, p, alg;
             linsolve_kwargs)
     else

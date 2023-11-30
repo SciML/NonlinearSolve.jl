@@ -20,7 +20,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-    import MaybeInplace: @bb
+    import MaybeInplace: setindex_trait, @bb, CanSetindex, CannotSetindex
     import RecursiveArrayTools: ArrayPartition,
         AbstractVectorOfArray, recursivecopy!, recursivefill!
     import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
@@ -80,7 +80,7 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
     return cache
 end
 
-__reinit_internal!(cache::AbstractNonlinearSolveCache) = nothing
+__reinit_internal!(::AbstractNonlinearSolveCache) = nothing
 
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     str = "$(nameof(typeof(alg)))("
@@ -157,7 +157,7 @@ include("raphson.jl")
 # include("levenberg.jl")
 # include("gaussnewton.jl")
 # include("dfsane.jl")
-# include("pseudotransient.jl")
+include("pseudotransient.jl")
 include("broyden.jl")
 include("klement.jl")
 # include("lbroyden.jl")

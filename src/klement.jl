@@ -120,9 +120,11 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
         cache.resets += 1
     end
 
+    A = ifelse(cache.J isa SMatrix || cache.J isa Number || !fact_done, cache.J, nothing)
+
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
-        linu = _vec(cache.du), cache.p, reltol = cache.abstol)
+    linres = dolinsolve(alg.precs, cache.linsolve; A,
+        b = _vec(cache.fu), linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     !iip && (cache.du = linres.u)
 
