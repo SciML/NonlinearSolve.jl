@@ -70,7 +70,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::GeneralBroyde
     reset_check = x -> abs(x) ≤ reset_tolerance
 
     @bb u_cache = copy(u)
-    @bb fu_cache = similar(fu)
+    @bb fu_cache = copy(fu)
     @bb dfu = similar(fu)
     @bb J⁻¹dfu = similar(u)
 
