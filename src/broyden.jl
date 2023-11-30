@@ -137,31 +137,8 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
     return nothing
 end
 
-function SciMLBase.reinit!(cache::GeneralBroydenCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
-        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu = cache.f(cache.u, p)
-    end
-
-    reset!(cache.trace)
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
-        termination_condition)
-
-    cache.abstol = abstol
-    cache.reltol = reltol
-    cache.tc_cache = tc_cache
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
+function __reinit_internal!(cache::GeneralBroydenCache)
+    cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹)
     cache.resets = 0
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
+    return nothing
 end

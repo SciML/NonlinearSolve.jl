@@ -8,7 +8,8 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase, LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
+    using DiffEqBase,
+        LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
         SparseDiffTools
 
     import ADTypes: AbstractFiniteDifferencesMode
@@ -50,6 +51,39 @@ abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm
 abstract type AbstractNonlinearSolveCache{iip} end
 
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
+        p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
+        maxiters = cache.maxiters, alias_u0 = false,
+        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(get_u(cache), u0)
+        cache.f(cache.fu1, get_u(cache), p)
+    else
+        cache.u = __maybe_unaliased(u0, alias_u0)
+        set_fu!(cache, cache.f(cache.u, p))
+    end
+
+    reset!(cache.trace)
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, get_fu(cache),
+        get_u(cache), termination_condition)
+
+    cache.abstol = abstol
+    cache.reltol = reltol
+    cache.tc_cache = tc_cache
+    cache.maxiters = maxiters
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+
+    __reinit_internal!(cache)
+
+    return cache
+end
+
+__reinit_internal!(cache::AbstractNonlinearSolveCache) = nothing
 
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     str = "$(nameof(typeof(alg)))("
