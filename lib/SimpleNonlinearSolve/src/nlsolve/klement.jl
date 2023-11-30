@@ -9,7 +9,7 @@ struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...)
-    x = float(prob.u0)
+    @bb x = copy(float(prob.u0))
     T = eltype(x)
     fx = _get_fx(prob, x)
 
