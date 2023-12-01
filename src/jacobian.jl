@@ -209,29 +209,18 @@ function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
 end
 
 # Generic Handling of Krylov Methods for Normal Form Linear Solves
-# FIXME: Use MaybeInplace here for efficient matmuls
-function __update_JᵀJ!(iip::Val, cache, sym::Symbol, J)
-    return __update_JᵀJ!(iip, cache, sym, getproperty(cache, sym), J)
+function __update_JᵀJ!(cache::AbstractNonlinearSolveCache)
+    if !(cache.JᵀJ isa KrylovJᵀJ)
+        @bb cache.JᵀJ = transpose(cache.J) × cache.J
+    end
 end
-__update_JᵀJ!(::Val{false}, cache, sym::Symbol, _, J) = setproperty!(cache, sym, J' * J)
-__update_JᵀJ!(::Val{true}, cache, sym::Symbol, _, J) = mul!(getproperty(cache, sym), J', J)
-__update_JᵀJ!(::Val{false}, cache, sym::Symbol, H::KrylovJᵀJ, J) = H
-__update_JᵀJ!(::Val{true}, cache, sym::Symbol, H::KrylovJᵀJ, J) = H
 
-function __update_Jᵀf!(iip::Val, cache, sym1::Symbol, sym2::Symbol, J, fu)
-    return __update_Jᵀf!(iip, cache, sym1, sym2, getproperty(cache, sym2), J, fu)
-end
-function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
-    return setproperty!(cache, sym1, _restructure(getproperty(cache, sym1), J' * fu))
-end
-function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, _, J, fu)
-    return mul!(_vec(getproperty(cache, sym1)), J', fu)
-end
-function __update_Jᵀf!(::Val{false}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
-    return setproperty!(cache, sym1, _restructure(getproperty(cache, sym1), H.Jᵀ * fu))
-end
-function __update_Jᵀf!(::Val{true}, cache, sym1::Symbol, sym2::Symbol, H::KrylovJᵀJ, J, fu)
-    return mul!(_vec(getproperty(cache, sym1)), H.Jᵀ, fu)
+function __update_Jᵀf!(cache::AbstractNonlinearSolveCache)
+    if cache.JᵀJ isa KrylovJᵀJ
+        @bb cache.Jᵀf = cache.JᵀJ.Jᵀ × cache.fu
+    else
+        @bb cache.Jᵀf = transpose(cache.J) × vec(cache.fu)
+    end
 end
 
 # Left-Right Multiplication

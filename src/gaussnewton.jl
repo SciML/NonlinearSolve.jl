@@ -116,8 +116,8 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
 
     # Use normal form to solve the Linear Problem
     if cache.JᵀJ !== nothing
-        __update_JᵀJ!(Val{iip}(), cache, :JᵀJ, cache.J)
-        __update_Jᵀf!(Val{iip}(), cache, :Jᵀf, :JᵀJ, cache.J, cache.fu)
+        __update_JᵀJ!(cache, Val(:JᵀJ))
+        __update_Jᵀf!(cache, Val(:JᵀJ))
         A, b = __maybe_symmetric(cache.JᵀJ), _vec(cache.Jᵀf)
     else
         A, b = cache.J, _vec(cache.fu)
@@ -148,6 +148,7 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
     return nothing
 end
 
+# FIXME: Reinit `JᵀJ` operator if `p` is changed
 function __reinit_internal!(cache::GaussNewtonCache;
         termination_condition = get_termination_mode(cache.tc_cache_1), kwargs...)
     abstol, reltol, tc_cache_1 = init_termination_cache(cache.abstol, cache.reltol,
