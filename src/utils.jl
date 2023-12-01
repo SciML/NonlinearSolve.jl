@@ -206,14 +206,6 @@ function evaluate_f(cache, u, p)
     return nothing
 end
 
-"""
-    __matmul!(C, A, B)
-
-Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
-"""
-__matmul!(C, A, B) = mul!(C, A, B)
-__matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
-
 # Concretize Algorithms
 function get_concrete_algorithm(alg, prob)
     !hasfield(typeof(alg), :ad) && return alg
@@ -381,15 +373,8 @@ function __try_factorize_and_check_singular!(linsolve, X)
 end
 __try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x), false
 
-# TODO: Remove. handled in MaybeInplace.jl
-@generated function _axpy!(α, x, y)
-    hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
-    return :(@. y += α * x)
-end
-
 # Non-square matrix
 @inline __needs_square_A(_, ::Number) = true
-# @inline __needs_square_A(_, ::StaticArray) = true
 @inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
 
 # Define special concatenation for certain Array combinations
