@@ -151,8 +151,6 @@ function wrapprecs(_Pl, _Pr, weight)
     return Pl, Pr
 end
 
-get_loss(fu) = norm(fu)^2 / 2
-
 function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-function for adaptive trust region method
     if (r ≥ c2)
         return (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / π
@@ -188,7 +186,7 @@ function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
     return fu
 end
 
-function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
+function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip <: Bool}
     if iip
         f(fu, u, p)
         return fu
@@ -197,11 +195,20 @@ function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
     end
 end
 
-function evaluate_f(cache, u, p)
-    if isinplace(cache)
-        cache.prob.f(get_fu(cache), u, p)
+function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
+        fu_sym::Val{FUSYM} = Val(nothing)) where {FUSYM}
+    if FUSYM === nothing
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, p)
+        else
+            set_fu!(cache, cache.prob.f(u, p))
+        end
     else
-        set_fu!(cache, cache.prob.f(u, p))
+        if isinplace(cache)
+            cache.prob.f(__getproperty(cache, fu_sym), u, p)
+        else
+            setproperty!(cache, FUSYM, cache.prob.f(u, p))
+        end
     end
     return nothing
 end

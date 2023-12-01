@@ -209,6 +209,7 @@ function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
 end
 
 # Generic Handling of Krylov Methods for Normal Form Linear Solves
+# FIXME: Use MaybeInplace here for efficient matmuls
 function __update_JᵀJ!(iip::Val, cache, sym::Symbol, J)
     return __update_JᵀJ!(iip, cache, sym, getproperty(cache, sym), J)
 end
