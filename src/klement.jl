@@ -1,6 +1,6 @@
 """
-    GeneralKlement(; max_resets = 5, linsolve = nothing,
-                     linesearch = nothing, precs = DEFAULT_PRECS)
+    GeneralKlement(; max_resets = 5, linsolve = nothing, linesearch = nothing,
+        precs = DEFAULT_PRECS)
 
 An implementation of `Klement` with line search, preconditioning and customizable linear
 solves.
@@ -91,8 +91,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         termination_condition)
     trace = init_nonlinearsolve_trace(alg, u, fu, J, du; kwargs...)
 
-    @bb u_cache = similar(u)
-    @bb fu_cache = similar(fu)
+    @bb u_cache = copy(u)
+    @bb fu_cache = copy(fu)
     @bb J_cache = similar(J)
     @bb J_cache_2 = similar(J)
     @bb Jdu = similar(fu)
@@ -139,7 +139,6 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
 
     @bb copyto!(cache.u_cache, cache.u)
 
-    cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
 
@@ -152,8 +151,8 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     @bb cache.Jdu_cache = cache.J_cache × vec(cache.Jdu)
     @bb cache.Jdu = cache.J × vec(cache.du)
     @bb @. cache.fu_cache = (cache.fu - cache.fu_cache - cache.Jdu) /
-                            max(cache.Jdu_cache, eps(real(T)))
-    @bb cache.J_cache = vec(cache.fu) × transpose(_vec(cache.du))
+                            ifelse(iszero(cache.Jdu_cache), T(1e-5), cache.Jdu_cache)
+    @bb cache.J_cache = vec(cache.fu_cache) × transpose(_vec(cache.du))
     @bb @. cache.J_cache *= cache.J
     @bb cache.J_cache_2 = cache.J_cache × cache.J
     @bb cache.J .+= cache.J_cache_2

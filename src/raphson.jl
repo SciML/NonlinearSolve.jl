@@ -119,7 +119,6 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
-    cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1

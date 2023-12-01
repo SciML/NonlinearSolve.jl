@@ -142,7 +142,6 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
     @bb copyto!(cache.u_cache, cache.u)
     @bb copyto!(cache.dfu, cache.fu)
 
-    cache.stats.nf += 1
     cache.stats.njacs += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1

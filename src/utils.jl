@@ -197,6 +197,7 @@ end
 
 function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
         fu_sym::Val{FUSYM} = Val(nothing)) where {FUSYM}
+    cache.stats.nf += 1
     if FUSYM === nothing
         if isinplace(cache)
             cache.prob.f(get_fu(cache), u, p)

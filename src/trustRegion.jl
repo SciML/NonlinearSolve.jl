@@ -376,7 +376,6 @@ function perform_step!(cache::TrustRegionCache{iip}) where {iip}
     @bb @. cache.u_cache_2 = cache.u + cache.du
     evaluate_f(cache, cache.u_tmp, cache.p, Val{:fu_cache_2}())
     trust_region_step!(cache)
-    cache.stats.nf += 1
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
     return nothing

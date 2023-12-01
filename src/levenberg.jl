@@ -312,7 +312,6 @@ function perform_step!(cache::LevenbergMarquardtCache{true, fastls}) where {fast
         _vec(cache.δ) .= _vec(v) .+ _vec(cache.a) ./ 2
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         f(cache.fu_tmp, u .+ δ, p)
-        cache.stats.nf += 1
         loss = cache.internalnorm(cache.fu_tmp)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
@@ -411,7 +410,6 @@ function perform_step!(cache::LevenbergMarquardtCache{false, fastls}) where {fas
         cache.δ = _restructure(cache.δ, _vec(v) .+ _vec(cache.a) ./ 2)
         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
         fu_new = f(u .+ δ, p)
-        cache.stats.nf += 1
         loss = cache.internalnorm(fu_new)
 
         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).

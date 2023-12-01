@@ -58,6 +58,7 @@ end
     alg
     u
     u_cache
+    u_cache_2
     fu
     fu_cache
     du
@@ -95,6 +96,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
 
     @bb du = similar(u)
     @bb u_cache = copy(u)
+    @bb u_cache_2 = similar(u)
 
     fu = evaluate_f(prob, u)
     @bb fu_cache = copy(fu)
@@ -108,10 +110,10 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
         termination_condition)
     trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
-    return DFSaneCache{iip}(alg, u, u_cache, fu, fu_cache, du, history, f_norm, f_norm_0,
-        alg.M, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), one(T), T(alg.γ), T(alg.τ_min),
-        T(alg.τ_max), alg.n_exp, prob.p, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
+    return DFSaneCache{iip}(alg, u, u_cache, u_cache_2, fu, fu_cache, du, history, f_norm,
+        f_norm_0, alg.M, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), one(T), T(alg.γ),
+        T(alg.τ_min), T(alg.τ_max), alg.n_exp, prob.p, false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
 function perform_step!(cache::DFSaneCache{iip}) where {iip}
@@ -119,37 +121,32 @@ function perform_step!(cache::DFSaneCache{iip}) where {iip}
     T = eltype(cache.u)
     f_norm_old = f_norm
 
-    # Spectral parameter range check
-    σ_n = sign(σ_n) * clamp(abs(σ_n), σ_min, σ_max)
-
     # Line search direction
     @bb @. cache.du = -σ_n * cache.fu
 
-    η = alg.η_strategy(cache.f_norm_0, cache.stats.nsteps, cache.u, cache.fu)
+    η = alg.η_strategy(cache.f_norm_0, cache.stats.nsteps + 1, cache.u, cache.fu)
 
     f_bar = maximum(cache.history)
     α₊ = α_1
     α₋ = α_1
 
-    @bb axpy!(α₊, cache.du, cache.u)
-
-    evaluate_f(cache, cache.u, cache.p)
+    @bb @. cache.u_cache_2 = cache.u + α₊ * cache.du
+    evaluate_f(cache, cache.u_cache_2, cache.p)
     f_norm = cache.internalnorm(cache.fu)^n_exp
-    α = α₊
+    α = -α₊
 
     inner_converged = false
     for k in 1:(cache.alg.max_inner_iterations)
         if f_norm ≤ f_bar + η - γ * α₊^2 * f_norm_old
-            α = α₊
+            α = -α₊
             inner_converged = true
             break
         end
 
         α₊ = α₊ * clamp(α₊ * f_norm_old / (f_norm + (T(2) * α₊ - T(1)) * f_norm_old),
             τ_min, τ_max)
-        @bb axpy!(-α₋, cache.du, cache.u)
-
-        evaluate_f(cache, cache.u, cache.p)
+        @bb @. cache.u_cache_2 = cache.u - α₋ * cache.du
+        evaluate_f(cache, cache.u_cache_2, cache.p)
         f_norm = cache.internalnorm(cache.fu)^n_exp
 
         if f_norm ≤ f_bar + η - γ * α₋^2 * f_norm_old
@@ -160,9 +157,8 @@ function perform_step!(cache::DFSaneCache{iip}) where {iip}
 
         α₋ = α₋ * clamp(α₋ * f_norm_old / (f_norm + (T(2) * α₋ - T(1)) * f_norm_old),
             τ_min, τ_max)
-        @bb axpy!(α₊, cache.du, cache.u)
-
-        evaluate_f(cache, cache.u, cache.p)
+        @bb @. cache.u_cache_2 = cache.u + α₊ * cache.du
+        evaluate_f(cache, cache.u_cache_2, cache.p)
         f_norm = cache.internalnorm(cache.fu)^n_exp
     end
 
@@ -171,6 +167,8 @@ function perform_step!(cache::DFSaneCache{iip}) where {iip}
         cache.force_stop = true
     end
 
+    @bb copyto!(cache.u, cache.u_cache_2)
+
     update_trace!(cache, α)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
@@ -178,14 +176,11 @@ function perform_step!(cache::DFSaneCache{iip}) where {iip}
     @bb @. cache.u_cache = cache.u - cache.u_cache
     @bb @. cache.fu_cache = cache.fu - cache.fu_cache
 
-    α₊ = sum(abs2, cache.u_cache)
-    @bb @. cache.u_cache *= cache.fu_cache
-    α₋ = sum(cache.u_cache)
-    cache.σ_n = α₊ / α₋
+    cache.σ_n = dot(cache.u_cache, cache.u_cache) / dot(cache.fu_cache, cache.u_cache)
 
     # Spectral parameter bounds check
     if !(σ_min ≤ abs(cache.σ_n) ≤ σ_max)
-        test_norm = sqrt(sum(abs2, cache.fuprev))
+        test_norm = dot(cache.fu, cache.fu)
         cache.σ_n = clamp(inv(test_norm), T(1), T(1e5))
     end
 
@@ -196,7 +191,6 @@ function perform_step!(cache::DFSaneCache{iip}) where {iip}
 
     # Update history
     cache.history[cache.stats.nsteps % M + 1] = f_norm
-    cache.stats.nf += 1
     return nothing
 end
 

@@ -96,7 +96,6 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
 
     update_trace!(cache, α)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
-    cache.stats.nf += 1
 
     cache.force_stop && return nothing
 
@@ -114,7 +113,7 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
     else
         @bb cache.du .*= -1
         @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
-        @bb cache.u_cache = cache.J⁻¹ × vec(cache.du)
+        @bb cache.u_cache = transpose(cache.J⁻¹) × vec(cache.du)
         denom = dot(cache.du, cache.J⁻¹dfu)
         @bb @. cache.du = (cache.du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1e-5), denom)
         @bb cache.J⁻¹ += vec(cache.du) × transpose(cache.u_cache)

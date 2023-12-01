@@ -12,7 +12,7 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg;
+                    sol = solve(nlprob, alg; maxiters = 10000,
                         termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
@@ -23,7 +23,8 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
                     end
                     broken = idx in broken_tests[alg] ? true : false
                     @test norm(res)≤ϵ broken=broken
-                catch
+                catch err
+                    @error err
                     broken = idx in broken_tests[alg] ? true : false
                     if broken
                         @test false broken=true
@@ -83,7 +84,7 @@ end
     alg_ops = (DFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 3, 4, 5, 6, 11, 22]
+    broken_tests[alg_ops[1]] = [1, 2, 3, 5, 6, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end

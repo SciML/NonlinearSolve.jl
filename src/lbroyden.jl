@@ -125,7 +125,6 @@ function perform_step!(cache::LimitedMemoryBroydenCache{iip}) where {iip}
         ApplyArray(*, Vᵀ_part, U_part), cache.du, α)
 
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
-    cache.stats.nf += 1
 
     cache.force_stop && return nothing
 
