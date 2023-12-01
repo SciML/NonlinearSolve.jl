@@ -78,9 +78,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     # Generate the cache
     @bb d = copy(x)
     @bb xo = copy(x)
-    @bb x_cache = copy(x)
     @bb δx = copy(x)
-    @bb fxo = copy(fx)
     @bb δf = copy(fx)
 
     k = 0
@@ -128,13 +126,13 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
 
         # Update spectral parameter
         @bb @. δx = x - xo
-        @bb @. δf = fx - fxo
+        @bb @. δf = fx - δf
 
         σ_k = dot(δx, δx) / dot(δx, δf)
 
         # Take step
         @bb copyto!(xo, x)
-        @bb copyto!(fxo, fx)
+        @bb copyto!(δf, fx)
         fx_norm = fx_norm_new
 
         # Store function value
