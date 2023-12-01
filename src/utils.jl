@@ -188,6 +188,15 @@ function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
     return fu
 end
 
+function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
+    if iip
+        f(fu, u, p)
+        return fu
+    else
+        return f(u, p)
+    end
+end
+
 function evaluate_f(cache, u, p)
     if isinplace(cache)
         cache.prob.f(get_fu(cache), u, p)
