@@ -138,13 +138,13 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, 
         kwargs...) where {needsJᵀJ, F}
     # NOTE: Scalar `u` assumes scalar output from `f`
     uf = SciMLBase.JacobianWrapper{false}(f, p)
-    needsJᵀJ && return uf, nothing, u, nothing, nothing, u, u, u
-    return uf, FakeLinearSolveJLCache(u, u), u, nothing, nothing, u
+    return uf, FakeLinearSolveJLCache(u, u), u, nothing, nothing, u, u, u
 end
 
 # Linear Solve Cache
 function linsolve_caches(A, b, u, p, alg; linsolve_kwargs = (;))
-    if alg.linsolve === nothing && A isa SMatrix && linsolve_kwargs === (;)
+    if A isa Number ||
+       (alg.linsolve === nothing && A isa SMatrix && linsolve_kwargs === (;))
         # Default handling for SArrays in LinearSolve is not great. Some parts are patched
         # but there are quite a few unnecessary allocations
         return FakeLinearSolveJLCache(A, b)

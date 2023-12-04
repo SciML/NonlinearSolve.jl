@@ -120,8 +120,6 @@ end
     fu
     fu_cache
     fu_cache_2
-    du
-    du_cache
     J
     JᵀJ
     Jv
@@ -197,9 +195,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
 
     loss = internalnorm(fu)
 
-    @bb a = similar(du)
-    @bb v_old = copy(v)
-    @bb δ = similar(du)
+    a = du # `du` is not used anywhere, use it to store `a`
 
     make_new_J = true
 
@@ -215,8 +211,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
     if !fastls
-        @bb mat_tmp = similar(JᵀJ)
-        @bb mat_tmp .*= T(0)
+        @bb mat_tmp = zero(JᵀJ)
         rhs_tmp = nothing
     else
         mat_tmp = _vcat(J, DᵀD)
@@ -229,15 +224,14 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     @bb u_cache = copy(u)
     @bb u_cache_2 = similar(u)
     @bb fu_cache_2 = similar(fu)
-    @bb du_cache = similar(du)
     Jv = J * v
-    @bb v_cache = similar(v)
+    @bb v_cache = zero(v)
 
     return LevenbergMarquardtCache{iip, fastls}(f, alg, u, u_cache, u_cache_2, fu, fu_cache,
-        fu_cache_2, du, du_cache, J, JᵀJ, Jv, DᵀD, v, v_cache, a, mat_tmp, rhs_tmp, p, uf,
+        fu_cache_2, J, JᵀJ, Jv, DᵀD, v, v_cache, a, mat_tmp, rhs_tmp, p, uf,
         linsolve, jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol,
         reltol, prob, λ, λ_factor, damping_increase_factor, damping_decrease_factor, h,
-        α_geodesic, b_uphill, min_damping_D, internalnorm(v_cache), loss, make_new_J,
+        α_geodesic, b_uphill, min_damping_D, loss, loss, make_new_J,
         NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2, trace)
 end
 
@@ -271,11 +265,12 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         end
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
             b = cache.rhs_tmp, linu = _vec(cache.v), cache.p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
         @bb @. cache.v = -linres.u
     else
         @bb cache.u_cache_2 = transpose(cache.J) × cache.fu
         @bb @. cache.mat_tmp = cache.JᵀJ + cache.λ * cache.DᵀD
-        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
             b = _vec(cache.u_cache_2), linu = _vec(cache.v), cache.p, reltol = cache.abstol)
         cache.linsolve = linres.cache
         @bb @. cache.v = -linres.u
@@ -289,7 +284,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
     evaluate_f(cache, cache.u_cache_2, cache.p, Val(:fu_cache_2))
 
     # The following lines do: cache.a = -cache.mat_tmp \ cache.fu_tmp
-    # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
+    # NOTE: Don't pass `A`` in again, since we want to reuse the previous solve
     @bb cache.Jv = cache.J × cache.v
     @bb @. cache.fu_cache_2 = (2 / cache.h) *
                               ((cache.fu_cache_2 - cache.fu) / cache.h - cache.Jv)
@@ -301,13 +296,14 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         end
         linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.a),
             cache.p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
         @bb @. cache.a = -linres.u
     else
-        @bb cache.u_cache_2 = transpose(J) × cache.fu_cache_2
+        @bb cache.u_cache_2 = transpose(cache.J) × cache.fu_cache_2
         linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_cache_2),
             linu = _vec(cache.a), cache.p, reltol = cache.abstol)
         cache.linsolve = linres.cache
-        @bb @. cache.a = -linres.du
+        @bb @. cache.a = -linres.u
     end
 
     cache.stats.nsolve += 2
@@ -316,8 +312,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
     # Require acceptable steps to satisfy the following condition.
     norm_v = cache.internalnorm(cache.v)
     if 2 * cache.internalnorm(cache.a) ≤ cache.α_geodesic * norm_v
-        @bb @. cache.du_cache = cache.v + cache.a / 2
-        @bb @. cache.u_cache_2 = cache.u + cache.du_cache
+        @bb @. cache.u_cache_2 = cache.u + cache.v + cache.a / 2
         evaluate_f(cache, cache.u_cache_2, cache.p, Val(:fu_cache_2))
         loss = cache.internalnorm(cache.fu_cache_2)
 
@@ -326,7 +321,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         if (1 - β)^cache.b_uphill * loss ≤ cache.loss_old
             # Accept step.
             @bb copyto!(cache.u, cache.u_cache_2)
-            check_and_update!(cache.tc_cache_1, cache, cache.fu_cache, cache.u,
+            check_and_update!(cache.tc_cache_1, cache, cache.fu_cache_2, cache.u,
                 cache.u_cache)
             if !cache.force_stop && cache.tc_cache_2 !== nothing # For NLLS Problems
                 @bb @. cache.fu = cache.fu_cache_2 - cache.fu
