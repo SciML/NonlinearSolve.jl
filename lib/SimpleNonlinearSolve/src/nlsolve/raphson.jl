@@ -24,8 +24,8 @@ const SimpleGaussNewton = SimpleNewtonRaphson
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...; abstol = nothing, reltol = nothing,
-        maxiters = 1000, termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+        maxiters = 1000, termination_condition = nothing, alias_u0 = false, kwargs...)
+    x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
     @bb xo = copy(x)
     J, jac_cache = jacobian_cache(alg.autodiff, prob.f, fx, x, prob.p)
@@ -37,9 +37,7 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
         fx, dfx = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
         if i == 1
-            if iszero(fx)
-                return build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-            end
+            iszero(fx) && build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
         else
             # Termination Checks
             tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)

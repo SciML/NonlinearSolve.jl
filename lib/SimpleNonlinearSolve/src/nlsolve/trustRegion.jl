@@ -49,9 +49,9 @@ scalar and static array problems.
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(real(x))
     Δₘₐₓ = T(alg.max_trust_radius)
     Δ = T(alg.initial_trust_radius)
@@ -85,7 +85,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     @bb Hδ = copy(x)
     dogleg_cache = (; δsd, δN_δsd, δN)
 
-    F = fx
     for k in 1:maxiters
         # Solve the trust region subproblem.
         δ = dogleg_method!!(dogleg_cache, ∇f, fx, g, Δ)
@@ -97,19 +96,19 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
 
         # Compute the ratio of the actual to predicted reduction.
         @bb Hδ = H × vec(δ)
-        r = (fₖ₊₁ - fₖ) / (dot(δ', g) + dot(δ', Hδ) / T(2))
+        r = (fₖ₊₁ - fₖ) / (dot(δ, g) + dot(δ, Hδ) / T(2))
 
         # Update the trust region radius.
-        if r < η₂
+        if r ≥ η₂
+            shrink_counter = 0
+        else
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
                 retcode = ReturnCode.ConvergenceFailure)
-        else
-            shrink_counter = 0
         end
 
-        if r > η₁
+        if r ≥ η₁
             # Termination Checks
             tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
             tc_sol !== nothing && return tc_sol
@@ -144,6 +143,7 @@ function dogleg_method!!(cache, J, f, g, Δ)
     @bb δsd .= g
     @bb @. δsd *= -1
     norm_δsd = norm(δsd)
+
     if (norm_δsd ≥ Δ)
         @bb @. δsd *= Δ / norm_δsd
         return δsd

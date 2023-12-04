@@ -198,11 +198,11 @@ end
             res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
 
             if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
-                @test_broken all(res .≈ sqrt(p))
+                @test_broken all(abs.(res) .≈ sqrt(p))
                 @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                     @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
             else
-                @test all(res .≈ sqrt(p))
+                @test all(abs.(res) .≈ sqrt(p))
                 @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                         @SVector[1.0, 1.0], p).u[end], p)), 1 / (2 * sqrt(p)))
             end
@@ -213,12 +213,12 @@ end
         for p in 1.0:0.1:100.0
             res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
 
-            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
-                @test_broken all(res .≈ sqrt(p))
+            if any(x -> isnan(x), res)
+                @test_broken abs(res.u) ≈ sqrt(p)
                 @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                         1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
             else
-                @test all(res .≈ sqrt(p))
+                @test abs(res.u) ≈ sqrt(p)
                 @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
                             1.0, p).u, p)), 1 / (2 * sqrt(p)))
             end

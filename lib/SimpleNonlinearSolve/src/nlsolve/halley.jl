@@ -14,18 +14,22 @@ A low-overhead implementation of Halley's Method.
 
   - `autodiff`: determines the backend used for the Hessian. Defaults to
     `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
+
+!!! warning
+
+    Inplace Problems are currently not supported by this method.
 """
 @kwdef @concrete struct SimpleHalley <: AbstractNewtonAlgorithm
     autodiff = AutoForwardDiff()
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
     isinplace(prob) &&
         error("SimpleHalley currently only supports out-of-place nonlinear problems")
 
-    x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
     T = eltype(x)
 

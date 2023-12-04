@@ -286,14 +286,14 @@ function check_termination(tc_cache, fx, x, xo, prob, alg)
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractNonlinearTerminationMode)
-    if tc_cache(fx, x, xo)
+    if Bool(tc_cache(fx, x, xo))
         return build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
     end
     return nothing
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractSafeNonlinearTerminationMode)
-    if tc_cache(fx, x, xo)
+    if Bool(tc_cache(fx, x, xo))
         if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
             retcode = ReturnCode.Success
         elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
@@ -309,7 +309,7 @@ function check_termination(tc_cache, fx, x, xo, prob, alg,
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractSafeBestNonlinearTerminationMode)
-    if tc_cache(fx, x, xo)
+    if Bool(tc_cache(fx, x, xo))
         if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
             retcode = ReturnCode.Success
         elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
@@ -335,3 +335,11 @@ end
 
 @inline __eval_f(prob, fx, x) = isinplace(prob) ? (prob.f(fx, x, prob.p); fx) :
                                 prob.f(x, prob.p)
+
+# Unalias
+@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
+    # Spend time coping iff we will mutate the array
+    (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
+    return deepcopy(x)
+end

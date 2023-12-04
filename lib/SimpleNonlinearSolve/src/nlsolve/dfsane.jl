@@ -51,9 +51,9 @@ Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    x = float(copy(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
     T = eltype(x)
 
@@ -76,11 +76,10 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     history_f_k = fill(fx_norm, M)
 
     # Generate the cache
+    @bb x_cache = similar(x)
     @bb d = copy(x)
     @bb xo = copy(x)
-    @bb x_cache = copy(x)
     @bb δx = copy(x)
-    @bb fxo = copy(fx)
     @bb δf = copy(fx)
 
     k = 0
@@ -91,50 +90,52 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
         # Line search direction
         @bb @. d = -σ_k * fx
 
-        η = η_strategy(f_1, k, x, fx)
+        η = η_strategy(f_1, k + 1, x, fx)
         f_bar = maximum(history_f_k)
         α_p = α_1
         α_m = α_1
 
-        @bb @. x += α_p * d
+        @bb @. x_cache = x + α_p * d
 
-        fx = __eval_f(prob, fx, x)
+        fx = __eval_f(prob, fx, x_cache)
         fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
         while k < maxiters
-            fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm) && break
+            Bool(fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm)) && break
 
-            α_p = α_p^2 * fx_norm / (fx_norm_new + (T(2) * α_p - T(1)) * fx_norm)
-            @bb @. x -= α_m * d
+            α_tp = α_p^2 * fx_norm / (fx_norm_new + (T(2) * α_p - T(1)) * fx_norm)
+            @bb @. x_cache = x - α_m * d
 
-            fx = __eval_f(prob, fx, x)
+            fx = __eval_f(prob, fx, x_cache)
             fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
-            fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm) && break
+            Bool(fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm)) && break
 
             α_tm = α_m^2 * fx_norm / (fx_norm_new + (T(2) * α_m - T(1)) * fx_norm)
-            α_p = clamp(α_p, τ_min * α_p, τ_max * α_p)
+            α_p = clamp(α_tp, τ_min * α_p, τ_max * α_p)
             α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
-            @bb @. x += α_p * d
+            @bb @. x_cache = x + α_p * d
 
-            fx = __eval_f(prob, fx, x)
+            fx = __eval_f(prob, fx, x_cache)
             fx_norm_new = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
 
             k += 1
         end
+
+        @bb copyto!(x, x_cache)
 
         tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
         tc_sol !== nothing && return tc_sol
 
         # Update spectral parameter
         @bb @. δx = x - xo
-        @bb @. δf = fx - fxo
+        @bb @. δf = fx - δf
 
         σ_k = dot(δx, δx) / dot(δx, δf)
 
         # Take step
         @bb copyto!(xo, x)
-        @bb copyto!(fxo, fx)
+        @bb copyto!(δf, fx)
         fx_norm = fx_norm_new
 
         # Store function value

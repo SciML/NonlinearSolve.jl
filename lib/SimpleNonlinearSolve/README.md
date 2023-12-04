@@ -40,7 +40,7 @@ sol = solve(probB, ITP())
 
 For more details on the bracketing methods, refer to the [Tutorials](https://docs.sciml.ai/NonlinearSolve/stable/tutorials/nonlinear/#Using-Bracketing-Methods) and detailed [APIs](https://docs.sciml.ai/NonlinearSolve/stable/api/simplenonlinearsolve/#Solver-API)
 
-## Breaking Changes in v2
+## Breaking Changes in v1.0.0
 
   - Batched solvers have been removed in favor of `BatchedArrays.jl`. Stay tuned for detailed
     tutorials on how to use `BatchedArrays.jl` with `NonlinearSolve` & `SimpleNonlinearSolve`
