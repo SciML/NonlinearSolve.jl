@@ -152,8 +152,8 @@ end
 function __reinit_internal!(cache::GaussNewtonCache;
         termination_condition = get_termination_mode(cache.tc_cache_1), kwargs...)
     abstol, reltol, tc_cache_1 = init_termination_cache(cache.abstol, cache.reltol,
-        cache.fu1, cache.u, termination_condition)
-    _, _, tc_cache_2 = init_termination_cache(cache.abstol, cache.reltol, cache.fu1,
+        cache.fu, cache.u, termination_condition)
+    _, _, tc_cache_2 = init_termination_cache(cache.abstol, cache.reltol, cache.fu,
         cache.u, termination_condition)
 
     cache.tc_cache_1 = tc_cache_1

@@ -89,8 +89,8 @@ end
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 function dolinsolve(precs::P, linsolve::FakeLinearSolveJLCache; A = nothing,
-    linu = nothing, b = nothing, du = nothing, p = nothing, weight = nothing,
-    cachedata = nothing, reltol = nothing, reuse_A_if_factorization = false) where {P}
+        linu = nothing, b = nothing, du = nothing, p = nothing, weight = nothing,
+        cachedata = nothing, reltol = nothing, reuse_A_if_factorization = false) where {P}
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linres = linsolve.A \ linsolve.b
@@ -425,3 +425,25 @@ end
     return w
 end
 @inline __init_ones(x::StaticArray) = ones(typeof(x))
+
+# Diagonal of type `u`
+__init_diagonal(u::Number, v) = oftype(u, v)
+function __init_diagonal(u::SArray, v)
+    u_ = vec(u)
+    return Diagonal(ones(typeof(u_)) * v)
+end
+function __init_diagonal(u, v)
+    d = similar(vec(u))
+    d .= v
+    return Diagonal(d)
+end
+
+# Reduce sum
+function __sum_JᵀJ!!(y, J)
+    if setindex_trait(y) === CanSetindex()
+        sum!(abs2, y, J')
+        return y
+    else
+        return sum(abs2, J'; dims = 1)
+    end
+end
