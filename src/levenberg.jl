@@ -179,7 +179,8 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     else
         uf, linsolve, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p,
             Val(iip); linsolve_kwargs, linsolve_with_JᵀJ = Val(false))
-        @bb JᵀJ = similar(u)
+        u_ = _vec(u)
+        @bb JᵀJ = similar(u_)
         @bb v = similar(du)
     end
 
@@ -241,91 +242,103 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
 end
 
 function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, fastls}
+    @unpack alg, linsolve = cache
+
     if cache.make_new_J
         cache.J = jacobian!!(cache.J, cache)
         if fastls
             cache.JᵀJ = __sum_JᵀJ!!(cache.JᵀJ, cache.J)
-            #             cache.DᵀD.diag .= max.(cache.DᵀD.diag, cache.JᵀJ)
         else
             @bb cache.JᵀJ = transpose(cache.J) × cache.J
-            #             cache.DᵀD .= max.(cache.DᵀD, Diagonal(cache.JᵀJ))
         end
+        cache.DᵀD = __update_LM_diagonal!!(cache.DᵀD, cache.JᵀJ)
         cache.make_new_J = false
     end
 
-    #     @unpack u, u_prev, p, λ, JᵀJ, DᵀD, J, alg, linsolve = cache
-
     # Usual Levenberg-Marquardt step ("velocity").
     # The following lines do: cache.v = -cache.mat_tmp \ cache.u_tmp
-    #     if fastls
-    #         copyto!(@view(cache.mat_tmp[1:length(fu1), :]), cache.J)
-    #         cache.mat_tmp[(length(fu1) + 1):end, :] .= λ .* cache.DᵀD
-    #         cache.rhs_tmp[1:length(fu1)] .= _vec(fu1)
-    #         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
-    #             b = cache.rhs_tmp, linu = _vec(cache.du), p = p, reltol = cache.abstol)
-    #         _vec(cache.v) .= -_vec(cache.du)
-    #     else
-    #         mul!(_vec(cache.u_tmp), J', _vec(fu1))
-    #         @. cache.mat_tmp = JᵀJ + λ * DᵀD
-    #         linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
-    #             b = _vec(cache.u_tmp), linu = _vec(cache.du), p = p, reltol = cache.abstol)
-    #         cache.linsolve = linres.cache
-    #         _vec(cache.v) .= -_vec(cache.du)
-    #     end
+    if fastls
+        if setindex_trait(cache.mat_tmp) === CanSetindex()
+            copyto!(@view(cache.mat_tmp[1:length(cache.fu), :]), cache.J)
+            cache.mat_tmp[(length(cache.fu) + 1):end, :] .= cache.λ .* cache.DᵀD
+        else
+            cache.mat_tmp = _vcat(cache.J, cache.λ .* cache.DᵀD)
+        end
+        if setindex_trait(cache.rhs_tmp) === CanSetindex()
+            cache.rhs_tmp[1:length(cache.fu)] .= _vec(cache.fu)
+        else
+            cache.rhs_tmp = _vcat(_vec(cache.fu), zero(_vec(cache.u)))
+        end
+        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+            b = cache.rhs_tmp, linu = _vec(cache.v), cache.p, reltol = cache.abstol)
+        @bb @. cache.v = -linres.u
+    else
+        @bb cache.u_cache_2 = transpose(J) × cache.fu
+        @bb @. cache.mat_tmp = cache.JᵀJ + cache.λ * cache.DᵀD
+        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+            b = _vec(cache.u_cache_2), linu = _vec(cache.v), cache.p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+        @bb @. cache.v = -linres.u
+    end
 
-    #     update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
-    #         cache.v)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
+        cache.v)
 
-    #     # Geodesic acceleration (step_size = v + a / 2).
-    #     @unpack v, α_geodesic, h = cache
-    #     cache.u_tmp .= _restructure(cache.u_tmp, _vec(u) .+ h .* _vec(v))
-    #     f(cache.fu_tmp, cache.u_tmp, p)
+    # Geodesic acceleration (step_size = v + a / 2).
+    @bb @. cache.u_cache_2 = cache.u + cache.h * cache.v
+    evaluate_f(cache, cache.u_cache_2, cache.p, Val(:fu_cache_2))
 
-    #     # The following lines do: cache.a = -J \ cache.fu_tmp
-    #     # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
-    #     mul!(_vec(cache.Jv), J, _vec(v))
-    #     @. cache.fu_tmp = (2 / h) * ((cache.fu_tmp - fu1) / h - cache.Jv)
-    #     if fastls
-    #         cache.rhs_tmp[1:length(fu1)] .= _vec(cache.fu_tmp)
-    #         linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.du),
-    #             p = p, reltol = cache.abstol)
-    #     else
-    #         mul!(_vec(cache.u_tmp), J', _vec(cache.fu_tmp))
-    #         linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_tmp),
-    #             linu = _vec(cache.du), p = p, reltol = cache.abstol)
-    #         cache.linsolve = linres.cache
-    #         @. cache.a = -cache.du
-    #     end
+    # The following lines do: cache.a = -J \ cache.fu_tmp
+    # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
+    @bb cache.Jv = cache.J × cache.v
+    @bb @. cache.fu_cache_2 = (2 / cache.h) *
+                              ((cache.fu_cache_2 - cache.fu) / cache.h - cache.Jv)
+    if fastls
+        if setindex_trait(cache.rhs_tmp) === CanSetindex()
+            cache.rhs_tmp[1:length(cache.fu)] .= _vec(cache.fu_cache_2)
+        else
+            cache.rhs_tmp = _vcat(_vec(cache.fu_cache_2), zero(_vec(cache.u)))
+        end
+        linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.a),
+            cache.p, reltol = cache.abstol)
+        @bb @. cache.a = -linres.u
+    else
+        @bb cache.u_cache_2 = transpose(J) × cache.fu_cache_2
+        linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_cache_2),
+            linu = _vec(cache.a), cache.p, reltol = cache.abstol)
+        cache.linsolve = linres.cache
+        @bb @. cache.a = -linres.du
+    end
 
     cache.stats.nsolve += 2
     cache.stats.nfactors += 2
 
     # Require acceptable steps to satisfy the following condition.
-    norm_v = cache.internalnorm(v)
-    if 2 * cache.internalnorm(cache.a) ≤ α_geodesic * norm_v
-        #         _vec(cache.δ) .= _vec(v) .+ _vec(cache.a) ./ 2
-        #         @unpack δ, loss_old, norm_v_old, v_old, b_uphill = cache
-        #         f(cache.fu_tmp, u .+ δ, p)
-        #         loss = cache.internalnorm(cache.fu_tmp)
+    norm_v = cache.internalnorm(cache.v)
+    if 2 * cache.internalnorm(cache.a) ≤ cache.α_geodesic * norm_v
+        @bb @. cache.du_cache = cache.v + cache.a / 2
+        @bb @. cache.u_cache_2 = cache.u + cache.du_cache
+        evaluate_f(cache, cache.u_cache_2, cache.p, Val(:fu_cache_2))
+        loss = cache.internalnorm(cache.fu_cache_2)
 
-        #         # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
-        #         β = dot(v, v_old) / (norm_v * norm_v_old)
-        #         if (1 - β)^b_uphill * loss ≤ loss_old
-        #             # Accept step.
-        #             cache.u .+= δ
-        #             check_and_update!(cache.tc_cache_1, cache, cache.fu_tmp, cache.u, cache.u_prev)
-        #             if !cache.force_stop && cache.tc_cache_2 !== nothing
-        #                 # For NLLS Problems
-        #                 cache.fu1 .= cache.fu_tmp .- cache.fu1
-        #                 check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
-        #             end
-        #             cache.fu1 .= cache.fu_tmp
-        #             _vec(cache.v_old) .= _vec(v)
-        #             cache.norm_v_old = norm_v
-        #             cache.loss_old = loss
-        #             cache.λ_factor = 1 / cache.damping_decrease_factor
-        #             cache.make_new_J = true
-        #         end
+        # Condition to accept uphill steps (evaluates to `loss ≤ loss_old` in iteration 1).
+        β = dot(cache.v, cache.v_cache) / (norm_v * cache.norm_v_old)
+        if (1 - β)^cache.b_uphill * loss ≤ cache.loss_old
+            # Accept step.
+            @bb copyto!(cache.u, cache.u_cache_2)
+            check_and_update!(cache.tc_cache_1, cache, cache.fu_cache, cache.u,
+                cache.u_cache)
+            if !cache.force_stop && cache.tc_cache_2 !== nothing # For NLLS Problems
+                @bb @. cache.fu = cache.fu_cache_2 - cache.fu
+                check_and_update!(cache.tc_cache_2, cache, cache.fu, cache.u, cache.u_cache)
+            end
+            @bb copyto!(cache.fu_cache, cache.fu_cache_2)
+            @bb copyto!(cache.v_cache, cache.v)
+            cache.norm_v_old = norm_v
+            cache.loss_old = loss
+            cache.λ_factor = 1 / cache.damping_decrease_factor
+            cache.make_new_J = true
+        end
     end
 
     @bb copyto!(cache.u_cache, cache.u)
