@@ -273,7 +273,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
             b = cache.rhs_tmp, linu = _vec(cache.v), cache.p, reltol = cache.abstol)
         @bb @. cache.v = -linres.u
     else
-        @bb cache.u_cache_2 = transpose(J) × cache.fu
+        @bb cache.u_cache_2 = transpose(cache.J) × cache.fu
         @bb @. cache.mat_tmp = cache.JᵀJ + cache.λ * cache.DᵀD
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
             b = _vec(cache.u_cache_2), linu = _vec(cache.v), cache.p, reltol = cache.abstol)
@@ -288,7 +288,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
     @bb @. cache.u_cache_2 = cache.u + cache.h * cache.v
     evaluate_f(cache, cache.u_cache_2, cache.p, Val(:fu_cache_2))
 
-    # The following lines do: cache.a = -J \ cache.fu_tmp
+    # The following lines do: cache.a = -cache.mat_tmp \ cache.fu_tmp
     # NOTE: Don't pass `A` in again, since we want to reuse the previous solve
     @bb cache.Jv = cache.J × cache.v
     @bb @. cache.fu_cache_2 = (2 / cache.h) *
@@ -332,7 +332,7 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
                 @bb @. cache.fu = cache.fu_cache_2 - cache.fu
                 check_and_update!(cache.tc_cache_2, cache, cache.fu, cache.u, cache.u_cache)
             end
-            @bb copyto!(cache.fu_cache, cache.fu_cache_2)
+            @bb copyto!(cache.fu, cache.fu_cache_2)
             @bb copyto!(cache.v_cache, cache.v)
             cache.norm_v_old = norm_v
             cache.loss_old = loss

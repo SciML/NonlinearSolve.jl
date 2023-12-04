@@ -448,7 +448,8 @@ function __sum_JᵀJ!!(y, J)
     end
 end
 
-function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
+@inline __update_LM_diagonal!!(y::Number, x::Number) = max(y, x)
+@inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
     if setindex_trait(y.diag) === CanSetindex()
         @. y.diag = max(y.diag, x)
         return y
@@ -456,7 +457,7 @@ function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
         return Diagonal(max.(y.diag, x))
     end
 end
-@views function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
+@inline @views function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
     x_diag = x[diagind(x)]
     if setindex_trait(y.diag) === CanSetindex()
         @. y.diag = max(y.diag, x_diag)

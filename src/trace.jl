@@ -209,8 +209,8 @@ function update_trace!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, fu, J, δu
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
+    show_now = ShT && (mod1(iter, trace.trace_level.print_frequency) == 1)
+    store_now = StT && (mod1(iter, trace.trace_level.store_frequency) == 1)
     (show_now || store_now) && (entry = __trace_entry(trace.trace_level, iter, u, fu, J,
         δu, α))
     store_now && push!(trace.history, entry)
@@ -230,8 +230,8 @@ function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, 
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
+    show_now = ShT && (mod1(iter, trace.trace_level.print_frequency) == 1)
+    store_now = StT && (mod1(iter, trace.trace_level.store_frequency) == 1)
     if show_now || store_now
         J_ = trace.trace_level isa TraceMinimal ? J : inv(J)
         entry = __trace_entry(trace.trace_level, iter, u, fu, J_, δu, α)
