@@ -49,9 +49,9 @@ scalar and static array problems.
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(real(x))
     Δₘₐₓ = T(alg.max_trust_radius)
     Δ = T(alg.initial_trust_radius)

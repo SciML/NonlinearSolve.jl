@@ -7,9 +7,9 @@ method is non-allocating on scalar and static array problems.
 struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
     fx = _get_fx(prob, x)
 
@@ -21,13 +21,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
     @bb δx = copy(x)
     @bb fprev = copy(fx)
     @bb xo = copy(x)
-    @bb δf = copy(fx)
     @bb d = copy(x)
 
     J = __init_identity_jacobian(fx, x)
-    @bb J_cache = copy(J)
-    @bb δx² = copy(x)
-    @bb J_cache2 = copy(J)
+    @bb J_cache = similar(J)
+    @bb δx² = similar(x)
+    @bb J_cache2 = similar(J)
     @bb F = copy(J)
 
     for _ in 1:maxiters
@@ -67,23 +66,18 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
         tc_sol !== nothing && return tc_sol
 
         @bb δx .*= -1
-        @bb @. δf = fx - fprev
-
-        # Prevent division by 0
+        @bb J_cache .= J' .^ 2
         @bb @. δx² = δx^2
-        @bb @. J_cache = J^2
-        @bb d = transpose(J_cache) × vec(δx²)
-        @bb @. d = max(d, singular_tol)
-
+        @bb d = J_cache × vec(δx²)
         @bb δx² = J × vec(δx)
-        @bb @. δf = (δf - δx²) / d
-
-        _vδf, _vδx = _vec(δf), _vec(δx)
-        @bb J_cache = _vδf × transpose(_vδx)
+        @bb @. fprev = (fx - fprev - δx²) / ifelse(iszero(d), singular_tol, d)
+        @bb J_cache = vec(fprev) × transpose(_vec(δx))
         @bb @. J_cache *= J
         @bb J_cache2 = J_cache × J
-
         @bb @. J += J_cache2
+
+        @bb copyto!(fprev, fx)
+        @bb copyto!(xo, x)
     end
 
     return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)

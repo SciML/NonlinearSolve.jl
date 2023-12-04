@@ -7,9 +7,9 @@ and static array problems.
 struct SimpleBroyden <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
 
     @bb xo = copy(x)

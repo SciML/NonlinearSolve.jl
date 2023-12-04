@@ -335,3 +335,11 @@ end
 
 @inline __eval_f(prob, fx, x) = isinplace(prob) ? (prob.f(fx, x, prob.p); fx) :
                                 prob.f(x, prob.p)
+
+# Unalias
+@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
+    # Spend time coping iff we will mutate the array
+    (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
+    return deepcopy(x)
+end

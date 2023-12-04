@@ -22,9 +22,9 @@ function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27))
 end
 
 @views function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
-        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
+        args...; abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
-    @bb x = copy(float(prob.u0))
+    x = __maybe_unaliased(prob.u0, alias_u0)
     threshold = __get_threshold(alg)
     η = min(SciMLBase._unwrap_val(threshold), maxiters)
 
