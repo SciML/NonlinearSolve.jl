@@ -44,10 +44,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
             # Singularity test
             if !issuccess(F_)
                 J = __init_identity_jacobian!!(J)
+                @bb copyto!(F, J)
                 if setindex_trait(J) === CanSetindex()
-                    lu!(J; check = false)
+                    F_ = lu!(F; check = false)
                 else
-                    J = lu(J; check = false)
+                    F_ = lu(F; check = false)
                 end
             end
         end
@@ -66,7 +67,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
         tc_sol !== nothing && return tc_sol
 
         @bb δx .*= -1
-        @bb J_cache .= J' .^ 2
+        @bb J_cache .= transpose(J) .^ 2
         @bb @. δx² = δx^2
         @bb d = J_cache × vec(δx²)
         @bb δx² = J × vec(δx)
