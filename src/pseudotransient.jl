@@ -110,7 +110,7 @@ function perform_step!(cache::PseudoTransientCache{iip}) where {iip}
 
     inv_α = inv(cache.alpha)
     if cache.J isa SciMLOperators.AbstractSciMLOperator
-        A  = cache.J - inv_α * I
+        A = cache.J - inv_α * I
     elseif setindex_trait(cache.J) === CanSetindex()
         if fast_scalar_indexing(cache.J)
             @inbounds for i in axes(cache.J, 1)
