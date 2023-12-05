@@ -123,7 +123,7 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     A = ifelse(cache.J isa SMatrix || cache.J isa Number || !fact_done, cache.J, nothing)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, cache.linsolve; A,
+    linres = dolinsolve(cache, alg.precs, cache.linsolve; A,
         b = _vec(cache.fu), linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     cache.du = _restructure(cache.du, linres.u)
@@ -138,9 +138,6 @@ function perform_step!(cache::GeneralKlementCache{iip}) where {iip}
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
-
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
 
     cache.force_stop && return nothing
 

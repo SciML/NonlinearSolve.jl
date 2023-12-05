@@ -104,7 +104,7 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     cache.J = jacobian!!(cache.J, cache)
 
     # u = u - J \ fu
-    linres = dolinsolve(alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
+    linres = dolinsolve(cache, alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
         linu = _vec(cache.du), cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     cache.du = _restructure(cache.du, linres.u)
@@ -119,8 +119,5 @@ function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
     return nothing
 end

@@ -88,18 +88,26 @@ end
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
-function dolinsolve(precs::P, linsolve::FakeLinearSolveJLCache; A = nothing,
+function dolinsolve(cache, precs::P, linsolve::FakeLinearSolveJLCache; A = nothing,
         linu = nothing, b = nothing, du = nothing, p = nothing, weight = nothing,
         cachedata = nothing, reltol = nothing, reuse_A_if_factorization = false) where {P}
+    # Update Statistics
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += !(A isa Number)
+
     A !== nothing && (linsolve.A = A)
     b !== nothing && (linsolve.b = b)
     linres = linsolve.A \ linsolve.b
     return FakeLinearSolveJLResult(linsolve, linres)
 end
 
-function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
+function dolinsolve(cache, precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
         du = nothing, p = nothing, weight = nothing, cachedata = nothing, reltol = nothing,
         reuse_A_if_factorization = false) where {P}
+    # Update Statistics
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
+
     # Some Algorithms would reuse factorization but it causes the cache to not reset in
     # certain cases
     if A !== nothing
@@ -108,10 +116,16 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
            (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
               LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)))
             # Factorization Algorithm
-            !reuse_A_if_factorization && (linsolve.A = A)
+            if reuse_A_if_factorization
+                cache.stats.nfactors -= 1
+            else
+                linsolve.A = A
+            end
         else
             linsolve.A = A
         end
+    else
+        cache.stats.nfactors -= 1
     end
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)

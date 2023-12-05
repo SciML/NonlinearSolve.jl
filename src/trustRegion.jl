@@ -360,7 +360,7 @@ function perform_step!(cache::TrustRegionCache{iip}) where {iip}
 
         # do not use A = cache.H, b = _vec(cache.g) since it is equivalent
         # to  A = cache.J, b = _vec(fu) as long as the Jacobian is non-singular
-        linres = dolinsolve(cache.alg.precs, cache.linsolve, A = cache.J,
+        linres = dolinsolve(cache, cache.alg.precs, cache.linsolve, A = cache.J,
             b = _vec(cache.fu), linu = _vec(cache.u_gauss_newton), p = cache.p,
             reltol = cache.abstol)
         cache.linsolve = linres.cache
@@ -375,8 +375,6 @@ function perform_step!(cache::TrustRegionCache{iip}) where {iip}
     @bb @. cache.u_cache_2 = cache.u + cache.du
     evaluate_f(cache, cache.u_cache_2, cache.p, Val{:fu_cache_2}())
     trust_region_step!(cache)
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
     return nothing
 end
 

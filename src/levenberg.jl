@@ -263,13 +263,14 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         else
             cache.rhs_tmp = _vcat(_vec(cache.fu), zero(_vec(cache.u)))
         end
-        linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
+        linres = dolinsolve(cache, alg.precs, linsolve; A = cache.mat_tmp,
             b = cache.rhs_tmp, linu = _vec(cache.v), cache.p, reltol = cache.abstol)
     else
         @bb cache.u_cache_2 = transpose(cache.J) × cache.fu
         @bb @. cache.mat_tmp = cache.JᵀJ + cache.λ * cache.DᵀD
-        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
-            b = _vec(cache.u_cache_2), linu = _vec(cache.v), cache.p, reltol = cache.abstol)
+        linres = dolinsolve(cache, alg.precs, linsolve;
+            A = __maybe_symmetric(cache.mat_tmp), b = _vec(cache.u_cache_2),
+            linu = _vec(cache.v), cache.p, reltol = cache.abstol)
     end
     cache.linsolve = linres.cache
     linu = _restructure(cache.v, linres.u)
@@ -293,19 +294,16 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         else
             cache.rhs_tmp = _vcat(_vec(cache.fu_cache_2), zero(_vec(cache.u)))
         end
-        linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.a),
-            cache.p, reltol = cache.abstol)
+        linres = dolinsolve(cache, alg.precs, linsolve; b = cache.rhs_tmp,
+            linu = _vec(cache.a), cache.p, reltol = cache.abstol)
     else
         @bb cache.u_cache_2 = transpose(cache.J) × cache.fu_cache_2
-        linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_cache_2),
+        linres = dolinsolve(cache, alg.precs, linsolve; b = _vec(cache.u_cache_2),
             linu = _vec(cache.a), cache.p, reltol = cache.abstol)
     end
     cache.linsolve = linres.cache
     linu = _restructure(cache.a, linres.u)
     @bb @. cache.a = -linu
-
-    cache.stats.nsolve += 2
-    cache.stats.nfactors += 2
 
     # Require acceptable steps to satisfy the following condition.
     norm_v = cache.internalnorm(cache.v)

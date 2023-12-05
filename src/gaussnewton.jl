@@ -123,7 +123,7 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
         A, b = cache.J, _vec(cache.fu)
     end
 
-    linres = dolinsolve(cache.alg.precs, cache.linsolve; A, b, linu = _vec(cache.du),
+    linres = dolinsolve(cache, cache.alg.precs, cache.linsolve; A, b, linu = _vec(cache.du),
         cache.p, reltol = cache.abstol)
     cache.linsolve = linres.cache
     cache.du = _restructure(cache.du, linres.u)
@@ -142,9 +142,6 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
     @bb copyto!(cache.u_cache, cache.u)
     @bb copyto!(cache.dfu, cache.fu)
 
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
     return nothing
 end
 
