@@ -17,6 +17,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import ConcreteStructs: @concrete
     import EnumX: @enumx
     import FastBroadcast: @..
+    import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
@@ -56,7 +57,7 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
     cache.p = p
     if iip
         recursivecopy!(get_u(cache), u0)
-        cache.f(cache.fu1, get_u(cache), p)
+        cache.f(get_fu(cache), get_u(cache), p)
     else
         cache.u = __maybe_unaliased(u0, alias_u0)
         set_fu!(cache, cache.f(cache.u, p))
@@ -76,7 +77,7 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
 
     if hasfield(typeof(cache), :ls_cache)
         # TODO: A more efficient way to do this
-        cache.ls_cache = init_linesearch_cache(cache.prob, cache.alg.linesearch, cache.f,
+        cache.ls_cache = init_linesearch_cache(cache.alg.linesearch, cache.f,
             get_u(cache), p, get_fu(cache), Val(iip))
     end
 

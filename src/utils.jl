@@ -178,7 +178,7 @@ function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
     return fu
 end
 
-function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip <: Bool}
+function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip}
     if iip
         f(fu, u, p)
         return fu

@@ -255,7 +255,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     @bb u_cache_2 = similar(u)
     @bb u_cauchy = similar(u)
     @bb u_gauss_newton = similar(u)
-    @bb J_cache = similar(J)
+    J_cache = J isa SciMLOperators.AbstractSciMLOperator ||
+              setindex_trait(J) === CannotSetindex() ? J : similar(J)
     @bb lr_mul_cache = similar(du)
 
     loss_new = loss

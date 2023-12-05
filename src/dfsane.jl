@@ -55,6 +55,7 @@ Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_
 end
 
 @concrete mutable struct DFSaneCache{iip} <: AbstractNonlinearSolveCache{iip}
+    f
     alg
     u
     u_cache
@@ -110,8 +111,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::DFSane, args.
         termination_condition)
     trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
-    return DFSaneCache{iip}(alg, u, u_cache, u_cache_2, fu, fu_cache, du, history, f_norm,
-        f_norm_0, alg.M, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), one(T), T(alg.γ),
+    return DFSaneCache{iip}(prob.f, alg, u, u_cache, u_cache_2, fu, fu_cache, du, history,
+        f_norm, f_norm_0, alg.M, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), one(T), T(alg.γ),
         T(alg.τ_min), T(alg.τ_max), alg.n_exp, prob.p, false, maxiters, internalnorm,
         ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
