@@ -18,7 +18,7 @@ Brent
 
 ### General Methods
 
-These methods are suited for any general nonlinear root-finding problem , i.e. `NonlinearProblem`.
+These methods are suited for any general nonlinear root-finding problem, i.e. `NonlinearProblem`.
 
 ```@docs
 SimpleNewtonRaphson

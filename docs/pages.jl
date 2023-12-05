@@ -25,4 +25,5 @@ pages = ["index.md",
         "api/nlsolve.md",
         "api/sundials.md",
         "api/steadystatediffeq.md"],
+    "Release Notes" => "release_notes.md",
 ]

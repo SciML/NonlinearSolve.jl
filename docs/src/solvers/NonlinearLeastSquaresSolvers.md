@@ -14,13 +14,13 @@ algorithm (`LevenbergMarquardt`).
 
 ## Full List of Methods
 
-  - `LevenbergMarquardt()`: An advanced Levenberg-Marquardt implementation with the
-    improvements suggested in the [paper](https://arxiv.org/abs/1201.5885) "Improvements to
-    the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". Designed for
-    large-scale and numerically-difficult nonlinear systems.
-  - `GaussNewton()`: An advanced GaussNewton implementation with support for efficient
-    handling of sparse matrices via colored automatic differentiation and preconditioned
-    linear solvers. Designed for large-scale and numerically-difficult nonlinear least squares
-    problems.
-  - `SimpleNewtonRaphson()`: Simple Gauss Newton Implementation with `QRFactorization` to
-    solve a linear least squares problem at each step!
+- `LevenbergMarquardt()`: An advanced Levenberg-Marquardt implementation with the
+  improvements suggested in the [paper](https://arxiv.org/abs/1201.5885) "Improvements to
+  the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". Designed for
+  large-scale and numerically-difficult nonlinear systems.
+- `GaussNewton()`: An advanced GaussNewton implementation with support for efficient
+  handling of sparse matrices via colored automatic differentiation and preconditioned
+  linear solvers. Designed for large-scale and numerically-difficult nonlinear least squares
+  problems.
+- `SimpleGaussNewton()`: Simple Gauss Newton Implementation with `QRFactorization` to
+  solve a linear least squares problem at each step!

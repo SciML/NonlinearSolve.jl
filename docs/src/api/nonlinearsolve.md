@@ -9,8 +9,8 @@ NewtonRaphson
 TrustRegion
 PseudoTransient
 DFSane
-GeneralBroyden
-GeneralKlement
+Broyden
+Klement
 ```
 
 ## Polyalgorithms

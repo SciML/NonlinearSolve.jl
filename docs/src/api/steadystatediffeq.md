@@ -17,4 +17,5 @@ These methods can be used independently of the rest of NonlinearSolve.jl
 
 ```@docs
 DynamicSS
+SSRootfind
 ```

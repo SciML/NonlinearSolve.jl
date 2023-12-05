@@ -63,14 +63,3 @@ DiffEqBase.NonlinearSafeTerminationReturnCode.Failure
 DiffEqBase.NonlinearSafeTerminationReturnCode.PatienceTermination
 DiffEqBase.NonlinearSafeTerminationReturnCode.ProtectiveTermination
 ```
-
-## [Deprecated] Termination Condition API
-
-!!! warning
-    
-    This is deprecated. Currently only parts of `SimpleNonlinearSolve` uses this API. That
-    will also be phased out soon!
-
-```@docs
-NLSolveTerminationCondition
-```

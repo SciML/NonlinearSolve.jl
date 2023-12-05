@@ -19,7 +19,7 @@ residual is returned.
 ```julia
 using NonlinearSolve
 
-alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), GeneralBroyden()))
+alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), Broyden()))
 ```
 """
 struct NonlinearSolvePolyAlgorithm{pType, N, A} <: AbstractNonlinearSolveAlgorithm
@@ -248,9 +248,9 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
     else
-        algs = (GeneralBroyden(),
-            GeneralBroyden(; init_jacobian = Val(:true_jacobian)),
-            GeneralKlement(; linsolve, precs),
+        algs = (Broyden(),
+            Broyden(; init_jacobian = Val(:true_jacobian)),
+            Klement(; linsolve, precs),
             NewtonRaphson(; concrete_jac, linsolve, precs, adkwargs...),
             NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
                 adkwargs...),

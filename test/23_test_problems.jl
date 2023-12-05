@@ -89,14 +89,12 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testset "GeneralBroyden 23 Test Problems" begin
-    alg_ops = (GeneralBroyden(),
-        GeneralBroyden(; init_jacobian = Val(:true_jacobian)),
-        GeneralBroyden(; update_rule = Val(:bad_broyden)),
-        GeneralBroyden(; init_jacobian = Val(:true_jacobian),
-            update_rule = Val(:bad_broyden)),
-        GeneralBroyden(; update_rule = Val(:diagonal)),
-        GeneralBroyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:diagonal)))
+@testset "Broyden 23 Test Problems" begin
+    alg_ops = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
+        Broyden(; update_rule = Val(:bad_broyden)),
+        Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden)),
+        Broyden(; update_rule = Val(:diagonal)),
+        Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 5, 6, 11]
@@ -117,10 +115,9 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests; skip_tests)
 end
 
-@testset "GeneralKlement 23 Test Problems" begin
-    alg_ops = (GeneralKlement(),
-        GeneralKlement(; init_jacobian = Val(:true_jacobian)),
-        GeneralKlement(; init_jacobian = Val(:true_jacobian_diagonal)))
+@testset "Klement 23 Test Problems" begin
+    alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian)),
+        Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 22]

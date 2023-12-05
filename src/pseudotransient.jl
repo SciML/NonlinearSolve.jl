@@ -46,9 +46,9 @@ function set_ad(alg::PseudoTransient{CJ}, ad) where {CJ}
 end
 
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
-    ad = default_adargs_to_adtype(; adkwargs...)
-    return PseudoTransient{_unwrap_val(concrete_jac)}(ad, linsolve, precs, alpha_initial)
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3, autodiff = nothing)
+    return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
+        alpha_initial)
 end
 
 @concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}

@@ -1,5 +1,5 @@
 """
-    GeneralKlement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
+    Klement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
         precs = DEFAULT_PRECS, alpha = true, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
@@ -38,7 +38,7 @@ solves. It is recommended to use `Broyden` for most problems over this.
     `nothing` which means that a default is selected according to the problem specification!
     Valid choices are types from ADTypes.jl. (Used if `init_jacobian = Val(:true_jacobian)`)
 """
-@concrete struct GeneralKlement{IJ, CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct Klement{IJ, CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     max_resets::Int
     linsolve
@@ -47,30 +47,30 @@ solves. It is recommended to use `Broyden` for most problems over this.
     alpha
 end
 
-function __alg_print_modifiers(alg::GeneralKlement{IJ}) where {IJ}
+function __alg_print_modifiers(alg::Klement{IJ}) where {IJ}
     modifiers = String[]
     IJ !== :identity && push!(modifiers, "init_jacobian = Val(:$(IJ))")
     alg.alpha !== nothing && push!(modifiers, "alpha = $(alg.alpha)")
     return modifiers
 end
 
-function set_ad(alg::GeneralKlement{IJ, CJ}, ad) where {IJ, CJ}
-    return GeneralKlement{IJ, CJ}(ad, alg.max_resets, alg.linsolve, alg.precs,
+function set_ad(alg::Klement{IJ, CJ}, ad) where {IJ, CJ}
+    return Klement{IJ, CJ}(ad, alg.max_resets, alg.linsolve, alg.precs,
         alg.linesearch, alg.alpha)
 end
 
-function GeneralKlement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
+function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
         linesearch = nothing, precs = DEFAULT_PRECS, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
     IJ = _unwrap_val(init_jacobian)
     @assert IJ ∈ (:identity, :true_jacobian, :true_jacobian_diagonal)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     CJ = IJ !== :identity
-    return GeneralKlement{IJ, CJ}(autodiff, max_resets, linsolve, precs, linesearch,
+    return Klement{IJ, CJ}(autodiff, max_resets, linsolve, precs, linesearch,
         alpha)
 end
 
-@concrete mutable struct GeneralKlementCache{iip, IJ} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct KlementCache{iip, IJ} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -104,7 +104,7 @@ end
     trace
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKlement{IJ},
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::Klement{IJ},
         args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
         linsolve_kwargs = (;), kwargs...) where {uType, iip, F, IJ}
@@ -155,14 +155,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         J_cache_2, Jdu_cache = nothing, nothing
     end
 
-    return GeneralKlementCache{iip, IJ}(f, alg, u, u_cache, fu, fu_cache, fu_cache_2, du, p,
+    return KlementCache{iip, IJ}(f, alg, u, u_cache, fu, fu_cache, fu_cache_2, du, p,
         uf, linsolve, J, J_cache, J_cache_2, Jdu, Jdu_cache, alpha, alg.alpha, 0, false,
         maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob, jac_cache,
         NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
-function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
+function perform_step!(cache::KlementCache{iip, IJ}) where {iip, IJ}
     @unpack linsolve, alg = cache
     T = eltype(cache.J)
 
@@ -250,7 +250,7 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
     return nothing
 end
 
-function __reinit_internal!(cache::GeneralKlementCache; kwargs...)
+function __reinit_internal!(cache::KlementCache; kwargs...)
     cache.alpha = __initial_alpha(cache.alpha, cache.alpha_initial, cache.u, cache.fu,
         cache.internalnorm)
     cache.J = __reinit_identity_jacobian!!(cache.J, cache.alpha)

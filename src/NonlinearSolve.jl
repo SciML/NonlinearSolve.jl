@@ -195,7 +195,7 @@ include("default.jl")
     end
 
     nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
-        GeneralBroyden(), GeneralKlement(), DFSane(), nothing)
+        Broyden(), Klement(), DFSane(), nothing)
 
     probs_nlls = NonlinearLeastSquaresProblem[]
     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
@@ -235,7 +235,7 @@ end
 export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    GeneralBroyden, GeneralKlement, LimitedMemoryBroyden
+    Broyden, Klement, LimitedMemoryBroyden
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg

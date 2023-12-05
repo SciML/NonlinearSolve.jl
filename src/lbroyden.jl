@@ -76,7 +76,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     if u0 isa Number || length(u0) ≤ η
         # If u is a number or very small problem then we simply use Broyden
         return SciMLBase.__init(prob,
-            GeneralBroyden(; alg.max_resets, alg.reset_tolerance, alg.linesearch), args...;
+            Broyden(; alg.max_resets, alg.reset_tolerance, alg.linesearch), args...;
             alias_u0, maxiters, abstol, internalnorm, kwargs...)
     end
     u = __maybe_unaliased(u0, alias_u0)

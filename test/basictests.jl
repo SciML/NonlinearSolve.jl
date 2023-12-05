@@ -124,9 +124,8 @@ const TERMINATION_CONDITIONS = [
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
-            AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
@@ -244,9 +243,8 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (false,
-            true, AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0]),
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -380,9 +378,8 @@ end
     @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
         p) ≈ ForwardDiff.jacobian(t, p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
-            AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(; autodiff); abstol = 1e-9,
             reltol = 1e-9).u .≈ sqrt(2.0))
@@ -664,9 +661,8 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (false, true,
-            AutoSparseForwardDiff(), AutoSparseFiniteDiff(), AutoZygote(),
-            AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0, autodiff)).u .≈
                   sqrt(2.0))
@@ -689,20 +685,20 @@ end
     end
 end
 
-# --- GeneralBroyden tests ---
+# --- Broyden tests ---
 
-@testset "GeneralBroyden" begin
+@testset "Broyden" begin
     function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
             init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, GeneralBroyden(; linesearch, init_jacobian, update_rule);
+        return solve(prob, Broyden(; linesearch, init_jacobian, update_rule);
             abstol = 1e-9)
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
             init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, GeneralBroyden(; linesearch, init_jacobian, update_rule);
+        return solve(prob, Broyden(; linesearch, init_jacobian, update_rule);
             abstol = 1e-9)
     end
 
@@ -723,7 +719,7 @@ end
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
             cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
-                GeneralBroyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
+                Broyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
             @test (@ballocated solve!($cache)) < 200
         end
 
@@ -735,7 +731,7 @@ end
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
             cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-                GeneralBroyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
+                Broyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
@@ -773,7 +769,7 @@ end
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, GeneralBroyden(); maxiters = 100, abstol = 1e-10)
+        cache = init(probN, Broyden(); maxiters = 100, abstol = 1e-10)
         sols = zeros(length(p_range))
         for (i, p) in enumerate(p_range)
             reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
@@ -790,23 +786,23 @@ end
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, GeneralBroyden(); termination_condition).u .≈ sqrt(2.0))
+        @test all(solve(probN, Broyden(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
-# --- GeneralKlement tests ---
+# --- Klement tests ---
 
-@testset "GeneralKlement" begin
+@testset "Klement" begin
     function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
             init_jacobian = Val(:identity))
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, GeneralKlement(; linesearch, init_jacobian), abstol = 1e-9)
+        return solve(prob, Klement(; linesearch, init_jacobian), abstol = 1e-9)
     end
 
     function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
             init_jacobian = Val(:identity))
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, GeneralKlement(; linesearch, init_jacobian), abstol = 1e-9)
+        return solve(prob, Klement(; linesearch, init_jacobian), abstol = 1e-9)
     end
 
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (Static(),
@@ -824,7 +820,7 @@ end
             @test all(abs.(sol.u .* sol.u .- 2) .< 3e-9)
 
             cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
-                GeneralKlement(; linesearch), abstol = 1e-9)
+                Klement(; linesearch), abstol = 1e-9)
             @test (@ballocated solve!($cache)) < 200
         end
 
@@ -835,7 +831,7 @@ end
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
             cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-                GeneralKlement(; linesearch), abstol = 1e-9)
+                Klement(; linesearch), abstol = 1e-9)
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
@@ -873,7 +869,7 @@ end
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, GeneralKlement(); maxiters = 100, abstol = 1e-10)
+        cache = init(probN, Klement(); maxiters = 100, abstol = 1e-10)
         sols = zeros(length(p_range))
         for (i, p) in enumerate(p_range)
             reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
@@ -890,7 +886,7 @@ end
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, GeneralKlement(); termination_condition).u .≈ sqrt(2.0))
+        @test all(solve(probN, Klement(); termination_condition).u .≈ sqrt(2.0))
     end
 end
 
