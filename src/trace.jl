@@ -134,6 +134,7 @@ function NonlinearSolveTraceEntry(iteration, fu, δu, J, u)
 end
 
 __cond(J::AbstractMatrix) = cond(J)
+__cond(J::AbstractVector) = __cond(Diagonal(J))
 __cond(J) = -1  # Covers cases where `J` is a Operator, nothing, etc.
 
 __copy(x::AbstractArray) = copy(x)

@@ -332,11 +332,14 @@ end
 end
 
 @inline __reinit_identity_jacobian!!(J::Number) = one(J)
+@inline __reinit_identity_jacobian!!(J::AbstractVector) = fill!(J, one(eltype(J)))
 @inline function __reinit_identity_jacobian!!(J::AbstractMatrix)
     fill!(J, zero(eltype(J)))
     J[diagind(J)] .= one(eltype(J))
     return J
 end
+@inline __reinit_identity_jacobian!!(J::SVector) = ones(SArray{
+    Tuple{Size(J)[1]}, eltype(J)})
 @inline function __reinit_identity_jacobian!!(J::SMatrix)
     S = Size(J)
     return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
@@ -356,36 +359,17 @@ function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
     return U, Vᵀ
 end
 
-# Check Singular Matrix
-@inline _issingular(x::Number) = iszero(x)
-@inline @generated function _issingular(x::T) where {T}
-    hasmethod(issingular, Tuple{T}) && return :(issingular(x))
-    return :(__issingular(x))
-end
-@inline __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
-@inline __issingular(x) = false ## If SciMLOperator and such
+@inline __is_ill_conditioned(x::Number) = iszero(x)
+@inline __is_ill_conditioned(x::AbstractMatrix) = cond(x) ≥
+                                                  inv(eps(real(eltype(x)))^(1 // 2))
+@inline __is_ill_conditioned(x::AbstractVector) = any(iszero, x)
+@inline __is_ill_conditioned(x) = false
 
 # Safe getproperty
 @generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
     return :(nothing)
 end
-
-# If factorization is LU then perform that and update the linsolve cache
-# else check if the matrix is singular
-function __try_factorize_and_check_singular!(linsolve, X)
-    if linsolve.cacheval isa LU || linsolve.cacheval isa StaticArrays.LU
-        # LU Factorization was used
-        linsolve.A = X
-        linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
-            linsolve.u)
-        linsolve.isfresh = false
-
-        return !issuccess(linsolve.cacheval), true
-    end
-    return _issingular(X), false
-end
-__try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x), false
 
 # Non-square matrix
 @inline __needs_square_A(_, ::Number) = true
