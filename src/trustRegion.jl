@@ -384,8 +384,7 @@ function retrospective_step!(cache::TrustRegionCache{iip}) where {iip}
     __update_JᵀJ!(cache, J)
     __update_Jᵀf!(cache, J)
 
-    num = __trust_region_loss(cache, cache.fu) -
-          __get_trust_region_loss(cache, cache.fu_cache)
+    num = __trust_region_loss(cache, cache.fu) - __trust_region_loss(cache, cache.fu_cache)
     denom = dot(_vec(cache.du), _vec(cache.Jᵀf)) + __lr_mul(cache, cache.JᵀJ, cache.du) / 2
     return num / denom
 end
@@ -441,7 +440,7 @@ function trust_region_step!(cache::TrustRegionCache)
         end
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
         @unpack shrink_threshold, p1, p2, p3, p4 = cache
-        tr_new = __rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(du)
+        tr_new = __rfunc(r, shrink_threshold, p1, p3, p4, p2) * cache.internalnorm(cache.du)
         if tr_new < cache.trust_r
             cache.shrink_counter += 1
         else
@@ -479,7 +478,7 @@ function trust_region_step!(cache::TrustRegionCache)
     elseif radius_update_scheme === RadiusUpdateSchemes.Bastin
         if r > cache.step_threshold
             if retrospective_step!(cache) ≥ cache.expand_threshold
-                cache.trust_r = max(cache.p1 * cache.internalnorm(du), cache.trust_r)
+                cache.trust_r = max(cache.p1 * cache.internalnorm(cache.du), cache.trust_r)
             end
             cache.shrink_counter = 0
         else

@@ -59,8 +59,8 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [6, 11, 21]
     broken_tests[alg_ops[2]] = [6, 11, 21]
-    broken_tests[alg_ops[3]] = [1, 6, 11, 12, 15, 16, 21]
-    broken_tests[alg_ops[4]] = [1, 6, 8, 11, 15, 16, 21, 22]
+    broken_tests[alg_ops[3]] = [6, 11, 21]
+    broken_tests[alg_ops[4]] = [6, 11, 21]
     broken_tests[alg_ops[5]] = [6, 21]
     broken_tests[alg_ops[6]] = [6, 21]
 
