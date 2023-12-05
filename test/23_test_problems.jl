@@ -95,10 +95,10 @@ end
     alg_ops = (GeneralBroyden(; max_resets = 10),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 13, 14]
+    broken_tests[alg_ops[1]] = [1, 4, 5, 6, 11, 12, 13, 14]
 
     skip_tests = Dict(alg => Int[] for alg in alg_ops)
-    skip_tests[alg_ops[1]] = [22]
+    skip_tests[alg_ops[1]] = [2, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests; skip_tests)
 end

@@ -116,7 +116,7 @@ function perform_step!(cache::GeneralBroydenCache{iip}) where {iip}
         @bb cache.u_cache = transpose(cache.J⁻¹) × vec(cache.du)
         denom = dot(cache.du, cache.J⁻¹dfu)
         @bb @. cache.du = (cache.du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1e-5), denom)
-        @bb cache.J⁻¹ += vec(cache.du) × transpose(cache.u_cache)
+        @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.u_cache))
     end
 
     @bb copyto!(cache.fu_cache, cache.fu)

@@ -504,15 +504,16 @@ function dogleg!(cache::TrustRegionCache{iip}) where {iip}
     # outside of trust region
     l_grad = cache.internalnorm(cache.Jᵀf) # length of the gradient
     d_cauchy = l_grad^3 / __lr_mul(cache)
+    g = _restructure(cache.du, cache.Jᵀf)
     if d_cauchy ≥ cache.trust_r
         # step to the end of the trust region
-        @bb @. cache.du = -(cache.trust_r / l_grad) * cache.Jᵀf
+        @bb @. cache.du = -(cache.trust_r / l_grad) * g
         return
     end
 
     # Take the intersection of dogleg with trust region if Cauchy point lies inside the
     # trust region
-    @bb @. cache.u_cauchy = -(d_cauchy / l_grad) * cache.Jᵀf # compute Cauchy point
+    @bb @. cache.u_cauchy = -(d_cauchy / l_grad) * g # compute Cauchy point
     @bb @. cache.u_cache_2 = cache.u_gauss_newton - cache.u_cauchy # calf of the dogleg
 
     a = dot(cache.u_cache_2, cache.u_cache_2)
@@ -547,13 +548,19 @@ function not_terminated(cache::TrustRegionCache)
     return true
 end
 
-# FIXME: Update the JacVec Operator for Yuan
+# FIXME: Reinit `JᵀJ` operator if `p` is changed
 function __reinit_internal!(cache::TrustRegionCache; kwargs...)
+    if cache.jvp_operator !== nothing
+        cache.jvp_operator = __jacvec(cache.uf, cache.u; cache.fu,
+            autodiff = __get_nonsparse_ad(cache.alg.ad))
+        @bb cache.Jᵀf = cache.jvp_operator × cache.fu
+    end
     cache.loss = __trust_region_loss(cache, cache.fu)
+    cache.loss_new = cache.loss
     cache.shrink_counter = 0
     cache.trust_r = convert(eltype(cache.u),
-        ifelse(cache.alg.initial_trust_radius == 0, cache.alg.initial_trust_radius,
-            cache.max_trust_r / 11))
+        ifelse(cache.alg.initial_trust_radius == 0, cache.max_trust_r / 11,
+            cache.alg.initial_trust_radius))
     cache.make_new_J = true
     return nothing
 end

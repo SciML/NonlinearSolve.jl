@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "2.9.0"
+version = "2.10.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -72,7 +72,7 @@ Reexport = "0.2, 1"
 SafeTestsets = "0.1"
 SciMLBase = "2.9"
 SciMLOperators = "0.3"
-SimpleNonlinearSolve = "1"
+SimpleNonlinearSolve = "0.1.23"
 SparseArrays = "<0.0.1, 1"
 SparseDiffTools = "2.14"
 StaticArrays = "1"

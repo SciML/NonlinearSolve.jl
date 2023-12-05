@@ -224,7 +224,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     @bb u_cache = copy(u)
     @bb u_cache_2 = similar(u)
     @bb fu_cache_2 = similar(fu)
-    Jv = J * v
+    Jv = J * _vec(v)
     @bb v_cache = zero(v)
 
     return LevenbergMarquardtCache{iip, fastls}(f, alg, u, u_cache, u_cache_2, fu, fu_cache,
@@ -265,16 +265,15 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         end
         linres = dolinsolve(alg.precs, linsolve; A = cache.mat_tmp,
             b = cache.rhs_tmp, linu = _vec(cache.v), cache.p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
-        @bb @. cache.v = -linres.u
     else
         @bb cache.u_cache_2 = transpose(cache.J) × cache.fu
         @bb @. cache.mat_tmp = cache.JᵀJ + cache.λ * cache.DᵀD
         linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.mat_tmp),
             b = _vec(cache.u_cache_2), linu = _vec(cache.v), cache.p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
-        @bb @. cache.v = -linres.u
     end
+    cache.linsolve = linres.cache
+    linu = _restructure(cache.v, linres.u)
+    @bb @. cache.v = -linu
 
     update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
         cache.v)
@@ -285,9 +284,9 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
 
     # The following lines do: cache.a = -cache.mat_tmp \ cache.fu_tmp
     # NOTE: Don't pass `A`` in again, since we want to reuse the previous solve
-    @bb cache.Jv = cache.J × cache.v
-    @bb @. cache.fu_cache_2 = (2 / cache.h) *
-                              ((cache.fu_cache_2 - cache.fu) / cache.h - cache.Jv)
+    @bb cache.Jv = cache.J × vec(cache.v)
+    Jv = _restructure(cache.fu_cache_2, cache.Jv)
+    @bb @. cache.fu_cache_2 = (2 / cache.h) * ((cache.fu_cache_2 - cache.fu) / cache.h - Jv)
     if fastls
         if setindex_trait(cache.rhs_tmp) === CanSetindex()
             cache.rhs_tmp[1:length(cache.fu)] .= _vec(cache.fu_cache_2)
@@ -296,15 +295,14 @@ function perform_step!(cache::LevenbergMarquardtCache{iip, fastls}) where {iip, 
         end
         linres = dolinsolve(alg.precs, linsolve; b = cache.rhs_tmp, linu = _vec(cache.a),
             cache.p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
-        @bb @. cache.a = -linres.u
     else
         @bb cache.u_cache_2 = transpose(cache.J) × cache.fu_cache_2
         linres = dolinsolve(alg.precs, linsolve; b = _vec(cache.u_cache_2),
             linu = _vec(cache.a), cache.p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
-        @bb @. cache.a = -linres.u
     end
+    cache.linsolve = linres.cache
+    linu = _restructure(cache.a, linres.u)
+    @bb @. cache.a = -linu
 
     cache.stats.nsolve += 2
     cache.stats.nfactors += 2
