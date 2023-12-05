@@ -138,7 +138,7 @@ function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u::Number, 
         kwargs...) where {needsJᵀJ, F}
     # NOTE: Scalar `u` assumes scalar output from `f`
     uf = SciMLBase.JacobianWrapper{false}(f, p)
-    return uf, FakeLinearSolveJLCache(u, u), u, nothing, nothing, u, u, u
+    return uf, FakeLinearSolveJLCache(u, u), u, zero(u), nothing, u, u, u
 end
 
 # Linear Solve Cache
@@ -208,27 +208,49 @@ function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
     end
 end
 
+# jvp fallback scalar
+__jacvec(args...; kwargs...) = JacVec(args...; kwargs...)
+function __jacvec(uf, u::Number; autodiff, kwargs...)
+    @assert autodiff isa AutoForwardDiff "Only ForwardDiff is currently supported."
+    return JVPScalar(uf, u, autodiff)
+end
+
+@concrete mutable struct JVPScalar
+    uf
+    u
+    autodiff
+end
+
+function Base.:*(jvp::JVPScalar, v)
+    T = typeof(ForwardDiff.Tag(typeof(jvp.uf), typeof(jvp.u)))
+    out = jvp.uf(ForwardDiff.Dual{T}(jvp.u, v))
+    return ForwardDiff.extract_derivative(T, out)
+end
+
 # Generic Handling of Krylov Methods for Normal Form Linear Solves
-function __update_JᵀJ!(cache::AbstractNonlinearSolveCache)
+function __update_JᵀJ!(cache::AbstractNonlinearSolveCache, J = nothing)
     if !(cache.JᵀJ isa KrylovJᵀJ)
-        @bb cache.JᵀJ = transpose(cache.J) × cache.J
+        J_ = ifelse(J === nothing, cache.J, J)
+        @bb cache.JᵀJ = transpose(J_) × J_
     end
 end
 
-function __update_Jᵀf!(cache::AbstractNonlinearSolveCache)
+function __update_Jᵀf!(cache::AbstractNonlinearSolveCache, J = nothing)
     if cache.JᵀJ isa KrylovJᵀJ
         @bb cache.Jᵀf = cache.JᵀJ.Jᵀ × cache.fu
     else
-        @bb cache.Jᵀf = transpose(cache.J) × vec(cache.fu)
+        J_ = ifelse(J === nothing, cache.J, J)
+        @bb cache.Jᵀf = transpose(J_) × vec(cache.fu)
     end
 end
 
 # Left-Right Multiplication
-__lr_mul(::Val, H, g) = dot(g, H, g)
-## TODO: Use a cache here to avoid allocations
-__lr_mul(::Val{false}, H::KrylovJᵀJ, g) = dot(g, H.JᵀJ, g)
-function __lr_mul(::Val{true}, H::KrylovJᵀJ, g)
-    c = similar(g)
-    mul!(c, H.JᵀJ, g)
-    return dot(g, c)
+__lr_mul(cache::AbstractNonlinearSolveCache) = __lr_mul(cache, cache.JᵀJ, cache.Jᵀf)
+function __lr_mul(cache::AbstractNonlinearSolveCache, JᵀJ::KrylovJᵀJ, Jᵀf)
+    @bb cache.lr_mul_cache = JᵀJ.JᵀJ × vec(Jᵀf)
+    return dot(_vec(Jᵀf), _vec(cache.lr_mul_cache))
+end
+function __lr_mul(cache::AbstractNonlinearSolveCache, JᵀJ, Jᵀf)
+    @bb cache.lr_mul_cache = JᵀJ × Jᵀf
+    return dot(_vec(Jᵀf), _vec(cache.lr_mul_cache))
 end

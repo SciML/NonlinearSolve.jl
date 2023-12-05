@@ -151,14 +151,6 @@ function wrapprecs(_Pl, _Pr, weight)
     return Pl, Pr
 end
 
-function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-function for adaptive trust region method
-    if (r ≥ c2)
-        return (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / π
-    else
-        return (1 - γ1 - β) * (exp(r - c2) + β / (1 - γ1 - β))
-    end
-end
-
 concrete_jac(_) = nothing
 concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 

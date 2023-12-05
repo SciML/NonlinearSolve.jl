@@ -116,8 +116,8 @@ function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
 
     # Use normal form to solve the Linear Problem
     if cache.JᵀJ !== nothing
-        __update_JᵀJ!(cache, Val(:JᵀJ))
-        __update_Jᵀf!(cache, Val(:JᵀJ))
+        __update_JᵀJ!(cache)
+        __update_Jᵀf!(cache)
         A, b = __maybe_symmetric(cache.JᵀJ), _vec(cache.Jᵀf)
     else
         A, b = cache.J, _vec(cache.fu)
