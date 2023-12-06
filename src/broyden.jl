@@ -175,7 +175,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
                               ifelse(iszero(denom), T(1e-5), denom)
             @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.u_cache))
         elseif UR === :bad_broyden
-            dfu_norm = norm(cache.dfu)^2
+            dfu_norm = cache.internalnorm(cache.dfu)^2
             @bb @. cache.du = (cache.du - cache.J⁻¹dfu) /
                               ifelse(iszero(dfu_norm), T(1e-5), dfu_norm)
             @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.dfu))
