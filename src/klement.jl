@@ -1,13 +1,15 @@
 """
-    GeneralKlement(; max_resets = 5, linsolve = nothing, linesearch = nothing,
-        precs = DEFAULT_PRECS)
+    GeneralKlement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
+        precs = DEFAULT_PRECS, alpha = true, init_jacobian::Val = Val(:identity),
+        autodiff = nothing)
 
 An implementation of `Klement` with line search, preconditioning and customizable linear
-solves.
+solves. It is recommended to use `Broyden` for most problems over this.
 
 ## Keyword Arguments
 
-  - `max_resets`: the maximum number of resets to perform. Defaults to `5`.
+  - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
+
   - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
     linear solves within the Newton method. Defaults to `nothing`, which means it uses the
     LinearSolve.jl default algorithm choice. For more information on available algorithm
@@ -19,10 +21,18 @@ solves.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`.
-  - `init_jacobian`: the method to use for initializing the jacobian. Defaults to using the
-    identity matrix (`Val(:identitiy)`). Alternatively, can be set to `Val(:true_jacobian)`
-    to use the true jacobian as initialization. (Our tests suggest it is a good idea to
-    to initialize with an identity matrix)
+  - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
+    inverse is set to be `αI`. Defaults to `1`. Can be set to `nothing` which implies
+    `α = max(norm(u), 1) / (2 * norm(fu))`.
+  - `init_jacobian`: the method to use for initializing the jacobian. Defaults to
+    `Val(:identity)`. Choices include:
+
+      + `Val(:identity)`: Identity Matrix.
+      + `Val(:true_jacobian)`: True Jacobian. Our tests suggest that this is not very
+        stable. Instead using `Broyden` with `Val(:true_jacobian)` gives faster and more
+        reliable convergence.
+      + `Val(:true_jacobian_diagonal)`: Diagonal of True Jacobian. This is a good choice for
+        differentiable problems.
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
     `nothing` which means that a default is selected according to the problem specification!
@@ -34,32 +44,30 @@ solves.
     linsolve
     precs
     linesearch
+    alpha
 end
 
-function __alg_print_modifiers(::GeneralKlement{IJ}) where {IJ}
+function __alg_print_modifiers(alg::GeneralKlement{IJ}) where {IJ}
     modifiers = String[]
     IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
+    alg.alpha !== nothing && push!(modifiers, "alpha = $(alg.alpha)")
     return modifiers
 end
 
-function set_linsolve(alg::GeneralKlement{IJ, CS}, linsolve) where {IJ, CS}
-    return GeneralKlement{IJ, CS}(alg.ad, alg.max_resets, linsolve, alg.precs,
-        alg.linesearch)
+function set_ad(alg::GeneralKlement{IJ, CJ}, ad) where {IJ, CJ}
+    return GeneralKlement{IJ, CJ}(ad, alg.max_resets, alg.linsolve, alg.precs,
+        alg.linesearch, alg.alpha)
 end
 
-function set_ad(alg::GeneralKlement{IJ, CS}, ad) where {IJ, CS}
-    return GeneralKlement{IJ, CS}(ad, alg.max_resets, alg.linsolve, alg.precs,
-        alg.linesearch)
-end
-
-function GeneralKlement(; max_resets::Int = 5, linsolve = nothing,
+function GeneralKlement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
         linesearch = nothing, precs = DEFAULT_PRECS, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
     IJ = _unwrap_val(init_jacobian)
-    @assert IJ ∈ (:identity, :true_jacobian)
+    @assert IJ ∈ (:identity, :true_jacobian, :true_jacobian_diagonal)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    CJ = IJ === :true_jacobian
-    return GeneralKlement{IJ, CJ}(autodiff, max_resets, linsolve, precs, linesearch)
+    CJ = IJ !== :identity
+    return GeneralKlement{IJ, CJ}(autodiff, max_resets, linsolve, precs, linesearch,
+        alpha)
 end
 
 @concrete mutable struct GeneralKlementCache{iip, IJ} <: AbstractNonlinearSolveCache{iip}
@@ -79,6 +87,8 @@ end
     J_cache_2
     Jdu
     Jdu_cache
+    alpha
+    alpha_initial
     resets
     force_stop
     maxiters::Int
@@ -102,15 +112,23 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
     u = __maybe_unaliased(u0, alias_u0)
     fu = evaluate_f(prob, u)
 
+    alpha = __initial_alpha(alg_.alpha, u, fu, internalnorm)
+
     if IJ === :true_jacobian
         alg = get_concrete_algorithm(alg_, prob)
         uf, _, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
             lininit = Val(false))
+    elseif IJ === :true_jacobian_diagonal
+        alg = get_concrete_algorithm(alg_, prob)
+        uf, _, J_cache, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+            lininit = Val(false))
+        J = __diag(J_cache)
     elseif IJ === :identity
         alg = alg_
         @bb du = similar(u)
         uf, fu_cache, jac_cache = nothing, nothing, nothing
         J = one.(u) # Identity Init Jacobian for Klement maintains a Diagonal Structure
+        @bb J .*= alpha
     else
         error("Invalid `init_jacobian` value")
     end
@@ -133,13 +151,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralKleme
         @bb J_cache_2 = similar(J)
         @bb Jdu_cache = similar(fu)
     else
-        J_cache, J_cache_2, Jdu_cache = nothing, nothing, nothing
+        IJ === :identity && (J_cache = nothing)
+        J_cache_2, Jdu_cache = nothing, nothing
     end
 
     return GeneralKlementCache{iip, IJ}(f, alg, u, u_cache, fu, fu_cache, fu_cache_2, du, p,
-        uf, linsolve, J, J_cache, J_cache_2, Jdu, Jdu_cache, 0, false, maxiters,
-        internalnorm,
-        ReturnCode.Default, abstol, reltol, prob, jac_cache, NLStats(1, 0, 0, 0, 0),
+        uf, linsolve, J, J_cache, J_cache_2, Jdu, Jdu_cache, alpha, alg.alpha, 0, false,
+        maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob, jac_cache,
+        NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
@@ -149,6 +168,12 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
 
     if IJ === :true_jacobian
         cache.stats.nsteps == 0 && (cache.J = jacobian!!(cache.J, cache))
+        ill_conditioned = __is_ill_conditioned(cache.J)
+    elseif IJ === :true_jacobian_diagonal
+        if cache.stats.nsteps == 0
+            cache.J_cache = jacobian!!(cache.J_cache, cache)
+            cache.J = __get_diagonal!!(cache.J, cache.J_cache)
+        end
         ill_conditioned = __is_ill_conditioned(cache.J)
     elseif IJ === :identity
         ill_conditioned = __is_ill_conditioned(cache.J)
@@ -162,13 +187,18 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
         end
         if IJ === :true_jacobian && cache.stats.nsteps != 0
             cache.J = jacobian!!(cache.J, cache)
-        else
-            cache.J = __reinit_identity_jacobian!!(cache.J)
+        elseif IJ === :true_jacobian_diagonal && cache.stats.nsteps != 0
+            cache.J_cache = jacobian!!(cache.J_cache, cache)
+            cache.J = __get_diagonal!!(cache.J, cache.J_cache)
+        elseif IJ === :identity
+            cache.alpha = __initial_alpha(cache.alpha, cache.alpha_initial, cache.u,
+                cache.fu, cache.internalnorm)
+            cache.J = __reinit_identity_jacobian!!(cache.J, cache.alpha)
         end
         cache.resets += 1
     end
 
-    if IJ === :identity
+    if cache.J isa AbstractVector || cache.J isa Number
         @bb @. cache.du = cache.fu / cache.J
     else
         # u = u - J \ fu
@@ -193,13 +223,15 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
 
     # Update the Jacobian
     @bb cache.du .*= -1
-    if IJ === :identity
+    if cache.J isa AbstractVector || cache.J isa Number
         @bb @. cache.Jdu = (cache.J^2) * (cache.du^2)
         @bb @. cache.J += ((cache.fu - cache.fu_cache_2 - cache.J * cache.du) /
                            ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * cache.du *
                           (cache.J^2)
     else
-        @bb cache.J_cache .= cache.J' .^ 2
+        # Klement Updates to the Full Jacobian don't work for most problems, we should
+        # probably be using the Broyden Update Rule here
+        @bb @. cache.J_cache = cache.J' ^ 2
         @bb @. cache.Jdu = cache.du^2
         @bb cache.Jdu_cache = cache.J_cache × vec(cache.Jdu)
         @bb cache.Jdu = cache.J × vec(cache.du)
@@ -217,7 +249,9 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
 end
 
 function __reinit_internal!(cache::GeneralKlementCache; kwargs...)
-    cache.J = __reinit_identity_jacobian!!(cache.J)
+    cache.alpha = __initial_alpha(cache.alpha, cache.alpha_initial, cache.u, cache.fu,
+        cache.internalnorm)
+    cache.J = __reinit_identity_jacobian!!(cache.J, cache.alpha)
     cache.resets = 0
     return nothing
 end

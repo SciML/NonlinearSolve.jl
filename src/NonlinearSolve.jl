@@ -81,7 +81,7 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
             get_u(cache), p, get_fu(cache), Val(iip))
     end
 
-    hasfield(typeof(cache), :uf) && (cache.uf.p = p)
+    hasfield(typeof(cache), :uf) && cache.uf !== nothing && (cache.uf.p = p)
 
     cache.abstol = abstol
     cache.reltol = reltol

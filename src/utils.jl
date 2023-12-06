@@ -111,10 +111,10 @@ function dolinsolve(cache, precs::P, linsolve; A = nothing, linu = nothing, b = 
     # Some Algorithms would reuse factorization but it causes the cache to not reset in
     # certain cases
     if A !== nothing
-        alg = linsolve.alg
-        if (alg isa LinearSolve.AbstractFactorization) ||
-           (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
-              LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)))
+        alg = __getproperty(linsolve, Val(:alg))
+        if alg !== nothing && ((alg isa LinearSolve.AbstractFactorization) ||
+            (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
+               LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES))))
             # Factorization Algorithm
             if reuse_A_if_factorization
                 cache.stats.nfactors -= 1
@@ -477,3 +477,52 @@ end
         return Diagonal(@.. broadcast=false max(y.diag, @view(x[idxs])))
     end
 end
+
+# Alpha for Initial Jacobian Guess
+# The values are somewhat different from SciPy, these were tuned to the 23 test problems
+@inline function __initial_inv_alpha(α::Number, u, fu, norm::F) where {F}
+    return convert(promote_type(eltype(u), eltype(fu)), inv(α))
+end
+@inline function __initial_inv_alpha(::Nothing, u, fu, norm::F) where {F}
+    norm_fu = norm(fu)
+    return ifelse(norm_fu ≥ 1e-5, max(norm(u), true) / (2 * norm_fu),
+        convert(promote_type(eltype(u), eltype(fu)), true))
+end
+@inline __initial_inv_alpha(inv_α, α::Number, u, fu, norm::F) where {F} = inv_α
+@inline function __initial_inv_alpha(inv_α, α::Nothing, u, fu, norm::F) where {F}
+    return __initial_inv_alpha(α, u, fu, norm)
+end
+
+@inline function __initial_alpha(α::Number, u, fu, norm::F) where {F}
+    return convert(promote_type(eltype(u), eltype(fu)), α)
+end
+@inline function __initial_alpha(::Nothing, u, fu, norm::F) where {F}
+    norm_fu = norm(fu)
+    return ifelse(1e-5 ≤ norm_fu ≤ 1e5, max(norm(u), true) / (2 * norm_fu),
+        convert(promote_type(eltype(u), eltype(fu)), true))
+end
+@inline __initial_alpha(α_initial, α::Number, u, fu, norm::F) where {F} = α_initial
+@inline function __initial_alpha(α_initial, α::Nothing, u, fu, norm::F) where {F}
+    return __initial_alpha(α, u, fu, norm)
+end
+
+# Diagonal
+@inline function __get_diagonal!!(J::AbstractVector, J_full::AbstractMatrix)
+    if can_setindex(J)
+        if fast_scalar_indexing(J)
+            @inbounds for i in eachindex(J)
+                J[i] = J_full[i, i]
+            end
+        else
+            J .= view(J_full, diagind(J_full))
+        end
+    else
+        J = __diag(J_full)
+    end
+    return J
+end
+@inline __get_diagonal!!(J::Number, J_full::Number) = J_full
+
+@inline __diag(x::AbstractMatrix) = diag(x)
+@inline __diag(x::AbstractVector) = x
+@inline __diag(x::Number) = x
