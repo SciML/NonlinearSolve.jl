@@ -315,34 +315,47 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
     end
 end
 
-@inline __init_identity_jacobian(u::Number, _) = one(u)
-@inline function __init_identity_jacobian(u, fu)
+@inline __init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
+@inline @views function __init_identity_jacobian(u, fu, α = true)
     J = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    if fast_scalar_indexing(J)
+        @inbounds for i in axes(J, 1)
+            J[i, i] = α
+        end
+    else
+        J[diagind(J)] .= α
+    end
     return J
 end
-@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray)
+@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray, α = true)
     T = promote_type(eltype(fu), eltype(u))
-    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
 end
-@inline function __init_identity_jacobian(u::SArray, fu::SArray)
+@inline function __init_identity_jacobian(u::SArray, fu::SArray, α = true)
     T = promote_type(eltype(fu), eltype(u))
-    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
 end
 
-@inline __reinit_identity_jacobian!!(J::Number) = one(J)
-@inline __reinit_identity_jacobian!!(J::AbstractVector) = fill!(J, one(eltype(J)))
-@inline function __reinit_identity_jacobian!!(J::AbstractMatrix)
+@inline __reinit_identity_jacobian!!(J::Number, α = true) = oftype(J, α)
+@inline __reinit_identity_jacobian!!(J::AbstractVector, α = true) = fill!(J, α)
+@inline @views function __reinit_identity_jacobian!!(J::AbstractMatrix, α = true)
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    if fast_scalar_indexing(J)
+        @inbounds for i in axes(J, 1)
+            J[i, i] = α
+        end
+    else
+        J[diagind(J)] .= α
+    end
     return J
 end
-@inline __reinit_identity_jacobian!!(J::SVector) = ones(SArray{
-    Tuple{Size(J)[1]}, eltype(J)})
-@inline function __reinit_identity_jacobian!!(J::SMatrix)
+@inline function __reinit_identity_jacobian!!(J::SVector, α = true)
+    return ones(SArray{Tuple{Size(J)[1]}, eltype(J)}) .* α
+end
+@inline function __reinit_identity_jacobian!!(J::SMatrix, α = true)
     S = Size(J)
-    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
+    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I) .* α
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},

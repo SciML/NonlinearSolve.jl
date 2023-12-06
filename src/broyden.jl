@@ -1,7 +1,7 @@
 # Sadly `Broyden` is taken up by SimpleNonlinearSolve.jl
 """
     GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance = nothing,
-        init_jacobian::Val = Val(:identity), autodiff = nothing)
+        init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = 1.0)
 
 An implementation of `Broyden` with resetting and line search.
 
@@ -16,6 +16,8 @@ An implementation of `Broyden` with resetting and line search.
     used here directly, and they will be converted to the correct `LineSearch`. It is
     recommended to use [LiFukushimaLineSearch](@ref) -- a derivative free linesearch
     specifically designed for Broyden's method.
+  - `alpha_initial`: If `init_jacobian` is set to `Val(:identity)`, then the initial
+    Jacobian inverse is set to be `(αI)⁻¹`. Defaults to `1.0`.
   - `init_jacobian`: the method to use for initializing the jacobian. Defaults to using the
     identity matrix (`Val(:identitiy)`). Alternatively, can be set to `Val(:true_jacobian)`
     to use the true jacobian as initialization.
@@ -33,22 +35,24 @@ An implementation of `Broyden` with resetting and line search.
     max_resets::Int
     reset_tolerance
     linesearch
+    inv_alpha
 end
 
-function __alg_print_modifiers(::GeneralBroyden{IJ, UR}) where {IJ, UR}
+function __alg_print_modifiers(alg::GeneralBroyden{IJ, UR}) where {IJ, UR}
     modifiers = String[]
     IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
     UR !== :good_broyden && push!(modifiers, "update_rule = :$(UR)")
+    alg.inv_alpha != 1 && push!(modifiers, "alpha = $(1 / alg.inv_alpha)")
     return modifiers
 end
 
 function set_ad(alg::GeneralBroyden{IJ, UR, CJ}, ad) where {IJ, UR, CJ}
     return GeneralBroyden{IJ, UR, CJ}(ad, alg.max_resets, alg.reset_tolerance,
-        alg.linesearch)
+        alg.linesearch, alg.inv_alpha)
 end
 
 function GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance = nothing,
-        init_jacobian::Val = Val(:identity), autodiff = nothing,
+        init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = 1.0,
         update_rule = Val(:good_broyden))
     UR = _unwrap_val(update_rule)
     @assert UR ∈ (:good_broyden, :bad_broyden)
@@ -56,7 +60,8 @@ function GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance 
     @assert IJ ∈ (:identity, :true_jacobian)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     CJ = IJ === :true_jacobian
-    return GeneralBroyden{IJ, UR, CJ}(autodiff, max_resets, reset_tolerance, linesearch)
+    return GeneralBroyden{IJ, UR, CJ}(autodiff, max_resets, reset_tolerance, linesearch,
+        1 / alpha)
 end
 
 @concrete mutable struct GeneralBroydenCache{iip, IJ, UR} <:
@@ -109,7 +114,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyd
         alg = alg_
         @bb du = similar(u)
         uf, fu_cache, jac_cache = nothing, nothing, nothing
-        J⁻¹ = __init_identity_jacobian(u, fu)
+        J⁻¹ = __init_identity_jacobian(u, fu, alg.inv_alpha)
     end
 
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
@@ -162,7 +167,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
         if IJ === :true_jacobian
             cache.J⁻¹ = inv(jacobian!!(cache.J⁻¹, cache))
         else
-            cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹)
+            cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹, cache.alg.inv_alpha)
         end
         cache.resets += 1
     else
@@ -189,7 +194,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
 end
 
 function __reinit_internal!(cache::GeneralBroydenCache; kwargs...)
-    cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹)
+    cache.J⁻¹ = __reinit_identity_jacobian!!(cache.J⁻¹, cache.alg.inv_alpha)
     cache.resets = 0
     return nothing
 end
