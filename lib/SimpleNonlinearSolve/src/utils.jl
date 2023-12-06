@@ -212,6 +212,10 @@ function __init_identity_jacobian!!(J)
     J[diagind(J)] .= one(eltype(J))
     return J
 end
+function __init_identity_jacobian!!(J::AbstractVector)
+    fill!(J, one(eltype(J)))
+    return J
+end
 function __init_identity_jacobian(u::StaticArray, fu)
     S1, S2 = length(fu), length(u)
     J = SMatrix{S1, S2, eltype(u)}(I)
@@ -219,6 +223,9 @@ function __init_identity_jacobian(u::StaticArray, fu)
 end
 function __init_identity_jacobian!!(J::SMatrix{S1, S2}) where {S1, S2}
     return SMatrix{S1, S2, eltype(J)}(I)
+end
+function __init_identity_jacobian!!(J::SVector{S1}) where {S1}
+    return ones(SVector{S1, eltype(J)})
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
