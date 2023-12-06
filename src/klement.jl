@@ -36,6 +36,12 @@ solves.
     linesearch
 end
 
+function __alg_print_modifiers(::GeneralKlement{IJ}) where {IJ}
+    modifiers = String[]
+    IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
+    return modifiers
+end
+
 function set_linsolve(alg::GeneralKlement{IJ, CS}, linsolve) where {IJ, CS}
     return GeneralKlement{IJ, CS}(alg.ad, alg.max_resets, linsolve, alg.precs,
         alg.linesearch)

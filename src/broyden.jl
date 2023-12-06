@@ -8,6 +8,7 @@ An implementation of `Broyden` with resetting and line search.
 ## Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `3`.
+
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
     `sqrt(eps(real(eltype(u))))`.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
@@ -22,29 +23,44 @@ An implementation of `Broyden` with resetting and line search.
     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
     `nothing` which means that a default is selected according to the problem specification!
     Valid choices are types from ADTypes.jl. (Used if `init_jacobian = Val(:true_jacobian)`)
+  - `update_rule`: Update Rule for the Jacobian. Choices are:
+
+      + `Val(:good_broyden)`: Good Broyden's Update Rule
+      + `Val(:bad_broyden)`: Bad Broyden's Update Rule
 """
-@concrete struct GeneralBroyden{IJ, CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
+@concrete struct GeneralBroyden{IJ, UR, CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     max_resets::Int
     reset_tolerance
     linesearch
 end
 
-function set_ad(alg::GeneralBroyden{IJ, CJ}, ad) where {IJ, CJ}
-    return GeneralBroyden{IJ, CJ}(ad, alg.max_resets, alg.reset_tolerance, alg.linesearch)
+function __alg_print_modifiers(::GeneralBroyden{IJ, UR}) where {IJ, UR}
+    modifiers = String[]
+    IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
+    UR !== :good_broyden && push!(modifiers, "update_rule = :$(UR)")
+    return modifiers
 end
 
-function GeneralBroyden(; max_resets = 3, linesearch = nothing,
-        reset_tolerance = nothing, init_jacobian::Val = Val(:identity),
-        autodiff = nothing)
+function set_ad(alg::GeneralBroyden{IJ, UR, CJ}, ad) where {IJ, UR, CJ}
+    return GeneralBroyden{IJ, UR, CJ}(ad, alg.max_resets, alg.reset_tolerance,
+        alg.linesearch)
+end
+
+function GeneralBroyden(; max_resets = 3, linesearch = nothing, reset_tolerance = nothing,
+        init_jacobian::Val = Val(:identity), autodiff = nothing,
+        update_rule = Val(:good_broyden))
+    UR = _unwrap_val(update_rule)
+    @assert UR ∈ (:good_broyden, :bad_broyden)
     IJ = _unwrap_val(init_jacobian)
     @assert IJ ∈ (:identity, :true_jacobian)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     CJ = IJ === :true_jacobian
-    return GeneralBroyden{IJ, CJ}(autodiff, max_resets, reset_tolerance, linesearch)
+    return GeneralBroyden{IJ, UR, CJ}(autodiff, max_resets, reset_tolerance, linesearch)
 end
 
-@concrete mutable struct GeneralBroydenCache{iip, IJ} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct GeneralBroydenCache{iip, IJ, UR} <:
+                         AbstractNonlinearSolveCache{iip}
     f
     alg
     u
@@ -75,10 +91,10 @@ end
     trace
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyden{IJ},
+function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyden{IJ, UR},
         args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-        kwargs...) where {uType, iip, F, IJ}
+        kwargs...) where {uType, iip, F, IJ, UR}
     @unpack f, u0, p = prob
     u = __maybe_unaliased(u0, alias_u0)
     fu = evaluate_f(prob, u)
@@ -109,14 +125,14 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyd
     trace = init_nonlinearsolve_trace(alg, u, fu, J⁻¹, du; uses_jac_inverse = Val(true),
         kwargs...)
 
-    return GeneralBroydenCache{iip, IJ}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p, uf,
-        J⁻¹, J⁻¹dfu, false, 0, alg.max_resets, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, reset_tolerance, reset_check, jac_cache, prob,
+    return GeneralBroydenCache{iip, IJ, UR}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p,
+        uf, J⁻¹, J⁻¹dfu, false, 0, alg.max_resets, maxiters, internalnorm,
+        ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check, jac_cache, prob,
         NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
-function perform_step!(cache::GeneralBroydenCache{iip, IJ}) where {iip, IJ}
+function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, UR}
     T = eltype(cache.u)
 
     if IJ === :true_jacobian && cache.stats.nsteps == 0
@@ -152,10 +168,18 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ}) where {iip, IJ}
     else
         @bb cache.du .*= -1
         @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
-        @bb cache.u_cache = transpose(cache.J⁻¹) × vec(cache.du)
-        denom = dot(cache.du, cache.J⁻¹dfu)
-        @bb @. cache.du = (cache.du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1e-5), denom)
-        @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.u_cache))
+        if UR === :good_broyden
+            @bb cache.u_cache = transpose(cache.J⁻¹) × vec(cache.du)
+            denom = dot(cache.du, cache.J⁻¹dfu)
+            @bb @. cache.du = (cache.du - cache.J⁻¹dfu) /
+                              ifelse(iszero(denom), T(1e-5), denom)
+            @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.u_cache))
+        elseif UR === :bad_broyden
+            dfu_norm = norm(cache.dfu)^2
+            @bb @. cache.du = (cache.du - cache.J⁻¹dfu) /
+                              ifelse(iszero(dfu_norm), T(1e-5), dfu_norm)
+            @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.dfu))
+        end
     end
 
     @bb copyto!(cache.dfu, cache.fu)
