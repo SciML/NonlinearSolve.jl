@@ -75,7 +75,7 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [3, 6, 11, 17, 21]
     broken_tests[alg_ops[2]] = [3, 6, 11, 17, 21]
-    broken_tests[alg_ops[3]] = [6, 11, 17, 21]
+    broken_tests[alg_ops[3]] = [6, 11, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -89,8 +89,6 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-# Broyden and Klement Tests are quite flaky and failure seems to be platform dependent
-# needs additional investigation before we can enable them
 @testset "GeneralBroyden 23 Test Problems" begin
     alg_ops = (GeneralBroyden(; max_resets = 10),)
 

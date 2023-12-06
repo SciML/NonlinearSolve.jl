@@ -236,7 +236,7 @@ end
 
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing, internalnorm = Base.Fix2(norm, 2),
+        termination_condition = nothing, internalnorm = DEFAULT_NORM,
         linsolve_kwargs = (;), kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
