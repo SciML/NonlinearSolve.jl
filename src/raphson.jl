@@ -52,9 +52,9 @@ end
     f
     alg
     u
-    u_prev
-    fu1
-    fu2
+    fu
+    u_cache
+    fu_cache
     du
     p
     uf
@@ -80,104 +80,44 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::NewtonRaphso
         kwargs...) where {uType, iip}
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
-    u = alias_u0 ? u0 : deepcopy(u0)
-    fu1 = evaluate_f(prob, u)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+    u = __maybe_unaliased(u0, alias_u0)
+    fu = evaluate_f(prob, u)
+    uf, linsolve, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
 
-    ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip))
-    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
+    ls_cache = init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip))
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-    return NewtonRaphsonCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, uf, linsolve, J,
+    @bb u_cache = copy(u)
+
+    return NewtonRaphsonCache{iip}(f, alg, u, fu, u_cache, fu_cache, du, p, uf, linsolve, J,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         NLStats(1, 0, 0, 0, 0), ls_cache, tc_cache, trace)
 end
 
-function perform_step!(cache::NewtonRaphsonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du = cache
-    jacobian!!(J, cache)
-
-    # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
-        p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-
-    # Line Search
-    α = perform_linesearch!(cache.ls_cache, u, du)
-    _axpy!(-α, du, u)
-    f(cache.fu1, u, p)
-
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
-        cache.du, α)
-
-    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
-
-    @. u_prev = u
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
-    return nothing
-end
-
-function perform_step!(cache::NewtonRaphsonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
+function perform_step!(cache::NewtonRaphsonCache{iip}) where {iip}
+    @unpack alg = cache
 
     cache.J = jacobian!!(cache.J, cache)
+
     # u = u - J \ fu
-    if linsolve === nothing
-        cache.du = fu1 / cache.J
-    else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
-            linu = _vec(cache.du), p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
-    end
+    linres = dolinsolve(cache, alg.precs, cache.linsolve; A = cache.J, b = _vec(cache.fu),
+        linu = _vec(cache.du), cache.p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    cache.du = _restructure(cache.du, linres.u)
 
     # Line Search
-    α = perform_linesearch!(cache.ls_cache, u, cache.du)
-    cache.u = @. u - α * cache.du  # `u` might not support mutation
-    cache.fu1 = f(cache.u, p)
+    α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
+    @bb axpy!(-α, cache.du, cache.u)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
-        cache.du, α)
+    evaluate_f(cache, cache.u, cache.p)
 
-    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
+    update_trace!(cache, α)
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
-    cache.u_prev = cache.u
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
+    @bb copyto!(cache.u_cache, cache.u)
     return nothing
-end
-
-function SciMLBase.reinit!(cache::NewtonRaphsonCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
-        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu1, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu1 = cache.f(cache.u, p)
-    end
-
-    reset!(cache.trace)
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
-        termination_condition)
-
-    cache.abstol = abstol
-    cache.reltol = reltol
-    cache.tc_cache = tc_cache
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
 end

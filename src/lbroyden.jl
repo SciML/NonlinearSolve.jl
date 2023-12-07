@@ -17,34 +17,36 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
     recommended to use [LiFukushimaLineSearchCache](@ref) -- a derivative free linesearch
     specifically designed for Broyden's method.
 """
-@concrete struct LimitedMemoryBroyden <: AbstractNewtonAlgorithm{false, Nothing}
+@concrete struct LimitedMemoryBroyden{threshold} <: AbstractNewtonAlgorithm{false, Nothing}
     max_resets::Int
-    threshold::Int
     linesearch
     reset_tolerance
 end
 
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
-        threshold::Int = 27, reset_tolerance = nothing)
+        threshold::Union{Val, Int} = Val(27), reset_tolerance = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return LimitedMemoryBroyden(max_resets, threshold, linesearch, reset_tolerance)
+    return LimitedMemoryBroyden{SciMLBase._unwrap_val(threshold)}(max_resets, linesearch,
+        reset_tolerance)
 end
+
+__get_threshold(::LimitedMemoryBroyden{threshold}) where {threshold} = Val(threshold)
+__get_unwrapped_threshold(::LimitedMemoryBroyden{threshold}) where {threshold} = threshold
 
 @concrete mutable struct LimitedMemoryBroydenCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
     u
-    u_prev
+    u_cache
     du
     fu
-    fu2
+    fu_cache
     dfu
     p
     U
     Vᵀ
-    Ux
-    xᵀVᵀ
-    u_cache
+    threshold_cache
+    mat_cache
     vᵀ_cache
     force_stop::Bool
     resets::Int
@@ -64,128 +66,70 @@ end
     trace
 end
 
-get_fu(cache::LimitedMemoryBroydenCache) = cache.fu
-set_fu!(cache::LimitedMemoryBroydenCache, fu) = (cache.fu = fu)
-
 function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemoryBroyden,
         args...; alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
         kwargs...) where {uType, iip, F}
     @unpack f, u0, p = prob
-    u = alias_u0 ? u0 : deepcopy(u0)
-    if u isa Number
-        # If u is a number then we simply use Broyden
+    threshold = __get_threshold(alg)
+    η = min(__get_unwrapped_threshold(alg), maxiters)
+    if u0 isa Number || length(u0) ≤ η
+        # If u is a number or very small problem then we simply use Broyden
         return SciMLBase.__init(prob,
-            GeneralBroyden(; alg.max_resets, alg.reset_tolerance,
-                alg.linesearch), args...; alias_u0, maxiters, abstol, internalnorm, kwargs...)
+            GeneralBroyden(; alg.max_resets, alg.reset_tolerance, alg.linesearch), args...;
+            alias_u0, maxiters, abstol, internalnorm, kwargs...)
     end
+    u = __maybe_unaliased(u0, alias_u0)
     fu = evaluate_f(prob, u)
-    threshold = min(alg.threshold, maxiters)
     U, Vᵀ = __init_low_rank_jacobian(u, fu, threshold)
-    du = copy(fu)
+
+    @bb du = copy(fu)
+    @bb u_cache = copy(u)
+    @bb fu_cache = copy(fu)
+    @bb dfu = similar(fu)
+    @bb vᵀ_cache = similar(u)
+    @bb mat_cache = similar(u)
+
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
                       alg.reset_tolerance
     reset_check = x -> abs(x) ≤ reset_tolerance
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
+
     U_part = selectdim(U, 1, 1:0)
     Vᵀ_part = selectdim(Vᵀ, 2, 1:0)
     trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(*, Vᵀ_part, U_part), du;
         kwargs...)
 
-    return LimitedMemoryBroydenCache{iip}(f, alg, u, zero(u), du, fu, zero(fu),
-        zero(fu), p, U, Vᵀ, similar(u, threshold), similar(u, 1, threshold),
-        zero(u), zero(u), false, 0, 0, alg.max_resets, maxiters, internalnorm,
-        ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check, prob,
-        NLStats(1, 0, 0, 0, 0),
+    threshold_cache = __lbroyden_threshold_cache(u, threshold)
+
+    return LimitedMemoryBroydenCache{iip}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p,
+        U, Vᵀ, threshold_cache, mat_cache, vᵀ_cache, false, 0, 0, alg.max_resets, maxiters,
+        internalnorm, ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check,
+        prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
-function perform_step!(cache::LimitedMemoryBroydenCache{true})
-    @unpack f, p, du, u = cache
-    T = eltype(u)
-
-    α = perform_linesearch!(cache.ls_cache, u, du)
-    _axpy!(-α, du, u)
-    f(cache.fu2, u, p)
-
-    idx = min(cache.iterations_since_reset, size(cache.U, 1))
-    U_part = selectdim(cache.U, 1, 1:idx)
-    Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2,
-        ApplyArray(*, Vᵀ_part, U_part), du, α)
-
-    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
-    cache.stats.nf += 1
-
-    cache.force_stop && return nothing
-
-    # Update the Inverse Jacobian Approximation
-    cache.dfu .= cache.fu2 .- cache.fu
-
-    # Only try to reset if we have enough iterations since last reset
-    if cache.iterations_since_reset > size(cache.U, 1) &&
-       (all(cache.reset_check, du) || all(cache.reset_check, cache.dfu))
-        if cache.resets ≥ cache.max_resets
-            cache.retcode = ReturnCode.ConvergenceFailure
-            cache.force_stop = true
-            return nothing
-        end
-        cache.iterations_since_reset = 0
-        cache.resets += 1
-        cache.du .= cache.fu
-    else
-        cache.du .*= -1
-        idx = min(cache.iterations_since_reset, size(cache.U, 1))
-        U_part = selectdim(cache.U, 1, 1:idx)
-        Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
-
-        __lbroyden_matvec!(_vec(cache.vᵀ_cache), cache.Ux, U_part, Vᵀ_part, _vec(cache.du))
-        __lbroyden_rmatvec!(_vec(cache.u_cache), cache.xᵀVᵀ, U_part, Vᵀ_part,
-            _vec(cache.dfu))
-        denom = dot(cache.vᵀ_cache, cache.dfu)
-        cache.u_cache .= (du .- cache.u_cache) ./ ifelse(iszero(denom), T(1e-5), denom)
-
-        idx = mod1(cache.iterations_since_reset + 1, size(cache.U, 1))
-        selectdim(cache.U, 1, idx) .= _vec(cache.u_cache)
-        selectdim(cache.Vᵀ, 2, idx) .= _vec(cache.vᵀ_cache)
-
-        idx = min(cache.iterations_since_reset + 1, size(cache.U, 1))
-        U_part = selectdim(cache.U, 1, 1:idx)
-        Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
-        __lbroyden_matvec!(_vec(cache.du), cache.Ux, U_part, Vᵀ_part, _vec(cache.fu2))
-        cache.iterations_since_reset += 1
-    end
-
-    cache.u_prev .= cache.u
-    cache.fu .= cache.fu2
-
-    return nothing
-end
-
-function perform_step!(cache::LimitedMemoryBroydenCache{false})
-    @unpack f, p = cache
-
+function perform_step!(cache::LimitedMemoryBroydenCache{iip}) where {iip}
     T = eltype(cache.u)
 
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
-    cache.u = cache.u .- α * cache.du
-    cache.fu2 = f(cache.u, p)
+    @bb axpy!(-α, cache.du, cache.u)
+    evaluate_f(cache, cache.u, cache.p)
 
-    idx = min(cache.iterations_since_reset, size(cache.U, 1))
-    U_part = selectdim(cache.U, 1, 1:idx)
-    Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu2,
+    idx = min(cache.iterations_since_reset, size(cache.U, 2))
+    U_part = selectdim(cache.U, 2, 1:idx)
+    Vᵀ_part = selectdim(cache.Vᵀ, 1, 1:idx)
+    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), cache.fu,
         ApplyArray(*, Vᵀ_part, U_part), cache.du, α)
 
-    check_and_update!(cache, cache.fu2, cache.u, cache.u_prev)
-    cache.stats.nf += 1
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     cache.force_stop && return nothing
 
     # Update the Inverse Jacobian Approximation
-    cache.dfu .= cache.fu2 .- cache.fu
+    @bb @. cache.dfu = cache.fu - cache.fu_cache
 
     # Only try to reset if we have enough iterations since last reset
     if cache.iterations_since_reset > size(cache.U, 1) &&
@@ -197,102 +141,75 @@ function perform_step!(cache::LimitedMemoryBroydenCache{false})
         end
         cache.iterations_since_reset = 0
         cache.resets += 1
-        cache.du = cache.fu
+        @bb copyto!(cache.du, cache.fu)
     else
-        cache.du = -cache.du
-        idx = min(cache.iterations_since_reset, size(cache.U, 1))
-        U_part = selectdim(cache.U, 1, 1:idx)
-        Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
+        @bb cache.du .*= -1
 
-        cache.vᵀ_cache = _restructure(cache.vᵀ_cache,
-            __lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.du)))
-        cache.u_cache = _restructure(cache.u_cache,
-            __lbroyden_rmatvec(U_part, Vᵀ_part, _vec(cache.dfu)))
+        cache.vᵀ_cache = _rmatvec!!(cache.vᵀ_cache, cache.threshold_cache, U_part, Vᵀ_part,
+            cache.du)
+        cache.mat_cache = _matvec!!(cache.mat_cache, cache.threshold_cache, U_part, Vᵀ_part,
+            cache.dfu)
+
         denom = dot(cache.vᵀ_cache, cache.dfu)
-        cache.u_cache = (cache.du .- cache.u_cache) ./ ifelse(iszero(denom), T(1e-5), denom)
+        @bb @. cache.u_cache = (cache.du - cache.mat_cache) /
+                               ifelse(iszero(denom), T(1e-5), denom)
 
-        idx = mod1(cache.iterations_since_reset + 1, size(cache.U, 1))
-        selectdim(cache.U, 1, idx) .= _vec(cache.u_cache)
-        selectdim(cache.Vᵀ, 2, idx) .= _vec(cache.vᵀ_cache)
+        idx = mod1(cache.iterations_since_reset + 1, size(cache.U, 2))
+        selectdim(cache.U, 2, idx) .= _vec(cache.u_cache)
+        selectdim(cache.Vᵀ, 1, idx) .= _vec(cache.vᵀ_cache)
 
-        idx = min(cache.iterations_since_reset + 1, size(cache.U, 1))
-        U_part = selectdim(cache.U, 1, 1:idx)
-        Vᵀ_part = selectdim(cache.Vᵀ, 2, 1:idx)
-        cache.du = _restructure(cache.du,
-            __lbroyden_matvec(U_part, Vᵀ_part, _vec(cache.fu2)))
+        idx = min(cache.iterations_since_reset + 1, size(cache.U, 2))
+        U_part = selectdim(cache.U, 2, 1:idx)
+        Vᵀ_part = selectdim(cache.Vᵀ, 1, 1:idx)
+        cache.du = _matvec!!(cache.du, cache.threshold_cache, U_part, Vᵀ_part, cache.fu)
+
         cache.iterations_since_reset += 1
     end
 
-    cache.u_prev = @. cache.u
-    cache.fu = cache.fu2
+    @bb copyto!(cache.u_cache, cache.u)
+    @bb copyto!(cache.fu_cache, cache.fu)
 
     return nothing
 end
 
-function SciMLBase.reinit!(cache::LimitedMemoryBroydenCache{iip}, u0 = cache.u; p = cache.p,
-        termination_condition = get_termination_mode(cache.tc_cache),
-        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu = cache.f(cache.u, p)
-    end
-
-    reset!(cache.trace)
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu, cache.u,
-        termination_condition)
-
-    cache.abstol = abstol
-    cache.reltol = reltol
-    cache.tc_cache = tc_cache
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.resets = 0
+function __reinit_internal!(cache::LimitedMemoryBroydenCache; kwargs...)
     cache.iterations_since_reset = 0
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
-end
-
-@views function __lbroyden_matvec!(y::AbstractVector, Ux::AbstractVector,
-        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
-    # Computes Vᵀ × U × x
-    η = size(U, 1)
-    if η == 0
-        y .= x
-        return nothing
-    end
-    mul!(Ux[1:η], U, x)
-    mul!(y, Vᵀ[:, 1:η], Ux[1:η])
     return nothing
 end
 
-@views function __lbroyden_matvec(U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
-    # Computes Vᵀ × U × x
-    size(U, 1) == 0 && return x
-    return Vᵀ * (U * x)
-end
-
-@views function __lbroyden_rmatvec!(y::AbstractVector, xᵀVᵀ::AbstractMatrix,
-        U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
-    # Computes xᵀ × Vᵀ × U
-    η = size(U, 1)
+function _rmatvec!!(y, xᵀU, U, Vᵀ, x)
+    # xᵀ × (-I + UVᵀ)
+    η = size(U, 2)
     if η == 0
-        y .= x
-        return nothing
+        @bb @. y = -x
+        return y
     end
-    mul!(xᵀVᵀ[:, 1:η], x', Vᵀ)
-    mul!(reshape(y, 1, :), xᵀVᵀ[:, 1:η], U)
-    return nothing
+    x_ = vec(x)
+    xᵀU_ = view(xᵀU, 1:η)
+    @bb xᵀU_ = transpose(U) × x_
+    @bb y = transpose(Vᵀ) × vec(xᵀU_)
+    @bb @. y -= x
+    return y
 end
 
-@views function __lbroyden_rmatvec(U::AbstractMatrix, Vᵀ::AbstractMatrix, x::AbstractVector)
-    # Computes xᵀ × Vᵀ × U
-    size(U, 1) == 0 && return x
-    return (reshape(x, 1, :) * Vᵀ) * U
+function _matvec!!(y, Vᵀx, U, Vᵀ, x)
+    # (-I + UVᵀ) × x
+    η = size(U, 2)
+    if η == 0
+        @bb @. y = -x
+        return y
+    end
+    x_ = vec(x)
+    Vᵀx_ = view(Vᵀx, 1:η)
+    @bb Vᵀx_ = Vᵀ × x_
+    @bb y = U × vec(Vᵀx_)
+    @bb @. y -= x
+    return y
+end
+
+@inline function __lbroyden_threshold_cache(x, ::Val{threshold}) where {threshold}
+    return similar(x, threshold)
+end
+@inline function __lbroyden_threshold_cache(x::SArray, ::Val{threshold}) where {threshold}
+    return zeros(SVector{threshold, eltype(x)})
 end

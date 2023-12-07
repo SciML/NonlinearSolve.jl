@@ -1,5 +1,5 @@
 """
-    LineSearch(method = nothing, autodiff = nothing, alpha = true)
+    LineSearch(; method = nothing, autodiff = nothing, alpha = true)
 
 Wrapper over algorithms from
 [LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl/). Allows automatic

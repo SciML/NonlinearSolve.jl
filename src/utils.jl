@@ -1,5 +1,15 @@
 const DEFAULT_NORM = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM
 
+@concrete mutable struct FakeLinearSolveJLCache
+    A
+    b
+end
+
+@concrete struct FakeLinearSolveJLResult
+    cache
+    u
+end
+
 # Ignores NaN
 function __findmin(f, x)
     return findmin(x) do xᵢ
@@ -55,7 +65,7 @@ function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
 end
 
 """
-value_derivative(f, x)
+    value_derivative(f, x)
 
 Compute `f(x), d/dx f(x)` in the most efficient way.
 """
@@ -63,10 +73,6 @@ function value_derivative(f::F, x::R) where {F, R}
     T = typeof(ForwardDiff.Tag(f, R))
     out = f(ForwardDiff.Dual{T}(x, one(x)))
     ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-end
-
-function value_derivative(f::F, x::SVector) where {F}
-    f(x), ForwardDiff.jacobian(f, x)
 end
 
 @inline value(x) = x
@@ -82,9 +88,26 @@ end
 
 DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
-function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
+function dolinsolve(cache, precs::P, linsolve::FakeLinearSolveJLCache; A = nothing,
+        linu = nothing, b = nothing, du = nothing, p = nothing, weight = nothing,
+        cachedata = nothing, reltol = nothing, reuse_A_if_factorization = false) where {P}
+    # Update Statistics
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += !(A isa Number)
+
+    A !== nothing && (linsolve.A = A)
+    b !== nothing && (linsolve.b = b)
+    linres = linsolve.A \ linsolve.b
+    return FakeLinearSolveJLResult(linsolve, linres)
+end
+
+function dolinsolve(cache, precs::P, linsolve; A = nothing, linu = nothing, b = nothing,
         du = nothing, p = nothing, weight = nothing, cachedata = nothing, reltol = nothing,
         reuse_A_if_factorization = false) where {P}
+    # Update Statistics
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
+
     # Some Algorithms would reuse factorization but it causes the cache to not reset in
     # certain cases
     if A !== nothing
@@ -93,10 +116,16 @@ function dolinsolve(precs::P, linsolve; A = nothing, linu = nothing, b = nothing
            (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
               LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)))
             # Factorization Algorithm
-            !reuse_A_if_factorization && (linsolve.A = A)
+            if reuse_A_if_factorization
+                cache.stats.nfactors -= 1
+            else
+                linsolve.A = A
+            end
         else
             linsolve.A = A
         end
+    else
+        cache.stats.nfactors -= 1
     end
     b !== nothing && (linsolve.b = b)
     linu !== nothing && (linsolve.u = linu)
@@ -136,16 +165,6 @@ function wrapprecs(_Pl, _Pr, weight)
     return Pl, Pr
 end
 
-get_loss(fu) = norm(fu)^2 / 2
-
-function rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real} # R-function for adaptive trust region method
-    if (r ≥ c2)
-        return (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / π
-    else
-        return (1 - γ1 - β) * (exp(r - c2) + β / (1 - γ1 - β))
-    end
-end
-
 concrete_jac(_) = nothing
 concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
@@ -155,27 +174,25 @@ _mutable_zero(x::SArray) = MArray(x)
 _mutable(x) = x
 _mutable(x::SArray) = MArray(x)
 
-_maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
+# __maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
 # The shadow allocated for Enzyme needs to be mutable
-_maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
-_maybe_mutable(x, _) = x
+__maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
+__maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
 function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
     @unpack f, u0, p = prob
     if iip
-        fu = f.resid_prototype === nothing ? zero(u) : f.resid_prototype
+        fu = f.resid_prototype === nothing ? similar(u) : f.resid_prototype
         f(fu, u, p)
     else
-        fu = _mutable(f(u, p))
+        fu = f(u, p)
     end
     return fu
 end
 
-evaluate_f(cache, u; fu = nothing) = evaluate_f(cache.f, u, cache.p, Val(cache.iip); fu)
-
-function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
+function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip}
     if iip
         f(fu, u, p)
         return fu
@@ -184,13 +201,24 @@ function evaluate_f(f, u, p, ::Val{iip}; fu = nothing) where {iip}
     end
 end
 
-"""
-    __matmul!(C, A, B)
-
-Defaults to `mul!(C, A, B)`. However, for sparse matrices uses `C .= A * B`.
-"""
-__matmul!(C, A, B) = mul!(C, A, B)
-__matmul!(C::AbstractSparseMatrix, A, B) = C .= A * B
+function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
+        fu_sym::Val{FUSYM} = Val(nothing)) where {FUSYM}
+    cache.stats.nf += 1
+    if FUSYM === nothing
+        if isinplace(cache)
+            cache.prob.f(get_fu(cache), u, p)
+        else
+            set_fu!(cache, cache.prob.f(u, p))
+        end
+    else
+        if isinplace(cache)
+            cache.prob.f(__getproperty(cache, fu_sym), u, p)
+        else
+            setproperty!(cache, FUSYM, cache.prob.f(u, p))
+        end
+    end
+    return nothing
+end
 
 # Concretize Algorithms
 function get_concrete_algorithm(alg, prob)
@@ -206,7 +234,7 @@ end
 function __get_concrete_algorithm(alg, prob)
     @unpack sparsity, jac_prototype = prob.f
     use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
-    ad = if eltype(prob.u0) <: Complex
+    ad = if !ForwardDiff.can_dual(eltype(prob.u0))
         # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
@@ -287,47 +315,66 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
     end
 end
 
-__init_identity_jacobian(u::Number, _) = u
-function __init_identity_jacobian(u, fu)
-    return convert(parameterless_type(_mutable(u)),
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+@inline __init_identity_jacobian(u::Number, _) = one(u)
+@inline function __init_identity_jacobian(u, fu)
+    J = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= one(eltype(J))
+    return J
 end
-function __init_identity_jacobian(u::StaticArray, fu)
-    return convert(MArray{Tuple{length(fu), length(u)}},
-        Matrix{eltype(u)}(I, length(fu), length(u)))
+@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray)
+    T = promote_type(eltype(fu), eltype(u))
+    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+end
+@inline function __init_identity_jacobian(u::SArray, fu::SArray)
+    T = promote_type(eltype(fu), eltype(u))
+    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
 end
 
-function __init_low_rank_jacobian(u::StaticArray, fu, threshold::Int)
-    Vᵀ = convert(MArray{Tuple{length(u), threshold}},
-        zeros(eltype(u), length(u), threshold))
-    U = convert(MArray{Tuple{threshold, length(u)}}, zeros(eltype(u), threshold, length(u)))
+@inline __reinit_identity_jacobian!!(J::Number) = one(J)
+@inline function __reinit_identity_jacobian!!(J::AbstractMatrix)
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= one(eltype(J))
+    return J
+end
+@inline function __reinit_identity_jacobian!!(J::SMatrix)
+    S = Size(J)
+    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
+end
+
+function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
+        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
+    T = promote_type(T1, T2)
+    fuSize, uSize = Size(fu), Size(u)
+    Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
+    U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
     return U, Vᵀ
 end
-function __init_low_rank_jacobian(u, fu, threshold::Int)
-    Vᵀ = convert(parameterless_type(_mutable(u)), zeros(eltype(u), length(u), threshold))
-    U = convert(parameterless_type(_mutable(u)), zeros(eltype(u), threshold, length(u)))
+function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
+    Vᵀ = similar(u, threshold, length(u))
+    U = similar(u, length(fu), threshold)
     return U, Vᵀ
 end
 
 # Check Singular Matrix
-_issingular(x::Number) = iszero(x)
-@generated function _issingular(x::T) where {T}
+@inline _issingular(x::Number) = iszero(x)
+@inline @generated function _issingular(x::T) where {T}
     hasmethod(issingular, Tuple{T}) && return :(issingular(x))
     return :(__issingular(x))
 end
-__issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
-__issingular(x) = false ## If SciMLOperator and such
+@inline __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
+@inline __issingular(x) = false ## If SciMLOperator and such
 
 # Safe getproperty
-@generated function _getproperty(s::S, ::Val{X}) where {S, X}
+@generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
     return :(nothing)
 end
 
 # If factorization is LU then perform that and update the linsolve cache
 # else check if the matrix is singular
-function _try_factorize_and_check_singular!(linsolve, X)
-    if linsolve.cacheval isa LU
+function __try_factorize_and_check_singular!(linsolve, X)
+    if linsolve.cacheval isa LU || linsolve.cacheval isa StaticArrays.LU
         # LU Factorization was used
         linsolve.A = X
         linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
@@ -338,26 +385,98 @@ function _try_factorize_and_check_singular!(linsolve, X)
     end
     return _issingular(X), false
 end
-_try_factorize_and_check_singular!(::Nothing, x) = _issingular(x), false
+__try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x), false
 
-@inline _reshape(x, args...) = reshape(x, args...)
-@inline _reshape(x::Number, args...) = x
-
-@generated function _axpy!(α, x, y)
-    hasmethod(axpy!, Tuple{α, x, y}) && return :(axpy!(α, x, y))
-    return :(@. y += α * x)
-end
-
-@inline _needs_square_A(_, ::Number) = true
-@inline _needs_square_A(_, ::StaticArray) = true
-@inline _needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
+# Non-square matrix
+@inline __needs_square_A(_, ::Number) = true
+@inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
 
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
 
+# LazyArrays for tracing
 __zero(x::AbstractArray) = zero(x)
 __zero(x) = x
 LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
 LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
 LazyArrays.applied_size(::typeof(__zero), x) = size(x)
 LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
+
+# SparseAD --> NonSparseAD
+@inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
+@inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
+@inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
+@inline __get_nonsparse_ad(ad) = ad
+
+# Use Symmetric Matrices if known to be efficient
+@inline __maybe_symmetric(x) = Symmetric(x)
+@inline __maybe_symmetric(x::Number) = x
+## LinearSolve with `nothing` doesn't dispatch correctly here
+@inline __maybe_symmetric(x::StaticArray) = x
+@inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
+@inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+
+# Unalias
+@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
+    # Spend time coping iff we will mutate the array
+    (alias || !can_setindex(typeof(x))) && return x
+    return deepcopy(x)
+end
+
+# Init ones
+@inline function __init_ones(x)
+    w = similar(x)
+    recursivefill!(w, true)
+    return w
+end
+@inline __init_ones(x::StaticArray) = ones(typeof(x))
+
+# Diagonal of type `u`
+__init_diagonal(u::Number, v) = oftype(u, v)
+function __init_diagonal(u::SArray, v)
+    u_ = vec(u)
+    return Diagonal(ones(typeof(u_)) * v)
+end
+function __init_diagonal(u, v)
+    d = similar(vec(u))
+    d .= v
+    return Diagonal(d)
+end
+
+# Reduce sum
+function __sum_JᵀJ!!(y, J)
+    if setindex_trait(y) === CanSetindex()
+        sum!(abs2, y, J')
+        return y
+    else
+        return sum(abs2, J'; dims = 1)
+    end
+end
+
+@inline __update_LM_diagonal!!(y::Number, x::Number) = max(y, x)
+@inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
+    if setindex_trait(y.diag) === CanSetindex()
+        @. y.diag = max(y.diag, x)
+        return y
+    else
+        return Diagonal(max.(y.diag, x))
+    end
+end
+@inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
+    if setindex_trait(y.diag) === CanSetindex()
+        if fast_scalar_indexing(y.diag)
+            @inbounds for i in axes(x, 1)
+                y.diag[i] = max(y.diag[i], x[i, i])
+            end
+            return y
+        else
+            idxs = diagind(x)
+            @.. broadcast=false y.diag=max(y.diag, @view(x[idxs]))
+            return y
+        end
+    else
+        idxs = diagind(x)
+        return Diagonal(@.. broadcast=false max(y.diag, @view(x[idxs])))
+    end
+end

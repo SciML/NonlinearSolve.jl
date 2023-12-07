@@ -151,8 +151,10 @@ function reset!(trace::NonlinearSolveTrace)
 end
 
 function Base.show(io::IO, trace::NonlinearSolveTrace)
-    for entry in trace.history
-        show(io, entry)
+    if trace.history !== nothing
+        foreach(entry -> show(io, entry), trace.history)
+    else
+        print(io, "Tracing Disabled")
     end
     return nothing
 end
@@ -207,8 +209,8 @@ function update_trace!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, fu, J, δu
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
+    show_now = ShT && (mod1(iter, trace.trace_level.print_frequency) == 1)
+    store_now = StT && (mod1(iter, trace.trace_level.store_frequency) == 1)
     (show_now || store_now) && (entry = __trace_entry(trace.trace_level, iter, u, fu, J,
         δu, α))
     store_now && push!(trace.history, entry)
@@ -228,8 +230,8 @@ function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, 
         return trace
     end
 
-    show_now = ShT && (iter % trace.trace_level.print_frequency == 1)
-    store_now = StT && (iter % trace.trace_level.store_frequency == 1)
+    show_now = ShT && (mod1(iter, trace.trace_level.print_frequency) == 1)
+    store_now = StT && (mod1(iter, trace.trace_level.store_frequency) == 1)
     if show_now || store_now
         J_ = trace.trace_level isa TraceMinimal ? J : inv(J)
         entry = __trace_entry(trace.trace_level, iter, u, fu, J_, δu, α)
@@ -237,4 +239,24 @@ function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, 
     store_now && push!(trace.history, entry)
     show_now && show(entry)
     return trace
+end
+
+function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
+    trace = __getproperty(cache, Val(:trace))
+    trace === nothing && return nothing
+
+    J = __getproperty(cache, Val(:J))
+    if J === nothing
+        J_inv = __getproperty(cache, Val(:J⁻¹))
+        if J_inv === nothing
+            update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
+                nothing, cache.du, α)
+        else
+            update_trace_with_invJ!(trace, cache.stats.nsteps + 1, get_u(cache),
+                get_fu(cache), J_inv, cache.du, α)
+        end
+    else
+        update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+            cache.du, α)
+    end
 end

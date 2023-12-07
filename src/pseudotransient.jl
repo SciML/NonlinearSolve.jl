@@ -41,7 +41,6 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     alpha_initial
 end
 
-#concrete_jac(::PseudoTransient{CJ}) where {CJ} = CJ
 function set_ad(alg::PseudoTransient{CJ}, ad) where {CJ}
     return PseudoTransient{CJ}(ad, alg.linsolve, alg.precs, alg.alpha_initial)
 end
@@ -56,9 +55,9 @@ end
     f
     alg
     u
-    u_prev
-    fu1
-    fu2
+    u_cache
+    fu
+    fu_cache
     du
     p
     alpha
@@ -86,126 +85,72 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::PseudoTransi
     alg = get_concrete_algorithm(alg_, prob)
 
     @unpack f, u0, p = prob
-    u = alias_u0 ? u0 : deepcopy(u0)
-    fu1 = evaluate_f(prob, u)
-    uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
+    u = __maybe_unaliased(u0, alias_u0)
+    fu = evaluate_f(prob, u)
+    uf, linsolve, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
         linsolve_kwargs)
     alpha = convert(eltype(u), alg.alpha_initial)
-    res_norm = internalnorm(fu1)
+    res_norm = internalnorm(fu)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu1, u,
+    @bb u_cache = copy(u)
+
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-    return PseudoTransientCache{iip}(f, alg, u, copy(u), fu1, fu2, du, p, alpha, res_norm,
-        uf, linsolve, J, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
-        abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
+    return PseudoTransientCache{iip}(f, alg, u, u_cache, fu, fu_cache, du, p, alpha,
+        res_norm, uf, linsolve, J, jac_cache, false, maxiters, internalnorm,
+        ReturnCode.Default, abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
-function perform_step!(cache::PseudoTransientCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, linsolve, du, alpha = cache
-    jacobian!!(J, cache)
-
-    inv_alpha = inv(alpha)
-    if J isa SciMLBase.AbstractSciMLOperator
-        J = J - inv_alpha * I
-    else
-        idxs = diagind(J)
-        if fast_scalar_indexing(J)
-            @inbounds for i in axes(J, 1)
-                J[i, i] = J[i, i] - inv_alpha
-            end
-        else
-            @.. broadcast=false @view(J[idxs])=@view(J[idxs]) - inv_alpha
-        end
-    end
-
-    # u = u - J \ fu
-    linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
-        p, reltol = cache.abstol)
-    cache.linsolve = linres.cache
-    @. u = u - du
-    f(fu1, u, p)
-
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
-        cache.du)
-
-    new_norm = cache.internalnorm(fu1)
-    cache.alpha *= cache.res_norm / new_norm
-    cache.res_norm = new_norm
-
-    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
-
-    @. u_prev = u
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
-    return nothing
-end
-
-function perform_step!(cache::PseudoTransientCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve, alpha = cache
+function perform_step!(cache::PseudoTransientCache{iip}) where {iip}
+    @unpack alg = cache
 
     cache.J = jacobian!!(cache.J, cache)
 
-    inv_alpha = inv(alpha)
-    cache.J = cache.J - inv_alpha * I
-    # u = u - J \ fu
-    if linsolve === nothing
-        cache.du = fu1 / cache.J
+    inv_α = inv(cache.alpha)
+    if cache.J isa SciMLOperators.AbstractSciMLOperator
+        A = cache.J - inv_α * I
+    elseif setindex_trait(cache.J) === CanSetindex()
+        if fast_scalar_indexing(cache.J)
+            @inbounds for i in axes(cache.J, 1)
+                cache.J[i, i] = cache.J[i, i] - inv_α
+            end
+        else
+            idxs = diagind(cache.J)
+            @.. broadcast=false @view(cache.J[idxs])=@view(cache.J[idxs]) - inv_α
+        end
+        A = cache.J
     else
-        linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
-            linu = _vec(cache.du), p, reltol = cache.abstol)
-        cache.linsolve = linres.cache
+        cache.J = cache.J - inv_α * I
+        A = cache.J
     end
-    cache.u = @. u - cache.du  # `u` might not support mutation
-    cache.fu1 = f(cache.u, p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
-        cache.du)
+    # u = u - J \ fu
+    linres = dolinsolve(cache, alg.precs, cache.linsolve; A, b = _vec(cache.fu),
+        linu = _vec(cache.du), cache.p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    cache.du = _restructure(cache.du, linres.u)
 
-    new_norm = cache.internalnorm(fu1)
+    @bb axpy!(-true, cache.du, cache.u)
+
+    evaluate_f(cache, cache.u, cache.p)
+
+    update_trace!(cache, true)
+
+    new_norm = cache.internalnorm(cache.fu)
     cache.alpha *= cache.res_norm / new_norm
     cache.res_norm = new_norm
 
-    check_and_update!(cache, cache.fu1, cache.u, cache.u_prev)
+    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
-    cache.u_prev = cache.u
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
+    @bb copyto!(cache.u_cache, cache.u)
     return nothing
 end
 
-function SciMLBase.reinit!(cache::PseudoTransientCache{iip}, u0 = cache.u; p = cache.p,
-        alpha = cache.alpha, abstol = cache.abstol, reltol = cache.reltol,
-        termination_condition = get_termination_mode(cache.tc_cache),
-        maxiters = cache.maxiters) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu1, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu1 = cache.f(cache.u, p)
-    end
-
-    reset!(cache.trace)
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
-        termination_condition)
-
+function __reinit_internal!(cache::PseudoTransientCache; alpha = cache.alg.alpha_initial,
+        kwargs...)
     cache.alpha = convert(eltype(cache.u), alpha)
-    cache.res_norm = cache.internalnorm(cache.fu1)
-    cache.abstol = abstol
-    cache.reltol = reltol
-    cache.tc_cache = tc_cache
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
+    cache.res_norm = cache.internalnorm(cache.fu)
+    return nothing
 end

@@ -56,15 +56,10 @@ end
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
 
-    try
-        u0 = @SVector [0.0, 0.0, 0.0]
-        prob = NonlinearProblem(f1, u0)
-        sol = solve(prob)
+    u0 = @SVector [0.0, 0.0, 0.0]
+    prob = NonlinearProblem(f1, u0)
+    sol = solve(prob)
 
-        @test all(!isnan, sol.u)
-        @test !SciMLBase.successful_retcode(sol.retcode)
-    catch err
-        # Static Arrays has different default linearsolve which throws an error
-        @test err isa SingularException
-    end
+    @test all(!isnan, sol.u)
+    @test !SciMLBase.successful_retcode(sol.retcode)
 end

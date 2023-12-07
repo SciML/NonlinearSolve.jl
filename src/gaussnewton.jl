@@ -46,9 +46,8 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
     return GaussNewton{CJ}(ad, alg.linsolve, alg.precs, alg.linesearch, alg.vjp_autodiff)
 end
 
-function GaussNewton(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = nothing, precs = DEFAULT_PRECS, vjp_autodiff = nothing,
-        adkwargs...)
+function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+        linesearch = nothing, vjp_autodiff = nothing, adkwargs...)
     ad = default_adargs_to_adtype(; adkwargs...)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
     return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch,
@@ -59,11 +58,11 @@ end
     f
     alg
     u
-    u_prev
-    fu1
-    fu2
-    fu_new
+    u_cache
+    fu
+    fu_cache
     du
+    dfu
     p
     uf
     linsolve
@@ -92,143 +91,71 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem{uType, iip}, alg_::
     alg = get_concrete_algorithm(alg_, prob)
     @unpack f, u0, p = prob
 
-    linsolve_with_JᵀJ = Val(_needs_square_A(alg, u0))
+    u = __maybe_unaliased(u0, alias_u0)
+    fu = evaluate_f(prob, u)
 
-    u = alias_u0 ? u0 : deepcopy(u0)
-    fu1 = evaluate_f(prob, u)
+    uf, linsolve, J, fu_cache, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p,
+        Val(iip); linsolve_with_JᵀJ = Val(__needs_square_A(alg, u)))
 
-    if SciMLBase._unwrap_val(linsolve_with_JᵀJ)
-        uf, linsolve, J, fu2, jac_cache, du, JᵀJ, Jᵀf = jacobian_caches(alg, f, u, p,
-            Val(iip); linsolve_with_JᵀJ)
-    else
-        uf, linsolve, J, fu2, jac_cache, du = jacobian_caches(alg, f, u, p,
-            Val(iip); linsolve_with_JᵀJ)
-        JᵀJ, Jᵀf = nothing, nothing
-    end
-
-    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu1, u,
+    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
-    _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu1, u, termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu1, ApplyArray(__zero, J), du; kwargs...)
+    _, _, tc_cache_2 = init_termination_cache(abstol, reltol, fu, u, termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-    return GaussNewtonCache{iip}(f, alg, u, copy(u), fu1, fu2, zero(fu1), du, p, uf,
+    @bb u_cache = copy(u)
+    @bb dfu = copy(fu)
+
+    return GaussNewtonCache{iip}(f, alg, u, u_cache, fu, fu_cache, du, dfu, p, uf,
         linsolve, J, JᵀJ, Jᵀf, jac_cache, false, maxiters, internalnorm, ReturnCode.Default,
         abstol, reltol, prob, NLStats(1, 0, 0, 0, 0), tc_cache_1, tc_cache_2,
-        init_linesearch_cache(alg.linesearch, f, u, p, fu1, Val(iip)), trace)
+        init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), trace)
 end
 
-function perform_step!(cache::GaussNewtonCache{true})
-    @unpack u, u_prev, fu1, f, p, alg, J, JᵀJ, Jᵀf, linsolve, du = cache
-    jacobian!!(J, cache)
-
-    if JᵀJ !== nothing
-        __update_JᵀJ!(Val{true}(), cache, :JᵀJ, J)
-        __update_Jᵀf!(Val{true}(), cache, :Jᵀf, :JᵀJ, J, fu1)
-    end
-
-    # u = u - JᵀJ \ Jᵀfu
-    if cache.JᵀJ === nothing
-        linres = dolinsolve(alg.precs, linsolve; A = J, b = _vec(fu1), linu = _vec(du),
-            p, reltol = cache.abstol)
-    else
-        linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(JᵀJ), b = _vec(Jᵀf),
-            linu = _vec(du), p, reltol = cache.abstol)
-    end
-    cache.linsolve = linres.cache
-    α = perform_linesearch!(cache.ls_cache, u, du)
-    _axpy!(-α, du, u)
-    f(cache.fu_new, u, p)
-
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
-        cache.du, α)
-
-    check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
-    if !cache.force_stop
-        cache.fu1 .= cache.fu_new .- cache.fu1
-        check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
-    end
-
-    @. u_prev = u
-    cache.fu1 .= cache.fu_new
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
-    return nothing
-end
-
-function perform_step!(cache::GaussNewtonCache{false})
-    @unpack u, u_prev, fu1, f, p, alg, linsolve = cache
-
+function perform_step!(cache::GaussNewtonCache{iip}) where {iip}
     cache.J = jacobian!!(cache.J, cache)
 
+    # Use normal form to solve the Linear Problem
     if cache.JᵀJ !== nothing
-        __update_JᵀJ!(Val{false}(), cache, :JᵀJ, cache.J)
-        __update_Jᵀf!(Val{false}(), cache, :Jᵀf, :JᵀJ, cache.J, fu1)
-    end
-
-    # u = u - J \ fu
-    if linsolve === nothing
-        cache.du = fu1 / cache.J
+        __update_JᵀJ!(cache)
+        __update_Jᵀf!(cache)
+        A, b = __maybe_symmetric(cache.JᵀJ), _vec(cache.Jᵀf)
     else
-        if cache.JᵀJ === nothing
-            linres = dolinsolve(alg.precs, linsolve; A = cache.J, b = _vec(fu1),
-                linu = _vec(cache.du), p, reltol = cache.abstol)
-        else
-            linres = dolinsolve(alg.precs, linsolve; A = __maybe_symmetric(cache.JᵀJ),
-                b = _vec(cache.Jᵀf), linu = _vec(cache.du), p, reltol = cache.abstol)
-        end
-        cache.linsolve = linres.cache
+        A, b = cache.J, _vec(cache.fu)
     end
-    α = perform_linesearch!(cache.ls_cache, u, cache.du)
-    cache.u = @. u - α * cache.du  # `u` might not support mutation
-    cache.fu_new = f(cache.u, p)
 
-    update_trace!(cache.trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), cache.J,
-        cache.du, α)
+    linres = dolinsolve(cache, cache.alg.precs, cache.linsolve; A, b, linu = _vec(cache.du),
+        cache.p, reltol = cache.abstol)
+    cache.linsolve = linres.cache
+    cache.du = _restructure(cache.du, linres.u)
 
-    check_and_update!(cache.tc_cache_1, cache, cache.fu_new, cache.u, cache.u_prev)
+    α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
+    @bb axpy!(-α, cache.du, cache.u)
+    evaluate_f(cache, cache.u, cache.p)
+    update_trace!(cache, α)
+
+    check_and_update!(cache.tc_cache_1, cache, cache.fu, cache.u, cache.u_cache)
     if !cache.force_stop
-        cache.fu1 = cache.fu_new .- cache.fu1
-        check_and_update!(cache.tc_cache_2, cache, cache.fu1, cache.u, cache.u_prev)
+        @bb @. cache.dfu = cache.fu .- cache.dfu
+        check_and_update!(cache.tc_cache_2, cache, cache.dfu, cache.u, cache.u_cache)
     end
 
-    cache.u_prev = cache.u
-    cache.fu1 = cache.fu_new
-    cache.stats.nf += 1
-    cache.stats.njacs += 1
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
+    @bb copyto!(cache.u_cache, cache.u)
+    @bb copyto!(cache.dfu, cache.fu)
+
     return nothing
 end
 
-function SciMLBase.reinit!(cache::GaussNewtonCache{iip}, u0 = cache.u; p = cache.p,
-        abstol = cache.abstol, reltol = cache.reltol, maxiters = cache.maxiters,
-        termination_condition = get_termination_mode(cache.tc_cache)) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(cache.u, u0)
-        cache.f(cache.fu1, cache.u, p)
-    else
-        # don't have alias_u0 but cache.u is never mutated for OOP problems so it doesn't matter
-        cache.u = u0
-        cache.fu1 = cache.f(cache.u, p)
-    end
+# FIXME: Reinit `JᵀJ` operator if `p` is changed
+function __reinit_internal!(cache::GaussNewtonCache;
+        termination_condition = get_termination_mode(cache.tc_cache_1), kwargs...)
+    abstol, reltol, tc_cache_1 = init_termination_cache(cache.abstol, cache.reltol,
+        cache.fu, cache.u, termination_condition)
+    _, _, tc_cache_2 = init_termination_cache(cache.abstol, cache.reltol, cache.fu,
+        cache.u, termination_condition)
 
-    reset!(cache.trace)
-    abstol, reltol, tc_cache_1 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
-        termination_condition)
-    _, _, tc_cache_2 = init_termination_cache(abstol, reltol, cache.fu1, cache.u,
-        termination_condition)
-
-    cache.abstol = abstol
-    cache.reltol = reltol
     cache.tc_cache_1 = tc_cache_1
     cache.tc_cache_2 = tc_cache_2
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-    return cache
+    cache.abstol = abstol
+    cache.reltol = reltol
+    return nothing
 end

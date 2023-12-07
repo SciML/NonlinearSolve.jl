@@ -8,28 +8,26 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using DiffEqBase,
-        LazyArrays, LinearAlgebra, LinearSolve, Printf, SparseArrays,
-        SparseDiffTools
-    using FastBroadcast: @..
-    import ArrayInterface: restructure
+    using ADTypes, DiffEqBase, LazyArrays, LineSearches, LinearAlgebra, LinearSolve, Printf,
+        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, StaticArrays
 
     import ADTypes: AbstractFiniteDifferencesMode
-    import ArrayInterface: undefmatrix,
+    import ArrayInterface: undefmatrix, restructure, can_setindex,
         matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
     import ConcreteStructs: @concrete
     import EnumX: @enumx
+    import FastBroadcast: @..
+    import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
+    import MaybeInplace: setindex_trait, @bb, CanSetindex, CannotSetindex
     import RecursiveArrayTools: ArrayPartition,
         AbstractVectorOfArray, recursivecopy!, recursivefill!
     import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
     import SciMLOperators: FunctionOperator
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray
+    import StaticArrays: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
     import UnPack: @unpack
-
-    using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
@@ -52,16 +50,65 @@ abstract type AbstractNonlinearSolveCache{iip} end
 
 isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
+        p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
+        maxiters = cache.maxiters, alias_u0 = false, termination_condition = missing,
+        kwargs...) where {iip}
+    cache.p = p
+    if iip
+        recursivecopy!(get_u(cache), u0)
+        cache.f(get_fu(cache), get_u(cache), p)
+    else
+        cache.u = __maybe_unaliased(u0, alias_u0)
+        set_fu!(cache, cache.f(cache.u, p))
+    end
+
+    reset!(cache.trace)
+
+    # Some algorithms store multiple termination caches
+    if hasfield(typeof(cache), :tc_cache)
+        # TODO: We need an efficient way to reset this upstream
+        tc = termination_condition === missing ? get_termination_mode(cache.tc_cache) :
+             termination_condition
+        abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, get_fu(cache),
+            get_u(cache), tc)
+        cache.tc_cache = tc_cache
+    end
+
+    if hasfield(typeof(cache), :ls_cache)
+        # TODO: A more efficient way to do this
+        cache.ls_cache = init_linesearch_cache(cache.alg.linesearch, cache.f,
+            get_u(cache), p, get_fu(cache), Val(iip))
+    end
+
+    hasfield(typeof(cache), :uf) && (cache.uf.p = p)
+
+    cache.abstol = abstol
+    cache.reltol = reltol
+    cache.maxiters = maxiters
+    cache.stats.nf = 1
+    cache.stats.nsteps = 1
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+
+    __reinit_internal!(cache; u0, p, abstol, reltol, maxiters, alias_u0,
+        termination_condition, kwargs...)
+
+    return cache
+end
+
+__reinit_internal!(::AbstractNonlinearSolveCache; kwargs...) = nothing
+
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     str = "$(nameof(typeof(alg)))("
     modifiers = String[]
-    if _getproperty(alg, Val(:ad)) !== nothing
+    if __getproperty(alg, Val(:ad)) !== nothing
         push!(modifiers, "ad = $(nameof(typeof(alg.ad)))()")
     end
-    if _getproperty(alg, Val(:linsolve)) !== nothing
+    if __getproperty(alg, Val(:linsolve)) !== nothing
         push!(modifiers, "linsolve = $(nameof(typeof(alg.linsolve)))()")
     end
-    if _getproperty(alg, Val(:linesearch)) !== nothing
+    if __getproperty(alg, Val(:linesearch)) !== nothing
         ls = alg.linesearch
         if ls isa LineSearch
             ls.method !== nothing &&
@@ -70,7 +117,7 @@ function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
             push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
         end
     end
-    if _getproperty(alg, Val(:radius_update_scheme)) !== nothing
+    if __getproperty(alg, Val(:radius_update_scheme)) !== nothing
         push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
     end
     str = str * join(modifiers, ", ")
@@ -87,8 +134,9 @@ end
 function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.stats.nsteps < cache.maxiters
 end
-get_fu(cache::AbstractNonlinearSolveCache) = cache.fu1
-set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu1 = fu)
+
+get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
@@ -107,7 +155,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-    trace = _getproperty(cache, Val{:trace}())
+    trace = __getproperty(cache, Val{:trace}())
     if trace !== nothing
         update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
             nothing, nothing; last = Val(true))
