@@ -155,7 +155,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
     T = eltype(cache.u)
 
     if IJ === :true_jacobian && cache.stats.nsteps == 0
-        cache.J⁻¹ = inv(jacobian!!(cache.J⁻¹, cache)) # This allocates
+        cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache)) # This allocates
     end
 
     @bb cache.du = cache.J⁻¹ × vec(cache.fu)
@@ -179,7 +179,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
             return nothing
         end
         if IJ === :true_jacobian
-            cache.J⁻¹ = inv(jacobian!!(cache.J⁻¹, cache))
+            cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache))
         else
             cache.inv_alpha = __initial_inv_alpha(cache.inv_alpha, cache.alpha_initial,
                 cache.u, cache.fu, cache.internalnorm)
