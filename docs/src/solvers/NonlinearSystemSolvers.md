@@ -110,7 +110,7 @@ computationally expensive than direct methods.
     close to the steady state.
   - `SSRootfind()`: Uses a NonlinearSolve compatible solver to find the steady state.
 
-### SciMLNLSolve.jl
+### NLsolve.jl
 
 This is a wrapper package for importing solvers from NLsolve.jl into the SciML interface.
 

@@ -243,32 +243,22 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
         prefer_simplenonlinearsolve::Val{SA} = Val(false),
         autodiff = nothing) where {JAC, SA}
     if JAC
-        if SA
-            algs = (SimpleNewtonRaphson(;
-                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
-                SimpleTrustRegion(;
-                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
-                NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                    autodiff),
-                TrustRegion(; concrete_jac, linsolve, precs,
-                    radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
-        else
-            algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
-                NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                    autodiff),
-                TrustRegion(; concrete_jac, linsolve, precs, autodiff),
-                TrustRegion(; concrete_jac, linsolve, precs,
-                    radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
-        end
+        algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
+            NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
+                autodiff),
+            TrustRegion(; concrete_jac, linsolve, precs, autodiff),
+            TrustRegion(; concrete_jac, linsolve, precs,
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
     else
+        # SimpleNewtonRaphson and SimpleTrustRegion are not robust to singular Jacobians
+        # and thus are not included in the polyalgorithm
         if SA
             algs = (SimpleBroyden(),
                 Broyden(; init_jacobian = Val(:true_jacobian)),
                 SimpleKlement(),
-                SimpleNewtonRaphson(;
-                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
-                SimpleTrustRegion(;
-                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
+                NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
+                NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
+                    autodiff),
                 NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
                     autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,
