@@ -528,6 +528,7 @@ end
 @inline __diag(x::Number) = x
 
 # Safe Inverse: Try to use `inv` but if lu fails use `pinv`
+__safe_inv(A::AbstractMatrix) = pinv(A)
 function __safe_inv(A::StridedMatrix{T}) where {T}
     LinearAlgebra.checksquare(A)
     if istriu(A)

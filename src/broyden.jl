@@ -50,8 +50,8 @@ end
 
 function __alg_print_modifiers(alg::GeneralBroyden{IJ, UR}) where {IJ, UR}
     modifiers = String[]
-    IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
-    UR !== :good_broyden && push!(modifiers, "update_rule = :$(UR)")
+    IJ !== :identity && push!(modifiers, "init_jacobian = Val(:$(IJ))")
+    UR !== :good_broyden && push!(modifiers, "update_rule = Val(:$(UR))")
     alg.alpha !== nothing && push!(modifiers, "alpha = $(alg.alpha)")
     return modifiers
 end
@@ -141,8 +141,8 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyd
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u,
         termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu, J⁻¹, du; uses_jac_inverse = Val(true),
-        kwargs...)
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J⁻¹), du;
+        uses_jac_inverse = Val(true), kwargs...)
 
     return GeneralBroydenCache{iip, IJ, UR}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p,
         uf, J⁻¹, J⁻¹dfu, inv_alpha, alg.alpha, false, 0, alg.max_resets, maxiters,

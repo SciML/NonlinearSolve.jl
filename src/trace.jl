@@ -174,7 +174,7 @@ function init_nonlinearsolve_trace(alg, ::Val{show_trace},
         print("\nAlgorithm: ")
         Base.printstyled(alg, "\n\n"; color = :green, bold = true)
     end
-    J_ = uses_jac_inverse ? (trace_level isa TraceMinimal ? J : inv(J)) : J
+    J_ = uses_jac_inverse ? (trace_level isa TraceMinimal ? J : __safe_inv(J)) : J
     history = __init_trace_history(Val{show_trace}(), trace_level, Val{store_trace}(), u,
         fu, J_, δu)
     return NonlinearSolveTrace{show_trace, store_trace}(history, trace_level)
@@ -231,7 +231,7 @@ function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
                 nothing, cache.du, α)
         else
             update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
-                ApplyArray(inv, J_inv), cache.du, α)
+                ApplyArray(__safe_inv, J_inv), cache.du, α)
         end
     else
         update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,

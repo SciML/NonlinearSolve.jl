@@ -49,7 +49,7 @@ end
 
 function __alg_print_modifiers(alg::GeneralKlement{IJ}) where {IJ}
     modifiers = String[]
-    IJ !== :identity && push!(modifiers, "init_jacobian = :$(IJ)")
+    IJ !== :identity && push!(modifiers, "init_jacobian = Val(:$(IJ))")
     alg.alpha !== nothing && push!(modifiers, "alpha = $(alg.alpha)")
     return modifiers
 end
@@ -231,7 +231,7 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
     else
         # Klement Updates to the Full Jacobian don't work for most problems, we should
         # probably be using the Broyden Update Rule here
-        @bb @. cache.J_cache = cache.J' ^ 2
+        @bb @. cache.J_cache = cache.J'^2
         @bb @. cache.Jdu = cache.du^2
         @bb cache.Jdu_cache = cache.J_cache × vec(cache.Jdu)
         @bb cache.Jdu = cache.J × vec(cache.du)
