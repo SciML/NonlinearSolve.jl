@@ -198,7 +198,7 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
         cache.resets += 1
     end
 
-    if cache.J isa AbstractVector || cache.J isa Number
+    if __isdiag(cache.J)
         @bb @. cache.du = cache.fu / cache.J
     else
         # u = u - J \ fu
@@ -223,7 +223,7 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
 
     # Update the Jacobian
     @bb cache.du .*= -1
-    if cache.J isa AbstractVector || cache.J isa Number
+    if __isdiag(cache.J)
         @bb @. cache.Jdu = (cache.J^2) * (cache.du^2)
         @bb @. cache.J += ((cache.fu - cache.fu_cache_2 - cache.J * cache.du) /
                            ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * cache.du *

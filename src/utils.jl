@@ -399,6 +399,36 @@ LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
 LazyArrays.applied_size(::typeof(__zero), x) = size(x)
 LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 
+# Safe Inverse: Try to use `inv` but if lu fails use `pinv`
+@inline __safe_inv(A::Number) = pinv(A)
+@inline __safe_inv(A::AbstractMatrix) = pinv(A)
+@inline __safe_inv(A::AbstractVector) = __safe_inv(Diagonal(A)).diag
+@inline __safe_inv(A::ApplyArray) = __safe_inv(A.f(A.args...))
+@inline function __safe_inv(A::StridedMatrix{T}) where {T}
+    LinearAlgebra.checksquare(A)
+    if istriu(A)
+        A_ = UpperTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return triu!(parent(inv(A_)))
+    elseif istril(A)
+        A_ = LowerTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return tril!(parent(inv(A_)))
+    else
+        F = lu(A; check = false)
+        if issuccess(F)
+            Ai = LinearAlgebra.inv!(F)
+            return convert(typeof(parent(Ai)), Ai)
+        end
+    end
+    return pinv(A)
+end
+
+LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
+LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
+LazyArrays.applied_size(::typeof(__safe_inv), x) = size(x)
+LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)
+
 # SparseAD --> NonSparseAD
 @inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
 @inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
@@ -527,24 +557,6 @@ end
 @inline __diag(x::AbstractVector) = x
 @inline __diag(x::Number) = x
 
-# Safe Inverse: Try to use `inv` but if lu fails use `pinv`
-__safe_inv(A::AbstractMatrix) = pinv(A)
-function __safe_inv(A::StridedMatrix{T}) where {T}
-    LinearAlgebra.checksquare(A)
-    if istriu(A)
-        A_ = UpperTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return triu!(parent(inv(A_)))
-    elseif istril(A)
-        A_ = LowerTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return tril!(parent(inv(A_)))
-    else
-        F = lu(A; check = false)
-        if issuccess(F)
-            Ai = LinearAlgebra.inv!(F)
-            return convert(typeof(parent(Ai)), Ai)
-        end
-    end
-    return pinv(A)
-end
+@inline __isdiag(::AbstractVector) = true
+@inline __isdiag(::Number) = true
+@inline __isdiag(::AbstractMatrix) = false

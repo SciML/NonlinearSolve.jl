@@ -87,6 +87,7 @@ end
     p
     uf
     J⁻¹
+    J⁻¹_cache
     J⁻¹dfu
     inv_alpha
     alpha_initial
@@ -123,12 +124,23 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyd
         alg = get_concrete_algorithm(alg_, prob)
         uf, _, J, fu_cache, jac_cache, du = jacobian_caches(alg, f, u, p, Val(iip);
             lininit = Val(false))
-        J⁻¹ = J
-    else
+        if UR === :diagonal
+            J⁻¹_cache = J
+            J⁻¹ = __diag(J)
+        else
+            J⁻¹_cache = nothing
+            J⁻¹ = J
+        end
+    elseif IJ === :identity
         alg = alg_
         @bb du = similar(u)
-        uf, fu_cache, jac_cache = nothing, nothing, nothing
-        J⁻¹ = __init_identity_jacobian(u, fu, inv_alpha)
+        uf, fu_cache, jac_cache, J⁻¹_cache = nothing, nothing, nothing, nothing
+        if UR === :diagonal
+            J⁻¹ = one.(fu)
+            @bb J⁻¹ .*= inv_alpha
+        else
+            J⁻¹ = __init_identity_jacobian(u, fu, inv_alpha)
+        end
     end
 
     reset_tolerance = alg.reset_tolerance === nothing ? sqrt(eps(real(eltype(u)))) :
@@ -145,9 +157,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::GeneralBroyd
         uses_jac_inverse = Val(true), kwargs...)
 
     return GeneralBroydenCache{iip, IJ, UR}(f, alg, u, u_cache, du, fu, fu_cache, dfu, p,
-        uf, J⁻¹, J⁻¹dfu, inv_alpha, alg.alpha, false, 0, alg.max_resets, maxiters,
-        internalnorm, ReturnCode.Default, abstol, reltol, reset_tolerance, reset_check,
-        jac_cache, prob, NLStats(1, 0, 0, 0, 0),
+        uf, J⁻¹, J⁻¹_cache, J⁻¹dfu, inv_alpha, alg.alpha, false, 0, alg.max_resets,
+        maxiters, internalnorm, ReturnCode.Default, abstol, reltol, reset_tolerance,
+        reset_check, jac_cache, prob, NLStats(1, 0, 0, 0, 0),
         init_linesearch_cache(alg.linesearch, f, u, p, fu, Val(iip)), tc_cache, trace)
 end
 
@@ -158,7 +170,11 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
         cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache)) # This allocates
     end
 
-    @bb cache.du = cache.J⁻¹ × vec(cache.fu)
+    if __isdiag(cache.J⁻¹)
+        @bb @. cache.du = cache.J⁻¹ * cache.fu
+    else
+        @bb cache.du = cache.J⁻¹ × vec(cache.fu)
+    end
     α = perform_linesearch!(cache.ls_cache, cache.u, cache.du)
     @bb axpy!(-α, cache.du, cache.u)
 
@@ -179,7 +195,12 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
             return nothing
         end
         if IJ === :true_jacobian
-            cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache))
+            if __isdiag(cache.J⁻¹)
+                cache.J⁻¹_cache = __safe_inv(jacobian!!(cache.J⁻¹_cache, cache))
+                cache.J⁻¹ = __get_diagonal!!(cache.J⁻¹, cache.J⁻¹_cache)
+            else
+                cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache))
+            end
         else
             cache.inv_alpha = __initial_inv_alpha(cache.inv_alpha, cache.alpha_initial,
                 cache.u, cache.fu, cache.internalnorm)
@@ -188,18 +209,26 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
         cache.resets += 1
     else
         @bb cache.du .*= -1
-        @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
         if UR === :good_broyden
+            @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
             @bb cache.u_cache = transpose(cache.J⁻¹) × vec(cache.du)
             denom = dot(cache.du, cache.J⁻¹dfu)
             @bb @. cache.du = (cache.du - cache.J⁻¹dfu) /
                               ifelse(iszero(denom), T(1e-5), denom)
             @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.u_cache))
         elseif UR === :bad_broyden
+            @bb cache.J⁻¹dfu = cache.J⁻¹ × vec(cache.dfu)
             dfu_norm = cache.internalnorm(cache.dfu)^2
             @bb @. cache.du = (cache.du - cache.J⁻¹dfu) /
                               ifelse(iszero(dfu_norm), T(1e-5), dfu_norm)
             @bb cache.J⁻¹ += vec(cache.du) × transpose(_vec(cache.dfu))
+        elseif UR === :diagonal
+            @bb @. cache.J⁻¹dfu = cache.du * cache.J⁻¹ * cache.dfu
+            denom = sum(cache.J⁻¹dfu)
+            @bb @. cache.J⁻¹ += (cache.du - cache.J⁻¹ * cache.dfu) * cache.du * cache.J⁻¹ /
+                                ifelse(iszero(denom), T(1e-5), denom)
+        else
+            error("update_rule = Val(:$(UR)) is not implemented for Broyden.")
         end
     end
 
