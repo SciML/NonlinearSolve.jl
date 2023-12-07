@@ -556,7 +556,3 @@ end
 @inline __diag(x::AbstractMatrix) = diag(x)
 @inline __diag(x::AbstractVector) = x
 @inline __diag(x::Number) = x
-
-@inline __isdiag(::AbstractVector) = true
-@inline __isdiag(::Number) = true
-@inline __isdiag(::AbstractMatrix) = false

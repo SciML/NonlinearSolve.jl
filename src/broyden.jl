@@ -164,7 +164,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
     T = eltype(cache.u)
 
     if IJ === :true_jacobian && cache.stats.nsteps == 0
-        if __isdiag(cache.J⁻¹) && cache.J⁻¹_cache !== nothing
+        if UR === :diagonal
             cache.J⁻¹_cache = __safe_inv(jacobian!!(cache.J⁻¹_cache, cache))
             cache.J⁻¹ = __get_diagonal!!(cache.J⁻¹, cache.J⁻¹_cache)
         else
@@ -172,7 +172,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
         end
     end
 
-    if __isdiag(cache.J⁻¹)
+    if UR === :diagonal
         @bb @. cache.du = cache.J⁻¹ * cache.fu
     else
         @bb cache.du = cache.J⁻¹ × vec(cache.fu)
@@ -197,7 +197,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
             return nothing
         end
         if IJ === :true_jacobian
-            if __isdiag(cache.J⁻¹) && cache.J⁻¹_cache !== nothing
+            if UR === :diagonal
                 cache.J⁻¹_cache = __safe_inv(jacobian!!(cache.J⁻¹_cache, cache))
                 cache.J⁻¹ = __get_diagonal!!(cache.J⁻¹, cache.J⁻¹_cache)
             else
