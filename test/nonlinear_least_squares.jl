@@ -1,4 +1,5 @@
-using NonlinearSolve, LinearSolve, LinearAlgebra, Test, Random, ForwardDiff, Zygote
+using NonlinearSolve,
+    LinearSolve, LinearAlgebra, Test, StableRNGs, Random, ForwardDiff, Zygote
 import FastLevenbergMarquardt, LeastSquaresOptim
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
@@ -21,7 +22,7 @@ function loss_function(resid, θ, p)
     return resid
 end
 
-θ_init = θ_true .+ randn!(similar(θ_true)) * 0.1
+θ_init = θ_true .+ randn!(StableRNG(0), similar(θ_true)) * 0.1
 prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
