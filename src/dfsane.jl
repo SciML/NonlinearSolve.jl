@@ -6,9 +6,7 @@
 
 A low-overhead and allocation-free implementation of the df-sane method for solving large-scale nonlinear
 systems of equations. For in depth information about all the parameters and the algorithm,
-see the paper: [W LaCruz, JM Martinez, and M Raydan (2006), Spectral Residual Method without
-Gradient Information for Solving Large-Scale Nonlinear Systems of Equations, Mathematics of
-Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_Spectral_Residual_Method_without_Gradient_Information_for_Solving_Large-Scale_Nonlinear_Systems_of_Equations)
+see the paper [1].
 
 ### Keyword Arguments
 
@@ -40,6 +38,12 @@ Computation, 75, 1429-1448.](https://www.researchgate.net/publication/220576479_
     ``fn_1 / n^2``.
   - `max_inner_iterations`: the maximum number of iterations allowed for the inner loop of the
     algorithm. Defaults to `100`.
+
+### References
+
+[1] W LaCruz, JM Martinez, and M Raydan (2006), Spectral Residual Method without Gradient
+Information for Solving Large-Scale Nonlinear Systems of Equations, Mathematics of
+Computation, 75, 1429-1448.
 """
 @kwdef @concrete struct DFSane <: AbstractNonlinearSolveAlgorithm
     σ_min = 1e-10
