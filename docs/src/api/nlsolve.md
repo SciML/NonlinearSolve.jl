@@ -13,5 +13,5 @@ using NLSolve, NonlinearSolve
 ## Solver API
 
 ```@docs
-NLSolveJL
+NLsolveJL
 ```

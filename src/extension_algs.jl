@@ -143,10 +143,10 @@ function CMINPACK(; show_trace::Bool = false, tracing::Bool = false, method::Sym
 end
 
 """
-    NLSolveJL(; method=:trust_region, autodiff=:central, store_trace=false,
-          extended_trace=false, linesearch=LineSearches.Static(),
-          linsolve=(x, A, b) -> copyto!(x, A\\b), factor = one(Float64), autoscale=true,
-          m=10, beta=one(Float64), show_trace=false)
+    NLsolveJL(; method=:trust_region, autodiff=:central, store_trace=false,
+        extended_trace=false, linesearch=LineSearches.Static(),
+        linsolve=(x, A, b) -> copyto!(x, A\\b), factor = one(Float64), autoscale=true,
+        m=10, beta=one(Float64), show_trace=false)
 
 ### Keyword Arguments
 
@@ -171,7 +171,7 @@ end
 
 ### Submethod Choice
 
-Choices for methods in `NLSolveJL`:
+Choices for methods in `NLsolveJL`:
 
   - `:anderson`: Anderson-accelerated fixed-point iteration
   - `:broyden`: Broyden's quasi-Newton method
@@ -180,7 +180,7 @@ Choices for methods in `NLSolveJL`:
     these arguments, consult the
     [NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
 """
-@concrete struct NLSolveJL <: AbstractNonlinearAlgorithm
+@concrete struct NLsolveJL <: AbstractNonlinearAlgorithm
     method::Symbol
     autodiff::Symbol
     store_trace::Bool
@@ -194,14 +194,14 @@ Choices for methods in `NLSolveJL`:
     show_trace::Bool
 end
 
-function NLSolveJL(; method = :trust_region, autodiff = :central, store_trace = false,
+function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = false,
         extended_trace = false, linesearch = LineSearches.Static(),
         linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0, autoscale = true, m = 10,
         beta = one(Float64), show_trace = false)
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing
-        error("NLSolveJL requires NLsolve.jl to be loaded")
+        error("NLsolveJL requires NLsolve.jl to be loaded")
     end
 
-    return NLSolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
+    return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
         factor, autoscale, m, beta, show_trace)
 end

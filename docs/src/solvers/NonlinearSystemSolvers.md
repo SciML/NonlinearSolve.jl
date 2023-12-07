@@ -114,7 +114,7 @@ computationally expensive than direct methods.
 
 This is a wrapper package for importing solvers from NLsolve.jl into the SciML interface.
 
-  - `NLSolveJL()`: A wrapper for [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl)
+  - `NLsolveJL()`: A wrapper for [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl)
 
 Submethod choices for this algorithm include:
 

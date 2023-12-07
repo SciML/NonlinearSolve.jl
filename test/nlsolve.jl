@@ -9,7 +9,7 @@ u0 = zeros(2)
 prob_iip = SteadyStateProblem(f_iip, u0)
 abstol = 1e-8
 
-for alg in [NLSolveJL()]
+for alg in [NLsolveJL()]
     sol = solve(prob_iip, alg)
     @test sol.retcode == ReturnCode.Success
     p = nothing
@@ -24,7 +24,7 @@ f_oop(u, p, t) = [2 - 2u[1], u[1] - 4u[2]]
 u0 = zeros(2)
 prob_oop = SteadyStateProblem(f_oop, u0)
 
-for alg in [NLSolveJL()]
+for alg in [NLsolveJL()]
     sol = solve(prob_oop, alg)
     @test sol.retcode == ReturnCode.Success
     # test the solver is doing reasonable things for linear solve
@@ -45,7 +45,7 @@ end
 u0 = zeros(2)
 prob_iip = NonlinearProblem{true}(f_iip, u0)
 abstol = 1e-8
-for alg in [NLSolveJL()]
+for alg in [NLsolveJL()]
     local sol
     sol = solve(prob_iip, alg)
     @test sol.retcode == ReturnCode.Success
@@ -60,7 +60,7 @@ end
 f_oop(u, p) = [2 - 2u[1], u[1] - 4u[2]]
 u0 = zeros(2)
 prob_oop = NonlinearProblem{false}(f_oop, u0)
-for alg in [NLSolveJL()]
+for alg in [NLsolveJL()]
     local sol
     sol = solve(prob_oop, alg)
     @test sol.retcode == ReturnCode.Success
@@ -74,7 +74,7 @@ end
 f_tol(u, p) = u^2 - 2
 prob_tol = NonlinearProblem(f_tol, 1.0)
 for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-15]
-    sol = solve(prob_tol, NLSolveJL(), abstol = tol)
+    sol = solve(prob_tol, NLsolveJL(), abstol = tol)
     @test abs(sol.u[1] - sqrt(2)) < tol
 end
 
@@ -85,7 +85,7 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, NLSolveJL(autodiff = :central))
+sol = solve(prob, NLsolveJL(autodiff = :central))
 
 du = zeros(2)
 f!(du, sol.u, nothing)
@@ -98,7 +98,7 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, NLSolveJL(autodiff = :forward))
+sol = solve(prob, NLsolveJL(autodiff = :forward))
 
 du = zeros(2)
 f!(du, sol.u, nothing)
@@ -131,8 +131,8 @@ f = NonlinearFunction(f!, jac = j!)
 p = A
 
 ProbN = NonlinearProblem(f, init, p)
-sol = solve(ProbN, NLSolveJL(), reltol = 1e-8, abstol = 1e-8)
+sol = solve(ProbN, NLsolveJL(), reltol = 1e-8, abstol = 1e-8)
 
 init = ones(Complex{Float64}, 152);
 ProbN = NonlinearProblem(f, init, p)
-sol = solve(ProbN, NLSolveJL(), reltol = 1e-8, abstol = 1e-8)
+sol = solve(ProbN, NLsolveJL(), reltol = 1e-8, abstol = 1e-8)

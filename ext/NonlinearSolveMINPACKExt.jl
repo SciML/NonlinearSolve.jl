@@ -19,7 +19,6 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     # unwrapping alg params
     show_trace = alg.show_trace
     tracing = alg.tracing
-    io = alg.io
 
     if !iip && prob.u0 isa Number
         f! = (du, u) -> (du .= prob.f(first(u), p); Cint(0))
@@ -36,9 +35,10 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     u = zero(u0)
     resid = NonlinearSolve.evaluate_f(prob, u)
     m = length(resid)
+    size_jac = (length(resid), length(u))
 
     method = ifelse(alg.method === :auto,
-        ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hydr), alg.method)
+        ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hybr), alg.method)
 
     if SciMLBase.has_jac(prob.f)
         if !iip && prob.u0 isa Number
@@ -51,9 +51,8 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             g! = (du, u) -> prob.f.jac(du, u, p)
         else # Then it's an in-place function on an abstract array
             g! = function (du, u)
-                prob.f.jac(reshape(du, sizeu), reshape(u, sizeu), p)
-                du = vec(du)
-                return CInt(0)
+                prob.f.jac(reshape(du, size_jac), reshape(u, sizeu), p)
+                return Cint(0)
             end
         end
         original = MINPACK.fsolve(f!, g!, u0, m; tol = abstol, show_trace, tracing, method,
