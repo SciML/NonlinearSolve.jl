@@ -111,10 +111,10 @@ function dolinsolve(cache, precs::P, linsolve; A = nothing, linu = nothing, b = 
     # Some Algorithms would reuse factorization but it causes the cache to not reset in
     # certain cases
     if A !== nothing
-        alg = linsolve.alg
-        if (alg isa LinearSolve.AbstractFactorization) ||
-           (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
-              LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)))
+        alg = __getproperty(linsolve, Val(:alg))
+        if alg !== nothing && ((alg isa LinearSolve.AbstractFactorization) ||
+            (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
+               LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES))))
             # Factorization Algorithm
             if reuse_A_if_factorization
                 cache.stats.nfactors -= 1
@@ -315,31 +315,47 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
     end
 end
 
-@inline __init_identity_jacobian(u::Number, _) = one(u)
-@inline function __init_identity_jacobian(u, fu)
+@inline __init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
+@inline @views function __init_identity_jacobian(u, fu, α = true)
     J = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    if fast_scalar_indexing(J)
+        @inbounds for i in axes(J, 1)
+            J[i, i] = α
+        end
+    else
+        J[diagind(J)] .= α
+    end
     return J
 end
-@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray)
+@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray, α = true)
     T = promote_type(eltype(fu), eltype(u))
-    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
 end
-@inline function __init_identity_jacobian(u::SArray, fu::SArray)
+@inline function __init_identity_jacobian(u::SArray, fu::SArray, α = true)
     T = promote_type(eltype(fu), eltype(u))
-    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
 end
 
-@inline __reinit_identity_jacobian!!(J::Number) = one(J)
-@inline function __reinit_identity_jacobian!!(J::AbstractMatrix)
+@inline __reinit_identity_jacobian!!(J::Number, α = true) = oftype(J, α)
+@inline __reinit_identity_jacobian!!(J::AbstractVector, α = true) = fill!(J, α)
+@inline @views function __reinit_identity_jacobian!!(J::AbstractMatrix, α = true)
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    if fast_scalar_indexing(J)
+        @inbounds for i in axes(J, 1)
+            J[i, i] = α
+        end
+    else
+        J[diagind(J)] .= α
+    end
     return J
 end
-@inline function __reinit_identity_jacobian!!(J::SMatrix)
+@inline function __reinit_identity_jacobian!!(J::SVector, α = true)
+    return ones(SArray{Tuple{Size(J)[1]}, eltype(J)}) .* α
+end
+@inline function __reinit_identity_jacobian!!(J::SMatrix, α = true)
     S = Size(J)
-    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I)
+    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I) .* α
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
@@ -356,36 +372,17 @@ function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
     return U, Vᵀ
 end
 
-# Check Singular Matrix
-@inline _issingular(x::Number) = iszero(x)
-@inline @generated function _issingular(x::T) where {T}
-    hasmethod(issingular, Tuple{T}) && return :(issingular(x))
-    return :(__issingular(x))
-end
-@inline __issingular(x::AbstractMatrix{T}) where {T} = cond(x) > inv(sqrt(eps(real(T))))
-@inline __issingular(x) = false ## If SciMLOperator and such
+@inline __is_ill_conditioned(x::Number) = iszero(x)
+@inline __is_ill_conditioned(x::AbstractMatrix) = cond(x) ≥
+                                                  inv(eps(real(eltype(x)))^(1 // 2))
+@inline __is_ill_conditioned(x::AbstractVector) = any(iszero, x)
+@inline __is_ill_conditioned(x) = false
 
 # Safe getproperty
 @generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
     return :(nothing)
 end
-
-# If factorization is LU then perform that and update the linsolve cache
-# else check if the matrix is singular
-function __try_factorize_and_check_singular!(linsolve, X)
-    if linsolve.cacheval isa LU || linsolve.cacheval isa StaticArrays.LU
-        # LU Factorization was used
-        linsolve.A = X
-        linsolve.cacheval = LinearSolve.do_factorization(linsolve.alg, X, linsolve.b,
-            linsolve.u)
-        linsolve.isfresh = false
-
-        return !issuccess(linsolve.cacheval), true
-    end
-    return _issingular(X), false
-end
-__try_factorize_and_check_singular!(::FakeLinearSolveJLCache, x) = _issingular(x), false
 
 # Non-square matrix
 @inline __needs_square_A(_, ::Number) = true
@@ -401,6 +398,36 @@ LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
 LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
 LazyArrays.applied_size(::typeof(__zero), x) = size(x)
 LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
+
+# Safe Inverse: Try to use `inv` but if lu fails use `pinv`
+@inline __safe_inv(A::Number) = pinv(A)
+@inline __safe_inv(A::AbstractMatrix) = pinv(A)
+@inline __safe_inv(A::AbstractVector) = __safe_inv(Diagonal(A)).diag
+@inline __safe_inv(A::ApplyArray) = __safe_inv(A.f(A.args...))
+@inline function __safe_inv(A::StridedMatrix{T}) where {T}
+    LinearAlgebra.checksquare(A)
+    if istriu(A)
+        A_ = UpperTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return triu!(parent(inv(A_)))
+    elseif istril(A)
+        A_ = LowerTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return tril!(parent(inv(A_)))
+    else
+        F = lu(A; check = false)
+        if issuccess(F)
+            Ai = LinearAlgebra.inv!(F)
+            return convert(typeof(parent(Ai)), Ai)
+        end
+    end
+    return pinv(A)
+end
+
+LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
+LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
+LazyArrays.applied_size(::typeof(__safe_inv), x) = size(x)
+LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)
 
 # SparseAD --> NonSparseAD
 @inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
@@ -480,3 +507,55 @@ end
         return Diagonal(@.. broadcast=false max(y.diag, @view(x[idxs])))
     end
 end
+
+# Alpha for Initial Jacobian Guess
+# The values are somewhat different from SciPy, these were tuned to the 23 test problems
+@inline function __initial_inv_alpha(α::Number, u, fu, norm::F) where {F}
+    return convert(promote_type(eltype(u), eltype(fu)), inv(α))
+end
+@inline function __initial_inv_alpha(::Nothing, u, fu, norm::F) where {F}
+    norm_fu = norm(fu)
+    return ifelse(norm_fu ≥ 1e-5, max(norm(u), true) / (2 * norm_fu),
+        convert(promote_type(eltype(u), eltype(fu)), true))
+end
+@inline __initial_inv_alpha(inv_α, α::Number, u, fu, norm::F) where {F} = inv_α
+@inline function __initial_inv_alpha(inv_α, α::Nothing, u, fu, norm::F) where {F}
+    return __initial_inv_alpha(α, u, fu, norm)
+end
+
+@inline function __initial_alpha(α::Number, u, fu, norm::F) where {F}
+    return convert(promote_type(eltype(u), eltype(fu)), α)
+end
+@inline function __initial_alpha(::Nothing, u, fu, norm::F) where {F}
+    norm_fu = norm(fu)
+    return ifelse(1e-5 ≤ norm_fu ≤ 1e5, max(norm(u), true) / (2 * norm_fu),
+        convert(promote_type(eltype(u), eltype(fu)), true))
+end
+@inline __initial_alpha(α_initial, α::Number, u, fu, norm::F) where {F} = α_initial
+@inline function __initial_alpha(α_initial, α::Nothing, u, fu, norm::F) where {F}
+    return __initial_alpha(α, u, fu, norm)
+end
+
+# Diagonal
+@inline function __get_diagonal!!(J::AbstractVector, J_full::AbstractMatrix)
+    if can_setindex(J)
+        if fast_scalar_indexing(J)
+            @inbounds for i in eachindex(J)
+                J[i] = J_full[i, i]
+            end
+        else
+            J .= view(J_full, diagind(J_full))
+        end
+    else
+        J = __diag(J_full)
+    end
+    return J
+end
+@inline function __get_diagonal!!(J::AbstractArray, J_full::AbstractMatrix)
+    return _restructure(J, __get_diagonal!!(_vec(J), J_full))
+end
+@inline __get_diagonal!!(J::Number, J_full::Number) = J_full
+
+@inline __diag(x::AbstractMatrix) = diag(x)
+@inline __diag(x::AbstractVector) = x
+@inline __diag(x::Number) = x

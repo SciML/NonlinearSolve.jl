@@ -582,7 +582,6 @@ function __reinit_internal!(cache::TrustRegionCache; kwargs...)
     return nothing
 end
 
-# This only holds for 2-norm?
 __trust_region_loss(cache::TrustRegionCache, x) = __trust_region_loss(cache.internalnorm, x)
 __trust_region_loss(nf::F, x) where {F} = nf(x)^2 / 2
 

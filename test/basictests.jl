@@ -692,42 +692,50 @@ end
 # --- GeneralBroyden tests ---
 
 @testset "GeneralBroyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
+            init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, GeneralBroyden(; linesearch), abstol = 1e-9)
+        return solve(prob, GeneralBroyden(; linesearch, init_jacobian, update_rule);
+            abstol = 1e-9)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing)
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
+            init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, GeneralBroyden(; linesearch), abstol = 1e-9)
+        return solve(prob, GeneralBroyden(; linesearch, init_jacobian, update_rule);
+            abstol = 1e-9)
     end
 
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
-        ad in (AutoFiniteDiff(), AutoZygote())
+        ad in (AutoFiniteDiff(), AutoZygote()),
+        init_jacobian in (Val(:identity), Val(:true_jacobian)),
+        update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
 
         linesearch = LineSearch(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch, update_rule,
+                init_jacobian)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
             cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
-                GeneralBroyden(; linesearch), abstol = 1e-9)
+                GeneralBroyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
             @test (@ballocated solve!($cache)) < 200
         end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch, update_rule,
+                init_jacobian)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
             cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-                GeneralBroyden(; linesearch), abstol = 1e-9)
+                GeneralBroyden(; linesearch, update_rule, init_jacobian), abstol = 1e-9)
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
@@ -789,25 +797,28 @@ end
 # --- GeneralKlement tests ---
 
 @testset "GeneralKlement" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
+            init_jacobian = Val(:identity))
         prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, GeneralKlement(; linesearch), abstol = 1e-9)
+        return solve(prob, GeneralKlement(; linesearch, init_jacobian), abstol = 1e-9)
     end
 
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing)
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
+            init_jacobian = Val(:identity))
         prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, GeneralKlement(; linesearch), abstol = 1e-9)
+        return solve(prob, GeneralKlement(; linesearch, init_jacobian), abstol = 1e-9)
     end
 
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
-        ad in (AutoFiniteDiff(), AutoZygote())
+        ad in (AutoFiniteDiff(), AutoZygote()),
+        init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
         linesearch = LineSearch(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch, init_jacobian)
             # Some are failing by a margin
             # @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 3e-9)
@@ -819,7 +830,7 @@ end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch, init_jacobian)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 

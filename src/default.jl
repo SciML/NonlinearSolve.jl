@@ -248,8 +248,9 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin, adkwargs...))
     else
-        algs = (GeneralKlement(; linsolve, precs),
-            GeneralBroyden(),
+        algs = (GeneralBroyden(),
+            GeneralBroyden(; init_jacobian = Val(:true_jacobian)),
+            GeneralKlement(; linsolve, precs),
             NewtonRaphson(; concrete_jac, linsolve, precs, adkwargs...),
             NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
                 adkwargs...),

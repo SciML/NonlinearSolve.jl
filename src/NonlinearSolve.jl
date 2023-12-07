@@ -81,7 +81,7 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(c
             get_u(cache), p, get_fu(cache), Val(iip))
     end
 
-    hasfield(typeof(cache), :uf) && (cache.uf.p = p)
+    hasfield(typeof(cache), :uf) && cache.uf !== nothing && (cache.uf.p = p)
 
     cache.abstol = abstol
     cache.reltol = reltol
@@ -117,6 +117,7 @@ function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
             push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
         end
     end
+    append!(modifiers, __alg_print_modifiers(alg))
     if __getproperty(alg, Val(:radius_update_scheme)) !== nothing
         push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
     end
@@ -124,6 +125,8 @@ function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     print(io, "$(str))")
     return nothing
 end
+
+__alg_print_modifiers(_) = String[]
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
