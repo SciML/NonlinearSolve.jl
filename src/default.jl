@@ -244,8 +244,10 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
         autodiff = nothing) where {JAC, SA}
     if JAC
         if SA
-            algs = (SimpleNewtonRaphson(; autodiff),
-                SimpleTrustRegion(; autodiff),
+            algs = (SimpleNewtonRaphson(;
+                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
+                SimpleTrustRegion(;
+                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
                 NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
                     autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,
@@ -263,8 +265,10 @@ function FastShortcutNonlinearPolyalg(; concrete_jac = nothing, linsolve = nothi
             algs = (SimpleBroyden(),
                 Broyden(; init_jacobian = Val(:true_jacobian)),
                 SimpleKlement(),
-                SimpleNewtonRaphson(; autodiff),
-                SimpleTrustRegion(; autodiff),
+                SimpleNewtonRaphson(;
+                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
+                SimpleTrustRegion(;
+                    autodiff = ifelse(autodiff === nothing, AutoForwardDiff(), autodiff)),
                 NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
                     autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,

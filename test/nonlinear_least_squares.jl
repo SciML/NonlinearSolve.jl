@@ -89,12 +89,35 @@ function jac!(J, θ, p)
     return J
 end
 
-prob = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
-        resid_prototype = zero(y_target), jac = jac!), θ_init, x)
+jac(θ, p) = ForwardDiff.jacobian(θ -> loss_function(θ, p), θ)
 
-solvers = [FastLevenbergMarquardtJL(:cholesky), FastLevenbergMarquardtJL(:qr)]
+probs = [
+    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
+            resid_prototype = zero(y_target), jac = jac!), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
+            resid_prototype = zero(y_target), jac = jac), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function; jac), θ_init, x),
+]
 
-for solver in solvers
+solvers = [FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
+
+for solver in solvers, prob in probs
+    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+    @test norm(sol.resid) < 1e-6
+end
+
+probs = [
+    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
+            resid_prototype = zero(y_target)), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
+            resid_prototype = zero(y_target)), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x),
+]
+
+solvers = [FastLevenbergMarquardtJL(linsolve; autodiff) for linsolve in (:cholesky, :qr),
+autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())]
+
+for solver in solvers, prob in probs
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test norm(sol.resid) < 1e-6
 end

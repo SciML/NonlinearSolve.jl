@@ -5,12 +5,12 @@ import ConcreteStructs: @concrete
 import LeastSquaresOptim as LSO
 
 function _lso_solver(::LeastSquaresOptimJL{alg, linsolve}) where {alg, linsolve}
-    ls = linsolve == :qr ? LSO.QR() :
-         (linsolve == :cholesky ? LSO.Cholesky() :
-          (linsolve == :lsmr ? LSO.LSMR() : nothing))
-    if alg == :lm
+    ls = linsolve === :qr ? LSO.QR() :
+         (linsolve === :cholesky ? LSO.Cholesky() :
+          (linsolve === :lsmr ? LSO.LSMR() : nothing))
+    if alg === :lm
         return LSO.LevenbergMarquardt(ls)
-    elseif alg == :dogleg
+    elseif alg === :dogleg
         return LSO.Dogleg(ls)
     else
         throw(ArgumentError("Unknown LeastSquaresOptim Algorithm: $alg"))
