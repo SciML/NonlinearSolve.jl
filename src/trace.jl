@@ -184,7 +184,7 @@ function __init_trace_history(::Val{show_trace}, trace_level, ::Val{store_trace}
     !store_trace && !show_trace && return nothing
     entry = __trace_entry(trace_level, 0, u, fu, J, δu)
     show_trace && show(entry)
-    store_trace && return [entry]
+    store_trace && return NonlinearSolveTraceEntry[entry]
     return nothing
 end
 
@@ -218,29 +218,6 @@ function update_trace!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, fu, J, δu
     return trace
 end
 
-# Needed for Algorithms which directly use `inv(J)` instead of `J`
-function update_trace_with_invJ!(trace::NonlinearSolveTrace{ShT, StT}, iter, u, fu, J, δu,
-        α = 1; last::Val{L} = Val(false)) where {ShT, StT, L}
-    !StT && !ShT && return nothing
-
-    if L
-        entry = NonlinearSolveTraceEntry(-1, norm(fu, Inf), NaN32, nothing, nothing,
-            nothing, nothing, nothing)
-        show(entry)
-        return trace
-    end
-
-    show_now = ShT && (mod1(iter, trace.trace_level.print_frequency) == 1)
-    store_now = StT && (mod1(iter, trace.trace_level.store_frequency) == 1)
-    if show_now || store_now
-        J_ = trace.trace_level isa TraceMinimal ? J : inv(J)
-        entry = __trace_entry(trace.trace_level, iter, u, fu, J_, δu, α)
-    end
-    store_now && push!(trace.history, entry)
-    show_now && show(entry)
-    return trace
-end
-
 function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
     trace = __getproperty(cache, Val(:trace))
     trace === nothing && return nothing
@@ -252,8 +229,8 @@ function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
             update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
                 nothing, cache.du, α)
         else
-            update_trace_with_invJ!(trace, cache.stats.nsteps + 1, get_u(cache),
-                get_fu(cache), J_inv, cache.du, α)
+            update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
+                ApplyArray(inv, J_inv), cache.du, α)
         end
     else
         update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
