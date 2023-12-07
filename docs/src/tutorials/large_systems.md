@@ -1,9 +1,11 @@
 # [Efficiently Solving Large Sparse Ill-Conditioned Nonlinear Systems in Julia](@id large_systems)
 
-This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving ill-conditioned nonlinear systems
-requires specializing the linear solver on properties of the Jacobian in order to cut down on the ``\mathcal{O}(n^3)``
-linear solve and the ``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of
-NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential equation (BRUSS) using NonlinearSolve.jl.
+This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving
+ill-conditioned nonlinear systems requires specializing the linear solver on properties of
+the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` linear solve and the
+``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of
+NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential
+equation (BRUSS) using NonlinearSolve.jl.
 
 ## Definition of the Brusselator Equation
 
@@ -47,13 +49,13 @@ u(x,y+1,t) &= u(x,y,t)
 \end{align}
 ```
 
-To solve this PDE, we will discretize it into a system of ODEs with the finite
-difference method. We discretize `u` and `v` into arrays of the values at each
-time point: `u[i,j] = u(i*dx,j*dy)` for some choice of `dx`/`dy`, and same for
-`v`. Then our ODE is defined with `U[i,j,k] = [u v]`. The second derivative
-operator, the Laplacian, discretizes to become a tridiagonal matrix with
-`[1 -2 1]` and a `1` in the top right and bottom left corners. The nonlinear functions
-are then applied at each point in space (they are broadcast). Use `dx=dy=1/32`.
+To solve this PDE, we will discretize it into a system of ODEs with the finite difference
+method. We discretize `u` and `v` into arrays of the values at each time point:
+`u[i,j] = u(i*dx,j*dy)` for some choice of `dx`/`dy`, and same for `v`. Then our ODE is
+defined with `U[i,j,k] = [u v]`. The second derivative operator, the Laplacian, discretizes
+to become a tridiagonal matrix with `[1 -2 1]` and a `1` in the top right and bottom left
+corners. The nonlinear functions are then applied at each point in space (they are
+broadcast). Use `dx=dy=1/32`.
 
 The resulting `NonlinearProblem` definition is:
 
@@ -100,18 +102,17 @@ prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
 
 ## Choosing Jacobian Types
 
-When we are solving this nonlinear problem, the Jacobian must be built at many
-iterations, and this can be one of the most
-expensive steps. There are two pieces that must be optimized in order to reach
-maximal efficiency when solving stiff equations: the sparsity pattern and the
-construction of the Jacobian. The construction is filling the matrix
-`J` with values, while the sparsity pattern is what `J` to use.
+When we are solving this nonlinear problem, the Jacobian must be built at many iterations,
+and this can be one of the most expensive steps. There are two pieces that must be optimized
+in order to reach maximal efficiency when solving stiff equations: the sparsity pattern and
+the construction of the Jacobian. The construction is filling the matrix `J` with values,
+while the sparsity pattern is what `J` to use.
 
-The sparsity pattern is given by a prototype matrix, the `jac_prototype`, which
-will be copied to be used as `J`. The default is for `J` to be a `Matrix`,
-i.e. a dense matrix. However, if you know the sparsity of your problem, then
-you can pass a different matrix type. For example, a `SparseMatrixCSC` will
-give a sparse matrix. Other sparse matrix types include:
+The sparsity pattern is given by a prototype matrix, the `jac_prototype`, which will be
+copied to be used as `J`. The default is for `J` to be a `Matrix`, i.e. a dense matrix.
+However, if you know the sparsity of your problem, then you can pass a different matrix
+type. For example, a `SparseMatrixCSC` will give a sparse matrix. Other sparse matrix types
+include:
 
   - Bidiagonal
   - Tridiagonal
@@ -122,16 +123,15 @@ give a sparse matrix. Other sparse matrix types include:
 ## Declaring a Sparse Jacobian with Automatic Sparsity Detection
 
 Jacobian sparsity is declared by the `jac_prototype` argument in the `NonlinearFunction`.
-Note that you should only do this if the sparsity is high, for example, 0.1%
-of the matrix is non-zeros, otherwise the overhead of sparse matrices can be higher
-than the gains from sparse differentiation!
+Note that you should only do this if the sparsity is high, for example, 0.1% of the matrix
+is non-zeros, otherwise the overhead of sparse matrices can be higher than the gains from
+sparse differentiation!
 
 One of the useful companion tools for NonlinearSolve.jl is
-[Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl).
-This allows for automatic declaration of Jacobian sparsity types. To see this
-in action, we can give an example `du` and `u` and call `jacobian_sparsity`
-on our function with the example arguments, and it will kick out a sparse matrix
-with our pattern, that we can turn into our `jac_prototype`.
+[Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl). This allows for automatic
+declaration of Jacobian sparsity types. To see this in action, we can give an example `du`
+and `u` and call `jacobian_sparsity` on our function with the example arguments, and it will
+kick out a sparse matrix with our pattern, that we can turn into our `jac_prototype`.
 
 ```@example ill_conditioned_nlprob
 using Symbolics
@@ -140,12 +140,11 @@ jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u,
     du0, u0)
 ```
 
-Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and
-would be tedious to build by hand! Now we just pass it to the `NonlinearFunction`
-like as before:
+Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
+tedious to build by hand! Now we just pass it to the `NonlinearFunction` like as before:
 
 ```@example ill_conditioned_nlprob
-ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity))
+ff = NonlinearFunction(brusselator_2d_loop; sparsity = jac_sparsity)
 ```
 
 Build the `NonlinearProblem`:
@@ -170,37 +169,36 @@ or `NewtonRaphson(linsolve = UMFPACKFactorization())`
 
 ## Using Jacobian-Free Newton-Krylov
 
-A completely different way to optimize the linear solvers for large sparse
-matrices is to use a Krylov subspace method. This requires choosing a linear
-solver for changing to a Krylov method. To swap the linear solver out, we use
-the `linsolve` command and choose the GMRES linear solver.
+A completely different way to optimize the linear solvers for large sparse matrices is to
+use a Krylov subspace method. This requires choosing a linear solver for changing to a
+Krylov method. To swap the linear solver out, we use the `linsolve` command and choose the
+GMRES linear solver.
 
 ```@example ill_conditioned_nlprob
 @btime solve(prob_brusselator_2d, NewtonRaphson(linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
 
-Notice that this acceleration does not require the definition of a sparsity
-pattern, and can thus be an easier way to scale for large problems. For more
-information on linear solver choices, see the
+Notice that this acceleration does not require the definition of a sparsity pattern, and can
+thus be an easier way to scale for large problems. For more information on linear solver
+choices, see the
 [linear solver documentation](https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear).
 `linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
 
 !!! note
     
-    Switching to a Krylov linear solver will automatically change the nonlinear problem solver
-    into Jacobian-free mode, dramatically reducing the memory required. This can
-    be overridden by adding `concrete_jac=true` to the algorithm.
+    Switching to a Krylov linear solver will automatically change the nonlinear problem
+    solver into Jacobian-free mode, dramatically reducing the memory required. This can be
+    overridden by adding `concrete_jac=true` to the algorithm.
 
 ## Adding a Preconditioner
 
 Any [LinearSolve.jl-compatible preconditioner](https://docs.sciml.ai/LinearSolve/stable/basics/Preconditioners/)
-can be used as a preconditioner in the linear solver interface. To define
-preconditioners, one must define a `precs` function in compatible with nonlinear
-solvers which returns the left and right preconditioners, matrices which
-approximate the inverse of `W = I - gamma*J` used in the solution of the ODE.
-An example of this with using [IncompleteLU.jl](https://github.com/haampie/IncompleteLU.jl)
-is as follows:
+can be used as a preconditioner in the linear solver interface. To define preconditioners,
+one must define a `precs` function in compatible with nonlinear solvers which returns the
+left and right preconditioners, matrices which approximate the inverse of `W = I - gamma*J`
+used in the solution of the ODE. An example of this with using
+[IncompleteLU.jl](https://github.com/haampie/IncompleteLU.jl) is as follows:
 
 ```@example ill_conditioned_nlprob
 using IncompleteLU
@@ -218,22 +216,21 @@ end
 nothing # hide
 ```
 
-Notice a few things about this preconditioner. This preconditioner uses the
-sparse Jacobian, and thus we set `concrete_jac=true` to tell the algorithm to
-generate the Jacobian (otherwise, a Jacobian-free algorithm is used with GMRES
-by default). Then `newW = true` whenever a new `W` matrix is computed, and
-`newW=nothing` during the startup phase of the solver. Thus, we do a check
-`newW === nothing || newW` and when true, it's only at these points when
-we update the preconditioner, otherwise we just pass on the previous version.
-We use `convert(AbstractMatrix,W)` to get the concrete `W` matrix (matching
-`jac_prototype`, thus `SpraseMatrixCSC`) which we can use in the preconditioner's
-definition. Then we use `IncompleteLU.ilu` on that sparse matrix to generate
-the preconditioner. We return `Pl,nothing` to say that our preconditioner is a
-left preconditioner, and that there is no right preconditioning.
+Notice a few things about this preconditioner. This preconditioner uses the sparse Jacobian,
+and thus we set `concrete_jac = true` to tell the algorithm to generate the Jacobian
+(otherwise, a Jacobian-free algorithm is used with GMRES by default). Then `newW = true`
+whenever a new `W` matrix is computed, and `newW = nothing` during the startup phase of the
+solver. Thus, we do a check `newW === nothing || newW` and when true, it's only at these
+points when we update the preconditioner, otherwise we just pass on the previous version.
+We use `convert(AbstractMatrix,W)` to get the concrete `W` matrix (matching `jac_prototype`,
+thus `SpraseMatrixCSC`) which we can use in the preconditioner's definition. Then we use
+`IncompleteLU.ilu` on that sparse matrix to generate the preconditioner. We return
+`Pl, nothing` to say that our preconditioner is a left preconditioner, and that there is no
+right preconditioning.
 
-This method thus uses both the Krylov solver and the sparse Jacobian. Not only
-that, it is faster than both implementations! IncompleteLU is fussy in that it
-requires a well-tuned `τ` parameter. Another option is to use
+This method thus uses both the Krylov solver and the sparse Jacobian. Not only that, it is
+faster than both implementations! IncompleteLU is fussy in that it requires a well-tuned `τ`
+parameter. Another option is to use
 [AlgebraicMultigrid.jl](https://github.com/JuliaLinearAlgebra/AlgebraicMultigrid.jl)
 which is more automatic. The setup is very similar to before:
 

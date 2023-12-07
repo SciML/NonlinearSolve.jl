@@ -1,13 +1,17 @@
 # [Nonlinear Problems](@id problems)
 
-## The Three Types of Nonlinear Problems
+## The Four Types of Nonlinear Problems
 
-NonlinearSolve.jl tackles three related types of nonlinear systems:
+NonlinearSolve.jl tackles four related types of nonlinear systems:
 
- 1. Interval rootfinding problems. I.e., find the ``t \in [t_0, t_f]`` such that ``f(t) = 0``.
+ 1. Interval rootfinding problems. I.e., find the ``t \in [t_0, t_f]`` such that
+    ``f(t) = 0``.
  2. Systems of nonlinear equations, i.e., find the ``u`` such that ``f(u) = 0``.
  3. Steady state problems, i.e., find the ``u`` such that ``u' = f(u,t)`` has reached steady state,
     i.e., ``0 = f(u, ∞)``.
+ 4. The nonlinear least squares problem, which is an under/over-constrained nonlinear system
+    which might not be satisfiable, i.e. there may be no `u` such that `f(u) = 0`, and thus
+    we find the `u` which minimizes `||f(u)||` in the least squares sense.
 
 The first is for solving scalar rootfinding problems, i.e., finding a single number, and
 requires that a bracketing interval is known. For a bracketing interval, one must have that
@@ -16,9 +20,9 @@ interval.
 
 !!! note
     
-    Interval rootfinding problems allow for `f` to return an array, in which case the interval
-    rootfinding problem is interpreted as finding the first `t` such that any of the components
-    of the array hit zero.
+    Interval rootfinding problems allow for `f` to return an array, in which case the
+    interval rootfinding problem is interpreted as finding the first `t` such that any of
+    the components of the array hit zero.
 
 The second type of nonlinear system can be multidimensional, and thus no ordering nor
 boundaries are assumed to be known. For a system of nonlinear equations, `f` can return
@@ -43,4 +47,5 @@ ODE `u' = f(u,t)`.
 SciMLBase.IntervalNonlinearProblem
 SciMLBase.NonlinearProblem
 SciMLBase.SteadyStateProblem
+SciMLBase.NonlinearLeastSquaresProblem
 ```
