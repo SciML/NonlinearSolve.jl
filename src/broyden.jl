@@ -36,9 +36,6 @@ An implementation of `Broyden` with resetting and line search.
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
         problem.
-      + `Val(:exciting_mixing)`: Update the diagonal of the Jacobian. This is based off
-        SciPy's implementation of Broyden's method. This algorithm may be useful for
-        specific problems, but whether it will work may depend strongly on the problem.
 """
 @concrete struct GeneralBroyden{IJ, UR, CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -65,7 +62,7 @@ function GeneralBroyden(; max_resets = 100, linesearch = nothing, reset_toleranc
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
         update_rule = Val(:good_broyden))
     UR = _unwrap_val(update_rule)
-    @assert UR ∈ (:good_broyden, :bad_broyden, :diagonal, :exciting_mixing)
+    @assert UR ∈ (:good_broyden, :bad_broyden, :diagonal)
     IJ = _unwrap_val(init_jacobian)
     @assert IJ ∈ (:identity, :true_jacobian)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
@@ -167,7 +164,12 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
     T = eltype(cache.u)
 
     if IJ === :true_jacobian && cache.stats.nsteps == 0
-        cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache)) # This allocates
+        if __isdiag(cache.J⁻¹) && cache.J⁻¹_cache !== nothing
+            cache.J⁻¹_cache = __safe_inv(jacobian!!(cache.J⁻¹_cache, cache))
+            cache.J⁻¹ = __get_diagonal!!(cache.J⁻¹, cache.J⁻¹_cache)
+        else
+            cache.J⁻¹ = __safe_inv(jacobian!!(cache.J⁻¹, cache))
+        end
     end
 
     if __isdiag(cache.J⁻¹)
@@ -195,7 +197,7 @@ function perform_step!(cache::GeneralBroydenCache{iip, IJ, UR}) where {iip, IJ, 
             return nothing
         end
         if IJ === :true_jacobian
-            if __isdiag(cache.J⁻¹)
+            if __isdiag(cache.J⁻¹) && cache.J⁻¹_cache !== nothing
                 cache.J⁻¹_cache = __safe_inv(jacobian!!(cache.J⁻¹_cache, cache))
                 cache.J⁻¹ = __get_diagonal!!(cache.J⁻¹, cache.J⁻¹_cache)
             else
