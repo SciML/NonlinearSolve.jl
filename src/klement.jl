@@ -174,9 +174,9 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
             cache.J_cache = jacobian!!(cache.J_cache, cache)
             cache.J = __get_diagonal!!(cache.J, cache.J_cache)
         end
-        ill_conditioned = __is_ill_conditioned(cache.J)
+        ill_conditioned = __is_ill_conditioned(_vec(cache.J))
     elseif IJ === :identity
-        ill_conditioned = __is_ill_conditioned(cache.J)
+        ill_conditioned = __is_ill_conditioned(_vec(cache.J))
     end
 
     if ill_conditioned
@@ -228,7 +228,7 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
         @bb @. cache.J += ((cache.fu - cache.fu_cache_2 - cache.J * cache.du) /
                            ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * cache.du *
                           (cache.J^2)
-    else
+    elseif IJ === :true_jacobian
         # Klement Updates to the Full Jacobian don't work for most problems, we should
         # probably be using the Broyden Update Rule here
         @bb @. cache.J_cache = cache.J'^2
@@ -241,6 +241,8 @@ function perform_step!(cache::GeneralKlementCache{iip, IJ}) where {iip, IJ}
         @bb @. cache.J_cache *= cache.J
         @bb cache.J_cache_2 = cache.J_cache × cache.J
         @bb cache.J .+= cache.J_cache_2
+    else
+        error("Invalid `init_jacobian` value")
     end
 
     @bb copyto!(cache.fu_cache_2, cache.fu)

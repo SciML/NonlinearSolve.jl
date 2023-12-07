@@ -551,6 +551,9 @@ end
     end
     return J
 end
+@inline function __get_diagonal!!(J::AbstractArray, J_full::AbstractMatrix)
+    return _restructure(J, __get_diagonal!!(_vec(J), J_full))
+end
 @inline __get_diagonal!!(J::Number, J_full::Number) = J_full
 
 @inline __diag(x::AbstractMatrix) = diag(x)
