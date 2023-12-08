@@ -1,14 +1,14 @@
 # Release Notes
 
-## Breaking Changes in NonlinearSolve.jl v3
+## Breaking Changes in `NonlinearSolve.jl` v3
 
- 1. `GeneralBroyden` and `GeneralKlement` have been renamed to `Broyden` and `Klement`
+  - `GeneralBroyden` and `GeneralKlement` have been renamed to `Broyden` and `Klement`
     respectively.
- 2. Compat for `SimpleNonlinearSolve` has been bumped to `v1`.
- 3. The old style of specifying autodiff with `chunksize`, `standardtag`, etc. has been
+  - Compat for `SimpleNonlinearSolve` has been bumped to `v1`.
+  - The old style of specifying autodiff with `chunksize`, `standardtag`, etc. has been
     deprecated in favor of directly specifying the autodiff type, like `AutoForwardDiff`.
 
-## Breaking Changes in SimpleNonlinearSolve.jl v1
+## Breaking Changes in `SimpleNonlinearSolve.jl` v1
 
   - Batched solvers have been removed in favor of `BatchedArrays.jl`. Stay tuned for detailed
     tutorials on how to use `BatchedArrays.jl` with `NonlinearSolve` & `SimpleNonlinearSolve`

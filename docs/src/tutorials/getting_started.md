@@ -201,6 +201,6 @@ see. Next check out:
   - [An iterator interface which lets you step through the solving process step by step](@ref iterator)
   - [How to handle large systems of equations efficiently](@ref large_systems)
   - [Ways to use NonlinearSolve.jl that is faster to startup and can statically compile](@ref fast_startup)
-  - [More detailed termination conditions](@ref termination_conditions_tutorial)
+  - [More detailed termination conditions](@ref termination_condition)
 
 And also check out the rest of the manual.

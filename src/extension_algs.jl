@@ -159,7 +159,8 @@ end
     are line search types from
     [LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl).
   - `linsolve`: a function `linsolve(x, A, b)` that solves `Ax = b`.
-  - `factor``: determines the size of the initial trust region. This size is set to the product of factor and the euclidean norm of `u0` if nonzero, or else to factor itself.
+  - `factor`: determines the size of the initial trust region. This size is set to the
+    product of factor and the euclidean norm of `u0` if nonzero, or else to factor itself.
   - `autoscale`: if true, then the variables will be automatically rescaled. The scaling
     factors are the norms of the Jacobian columns.
   - `m`: the amount of history in the Anderson method. Naive "Picard"-style iteration can be

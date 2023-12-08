@@ -14,7 +14,7 @@ An implementation of `Broyden` with resetting and line search.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`. It is
-    recommended to use [LiFukushimaLineSearch](@ref) -- a derivative free linesearch
+    recommended to use [`LiFukushimaLineSearch`](@ref) -- a derivative free linesearch
     specifically designed for Broyden's method.
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
     inverse is set to be `(αI)⁻¹`. Defaults to `nothing` which implies

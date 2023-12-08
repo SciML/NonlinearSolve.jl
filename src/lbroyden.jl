@@ -14,7 +14,7 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`. It is
-    recommended to use [LiFukushimaLineSearchCache](@ref) -- a derivative free linesearch
+    recommended to use [`LiFukushimaLineSearchCache`](@ref) -- a derivative free linesearch
     specifically designed for Broyden's method.
 """
 @concrete struct LimitedMemoryBroyden{threshold} <: AbstractNewtonAlgorithm{false, Nothing}
