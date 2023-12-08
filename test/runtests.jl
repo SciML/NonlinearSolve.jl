@@ -13,19 +13,28 @@ end
 
 @time begin
     if GROUP == "All" || GROUP == "Core"
-        @time @safetestset "Quality Assurance" include("qa.jl")
         @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
-        @time @safetestset "Sparsity Tests" include("sparse.jl")
-        @time @safetestset "Polyalgs" include("polyalgs.jl")
-        @time @safetestset "Matrix Resizing" include("matrix_resizing.jl")
-        @time @safetestset "Infeasible Problems" include("infeasible.jl")
+    end
+
+    if GROUP == "All" || GROUP == "NLLS"
         @time @safetestset "Nonlinear Least Squares" include("nonlinear_least_squares.jl")
+    end
+
+    if GROUP == "All" || GROUP == "Wrappers"
         @time @safetestset "MINPACK" include("minpack.jl")
         @time @safetestset "NLsolve" include("nlsolve.jl")
     end
 
     if GROUP == "All" || GROUP == "23TestProblems"
         @time @safetestset "23 Test Problems" include("23_test_problems.jl")
+    end
+
+    if GROUP == "All" || GROUP == "Miscellaneous"
+        @time @safetestset "Quality Assurance" include("qa.jl")
+        @time @safetestset "Sparsity Tests" include("sparse.jl")
+        @time @safetestset "Polyalgs" include("polyalgs.jl")
+        @time @safetestset "Matrix Resizing" include("matrix_resizing.jl")
+        @time @safetestset "Infeasible Problems" include("infeasible.jl")
     end
 
     if GROUP == "GPU"

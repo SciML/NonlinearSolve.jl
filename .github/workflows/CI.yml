@@ -22,7 +22,11 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - All
+          - Core
+          - NLLS
+          - 23TestProblems
+          - Wrappers
+          - Miscellaneous
         version:
           - '1'
           - '~1.10.0-0'

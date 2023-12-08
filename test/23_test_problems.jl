@@ -98,9 +98,9 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 5, 6, 11]
     broken_tests[alg_ops[2]] = [1, 5, 6, 8, 11, 18]
-    broken_tests[alg_ops[3]] = [1, 4, 5, 6, 9, 11]
+    broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
     broken_tests[alg_ops[4]] = [1, 5, 6, 8, 11]
-    broken_tests[alg_ops[5]] = [1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 15, 21]
+    broken_tests[alg_ops[5]] = [1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 21]
     broken_tests[alg_ops[6]] = [2, 3, 4, 5, 6, 8, 9, 11, 12, 21, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
@@ -112,7 +112,7 @@ end
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 22]
-    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 17, 21, 22, 23]
+    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 17, 21, 22]
     broken_tests[alg_ops[3]] = [2, 4, 5, 6, 7, 18, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
