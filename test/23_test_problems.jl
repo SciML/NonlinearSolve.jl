@@ -12,8 +12,7 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg; maxiters = 10000,
-                        termination_condition = AbsNormTerminationMode())
+                    sol = solve(nlprob, alg; maxiters = 10000)
                     problem(res, sol.u, nothing)
 
                     skip = skip_tests !== nothing && idx in skip_tests[alg]
@@ -101,18 +100,10 @@ end
     broken_tests[alg_ops[2]] = [1, 5, 6, 8, 11, 18]
     broken_tests[alg_ops[3]] = [1, 4, 5, 6, 9, 11]
     broken_tests[alg_ops[4]] = [1, 5, 6, 8, 11]
-    broken_tests[alg_ops[5]] = [1, 3, 4, 5, 6, 8, 9, 11, 12, 15, 21]
-    broken_tests[alg_ops[6]] = [3, 4, 5, 6, 8, 9, 11, 12, 21]
+    broken_tests[alg_ops[5]] = [1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 15, 21]
+    broken_tests[alg_ops[6]] = [2, 3, 4, 5, 6, 8, 9, 11, 12, 21, 22]
 
-    skip_tests = Dict(alg => Int[] for alg in alg_ops)
-    skip_tests[alg_ops[1]] = [2, 22]
-    skip_tests[alg_ops[2]] = [2, 22]
-    skip_tests[alg_ops[3]] = [2, 22]
-    skip_tests[alg_ops[4]] = [2, 22]
-    skip_tests[alg_ops[5]] = [2, 22]
-    skip_tests[alg_ops[6]] = [2, 22]
-
-    test_on_library(problems, dicts, alg_ops, broken_tests; skip_tests)
+    test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
 @testset "Klement 23 Test Problems" begin
