@@ -4,7 +4,9 @@ using NonlinearSolve, NLsolve, DiffEqBase, SciMLBase
 import UnPack: @unpack
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...; abstol = 1e-6,
-        maxiters = 1000, alias_u0::Bool = false, kwargs...)
+        maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing, kwargs...)
+    @assert termination_condition===nothing "NLsolveJL does not support termination conditions!"
+
     if typeof(prob.u0) <: Number
         u0 = [prob.u0]
     else
