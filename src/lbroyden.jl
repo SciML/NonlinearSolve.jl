@@ -14,7 +14,7 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
   - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
     which means that no line search is performed. Algorithms from `LineSearches.jl` can be
     used here directly, and they will be converted to the correct `LineSearch`. It is
-    recommended to use [LiFukushimaLineSearchCache](@ref) -- a derivative free linesearch
+    recommended to use [`LiFukushimaLineSearchCache`](@ref) -- a derivative free linesearch
     specifically designed for Broyden's method.
 """
 @concrete struct LimitedMemoryBroyden{threshold} <: AbstractNewtonAlgorithm{false, Nothing}
@@ -76,7 +76,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg::LimitedMemory
     if u0 isa Number || length(u0) ≤ η
         # If u is a number or very small problem then we simply use Broyden
         return SciMLBase.__init(prob,
-            GeneralBroyden(; alg.max_resets, alg.reset_tolerance, alg.linesearch), args...;
+            Broyden(; alg.max_resets, alg.reset_tolerance, alg.linesearch), args...;
             alias_u0, maxiters, abstol, internalnorm, kwargs...)
     end
     u = __maybe_unaliased(u0, alias_u0)

@@ -4,7 +4,7 @@ f(u, p) = u .* u .- 2
 u0 = [1.0, 1.0]
 probN = NonlinearProblem{false}(f, u0)
 
-custom_polyalg = NonlinearSolvePolyAlgorithm((GeneralBroyden(), LimitedMemoryBroyden()))
+custom_polyalg = NonlinearSolvePolyAlgorithm((Broyden(), LimitedMemoryBroyden()))
 
 # Uses the `__solve` function
 @time solver = solve(probN; abstol = 1e-9)

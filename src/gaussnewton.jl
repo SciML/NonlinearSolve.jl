@@ -47,10 +47,9 @@ function set_ad(alg::GaussNewton{CJ}, ad) where {CJ}
 end
 
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-        linesearch = nothing, vjp_autodiff = nothing, adkwargs...)
-    ad = default_adargs_to_adtype(; adkwargs...)
+        linesearch = nothing, vjp_autodiff = nothing, autodiff = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return GaussNewton{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch,
+    return GaussNewton{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs, linesearch,
         vjp_autodiff)
 end
 

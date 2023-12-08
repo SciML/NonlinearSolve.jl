@@ -26,45 +26,6 @@ function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}
 end
 
 """
-    default_adargs_to_adtype(; chunk_size = Val{0}(), autodiff = Val{true}(),
-        standardtag = Val{true}(), diff_type = Val{:forward})
-
-Construct the AD type from the arguments. This is mostly needed for compatibility with older
-code.
-
-!!! warning
-
-    `chunk_size`, `standardtag`, `diff_type`, and `autodiff::Union{Val, Bool}` are
-    deprecated and will be removed in v3. Update your code to directly specify
-    `autodiff=<ADTypes>`.
-"""
-function default_adargs_to_adtype(; chunk_size = missing, autodiff = nothing,
-        standardtag = missing, diff_type = missing)
-    # If using the new API short circuit
-    autodiff === nothing && return nothing
-    autodiff isa ADTypes.AbstractADType && return autodiff
-
-    # Deprecate the old version
-    if chunk_size !== missing || standardtag !== missing || diff_type !== missing ||
-       autodiff !== missing
-        Base.depwarn("`chunk_size`, `standardtag`, `diff_type`, \
-            `autodiff::Union{Val, Bool}` kwargs have been deprecated and will be removed \
-             in v3. Update your code to directly specify autodiff=<ADTypes>",
-            :default_adargs_to_adtype)
-    end
-    chunk_size === missing && (chunk_size = Val{0}())
-    standardtag === missing && (standardtag = Val{true}())
-    diff_type === missing && (diff_type = Val{:forward}())
-    autodiff === missing && (autodiff = Val{true}())
-
-    ad = _unwrap_val(autodiff)
-    # We don't really know the typeof the input yet, so we can't use the correct tag!
-    ad &&
-        return AutoForwardDiff{_unwrap_val(chunk_size), NonlinearSolveTag}(NonlinearSolveTag())
-    return AutoFiniteDiff(; fdtype = diff_type)
-end
-
-"""
     value_derivative(f, x)
 
 Compute `f(x), d/dx f(x)` in the most efficient way.

@@ -6,7 +6,8 @@ These methods can be used independently of the rest of NonlinearSolve.jl
 
 ### Interval Methods
 
-These methods are suited for interval (scalar) root-finding problems, i.e. `IntervalNonlinearProblem`.
+These methods are suited for interval (scalar) root-finding problems,
+i.e. `IntervalNonlinearProblem`.
 
 ```@docs
 ITP
@@ -18,14 +19,15 @@ Brent
 
 ### General Methods
 
-These methods are suited for any general nonlinear root-finding problem , i.e. `NonlinearProblem`.
+These methods are suited for any general nonlinear root-finding problem, i.e.
+`NonlinearProblem`.
 
 ```@docs
 SimpleNewtonRaphson
-Broyden
+SimpleBroyden
 SimpleHalley
-Klement
+SimpleKlement
 SimpleTrustRegion
 SimpleDFSane
-LBroyden
+SimpleLimitedMemoryBroyden
 ```

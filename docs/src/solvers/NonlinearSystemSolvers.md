@@ -7,31 +7,27 @@ Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 
 ## Recommended Methods
 
-The default method `FastShortcutNonlinearPolyalg` is a good choice for most
-problems. It is a polyalgorithm that attempts to use a fast algorithm
-(Klement, Broyden) and if that fails it falls back to a more robust
-algorithm (`NewtonRaphson`) before falling back the most robust variant of
-`TrustRegion`. For basic problems this will be very fast, for harder problems
-it will make sure to work.
+The default method `FastShortcutNonlinearPolyalg` is a good choice for most problems. It is
+a polyalgorithm that attempts to use a fast algorithm (Klement, Broyden) and if that fails
+it falls back to a more robust algorithm (`NewtonRaphson`) before falling back the most
+robust variant of `TrustRegion`. For basic problems this will be very fast, for harder
+problems it will make sure to work.
 
-If one is looking for more robustness then `RobustMultiNewton` is a good choice.
-It attempts a set of the most robust methods in succession and only fails if
-all of the methods fail to converge. Additionally, `DynamicSS` can be a good choice
-for high stability.
+If one is looking for more robustness then `RobustMultiNewton` is a good choice. It attempts
+a set of the most robust methods in succession and only fails if all of the methods fail to
+converge. Additionally, `DynamicSS` can be a good choice for high stability.
 
-As a balance, `NewtonRaphson` is a good choice for most problems that aren't too
-difficult yet need high performance, and  `TrustRegion` is a bit less performant
-but more stable. If the problem is well-conditioned, `Klement` or `Broyden`
-may be faster, but highly dependent on the eigenvalues of the Jacobian being
-sufficiently small.
+As a balance, `NewtonRaphson` is a good choice for most problems that aren't too difficult
+yet need high performance, and  `TrustRegion` is a bit less performant but more stable. If
+the problem is well-conditioned, `Klement` or `Broyden` may be faster, but highly dependent
+on the eigenvalues of the Jacobian being sufficiently small.
 
-`NewtonRaphson` and `TrustRegion` are designed for for large systems.
-They can make use of sparsity patterns for sparse automatic differentiation
-and sparse linear solving of very large systems. Meanwhile,
-`SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations which is specialized for
-small equations. They are non-allocating on static arrays and thus really well-optimized
-for small systems, thus usually outperforming the other methods when such types are
-used for `u0`.
+`NewtonRaphson` and `TrustRegion` are designed for for large systems. They can make use of
+sparsity patterns for sparse automatic differentiation and sparse linear solving of very
+large systems. Meanwhile, `SimpleNewtonRaphson` and `SimpleTrustRegion` are implementations
+which are specialized for small equations. They are non-allocating on static arrays and thus
+really well-optimized for small systems, thus usually outperforming the other methods when
+such types are used for `u0`.
 
 ## Full List of Methods
 
@@ -65,16 +61,16 @@ features, but have a bit of overhead on very small problems.
   - `FastShortcutNonlinearPolyalg()`: The default method. A polyalgorithm that mixes fast methods
     with fallbacks to robust methods to allow for solving easy problems quickly without sacrificing
     robustness on the hard problems.
-  - `GeneralBroyden()`: Generalization of Broyden's Quasi-Newton Method with Line Search and
+  - `Broyden()`: Generalization of Broyden's Quasi-Newton Method with Line Search and
     Automatic Jacobian Resetting. This is a fast method but unstable when the condition number of
     the Jacobian matrix is sufficiently large.
-  - `GeneralKlement()`: Generalization of Klement's Quasi-Newton Method with Line Search and
+  - `Klement()`: Generalization of Klement's Quasi-Newton Method with Line Search and
     Automatic Jacobian Resetting. This is a fast method but unstable when the condition number of
     the Jacobian matrix is sufficiently large.
   - `LimitedMemoryBroyden()`: An advanced version of `LBroyden` which uses a limited memory
     Broyden method. This is a fast method but unstable when the condition number of
-    the Jacobian matrix is sufficiently large. It is recommended to use `GeneralBroyden` or
-    `GeneralKlement` instead unless the memory usage is a concern.
+    the Jacobian matrix is sufficiently large. It is recommended to use `Broyden` or
+    `Klement` instead unless the memory usage is a concern.
 
 ### SimpleNonlinearSolve.jl
 
@@ -83,11 +79,11 @@ can be used directly to reduce dependencies and improve load times. SimpleNonlin
 methods excel at small problems and problems defined with static arrays.
 
   - `SimpleNewtonRaphson()`: A simplified implementation of the Newton-Raphson method.
-  - `Broyden()`: The classic Broyden's quasi-Newton method.
-  - `LBroyden()`: A low-memory Broyden implementation, similar to L-BFGS. This method is
+  - `SimpleBroyden()`: The classic Broyden's quasi-Newton method.
+  - `SimpleLimitedMemoryBroyden()`: A low-memory Broyden implementation, similar to L-BFGS. This method is
     common in machine learning contexts but is known to be unstable in comparison to many
     other choices.
-  - `Klement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
+  - `SimpleKlement()`: A quasi-Newton method due to Klement. It's supposed to be more efficient
     than Broyden's method, and it seems to be in the cases that have been tried, but more
     benchmarking is required.
   - `SimpleTrustRegion()`: A dogleg trust-region Newton method. Improved globalizing stability
@@ -110,14 +106,15 @@ SteadyStateDiffEq.jl uses ODE solvers to iteratively approach the steady state. 
 very stable method for solving nonlinear systems, though often more
 computationally expensive than direct methods.
 
-  - `DynamicSS()` : Uses an ODE solver to find the steady state. Automatically
-    terminates when close to the steady state.
+  - `DynamicSS()`: Uses an ODE solver to find the steady state. Automatically terminates when
+    close to the steady state.
+  - `SSRootfind()`: Uses a NonlinearSolve compatible solver to find the steady state.
 
-### SciMLNLSolve.jl
+### NLsolve.jl
 
 This is a wrapper package for importing solvers from NLsolve.jl into the SciML interface.
 
-  - `NLSolveJL()`: A wrapper for [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl)
+  - `NLsolveJL()`: A wrapper for [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl)
 
 Submethod choices for this algorithm include:
 

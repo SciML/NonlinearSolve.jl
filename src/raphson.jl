@@ -42,10 +42,9 @@ function set_ad(alg::NewtonRaphson{CJ}, ad) where {CJ}
 end
 
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
-        precs = DEFAULT_PRECS, adkwargs...)
-    ad = default_adargs_to_adtype(; adkwargs...)
+        precs = DEFAULT_PRECS, autodiff = nothing)
     linesearch = linesearch isa LineSearch ? linesearch : LineSearch(; method = linesearch)
-    return NewtonRaphson{_unwrap_val(concrete_jac)}(ad, linsolve, precs, linesearch)
+    return NewtonRaphson{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs, linesearch)
 end
 
 @concrete mutable struct NewtonRaphsonCache{iip} <: AbstractNonlinearSolveCache{iip}

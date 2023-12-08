@@ -3,11 +3,12 @@ module NonlinearSolveFastLevenbergMarquardtExt
 using ArrayInterface, NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import FastLevenbergMarquardt as FastLM
+import FiniteDiff, ForwardDiff
 
 function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
-    if linsolve == :cholesky
+    if linsolve === :cholesky
         return FastLM.CholeskySolver(ArrayInterface.undefmatrix(x))
-    elseif linsolve == :qr
+    elseif linsolve === :qr
         return FastLM.QRSolver(eltype(x), length(x))
     else
         throw(ArgumentError("Unknown FastLevenbergMarquardt Linear Solver: $linsolve"))
@@ -33,23 +34,65 @@ end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
         alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = 1e-8,
-        reltol = 1e-8, verbose = false, maxiters = 1000, kwargs...)
+        reltol = 1e-8, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
-    u0 = alias_u0 ? prob.u0 : deepcopy(prob.u0)
-
-    @assert prob.f.jac!==nothing "FastLevenbergMarquardt requires a Jacobian!"
+    u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
+    fu = NonlinearSolve.evaluate_f(prob, u)
 
     f! = InplaceFunction{iip}(prob.f)
-    J! = InplaceFunction{iip}(prob.f.jac)
 
-    resid_prototype = prob.f.resid_prototype === nothing ?
-                      (!iip ? prob.f(u0, prob.p) : zeros(u0)) :
-                      prob.f.resid_prototype
+    if prob.f.jac === nothing
+        use_forward_diff = if alg.autodiff === nothing
+            ForwardDiff.can_dual(eltype(u))
+        else
+            alg.autodiff isa AutoForwardDiff
+        end
+        uf = SciMLBase.JacobianWrapper{iip}(prob.f, prob.p)
+        if use_forward_diff
+            cache = iip ? ForwardDiff.JacobianConfig(uf, fu, u) :
+                    ForwardDiff.JacobianConfig(uf, u)
+        else
+            cache = FiniteDiff.JacobianCache(u, fu)
+        end
+        J! = if iip
+            if use_forward_diff
+                fu_cache = similar(fu)
+                function (J, x, p)
+                    uf.p = p
+                    ForwardDiff.jacobian!(J, uf, fu_cache, x, cache)
+                    return J
+                end
+            else
+                function (J, x, p)
+                    uf.p = p
+                    FiniteDiff.finite_difference_jacobian!(J, uf, x, cache)
+                    return J
+                end
+            end
+        else
+            if use_forward_diff
+                function (J, x, p)
+                    uf.p = p
+                    ForwardDiff.jacobian!(J, uf, x, cache)
+                    return J
+                end
+            else
+                function (J, x, p)
+                    uf.p = p
+                    J_ = FiniteDiff.finite_difference_jacobian(uf, x, cache)
+                    copyto!(J, J_)
+                    return J
+                end
+            end
+        end
+    else
+        J! = InplaceFunction{iip}(prob.f.jac)
+    end
 
-    J = similar(u0, length(resid_prototype), length(u0))
+    J = similar(u, length(fu), length(u))
 
-    solver = _fast_lm_solver(alg, u0)
-    LM = FastLM.LMWorkspace(u0, resid_prototype, J)
+    solver = _fast_lm_solver(alg, u)
+    LM = FastLM.LMWorkspace(u, fu, J)
 
     return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
         (; xtol = abstol, ftol = reltol, maxit = maxiters, alg.factor, alg.factoraccept,

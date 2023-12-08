@@ -1,6 +1,6 @@
 using NonlinearSolve,
     LinearSolve, LinearAlgebra, Test, StableRNGs, Random, ForwardDiff, Zygote
-import FastLevenbergMarquardt, LeastSquaresOptim
+import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -89,12 +89,38 @@ function jac!(J, θ, p)
     return J
 end
 
-prob = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
-        resid_prototype = zero(y_target), jac = jac!), θ_init, x)
+jac(θ, p) = ForwardDiff.jacobian(θ -> loss_function(θ, p), θ)
 
-solvers = [FastLevenbergMarquardtJL(:cholesky), FastLevenbergMarquardtJL(:qr)]
+probs = [
+    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
+            resid_prototype = zero(y_target), jac = jac!), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
+            resid_prototype = zero(y_target), jac = jac), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function; jac), θ_init, x),
+]
 
-for solver in solvers
+solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
+push!(solvers, CMINPACK())
+
+for solver in solvers, prob in probs
+    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+    @test norm(sol.resid) < 1e-6
+end
+
+probs = [
+    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
+            resid_prototype = zero(y_target)), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
+            resid_prototype = zero(y_target)), θ_init, x),
+    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x),
+]
+
+solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)
+                  for linsolve in (:cholesky, :qr),
+autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
+append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
+
+for solver in solvers, prob in probs
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test norm(sol.resid) < 1e-6
 end

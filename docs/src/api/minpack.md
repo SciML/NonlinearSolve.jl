@@ -1,16 +1,14 @@
 # MINPACK.jl
 
-This is a wrapper package for importing solvers from Sundials into the SciML interface.
-Note that these solvers do not come by default, and thus one needs to install
-the package before using these solvers:
+This is a extension for importing solvers from MINPACK into the SciML interface. Note that
+these solvers do not come by default, and thus one needs to install the package before using
+these solvers:
 
 ```julia
 using Pkg
-Pkg.add("NonlinearSolveMINPACK")
-using NonlinearSolveMINPACK
+Pkg.add("MINPACK")
+using MINPACK, NonlinearSolve
 ```
-
-These methods can be used independently of the rest of NonlinearSolve.jl
 
 ## Solver API
 

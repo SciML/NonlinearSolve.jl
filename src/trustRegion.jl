@@ -194,11 +194,11 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
         expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
         expand_factor::Real = 2 // 1, max_shrink_times::Int = 32, vjp_autodiff = nothing,
-        adkwargs...)
-    ad = default_adargs_to_adtype(; adkwargs...)
-    return TrustRegion{_unwrap_val(concrete_jac)}(ad, linsolve, precs, radius_update_scheme,
-        max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, max_shrink_times, vjp_autodiff)
+        autodiff = nothing)
+    return TrustRegion{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
+        radius_update_scheme, max_trust_radius, initial_trust_radius, step_threshold,
+        shrink_threshold, expand_threshold, shrink_factor, expand_factor, max_shrink_times,
+        vjp_autodiff)
 end
 
 @concrete mutable struct TrustRegionCache{iip} <: AbstractNonlinearSolveCache{iip}

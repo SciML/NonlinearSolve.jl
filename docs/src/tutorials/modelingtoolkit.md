@@ -1,9 +1,9 @@
 # [Symbolic Nonlinear System Definition and Acceleration via ModelingToolkit](@id modelingtoolkit)
 
-[ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) is a symbolic-numeric modeling system
-for the Julia SciML ecosystem. It adds a high-level interactive interface for the numerical solvers
-which can make it easy to symbolically modify and generate equations to be solved. The basic form of
-using ModelingToolkit looks as follows:
+[ModelingToolkit.jl](https://docs.sciml.ai/ModelingToolkit/dev/) is a symbolic-numeric
+modeling system for the Julia SciML ecosystem. It adds a high-level interactive interface
+for the numerical solvers which can make it easy to symbolically modify and generate
+equations to be solved. The basic form of using ModelingToolkit looks as follows:
 
 ```@example mtk
 using ModelingToolkit, NonlinearSolve
@@ -31,8 +31,8 @@ sol = solve(prob, NewtonRaphson())
 
 ## Symbolic Derivations of Extra Functions
 
-As a symbolic system, ModelingToolkit can be used to represent the equations and derive new forms. For example,
-let's look at the equations:
+As a symbolic system, ModelingToolkit can be used to represent the equations and derive new
+forms. For example, let's look at the equations:
 
 ```@example mtk
 equations(ns)
@@ -44,8 +44,8 @@ We can ask it what the Jacobian of our system is via `calculate_jacobian`:
 calculate_jacobian(ns)
 ```
 
-We can tell MTK to generate a computable form of this analytical Jacobian via `jac = true` to help the solver
-use efficient forms:
+We can tell MTK to generate a computable form of this analytical Jacobian via `jac = true`
+to help the solver use efficient forms:
 
 ```@example mtk
 prob = NonlinearProblem(ns, u0, ps, jac = true)
@@ -54,9 +54,9 @@ sol = solve(prob, NewtonRaphson())
 
 ## Symbolic Simplification of Nonlinear Systems via Tearing
 
-One of the major reasons for using ModelingToolkit is to allow structural simplification of the systems. It's very
-easy to write down a mathematical model that, in theory, could be solved more simply. Let's take a look at a quick
-system:
+One of the major reasons for using ModelingToolkit is to allow structural simplification of
+the systems. It's very easy to write down a mathematical model that, in theory, could be
+solved more simply. Let's take a look at a quick system:
 
 ```@example mtk
 @variables u1 u2 u3 u4 u5
@@ -118,6 +118,7 @@ sol[u5]
 
 ## Component-Based and Acausal Modeling
 
-If you're interested in building models in a component or block based form, such as seen in systems like Simulink or Modelica,
-take a deeper look at [ModelingToolkit.jl's documentation](https://docs.sciml.ai/ModelingToolkit/stable/) which goes into
-detail on such features.
+If you're interested in building models in a component or block based form, such as seen in
+systems like Simulink or Modelica, take a deeper look at
+[ModelingToolkit.jl's documentation](https://docs.sciml.ai/ModelingToolkit/stable/) which
+goes into detail on such features.

@@ -7,7 +7,7 @@ vecprob = NonlinearProblem(ff, vec(u0), p)
 prob = NonlinearProblem(ff, u0, p)
 
 for alg in (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
-    RobustMultiNewton(), FastShortcutNonlinearPolyalg(), GeneralBroyden(), GeneralKlement(),
+    RobustMultiNewton(), FastShortcutNonlinearPolyalg(), Broyden(), Klement(),
     LimitedMemoryBroyden(; threshold = 2))
     @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
 end
@@ -19,7 +19,7 @@ vecprob = NonlinearProblem(fiip, vec(u0), p)
 prob = NonlinearProblem(fiip, u0, p)
 
 for alg in (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
-    RobustMultiNewton(), FastShortcutNonlinearPolyalg(), GeneralBroyden(), GeneralKlement(),
+    RobustMultiNewton(), FastShortcutNonlinearPolyalg(), Broyden(), Klement(),
     LimitedMemoryBroyden(; threshold = 2))
     @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
 end
