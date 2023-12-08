@@ -247,13 +247,14 @@ end
     p3
     p4
     ϵ
-    jvp_operator  # For Yuan
+    vjp_operator  # For Yuan
     stats::NLStats
     tc_cache
     trace
 end
 
-function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion, args...;
+function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
+            NonlinearLeastSquaresProblem{uType, iip}}, alg_::TrustRegion, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm = DEFAULT_NORM,
         linsolve_kwargs = (;), kwargs...) where {uType, iip}
@@ -317,7 +318,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
     p3 = convert(floatType, 0.0)
     p4 = convert(floatType, 0.0)
     ϵ = convert(floatType, 1.0e-8)
-    jvp_operator = nothing
+    vjp_operator = nothing
     if radius_update_scheme === RadiusUpdateSchemes.NLsolve
         p1 = convert(floatType, 0.5)
     elseif radius_update_scheme === RadiusUpdateSchemes.Hei
@@ -336,8 +337,9 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         p1 = convert(floatType, 2.0)   # μ
         p2 = convert(floatType, 1 / 6) # c5
         p3 = convert(floatType, 6.0)   # c6
-        jvp_operator = __jacvec(uf, u; fu, autodiff = __get_nonsparse_ad(alg.ad))
-        @bb Jᵀf = jvp_operator × fu
+        vjp_operator = __gradient_operator(uf, u; fu,
+            autodiff = __get_nonsparse_ad(alg.vjp_autodiff))
+        @bb Jᵀf = vjp_operator × fu
         initial_trust_radius = convert(trustType, p1 * internalnorm(Jᵀf))
     elseif radius_update_scheme === RadiusUpdateSchemes.Fan
         step_threshold = convert(trustType, 0.0001)
@@ -366,7 +368,7 @@ function SciMLBase.__init(prob::NonlinearProblem{uType, iip}, alg_::TrustRegion,
         jac_cache, false, maxiters, internalnorm, ReturnCode.Default, abstol, reltol, prob,
         radius_update_scheme, initial_trust_radius, max_trust_radius, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor, loss, loss_new,
-        shrink_counter, make_new_J, r, p1, p2, p3, p4, ϵ, jvp_operator,
+        shrink_counter, make_new_J, r, p1, p2, p3, p4, ϵ, vjp_operator,
         NLStats(1, 0, 0, 0, 0), tc_cache, trace)
 end
 
@@ -479,7 +481,7 @@ function trust_region_step!(cache::TrustRegionCache)
             cache.shrink_counter = 0
         end
 
-        @bb cache.Jᵀf = cache.jvp_operator × vec(cache.fu)
+        @bb cache.Jᵀf = cache.vjp_operator × vec(cache.fu)
         cache.trust_r = cache.p1 * cache.internalnorm(cache.Jᵀf)
 
         cache.internalnorm(cache.Jᵀf) < cache.ϵ && (cache.force_stop = true)
@@ -567,10 +569,10 @@ end
 
 # FIXME: Reinit `JᵀJ` operator if `p` is changed
 function __reinit_internal!(cache::TrustRegionCache; kwargs...)
-    if cache.jvp_operator !== nothing
-        cache.jvp_operator = __jacvec(cache.uf, cache.u; cache.fu,
+    if cache.vjp_operator !== nothing
+        cache.vjp_operator = __gradient_operator(cache.uf, cache.u; cache.fu,
             autodiff = __get_nonsparse_ad(cache.alg.ad))
-        @bb cache.Jᵀf = cache.jvp_operator × cache.fu
+        @bb cache.Jᵀf = cache.vjp_operator × cache.fu
     end
     cache.loss = __trust_region_loss(cache, cache.fu)
     cache.loss_new = cache.loss

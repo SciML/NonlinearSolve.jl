@@ -2,15 +2,29 @@
 
 These are the native solvers of NonlinearSolve.jl.
 
-## Core Nonlinear Solvers
+## Nonlinear Solvers
 
 ```@docs
 NewtonRaphson
-TrustRegion
 PseudoTransient
 DFSane
 Broyden
 Klement
+```
+
+## Nonlinear Least Squares Solvers
+
+```@docs
+GaussNewton
+```
+
+## Both Nonlinear & Nonlinear Least Squares Solvers
+
+These solvers can be used for both nonlinear and nonlinear least squares problems.
+
+```@docs
+TrustRegion
+LevenbergMarquardt
 ```
 
 ## Polyalgorithms
@@ -20,13 +34,6 @@ NonlinearSolvePolyAlgorithm
 FastShortcutNonlinearPolyalg
 FastShortcutNLLSPolyalg
 RobustMultiNewton
-```
-
-## Nonlinear Least Squares Solvers
-
-```@docs
-LevenbergMarquardt
-GaussNewton
 ```
 
 ## Radius Update Schemes for Trust Region (RadiusUpdateSchemes)

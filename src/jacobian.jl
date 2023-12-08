@@ -213,30 +213,43 @@ function __concrete_vjp_autodiff(vjp_autodiff, jvp_autodiff, uf)
 end
 
 # jvp fallback scalar
-function __jacvec(uf, u; autodiff, kwargs...)
-    if !(autodiff isa AutoForwardDiff || autodiff isa AutoFiniteDiff)
+function __gradient_operator(uf, u; autodiff, kwargs...)
+    if !(autodiff isa AutoFiniteDiff || autodiff isa AutoZygote)
         _ad = autodiff
-        autodiff = ifelse(ForwardDiff.can_dual(eltype(u)), AutoForwardDiff(),
+        number_ad = ifelse(ForwardDiff.can_dual(eltype(u)), AutoForwardDiff(),
             AutoFiniteDiff())
-        @warn "$(_ad) not supported for JacVec. Using $(autodiff) instead."
+        if u isa Number
+            autodiff = number_ad
+        else
+            if isinplace(uf)
+                autodiff = AutoFiniteDiff()
+            else
+                autodiff = ifelse(is_extension_loaded(Val{:Zygote}()), AutoZygote(),
+                    AutoFiniteDiff())
+            end
+        end
+        if _ad !== nothing && _ad !== autodiff
+            @warn "$(_ad) not supported for VecJac. Using $(autodiff) instead."
+        end
     end
-    return u isa Number ? JVPScalar(uf, u, autodiff) : JacVec(uf, u; autodiff, kwargs...)
+    return u isa Number ? GradientScalar(uf, u, autodiff) :
+           VecJac(uf, u; autodiff, kwargs...)
 end
 
-@concrete mutable struct JVPScalar
+@concrete mutable struct GradientScalar
     uf
     u
     autodiff
 end
 
-function Base.:*(jvp::JVPScalar, v::Number)
+function Base.:*(jvp::GradientScalar, v::Number)
     if jvp.autodiff isa AutoForwardDiff
         T = typeof(ForwardDiff.Tag(typeof(jvp.uf), typeof(jvp.u)))
-        out = jvp.uf(ForwardDiff.Dual{T}(jvp.u, v))
+        out = jvp.uf(ForwardDiff.Dual{T}(jvp.u, one(v)))
         return ForwardDiff.extract_derivative(T, out)
     elseif jvp.autodiff isa AutoFiniteDiff
         J = FiniteDiff.finite_difference_derivative(jvp.uf, jvp.u, jvp.autodiff.fdtype)
-        return J * v
+        return J
     else
         error("Only ForwardDiff & FiniteDiff is currently supported.")
     end
