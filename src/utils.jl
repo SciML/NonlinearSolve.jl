@@ -442,33 +442,6 @@ function __sum_JᵀJ!!(y, J)
     end
 end
 
-@inline __update_LM_diagonal!!(y::Number, x::Number) = max(y, x)
-@inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
-    if setindex_trait(y.diag) === CanSetindex()
-        @. y.diag = max(y.diag, x)
-        return y
-    else
-        return Diagonal(max.(y.diag, x))
-    end
-end
-@inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
-    if setindex_trait(y.diag) === CanSetindex()
-        if fast_scalar_indexing(y.diag)
-            @inbounds for i in axes(x, 1)
-                y.diag[i] = max(y.diag[i], x[i, i])
-            end
-            return y
-        else
-            idxs = diagind(x)
-            @.. broadcast=false y.diag=max(y.diag, @view(x[idxs]))
-            return y
-        end
-    else
-        idxs = diagind(x)
-        return Diagonal(@.. broadcast=false max(y.diag, @view(x[idxs])))
-    end
-end
-
 # Alpha for Initial Jacobian Guess
 # The values are somewhat different from SciPy, these were tuned to the 23 test problems
 @inline function __initial_inv_alpha(α::Number, u, fu, norm::F) where {F}
