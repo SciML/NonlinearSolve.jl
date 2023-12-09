@@ -39,7 +39,6 @@ end
 @testset "NewtonRaphson 23 Test Problems" begin
     alg_ops = (NewtonRaphson(),)
 
-    # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 6]
 
@@ -54,7 +53,6 @@ end
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Bastin),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.NLsolve))
 
-    # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [6, 11, 21]
     broken_tests[alg_ops[2]] = [6, 11, 21]
@@ -70,10 +68,9 @@ end
     alg_ops = (LevenbergMarquardt(), LevenbergMarquardt(; α_geodesic = 0.1),
         LevenbergMarquardt(; linsolve = CholeskyFactorization()))
 
-    # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [3, 6, 11, 17, 21]
-    broken_tests[alg_ops[2]] = [3, 6, 11, 17, 21]
+    broken_tests[alg_ops[1]] = [6, 11, 21]
+    broken_tests[alg_ops[2]] = [6, 11, 21]
     broken_tests[alg_ops[3]] = [6, 11, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)

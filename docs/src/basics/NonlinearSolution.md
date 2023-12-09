@@ -14,3 +14,5 @@ SciMLBase.NonlinearSolution
     `NonlinearSafeTerminationReturnCode.ProtectiveTermination` and is caused if the step-size
     of the solver was too large or the objective value became non-finite.
   - `ReturnCode.MaxIters` - The maximum number of iterations was reached.
+  - `ReturnCode.Failure` - The nonlinear solve failed for some reason. This is used
+    sparingly and mostly for wrapped solvers for which we don't have a better error code.

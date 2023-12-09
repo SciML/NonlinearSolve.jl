@@ -6,7 +6,9 @@ using MINPACK
 function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, alg::CMINPACK, args...;
         abstol = 1e-6, maxiters = 100000, alias_u0::Bool = false,
-        kwargs...) where {uType, iip}
+        termination_condition = nothing, kwargs...) where {uType, iip}
+    @assert termination_condition===nothing "CMINPACK does not support termination conditions!"
+
     if prob.u0 isa Number
         u0 = [prob.u0]
     else
@@ -64,7 +66,11 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
 
     u = reshape(original.x, size(u))
     resid = original.f
-    retcode = original.converged ? ReturnCode.Success : ReturnCode.Failure
+    # retcode = original.converged ? ReturnCode.Success : ReturnCode.Failure
+    # MINPACK lies about convergence? or maybe uses some other criteria?
+    # We just check for absolute tolerance on the residual
+    objective = NonlinearSolve.DEFAULT_NORM(resid)
+    retcode = ifelse(objective ≤ abstol, ReturnCode.Success, ReturnCode.Failure)
 
     return SciMLBase.build_solution(prob, alg, u, resid; retcode, original)
 end
