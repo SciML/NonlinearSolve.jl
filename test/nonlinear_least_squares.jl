@@ -28,6 +28,7 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
         resid_prototype = zero(y_target)), θ_init, x)
 
 nlls_problems = [prob_oop, prob_iip]
+
 solvers = []
 for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES()]
     vjp_autodiffs = linsolve isa KrylovJL ? [nothing, AutoZygote(), AutoFiniteDiff()] :
@@ -46,6 +47,11 @@ append!(solvers,
         LeastSquaresOptimJL(:dogleg),
         nothing,
     ])
+for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
+    RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
+    RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+    push!(solvers, TrustRegion(; radius_update_scheme))
+end
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)

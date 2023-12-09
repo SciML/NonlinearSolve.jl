@@ -23,6 +23,8 @@ falls back to a more robust algorithm (`LevenbergMarquardt`).
     handling of sparse matrices via colored automatic differentiation and preconditioned
     linear solvers. Designed for large-scale and numerically-difficult nonlinear least
     squares problems.
+  - `TrustRegion()`: A Newton Trust Region dogleg method with swappable nonlinear solvers and
+    autodiff methods for high performance on large and sparse systems.
 
 ### SimpleNonlinearSolve.jl
 

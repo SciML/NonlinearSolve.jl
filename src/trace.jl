@@ -60,13 +60,13 @@ end
 
 ## Arguments
 
-    - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
+  - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
 
 ## Keyword Arguments
 
-    - `print_frequency`: Print the trace every `print_frequency` iterations if
+  - `print_frequency`: Print the trace every `print_frequency` iterations if
     `show_trace == Val(true)`.
-    - `store_frequency`: Store the trace every `store_frequency` iterations if
+  - `store_frequency`: Store the trace every `store_frequency` iterations if
     `store_trace == Val(true)`.
 """
 @kwdef struct TraceAll <: AbstractNonlinearSolveTraceLevel
