@@ -384,6 +384,7 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
     end
     return pinv(A)
 end
+@inline __safe_inv(A::SparseMatrixCSC) = __safe_inv(Matrix(A))
 
 LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
 LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
