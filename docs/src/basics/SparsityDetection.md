@@ -29,6 +29,8 @@ prob = NonlinearProblem(NonlinearFunction(nlfunc; jac_prototype = jac_prototype,
         colorvec = colorvec), x0)
 ```
 
+If the `colorvec` is not provided, then it is computed on demand.
+
 !!! note
     
     One thing to be careful about in this case is that `colorvec` is dependent on the
