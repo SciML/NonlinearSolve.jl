@@ -11,6 +11,7 @@ i.e. `IntervalNonlinearProblem`.
 
 ```@docs
 ITP
+Alefeld
 Bisection
 Falsi
 Ridder

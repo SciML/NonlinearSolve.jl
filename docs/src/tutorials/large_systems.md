@@ -136,11 +136,10 @@ using BenchmarkTools # for @btime
 @btime solve(prob_brusselator_2d, NewtonRaphson());
 @btime solve(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(),
-        linsolve = KLUFactorization()));
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KLUFactorization()));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(),
-        linsolve = KrylovJL_GMRES()));
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KrylovJL_GMRES()));
+nothing # hide
 ```
 
 ## Declaring a Sparse Jacobian with Automatic Sparsity Detection

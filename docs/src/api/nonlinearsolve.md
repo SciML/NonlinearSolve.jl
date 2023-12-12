@@ -10,6 +10,7 @@ PseudoTransient
 DFSane
 Broyden
 Klement
+LimitedMemoryBroyden
 ```
 
 ## Nonlinear Least Squares Solvers
@@ -50,4 +51,6 @@ RadiusUpdateSchemes.Hei
 RadiusUpdateSchemes.Yuan
 RadiusUpdateSchemes.Bastin
 RadiusUpdateSchemes.Fan
+RadiusUpdateSchemes.NLsolve
+RadiusUpdateSchemes.NocedalWright
 ```
