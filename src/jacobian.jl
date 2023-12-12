@@ -15,17 +15,27 @@ function sparsity_detection_alg(f, ad::AbstractSparseADType)
             if is_extension_loaded(Val(:Symbolics))
                 return SymbolicsSparsityDetection()
             else
-                @warn "Symbolics.jl is not loaded and sparse AD mode $(ad) is being used. \
-                       Using approximate sparsity detection using ForwardDiff. This can \
-                       potentially fail or generate incorrect sparsity pattern for \
-                       complicated problems. Use with caution." maxlog=1
                 return ApproximateJacobianSparsity()
             end
         else
             jac_prototype = f.jac_prototype
         end
-    else
+    elseif f.sparsity isa SparseDiffTools.AbstractSparsityDetection
+        if f.jac_prototype === nothing
+            return f.sparsity
+        else
+            jac_prototype = f.jac_prototype
+        end
+    elseif f.sparsity isa AbstractMatrix
         jac_prototype = f.sparsity
+    elseif f.jac_prototype isa AbstractMatrix
+        jac_prototype = f.jac_prototype
+    else
+        error("`sparsity::typeof($(typeof(f.sparsity)))` & \
+               `jac_prototype::typeof($(typeof(f.jac_prototype)))` is not supported. \
+               Use `sparsity::AbstractMatrix` or `sparsity::AbstractSparsityDetection` or \
+               set to `nothing`. `jac_prototype` can be set to `nothing` or an \
+               `AbstractMatrix`.")
     end
 
     if SciMLBase.has_colorvec(f)
