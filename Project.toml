@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.0.1"
+version = "3.0.2"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -35,6 +35,7 @@ FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
@@ -43,6 +44,7 @@ NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 NonlinearSolveMINPACKExt = "MINPACK"
 NonlinearSolveNLsolveExt = "NLsolve"
+NonlinearSolveSymbolicsExt = "Symbolics"
 NonlinearSolveZygoteExt = "Zygote"
 
 [compat]

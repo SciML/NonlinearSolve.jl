@@ -12,7 +12,15 @@ sparsity_detection_alg(_, _) = NoSparsityDetection()
 function sparsity_detection_alg(f, ad::AbstractSparseADType)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
-            return SymbolicsSparsityDetection()
+            if is_extension_loaded(Val(:Symbolics))
+                return SymbolicsSparsityDetection()
+            else
+                @warn "Symbolics.jl is not loaded and sparse AD mode $(ad) is being used. \
+                       Using approximate sparsity detection using ForwardDiff. This can \
+                       potentially fail or generate incorrect sparsity pattern for \
+                       complicated problems. Use with caution." maxlog=1
+                return ApproximateJacobianSparsity()
+            end
         else
             jac_prototype = f.jac_prototype
         end

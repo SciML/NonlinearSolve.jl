@@ -60,12 +60,14 @@ broadcast). Use `dx=dy=1/32`.
 The resulting `NonlinearProblem` definition is:
 
 ```@example ill_conditioned_nlprob
-using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve, Symbolics
+using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve
 
 const N = 32
 const xyd_brusselator = range(0, stop = 1, length = N)
+
 brusselator_f(x, y) = (((x - 0.3)^2 + (y - 0.6)^2) <= 0.1^2) * 5.0
 limit(a, N) = a == N + 1 ? 1 : a == 0 ? N : a
+
 function brusselator_2d_loop(du, u, p)
     A, B, alpha, dx = p
     alpha = alpha / dx^2
@@ -96,6 +98,7 @@ function init_brusselator_2d(xyd)
     end
     u
 end
+
 u0 = init_brusselator_2d(xyd_brusselator)
 prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
 ```
@@ -119,6 +122,26 @@ include:
   - SymTridiagonal
   - BandedMatrix ([BandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BandedMatrices.jl))
   - BlockBandedMatrix ([BlockBandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BlockBandedMatrices.jl))
+
+## Approximate Sparsity Detection & Sparse Jacobians
+
+In the next section, we will discuss how to declare a sparse Jacobian and how to use
+[Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl), to compute exact sparse
+jacobians. For this to work it is important to not load `Symbolics.jl`. This is triggered
+if you pass in a sparse autodiff type such as `AutoSparseForwardDiff()`.
+
+```@example ill_conditioned_nlprob
+using BenchmarkTools # for @btime
+
+@btime solve(prob_brusselator_2d, NewtonRaphson());
+@btime solve(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
+@btime solve(prob_brusselator_2d,
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(),
+        linsolve = KLUFactorization()));
+@btime solve(prob_brusselator_2d,
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(),
+        linsolve = KrylovJL_GMRES()));
+```
 
 ## Declaring a Sparse Jacobian with Automatic Sparsity Detection
 
@@ -156,7 +179,6 @@ prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)
 Now let's see how the version with sparsity compares to the version without:
 
 ```@example ill_conditioned_nlprob
-using BenchmarkTools # for @btime
 @btime solve(prob_brusselator_2d, NewtonRaphson());
 @btime solve(prob_brusselator_2d_sparse, NewtonRaphson());
 @btime solve(prob_brusselator_2d_sparse, NewtonRaphson(linsolve = KLUFactorization()));
@@ -258,10 +280,8 @@ function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
     if newW === nothing || newW
         A = convert(AbstractMatrix, W)
         Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(A,
-            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
-                1))),
-            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
-                1)))))
+            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
+            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))))
     else
         Pl = Plprev
     end
