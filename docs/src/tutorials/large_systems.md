@@ -60,12 +60,14 @@ broadcast). Use `dx=dy=1/32`.
 The resulting `NonlinearProblem` definition is:
 
 ```@example ill_conditioned_nlprob
-using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve, Symbolics
+using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve, SparseDiffTools
 
 const N = 32
 const xyd_brusselator = range(0, stop = 1, length = N)
+
 brusselator_f(x, y) = (((x - 0.3)^2 + (y - 0.6)^2) <= 0.1^2) * 5.0
 limit(a, N) = a == N + 1 ? 1 : a == 0 ? N : a
+
 function brusselator_2d_loop(du, u, p)
     A, B, alpha, dx = p
     alpha = alpha / dx^2
@@ -96,8 +98,10 @@ function init_brusselator_2d(xyd)
     end
     u
 end
+
 u0 = init_brusselator_2d(xyd_brusselator)
-prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
+prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p; abstol = 1e-10,
+    reltol = 1e-10)
 ```
 
 ## Choosing Jacobian Types
@@ -119,6 +123,27 @@ include:
   - SymTridiagonal
   - BandedMatrix ([BandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BandedMatrices.jl))
   - BlockBandedMatrix ([BlockBandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BlockBandedMatrices.jl))
+
+## Approximate Sparsity Detection & Sparse Jacobians
+
+In the next section, we will discuss how to declare a sparse Jacobian and how to use
+[Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl), to compute exact sparse
+jacobians. This is triggered if you pass in a sparse autodiff type such as
+`AutoSparseForwardDiff()`. If `Symbolics.jl` is loaded, then the default changes to
+Symbolic Sparsity Detection. See the manual entry on
+[Sparsity Detection](@ref sparsity-detection) for more details on the default.
+
+```@example ill_conditioned_nlprob
+using BenchmarkTools # for @btime
+
+@btime solve(prob_brusselator_2d, NewtonRaphson());
+@btime solve(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
+@btime solve(prob_brusselator_2d,
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KLUFactorization()));
+@btime solve(prob_brusselator_2d,
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KrylovJL_GMRES()));
+nothing # hide
+```
 
 ## Declaring a Sparse Jacobian with Automatic Sparsity Detection
 
@@ -156,7 +181,6 @@ prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)
 Now let's see how the version with sparsity compares to the version without:
 
 ```@example ill_conditioned_nlprob
-using BenchmarkTools # for @btime
 @btime solve(prob_brusselator_2d, NewtonRaphson());
 @btime solve(prob_brusselator_2d_sparse, NewtonRaphson());
 @btime solve(prob_brusselator_2d_sparse, NewtonRaphson(linsolve = KLUFactorization()));
@@ -202,6 +226,7 @@ used in the solution of the ODE. An example of this with using
 
 ```@example ill_conditioned_nlprob
 using IncompleteLU
+
 function incompletelu(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
     if newW === nothing || newW
         Pl = ilu(W, τ = 50.0)
@@ -236,6 +261,7 @@ which is more automatic. The setup is very similar to before:
 
 ```@example ill_conditioned_nlprob
 using AlgebraicMultigrid
+
 function algebraicmultigrid(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
     if newW === nothing || newW
         Pl = aspreconditioner(ruge_stuben(convert(AbstractMatrix, W)))
@@ -258,10 +284,8 @@ function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
     if newW === nothing || newW
         A = convert(AbstractMatrix, W)
         Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(A,
-            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
-                1))),
-            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
-                1)))))
+            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
+            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))))
     else
         Pl = Plprev
     end
@@ -271,6 +295,23 @@ end
 @btime solve(prob_brusselator_2d_sparse,
     NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid2,
         concrete_jac = true));
+nothing # hide
+```
+
+## Let's compare the Sparsity Detection Methods
+
+We benchmarked the solvers before with approximate and exact sparsity detection. However,
+for the exact sparsity detection case, we left out the time it takes to perform exact
+sparsity detection. Let's compare the two by setting the sparsity detection algorithms.
+
+```@example ill_conditioned_nlprob
+prob_brusselator_2d_exact = NonlinearProblem(NonlinearFunction(brusselator_2d_loop;
+        sparsity = SymbolicsSparsityDetection()), u0, p; abstol = 1e-10, reltol = 1e-10)
+prob_brusselator_2d_approx = NonlinearProblem(NonlinearFunction(brusselator_2d_loop;
+        sparsity = ApproximateJacobianSparsity()), u0, p; abstol = 1e-10, reltol = 1e-10)
+
+@btime solve(prob_brusselator_2d_exact, NewtonRaphson());
+@btime solve(prob_brusselator_2d_approx, NewtonRaphson());
 nothing # hide
 ```
 

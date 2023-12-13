@@ -10,11 +10,11 @@ include("pages.jl")
 
 makedocs(; sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
-    modules = [NonlinearSolve, SciMLBase, DiffEqBase, SimpleNonlinearSolve, Sundials,
-        SteadyStateDiffEq],
+    modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq, Sundials,
+        DiffEqBase, SciMLBase],
     clean = true, doctest = false, linkcheck = true,
     linkcheck_ignore = ["https://twitter.com/ChrisRackauckas/status/1544743542094020615"],
-    warnonly = [:missing_docs, :cross_references],
+    warnonly = [:cross_references], checkdocs = :export,
     format = Documenter.HTML(assets = ["assets/favicon.ico"],
         canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
     pages)
