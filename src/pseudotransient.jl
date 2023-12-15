@@ -1,6 +1,6 @@
 """
     PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-3, adkwargs...)
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3,update_alpha= switched_evolution_relaxation,adkwargs...)
 
 An implementation of PseudoTransient method that is used to solve steady state problems in
 an accelerated manner. It uses an adaptive time-stepping to integrate an initial value of
@@ -10,6 +10,12 @@ specifically uses "switched evolution relaxation" SER method. For detail informa
 the time-stepping and algorithm, please see the paper:
 [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations,
 SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
+
+RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
+precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha=robust_update_alpha, adkwargs...)
+
+This is just an alias to the above method, but now it uses a more stable and robust schema for
+updating alpha. Specifically, alpha remains constant for 50 steps, and then we switch to SER method
 
 ### Keyword Arguments
 
@@ -33,22 +39,38 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small,
     you are going to need more iterations to converge but it can be more stable.
+  - `update_alpha`  : a function that specifies the schema for updating alpha. The function
+    should take in alpha,the norm of the previous residual(i.e |fu|),number of steps so far,
+    u,u_prev,fu. The default is a function that uses "switched evolution relaxation" SER method to update alpha.
 """
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
     linsolve
     precs
     alpha_initial
+    update_alpha
 end
 
 function set_ad(alg::PseudoTransient{CJ}, ad) where {CJ}
-    return PseudoTransient{CJ}(ad, alg.linsolve, alg.precs, alg.alpha_initial)
+    return PseudoTransient{CJ}(ad,
+        alg.linsolve,
+        alg.precs,
+        alg.alpha_initial,
+        alg.update_alpha)
 end
 
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-3, autodiff = nothing)
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3, update_alpha::F = default_update_alpha,
+        autodiff = nothing) where {F}
     return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
-        alpha_initial)
+        alpha_initial, update_alpha)
+end
+
+function RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, alpha_initial = 1e-6, update_alpha::F = robust_update_alpha,
+        autodiff = nothing) where {F}
+    return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
+        alpha_initial, update_alpha)
 end
 
 @concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}
@@ -139,7 +161,13 @@ function perform_step!(cache::PseudoTransientCache{iip}) where {iip}
     update_trace!(cache, true)
 
     new_norm = cache.internalnorm(cache.fu)
-    cache.alpha *= cache.res_norm / new_norm
+    cache.alpha = cache.alg.update_alpha(cache.alpha,
+        cache.res_norm,
+        cache.stats.nsteps,
+        cache.u,
+        cache.u_cache,
+        cache.fu,
+        cache.internalnorm)
     cache.res_norm = new_norm
 
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
