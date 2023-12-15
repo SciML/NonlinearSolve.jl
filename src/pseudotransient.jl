@@ -15,7 +15,7 @@ RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
 precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha=robust_update_alpha, adkwargs...)
 
 This is just an alias to the above method, but now it uses a more stable and robust schema for
-updating alpha. Specifically, alpha remains constant for 50 steps, and then we switch to SER method
+updating alpha. Specifically, alpha remains constant for 100 steps, and then we switch to SER method
 
 ### Keyword Arguments
 

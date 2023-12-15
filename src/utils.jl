@@ -514,7 +514,7 @@ function robust_update_alpha(alpha::Number,
         u_prev,
         fu,
         norm::F) where {F}
-    if nsteps ≤ 50
+    if nsteps ≤ 100
         return alpha
     else
         new_norm = norm(fu)
