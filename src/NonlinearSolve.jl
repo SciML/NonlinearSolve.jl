@@ -236,7 +236,8 @@ export RadiusUpdateSchemes
 export switched_evolution_relaxation
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    Broyden, Klement, LimitedMemoryBroyden
+    RobustPseudoTransient
+Broyden, Klement, LimitedMemoryBroyden
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
