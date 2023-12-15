@@ -1,6 +1,6 @@
 # [Steady State Solvers](@id ss_solvers)
 
-`solve(prob::SteadyStateProblem,alg;kwargs)`
+`solve(prob::SteadyStateProblem, alg; kwargs)`
 
 Solves for the steady states in the problem defined by `prob` using the algorithm
 `alg`. If no algorithm is given, a default algorithm will be chosen.
@@ -8,19 +8,26 @@ Solves for the steady states in the problem defined by `prob` using the algorith
 ## Recommended Methods
 
 Conversion to a NonlinearProblem is generally the fastest method. However, this will not
-guarantee the preferred root, and thus if the preferred root is required, then it's
-recommended that one uses `DynamicSS`. For `DynamicSS`, often an adaptive stiff solver,
-like a Rosenbrock or BDF method (`Rodas5` or `QNDF`), is a good way to allow for very large
-time steps as the steady state approaches.
+guarantee the preferred root (the stable equilibrium), and thus if the preferred root is
+required, then it's recommended that one uses `DynamicSS`. For `DynamicSS`, often an
+adaptive stiff solver, like a Rosenbrock or BDF method (`Rodas5` or `QNDF`), is a good way
+to allow for very large time steps as the steady state approaches.
 
 !!! note
     
     The SteadyStateDiffEq.jl methods on a `SteadyStateProblem` respect the time definition
-    in the nonlinear definition, i.e., `u' = f(u,t)` uses the correct values for `t` as the
+    in the nonlinear definition, i.e., `u' = f(u, t)` uses the correct values for `t` as the
     solution evolves. A conversion of a `SteadyStateProblem` to a `NonlinearProblem`
-    replaces this with the nonlinear system `u' = f(u,∞)`, and thus the direct
+    replaces this with the nonlinear system `u' = f(u, ∞)`, and thus the direct
     `SteadyStateProblem` approach can give different answers (i.e., the correct unique
     fixed point) on ODEs with non-autonomous dynamics.
+
+!!! note
+    
+    If you have an unstable equilibrium and you want to solve for the unstable equilibrium,
+    then `DynamicSS` might converge to the equilibrium based on the initial condition.
+    However, Nonlinear Solvers don't suffer from this issue, and thus it's recommended to
+    use a nonlinear solver if you want to solve for the unstable equilibrium.
 
 ## Full List of Methods
 
