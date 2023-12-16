@@ -123,3 +123,12 @@ end
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
+
+@testset "RobustPseudoTransient 23 Test Problems" begin
+    alg_ops = (RobustPseudoTransient(; alpha_initial = 10.0),)
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 6, 22]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end

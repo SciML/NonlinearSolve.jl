@@ -685,6 +685,113 @@ end
     end
 end
 
+# ---RobustPseudoTransient tests ---
+
+@testset "RobustPseudoTransient" begin
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; alpha_initial = 0.01)
+        prob = NonlinearProblem{false}(f, u0, p)
+        return solve(prob, RobustPseudoTransient(; alpha_initial), abstol = 1e-9)
+    end
+
+    function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
+            alpha_initial = 0.01)
+        prob = NonlinearProblem{true}(f, u0, p)
+        return solve(prob,
+            RobustPseudoTransient(; linsolve, precs, alpha_initial),
+            abstol = 1e-9)
+    end
+
+    @testset "RPT: alpha_initial = 0.01 PT AD: $(ad)" for ad in (AutoFiniteDiff(),
+        AutoZygote())
+        u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
+            sol = benchmark_nlsolve_oop(quadratic_f, u0)
+            # Failing by a margin for some
+            # @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+            cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
+                RobustPseudoTransient(alpha_initial = 0.01), abstol = 1e-9)
+            @test (@ballocated solve!($cache)) < 200
+        end
+
+        precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
+
+        @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
+                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+            ad isa AutoZygote && continue
+            if prec === :Random
+                prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
+            end
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linsolve, precs = prec)
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+
+            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
+                RobustPseudoTransient(; alpha_initial = 0.01, linsolve, precs = prec),
+                abstol = 1e-9)
+            @test (@ballocated solve!($cache)) ≤ 64
+        end
+    end
+
+    @testset "[OOP] [Immutable AD]" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
+                res_true = sqrt(p)
+                all(abs.(res.u) .≈ res_true)
+            end
+            @test ForwardDiff.derivative(p -> abs.(benchmark_nlsolve_oop(quadratic_f,
+                    @SVector[1.0, 1.0], p).u)[end], p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    @testset "[OOP] [Scalar AD]" begin
+        for p in 1.0:0.1:100.0
+            @test begin
+                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
+                res_true = sqrt(p)
+                abs.(res.u) ≈ res_true
+            end
+            @test ForwardDiff.derivative(p -> abs.(benchmark_nlsolve_oop(quadratic_f,
+                    1.0,
+                    p).u),
+                p) ≈ 1 / (2 * sqrt(p))
+        end
+    end
+
+    t = (p) -> [sqrt(p[2] / p[1])]
+    p = [0.9, 50.0]
+    @test abs.(benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u) ≈ sqrt(p[2] / p[1])
+    @test ForwardDiff.jacobian(p -> [abs.(benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u)],
+        p) ≈ ForwardDiff.jacobian(t, p)
+
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(abs.(solve(probN,
+            RobustPseudoTransient(; alpha_initial = 0.01, autodiff)).u) .≈
+                  sqrt(2.0))
+    end
+
+    @testset "NewtonRaphson Fails but RPT passes" begin # Test that `RobustPseudoTransient` passes a test that `NewtonRaphson` fails on.
+        p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+        probN = NonlinearProblem{false}(newton_fails, u0, p)
+        sol = solve(probN, RobustPseudoTransient(alpha_initial = 0.1), abstol = 1e-10)
+        @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
+    end
+
+    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0, 1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(abs.(solve(probN, RobustPseudoTransient(; alpha_initial = 0.01);
+            termination_condition).u) .≈ sqrt(2.0))
+    end
+end
+
 # --- Broyden tests ---
 
 @testset "Broyden" begin

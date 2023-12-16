@@ -15,7 +15,7 @@ RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
 precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha=robust_update_alpha, adkwargs...)
 
 This is just an alias to the above method, but now it uses a more stable and robust schema for
-updating alpha. Specifically, alpha remains constant for 100 steps, and then we switch to SER method
+updating alpha. Specifically, alpha remains constant for the first 100 steps, and then we switch to SER method.
 
 ### Keyword Arguments
 
@@ -60,7 +60,8 @@ function set_ad(alg::PseudoTransient{CJ}, ad) where {CJ}
 end
 
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-3, update_alpha::F = default_update_alpha,
+        precs = DEFAULT_PRECS, alpha_initial = 1e-3,
+        update_alpha::F = switched_evolution_relaxation,
         autodiff = nothing) where {F}
     return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
         alpha_initial, update_alpha)
