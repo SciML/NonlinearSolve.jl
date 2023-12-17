@@ -233,11 +233,10 @@ include("default.jl")
 end
 
 export RadiusUpdateSchemes
-export switched_evolution_relaxation, robust_update_alpha
+export switched_evolution_relaxation, wrapper_robust_update
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    RobustPseudoTransient
-Broyden, Klement, LimitedMemoryBroyden
+    RobustPseudoTransient, Broyden, Klement, LimitedMemoryBroyden
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg

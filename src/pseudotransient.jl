@@ -29,12 +29,11 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
     preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
+    algorithms, consult the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small,
     you are going to need more iterations to converge but it can be more stable.
   - `update_alpha`  : a function that specifies the schema for updating alpha. The function should
-    like update_alpha(alpha::Number,res_norm::Number,nsteps::Int,u,u_prev,fu,norm::F) The default is
+    like update_alpha(alpha::Number,res_norm::Number,nsteps::Int,u,u_prev,fu,norm::F). The default is
     a function that uses "switched evolution relaxation" SER method to update alpha.
 """
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
@@ -60,17 +59,17 @@ end
 
 """
     RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha = robust_update_alpha, adkwargs...)
+        precs = DEFAULT_PRECS, alpha_initial = 1e-6,threshold::Int = 100)
 
 This is just an alias to the PseudoTransient method, but now it uses a more stable and robust schema for
-updating alpha. Specifically, alpha remains constant for the first 100 steps, and then we switch to SER method.
+updating alpha. It has an argument `threshold` that determines for how many steps alpha remains constant before switching to SER method.
 See also [`PseudoTransient`](@ref) for the remaining keyword arguments
 """
 function RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-6, update_alpha::F = robust_update_alpha,
-        autodiff = nothing) where {F}
+        precs = DEFAULT_PRECS, alpha_initial = 1e-6, threshold::Int = 100,
+        autodiff = nothing)
     return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
-        alpha_initial, update_alpha)
+        alpha_initial, wrapper_robust_update(threshold))
 end
 
 @concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}

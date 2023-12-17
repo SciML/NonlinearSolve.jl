@@ -502,12 +502,15 @@ function switched_evolution_relaxation(alpha::Number, res_norm::Number,
     return alpha * (res_norm / new_norm)
 end
 
-function robust_update_alpha(alpha::Number, res_norm::Number,
-        nsteps::Int, u, u_prev, fu, norm::F) where {F}
-    if nsteps ≤ 100
-        return alpha
-    else
-        new_norm = norm(fu)
-        return alpha * (res_norm / new_norm)
+function wrapper_robust_update(threshold::Int)
+    function robust_update_alpha(alpha::Number, res_norm::Number,
+            nsteps::Int, u, u_prev, fu, norm::F) where {F}
+        if nsteps ≤ threshold
+            return alpha
+        else
+            new_norm = norm(fu)
+            return alpha * (res_norm / new_norm)
+        end
     end
+    return robust_update_alpha
 end
