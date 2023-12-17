@@ -5,7 +5,8 @@ import UnPack: @unpack
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...; abstol = 1e-6,
         maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing, kwargs...)
-    @assert termination_condition===nothing "NLsolveJL does not support termination conditions!"
+    @assert (termination_condition ===
+             nothing)||(termination_condition isa AbsNormTerminationMode) "NLsolveJL does not support termination conditions!"
 
     if typeof(prob.u0) <: Number
         u0 = [prob.u0]
@@ -59,19 +60,20 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...; abst
         end
         if prob.f.jac_prototype !== nothing
             J = zero(prob.f.jac_prototype)
-            df = OnceDifferentiable(f!, g!, u0, resid, J)
+            df = OnceDifferentiable(f!, g!, vec(u0), vec(resid), J)
         else
-            df = OnceDifferentiable(f!, g!, u0, resid)
+            df = OnceDifferentiable(f!, g!, vec(u0), vec(resid))
         end
     else
-        df = OnceDifferentiable(f!, u0, resid; autodiff)
+        df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
     end
 
-    original = nlsolve(df, u0; ftol = abstol, iterations = maxiters, method, store_trace,
-        extended_trace, linesearch, linsolve, factor, autoscale, m, beta, show_trace)
+    original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, method,
+        store_trace, extended_trace, linesearch, linsolve, factor, autoscale, m, beta,
+        show_trace)
 
     u = reshape(original.zero, size(u0))
-    f!(resid, u)
+    f!(vec(resid), vec(u))
     retcode = original.x_converged || original.f_converged ? ReturnCode.Success :
               ReturnCode.Failure
     stats = SciMLBase.NLStats(original.f_calls, original.g_calls, original.g_calls,
