@@ -495,25 +495,15 @@ end
 @inline __diag(x::AbstractVector) = x
 @inline __diag(x::Number) = x
 
-#functions for updating alpha for PseudoTransient
-function switched_evolution_relaxation(alpha::Number,
-        res_norm::Number,
-        nsteps::Int,
-        u,
-        u_prev,
-        fu,
-        norm::F) where {F}
+# Functions for updating alpha for PseudoTransient
+function switched_evolution_relaxation(alpha::Number, res_norm::Number,
+        nsteps::Int, u, u_prev, fu, norm::F) where {F}
     new_norm = norm(fu)
     return alpha * (res_norm / new_norm)
 end
 
-function robust_update_alpha(alpha::Number,
-        res_norm::Number,
-        nsteps::Int,
-        u,
-        u_prev,
-        fu,
-        norm::F) where {F}
+function robust_update_alpha(alpha::Number, res_norm::Number,
+        nsteps::Int, u, u_prev, fu, norm::F) where {F}
     if nsteps ≤ 100
         return alpha
     else
