@@ -68,8 +68,8 @@ end
         d = dot(vᵀ, δf)
         @bb @. δx = (δx - mvec) / d
 
-        selectdim(U, 2, mod1(i, η)) .= δx
-        selectdim(Vᵀ, 1, mod1(i, η)) .= vᵀ
+        selectdim(U, 2, mod1(i, η)) .= _vec(δx)
+        selectdim(Vᵀ, 1, mod1(i, η)) .= _vec(vᵀ)
 
         _U = selectdim(U, 2, 1:min(η, i))
         _Vᵀ = selectdim(Vᵀ, 1, 1:min(η, i))
@@ -93,7 +93,7 @@ function _rmatvec!!(y, xᵀU, U, Vᵀ, x)
     x_ = vec(x)
     xᵀU_ = view(xᵀU, 1:η)
     @bb xᵀU_ = transpose(U) × x_
-    @bb y = transpose(Vᵀ) × xᵀU_
+    @bb y = transpose(Vᵀ) × vec(xᵀU_)
     @bb @. y -= x
     return y
 end
@@ -108,7 +108,7 @@ function _matvec!!(y, Vᵀx, U, Vᵀ, x)
     x_ = vec(x)
     Vᵀx_ = view(Vᵀx, 1:η)
     @bb Vᵀx_ = Vᵀ × x_
-    @bb y = U × Vᵀx_
+    @bb y = U × vec(Vᵀx_)
     @bb @. y -= x
     return y
 end
