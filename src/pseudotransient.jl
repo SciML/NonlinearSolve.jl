@@ -11,12 +11,6 @@ the time-stepping and algorithm, please see the paper:
 [Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient Continuation and Differential-Algebraic Equations,
 SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S106482750241044X)
 
-    RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha = robust_update_alpha, adkwargs...)
-
-This is just an alias to the above method, but now it uses a more stable and robust schema for
-updating alpha. Specifically, alpha remains constant for the first 100 steps, and then we switch to SER method.
-
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
@@ -64,6 +58,14 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         alpha_initial, update_alpha)
 end
 
+"""
+    RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, alpha_initial = 1e-6,update_alpha = robust_update_alpha, adkwargs...)
+
+This is just an alias to the PseudoTransient method, but now it uses a more stable and robust schema for
+updating alpha. Specifically, alpha remains constant for the first 100 steps, and then we switch to SER method.
+See also [`PseudoTransient`](@ref) for the remaining keyword arguments
+"""
 function RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, alpha_initial = 1e-6, update_alpha::F = robust_update_alpha,
         autodiff = nothing) where {F}
