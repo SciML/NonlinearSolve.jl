@@ -1477,9 +1477,9 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "3f40e61c93a7c46b85df57b770bc360988f9ca36"
+git-tree-sha1 = "f7d4d01d3321b92c2217d599704d29c45e12905e"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "3.0.0"
+version = "3.1.0"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsMeasurementsExt = "Measurements"
