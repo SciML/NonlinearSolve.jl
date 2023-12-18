@@ -6,7 +6,7 @@
 
 [![codecov](https://codecov.io/gh/SciML/NonlinearSolve.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SciML/NonlinearSolve.jl)
 [![Build Status](https://github.com/SciML/NonlinearSolve.jl/workflows/CI/badge.svg)](https://github.com/SciML/NonlinearSolve.jl/actions?query=workflow%3ACI)
-[![Build status](https://badge.buildkite.com/413dc8df7d555cc14c262aba066503a9e7a42023f9cfb75a55.svg)](https://buildkite.com/julialang/nonlinearsolve-dot-jl)
+[![Build status](https://badge.buildkite.com/413dc8df7d555cc14c262aba066503a9e7a42023f9cfb75a55.svg?branch=master)](https://buildkite.com/julialang/nonlinearsolve-dot-jl)
 
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor%27s%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
