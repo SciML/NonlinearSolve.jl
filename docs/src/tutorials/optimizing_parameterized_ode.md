@@ -55,6 +55,11 @@ Now, we can use any NLLS solver to solve this problem.
 ```@example parameterized_ode
 res = solve(nlls_prob, LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
     trace_level = TraceAll())
+nothing # hide
+```
+
+```@example parameterized_ode
+res
 ```
 
 We can also use Trust Region methods.
@@ -62,6 +67,11 @@ We can also use Trust Region methods.
 ```@example parameterized_ode
 res = solve(nlls_prob, TrustRegion(); maxiters = 1000, show_trace = Val(true),
     trace_level = TraceAll())
+nothing # hide
+```
+
+```@example parameterized_ode
+res
 ```
 
 Let's plot the solution.
@@ -72,5 +82,4 @@ sol_fit = solve(prob2, Tsit5(); p = res.u)
 sol_true = solve(prob2, Tsit5(); p = p)
 plot(sol_true; linewidth = 3)
 plot!(sol_fit; linewidth = 3, linestyle = :dash)
-savefig("LV_ode_fit.png")
 ```

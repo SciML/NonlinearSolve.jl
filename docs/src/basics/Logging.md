@@ -39,6 +39,7 @@ the trace to see what is happening:
 
 ```@example tracing
 solve(prob; show_trace = Val(true), trace_level = TraceAll(10))
+nothing; # hide
 ```
 
 You can also store the trace in the solution object:
