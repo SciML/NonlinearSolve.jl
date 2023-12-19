@@ -236,7 +236,7 @@ export RadiusUpdateSchemes
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
     Broyden, Klement, LimitedMemoryBroyden
-export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL
+export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, SIAMFANLEquationsJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 

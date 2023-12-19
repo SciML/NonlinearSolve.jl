@@ -23,6 +23,7 @@ end
     if GROUP == "All" || GROUP == "Wrappers"
         @time @safetestset "MINPACK" include("minpack.jl")
         @time @safetestset "NLsolve" include("nlsolve.jl")
+        @time @safetestset "SIAMFANLEquations" include("siamfanlequations.jl")
     end
 
     if GROUP == "All" || GROUP == "23TestProblems"

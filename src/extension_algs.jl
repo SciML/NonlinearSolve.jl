@@ -206,3 +206,35 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
     return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
         factor, autoscale, m, beta, show_trace)
 end
+
+"""
+    SIAMFANLEquationsJL(; method = :newton, autodiff = :central)
+
+### Keyword Arguments
+
+  - `method`: the choice of method for solving the nonlinear system.
+  - `autodiff`: the choice of method for generating the Jacobian. Defaults to `:central` or
+    central differencing via FiniteDiff.jl. The other choices are `:forward`.
+  - `show_trace`: whether to show the trace.
+  - `delta`: initial pseudo time step, default is 1e-3.
+  - `linsolve` : JFNK linear solvers, choices are `gmres` and `bicgstab`.
+
+### Submethod Choice
+
+  - `:newton`: Classical Newton method.
+  - `:pseudotransient`: 
+"""
+@concrete struct SIAMFANLEquationsJL <: AbstractNonlinearAlgorithm
+    method::Symbol
+    autodiff::Symbol
+    show_trace::Bool
+    delta
+    linsolve::Union{Symbol, Nothing}
+end
+
+function SIAMFANLEquationsJL(; method = :newton, autodiff = :central, show_trace = false, delta = 1e-3, linsolve = nothing)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
+        error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
+    end
+  return SIAMFANLEquationsJL(method, autodiff, show_trace, delta, linsolve)
+end
