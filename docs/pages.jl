@@ -28,6 +28,7 @@ pages = ["index.md",
         "api/sundials.md",
         "api/steadystatediffeq.md",
         "api/leastsquaresoptim.md",
-        "api/fastlevenbergmarquardt.md"],
+        "api/fastlevenbergmarquardt.md",
+        "api/siamfanlequations.md"],
     "Release Notes" => "release_notes.md",
 ]

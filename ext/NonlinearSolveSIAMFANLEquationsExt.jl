@@ -36,10 +36,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
             retcode = ReturnCode.MaxIters
         elseif res.errcode == 1
             retcode = ReturnCode.Failure
-            @error("Line search failed")
         elseif res.errcode == -1
             retcode = ReturnCode.Default
-            @info("Initial iterate satisfies the termination criteria")
         end
         stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], -1, -1, res.stats.iarm[1]))
         return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
@@ -85,10 +83,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
             retcode = ReturnCode.MaxIters
         elseif res.errcode == 1
             retcode = ReturnCode.Failure
-            @error("Line search failed")
         elseif res.errcode == -1
             retcode = ReturnCode.Default
-            @info("Initial iterate satisfies the termination criteria")
         end
         stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], -1, -1, res.stats.iarm[1]))
         return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
@@ -161,10 +157,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         retcode = ReturnCode.MaxIters
     elseif res.errcode == 1
         retcode = ReturnCode.Failure
-        @error("Line search failed")
     elseif res.errcode == -1
         retcode = ReturnCode.Default
-        @info("Initial iterate satisfies the termination criteria")
     end
 
 
