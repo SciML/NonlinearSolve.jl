@@ -1,4 +1,4 @@
-using NonlinearSolve, Test, NaNMath
+using NonlinearSolve, Test, NaNMath, OrdinaryDiffEq
 
 f(u, p) = u .* u .- 2
 u0 = [1.0, 1.0]
@@ -58,3 +58,28 @@ p = 2.0
 prob = NonlinearProblem(ff_interval, u0, p)
 sol = solve(prob; abstol = 1e-9)
 @test SciMLBase.successful_retcode(sol)
+
+# Shooting Problem: Taken from BoundaryValueDiffEq.jl
+# Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
+# algorithms which dont support those.
+function ode_func!(du, u, p, t)
+    du[1] = u[2]
+    du[2] = -u[1]
+    return nothing
+end
+
+function objective_function!(resid, u0, p)
+    odeprob = ODEProblem{true}(ode_func!, u0, (0.0, 100.0), p)
+    sol = solve(odeprob, Tsit5(), abstol = 1e-9, reltol = 1e-9, verbose = false)
+    resid[1] = sol(0.0)[1]
+    resid[2] = sol(100.0)[1] - 1.0
+    return nothing
+end
+
+prob = NonlinearProblem{true}(objective_function!, [0.0, 1.0] .+ 1im)
+sol = solve(prob; abstol = 1e-10)
+@test SciMLBase.successful_retcode(sol)
+# This test is not meant to return success but test that all the default solvers can handle
+# complex valued problems
+@test_nowarn solve(prob; abstol = 1e-19, maxiters = 10)
+@test_nowarn solve(prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1e-19, maxiters = 10)

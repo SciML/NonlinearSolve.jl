@@ -501,3 +501,7 @@ function switched_evolution_relaxation(alpha::Number, res_norm::Number,
     new_norm = norm(fu)
     return alpha * (res_norm / new_norm)
 end
+@inline __is_complex(::Type{ComplexF64}) = true
+@inline __is_complex(::Type{ComplexF32}) = true
+@inline __is_complex(::Type{Complex}) = true
+@inline __is_complex(::Type{T}) where {T} = false
