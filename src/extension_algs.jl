@@ -208,7 +208,7 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
 end
 
 """
-    SIAMFANLEquationsJL(; method = :newton, autodiff = :central)
+    SIAMFANLEquationsJL(; method = :newton, autodiff = :central, show_trace = false, delta = 1e-3, linsolve = nothing)
 
 ### Keyword Arguments
 
@@ -222,7 +222,8 @@ end
 ### Submethod Choice
 
   - `:newton`: Classical Newton method.
-  - `:pseudotransient`: 
+  - `:pseudotransient`: Pseudo transient method.
+  - `:secant`: Secant method for scalar equations.
 """
 @concrete struct SIAMFANLEquationsJL <: AbstractNonlinearAlgorithm
     method::Symbol

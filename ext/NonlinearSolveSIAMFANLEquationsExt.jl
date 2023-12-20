@@ -68,8 +68,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     # Jacobian free Newton Krylov
     if linsolve !== nothing
         JVS = linsolve == :gmres ? zeros(eltype(u), N, 3) : zeros(eltype(u), N)
-        # `linsolve` as a Symbol to keep unified interface with other EXTs, SIAMFANLEquations directly use String to choose between linear solvers
-        linsolve_alg = strip(repr(linsolve), ':')
+        # `linsolve` as a Symbol to keep unified interface with other EXTs, SIAMFANLEquations directly use String to choose between different linear solvers
+        linsolve_alg = String(linsolve)
 
         if method == :newton
             res = nsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
