@@ -494,3 +494,8 @@ end
 @inline __diag(x::AbstractMatrix) = diag(x)
 @inline __diag(x::AbstractVector) = x
 @inline __diag(x::Number) = x
+
+@inline __is_complex(::Type{ComplexF64}) = true
+@inline __is_complex(::Type{ComplexF32}) = true
+@inline __is_complex(::Type{Complex}) = true
+@inline __is_complex(::Type{T}) where {T} = false
