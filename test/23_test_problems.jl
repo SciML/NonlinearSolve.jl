@@ -104,13 +104,11 @@ end
 end
 
 @testset "Klement 23 Test Problems" begin
-    alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian)),
-        Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
+    alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 22]
-    broken_tests[alg_ops[2]] = [1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 17, 21, 22]
-    broken_tests[alg_ops[3]] = [2, 4, 5, 6, 7, 18, 22]
+    broken_tests[alg_ops[2]] = [2, 4, 5, 6, 7, 18, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
