@@ -16,9 +16,9 @@ version = "0.0.1"
 
 [[deps.AbstractAlgebra]]
 deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Preferences", "Random", "RandomExtensions", "SparseArrays", "Test"]
-git-tree-sha1 = "e0cf629808a64842d2b133f7b5c492dc6580f16e"
+git-tree-sha1 = "a28e910034444c7d37614cb07e299193d6f5d60e"
 uuid = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
-version = "0.34.5"
+version = "0.34.6"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -719,9 +719,9 @@ version = "0.1.2"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "31d6adb719886d4e32e38197aae466e98881320b"
+git-tree-sha1 = "199288db29b37c0d3fbd30c66c9b66fa4aea5ceb"
 uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
-version = "2024.0.0+0"
+version = "2024.0.0+1"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
