@@ -587,9 +587,8 @@ end
             abstol = 1e-9)
     end
 
-    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) AD: $(ad)" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-                wrapper_robust_update(100)),
-            (10.0, 0.01)),
+    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) AD: $(ad)" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+            (10.0,)),
         ad in (AutoFiniteDiff(), AutoZygote())
 
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
@@ -625,45 +624,42 @@ end
         end
     end
 
-    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Immutable AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-            wrapper_robust_update(100)),
-        (10.0, 0.01))
+    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Immutable AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+        (10.0,))
         for p in 1.0:0.1:100.0
             @test begin
                 res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p;
                     alpha_initial, update_alpha)
                 res_true = sqrt(p)
-                all(abs.(res.u) .≈ res_true)
+                all(res.u .≈ res_true)
             end
-            @test ForwardDiff.derivative(p -> abs.(benchmark_nlsolve_oop(quadratic_f,
-                    @SVector[1.0, 1.0], p; alpha_initial, update_alpha).u)[end], p) ≈ 1 / (2 * sqrt(p))
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                @SVector[1.0, 1.0], p; alpha_initial, update_alpha).u[end], p) ≈ 1 / (2 * sqrt(p))
         end
     end
 
-    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Scalar AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-            wrapper_robust_update(100)),
-        (10.0, 0.01))
+    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Scalar AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+        (10.0,))
         for p in 1.0:0.1:100.0
             @test begin
                 res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
                 res_true = sqrt(p)
-                abs.(res.u) ≈ res_true
+                res.u ≈ res_true
             end
-            @test ForwardDiff.derivative(p -> abs.(benchmark_nlsolve_oop(quadratic_f,
-                    1.0, p).u), p) ≈ 1 / (2 * sqrt(p))
+            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
+                    1.0, p).u, p) ≈ 1 / (2 * sqrt(p))
         end
     end
 
-    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Scalar AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-            wrapper_robust_update(100)),
-        (10.0, 0.01))
+    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) [OOP] [Scalar AD]" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+        (10.0,))
         t = (p) -> [sqrt(p[2] / p[1])]
         p = [0.9, 50.0]
-        @test abs.(benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
-            alpha_initial, update_alpha).u) ≈ sqrt(p[2] / p[1])
+        @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
+            alpha_initial, update_alpha).u ≈ sqrt(p[2] / p[1])
         @test ForwardDiff.jacobian(p -> [
-                abs.(benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
-                    alpha_initial, update_alpha).u),
+                benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
+                    alpha_initial, update_alpha).u,
             ], p) ≈ ForwardDiff.jacobian(t, p)
     end
 
@@ -683,21 +679,19 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
 
-    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) ADType: $(autodiff) u0: $(_nameof(u0))" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-                wrapper_robust_update(100)),
-            (10.0, 0.01)),
+    @testset "update_alpha:$(update_alpha) alpha_initial = $(alpha_initial) ADType: $(autodiff) u0: $(_nameof(u0))" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+            (10.0,)),
         autodiff in (AutoSparseForwardDiff(),
             AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(abs.(solve(probN,
-            PseudoTransient(; alpha_initial, autodiff, update_alpha)).u) .≈
+        @test all(solve(probN,
+            PseudoTransient(; alpha_initial, autodiff, update_alpha)).u .≈
                   sqrt(2.0))
     end
     # Test that `PseudoTransient` passes a test that `NewtonRaphson` fails on.
-    @testset "update_alpha: $(update_alpha) alpha_initial = $(alpha_initial) NewtonRaphson Fails but PT passes" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-            wrapper_robust_update(100)),
-        (1.0, 0.1))
+    @testset "update_alpha: $(update_alpha) alpha_initial = $(alpha_initial) NewtonRaphson Fails but PT passes" for (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+        (1.0,))
         p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
         probN = NonlinearProblem{false}(newton_fails, u0, p)
@@ -706,9 +700,8 @@ end
     end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0)) update_alpha: $(update_alpha) alpha_initial = $(alpha_initial)" for termination_condition in TERMINATION_CONDITIONS,
-        (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,
-                wrapper_robust_update(100)),
-            (10.0, 0.01)),
+        (update_alpha, alpha_initial) in zip((switched_evolution_relaxation,),
+            (10.0,)),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)

@@ -57,21 +57,6 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         alpha_initial, update_alpha)
 end
 
-"""
-    RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-6,threshold::Int = 100)
-
-This is just an alias to the PseudoTransient method, but now it uses a more stable and robust schema for
-updating alpha. It has an argument `threshold` that determines for how many steps alpha remains constant before switching to SER method.
-See also [`PseudoTransient`](@ref) for the remaining keyword arguments
-"""
-function RobustPseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-6, threshold::Int = 100,
-        autodiff = nothing)
-    return PseudoTransient{_unwrap_val(concrete_jac)}(autodiff, linsolve, precs,
-        alpha_initial, wrapper_robust_update(threshold))
-end
-
 @concrete mutable struct PseudoTransientCache{iip} <: AbstractNonlinearSolveCache{iip}
     f
     alg
