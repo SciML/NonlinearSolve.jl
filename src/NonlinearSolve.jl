@@ -233,6 +233,7 @@ include("default.jl")
 end
 
 export RadiusUpdateSchemes
+export switched_evolution_relaxation
 
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
     Broyden, Klement, LimitedMemoryBroyden

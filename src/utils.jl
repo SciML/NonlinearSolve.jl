@@ -499,3 +499,10 @@ end
 @inline __is_complex(::Type{ComplexF32}) = true
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
+
+# Functions for updating alpha for PseudoTransient
+function switched_evolution_relaxation(alpha::Number, res_norm::Number,
+        nsteps::Int, u, u_prev, fu, norm::F) where {F}
+    new_norm = norm(fu)
+    return alpha * (res_norm / new_norm)
+end
