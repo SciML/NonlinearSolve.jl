@@ -19,7 +19,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
 """
-struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearAlgorithm
+struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
     autodiff::Symbol
 end
 
@@ -58,7 +58,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
-@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearAlgorithm
+@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm
     autodiff
     factor
     factoraccept
@@ -128,7 +128,7 @@ then the following methods are allowed:
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
 NonlinearLeastSquaresProblem.
 """
-struct CMINPACK <: AbstractNonlinearAlgorithm
+struct CMINPACK <: AbstractNonlinearSolveAlgorithm
     show_trace::Bool
     tracing::Bool
     method::Symbol
@@ -181,7 +181,7 @@ Choices for methods in `NLsolveJL`:
     these arguments, consult the
     [NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
 """
-@concrete struct NLsolveJL <: AbstractNonlinearAlgorithm
+@concrete struct NLsolveJL <: AbstractNonlinearSolveAlgorithm
     method::Symbol
     autodiff::Symbol
     store_trace::Bool
@@ -232,7 +232,7 @@ Fixed Point Problems. We allow using this algorithm to solve root finding proble
   - N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
     arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
 """
-@concrete struct SpeedMappingJL <: AbstractNonlinearAlgorithm
+@concrete struct SpeedMappingJL <: AbstractNonlinearSolveAlgorithm
     σ_min
     stabilize::Bool
     check_obj::Bool
@@ -247,4 +247,78 @@ function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool
     end
 
     return SpeedMappingJL(σ_min, stabilize, check_obj, orders, time_limit)
+end
+
+"""
+    FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
+        condition_number_threshold = missing, extrapolation_period = missing,
+        replace_invalids = :NoAction)
+
+Wrapper over [FixedPointAcceleration.jl](https://s-baumann.github.io/FixedPointAcceleration.jl/)
+for solving Fixed Point Problems. We allow using this algorithm to solve root finding
+problems as well.
+
+## Arguments:
+
+  - `algorithm`: The algorithm to use. Can be `:Anderson`, `:MPE`, `:RRE`, `:VEA`, `:SEA`,
+    `:Simple`, `:Aitken` or `:Newton`.
+  - `m`: The number of previous iterates to use for the extrapolation. Only valid for
+    `:Anderson`.
+  - `condition_number_threshold`: The condition number threshold for Least Squares Problem.
+    Only valid for `:Anderson`.
+  - `extrapolation_period`: The number of iterates between extrapolations. Only valid for
+    `:MPE`, `:RRE`, `:VEA` and `:SEA`. Defaults to `7` for `:MPE` & `:RRE`, and `6` for
+    `:SEA` and `:VEA`. For `:SEA` and `:VEA`, this must be a multiple of `2`.
+  - `replace_invalids`: The method to use for replacing invalid iterates. Can be
+    `:ReplaceInvalids`, `:ReplaceVector` or `:NoAction`.
+"""
+@concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveAlgorithm
+    algorithm::Symbol
+    extrapolation_period::Int
+    replace_invalids::Symbol
+    dampening
+    m::Int
+    condition_number_threshold
+end
+
+function FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
+        condition_number_threshold = missing, extrapolation_period = missing,
+        replace_invalids = :NoAction, dampening = 1.0)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveFixedPointAccelerationExt) === nothing
+        error("FixedPointAccelerationJL requires FixedPointAcceleration.jl to be loaded")
+    end
+
+    @assert algorithm in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
+    @assert replace_invalids in (:ReplaceInvalids, :ReplaceVector, :NoAction)
+
+    if algorithm !== :Anderson
+        if condition_number_threshold !== missing
+            error("`condition_number_threshold` is only valid for Anderson acceleration")
+        end
+        if m !== missing
+            error("`m` is only valid for Anderson acceleration")
+        end
+    end
+    condition_number_threshold === missing && (condition_number_threshold = 1e3)
+    m === missing && (m = 10)
+
+    if algorithm !== :MPE && algorithm !== :RRE && algorithm !== :VEA && algorithm !== :SEA
+        if extrapolation_period !== missing
+            error("`extrapolation_period` is only valid for MPE, RRE, VEA and SEA")
+        end
+    end
+    if extrapolation_period === missing
+        if algorithm === :SEA || algorithm === :VEA
+            extrapolation_period = 6
+        else
+            extrapolation_period = 7
+        end
+    else
+        if (algorithm === :SEA || algorithm === :VEA) && extrapolation_period % 2 != 0
+            error("`extrapolation_period` must be multiples of 2 for SEA and VEA")
+        end
+    end
+
+    return FixedPointAccelerationJL(algorithm, extrapolation_period, replace_invalids,
+        dampening, m, condition_number_threshold)
 end

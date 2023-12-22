@@ -1,7 +1,6 @@
 module NonlinearSolveSpeedMappingExt
 
 using NonlinearSolve, SpeedMapping, DiffEqBase, SciMLBase
-import UnPack: @unpack
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
@@ -19,12 +18,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
     T = eltype(u0)
     iip = isinplace(prob)
     p = prob.p
-
-    if prob.u0 isa Number
-        resid = [NonlinearSolve.evaluate_f(prob, first(u0))]
-    else
-        resid = NonlinearSolve.evaluate_f(prob, u0)
-    end
 
     if !iip && prob.u0 isa Number
         m! = (du, u) -> (du .= prob.f(first(u), p) .+ first(u))
