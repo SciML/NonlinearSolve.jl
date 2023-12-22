@@ -19,7 +19,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
 """
-struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
+struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearAlgorithm
     autodiff::Symbol
 end
 
@@ -58,7 +58,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
-@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm
+@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearAlgorithm
     autodiff
     factor
     factoraccept
@@ -205,4 +205,46 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
 
     return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
         factor, autoscale, m, beta, show_trace)
+end
+
+"""
+    SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
+        orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
+
+Wrapper over [SpeedMapping.jl](https://nicolasl-s.github.io/SpeedMapping.jl) for solving
+Fixed Point Problems. We allow using this algorithm to solve root finding problems as well.
+
+## Arguments:
+
+  - `σ_min`: Setting to `1` may avoid stalling (see paper).
+  - `stabilize`: performs a stabilization mapping before extrapolating. Setting to `true`
+    may improve the performance for applications like accelerating the EM or MM algorithms
+    (see paper).
+  - `check_obj`: In case of NaN or Inf values, the algorithm restarts at the best past
+    iterate.
+  - `orders`: determines ACX's alternating order. Must be between `1` and `3` (where `1`
+    means no extrapolation). The two recommended orders are `[3, 2]` and `[3, 3, 2]`, the
+    latter being potentially better for highly non-linear applications (see paper).
+  - `time_limit`: time limit for the algorithm.
+
+## References:
+
+  - N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
+    arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
+"""
+@concrete struct SpeedMappingJL <: AbstractNonlinearAlgorithm
+    σ_min
+    stabilize::Bool
+    check_obj::Bool
+    orders::Vector{Int}
+    time_limit
+end
+
+function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
+        orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveSpeedMappingExt) === nothing
+        error("SpeedMappingJL requires SpeedMapping.jl to be loaded")
+    end
+
+    return SpeedMappingJL(σ_min, stabilize, check_obj, orders, time_limit)
 end

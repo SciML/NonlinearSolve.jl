@@ -23,6 +23,8 @@ end
     if GROUP == "All" || GROUP == "Wrappers"
         @time @safetestset "MINPACK" include("minpack.jl")
         @time @safetestset "NLsolve" include("nlsolve.jl")
+        @time @safetestset "SpeedMapping" include("speedmapping.jl")
+        @time @safetestset "FixedPointAcceleration" include("fixed_point_acceleration.jl")
     end
 
     if GROUP == "All" || GROUP == "23TestProblems"
