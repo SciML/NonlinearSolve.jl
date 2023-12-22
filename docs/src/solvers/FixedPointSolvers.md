@@ -1,7 +1,7 @@
 # Fixed Point Solvers
 
 Currently we don't have an API to directly specify Fixed Point Solvers. However, a Fixed
-Point Problem can be triviall converted to a Root Finding Problem. Say we want to solve:
+Point Problem can be trivially converted to a Root Finding Problem. Say we want to solve:
 
 ```math
 f(u) = u
