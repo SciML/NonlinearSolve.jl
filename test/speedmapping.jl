@@ -24,4 +24,23 @@ using NonlinearSolve, SpeedMapping, LinearAlgebra, Test
 
     sol = solve(prob, SpeedMappingJL(; stabilize = true))
     @test sol.u' * A[:, 3] ≈ 32.91647286145264
+
+    # Non vector inputs
+    function power_method_nonvec!(du, u, A)
+        mul!(vec(du), A, vec(u))
+        du ./= norm(du, Inf)
+        du .-= u  # Convert to a root finding problem
+        return nothing
+    end
+
+    prob = NonlinearProblem(power_method_nonvec!, ones(1, 3, 1), A)
+
+    sol = solve(prob, SpeedMappingJL())
+    @test vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
+
+    sol = solve(prob, SpeedMappingJL(; orders = [3, 2]))
+    @test vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
+
+    sol = solve(prob, SpeedMappingJL(; stabilize = true))
+    @test vec(sol.u)' * A[:, 3] ≈ 32.91647286145264
 end
