@@ -13,7 +13,7 @@ This can be written as:
 g(u) = f(u) - u = 0
 ```
 
-Where ``g(u) = 0`` is a root finding problem. Note that we can use any root finding
+``g(u) = 0`` is a root finding problem. Note that we can use any root finding
 algorithm to solve this problem. However, this is often not the most efficient way to
 solve a fixed point problem. We provide a few algorithms available via extensions that
 are more efficient for fixed point problems.
