@@ -33,9 +33,9 @@ SIAM Journal on Scientific Computing,25, 553-569.](https://doi.org/10.1137/S1064
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small,
     you are going to need more iterations to converge but it can be more stable.
-  - `update_alpha`  : a function that specifies the schema for updating alpha. The function should be
-    something like `update_alpha(alpha::Number,res_norm::Number,nsteps::Int,u,u_prev,fu,norm::F)`. The default is
-    a function that uses "switched evolution relaxation" SER method to update alpha.
+  - `update_alpha`  : a function that specifies the schema for updating alpha. It should be
+    `update_alpha(alpha::Number,res_norm::Number,steps::Int,u,u_prev,fu,norm::F)`. The default
+    is a function that uses "switched evolution relaxation" SER method to update alpha.
 """
 @concrete struct PseudoTransient{CJ, AD} <: AbstractNewtonAlgorithm{CJ, AD}
     ad::AD
@@ -160,4 +160,11 @@ function __reinit_internal!(cache::PseudoTransientCache; alpha = cache.alg.alpha
     cache.alpha = convert(eltype(cache.u), alpha)
     cache.res_norm = cache.internalnorm(cache.fu)
     return nothing
+end
+
+# Functions for updating alpha for PseudoTransient
+function switched_evolution_relaxation(alpha::Number, res_norm::Number,
+        nsteps::Int, u, u_prev, fu, norm::F) where {F}
+    new_norm = norm(fu)
+    return alpha * (res_norm / new_norm)
 end
