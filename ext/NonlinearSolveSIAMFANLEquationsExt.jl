@@ -25,24 +25,24 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         end
 
         if method == :newton
-            res = nsolsc(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = nsolsc(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
         elseif method == :pseudotransient
-            res = ptcsolsc(f!, prob.u0; delta0 = delta, maxit = maxiters, atol = abstol, rtol=reltol, printerr = show_trace)
+            sol = ptcsolsc(f!, prob.u0; delta0 = delta, maxit = maxiters, atol = abstol, rtol=reltol, printerr = show_trace)
         elseif method == :secant
-            res = secant(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = secant(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
         end
 
-        if res.errcode == 0
+        if sol.errcode == 0
             retcode = ReturnCode.Success
-        elseif res.errcode == 10
+        elseif sol.errcode == 10
             retcode = ReturnCode.MaxIters
-        elseif res.errcode == 1
+        elseif sol.errcode == 1
             retcode = ReturnCode.Failure
-        elseif res.errcode == -1
+        elseif sol.errcode == -1
             retcode = ReturnCode.Default
         end
-        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
-        return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
+        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm)))
+        return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats, original = sol)
     else
         u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
@@ -74,22 +74,22 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         linsolve_alg = String(linsolve)
 
         if method == :newton
-            res = nsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = nsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
         elseif method == :pseudotransient
-            res = ptcsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = ptcsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
         end
         
-        if res.errcode == 0
+        if sol.errcode == 0
             retcode = ReturnCode.Success
-        elseif res.errcode == 10
+        elseif sol.errcode == 10
             retcode = ReturnCode.MaxIters
-        elseif res.errcode == 1
+        elseif sol.errcode == 1
             retcode = ReturnCode.Failure
-        elseif res.errcode == -1
+        elseif sol.errcode == -1
             retcode = ReturnCode.Default
         end
-        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
-        return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
+        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm)))
+        return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats, original = sol)
     end
 
     if prob.f.jac === nothing
@@ -143,30 +143,29 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     AJ!(J, u, x) = J!(J, x, prob.p)    
 
     if method == :newton
-        res = nsol(f!, u, FS, FPS, AJ!;
+        sol = nsol(f!, u, FS, FPS, AJ!;
                     sham=1, rtol = reltol, atol = abstol, maxit = maxiters,
                     printerr = show_trace)
     elseif method == :pseudotransient
-        res = ptcsol(f!, u, FS, FPS, AJ!;
+        sol = ptcsol(f!, u, FS, FPS, AJ!;
                     rtol = reltol, atol = abstol, maxit = maxiters,
                     delta0 = delta, printerr = show_trace)
-        
     end
 
-    if res.errcode == 0
+    if sol.errcode == 0
         retcode = ReturnCode.Success
-    elseif res.errcode == 10
+    elseif sol.errcode == 10
         retcode = ReturnCode.MaxIters
-    elseif res.errcode == 1
+    elseif sol.errcode == 1
         retcode = ReturnCode.Failure
-    elseif res.errcode == -1
+    elseif sol.errcode == -1
         retcode = ReturnCode.Default
     end
 
-
     # pseudo transient continuation has a fixed cost per iteration, iteration statistics are not interesting here.
-    stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
-    return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
+    stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm)))
+    println(sol.stats)
+    return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats, original = sol)
 end
 
 end
