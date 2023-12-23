@@ -7,7 +7,9 @@ import UnPack: @unpack
 import FiniteDiff, ForwardDiff
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...; abstol = 1e-8,
-        reltol = 1e-8, alias_u0::Bool = false, maxiters = 1000, kwargs...)
+        reltol = 1e-8, alias_u0::Bool = false, maxiters = 1000, termination_condition = nothing, kwargs...)
+    @assert (termination_condition === nothing) || (termination_condition isa AbsNormTerminationMode) "SIAMFANLEquationsJL does not support termination conditions!"
+
     @unpack method, autodiff, show_trace, delta, linsolve = alg
 
     iip = SciMLBase.isinplace(prob)
@@ -39,7 +41,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         elseif res.errcode == -1
             retcode = ReturnCode.Default
         end
-        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], -1, -1, res.stats.iarm[1]))
+        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
         return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
     else
         u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
@@ -86,7 +88,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         elseif res.errcode == -1
             retcode = ReturnCode.Default
         end
-        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], -1, -1, res.stats.iarm[1]))
+        stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
         return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
     end
 
@@ -163,7 +165,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
 
     # pseudo transient continuation has a fixed cost per iteration, iteration statistics are not interesting here.
-    stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], -1, -1, res.stats.iarm[1]))
+    stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(res.stats.ifun[1], res.stats.ijac[1], 0, 0, res.stats.iarm[1]))
     return SciMLBase.build_solution(prob, alg, res.solution, res.history; retcode, stats)
 end
 
