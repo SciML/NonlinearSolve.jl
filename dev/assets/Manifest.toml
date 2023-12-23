@@ -1732,9 +1732,9 @@ version = "5.10.1+6"
 
 [[deps.Sundials]]
 deps = ["CEnum", "DataStructures", "DiffEqBase", "Libdl", "LinearAlgebra", "Logging", "PrecompileTools", "Reexport", "SciMLBase", "SparseArrays", "Sundials_jll"]
-git-tree-sha1 = "f8992f3fe2388e0de5f67376ce6aaf4c90b4ee4c"
+git-tree-sha1 = "0075c2abf2bf0890699c77c9fe3ee2d08d6659c3"
 uuid = "c3572dad-4567-51f8-b174-8c6c989267f4"
-version = "4.22.1"
+version = "4.23.0"
 
 [[deps.Sundials_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "OpenBLAS_jll", "Pkg", "SuiteSparse_jll"]
