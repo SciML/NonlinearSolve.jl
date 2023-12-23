@@ -5,7 +5,7 @@ using MINPACK
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, alg::CMINPACK, args...;
-        abstol = 1e-6, maxiters = 100000, alias_u0::Bool = false,
+        abstol = nothing, maxiters = 100000, alias_u0::Bool = false,
         termination_condition = nothing, kwargs...) where {uType, iip}
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "CMINPACK does not support termination conditions!"
@@ -16,6 +16,7 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
         u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
 
+    T = eltype(u0)
     sizeu = size(prob.u0)
     p = prob.p
 
@@ -25,11 +26,11 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
 
     if !iip && prob.u0 isa Number
         f! = (du, u) -> (du .= prob.f(first(u), p); Cint(0))
-    elseif !iip && prob.u0 isa Vector{Float64}
+    elseif !iip && prob.u0 isa AbstractVector
         f! = (du, u) -> (du .= prob.f(u, p); Cint(0))
     elseif !iip && prob.u0 isa AbstractArray
         f! = (du, u) -> (du .= vec(prob.f(reshape(u, sizeu), p)); Cint(0))
-    elseif prob.u0 isa Vector{Float64}
+    elseif prob.u0 isa AbstractVector
         f! = (du, u) -> prob.f(du, u, p)
     else # Then it's an in-place function on an abstract array
         f! = (du, u) -> (prob.f(reshape(du, sizeu), reshape(u, sizeu), p); du = vec(du); 0)
@@ -43,14 +44,16 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     method = ifelse(alg.method === :auto,
         ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hybr), alg.method)
 
+    abstol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+
     if SciMLBase.has_jac(prob.f)
         if !iip && prob.u0 isa Number
             g! = (du, u) -> (du .= prob.f.jac(first(u), p); Cint(0))
-        elseif !iip && prob.u0 isa Vector{Float64}
+        elseif !iip && prob.u0 isa AbstractVector
             g! = (du, u) -> (du .= prob.f.jac(u, p); Cint(0))
         elseif !iip && prob.u0 isa AbstractArray
             g! = (du, u) -> (du .= vec(prob.f.jac(reshape(u, sizeu), p)); Cint(0))
-        elseif prob.u0 isa Vector{Float64}
+        elseif prob.u0 isa AbstractVector
             g! = (du, u) -> prob.f.jac(du, u, p)
         else # Then it's an in-place function on an abstract array
             g! = function (du, u)

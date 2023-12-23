@@ -1,6 +1,6 @@
 # [Nonlinear System Solvers](@id nonlinearsystemsolvers)
 
-`solve(prob::NonlinearProblem,alg;kwargs)`
+`solve(prob::NonlinearProblem, alg; kwargs)`
 
 Solves for ``f(u)=0`` in the problem defined by `prob` using the algorithm
 `alg`. If no algorithm is given, a default algorithm will be chosen.
