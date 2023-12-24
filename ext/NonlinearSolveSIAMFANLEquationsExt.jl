@@ -6,14 +6,19 @@ import ConcreteStructs: @concrete
 import UnPack: @unpack
 import FiniteDiff, ForwardDiff
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...; abstol = 1e-8,
-        reltol = 1e-8, alias_u0::Bool = false, maxiters = 1000, termination_condition = nothing, kwargs...)
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...; abstol = nothing,
+        reltol = nothing, alias_u0::Bool = false, maxiters = 1000, termination_condition = nothing, kwargs...)
     @assert (termination_condition === nothing) || (termination_condition isa AbsNormTerminationMode) "SIAMFANLEquationsJL does not support termination conditions!"
 
     @unpack method, autodiff, show_trace, delta, linsolve = alg
 
     iip = SciMLBase.isinplace(prob)
-    if typeof(prob.u0) <: Number
+    T = eltype(u0)
+
+    atol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    rtol = reltol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : reltol
+
+    if prob.u0 isa Number
         f! = if iip
             function (u)
                 du = similar(u)
@@ -25,11 +30,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         end
 
         if method == :newton
-            sol = nsolsc(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = nsolsc(f!, prob.u0; maxit = maxiters, atol = atol, rtol = rtol, printerr = show_trace)
         elseif method == :pseudotransient
-            sol = ptcsolsc(f!, prob.u0; delta0 = delta, maxit = maxiters, atol = abstol, rtol=reltol, printerr = show_trace)
+            sol = ptcsolsc(f!, prob.u0; delta0 = delta, maxit = maxiters, atol = atol, rtol=rtol, printerr = show_trace)
         elseif method == :secant
-            sol = secant(f!, prob.u0; maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = secant(f!, prob.u0; maxit = maxiters, atol = atol, rtol = rtol, printerr = show_trace)
         end
 
         if sol.errcode == 0
@@ -61,22 +66,21 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         end
     end
 
-    # Allocate ahead for function and Jacobian
+    # Allocate ahead for function
     N = length(u)
-    FS = zeros(eltype(u), N)
-    FPS = zeros(eltype(u), N, N)
-    # Allocate ahead for Krylov basis
+    FS = zeros(T, N)
 
     # Jacobian free Newton Krylov
     if linsolve !== nothing
-        JVS = linsolve == :gmres ? zeros(eltype(u), N, 3) : zeros(eltype(u), N)
+        # Allocate ahead for Krylov basis
+        JVS = linsolve == :gmres ? zeros(T, N, 3) : zeros(T, N)
         # `linsolve` as a Symbol to keep unified interface with other EXTs, SIAMFANLEquations directly use String to choose between different linear solvers
         linsolve_alg = String(linsolve)
 
         if method == :newton
-            sol = nsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = nsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = atol, rtol = rtol, printerr = show_trace)
         elseif method == :pseudotransient
-            sol = ptcsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = abstol, rtol = reltol, printerr = show_trace)
+            sol = ptcsoli(f!, u, FS, JVS; lsolver = linsolve_alg, maxit = maxiters, atol = atol, rtol = rtol, printerr = show_trace)
         end
         
         if sol.errcode == 0
@@ -92,64 +96,30 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats, original = sol)
     end
 
+    # Allocate ahead for Jacobian
+    FPS = zeros(T, N, N)
     if prob.f.jac === nothing
-        use_forward_diff = if alg.autodiff === nothing
-            ForwardDiff.can_dual(eltype(u))
-        else
-            alg.autodiff isa AutoForwardDiff
-        end
-        uf = SciMLBase.JacobianWrapper{iip}(prob.f, prob.p)
-        if use_forward_diff
-            cache = iip ? ForwardDiff.JacobianConfig(uf, fu, u) :
-                    ForwardDiff.JacobianConfig(uf, u)
-        else
-            cache = FiniteDiff.JacobianCache(u, fu)
-        end
-        J! = if iip
-            if use_forward_diff
-                fu_cache = similar(fu)
-                function (J, x, p)
-                    uf.p = p
-                    ForwardDiff.jacobian!(J, uf, fu_cache, x, cache)
-                    return J
-                end
-            else
-                function (J, x, p)
-                    uf.p = p
-                    FiniteDiff.finite_difference_jacobian!(J, uf, x, cache)
-                    return J
-                end
-            end
-        else
-            if use_forward_diff
-                function (J, x, p)
-                    uf.p = p
-                    ForwardDiff.jacobian!(J, uf, x, cache)
-                    return J
-                end
-            else
-                function (J, x, p)
-                    uf.p = p
-                    J_ = FiniteDiff.finite_difference_jacobian(uf, x, cache)
-                    copyto!(J, J_)
-                    return J
-                end
-            end
+        # Use the built-in Jacobian machinery
+        if method == :newton
+            sol = nsol(f!, u, FS, FPS;
+                        sham=1, atol = atol, rtol = rtol, maxit = maxiters,
+                        printerr = show_trace)
+        elseif method == :pseudotransient
+            sol = ptcsol(f!, u, FS, FPS;
+                        atol = atol, rtol = rtol, maxit = maxiters,
+                        delta0 = delta, printerr = show_trace)
         end
     else
-        J! = prob.f.jac
-    end
-
-    AJ!(J, u, x) = J!(J, x, prob.p)    
-
-    if method == :newton
-        sol = nsol(f!, u, FS, FPS, AJ!;
-                    sham=1, rtol = reltol, atol = abstol, maxit = maxiters,
-                    printerr = show_trace)
-    elseif method == :pseudotransient
-        sol = ptcsol(f!, u, FS, FPS, AJ!;
-                    rtol = reltol, atol = abstol, maxit = maxiters,
-                    delta0 = delta, printerr = show_trace)
+        AJ!(J, u, x) = prob.f.jac(J, x, prob.p)
+        if method == :newton
+            sol = nsol(f!, u, FS, FPS, AJ!;
+                        sham=1, atol = atol, rtol = rtol, maxit = maxiters,
+                        printerr = show_trace)
+        elseif method == :pseudotransient
+            sol = ptcsol(f!, u, FS, FPS, AJ!;
+                        atol = atol, rtol = rtol, maxit = maxiters,
+                        delta0 = delta, printerr = show_trace)
+        end
     end
 
     if sol.errcode == 0
