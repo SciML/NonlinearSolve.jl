@@ -331,8 +331,6 @@ end
 ### Keyword Arguments
 
   - `method`: the choice of method for solving the nonlinear system.
-  - `autodiff`: the choice of method for generating the Jacobian. Defaults to `:central` or
-    central differencing via FiniteDiff.jl. The other choices are `:forward`.
   - `show_trace`: whether to show the trace.
   - `delta`: initial pseudo time step, default is 1e-3.
   - `linsolve` : JFNK linear solvers, choices are `gmres` and `bicgstab`.
@@ -345,15 +343,14 @@ end
 """
 @concrete struct SIAMFANLEquationsJL <: AbstractNonlinearAlgorithm
     method::Symbol
-    autodiff::Symbol
     show_trace::Bool
     delta
     linsolve::Union{Symbol, Nothing}
 end
 
-function SIAMFANLEquationsJL(; method = :newton, autodiff = :central, show_trace = false, delta = 1e-3, linsolve = nothing)
+function SIAMFANLEquationsJL(; method = :newton, show_trace = false, delta = 1e-3, linsolve = nothing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
     end
-  return SIAMFANLEquationsJL(method, autodiff, show_trace, delta, linsolve)
+  return SIAMFANLEquationsJL(method, show_trace, delta, linsolve)
 end

@@ -4,13 +4,12 @@ using NonlinearSolve, SciMLBase
 using SIAMFANLEquations
 import ConcreteStructs: @concrete
 import UnPack: @unpack
-import FiniteDiff, ForwardDiff
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...; abstol = nothing,
         reltol = nothing, alias_u0::Bool = false, maxiters = 1000, termination_condition = nothing, kwargs...)
     @assert (termination_condition === nothing) || (termination_condition isa AbsNormTerminationMode) "SIAMFANLEquationsJL does not support termination conditions!"
 
-    @unpack method, autodiff, show_trace, delta, linsolve = alg
+    @unpack method, show_trace, delta, linsolve = alg
 
     iip = SciMLBase.isinplace(prob)
     T = eltype(prob.u0)
@@ -51,8 +50,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     else
         u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
-
-    fu = NonlinearSolve.evaluate_f(prob, u)
 
     if iip
         f! = function (du, u)

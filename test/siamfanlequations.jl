@@ -70,11 +70,21 @@ for alg in [SIAMFANLEquationsJL()]
     @test maximum(du) < 1e-6
 end
 
-# tolerance tests
+# tolerance tests for scalar equation solvers
 f_tol(u, p) = u^2 - 2
 prob_tol = NonlinearProblem(f_tol, 1.0)
 for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-11]
-    sol = solve(prob_tol, SIAMFANLEquationsJL(), abstol = tol)
+    for method = [:newton, :pseudotransient, :secant]
+        sol = solve(prob_tol, SIAMFANLEquationsJL(method = method), abstol = tol)
+        @test abs(sol.u[1] - sqrt(2)) < tol
+    end
+end
+
+# Test the JFNK technique
+f_jfnk(u, p) = u^2 - 2
+prob_jfnk = NonlinearProblem(f_jfnk, 1.0)
+for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-11]
+    sol = solve(prob_jfnk, SIAMFANLEquationsJL(linsolve = :gmres), abstol = tol)
     @test abs(sol.u[1] - sqrt(2)) < tol
 end
 
@@ -85,7 +95,7 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, SIAMFANLEquationsJL(autodiff = :central))
+sol = solve(prob, SIAMFANLEquationsJL())
 
 du = zeros(2)
 f!(du, sol.u, nothing)
@@ -98,7 +108,7 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, SIAMFANLEquationsJL(autodiff = :forward))
+sol = solve(prob, SIAMFANLEquationsJL())
 
 du = zeros(2)
 f!(du, sol.u, nothing)
@@ -131,7 +141,9 @@ f = NonlinearFunction(f!, jac = j!)
 p = A
 
 ProbN = NonlinearProblem(f, init, p)
-sol = solve(ProbN, SIAMFANLEquationsJL(), reltol = 1e-8, abstol = 1e-8)
+for method = [:newton, :pseudotransient]
+    sol = solve(ProbN, SIAMFANLEquationsJL(method = method), reltol = 1e-8, abstol = 1e-8)
+end
 
 #= doesn't support complex numbers handling
 init = ones(Complex{Float64}, 152);
