@@ -2,7 +2,6 @@ module NonlinearSolveSIAMFANLEquationsExt
 
 using NonlinearSolve, SciMLBase
 using SIAMFANLEquations
-import UnPack: @unpack
 
 @inline function __siam_fanl_equations_retcode_mapping(sol)
     if sol.errcode == 0
@@ -14,6 +13,12 @@ import UnPack: @unpack
     elseif sol.errcode == -1
         return ReturnCode.Default
     end
+end
+
+@inline function __zeros_like(x, args...)
+    z = similar(x, args...)
+    fill!(z, zero(eltype(x)))
+    return z
 end
 
 # pseudo transient continuation has a fixed cost per iteration, iteration statistics are
@@ -31,7 +36,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "SIAMFANLEquationsJL does not support termination conditions!"
 
-    @unpack method, delta, linsolve = alg
+    (; method, delta, linsolve) = alg
 
     iip = SciMLBase.isinplace(prob)
 
@@ -55,30 +60,19 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         stats = __siam_fanl_equations_stats_mapping(method, sol)
         return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode,
             stats, original = sol)
-    else
-        u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
 
-    if iip
-        f! = function (du, u)
-            prob.f(du, u, prob.p)
-            return du
-        end
-    else
-        f! = function (du, u)
-            du .= prob.f(u, prob.p)
-            return du
-        end
-    end
+    f!, u = NonlinearSolve.__construct_f(prob; alias_u0,
+        can_handle_arbitrary_dims = Val(true))
 
     # Allocate ahead for function
     N = length(u)
-    FS = zeros(T, N)
+    FS = __zeros_like(u, N)
 
     # Jacobian free Newton Krylov
     if linsolve !== nothing
         # Allocate ahead for Krylov basis
-        JVS = linsolve == :gmres ? zeros(T, N, 3) : zeros(T, N)
+        JVS = linsolve == :gmres ? __zeros_like(u, N, 3) : __zeros_like(u, N)
         # `linsolve` as a Symbol to keep unified interface with other EXTs,
         # SIAMFANLEquations directly use String to choose between different linear solvers
         linsolve_alg = String(linsolve)
@@ -98,7 +92,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     end
 
     # Allocate ahead for Jacobian
-    FPS = zeros(T, N, N)
+    FPS = __zeros_like(u, N, N)
+
     if prob.f.jac === nothing
         # Use the built-in Jacobian machinery
         if method == :newton

@@ -17,20 +17,13 @@ import LeastSquaresOptim as LSO
     end
 end
 
+# TODO: Implement reinit
 @concrete struct LeastSquaresOptimJLCache
     prob
     alg
     allocated_prob
     kwargs
 end
-
-@concrete struct FunctionWrapper{iip}
-    f
-    p
-end
-
-(f::FunctionWrapper{true})(du, u) = f.f(du, u, f.p)
-(f::FunctionWrapper{false})(du, u) = (du .= f.f(u, f.p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresOptimJL,
         args...; alias_u0 = false, abstol = nothing, show_trace::Val{ShT} = Val(false),
@@ -42,8 +35,8 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresO
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
     reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
-    f! = FunctionWrapper{iip}(prob.f, prob.p)
-    g! = prob.f.jac === nothing ? nothing : FunctionWrapper{iip}(prob.f.jac, prob.p)
+    f! = NonlinearSolve.__make_inplace{iip}(prob.f, prob.p)
+    g! = NonlinearSolve.__make_inplace{iip}(prob.f.jac, prob.p)
 
     resid_prototype = prob.f.resid_prototype === nothing ?
                       (!iip ? prob.f(u, prob.p) : zeros(u)) : prob.f.resid_prototype

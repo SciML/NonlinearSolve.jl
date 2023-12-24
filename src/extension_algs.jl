@@ -59,7 +59,7 @@ for solving `NonlinearLeastSquaresProblem`.
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
 @concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm
-    autodiff
+    ad
     factor
     factoraccept
     factorreject
@@ -68,6 +68,12 @@ for solving `NonlinearLeastSquaresProblem`.
     maxscale
     minfactor
     maxfactor
+end
+
+function set_ad(alg::FastLevenbergMarquardtJL{linsolve}, ad) where {linsolve}
+    return FastLevenbergMarquardtJL{linsolve}(ad, alg.factor, alg.factoraccept,
+        alg.factorreject, alg.factorupdate, alg.minscale, alg.maxscale, alg.minfactor,
+        alg.maxfactor)
 end
 
 function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,

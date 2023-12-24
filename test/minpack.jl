@@ -16,7 +16,7 @@ for alg in [CMINPACK()]
 
     du = zeros(2)
     f_iip(du, sol.u, nothing)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end
 
 # OOP Tests
@@ -31,5 +31,5 @@ for alg in [CMINPACK()]
 
     du = zeros(2)
     du = f_oop(sol.u, nothing)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end

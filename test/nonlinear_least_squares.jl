@@ -110,7 +110,7 @@ push!(solvers, CMINPACK())
 
 for solver in solvers, prob in probs
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid) < 1e-6
+    @test maximum(abs, sol.resid) < 1e-6
 end
 
 probs = [

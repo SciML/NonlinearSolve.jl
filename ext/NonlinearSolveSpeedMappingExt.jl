@@ -9,22 +9,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "SpeedMappingJL does not support termination conditions!"
 
-    if typeof(prob.u0) <: Number
-        u0 = [prob.u0]
-    else
-        u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
-    end
-
-    iip = isinplace(prob)
-    p = prob.p
-
-    if !iip && prob.u0 isa Number
-        m! = (du, u) -> (du .= prob.f(first(u), p) .+ first(u))
-    elseif !iip
-        m! = (du, u) -> (du .= prob.f(u, p) .+ u)
-    else
-        m! = (du, u) -> (prob.f(du, u, p); du .+= u)
-    end
+    m!, u0 = NonlinearSolve.__construct_f(prob; alias_u0, make_fixed_point = Val(true),
+        can_handle_arbitrary_dims = Val(true))
 
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 

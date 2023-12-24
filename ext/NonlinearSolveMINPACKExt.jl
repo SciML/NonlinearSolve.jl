@@ -2,6 +2,7 @@ module NonlinearSolveMINPACKExt
 
 using NonlinearSolve, DiffEqBase, SciMLBase
 using MINPACK
+import FastClosures: @closure
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, alg::CMINPACK, args...;
@@ -11,80 +12,42 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "CMINPACK does not support termination conditions!"
 
-    if prob.u0 isa Number
-        u0 = [prob.u0]
-    else
-        u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
-    end
+    f!_, u0 = NonlinearSolve.__construct_f(prob; alias_u0)
+    f! = @closure (du, u) -> (f!_(du, u); Cint(0))
 
-    sizeu = size(prob.u0)
-    p = prob.p
-
-    # unwrapping alg params
-    show_trace = alg.show_trace || ShT
-    tracing = alg.tracing || StT
-
-    if !iip && prob.u0 isa Number
-        f! = (du, u) -> (du .= prob.f(first(u), p); Cint(0))
-    elseif !iip && prob.u0 isa AbstractVector
-        f! = (du, u) -> (du .= prob.f(u, p); Cint(0))
-    elseif !iip && prob.u0 isa AbstractArray
-        f! = (du, u) -> (du .= vec(prob.f(reshape(u, sizeu), p)); Cint(0))
-    elseif prob.u0 isa AbstractVector
-        f! = (du, u) -> prob.f(du, u, p)
-    else # Then it's an in-place function on an abstract array
-        f! = (du, u) -> (prob.f(reshape(du, sizeu), reshape(u, sizeu), p); du = vec(du); 0)
-    end
-
-    u = zero(u0)
-    resid = NonlinearSolve.evaluate_f(prob, u)
+    resid = NonlinearSolve.evaluate_f(prob, prob.u0)
     m = length(resid)
-    size_jac = (length(resid), length(u))
 
     method = ifelse(alg.method === :auto,
         ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hybr), alg.method)
 
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    show_trace = alg.show_trace || ShT
+    tracing = alg.tracing || StT
+    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
-    if SciMLBase.has_jac(prob.f)
-        if !iip && prob.u0 isa Number
-            g! = (du, u) -> (du .= prob.f.jac(first(u), p); Cint(0))
-        elseif !iip && prob.u0 isa AbstractVector
-            g! = (du, u) -> (du .= prob.f.jac(u, p); Cint(0))
-        elseif !iip && prob.u0 isa AbstractArray
-            g! = (du, u) -> (du .= vec(prob.f.jac(reshape(u, sizeu), p)); Cint(0))
-        elseif prob.u0 isa AbstractVector
-            g! = (du, u) -> prob.f.jac(du, u, p)
-        else # Then it's an in-place function on an abstract array
-            g! = function (du, u)
-                prob.f.jac(reshape(du, size_jac), reshape(u, sizeu), p)
-                return Cint(0)
-            end
-        end
-        original = MINPACK.fsolve(f!, g!, vec(u0), m; tol = abstol, show_trace, tracing,
-            method, iterations = maxiters)
+    jac!_ = NonlinearSolve.__construct_jac(prob, alg, u0)
+
+    if jac!_ === nothing
+        original = MINPACK.fsolve(f!, u0, m; tol, show_trace, tracing, method,
+            iterations = maxiters)
     else
-        original = MINPACK.fsolve(f!, vec(u0), m; tol = abstol, show_trace, tracing,
-            method, iterations = maxiters)
+        jac! = @closure((J, u) -> (jac!_(J, u); Cint(0)))
+        original = MINPACK.fsolve(f!, jac!, u0, m; tol, show_trace, tracing, method,
+            iterations = maxiters)
     end
 
-    u = reshape(original.x, size(u))
-    resid = original.f
-    # retcode = original.converged ? ReturnCode.Success : ReturnCode.Failure
-    # MINPACK lies about convergence? or maybe uses some other criteria?
-    # We just check for absolute tolerance on the residual
-    objective = maximum(abs, resid)
-    retcode = ifelse(objective ≤ abstol, ReturnCode.Success, ReturnCode.Failure)
+    u = original.x
+    resid_ = original.f
+    objective = maximum(abs, resid_)
+    retcode = ifelse(objective ≤ tol, ReturnCode.Success, ReturnCode.Failure)
 
-    # These are only meaningful if `tracing = true`
+    # These are only meaningful if `store_trace = Val(true)`
     stats = SciMLBase.NLStats(original.trace.f_calls, original.trace.g_calls,
         original.trace.g_calls, original.trace.g_calls, -1)
 
-    if prob.u0 isa Number
-        return SciMLBase.build_solution(prob, alg, u[1], resid[1]; stats, retcode, original)
-    else
-        return SciMLBase.build_solution(prob, alg, u, resid; stats, retcode, original)
-    end
+    u_ = prob.u0 isa Number ? original.x[1] : reshape(original.x, size(prob.u0))
+    resid_ = prob.u0 isa Number ? resid_[1] : reshape(resid_, size(resid))
+    return SciMLBase.build_solution(prob, alg, u_, resid_; retcode, original, stats)
 end
 
 end

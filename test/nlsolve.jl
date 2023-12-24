@@ -16,7 +16,7 @@ for alg in [NLsolveJL()]
 
     du = zeros(2)
     f_iip(du, sol.u, nothing, 0)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end
 
 # OOP Tests
@@ -33,7 +33,7 @@ for alg in [NLsolveJL()]
 
     du = zeros(2)
     du = f_oop(sol.u, nothing, 0)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end
 
 # NonlinearProblem Tests
@@ -53,7 +53,7 @@ for alg in [NLsolveJL()]
 
     du = zeros(2)
     f_iip(du, sol.u, nothing)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end
 
 # OOP Tests
@@ -67,7 +67,7 @@ for alg in [NLsolveJL()]
 
     du = zeros(2)
     du = f_oop(sol.u, nothing)
-    @test maximum(du) < 1e-6
+    @test maximum(abs, du) < 1e-6
 end
 
 # tolerance tests
@@ -102,7 +102,7 @@ sol = solve(prob, NLsolveJL(autodiff = :forward))
 
 du = zeros(2)
 f!(du, sol.u, nothing)
-@test maximum(du) < 1e-6
+@test maximum(abs, du) < 1e-6
 
 function problem(x, A)
     return x .^ 2 - A

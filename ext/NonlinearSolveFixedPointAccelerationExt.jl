@@ -7,7 +7,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::FixedPointAccelerationJL
         show_trace::Val{PrintReports} = Val(false), termination_condition = nothing,
         kwargs...) where {PrintReports}
     @assert (termination_condition ===
-             nothing)||(termination_condition isa AbsNormTerminationMode) "SpeedMappingJL does not support termination conditions!"
+             nothing)||(termination_condition isa AbsNormTerminationMode) "FixedPointAccelerationJL does not support termination conditions!"
 
     u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     u_size = size(u0)
