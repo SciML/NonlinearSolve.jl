@@ -21,8 +21,8 @@ function f2(out, levels, u0)
 end
 
 @btime f(out, levels, (0.0, 2.0))
-@btime f2(out, levels, 1.0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  97.632 ms (0 allocations: 0 bytes)
-  15.567 ms (0 allocations: 0 bytes)</code></pre><p>MATLAB 2022a achieves 1.66s. Try this code yourself: we receive 0.009 seconds, or a 184x speedup.</p><p>For more information on performance of SciML, see the <a href="https://docs.sciml.ai/SciMLBenchmarksOutput/stable/">SciMLBenchmarks</a>.</p><h2 id="The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?"><a class="docs-heading-anchor" href="#The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?">The solver tried to set a Dual Number in my Vector of Floats.How do I fix that?</a><a id="The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?-1"></a><a class="docs-heading-anchor-permalink" href="#The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?" title="Permalink"></a></h2><p>This is a common problem that occurs if the code was not written to be generic based on the input types. For example, consider this example taken from <a href="https://github.com/SciML/NonlinearSolve.jl/issues/298">this issue</a></p><pre><code class="language-julia hljs">using NonlinearSolve, Random
+@btime f2(out, levels, 1.0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  91.109 ms (0 allocations: 0 bytes)
+  14.984 ms (0 allocations: 0 bytes)</code></pre><p>MATLAB 2022a achieves 1.66s. Try this code yourself: we receive 0.009 seconds, or a 184x speedup.</p><p>For more information on performance of SciML, see the <a href="https://docs.sciml.ai/SciMLBenchmarksOutput/stable/">SciMLBenchmarks</a>.</p><h2 id="The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?"><a class="docs-heading-anchor" href="#The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?">The solver tried to set a Dual Number in my Vector of Floats.How do I fix that?</a><a id="The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?-1"></a><a class="docs-heading-anchor-permalink" href="#The-solver-tried-to-set-a-Dual-Number-in-my-Vector-of-Floats.How-do-I-fix-that?" title="Permalink"></a></h2><p>This is a common problem that occurs if the code was not written to be generic based on the input types. For example, consider this example taken from <a href="https://github.com/SciML/NonlinearSolve.jl/issues/298">this issue</a></p><pre><code class="language-julia hljs">using NonlinearSolve, Random
 
 function fff_incorrect(var, p)
     v_true = [1.0, 0.1, 2.0, 0.5]
@@ -39,14 +39,14 @@ try
     sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
 catch e
     @error e
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Error: MethodError(Float64, (Dual{ForwardDiff.Tag{NonlinearSolve.NonlinearSolveTag, Float64}}(0.08768054239671819,1.0,0.0,0.0,0.0),), 0x0000000000008360)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Error: MethodError(Float64, (Dual{ForwardDiff.Tag{NonlinearSolve.NonlinearSolveTag, Float64}}(0.010186196892410848,1.0,0.0,0.0,0.0),), 0x0000000000008360)
 └ @ Main FAQ.md:62</code></pre><p>Essentially what happened was, NonlinearSolve checked that we can use ForwardDiff.jl to differentiate the function based on the input types. However, this function has <code>xx = [1.0, 2.0, 3.0, 4.0]</code> followed by a <code>xx[1] = var[1] - v_true[1]</code> where <code>var</code> might be a Dual number. This causes the error. To fix it:</p><ol><li>Specify the <code>autodiff</code> to be <code>AutoFiniteDiff</code></li></ol><pre><code class="language-julia hljs">sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiters = 10000,
     abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 u: 4-element Vector{Float64}:
- 1.0000000019563713
- 0.10000000341738167
- 1.9999999979922516
- 0.4999999997046575</code></pre><p>This worked but, Finite Differencing is not the recommended approach in any scenario. Instead, rewrite the function to use <a href="https://github.com/SciML/PreallocationTools.jl">PreallocationTools.jl</a> or write it as</p><pre><code class="language-julia hljs">function fff_correct(var, p)
+ 1.0000000002272782
+ 0.10000000158917118
+ 1.9999999987777148
+ 0.49999999528971345</code></pre><p>This worked but, Finite Differencing is not the recommended approach in any scenario. Instead, rewrite the function to use <a href="https://github.com/SciML/PreallocationTools.jl">PreallocationTools.jl</a> or write it as</p><pre><code class="language-julia hljs">function fff_correct(var, p)
     v_true = [1.0, 0.1, 2.0, 0.5]
     xx = eltype(var)[1.0, 2.0, 3.0, 4.0]
     xx[1] = var[1] - v_true[1]
@@ -56,7 +56,7 @@ end
 prob_oop = NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
 sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 u: 4-element Vector{Float64}:
- 1.9999999999999865
- 0.2531599161885896
- 1.9100176862344245
- 0.48676343288449675</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../SparsityDetection/">« (Semi-)Automatic Sparsity Detection</a><a class="docs-footer-nextpage" href="../../solvers/NonlinearSystemSolvers/">Nonlinear System Solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Saturday 23 December 2023 23:30">Saturday 23 December 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 1.9999999999999767
+ 0.1712233208609289
+ 1.9452198374020484
+ 0.28889482700855307</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../SparsityDetection/">« (Semi-)Automatic Sparsity Detection</a><a class="docs-footer-nextpage" href="../../solvers/NonlinearSystemSolvers/">Nonlinear System Solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Sunday 24 December 2023 09:17">Sunday 24 December 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
