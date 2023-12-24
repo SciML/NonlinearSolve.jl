@@ -68,7 +68,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
         df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
     end
 
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, method,
         store_trace, extended_trace, linesearch, linsolve, factor, autoscale, m, beta,

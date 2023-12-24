@@ -143,3 +143,10 @@ Newton-Krylov form. However, KINSOL is known to be less stable than some other
 implementations, as it has no line search or globalizer (trust region).
 
   - `KINSOL()`: The KINSOL method of the SUNDIALS C library
+
+### SIAMFANLEquations.jl
+
+SIAMFANLEquations.jl is a wrapper for the methods in the SIAMFANLEquations.jl library.
+
+  - `SIAMFANLEquationsJL()`: A wrapper for using the methods in
+    [SIAMFANLEquations.jl](https://github.com/ctkelley/SIAMFANLEquations.jl)

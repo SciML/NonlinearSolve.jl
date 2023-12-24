@@ -74,7 +74,7 @@ end
 f_tol(u, p) = u^2 - 2
 prob_tol = NonlinearProblem(f_tol, 1.0)
 for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-11]
-    for method = [:newton, :pseudotransient, :secant]
+    for method in [:newton, :pseudotransient, :secant]
         sol = solve(prob_tol, SIAMFANLEquationsJL(method = method), abstol = tol)
         @test abs(sol.u[1] - sqrt(2)) < tol
     end
@@ -141,7 +141,7 @@ f = NonlinearFunction(f!, jac = j!)
 p = A
 
 ProbN = NonlinearProblem(f, init, p)
-for method = [:newton, :pseudotransient]
+for method in [:newton, :pseudotransient]
     sol = solve(ProbN, SIAMFANLEquationsJL(method = method), reltol = 1e-8, abstol = 1e-8)
 end
 
