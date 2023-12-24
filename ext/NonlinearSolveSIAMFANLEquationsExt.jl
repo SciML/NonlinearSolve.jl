@@ -13,7 +13,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     @unpack method, autodiff, show_trace, delta, linsolve = alg
 
     iip = SciMLBase.isinplace(prob)
-    T = eltype(u0)
+    T = eltype(prob.u0)
 
     atol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
     rtol = reltol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : reltol
