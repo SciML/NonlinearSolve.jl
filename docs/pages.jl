@@ -32,6 +32,6 @@ pages = ["index.md",
         "api/fastlevenbergmarquardt.md",
         "api/speedmapping.md",
         "api/fixedpointacceleration.md",
-        "api/siamfanlequations.md"]],
+        "api/siamfanlequations.md"],
     "Release Notes" => "release_notes.md",
 ]
