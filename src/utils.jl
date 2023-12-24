@@ -499,3 +499,6 @@ end
 @inline __is_complex(::Type{ComplexF32}) = true
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
+
+@inline __reshape(x::Number, args...) = x
+@inline __reshape(x::AbstractArray, args...) = reshape(x, args...)

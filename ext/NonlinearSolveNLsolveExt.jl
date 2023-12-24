@@ -9,7 +9,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "NLsolveJL does not support termination conditions!"
 
-    if typeof(prob.u0) <: Number
+    if prob.u0 isa Number
         u0 = [prob.u0]
     else
         u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
@@ -82,7 +82,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
               ReturnCode.Failure
     stats = SciMLBase.NLStats(original.f_calls, original.g_calls, original.g_calls,
         original.g_calls, original.iterations)
-    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original, stats)
+    if prob.u0 isa Number
+        return SciMLBase.build_solution(prob, alg, u[1], resid[1]; retcode, original, stats)
+    else
+        return SciMLBase.build_solution(prob, alg, u, resid; retcode, original, stats)
+    end
 end
 
 end

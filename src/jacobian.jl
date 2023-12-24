@@ -169,7 +169,7 @@ function linsolve_caches(A, b, u, p, alg; linsolve_kwargs = (;))
        (alg.linsolve === nothing && A isa SMatrix && linsolve_kwargs === (;))
         # Default handling for SArrays in LinearSolve is not great. Some parts are patched
         # but there are quite a few unnecessary allocations
-        return FakeLinearSolveJLCache(A, b)
+        return FakeLinearSolveJLCache(A, _vec(b))
     end
 
     linprob = LinearProblem(A, _vec(b); u0 = _vec(u), linsolve_kwargs...)

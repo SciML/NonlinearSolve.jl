@@ -13,7 +13,8 @@ end
 
 @time begin
     if GROUP == "All" || GROUP == "Core"
-        @time @safetestset "Basic Tests + Some AD" include("basictests.jl")
+        @time @safetestset "Basic Tests" include("basictests.jl")
+        @time @safetestset "Forward AD" include("forward_ad.jl")
     end
 
     if GROUP == "All" || GROUP == "NLLS"
