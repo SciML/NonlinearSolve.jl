@@ -208,6 +208,7 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
 end
 
 """
+
     SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
         orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
 
@@ -321,4 +322,35 @@ function FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
 
     return FixedPointAccelerationJL(algorithm, extrapolation_period, replace_invalids,
         dampening, m, condition_number_threshold)
+end
+
+"""
+
+    SIAMFANLEquationsJL(; method = :newton, autodiff = :central, show_trace = false, delta = 1e-3, linsolve = nothing)
+
+### Keyword Arguments
+
+  - `method`: the choice of method for solving the nonlinear system.
+  - `show_trace`: whether to show the trace.
+  - `delta`: initial pseudo time step, default is 1e-3.
+  - `linsolve` : JFNK linear solvers, choices are `gmres` and `bicgstab`.
+
+### Submethod Choice
+
+  - `:newton`: Classical Newton method.
+  - `:pseudotransient`: Pseudo transient method.
+  - `:secant`: Secant method for scalar equations.
+"""
+@concrete struct SIAMFANLEquationsJL <: AbstractNonlinearAlgorithm
+    method::Symbol
+    show_trace::Bool
+    delta
+    linsolve::Union{Symbol, Nothing}
+end
+
+function SIAMFANLEquationsJL(; method = :newton, show_trace = false, delta = 1e-3, linsolve = nothing)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
+        error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
+    end
+  return SIAMFANLEquationsJL(method, show_trace, delta, linsolve)
 end
