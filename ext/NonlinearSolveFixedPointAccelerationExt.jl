@@ -30,7 +30,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::FixedPointAccelerationJL
         f = (u) -> (prob.f(du, reshape(u, u_size), p); vec(du) .+ u)
     end
 
-    tol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     sol = fixed_point(f, NonlinearSolve._vec(u0); Algorithm = alg.algorithm,
         ConvergenceMetricThreshold = tol, MaxIter = maxiters, MaxM = alg.m,

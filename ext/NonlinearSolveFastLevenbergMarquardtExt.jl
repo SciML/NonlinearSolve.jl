@@ -5,7 +5,7 @@ import ConcreteStructs: @concrete
 import FastLevenbergMarquardt as FastLM
 import FiniteDiff, ForwardDiff
 
-function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
+@inline function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve === :cholesky
         return FastLM.CholeskySolver(ArrayInterface.undefmatrix(x))
     elseif linsolve === :qr
@@ -33,13 +33,16 @@ end
 (f::InplaceFunction{false})(fx, x, p) = (fx .= f.f(x, p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
-        alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = 1e-8,
-        reltol = 1e-8, maxiters = 1000, kwargs...)
+        alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
+        reltol = nothing, maxiters = 1000, kwargs...)
     iip = SciMLBase.isinplace(prob)
     u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     fu = NonlinearSolve.evaluate_f(prob, u)
 
     f! = InplaceFunction{iip}(prob.f)
+
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
     if prob.f.jac === nothing
         use_forward_diff = if alg.autodiff === nothing
@@ -95,9 +98,9 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
     LM = FastLM.LMWorkspace(u, fu, J)
 
     return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
-        (; xtol = abstol, ftol = reltol, maxit = maxiters, alg.factor, alg.factoraccept,
-            alg.factorreject, alg.minscale, alg.maxscale, alg.factorupdate, alg.minfactor,
-            alg.maxfactor, kwargs...))
+        (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters, alg.factor,
+            alg.factoraccept, alg.factorreject, alg.minscale, alg.maxscale,
+            alg.factorupdate, alg.minfactor, alg.maxfactor))
 end
 
 function SciMLBase.solve!(cache::FastLevenbergMarquardtJLCache)

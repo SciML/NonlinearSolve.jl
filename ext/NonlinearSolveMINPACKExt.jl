@@ -5,8 +5,9 @@ using MINPACK
 
 function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             NonlinearLeastSquaresProblem{uType, iip}}, alg::CMINPACK, args...;
-        abstol = nothing, maxiters = 100000, alias_u0::Bool = false,
-        termination_condition = nothing, kwargs...) where {uType, iip}
+        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        show_trace::Val{ShT} = Val(false), store_trace::Val{StT} = Val(false),
+        termination_condition = nothing, kwargs...) where {uType, iip, ShT, StT}
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "CMINPACK does not support termination conditions!"
 
@@ -16,13 +17,12 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
         u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
 
-    T = eltype(u0)
     sizeu = size(prob.u0)
     p = prob.p
 
     # unwrapping alg params
-    show_trace = alg.show_trace
-    tracing = alg.tracing
+    show_trace = alg.show_trace || ShT
+    tracing = alg.tracing || StT
 
     if !iip && prob.u0 isa Number
         f! = (du, u) -> (du .= prob.f(first(u), p); Cint(0))
@@ -44,7 +44,7 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     method = ifelse(alg.method === :auto,
         ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hybr), alg.method)
 
-    abstol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
 
     if SciMLBase.has_jac(prob.f)
         if !iip && prob.u0 isa Number
@@ -62,10 +62,10 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
             end
         end
         original = MINPACK.fsolve(f!, g!, vec(u0), m; tol = abstol, show_trace, tracing,
-            method, iterations = maxiters, kwargs...)
+            method, iterations = maxiters)
     else
         original = MINPACK.fsolve(f!, vec(u0), m; tol = abstol, show_trace, tracing,
-            method, iterations = maxiters, kwargs...)
+            method, iterations = maxiters)
     end
 
     u = reshape(original.x, size(u))

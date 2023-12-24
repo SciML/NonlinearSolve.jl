@@ -15,9 +15,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
         u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
 
-    T = eltype(u0)
     iip = isinplace(prob)
-
     sizeu = size(prob.u0)
     p = prob.p
 
@@ -70,7 +68,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
         df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
     end
 
-    abstol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
 
     original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, method,
         store_trace, extended_trace, linesearch, linsolve, factor, autoscale, m, beta,

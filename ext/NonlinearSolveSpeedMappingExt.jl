@@ -15,7 +15,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
         u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     end
 
-    T = eltype(u0)
     iip = isinplace(prob)
     p = prob.p
 
@@ -27,7 +26,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
         m! = (du, u) -> (prob.f(du, u, p); du .+= u)
     end
 
-    tol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     sol = speedmapping(u0; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
         alg.check_obj, store_info, alg.σ_min, alg.stabilize)

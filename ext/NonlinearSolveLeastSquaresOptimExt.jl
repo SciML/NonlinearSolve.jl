@@ -4,7 +4,7 @@ using NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import LeastSquaresOptim as LSO
 
-function _lso_solver(::LeastSquaresOptimJL{alg, linsolve}) where {alg, linsolve}
+@inline function _lso_solver(::LeastSquaresOptimJL{alg, linsolve}) where {alg, linsolve}
     ls = linsolve === :qr ? LSO.QR() :
          (linsolve === :cholesky ? LSO.Cholesky() :
           (linsolve === :lsmr ? LSO.LSMR() : nothing))
@@ -33,25 +33,28 @@ end
 (f::FunctionWrapper{false})(du, u) = (du .= f.f(u, f.p))
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, alg::LeastSquaresOptimJL,
-        args...; alias_u0 = false, abstol = 1e-8, reltol = 1e-8, verbose = false,
-        maxiters = 1000, kwargs...)
+        args...; alias_u0 = false, abstol = nothing, show_trace::Val{ShT} = Val(false),
+        trace_level = TraceMinimal(), store_trace::Val{StT} = Val(false), maxiters = 1000,
+        reltol = nothing, kwargs...) where {ShT, StT}
     iip = SciMLBase.isinplace(prob)
-    u = alias_u0 ? prob.u0 : deepcopy(prob.u0)
+    u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
+
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
     f! = FunctionWrapper{iip}(prob.f, prob.p)
     g! = prob.f.jac === nothing ? nothing : FunctionWrapper{iip}(prob.f.jac, prob.p)
 
     resid_prototype = prob.f.resid_prototype === nothing ?
-                      (!iip ? prob.f(u, prob.p) : zeros(u)) :
-                      prob.f.resid_prototype
+                      (!iip ? prob.f(u, prob.p) : zeros(u)) : prob.f.resid_prototype
 
     lsoprob = LSO.LeastSquaresProblem(; x = u, f!, y = resid_prototype, g!,
         J = prob.f.jac_prototype, alg.autodiff, output_length = length(resid_prototype))
     allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, _lso_solver(alg))
 
     return LeastSquaresOptimJLCache(prob, alg, allocated_prob,
-        (; x_tol = abstol, f_tol = reltol, iterations = maxiters, show_trace = verbose,
-            kwargs...))
+        (; x_tol = reltol, f_tol = abstol, g_tol = abstol, iterations = maxiters,
+            show_trace = ShT, store_trace = StT, show_every = trace_level.print_frequency))
 end
 
 function SciMLBase.solve!(cache::LeastSquaresOptimJLCache)
