@@ -499,3 +499,13 @@ end
 @inline __is_complex(::Type{ComplexF32}) = true
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
+
+@inline function __replace_nonlinearfunction(nlf::NonlinearFunction{iip, specialize, F, TMM,
+            Ta, Tt, TJ, JVP, VJP, JP, SP, TW, TWt, TPJ, O, TCV, SYS, RP},
+        fnew::FN; jac::TJN = nlf.jac) where {iip, specialize, F, TMM, Ta, Tt, TJ, JVP, VJP,
+        JP, SP, TW, TWt, TPJ, O, TCV, SYS, RP, FN, TJN}
+    return NonlinearFunction{iip, specialize, FN, TMM, Ta, Tt, TJN, JVP, VJP, JP, SP, TW,
+        TWt, TPJ, O, TCV, SYS, RP}(fnew, nlf.mass_matrix, nlf.analytic, nlf.tgrad, jac,
+        nlf.jvp, nlf.vjp, nlf.jac_prototype, nlf.sparsity, nlf.Wfact, nlf.Wfact_t,
+        nlf.paramjac, nlf.observed, nlf.colorvec, nlf.sys, nlf.resid_prototype)
+end

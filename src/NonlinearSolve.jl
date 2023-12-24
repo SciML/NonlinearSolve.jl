@@ -17,6 +17,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import ConcreteStructs: @concrete
     import EnumX: @enumx
     import FastBroadcast: @..
+    import FastClosures: @closure
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
@@ -169,9 +170,11 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 include("utils.jl")
+
 include("trace.jl")
 include("extension_algs.jl")
 include("linesearch.jl")
+
 include("raphson.jl")
 include("trustRegion.jl")
 include("levenberg.jl")
@@ -181,9 +184,14 @@ include("pseudotransient.jl")
 include("broyden.jl")
 include("klement.jl")
 include("lbroyden.jl")
+
 include("jacobian.jl")
+
 include("ad.jl")
+
 include("default.jl")
+
+include("curve_fit.jl")
 
 @setup_workload begin
     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
@@ -251,5 +259,8 @@ export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
 
 # Tracing Functionality
 export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
+
+# Wrappers for Common Applications
+export curve_fit
 
 end # module
