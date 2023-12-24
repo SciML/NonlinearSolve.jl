@@ -35,8 +35,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
     iip = SciMLBase.isinplace(prob)
 
-    atol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(prob.u0))
-    rtol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(prob.u0))
+    T = eltype(prob.u0)
+    atol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, T)
+    rtol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, T)
 
     if prob.u0 isa Number
         f = (u) -> prob.f(u, prob.p)

@@ -141,7 +141,7 @@ function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :a
         Base.depwarn("`show_trace` for CMINPACK has been deprecated and will be removed \
                       in v4. Use the `show_trace` keyword argument via the logging API \
                       https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.")
+                      instead.", :CMINPACK)
     else
         show_trace = false
     end
@@ -150,7 +150,7 @@ function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :a
         Base.depwarn("`tracing` for CMINPACK has been deprecated and will be removed \
                       in v4. Use the `store_trace` keyword argument via the logging API \
                       https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.")
+                      instead.", :CMINPACK)
     else
         tracing = false
     end
@@ -219,7 +219,7 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         Base.depwarn("`show_trace` for NLsolveJL has been deprecated and will be removed \
                       in v4. Use the `show_trace` keyword argument via the logging API \
                       https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.")
+                      instead.", :NLsolveJL)
     else
         show_trace = false
     end
@@ -228,7 +228,7 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         Base.depwarn("`store_trace` for NLsolveJL has been deprecated and will be removed \
                       in v4. Use the `store_trace` keyword argument via the logging API \
                       https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.")
+                      instead.", :NLsolveJL)
     else
         store_trace = false
     end
@@ -237,7 +237,8 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         Base.depwarn("`extended_trace` for NLsolveJL has been deprecated and will be \
                       removed in v4. Use the `trace_level = TraceAll()` keyword argument \
                       via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.")
+                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
+            :NLsolveJL)
     else
         extended_trace = false
     end
@@ -388,5 +389,5 @@ function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothin
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
     end
-    return SIAMFANLEquationsJL(method, show_trace, delta, linsolve)
+    return SIAMFANLEquationsJL(method, delta, linsolve)
 end
