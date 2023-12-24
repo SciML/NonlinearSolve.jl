@@ -78,36 +78,6 @@ const TERMINATION_CONDITIONS = [
         end
     end
 
-    @testset "[OOP] [Immutable AD]" begin
-        for p in [1.0, 100.0]
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
-
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
@@ -188,43 +158,6 @@ end
         cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
             TrustRegion(; radius_update_scheme); abstol)
         @test (@ballocated solve!($cache)) ≤ 64
-    end
-
-    @testset "[OOP] [Immutable AD] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p;
-                    radius_update_scheme)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p; radius_update_scheme).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, oftype(p, 1.0), p;
-                    radius_update_scheme)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                    oftype(p, 1.0), p; radius_update_scheme).u, p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @testset "[OOP] [Jacobian] radius_update_scheme: $(radius_update_scheme)" for radius_update_scheme in radius_update_schemes
-        @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p; radius_update_scheme).u ≈
-              sqrt(p[2] / p[1])
-        @test ForwardDiff.jacobian(p -> [
-                benchmark_nlsolve_oop(quadratic_f2, 0.5, p;
-                    radius_update_scheme).u,
-            ], p) ≈ ForwardDiff.jacobian(t, p)
     end
 
     # Iterator interface
@@ -347,37 +280,6 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈
-                  1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
-
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
             AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), AutoSparseEnzyme()), u0 in (1.0, [1.0, 1.0])
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -462,44 +364,6 @@ end
         cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), DFSane(), abstol = 1e-9)
         @test (@ballocated solve!($cache)) ≤ 64
     end
-
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.1:0.1:100.0
-            res = abs.(benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p).u)
-
-            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
-                @test_broken all(res .≈ sqrt(p))
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                    @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
-            else
-                @test all(res .≈ sqrt(p))
-                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                        @SVector[1.0, 1.0], p).u[end], p)), 1 / (2 * sqrt(p)))
-            end
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.1:0.1:100.0
-            res = abs(benchmark_nlsolve_oop(quadratic_f, 1.0, p).u)
-
-            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
-                @test_broken res ≈ sqrt(p)
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                        1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
-            else
-                @test res ≈ sqrt(p)
-                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                            1.0, p).u, p)), 1 / (2 * sqrt(p)))
-            end
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
 
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
@@ -615,36 +479,6 @@ end
         end
     end
 
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
-
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
         cache = init(probN, PseudoTransient(alpha_initial = 10.0); maxiters = 100,
@@ -736,36 +570,6 @@ end
         end
     end
 
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
-
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
         probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
@@ -835,36 +639,6 @@ end
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
-
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
 
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
@@ -936,36 +710,6 @@ end
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
-
-    @testset "[OOP] [Immutable AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(((x, y),) -> isapprox(x, y; atol = 1e-3), zip(res.u, res_true))
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p)≈1 / (2 * sqrt(p)) atol=1e-3
-        end
-    end
-
-    @testset "[OOP] [Scalar AD]" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
 
     # Iterator interface
     function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}

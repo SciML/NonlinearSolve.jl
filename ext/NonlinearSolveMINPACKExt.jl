@@ -80,7 +80,11 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     stats = SciMLBase.NLStats(original.trace.f_calls, original.trace.g_calls,
         original.trace.g_calls, original.trace.g_calls, -1)
 
-    return SciMLBase.build_solution(prob, alg, u, resid; stats, retcode, original)
+    if prob.u0 isa Number
+        return SciMLBase.build_solution(prob, alg, u[1], resid[1]; stats, retcode, original)
+    else
+        return SciMLBase.build_solution(prob, alg, u, resid; stats, retcode, original)
+    end
 end
 
 end
