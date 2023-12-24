@@ -134,7 +134,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
     # pseudo transient continuation has a fixed cost per iteration, iteration statistics are not interesting here.
     stats = method == :pseudotransient ? nothing : (SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm)))
-    println(sol.stats)
     return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats, original = sol)
 end
 
