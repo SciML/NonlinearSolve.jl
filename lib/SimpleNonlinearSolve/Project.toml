@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "1.0.4"
+version = "1.1.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -17,8 +17,14 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
+[extensions]
+SimpleNonlinearSolvePolyesterForwardDiffExt = "PolyesterForwardDiff"
+
+[weakdeps]
+PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+
 [compat]
-ADTypes = "0.2"
+ADTypes = "0.2.6"
 ArrayInterface = "7"
 ConcreteStructs = "0.2"
 DiffEqBase = "6.126"

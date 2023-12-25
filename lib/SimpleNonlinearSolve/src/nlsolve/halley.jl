@@ -53,14 +53,17 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
         fx, dfx, d2fx = compute_jacobian_and_hessian(alg.autodiff, prob, fx, x)
         setindex_trait(x) === CannotSetindex() && (A = dfx)
 
-        aᵢ = dfx \ _vec(fx)
+        # Factorize Once and Reuse
+        dfx_fact = factorize(dfx)
+
+        aᵢ = dfx_fact \ _vec(fx)
         A_ = _vec(A)
         @bb A_ = d2fx × aᵢ
         A = _restructure(A, A_)
 
         @bb Aaᵢ = A × aᵢ
         @bb A .*= -1
-        bᵢ = dfx \ Aaᵢ
+        bᵢ = dfx_fact \ Aaᵢ
 
         cᵢ_ = _vec(cᵢ)
         @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))

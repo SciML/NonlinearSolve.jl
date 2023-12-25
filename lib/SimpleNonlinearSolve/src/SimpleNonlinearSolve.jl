@@ -9,7 +9,7 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode,
-        NONLINEARSOLVE_DEFAULT_NORM
+        NONLINEARSOLVE_DEFAULT_NORM, _get_tolerance
     using FiniteDiff, ForwardDiff
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
@@ -22,6 +22,8 @@ end
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
 abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
+
+@inline __is_extension_loaded(::Val) = false
 
 include("utils.jl")
 
