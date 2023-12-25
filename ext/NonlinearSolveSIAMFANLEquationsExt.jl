@@ -58,7 +58,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
         retcode = __siam_fanl_equations_retcode_mapping(sol)
         stats = __siam_fanl_equations_stats_mapping(method, sol)
-        return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode,
+        resid = NonlinearSolve.evaluate_f(prob, sol.solution)
+        return SciMLBase.build_solution(prob, alg, sol.solution, resid; retcode,
             stats, original = sol)
     end
 
@@ -87,7 +88,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
         retcode = __siam_fanl_equations_retcode_mapping(sol)
         stats = __siam_fanl_equations_stats_mapping(method, sol)
-        return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode,
+        resid = NonlinearSolve.evaluate_f(prob, sol.solution)
+        return SciMLBase.build_solution(prob, alg, sol.solution, resid; retcode,
             stats, original = sol)
     end
 
@@ -116,7 +118,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
     retcode = __siam_fanl_equations_retcode_mapping(sol)
     stats = __siam_fanl_equations_stats_mapping(method, sol)
-    return SciMLBase.build_solution(prob, alg, sol.solution, sol.history; retcode, stats,
+    resid = NonlinearSolve.evaluate_f(prob, sol.solution)
+    return SciMLBase.build_solution(prob, alg, sol.solution, resid; retcode, stats,
         original = sol)
 end
 

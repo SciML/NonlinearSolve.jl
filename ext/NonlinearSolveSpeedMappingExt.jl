@@ -17,7 +17,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
     sol = speedmapping(u0; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
         alg.check_obj, store_info, alg.σ_min, alg.stabilize)
     res = prob.u0 isa Number ? first(sol.minimizer) : sol.minimizer
-    resid = NonlinearSolve.evaluate_f(prob, sol.minimizer)
+    resid = NonlinearSolve.evaluate_f(prob, res)
 
     return SciMLBase.build_solution(prob, alg, res, resid;
         retcode = sol.converged ? ReturnCode.Success : ReturnCode.Failure,

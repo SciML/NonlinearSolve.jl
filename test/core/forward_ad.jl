@@ -1,4 +1,5 @@
-using ForwardDiff, NonlinearSolve, MINPACK, NLsolve, StaticArrays, Test, LinearAlgebra
+using ForwardDiff,
+    NonlinearSolve, MINPACK, NLsolve, StaticArrays, Sundials, Test, LinearAlgebra
 
 test_f!(du, u, p) = (@. du = u^2 - p)
 test_f(u, p) = (@. u^2 - p)
@@ -55,7 +56,7 @@ __compatible(::NLsolveJL, ::Val{:oop_cache}) = false
 
 @testset "ForwardDiff.jl Integration: $(alg)" for alg in (NewtonRaphson(), TrustRegion(),
     LevenbergMarquardt(), PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(),
-    DFSane(), nothing, NLsolveJL(), CMINPACK())
+    DFSane(), nothing, NLsolveJL(), CMINPACK(), KINSOL())
     us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
     @testset "Scalar AD" begin

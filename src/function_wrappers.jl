@@ -2,10 +2,13 @@
 # downstream packages. Make conversion to those easier.
 function __construct_f(prob; alias_u0::Bool = false, can_handle_oop::Val{OOP} = Val(false),
         can_handle_scalar::Val{SCALAR} = Val(false), make_fixed_point::Val{FP} = Val(false),
-        can_handle_arbitrary_dims::Val{DIMS} = Val(false)) where {SCALAR, OOP, DIMS, FP}
+        can_handle_arbitrary_dims::Val{DIMS} = Val(false),
+        force_oop::Val{FOOP} = Val(false)) where {SCALAR, OOP, DIMS, FP, FOOP}
     if !OOP && SCALAR
         error("Incorrect Specification: OOP not supported but scalar supported.")
     end
+
+    resid = evaluate_f(prob, prob.u0)
 
     if SCALAR || !(prob.u0 isa Number)
         u0 = __maybe_unaliased(prob.u0, alias_u0)
@@ -20,49 +23,67 @@ function __construct_f(prob; alias_u0::Bool = false, can_handle_oop::Val{OOP} = 
                 @. du += u
             end
         else
-            @closure (du, u, p) -> prob.f(du, u, p) .+ u
+            @closure (u, p) -> prob.f(u, p) .+ u
         end
     else
         prob.f
     end
 
-    f_final = if isinplace(prob)
+    ff = if isinplace(prob)
+        ninputs = 2
         if DIMS || u0 isa AbstractVector
             @closure (du, u) -> (f(du, u, prob.p); du)
         else
             u0_size = size(u0)
-            du_size = size(evaluate_f(prob, u0))
+            du_size = size(resid)
             @closure (du, u) -> (f(reshape(du, du_size), reshape(u, u0_size), prob.p); du)
         end
     else
         if prob.u0 isa Number
             if SCALAR
-                @closure (u) -> prob.f(u, prob.p)
+                ninputs = 1
+                @closure (u) -> f(u, prob.p)
             elseif OOP
-                @closure (u) -> [prob.f(first(u), prob.p)]
+                ninputs = 1
+                @closure (u) -> [f(first(u), prob.p)]
             else
-                @closure (du, u) -> (du[1] = prob.f(first(u), prob.p); du)
+                ninputs = 2
+                resid = [resid]
+                @closure (du, u) -> (du[1] = f(first(u), prob.p); du)
             end
         else
             if OOP
+                ninputs = 1
                 if DIMS
-                    @closure (u) -> prob.f(u, prob.p)
+                    @closure (u) -> f(u, prob.p)
                 else
                     u0_size = size(u0)
-                    @closure (u) -> _vec(prob.f(reshape(u, u0_size), prob.p))
+                    @closure (u) -> _vec(f(reshape(u, u0_size), prob.p))
                 end
             else
+                ninputs = 2
                 if DIMS
-                    @closure (du, u) -> (copyto!(du, prob.f(u, prob.p)); du)
+                    @closure (du, u) -> (copyto!(du, f(u, prob.p)); du)
                 else
                     u0_size = size(u0)
                     @closure (du, u) -> begin
-                        copyto!(vec(du), vec(prob.f(reshape(u, u0_size), prob.p)))
+                        copyto!(vec(du), vec(f(reshape(u, u0_size), prob.p)))
                         return du
                     end
                 end
             end
         end
+    end
+
+    f_final = if FOOP
+        if ninputs == 1
+            ff
+        else
+            du_ = DIMS ? similar(resid) : _vec(similar(resid))
+            @closure (u) -> (ff(du_, u); du_)
+        end
+    else
+        ff
     end
 
     return f_final, ifelse(DIMS, u0, _vec(u0))

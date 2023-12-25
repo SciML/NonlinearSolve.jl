@@ -31,7 +31,7 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
         original = MINPACK.fsolve(f!, u0, m; tol, show_trace, tracing, method,
             iterations = maxiters)
     else
-        jac! = @closure((J, u) -> (jac!_(J, u); Cint(0)))
+        jac! = @closure((J, u)->(jac!_(J, u); Cint(0)))
         original = MINPACK.fsolve(f!, jac!, u0, m; tol, show_trace, tracing, method,
             iterations = maxiters)
     end

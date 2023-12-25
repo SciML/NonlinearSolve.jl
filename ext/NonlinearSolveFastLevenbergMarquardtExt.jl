@@ -15,6 +15,7 @@ import FiniteDiff, ForwardDiff
     end
 end
 
+# TODO: Implement reinit
 @concrete struct FastLevenbergMarquardtJLCache
     f!
     J!

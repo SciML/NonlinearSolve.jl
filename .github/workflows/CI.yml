@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - Core
-          - NLLS
+          - RootFinding
+          - NLLSSolvers
           - 23TestProblems
           - Wrappers
           - Miscellaneous

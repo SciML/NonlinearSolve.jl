@@ -40,3 +40,10 @@ We are only listing the methods that natively solve fixed point problems.
 
   - `FixedPointAccelerationJL()`: accelerates the convergence of a mapping to a fixed point
     by the Anderson acceleration algorithm and a few other methods.
+
+### NLsolve.jl
+
+In our tests, we have found the anderson method implemented here to NOT be the most
+robust.
+
+  - `NLsolveJL(; method = :anderson)`: Anderson acceleration for fixed point problems.
