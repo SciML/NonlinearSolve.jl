@@ -40,7 +40,7 @@ end
     alg_ops = (NewtonRaphson(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 6]
+    broken_tests[alg_ops[1]] = [1]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -54,12 +54,12 @@ end
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.NLsolve))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [6, 11, 21]
-    broken_tests[alg_ops[2]] = [6, 11, 21]
-    broken_tests[alg_ops[3]] = [6, 11, 21]
-    broken_tests[alg_ops[4]] = [6, 11, 21]
-    broken_tests[alg_ops[5]] = [6, 21]
-    broken_tests[alg_ops[6]] = [6, 21]
+    broken_tests[alg_ops[1]] = [11, 21]
+    broken_tests[alg_ops[2]] = [11, 21]
+    broken_tests[alg_ops[3]] = [11, 21]
+    broken_tests[alg_ops[4]] = [11, 21]
+    broken_tests[alg_ops[5]] = [21]
+    broken_tests[alg_ops[6]] = [21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -69,9 +69,9 @@ end
         LevenbergMarquardt(; linsolve = CholeskyFactorization()))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [6, 11, 21]
-    broken_tests[alg_ops[2]] = [6, 11, 21]
-    broken_tests[alg_ops[3]] = [6, 11, 21]
+    broken_tests[alg_ops[1]] = [11, 21]
+    broken_tests[alg_ops[2]] = [11, 21]
+    broken_tests[alg_ops[3]] = [11, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -80,7 +80,7 @@ end
     alg_ops = (DFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 3, 5, 6, 21]
+    broken_tests[alg_ops[1]] = [1, 2, 3, 5, 21]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -93,9 +93,9 @@ end
         Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 5, 6, 11]
-    broken_tests[alg_ops[2]] = [1, 5, 6, 8, 11, 18]
-    broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
+    broken_tests[alg_ops[1]] = [1, 5, 11]
+    broken_tests[alg_ops[2]] = [1, 5, 8, 11, 18]
+    broken_tests[alg_ops[3]] = [1, 5, 9, 11]
     broken_tests[alg_ops[4]] = [1, 5, 6, 8, 11]
     broken_tests[alg_ops[5]] = [1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 21]
     broken_tests[alg_ops[6]] = [2, 3, 4, 5, 6, 8, 9, 11, 12, 21, 22]
@@ -107,8 +107,8 @@ end
     alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 22]
-    broken_tests[alg_ops[2]] = [2, 4, 5, 6, 7, 18, 22]
+    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 11, 22]
+    broken_tests[alg_ops[2]] = [2, 4, 5, 7, 18, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -117,7 +117,7 @@ end
     alg_ops = (PseudoTransient(; alpha_initial = 10.0),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 6, 9, 18, 21, 22]
+    broken_tests[alg_ops[1]] = [1, 9, 18, 21, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
