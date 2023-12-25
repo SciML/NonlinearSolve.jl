@@ -17,7 +17,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     if prob.u0 isa Number
         resid = [NonlinearSolve.evaluate_f(prob, first(u0))]
     else
-        resid = NonlinearSolve.evaluate_f(prob, u0)
+        resid = NonlinearSolve.evaluate_f(prob, prob.u0)
     end
 
     jac! = NonlinearSolve.__construct_jac(prob, alg, u0)

@@ -42,10 +42,12 @@ __compatible(::Number, ::AbstractArray) = false
 __compatible(u::AbstractArray, p::AbstractArray) = size(u) == size(p)
 
 __compatible(u::Number, ::SciMLBase.AbstractNonlinearAlgorithm) = true
-__compatible(u::Number, ::Union{CMINPACK, NLsolveJL}) = true
+__compatible(u::Number, ::Union{CMINPACK, NLsolveJL, KINSOL}) = true
 __compatible(u::AbstractArray, ::SciMLBase.AbstractNonlinearAlgorithm) = true
+__compatible(u::AbstractArray{T, N}, ::KINSOL) where {T, N} = N == 1  # Need to be fixed upstream
+__compatible(u::StaticArray{S, T, N}, ::KINSOL) where {S <: Tuple, T, N} = false
 __compatible(u::StaticArray, ::SciMLBase.AbstractNonlinearAlgorithm) = true
-__compatible(u::StaticArray, ::Union{CMINPACK, NLsolveJL}) = false
+__compatible(u::StaticArray, ::Union{CMINPACK, NLsolveJL, KINSOL}) = false
 __compatible(u, ::Nothing) = true
 
 __compatible(::Any, ::Any) = true
@@ -53,6 +55,8 @@ __compatible(::CMINPACK, ::Val{:iip_cache}) = false
 __compatible(::CMINPACK, ::Val{:oop_cache}) = false
 __compatible(::NLsolveJL, ::Val{:iip_cache}) = false
 __compatible(::NLsolveJL, ::Val{:oop_cache}) = false
+__compatible(::KINSOL, ::Val{:iip_cache}) = false
+__compatible(::KINSOL, ::Val{:oop_cache}) = false
 
 @testset "ForwardDiff.jl Integration: $(alg)" for alg in (NewtonRaphson(), TrustRegion(),
     LevenbergMarquardt(), PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(),
