@@ -42,7 +42,7 @@ end
 
     # dictionary with indices of test problems where method does not converge to small residual
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [6]
+    broken_tests[alg_ops[1]] = []
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
@@ -82,7 +82,7 @@ end
     alg_ops = (SimpleKlement(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 6, 11, 12, 22]
+    broken_tests[alg_ops[1]] = [1, 2, 4, 5, 11, 12, 22]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
