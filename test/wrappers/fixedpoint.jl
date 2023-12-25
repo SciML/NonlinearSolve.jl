@@ -1,4 +1,4 @@
-using NonlinearSolve, FixedPointAcceleration, LinearAlgebra, Test
+using NonlinearSolve, FixedPointAcceleration, SpeedMapping, NLsolve, LinearAlgebra, Test
 
 # Simple Scalar Problem
 @testset "Simple Scalar Problem" begin
@@ -6,8 +6,14 @@ using NonlinearSolve, FixedPointAcceleration, LinearAlgebra, Test
     prob = NonlinearProblem(f1, 1.1)
 
     for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
-        @test abs(solve(prob, FixedPointAccelerationJL()).resid) ≤ 1e-10
+        @test abs(solve(prob, FixedPointAccelerationJL(; algorithm = alg)).resid) ≤ 1e-10
     end
+
+    @test abs(solve(prob, SpeedMappingJL()).resid) ≤ 1e-10
+    @test abs(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid) ≤ 1e-10
+    @test abs(solve(prob, SpeedMappingJL(; stabilize = true)).resid) ≤ 1e-10
+
+    @test abs(solve(prob, NLsolveJL(; method = :anderson)).resid) ≤ 1e-10
 end
 
 # Simple Vector Problem
@@ -18,6 +24,12 @@ end
     for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
         @test maximum(abs.(solve(prob, FixedPointAccelerationJL()).resid)) ≤ 1e-10
     end
+
+    @test maximum(abs.(solve(prob, SpeedMappingJL()).resid)) ≤ 1e-10
+    @test maximum(abs.(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid)) ≤ 1e-10
+    @test maximum(abs.(solve(prob, SpeedMappingJL(; stabilize = true)).resid)) ≤ 1e-10
+
+    @test_broken maximum(abs.(solve(prob, NLsolveJL(; method = :anderson)).resid)) ≤ 1e-10
 end
 
 # Fixed Point for Power Method
@@ -46,6 +58,15 @@ end
         end
     end
 
+    for kwargs in ((;), (; orders = [3, 2]), (; stabilize = true))
+        alg = SpeedMappingJL(; kwargs...)
+        sol = solve(prob, alg)
+        @test sol.u' * A[:, 3] ≈ 32.916472867168096
+    end
+
+    sol = solve(prob, NLsolveJL(; method = :anderson))
+    @test_broken sol.u' * A[:, 3] ≈ 32.916472867168096
+
     # Non vector inputs
     function power_method_nonvec!(du, u, A)
         mul!(vec(du), A, vec(u))
@@ -59,10 +80,19 @@ end
     for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
         sol = solve(prob, FixedPointAccelerationJL(; algorithm = alg))
         if SciMLBase.successful_retcode(sol)
-            @test sol.u' * A[:, 3] ≈ 32.916472867168096
+            @test vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
         else
             @warn "Power Method failed for FixedPointAccelerationJL(; algorithm = $alg)"
-            @test_broken sol.u' * A[:, 3] ≈ 32.916472867168096
+            @test_broken vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
         end
     end
+
+    for kwargs in ((;), (; orders = [3, 2]), (; stabilize = true))
+        alg = SpeedMappingJL(; kwargs...)
+        sol = solve(prob, alg)
+        @test vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
+    end
+
+    sol = solve(prob, NLsolveJL(; method = :anderson))
+    @test_broken vec(sol.u)' * A[:, 3] ≈ 32.916472867168096
 end

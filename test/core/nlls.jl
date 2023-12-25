@@ -1,6 +1,5 @@
 using NonlinearSolve,
     LinearSolve, LinearAlgebra, Test, StableRNGs, Random, ForwardDiff, Zygote
-import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -43,8 +42,6 @@ append!(solvers,
     [
         LevenbergMarquardt(),
         LevenbergMarquardt(; linsolve = LUFactorization()),
-        LeastSquaresOptimJL(:lm),
-        LeastSquaresOptimJL(:dogleg),
         nothing,
     ])
 for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
@@ -56,7 +53,7 @@ end
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test SciMLBase.successful_retcode(sol)
-    @test norm(sol.resid) < 1e-6
+    @test maximum(abs, sol.resid) < 1e-6
 end
 
 # This is just for testing that we can use vjp provided by the user
@@ -86,47 +83,5 @@ for prob in probs, solver in solvers
     @test_warn "Currently we don't make use of user provided `jvp`. This is planned to be \
     fixed in the near future." sol=solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid) < 1e-6
-end
-
-function jac!(J, θ, p)
-    resid = zeros(length(p))
-    ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
-    return J
-end
-
-jac(θ, p) = ForwardDiff.jacobian(θ -> loss_function(θ, p), θ)
-
-probs = [
-    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-            resid_prototype = zero(y_target), jac = jac!), θ_init, x),
-    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-            resid_prototype = zero(y_target), jac = jac), θ_init, x),
-    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function; jac), θ_init, x),
-]
-
-solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
-push!(solvers, CMINPACK())
-
-for solver in solvers, prob in probs
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid) < 1e-6
-end
-
-probs = [
-    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-            resid_prototype = zero(y_target)), θ_init, x),
-    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-            resid_prototype = zero(y_target)), θ_init, x),
-    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x),
-]
-
-solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)
-                  for linsolve in (:cholesky, :qr),
-autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
-append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
-
-for solver in solvers, prob in probs
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid) < 1e-6
+    @test maximum(abs, sol.resid) < 1e-6
 end

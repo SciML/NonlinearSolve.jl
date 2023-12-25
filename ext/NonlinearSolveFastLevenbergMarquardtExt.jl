@@ -5,7 +5,7 @@ import ConcreteStructs: @concrete
 import FastLevenbergMarquardt as FastLM
 import FiniteDiff, ForwardDiff
 
-function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
+@inline function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve === :cholesky
         return FastLM.CholeskySolver(ArrayInterface.undefmatrix(x))
     elseif linsolve === :qr
@@ -15,6 +15,7 @@ function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolv
     end
 end
 
+# TODO: Implement reinit
 @concrete struct FastLevenbergMarquardtJLCache
     f!
     J!
@@ -25,68 +26,27 @@ end
     kwargs
 end
 
-@concrete struct InplaceFunction{iip} <: Function
-    f
-end
-
-(f::InplaceFunction{true})(fx, x, p) = f.f(fx, x, p)
-(f::InplaceFunction{false})(fx, x, p) = (fx .= f.f(x, p))
-
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
-        alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = 1e-8,
-        reltol = 1e-8, maxiters = 1000, kwargs...)
+        alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
+        reltol = nothing, maxiters = 1000, kwargs...)
+    # FIXME: Support scalar u0
+    prob.u0 isa Number &&
+        throw(ArgumentError("FastLevenbergMarquardtJL does not support scalar `u0`"))
     iip = SciMLBase.isinplace(prob)
     u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
     fu = NonlinearSolve.evaluate_f(prob, u)
 
-    f! = InplaceFunction{iip}(prob.f)
+    f! = NonlinearSolve.__make_inplace{iip}(prob.f, nothing)
+
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
     if prob.f.jac === nothing
-        use_forward_diff = if alg.autodiff === nothing
-            ForwardDiff.can_dual(eltype(u))
-        else
-            alg.autodiff isa AutoForwardDiff
-        end
-        uf = SciMLBase.JacobianWrapper{iip}(prob.f, prob.p)
-        if use_forward_diff
-            cache = iip ? ForwardDiff.JacobianConfig(uf, fu, u) :
-                    ForwardDiff.JacobianConfig(uf, u)
-        else
-            cache = FiniteDiff.JacobianCache(u, fu)
-        end
-        J! = if iip
-            if use_forward_diff
-                fu_cache = similar(fu)
-                function (J, x, p)
-                    uf.p = p
-                    ForwardDiff.jacobian!(J, uf, fu_cache, x, cache)
-                    return J
-                end
-            else
-                function (J, x, p)
-                    uf.p = p
-                    FiniteDiff.finite_difference_jacobian!(J, uf, x, cache)
-                    return J
-                end
-            end
-        else
-            if use_forward_diff
-                function (J, x, p)
-                    uf.p = p
-                    ForwardDiff.jacobian!(J, uf, x, cache)
-                    return J
-                end
-            else
-                function (J, x, p)
-                    uf.p = p
-                    J_ = FiniteDiff.finite_difference_jacobian(uf, x, cache)
-                    copyto!(J, J_)
-                    return J
-                end
-            end
-        end
+        alg = NonlinearSolve.get_concrete_algorithm(alg, prob)
+        J! = NonlinearSolve.__construct_jac(prob, alg, u;
+            can_handle_arbitrary_dims = Val(true))
     else
-        J! = InplaceFunction{iip}(prob.f.jac)
+        J! = NonlinearSolve.__make_inplace{iip}(prob.f.jac, nothing)
     end
 
     J = similar(u, length(fu), length(u))
@@ -95,17 +55,16 @@ function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
     LM = FastLM.LMWorkspace(u, fu, J)
 
     return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
-        (; xtol = abstol, ftol = reltol, maxit = maxiters, alg.factor, alg.factoraccept,
-            alg.factorreject, alg.minscale, alg.maxscale, alg.factorupdate, alg.minfactor,
-            alg.maxfactor, kwargs...))
+        (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters, alg.factor,
+            alg.factoraccept, alg.factorreject, alg.minscale, alg.maxscale,
+            alg.factorupdate, alg.minfactor, alg.maxfactor))
 end
 
 function SciMLBase.solve!(cache::FastLevenbergMarquardtJLCache)
     res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(cache.f!, cache.J!,
         cache.lmworkspace, cache.prob.p; cache.solver, cache.kwargs...)
     stats = SciMLBase.NLStats(nfev, njev, -1, -1, iter)
-    retcode = info == 1 ? ReturnCode.Success :
-              (info == -1 ? ReturnCode.MaxIters : ReturnCode.Default)
+    retcode = info == -1 ? ReturnCode.MaxIters : ReturnCode.Success
     return SciMLBase.build_solution(cache.prob, cache.alg, res, fx;
         retcode, original = (res, fx, info, iter, nfev, njev, LM, solver), stats)
 end

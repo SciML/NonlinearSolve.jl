@@ -1,7 +1,6 @@
 module NonlinearSolveNLsolveExt
 
 using NonlinearSolve, NLsolve, DiffEqBase, SciMLBase
-import UnPack: @unpack
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
@@ -9,84 +8,47 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "NLsolveJL does not support termination conditions!"
 
-    if prob.u0 isa Number
-        u0 = [prob.u0]
-    else
-        u0 = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
-    end
-
-    T = eltype(u0)
-    iip = isinplace(prob)
-
-    sizeu = size(prob.u0)
-    p = prob.p
+    f!, u0 = NonlinearSolve.__construct_f(prob; alias_u0)
 
     # unwrapping alg params
-    @unpack method, autodiff, store_trace, extended_trace, linesearch, linsolve = alg
-    @unpack factor, autoscale, m, beta, show_trace = alg
-
-    if !iip && prob.u0 isa Number
-        f! = (du, u) -> (du .= prob.f(first(u), p); Cint(0))
-    elseif !iip && prob.u0 isa AbstractVector
-        f! = (du, u) -> (du .= prob.f(u, p); Cint(0))
-    elseif !iip && prob.u0 isa AbstractArray
-        f! = (du, u) -> (du .= vec(prob.f(reshape(u, sizeu), p)); Cint(0))
-    elseif prob.u0 isa AbstractVector
-        f! = (du, u) -> prob.f(du, u, p)
-    else # Then it's an in-place function on an abstract array
-        f! = (du, u) -> (prob.f(reshape(du, sizeu), reshape(u, sizeu), p); du = vec(du); 0)
-    end
+    (; method, autodiff, store_trace, extended_trace, linesearch, linsolve, factor,
+    autoscale, m, beta, show_trace) = alg
 
     if prob.u0 isa Number
         resid = [NonlinearSolve.evaluate_f(prob, first(u0))]
     else
-        resid = NonlinearSolve.evaluate_f(prob, u0)
+        resid = NonlinearSolve.evaluate_f(prob, prob.u0)
     end
 
-    size_jac = (length(resid), length(u0))
+    jac! = NonlinearSolve.__construct_jac(prob, alg, u0)
 
-    if SciMLBase.has_jac(prob.f)
-        if !iip && prob.u0 isa Number
-            g! = (du, u) -> (du .= prob.f.jac(first(u), p); Cint(0))
-        elseif !iip && prob.u0 isa AbstractVector
-            g! = (du, u) -> (du .= prob.f.jac(u, p); Cint(0))
-        elseif !iip && prob.u0 isa AbstractArray
-            g! = (du, u) -> (du .= vec(prob.f.jac(reshape(u, sizeu), p)); Cint(0))
-        elseif prob.u0 isa AbstractVector
-            g! = (du, u) -> prob.f.jac(du, u, p)
-        else # Then it's an in-place function on an abstract array
-            g! = function (du, u)
-                prob.f.jac(reshape(du, size_jac), reshape(u, sizeu), p)
-                return Cint(0)
-            end
-        end
+    if jac! === nothing
+        df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
+    else
         if prob.f.jac_prototype !== nothing
             J = zero(prob.f.jac_prototype)
-            df = OnceDifferentiable(f!, g!, vec(u0), vec(resid), J)
+            df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
         else
-            df = OnceDifferentiable(f!, g!, vec(u0), vec(resid))
+            df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid))
         end
-    else
-        df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
     end
 
-    abstol = abstol === nothing ? real(oneunit(T)) * (eps(real(one(T))))^(4 // 5) : abstol
+    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, method,
         store_trace, extended_trace, linesearch, linsolve, factor, autoscale, m, beta,
         show_trace)
 
-    u = reshape(original.zero, size(u0))
-    f!(vec(resid), vec(u))
+    f!(vec(resid), original.zero)
+    u = prob.u0 isa Number ? original.zero[1] : reshape(original.zero, size(prob.u0))
+    resid = prob.u0 isa Number ? resid[1] : resid
+
     retcode = original.x_converged || original.f_converged ? ReturnCode.Success :
               ReturnCode.Failure
     stats = SciMLBase.NLStats(original.f_calls, original.g_calls, original.g_calls,
         original.g_calls, original.iterations)
-    if prob.u0 isa Number
-        return SciMLBase.build_solution(prob, alg, u[1], resid[1]; retcode, original, stats)
-    else
-        return SciMLBase.build_solution(prob, alg, u, resid; retcode, original, stats)
-    end
+
+    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original, stats)
 end
 
 end

@@ -1,4 +1,5 @@
-using ForwardDiff, NonlinearSolve, MINPACK, NLsolve, StaticArrays, Test, LinearAlgebra
+using ForwardDiff,
+    NonlinearSolve, MINPACK, NLsolve, StaticArrays, Sundials, Test, LinearAlgebra
 
 test_f!(du, u, p) = (@. du = u^2 - p)
 test_f(u, p) = (@. u^2 - p)
@@ -41,10 +42,12 @@ __compatible(::Number, ::AbstractArray) = false
 __compatible(u::AbstractArray, p::AbstractArray) = size(u) == size(p)
 
 __compatible(u::Number, ::SciMLBase.AbstractNonlinearAlgorithm) = true
-__compatible(u::Number, ::Union{CMINPACK, NLsolveJL}) = true
+__compatible(u::Number, ::Union{CMINPACK, NLsolveJL, KINSOL}) = true
 __compatible(u::AbstractArray, ::SciMLBase.AbstractNonlinearAlgorithm) = true
+__compatible(u::AbstractArray{T, N}, ::KINSOL) where {T, N} = N == 1  # Need to be fixed upstream
+__compatible(u::StaticArray{S, T, N}, ::KINSOL) where {S <: Tuple, T, N} = false
 __compatible(u::StaticArray, ::SciMLBase.AbstractNonlinearAlgorithm) = true
-__compatible(u::StaticArray, ::Union{CMINPACK, NLsolveJL}) = false
+__compatible(u::StaticArray, ::Union{CMINPACK, NLsolveJL, KINSOL}) = false
 __compatible(u, ::Nothing) = true
 
 __compatible(::Any, ::Any) = true
@@ -52,10 +55,12 @@ __compatible(::CMINPACK, ::Val{:iip_cache}) = false
 __compatible(::CMINPACK, ::Val{:oop_cache}) = false
 __compatible(::NLsolveJL, ::Val{:iip_cache}) = false
 __compatible(::NLsolveJL, ::Val{:oop_cache}) = false
+__compatible(::KINSOL, ::Val{:iip_cache}) = false
+__compatible(::KINSOL, ::Val{:oop_cache}) = false
 
 @testset "ForwardDiff.jl Integration: $(alg)" for alg in (NewtonRaphson(), TrustRegion(),
     LevenbergMarquardt(), PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(),
-    DFSane(), nothing, NLsolveJL(), CMINPACK())
+    DFSane(), nothing, NLsolveJL(), CMINPACK(), KINSOL())
     us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
     @testset "Scalar AD" begin

@@ -9,7 +9,7 @@ isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
 
 # Select if we are going to use sparse differentiation or not
 sparsity_detection_alg(_, _) = NoSparsityDetection()
-function sparsity_detection_alg(f, ad::AbstractSparseADType)
+function sparsity_detection_alg(f::NonlinearFunction, ad::AbstractSparseADType)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             if is_extension_loaded(Val(:Symbolics))
@@ -47,11 +47,12 @@ function sparsity_detection_alg(f, ad::AbstractSparseADType)
 end
 
 # NoOp for Jacobian if it is not a Abstract Array -- For eg, JacVec Operator
-jacobian!!(J, _) = J
+jacobian!!(J, cache; u = nothing, p = nothing) = J
 # `!!` notation is from BangBang.jl since J might be jacobian in case of oop `f.jac`
 # and we don't want wasteful `copyto!`
-function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache)
-    @unpack f, uf, u, p, jac_cache, alg, fu_cache = cache
+function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache; u = cache.u,
+        p = cache.p)
+    @unpack f, uf, jac_cache, alg, fu_cache = cache
     cache.stats.njacs += 1
     iip = isinplace(cache)
     if iip
@@ -72,9 +73,9 @@ function jacobian!!(J::Union{AbstractMatrix{<:Number}, Nothing}, cache)
     end
 end
 # Scalar case
-function jacobian!!(::Number, cache)
+function jacobian!!(::Number, cache; u = cache.u, p = cache.p)
     cache.stats.njacs += 1
-    return last(value_derivative(cache.uf, cache.u))
+    return last(value_derivative(cache.uf, u))
 end
 
 # Build Jacobian Caches

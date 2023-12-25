@@ -1,5 +1,7 @@
 const DEFAULT_NORM = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM
 
+@inline DEFAULT_TOLERANCE(args...) = DiffEqBase._get_tolerance(args...)
+
 @concrete mutable struct FakeLinearSolveJLCache
     A
     b

@@ -17,6 +17,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import ConcreteStructs: @concrete
     import EnumX: @enumx
     import FastBroadcast: @..
+    import FastClosures: @closure
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
@@ -169,6 +170,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 include("utils.jl")
+include("function_wrappers.jl")
 include("trace.jl")
 include("extension_algs.jl")
 include("linesearch.jl")
@@ -237,7 +239,8 @@ export RadiusUpdateSchemes
 export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
     Broyden, Klement, LimitedMemoryBroyden
 export LeastSquaresOptimJL,
-    FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+    FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, FixedPointAccelerationJL, SpeedMappingJL,
+    SIAMFANLEquationsJL
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
