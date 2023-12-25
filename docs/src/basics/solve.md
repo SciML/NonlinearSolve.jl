@@ -15,7 +15,7 @@ solve(prob::SciMLBase.NonlinearProblem, args...; kwargs...)
 
   - `maxiters::Int`: The maximum number of iterations to perform. Defaults to `1000`.
   - `abstol::Number`: The absolute tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
-  - `reltol::Number`: The relative tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(2 // 5)`.
+  - `reltol::Number`: The relative tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `termination_condition`: Termination Condition from DiffEqBase. Defaults to
     `AbsSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsTerminateMode()` for
     `SimpleNonlinearSolve.jl`.
