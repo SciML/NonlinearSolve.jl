@@ -26,15 +26,6 @@ Return the maximum of `a` and `b` if `x1 > x0`, otherwise return the minimum.
 """
 __max_tdir(a, b, x0, x1) = ifelse(x1 > x0, max(a, b), min(a, b))
 
-__cvt_real(::Type{T}, ::Nothing) where {T} = nothing
-__cvt_real(::Type{T}, x) where {T} = real(T(x))
-
-_get_tolerance(η, ::Type{T}) where {T} = __cvt_real(T, η)
-function _get_tolerance(::Nothing, ::Type{T}) where {T}
-    η = real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)
-    return _get_tolerance(η, T)
-end
-
 __standard_tag(::Nothing, x) = ForwardDiff.Tag(SimpleNonlinearSolveTag(), eltype(x))
 __standard_tag(tag::ForwardDiff.Tag, _) = tag
 __standard_tag(tag, x) = ForwardDiff.Tag(tag, eltype(x))
@@ -60,6 +51,12 @@ function __get_jacobian_config(ad::AutoForwardDiff{CS}, f!, y, x) where {CS}
     return ForwardDiff.JacobianConfig(f!, y, x, ck, tag)
 end
 
+function __get_jacobian_config(ad::AutoPolyesterForwardDiff{CS}, args...) where {CS}
+    x = last(args)
+    return (CS === nothing || CS ≤ 0) ? __pick_forwarddiff_chunk(x) :
+           ForwardDiff.Chunk{CS}()
+end
+
 """
     value_and_jacobian(ad, f, y, x, p, cache; J = nothing)
 
@@ -81,6 +78,9 @@ function value_and_jacobian(ad, f::F, y, x::X, p, cache; J = nothing) where {F, 
             FiniteDiff.finite_difference_jacobian!(J, _f, x, cache)
             _f(y, x)
             return y, J
+        elseif ad isa AutoPolyesterForwardDiff
+            __polyester_forwarddiff_jacobian!(_f, y, J, x, cache)
+            return y, J
         else
             throw(ArgumentError("Unsupported AD method: $(ad)"))
         end
@@ -100,17 +100,28 @@ function value_and_jacobian(ad, f::F, y, x::X, p, cache; J = nothing) where {F, 
         elseif ad isa AutoFiniteDiff
             J_fd = FiniteDiff.finite_difference_jacobian(_f, x, cache)
             return _f(x), J_fd
+        elseif ad isa AutoPolyesterForwardDiff
+            __polyester_forwarddiff_jacobian!(_f, J, x, cache)
+            return _f(x), J
         else
             throw(ArgumentError("Unsupported AD method: $(ad)"))
         end
     end
 end
 
+# Declare functions
+function __polyester_forwarddiff_jacobian! end
+
 function value_and_jacobian(ad, f::F, y, x::Number, p, cache; J = nothing) where {F}
     if DiffEqBase.has_jac(f)
         return f(x, p), f.jac(x, p)
     elseif ad isa AutoForwardDiff
         T = typeof(__standard_tag(ad.tag, x))
+        out = f(ForwardDiff.Dual{T}(x, one(x)), p)
+        return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+    elseif ad isa AutoPolyesterForwardDiff
+        # Just use ForwardDiff
+        T = typeof(__standard_tag(nothing, x))
         out = f(ForwardDiff.Dual{T}(x, one(x)), p)
         return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
     elseif ad isa AutoFiniteDiff
@@ -132,7 +143,7 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
         J = similar(y, length(y), length(x))
         if DiffEqBase.has_jac(f)
             return J, nothing
-        elseif ad isa AutoForwardDiff
+        elseif ad isa AutoForwardDiff || ad isa AutoPolyesterForwardDiff
             return J, __get_jacobian_config(ad, _f, y, x)
         elseif ad isa AutoFiniteDiff
             return J, FiniteDiff.JacobianCache(copy(x), copy(y), copy(y), ad.fdtype)
@@ -145,6 +156,10 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
             return nothing, nothing
         elseif ad isa AutoForwardDiff
             J = ArrayInterface.can_setindex(x) ? similar(y, length(y), length(x)) : nothing
+            return J, __get_jacobian_config(ad, _f, x)
+        elseif ad isa AutoPolyesterForwardDiff
+            @assert ArrayInterface.can_setindex(x) "PolyesterForwardDiff requires mutable inputs. Use AutoForwardDiff instead."
+            J = similar(y, length(y), length(x))
             return J, __get_jacobian_config(ad, _f, x)
         elseif ad isa AutoFiniteDiff
             return nothing, FiniteDiff.JacobianCache(copy(x), copy(y), copy(y), ad.fdtype)
@@ -349,4 +364,20 @@ end
     # Spend time coping iff we will mutate the array
     (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
     return deepcopy(x)
+end
+
+# Decide which AD backend to use
+@inline __get_concrete_autodiff(prob, ad::ADTypes.AbstractADType; kwargs...) = ad
+@inline function __get_concrete_autodiff(prob, ::Nothing; polyester::Val{P} = Val(true),
+        kwargs...) where {P}
+    if ForwardDiff.can_dual(eltype(prob.u0))
+        if P && __is_extension_loaded(Val(:PolyesterForwardDiff)) &&
+           !(prob.u0 isa Number) && ArrayInterface.can_setindex(prob.u0)
+            return AutoPolyesterForwardDiff()
+        else
+            return AutoForwardDiff()
+        end
+    else
+        return AutoFiniteDiff()
+    end
 end

@@ -10,7 +10,8 @@ scalar and static array problems.
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Defaults to
-    `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
+    `nothing`. Valid choices are `AutoPolyesterForwardDiff()`, `AutoForwardDiff()` or
+    `AutoFiniteDiff()`.
   - `max_trust_radius`: the maximum radius of the trust region. Defaults to
     `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
@@ -37,7 +38,7 @@ scalar and static array problems.
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
 """
 @kwdef @concrete struct SimpleTrustRegion <: AbstractNewtonAlgorithm
-    autodiff = AutoForwardDiff()
+    autodiff = nothing
     max_trust_radius = 0.0
     initial_trust_radius = 0.0
     step_threshold = 0.0001
@@ -61,11 +62,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     t₁ = T(alg.shrink_factor)
     t₂ = T(alg.expand_factor)
     max_shrink_times = alg.max_shrink_times
+    autodiff = __get_concrete_autodiff(prob, alg.autodiff)
 
     fx = _get_fx(prob, x)
     @bb xo = copy(x)
-    J, jac_cache = jacobian_cache(alg.autodiff, prob.f, fx, x, prob.p)
-    fx, ∇f = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+    J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
+    fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
@@ -116,7 +118,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             # Take the step.
             @bb @. xo = x
 
-            fx, ∇f = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+            fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
             # Update the trust region radius.
             (r > η₃) && (norm(δ) ≈ Δ) && (Δ = min(t₂ * Δ, Δₘₐₓ))

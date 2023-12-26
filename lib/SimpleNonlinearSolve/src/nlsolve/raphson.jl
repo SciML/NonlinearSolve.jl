@@ -1,6 +1,6 @@
 """
     SimpleNewtonRaphson(autodiff)
-    SimpleNewtonRaphson(; autodiff = AutoForwardDiff())
+    SimpleNewtonRaphson(; autodiff = nothing)
 
 A low-overhead implementation of Newton-Raphson. This method is non-allocating on scalar
 and static array problems.
@@ -14,10 +14,11 @@ and static array problems.
 ### Keyword Arguments
 
   - `autodiff`: determines the backend used for the Jacobian. Defaults to
-    `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
+    `nothing`. Valid choices are `AutoPolyesterForwardDiff()`, `AutoForwardDiff()` or
+    `AutoFiniteDiff()`.
 """
 @kwdef @concrete struct SimpleNewtonRaphson <: AbstractNewtonAlgorithm
-    autodiff = AutoForwardDiff()
+    autodiff = nothing
 end
 
 const SimpleGaussNewton = SimpleNewtonRaphson
@@ -27,14 +28,15 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
         maxiters = 1000, termination_condition = nothing, alias_u0 = false, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
+    autodiff = __get_concrete_autodiff(prob, alg.autodiff)
     @bb xo = copy(x)
-    J, jac_cache = jacobian_cache(alg.autodiff, prob.f, fx, x, prob.p)
+    J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
 
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
 
     for i in 1:maxiters
-        fx, dfx = value_and_jacobian(alg.autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+        fx, dfx = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
         if i == 1
             iszero(fx) && build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
