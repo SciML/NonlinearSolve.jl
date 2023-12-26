@@ -119,6 +119,11 @@ function value_and_jacobian(ad, f::F, y, x::Number, p, cache; J = nothing) where
         T = typeof(__standard_tag(ad.tag, x))
         out = f(ForwardDiff.Dual{T}(x, one(x)), p)
         return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+    elseif ad isa AutoPolyesterForwardDiff
+        # Just use ForwardDiff
+        T = typeof(__standard_tag(nothing, x))
+        out = f(ForwardDiff.Dual{T}(x, one(x)), p)
+        return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
     elseif ad isa AutoFiniteDiff
         _f = Base.Fix2(f, p)
         return _f(x), FiniteDiff.finite_difference_derivative(_f, x, ad.fdtype)
@@ -153,7 +158,7 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
             J = ArrayInterface.can_setindex(x) ? similar(y, length(y), length(x)) : nothing
             return J, __get_jacobian_config(ad, _f, x)
         elseif ad isa AutoPolyesterForwardDiff
-            @assert ArrayInterface.can_setindex(x) "PolyesterForwardDiff requires mutable inputs."
+            @assert ArrayInterface.can_setindex(x) "PolyesterForwardDiff requires mutable inputs. Use AutoForwardDiff instead."
             J = similar(y, length(y), length(x))
             return J, __get_jacobian_config(ad, _f, x)
         elseif ad isa AutoFiniteDiff
@@ -362,11 +367,12 @@ end
 end
 
 # Decide which AD backend to use
-@inline __get_concrete_autodiff(prob, ad::ADTypes.AbstractADType) = ad
-@inline function __get_concrete_autodiff(prob, ::Nothing)
+@inline __get_concrete_autodiff(prob, ad::ADTypes.AbstractADType; kwargs...) = ad
+@inline function __get_concrete_autodiff(prob, ::Nothing; polyester::Val{P} = Val(true),
+        kwargs...) where {P}
     if ForwardDiff.can_dual(eltype(prob.u0))
-        if __is_extension_loaded(Val(:PolyesterForwardDiff)) && !(prob.u0 isa Number) &&
-           ArrayInterface.can_setindex(prob.u0)
+        if P && __is_extension_loaded(Val(:PolyesterForwardDiff)) &&
+           !(prob.u0 isa Number) && ArrayInterface.can_setindex(prob.u0)
             return AutoPolyesterForwardDiff()
         else
             return AutoForwardDiff()

@@ -12,15 +12,15 @@ A low-overhead implementation of Halley's Method.
 
 ### Keyword Arguments
 
-  - `autodiff`: determines the backend used for the Hessian. Defaults to
-    `AutoForwardDiff()`. Valid choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
+  - `autodiff`: determines the backend used for the Hessian. Defaults to `nothing`. Valid
+    choices are `AutoForwardDiff()` or `AutoFiniteDiff()`.
 
 !!! warning
 
     Inplace Problems are currently not supported by this method.
 """
 @kwdef @concrete struct SimpleHalley <: AbstractNewtonAlgorithm
-    autodiff = AutoForwardDiff()
+    autodiff = nothing
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
@@ -33,6 +33,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
     fx = _get_fx(prob, x)
     T = eltype(x)
 
+    autodiff = __get_concrete_autodiff(prob, alg.autodiff; polyester = Val(false))
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
 
@@ -50,7 +51,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
 
     for i in 1:maxiters
         # Hessian Computation is unfortunately type unstable
-        fx, dfx, d2fx = compute_jacobian_and_hessian(alg.autodiff, prob, fx, x)
+        fx, dfx, d2fx = compute_jacobian_and_hessian(autodiff, prob, fx, x)
         setindex_trait(x) === CannotSetindex() && (A = dfx)
 
         # Factorize Once and Reuse

@@ -1,5 +1,6 @@
 using AllocCheck, BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
     LinearAlgebra, Test, ForwardDiff, DiffEqBase
+import PolyesterForwardDiff
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
@@ -29,20 +30,21 @@ const TERMINATION_CONDITIONS = [
 @testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion)
     # Eval else the alg is type unstable
     @eval begin
-        function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+        function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = nothing)
             prob = NonlinearProblem{false}(f, u0, p)
             return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
         end
 
-        function benchmark_nlsolve_iip(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+        function benchmark_nlsolve_iip(f, u0, p = 2.0; autodiff = nothing)
             prob = NonlinearProblem{true}(f, u0, p)
             return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
         end
     end
 
     @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
-        AutoForwardDiff())
+        AutoForwardDiff(), AutoPolyesterForwardDiff())
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+            u0 isa SVector && autodiff isa AutoPolyesterForwardDiff && continue
             sol = benchmark_nlsolve_oop(quadratic_f, u0; autodiff)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
@@ -103,7 +105,7 @@ end
 # --- SimpleHalley tests ---
 
 @testset "SimpleHalley" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = AutoForwardDiff())
+    function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = nothing)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, SimpleHalley(; autodiff), abstol = 1e-9)
     end

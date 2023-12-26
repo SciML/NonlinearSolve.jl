@@ -10,4 +10,10 @@ using SimpleNonlinearSolve, PolyesterForwardDiff
     return J
 end
 
+@inline function SimpleNonlinearSolve.__polyester_forwarddiff_jacobian!(f::F, J, x,
+        chunksize) where {F}
+    PolyesterForwardDiff.threaded_jacobian!(f, J, x, chunksize)
+    return J
+end
+
 end
