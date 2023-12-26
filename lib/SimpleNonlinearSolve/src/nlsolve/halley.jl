@@ -55,7 +55,14 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
         setindex_trait(x) === CannotSetindex() && (A = dfx)
 
         # Factorize Once and Reuse
-        dfx_fact = factorize(dfx)
+        dfx_fact = if dfx isa Number
+            dfx
+        else
+            fact = lu(dfx; check = false)
+            !issuccess(fact) && return build_solution(prob, alg, x, fx;
+                retcode = ReturnCode.Unstable)
+            fact
+        end
 
         aᵢ = dfx_fact \ _vec(fx)
         A_ = _vec(A)

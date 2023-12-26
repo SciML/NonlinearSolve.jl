@@ -64,36 +64,6 @@ const TERMINATION_CONDITIONS = [
             autodiff = AutoForwardDiff())) == 0
     end
 
-    @testset "[OOP] Immutable AD" begin
-        for p in [1.0, 100.0]
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] Scalar AD" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
-
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
@@ -123,36 +93,6 @@ end
         @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
             autodiff = AutoForwardDiff())) == 0
     end
-
-    @testset "[OOP] Immutable AD" begin
-        for p in [1.0, 100.0]
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-                res_true = sqrt(p)
-                all(res.u .≈ res_true)
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                @SVector[1.0, 1.0], p).u[end], p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    @testset "[OOP] Scalar AD" begin
-        for p in 1.0:0.1:100.0
-            @test begin
-                res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-                res_true = sqrt(p)
-                res.u ≈ res_true
-            end
-            @test ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f, 1.0, p).u,
-                p) ≈ 1 / (2 * sqrt(p))
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
@@ -194,44 +134,6 @@ end
         allocs = alg isa SimpleDFSane ? 144 : 0
         @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0)) == allocs
     end
-
-    @testset "[OOP] Immutable AD" begin
-        for p in [1.0, 100.0]
-            res = benchmark_nlsolve_oop(quadratic_f, @SVector[1.0, 1.0], p)
-
-            if any(x -> isnan(x) || x <= 1e-5 || x >= 1e5, res)
-                @test_broken all(abs.(res) .≈ sqrt(p))
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                    @SVector[1.0, 1.0], p).u[end], p)) ≈ 1 / (2 * sqrt(p))
-            else
-                @test all(abs.(res) .≈ sqrt(p))
-                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                        @SVector[1.0, 1.0], p).u[end], p)), 1 / (2 * sqrt(p)))
-            end
-        end
-    end
-
-    @testset "[OOP] Scalar AD" begin
-        for p in 1.0:0.1:100.0
-            res = benchmark_nlsolve_oop(quadratic_f, 1.0, p)
-
-            if any(x -> isnan(x), res)
-                @test_broken abs(res.u) ≈ sqrt(p)
-                @test_broken abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                        1.0, p).u, p)) ≈ 1 / (2 * sqrt(p))
-            else
-                @test abs(res.u) ≈ sqrt(p)
-                @test isapprox(abs.(ForwardDiff.derivative(p -> benchmark_nlsolve_oop(quadratic_f,
-                            1.0, p).u, p)), 1 / (2 * sqrt(p)))
-            end
-        end
-    end
-
-    t = (p) -> [sqrt(p[2] / p[1])]
-    p = [0.9, 50.0]
-    @test benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u ≈ sqrt(p[2] / p[1])
-    @test ForwardDiff.jacobian(p -> [benchmark_nlsolve_oop(quadratic_f2, 0.5, p).u],
-        p) ≈ ForwardDiff.jacobian(t, p)
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])

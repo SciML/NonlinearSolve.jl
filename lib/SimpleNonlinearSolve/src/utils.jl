@@ -381,3 +381,6 @@ end
         return AutoFiniteDiff()
     end
 end
+
+@inline __reshape(x::Number, args...) = x
+@inline __reshape(x::AbstractArray, args...) = reshape(x, args...)
