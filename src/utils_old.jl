@@ -46,18 +46,6 @@ __maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 __maybe_mutable(x, _) = x
 
 # Helper function to get value of `f(u, p)`
-function evaluate_f(prob::Union{NonlinearProblem{uType, iip},
-            NonlinearLeastSquaresProblem{uType, iip}}, u) where {uType, iip}
-    @unpack f, u0, p = prob
-    if iip
-        fu = f.resid_prototype === nothing ? similar(u) : f.resid_prototype
-        f(fu, u, p)
-    else
-        fu = f(u, p)
-    end
-    return fu
-end
-
 function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip}
     if iip
         f(fu, u, p)
@@ -110,76 +98,7 @@ function __get_concrete_algorithm(alg, prob)
     return set_ad(alg, ad)
 end
 
-function init_termination_cache(abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(abstol, reltol, du, u, AbsSafeBestTerminationMode())
-end
-function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
-    tc_cache = init(du, u, tc; abstol, reltol)
-    return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
-end
 
-function check_and_update!(cache, fu, u, uprev)
-    return check_and_update!(cache.tc_cache, cache, fu, u, uprev)
-end
-function check_and_update!(tc_cache, cache, fu, u, uprev)
-    return check_and_update!(tc_cache, cache, fu, u, uprev,
-        DiffEqBase.get_termination_mode(tc_cache))
-end
-function check_and_update!(tc_cache, cache, fu, u, uprev,
-        mode::AbstractNonlinearTerminationMode)
-    if tc_cache(fu, u, uprev)
-        # Just a sanity measure!
-        if isinplace(cache)
-            cache.prob.f(get_fu(cache), u, cache.prob.p)
-        else
-            set_fu!(cache, cache.prob.f(u, cache.prob.p))
-        end
-        cache.force_stop = true
-    end
-end
-function check_and_update!(tc_cache, cache, fu, u, uprev,
-        mode::AbstractSafeNonlinearTerminationMode)
-    if tc_cache(fu, u, uprev)
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
-            cache.retcode = ReturnCode.Success
-        end
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
-            cache.retcode = ReturnCode.ConvergenceFailure
-        end
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
-            cache.retcode = ReturnCode.Unstable
-        end
-        # Just a sanity measure!
-        if isinplace(cache)
-            cache.prob.f(get_fu(cache), u, cache.prob.p)
-        else
-            set_fu!(cache, cache.prob.f(u, cache.prob.p))
-        end
-        cache.force_stop = true
-    end
-end
-function check_and_update!(tc_cache, cache, fu, u, uprev,
-        mode::AbstractSafeBestNonlinearTerminationMode)
-    if tc_cache(fu, u, uprev)
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
-            cache.retcode = ReturnCode.Success
-        end
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
-            cache.retcode = ReturnCode.ConvergenceFailure
-        end
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
-            cache.retcode = ReturnCode.Unstable
-        end
-        if isinplace(cache)
-            copyto!(get_u(cache), tc_cache.u)
-            cache.prob.f(get_fu(cache), get_u(cache), cache.prob.p)
-        else
-            set_u!(cache, tc_cache.u)
-            set_fu!(cache, cache.prob.f(get_u(cache), cache.prob.p))
-        end
-        cache.force_stop = true
-    end
-end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
         ::Val{threshold}) where {S1, S2, T1, T2, threshold}
@@ -208,19 +127,9 @@ end
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
 
-# LazyArrays for tracing
-__zero(x::AbstractArray) = zero(x)
-__zero(x) = x
-LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
-LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
-LazyArrays.applied_size(::typeof(__zero), x) = size(x)
-LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 
 
-LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
-LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
-LazyArrays.applied_size(::typeof(__safe_inv), x) = size(x)
-LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)
+
 
 # SparseAD --> NonSparseAD
 @inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
@@ -228,13 +137,7 @@ LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)
 @inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 @inline __get_nonsparse_ad(ad) = ad
 
-# Use Symmetric Matrices if known to be efficient
-@inline __maybe_symmetric(x) = Symmetric(x)
-@inline __maybe_symmetric(x::Number) = x
-## LinearSolve with `nothing` doesn't dispatch correctly here
-@inline __maybe_symmetric(x::StaticArray) = x
-@inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
-@inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+
 
 # Diagonal of type `u`
 __init_diagonal(u::Number, v) = oftype(u, v)

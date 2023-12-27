@@ -46,7 +46,12 @@ import SparseDiffTools: AbstractSparsityDetection
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
 
+const True = Val(true)
+const False = Val(false)
+
 # abstract type AbstractNonlinearSolveLineSearchAlgorithm end
+
+
 
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 # abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
@@ -173,13 +178,24 @@ SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 #         cache.retcode, cache.stats, trace)
 # end
 
+include("abstract_types.jl")
+
+include("descent/newton.jl")
+include("descent/steepest.jl")
+include("descent/dogleg.jl")
+include("descent/damped_newton.jl")
+
+include("internal/helpers.jl")
 include("internal/jacobian.jl")
 include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
 include("internal/operators.jl")
+include("internal/termination.jl")
+include("internal/tracing.jl")
 
 include("globalization/damping.jl")
 include("globalization/line_search.jl")
+include("globalization/trust_region.jl")
 
 include("core/approximate_jacobian.jl")
 include("core/newton.jl")
@@ -252,24 +268,27 @@ include("algorithms/klement.jl")
 #     end
 # end
 
-export RadiusUpdateSchemes
+# Descent Algorithms
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent
 
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    Broyden, Klement, LimitedMemoryBroyden
-export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
-    FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
-export NonlinearSolvePolyAlgorithm,
-    RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+# export RadiusUpdateSchemes
 
-export LineSearch, LiFukushimaLineSearch
+# export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
+#     Broyden, Klement, LimitedMemoryBroyden
+# export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
+#     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+# export NonlinearSolvePolyAlgorithm,
+#     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-# Export the termination conditions from DiffEqBase
-export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
-    NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
-    AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
-    RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+# export LineSearch, LiFukushimaLineSearch
 
-# Tracing Functionality
-export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
+# # Export the termination conditions from DiffEqBase
+# export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
+#     NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+#     AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+#     RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+
+# # Tracing Functionality
+# export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
 
 end # module

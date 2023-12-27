@@ -23,8 +23,7 @@ end
 @inline __maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 @inline __maybe_mutable(x, _) = x
 
-# TODO: __concrete_jac
-# __concrete_jac(_) = nothing
+__concrete_jac(::Any) = nothing
 # __concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
 @inline @generated function _vec(v)
@@ -50,3 +49,30 @@ end
     (alias || !can_setindex(typeof(x))) && return x
     return deepcopy(x)
 end
+
+@inline __cond(J::AbstractMatrix) = cond(J)
+@inline __cond(J::SVector) = __cond(Diagonal(MVector(J)))
+@inline __cond(J::AbstractVector) = __cond(Diagonal(J))
+@inline __cond(J::ApplyArray) = __cond(J.f(J.args...))
+@inline __cond(J::SparseMatrixCSC) = __cond(Matrix(J))
+@inline __cond(J) = -1  # Covers cases where `J` is a Operator, nothing, etc.
+
+@inline __copy(x::AbstractArray) = copy(x)
+@inline __copy(x::Number) = x
+@inline __copy(x) = x
+
+# LazyArrays for tracing
+__zero(x::AbstractArray) = zero(x)
+__zero(x) = x
+LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
+LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
+LazyArrays.applied_size(::typeof(__zero), x) = size(x)
+LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
+
+# Use Symmetric Matrices if known to be efficient
+@inline __maybe_symmetric(x) = Symmetric(x)
+@inline __maybe_symmetric(x::Number) = x
+## LinearSolve with `nothing` doesn't dispatch correctly here
+@inline __maybe_symmetric(x::StaticArray) = x
+@inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
+@inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x

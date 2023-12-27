@@ -133,16 +133,6 @@ function NonlinearSolveTraceEntry(iteration, fu, δu, J, u)
         __copy(J), __copy(u), __copy(fu), __copy(δu))
 end
 
-__cond(J::AbstractMatrix) = cond(J)
-__cond(J::SVector) = __cond(Diagonal(MVector(J)))
-__cond(J::AbstractVector) = __cond(Diagonal(J))
-__cond(J::ApplyArray) = __cond(J.f(J.args...))
-__cond(J) = -1  # Covers cases where `J` is a Operator, nothing, etc.
-
-__copy(x::AbstractArray) = copy(x)
-__copy(x::Number) = x
-__copy(x) = x
-
 @concrete struct NonlinearSolveTrace{show_trace, store_trace,
     Tr <: AbstractNonlinearSolveTraceLevel}
     history

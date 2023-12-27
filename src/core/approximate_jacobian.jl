@@ -12,12 +12,14 @@ abstract type AbstractJacobianInitialization end
     D <: AbstractJacobianDampingStrategy, LS <: AbstractNonlinearSolveLineSearchAlgorithm,
     UR <: AbstractApproximateJacobianUpdateRule} <: AbstractApproximateJacobianSolveAlgorithm
     name::Symbol
+    autodiff
     initialization::I
     damping::D
     linesearch::LS
     update_rule::UR
     reinit_rule
     linsolve
+    precs
     max_resets::UInt
 end
 
@@ -56,13 +58,19 @@ end
 
     # Termination & Tracking
     termination_cache
-    tracing_cache
+    trace
     retcode::ReturnCode.T
     force_stop::Bool
 end
 
+# Accessors Interface
+get_fu(cache::ApproximateJacobianSolveCache) = cache.fu
+get_u(cache::ApproximateJacobianSolveCache) = cache.u
+set_fu!(cache::ApproximateJacobianSolveCache, fu) = (cache.fu = fu)
+
 # NLStats interface
-@inline get_nf(cache::ApproximateJacobianSolveCache) = cache.nf
+@inline get_nf(cache::ApproximateJacobianSolveCache) = cache.nf +
+                                                       get_nf(cache.linesearch_cache)
 @inline get_njacs(cache::ApproximateJacobianSolveCache) = get_njacs(cache.initialization_cache)
 @inline get_nsteps(cache::ApproximateJacobianSolveCache) = cache.nsteps
 @inline increment_nsteps!(cache::ApproximateJacobianSolveCache) = (cache.nsteps += 1)
@@ -83,7 +91,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
     time_start = time()
     (; f, u0, p) = prob
     u = __maybe_unaliased(u0, alias_u0)
-    # TODO: fu = evaluate_f(prob, u)
+    fu = evaluate_f(prob, u)
     du = @bb similar(u)
     u_cache = @bb copy(u)
 
@@ -97,16 +105,25 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
                        (nothing, damping_cache.J)
     # TODO: linesearch_cache
     # TODO: update_rule_cache
-    # TODO: linsolve_cache
+    if INV || alg.initialization.structure isa DiagonalStructure
+        linsolve_cache = nothing
+    else
+        linsolve_cache = LinearSolverCache(alg, linsolve, A, b, u; abstol, reltol,
+            linsolve_kwargs...)
+    end
     # TODO: reinit_rule_cache
 
-    # TODO: termination_cache
-    # TODO: tracing_cache
+    termination_cache = init_termination_cache(abstol, reltol, du, u, termination_condition)
+    trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
+        uses_jacobian_inverse = Val(INV), kwargs...)
 
-    return ApproximateJacobianSolveCache{iip}(fu, u, u_cache, p, du, alg, prob,
+    cache = ApproximateJacobianSolveCache{iip}(fu, u, u_cache, p, du, alg, prob,
         initialization_cache, damping_cache, linesearch_cache, update_rule_cache,
-        linsolve_cache, reinit_rule_cache, inv_workspace, J, 0, 0, 0, alg.max_resets, 0.0,
-        time() - time_start, termination_cache, tracing_cache, ReturnCode.Default, false)
+        linsolve_cache, reinit_rule_cache, inv_workspace, J, 1, 0, 0, alg.max_resets, 0.0,
+        0.0, termination_cache, trace, ReturnCode.Default, false)
+
+    cache.cache_initialization_time = time() - time_start
+    return cache
 end
 
 function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, iip};
@@ -134,7 +151,7 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, iip};
         else
             reinit = false # Override Checks: Unsafe operation
         end
-        
+
         if reinit
             J_ = cache.initialization_cache(cache.initialization, Val(true))
             J_damp = cache.damping_cache(J_)
@@ -202,12 +219,13 @@ end
     structure
 end
 
-function (alg::IdentityInitialization)(prob, alg, f::F, fu, u::Number, p) where {F}
+function (alg::IdentityInitialization)(prob, alg, f::F, fu, u::Number, p,
+        ad = nothing) where {F}
     return InitializedApproximateJacobianCache(one(u), alg.structure, alg, nothing, true,
         0.0)
 end
 function (alg::IdentityInitialization)(prob, alg, f::F, fu::StaticArray,
-        u::StaticArray, p) where {F}
+        u::StaticArray, p, ad = nothing) where {F}
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
         J = one.(fu)
@@ -222,7 +240,7 @@ function (alg::IdentityInitialization)(prob, alg, f::F, fu::StaticArray,
     end
     return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true, 0.0)
 end
-function (alg::IdentityInitialization)(prob, f::F, fu, alg, u, p) where {F}
+function (alg::IdentityInitialization)(prob, f::F, fu, alg, u, p, ad = nothing) where {F}
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
         J = one.(fu)
@@ -258,8 +276,8 @@ end
 
 # TODO: For just the diagonal elements of the Jacobian we don't need to construct the full
 # Jacobian
-function (alg::TrueJacobianInitialization)(prob, alg, f::F, fu, u, p) where {F}
-    jac_cache = JacobianCache(prob, alg, prob.f, fu, u, p)
+function (alg::TrueJacobianInitialization)(prob, alg, f::F, fu, u, p, ad) where {F}
+    jac_cache = JacobianCache(prob, alg, prob.f, fu, u, p; ad)
     J = alg.structure(jac_cache.J)
     return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false, 0.0)
 end
@@ -334,3 +352,8 @@ end
     end
     return pinv(A)
 end
+
+LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
+LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
+LazyArrays.applied_size(::typeof(__safe_inv), x) = size(x)
+LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)

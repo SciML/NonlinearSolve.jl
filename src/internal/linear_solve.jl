@@ -16,15 +16,15 @@ end
 @inline get_nsolve(cache::LinearSolverCache) = cache.nsolve
 @inline get_nfactors(cache::LinearSolverCache) = cache.nfactors
 
-@inline function LinearSolverCache(alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
+@inline function LinearSolverCache(alg, args...; kwargs...)
     return LinearSolverCache(alg.linsolve, args...; kwargs...)
 end
 @inline function LinearSolverCache(alg, linsolve, A::Number, b, args...; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0f0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
 end
 @inline function LinearSolveCache(alg, ::Nothing, A::SMatrix, b, args...; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, _vec(b), nothing, 0, 0, 0.0f0)
+    return LinearSolverCache(nothing, nothing, A, _vec(b), nothing, 0, 0, 0.0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     linprob = LinearProblem(A, _vec(b); u0 = _vec(u), kwargs...)
@@ -41,7 +41,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 
     lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0, 0.0f0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0, 0.0)
 end
 # TODO: For Krylov Versions
 # linsolve_caches(A::KrylovJᵀJ, b, u, p, alg) = linsolve_caches(A.JᵀJ, b, u, p, alg)
@@ -138,3 +138,8 @@ end
 
     return Pl, Pr
 end
+
+@inline __needs_square_A(_, ::Number) = false
+@inline __needs_square_A(::Nothing, ::Number) = true
+@inline __needs_square_A(::Nothing, _) = false
+@inline __needs_square_A(linsolve, _) = LinearSolve.needs_square_A(linsolve)

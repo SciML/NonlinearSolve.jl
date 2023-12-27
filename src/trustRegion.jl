@@ -512,41 +512,6 @@ function trust_region_step!(cache::TrustRegionCache)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 end
 
-function dogleg!(cache::TrustRegionCache{iip}) where {iip}
-    # Take the full Gauss-Newton step if lies within the trust region.
-    if cache.internalnorm(cache.u_gauss_newton) ≤ cache.trust_r
-        @bb copyto!(cache.du, cache.u_gauss_newton)
-        return
-    end
-
-    # Take intersection of steepest descent direction and trust region if Cauchy point lies
-    # outside of trust region
-    l_grad = cache.internalnorm(cache.Jᵀf) # length of the gradient
-    d_cauchy = l_grad^3 / __lr_mul(cache)
-    g = _restructure(cache.du, cache.Jᵀf)
-    if d_cauchy ≥ cache.trust_r
-        # step to the end of the trust region
-        @bb @. cache.du = -(cache.trust_r / l_grad) * g
-        return
-    end
-
-    # Take the intersection of dogleg with trust region if Cauchy point lies inside the
-    # trust region
-    @bb @. cache.u_cauchy = -(d_cauchy / l_grad) * g # compute Cauchy point
-    @bb @. cache.u_cache_2 = cache.u_gauss_newton - cache.u_cauchy # calf of the dogleg
-
-    a = dot(cache.u_cache_2, cache.u_cache_2)
-    b = 2 * dot(cache.u_cauchy, cache.u_cache_2)
-    c = d_cauchy^2 - cache.trust_r^2
-    # technically guaranteed to be non-negative but hedging against floating point issues
-    aux = max(b^2 - 4 * a * c, 0)
-    # stepsize along dogleg to trust region boundary
-    τ = (-b + sqrt(aux)) / (2 * a)
-
-    @bb @. cache.du = cache.u_cauchy + τ * cache.u_cache_2
-    return
-end
-
 function take_step!(cache::TrustRegionCache)
     @bb copyto!(cache.u_cache, cache.u)
     @bb copyto!(cache.u, cache.u_cache_2)

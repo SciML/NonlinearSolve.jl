@@ -152,14 +152,3 @@ function __update_Jᵀf!(cache::AbstractNonlinearSolveCache, J = nothing)
         @bb cache.Jᵀf = transpose(J_) × vec(cache.fu)
     end
 end
-
-# Left-Right Multiplication
-__lr_mul(cache::AbstractNonlinearSolveCache) = __lr_mul(cache, cache.JᵀJ, cache.Jᵀf)
-function __lr_mul(cache::AbstractNonlinearSolveCache, JᵀJ::KrylovJᵀJ, Jᵀf)
-    @bb cache.lr_mul_cache = JᵀJ.JᵀJ × vec(Jᵀf)
-    return dot(_vec(Jᵀf), _vec(cache.lr_mul_cache))
-end
-function __lr_mul(cache::AbstractNonlinearSolveCache, JᵀJ, Jᵀf)
-    @bb cache.lr_mul_cache = JᵀJ × vec(Jᵀf)
-    return dot(_vec(Jᵀf), _vec(cache.lr_mul_cache))
-end
