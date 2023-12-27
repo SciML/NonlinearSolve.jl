@@ -71,7 +71,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
 
         @bb Aaᵢ = A × aᵢ
         @bb A .*= -1
-        bᵢ = dfx_fact \ Aaᵢ
+        bᵢ = dfx_fact \ _vec(Aaᵢ)
 
         cᵢ_ = _vec(cᵢ)
         @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))

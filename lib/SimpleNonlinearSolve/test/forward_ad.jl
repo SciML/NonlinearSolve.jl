@@ -1,4 +1,5 @@
 using ForwardDiff, SimpleNonlinearSolve, StaticArrays, Test, LinearAlgebra
+import SimpleNonlinearSolve: AbstractSimpleNonlinearSolveAlgorithm
 
 test_f!(du, u, p) = (@. du = u^2 - p)
 test_f(u, p) = (@. u^2 - p)
@@ -26,24 +27,12 @@ __compatible(::Any, ::Number) = true
 __compatible(::Number, ::AbstractArray) = false
 __compatible(u::AbstractArray, p::AbstractArray) = size(u) == size(p)
 
-__compatible(u::Number, ::SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm) = true
-function __compatible(u::AbstractArray,
-        ::SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm)
-    true
-end
-function __compatible(u::StaticArray,
-        ::SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm)
-    true
-end
+__compatible(u::Number, ::AbstractSimpleNonlinearSolveAlgorithm) = true
+__compatible(u::AbstractArray, ::AbstractSimpleNonlinearSolveAlgorithm) = true
+__compatible(u::StaticArray, ::AbstractSimpleNonlinearSolveAlgorithm) = true
 
-function __compatible(::SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
-        ::Val{:iip})
-    true
-end
-function __compatible(::SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
-        ::Val{:oop})
-    true
-end
+__compatible(::AbstractSimpleNonlinearSolveAlgorithm, ::Val{:iip}) = true
+__compatible(::AbstractSimpleNonlinearSolveAlgorithm, ::Val{:oop}) = true
 __compatible(::SimpleHalley, ::Val{:iip}) = false
 
 @testset "ForwardDiff.jl Integration: $(alg)" for alg in (SimpleNewtonRaphson(),
