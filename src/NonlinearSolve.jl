@@ -39,7 +39,7 @@ import DiffEqBase: AbstractNonlinearTerminationMode,
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
 
-import SciMLBase: JacobianWrapper
+import SciMLBase: JacobianWrapper, AbstractNonlinearProblem
 
 import SparseDiffTools: AbstractSparsityDetection
 
@@ -48,12 +48,12 @@ is_extension_loaded(::Val) = false
 
 # abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
-# abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
+abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 # abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
-# abstract type AbstractNonlinearSolveCache{iip} end
+abstract type AbstractNonlinearSolveCache{iip} end
 
-# isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 # function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
 #         p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
@@ -174,6 +174,18 @@ is_extension_loaded(::Val) = false
 # end
 
 include("internal/jacobian.jl")
+include("internal/forward_diff.jl")
+include("internal/linear_solve.jl")
+include("internal/operators.jl")
+
+include("globalization/damping.jl")
+include("globalization/line_search.jl")
+
+include("core/approximate_jacobian.jl")
+include("core/newton.jl")
+
+include("algorithms/broyden.jl")
+include("algorithms/klement.jl")
 
 # include("utils.jl")
 # include("function_wrappers.jl")

@@ -12,6 +12,11 @@ else
     @inline __hasfield(::T, ::Val{field}) where {T, field} = hasfield(T, field)
 end
 
+@generated function __getproperty(s::S, ::Val{X}) where {S, X}
+    hasfield(S, X) && return :(s.$X)
+    return :(nothing)
+end
+
 @inline __needs_concrete_A(::Nothing) = false
 @inline __needs_concrete_A(linsolve) = needs_concrete_A(linsolve)
 
@@ -38,3 +43,10 @@ end
     return w
 end
 @inline __init_ones(x::StaticArray) = ones(typeof(x))
+
+@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
+    # Spend time coping iff we will mutate the array
+    (alias || !can_setindex(typeof(x))) && return x
+    return deepcopy(x)
+end

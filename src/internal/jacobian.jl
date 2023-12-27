@@ -11,11 +11,16 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     p
     jac_cache
     alg
-    njacs::Int
+    njacs::UInt
+    total_time::Float64
+    ad
 end
 
+@inline get_njacs(cache::JacobianCache) = cache.njacs
+
 # TODO: Cache for Non-Square Case
-function JacobianCache(prob, alg, f::F, u, p) where {F}
+function JacobianCache(prob, alg, f::F, fu_, u, p;
+        ad = __getproperty(alg, Val(:ad))) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
@@ -26,12 +31,12 @@ function JacobianCache(prob, alg, f::F, u, p) where {F}
     alg_wants_jac = __concrete_jac(alg) !== nothing && __concrete_jac(alg)
     needs_jac = linsolve_needs_jac || alg_wants_jac
 
-    fu = f.resid_prototype === nothing ? (iip ? zero(u) : f(u, p)) :
-         (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
+    fu = similar(fu_)
+    #  f.resid_prototype === nothing ? (iip ? zero(u) : f(u, p)) :
+    #      (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
 
     if !has_analytic_jac && needs_jac
-        sd = __sparsity_detection_alg(f, alg.ad)
-        ad = alg.ad
+        sd = __sparsity_detection_alg(f, ad)
         jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, u) :
                     sparse_jacobian_cache(ad, sd, uf, __maybe_mutable(u, ad); fx = fu)
     else
@@ -64,41 +69,47 @@ function JacobianCache(prob, alg, f::F, u, p) where {F}
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, 0)
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, 0, 0.0, ad)
 end
 
-function JacobianCache(prob, alg, f::F, u::Number, p) where {F}
+function JacobianCache(prob, alg, f::F, ::Number, u::Number, p) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, 0)
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, 0, 0.0, nothing)
 end
 
-@inline (cache::JacobianCache)() = cache(cache.J, cache.u, cache.p)
-# Default Case is a NoOp: Operators and Such
-@inline (cache::JacobianCache)(J, u, p) = J
-# Scalar
-function (cache::JacobianCache)(::Number, u, p)
+@inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
+
+@inline (cache::JacobianCache)(J, u, p) = J     # Default Case is a NoOp: Operators and Such
+function (cache::JacobianCache)(::Number, u, p) # Scalar
+    time_start = time()
     cache.njacs += 1
-    return last(value_derivative(cache.uf, u))
+    J = last(value_derivative(cache.uf, u))
+    cache.total_time += time() - time_start
+    return J
 end
 # Compute the Jacobian
 function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u, p) where {iip}
+    time_start = time()
     cache.njacs += 1
     if iip
         if has_jac(cache.f)
             cache.f.jac(J, u, p)
         else
-            sparse_jacobian!(J, cache.alg.ad, cache.jac_cache, cache.uf, cache.fu, u)
+            sparse_jacobian!(J, cache.ad, cache.jac_cache, cache.uf, cache.fu, u)
         end
+        J_ = J
     else
-        if has_jac(cache.f)
-            return cache.f.jac(u, p)
+        J_ = if has_jac(cache.f)
+            cache.f.jac(u, p)
         elseif can_setindex(typeof(J))
-            return sparse_jacobian!(J, cache.alg.ad, cache.jac_cache, cache.uf, u)
+            sparse_jacobian!(J, cache.ad, cache.jac_cache, cache.uf, u)
+            J
         else
-            return sparse_jacobian(cache.alg.ad, cache.jac_cache, cache.uf, u)
+            sparse_jacobian(cache.ad, cache.jac_cache, cache.uf, u)
         end
     end
-    return J
+    cache.total_time += time() - time_start
+    return J_
 end
 
 # Sparsity Detection Choices

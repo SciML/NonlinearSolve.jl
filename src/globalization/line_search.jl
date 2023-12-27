@@ -1,0 +1,3 @@
+abstract type AbstractNonlinearSolveLineSearchAlgorithm end
+
+struct NoLineSearch end

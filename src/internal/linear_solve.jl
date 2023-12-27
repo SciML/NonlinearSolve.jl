@@ -1,3 +1,5 @@
+import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinearSolver
+
 abstract type AbstractLinearSolverCache <: Function end
 
 @concrete mutable struct LinearSolverCache <: AbstractLinearSolverCache
@@ -6,19 +8,23 @@ abstract type AbstractLinearSolverCache <: Function end
     A
     b
     precs
-    nsolve
-    nfactors
+    nsolve::UInt
+    nfactors::UInt
+    total_time::Float64
 end
+
+@inline get_nsolve(cache::LinearSolverCache) = cache.nsolve
+@inline get_nfactors(cache::LinearSolverCache) = cache.nfactors
 
 @inline function LinearSolverCache(alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     return LinearSolverCache(alg.linsolve, args...; kwargs...)
 end
 @inline function LinearSolverCache(alg, linsolve, A::Number, b, args...; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0f0)
 end
 @inline function LinearSolveCache(alg, ::Nothing, A::SMatrix, b, args...; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, _vec(b), nothing, 0, 0)
+    return LinearSolverCache(nothing, nothing, A, _vec(b), nothing, 0, 0, 0.0f0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     linprob = LinearProblem(A, _vec(b); u0 = _vec(u), kwargs...)
@@ -35,54 +41,37 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 
     lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0, 0.0f0)
 end
 # TODO: For Krylov Versions
 # linsolve_caches(A::KrylovJᵀJ, b, u, p, alg) = linsolve_caches(A.JᵀJ, b, u, p, alg)
 
 # Direct Linear Solve Case without Caching
 function (cache::LinearSolveCache{Nothing})(; A = nothing, b = nothing, kwargs...)
+    time_start = time()
     cache.nsolve += 1
     cache.nfactors += 1
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
-    return cache.A \ cache.b
+    res = cache.A \ cache.b
+    cache.total_time += time() - time_start
+    return res
 end
 # Use LinearSolve.jl
 function (cache::LinearSolveCache)(; A = nothing, b = nothing, linu = nothing, du = nothing,
-        p = nothing, weight = nothing, cachedata = nothing, reltol = nothing,
-        abstol = nothing, reuse_A_if_factorization::Val{R} = Val(false),
-        kwargs...) where {R}
+        p = nothing, weight = nothing, cachedata = nothing,
+        reuse_A_if_factorization = Val(false), kwargs...)
+    time_start = time()
     cache.nsolve += 1
-    cache.nfactors += 1
-    # TODO: Update `A`
-    # A === nothing || (cache.A = A)
-    #     # Some Algorithms would reuse factorization but it causes the cache to not reset in
-    #     # certain cases
-    #     if A !== nothing
-    #         alg = __getproperty(linsolve, Val(:alg))
-    #         if alg !== nothing && ((alg isa LinearSolve.AbstractFactorization) ||
-    #             (alg isa LinearSolve.DefaultLinearSolver && !(alg ==
-    #                LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES))))
-    #             # Factorization Algorithm
-    #             if reuse_A_if_factorization
-    #                 cache.stats.nfactors -= 1
-    #             else
-    #                 linsolve.A = A
-    #             end
-    #         else
-    #             linsolve.A = A
-    #         end
-    #     else
-    #         cache.stats.nfactors -= 1
-    #     end
-    b === nothing || (cache.b = b)
-    linu === nothing || (cache.linsolve.u = linu)
 
-    Plprev = cache.linsolve.Pl isa ComposePreconditioner ? cache.linsolve.Pl.outer :
-             cache.linsolve.Pl
-    Prprev = cache.linsolve.Pr isa ComposePreconditioner ? cache.linsolve.Pr.outer :
-             cache.linsolve.Pr
+    __update_A!(cache, A, reuse_A_if_factorization)
+    b === nothing || (cache.lincache.b = b)
+    linu === nothing || (cache.lincache.u = linu)
+
+    Plprev = cache.lincache.Pl isa ComposePreconditioner ? cache.lincache.Pl.outer :
+             cache.lincache.Pl
+    Prprev = cache.lincache.Pr isa ComposePreconditioner ? cache.lincache.Pr.outer :
+             cache.lincache.Pr
 
     if cache.precs === nothing
         _Pl, _Pr = nothing, nothing
@@ -93,26 +82,45 @@ function (cache::LinearSolveCache)(; A = nothing, b = nothing, linu = nothing, d
 
     if (_Pl !== nothing || _Pr !== nothing)
         _weight = weight === nothing ?
-                  (cache.linsolve.Pr isa Diagonal ? cache.linsolve.Pr.diag :
-                   cache.linsolve.Pr.inner.diag) : weight
+                  (cache.lincache.Pr isa Diagonal ? cache.lincache.Pr.diag :
+                   cache.lincache.Pr.inner.diag) : weight
         Pl, Pr = wrapprecs(_Pl, _Pr, _weight)
-        cache.linsolve.Pl = Pl
-        cache.linsolve.Pr = Pr
+        cache.lincache.Pl = Pl
+        cache.lincache.Pr = Pr
     end
 
-    if reltol === nothing && abstol === nothing
-        linres = solve!(cache.linsolve)
-    elseif reltol === nothing && abstol !== nothing
-        linres = solve!(cache.linsolve; abstol)
-    elseif reltol !== nothing && abstol === nothing
-        linres = solve!(cache.linsolve; reltol)
-    else
-        linres = solve!(cache.linsolve; reltol, abstol)
-    end
-
+    linres = solve!(cache.lincache)
     cache.lincache = linres.cache
+    cache.total_time += time() - time_start
 
     return linres.u
+end
+
+@inline __update_A!(cache::LinearSolverCache, ::Nothing, reuse) = cache
+@inline function __update_A!(cache::LinearSolverCache, A, reuse)
+    return __update_A!(cache, __getproperty(cache.linsolve, Val(:alg)), A, reuse)
+end
+@inline function __update_A!(cache, alg, A, reuse)
+    # Not a Factorization Algorithm so don't update `nfactors`
+    cache.lincache.A = A
+    return cache
+end
+@inline function __update_A!(cache, ::AbstractFactorization, A, ::Val{reuse}) where {reuse}
+    reuse && return cache
+    cache.lincache.A = A
+    cache.nfactors += 1
+    return cache
+end
+@inline function __update_A!(cache, alg::DefaultLinearSolver, A, ::Val{reuse}) where {reuse}
+    if alg == DefaultLinearSolver(DefaultAlgorithmChoice.KrylovJL_GMRES)
+        # Force a reset of the cache. This is not properly handled in LinearSolve.jl
+        cache.lincache.A = A
+        return cache
+    end
+    reuse && return cache
+    cache.lincache.A = A
+    cache.nfactors += 1
+    return cache
 end
 
 @inline function __wrapprecs(_Pl, _Pr, weight)

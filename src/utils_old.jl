@@ -181,49 +181,6 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
     end
 end
 
-@inline __init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
-@inline @views function __init_identity_jacobian(u, fu, α = true)
-    J = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
-    fill!(J, zero(eltype(J)))
-    if fast_scalar_indexing(J)
-        @inbounds for i in axes(J, 1)
-            J[i, i] = α
-        end
-    else
-        J[diagind(J)] .= α
-    end
-    return J
-end
-@inline function __init_identity_jacobian(u::StaticArray, fu::StaticArray, α = true)
-    T = promote_type(eltype(fu), eltype(u))
-    return MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
-end
-@inline function __init_identity_jacobian(u::SArray, fu::SArray, α = true)
-    T = promote_type(eltype(fu), eltype(u))
-    return SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
-end
-
-@inline __reinit_identity_jacobian!!(J::Number, α = true) = oftype(J, α)
-@inline __reinit_identity_jacobian!!(J::AbstractVector, α = true) = fill!(J, α)
-@inline @views function __reinit_identity_jacobian!!(J::AbstractMatrix, α = true)
-    fill!(J, zero(eltype(J)))
-    if fast_scalar_indexing(J)
-        @inbounds for i in axes(J, 1)
-            J[i, i] = α
-        end
-    else
-        J[diagind(J)] .= α
-    end
-    return J
-end
-@inline function __reinit_identity_jacobian!!(J::SVector, α = true)
-    return ones(SArray{Tuple{Size(J)[1]}, eltype(J)}) .* α
-end
-@inline function __reinit_identity_jacobian!!(J::SMatrix, α = true)
-    S = Size(J)
-    return SArray{Tuple{S[1], S[2]}, eltype(J)}(I) .* α
-end
-
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
         ::Val{threshold}) where {S1, S2, T1, T2, threshold}
     T = promote_type(T1, T2)
@@ -244,12 +201,6 @@ end
 @inline __is_ill_conditioned(x::AbstractVector) = any(iszero, x)
 @inline __is_ill_conditioned(x) = false
 
-# Safe getproperty
-@generated function __getproperty(s::S, ::Val{X}) where {S, X}
-    hasfield(S, X) && return :(s.$X)
-    return :(nothing)
-end
-
 # Non-square matrix
 @inline __needs_square_A(_, ::Number) = true
 @inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
@@ -265,31 +216,6 @@ LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
 LazyArrays.applied_size(::typeof(__zero), x) = size(x)
 LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 
-# Safe Inverse: Try to use `inv` but if lu fails use `pinv`
-@inline __safe_inv(A::Number) = pinv(A)
-@inline __safe_inv(A::AbstractMatrix) = pinv(A)
-@inline __safe_inv(A::AbstractVector) = __safe_inv(Diagonal(A)).diag
-@inline __safe_inv(A::ApplyArray) = __safe_inv(A.f(A.args...))
-@inline function __safe_inv(A::StridedMatrix{T}) where {T}
-    LinearAlgebra.checksquare(A)
-    if istriu(A)
-        A_ = UpperTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return triu!(parent(inv(A_)))
-    elseif istril(A)
-        A_ = LowerTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return tril!(parent(inv(A_)))
-    else
-        F = lu(A; check = false)
-        if issuccess(F)
-            Ai = LinearAlgebra.inv!(F)
-            return convert(typeof(parent(Ai)), Ai)
-        end
-    end
-    return pinv(A)
-end
-@inline __safe_inv(A::SparseMatrixCSC) = __safe_inv(Matrix(A))
 
 LazyArrays.applied_eltype(::typeof(__safe_inv), x) = eltype(x)
 LazyArrays.applied_ndims(::typeof(__safe_inv), x) = ndims(x)
@@ -309,15 +235,6 @@ LazyArrays.applied_axes(::typeof(__safe_inv), x) = axes(x)
 @inline __maybe_symmetric(x::StaticArray) = x
 @inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
 @inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
-
-# Unalias
-@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
-@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
-    # Spend time coping iff we will mutate the array
-    (alias || !can_setindex(typeof(x))) && return x
-    return deepcopy(x)
-end
-
 
 # Diagonal of type `u`
 __init_diagonal(u::Number, v) = oftype(u, v)
@@ -370,28 +287,6 @@ end
 end
 
 # Diagonal
-@inline function __get_diagonal!!(J::AbstractVector, J_full::AbstractMatrix)
-    if can_setindex(J)
-        if fast_scalar_indexing(J)
-            @inbounds for i in eachindex(J)
-                J[i] = J_full[i, i]
-            end
-        else
-            J .= view(J_full, diagind(J_full))
-        end
-    else
-        J = __diag(J_full)
-    end
-    return J
-end
-@inline function __get_diagonal!!(J::AbstractArray, J_full::AbstractMatrix)
-    return _restructure(J, __get_diagonal!!(_vec(J), J_full))
-end
-@inline __get_diagonal!!(J::Number, J_full::Number) = J_full
-
-@inline __diag(x::AbstractMatrix) = diag(x)
-@inline __diag(x::AbstractVector) = x
-@inline __diag(x::Number) = x
 
 @inline __is_complex(::Type{ComplexF64}) = true
 @inline __is_complex(::Type{ComplexF32}) = true
