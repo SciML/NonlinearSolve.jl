@@ -24,7 +24,7 @@ end
 # pseudo transient continuation has a fixed cost per iteration, iteration statistics are
 # not interesting here.
 @inline function __siam_fanl_equations_stats_mapping(method, sol)
-    (method === :pseudotransient) || (method === :anderson) && return nothing
+    ((method === :pseudotransient) || (method === :anderson)) && return nothing
     return SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0,
         sum(sol.stats.iarm))
 end
