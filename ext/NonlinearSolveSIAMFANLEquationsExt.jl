@@ -67,7 +67,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     end
 
     f!, u = NonlinearSolve.__construct_f(prob; alias_u0,
-        can_handle_arbitrary_dims = Val(true), make_fixed_point = Val(true))
+        can_handle_arbitrary_dims = Val(true))
 
     # Allocate ahead for function
     N = length(u)
@@ -108,6 +108,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
             sol = ptcsol(f!, u, FS, FPS; atol, rtol, maxit = maxiters,
                 delta0 = delta, printerr = ShT)
         elseif method == :anderson
+            f!, u = NonlinearSolve.__construct_f(prob; alias_u0,
+                can_handle_arbitrary_dims = Val(true), make_fixed_point = Val(true))
             sol = aasol(f!, u, m, zeros(T, N, 2*m+4), atol = atol, rtol = rtol,
                 maxit = maxiters, beta = beta)
         end
