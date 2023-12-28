@@ -26,9 +26,9 @@ for large-scale and numerically-difficult nonlinear systems.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
-    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
-    used here directly, and they will be converted to the correct `LineSearch`.
+  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@ref),
+    which means that no line search is performed.  Algorithms from `LineSearches.jl` must be
+    wrapped in `LineSearchesJL` before being supplied.
 """
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
         linesearch = NoLineSearch(), precs = DEFAULT_PRECS, autodiff = nothing)

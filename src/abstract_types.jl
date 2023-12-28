@@ -10,16 +10,17 @@ in which case we use the normal form equations ``JᵀJ δu = Jᵀ fu``. Note tha
 factorization is often the faster choice, but it is not as numerically stable as the least
 squares solver.
 
-### `init_cache` specification
+### `SciMLBase.init` specification
 
 ```julia
-init_cache(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
+SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
     pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
-    reltol = nothing, kwargs...) where {uType, iip}
+    reltol = nothing, alias_J::Bool = true, kwargs...) where {uType, iip}
 
-init_cache(prob::NonlinearLeastSquaresProblem{uType, iip},
+SciMLBase.init(prob::NonlinearLeastSquaresProblem{uType, iip},
     alg::AbstractDescentAlgorithm, J, fu, u; pre_inverted::Val{INV} = Val(false),
-    linsolve_kwargs = (;), abstol = nothing, reltol = nothing, kwargs...) where {uType, iip}
+    linsolve_kwargs = (;), abstol = nothing, reltol = nothing, alias_J::Bool = true,
+    kwargs...) where {uType, iip}
 ```
 
   - `pre_inverted`: whether or not the Jacobian has been pre_inverted. Defaults to `False`.
@@ -28,6 +29,7 @@ init_cache(prob::NonlinearLeastSquaresProblem{uType, iip},
   - `linsolve_kwargs`: keyword arguments to pass to the linear solver. Defaults to `(;)`.
   - `abstol`: absolute tolerance for the linear solver. Defaults to `nothing`.
   - `reltol`: relative tolerance for the linear solver. Defaults to `nothing`.
+  - `alias_J`: whether or not to alias the Jacobian. Defaults to `true`.
 
 Some of the algorithms also allow additional keyword arguments. See the documentation for
 the specific algorithm for more information.
@@ -108,3 +110,10 @@ function get_nfactors end
 Wrapper Cache over LinearSolve.jl Caches.
 """
 abstract type AbstractLinearSolverCache <: Function end
+
+"""
+    AbstractDampingFunction
+
+Abstract Type for Damping Functions in DampedNewton.
+"""
+abstract type AbstractDampingFunction <: Function end

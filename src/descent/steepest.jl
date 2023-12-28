@@ -13,7 +13,7 @@ end
 
 supports_line_search(::SteepestDescent) = true
 
-@inline function init_cache(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
+@inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
         u; pre_inverted::Val{INV} = False, kwargs...) where {INV}
     @warn "Setting `pre_inverted = Val(true)` for `SteepestDescent` is not recommended." maxlog=1
     @bb δu = similar(u)

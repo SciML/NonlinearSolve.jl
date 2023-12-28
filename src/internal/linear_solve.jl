@@ -54,7 +54,8 @@ function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, kwargs.
     return res
 end
 # Use LinearSolve.jl
-function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing, du = nothing,
+function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
+        du = nothing,
         p = nothing, weight = nothing, cachedata = nothing,
         reuse_A_if_factorization = Val(false), kwargs...)
     time_start = time()

@@ -11,29 +11,29 @@ isinplace(JᵀJ::KrylovJᵀJ) = isinplace(JᵀJ.Jᵀ)
 # function jacobian_caches(alg::AbstractNonlinearSolveAlgorithm, f::F, u, p, ::Val{iip};
 #         linsolve_kwargs = (;), lininit::Val{linsolve_init} = Val(true),
 #         linsolve_with_JᵀJ::Val{needsJᵀJ} = Val(false)) where {iip, needsJᵀJ, linsolve_init, F}
-    # du = copy(u)
+# du = copy(u)
 
-    # if needsJᵀJ
-    #     JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u; f,
-    #         vjp_autodiff = __get_nonsparse_ad(__getproperty(alg, Val(:vjp_autodiff))),
-    #         jvp_autodiff = __get_nonsparse_ad(alg.ad))
-    # else
-    #     JᵀJ, Jᵀfu = nothing, nothing
-    # end
+# if needsJᵀJ
+#     JᵀJ, Jᵀfu = __init_JᵀJ(J, _vec(fu), uf, u; f,
+#         vjp_autodiff = __get_nonsparse_ad(__getproperty(alg, Val(:vjp_autodiff))),
+#         jvp_autodiff = __get_nonsparse_ad(alg.ad))
+# else
+#     JᵀJ, Jᵀfu = nothing, nothing
+# end
 
-    # if linsolve_init
-    #     if alg isa PseudoTransient && J isa SciMLOperators.AbstractSciMLOperator
-    #         linprob_A = J - inv(convert(eltype(u), alg.alpha_initial)) * I
-    #     else
-    #         linprob_A = needsJᵀJ ? __maybe_symmetric(JᵀJ) : J
-    #     end
-    #     linsolve = linsolve_caches(linprob_A, needsJᵀJ ? Jᵀfu : fu, du, p, alg;
-    #         linsolve_kwargs)
-    # else
-    #     linsolve = nothing
-    # end
+# if linsolve_init
+#     if alg isa PseudoTransient && J isa SciMLOperators.AbstractSciMLOperator
+#         linprob_A = J - inv(convert(eltype(u), alg.alpha_initial)) * I
+#     else
+#         linprob_A = needsJᵀJ ? __maybe_symmetric(JᵀJ) : J
+#     end
+#     linsolve = linsolve_caches(linprob_A, needsJᵀJ ? Jᵀfu : fu, du, p, alg;
+#         linsolve_kwargs)
+# else
+#     linsolve = nothing
+# end
 
-    # return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
+# return uf, linsolve, J, fu, jac_cache, du, JᵀJ, Jᵀfu
 # end
 
 ## Special Handling for Scalars

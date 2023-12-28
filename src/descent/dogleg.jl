@@ -47,13 +47,13 @@ end
     prev_b
 end
 
-function init_cache(prob::NonlinearProblem, alg::Dogleg, J, fu, u;
+function SciMLBase.init(prob::NonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, internalnorm::F = DEFAULT_NORM, kwargs...) where {F, INV}
     @warn "Setting `pre_inverted = Val(true)` for `Dogleg` is not recommended." maxlog=1
-    newton_cache = init_cache(prob, alg.newton_descent, J, fu, u; pre_inverted,
+    newton_cache = SciMLBase.init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, kwargs...)
-    cauchy_cache = init_cache(prob, alg.steepest_descent, J, fu, u; pre_inverted,
+    cauchy_cache = SciMLBase.init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, kwargs...)
     @bb δu = similar(u)
     @bb δu_cache_1 = similar(u)
@@ -61,20 +61,20 @@ function init_cache(prob::NonlinearProblem, alg::Dogleg, J, fu, u;
     @bb δu_cache_mul = similar(u)
 
     T = promote_type(eltype(u), eltype(fu))
-    
+
     normal_form = __needs_square_A(alg.linsolve, u)
     JᵀJ_cache = !normal_form ? transpose(J) * J : nothing
 
     return DoglegCache{INV, normal_form}(δu, newton_cache, cauchy_cache, internalnorm,
-        JᵀJ_cache,  δu_cache_1, δu_cache_2, δu_cache_mul, T(0), T(0), T(0), T(0))
+        JᵀJ_cache, δu_cache_1, δu_cache_2, δu_cache_mul, T(0), T(0), T(0), T(0))
 end
 
 # If TrustRegion is not specified, then use a Gauss-Newton step
 function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu; trust_region = nothing,
         skip_solve::Bool = false, kwargs...) where {INV, NF}
-    @assert trust_region === nothing "Trust Region must be specified for Dogleg. Use \
-                                      `NewtonDescent` or `SteepestDescent` if you don't \
-                                      want to use a Trust Region."
+    @assert trust_region===nothing "Trust Region must be specified for Dogleg. Use \
+                                    `NewtonDescent` or `SteepestDescent` if you don't \
+                                    want to use a Trust Region."
     δu_newton = solve!(cache.newton_cache, J, fu; skip_solve, kwargs...)
 
     # Newton's Step within the trust region

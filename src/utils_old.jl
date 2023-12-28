@@ -6,15 +6,9 @@ function __findmin(f, x)
     end
 end
 
-
-
-
 @inline value(x) = x
 @inline value(x::Dual) = ForwardDiff.value(x)
 @inline value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
-
-
-
 
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
@@ -88,8 +82,6 @@ end
 @inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
 @inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 @inline __get_nonsparse_ad(ad) = ad
-
-
 
 # Diagonal of type `u`
 __init_diagonal(u::Number, v) = oftype(u, v)

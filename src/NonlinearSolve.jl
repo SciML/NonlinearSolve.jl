@@ -51,10 +51,7 @@ const False = Val(false)
 
 # abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
-
-
 # abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
-
 
 # function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
 #         p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
@@ -163,6 +160,8 @@ include("core/generalized_first_order.jl")
 # include("core/newton.jl")
 
 include("algorithms/raphson.jl")
+include("algorithms/gauss_newton.jl")
+include("algorithms/pseudo_transient.jl")
 # include("algorithms/broyden.jl")
 # include("algorithms/klement.jl")
 

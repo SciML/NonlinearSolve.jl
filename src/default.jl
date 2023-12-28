@@ -23,11 +23,11 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-#     trace = __getproperty(cache, Val{:trace}())
-#     if trace !== nothing
-#         update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
-#             nothing, nothing; last = Val(true))
-#     end
+    #     trace = __getproperty(cache, Val{:trace}())
+    #     if trace !== nothing
+    #         update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
+    #             nothing, nothing; last = Val(true))
+    #     end
 
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
         cache.retcode)

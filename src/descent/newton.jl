@@ -34,17 +34,17 @@ supports_line_search(::NewtonDescent) = true
     Jᵀfu_cache
 end
 
-function init_cache(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
+function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, kwargs...) where {INV}
-    INV && return NewtonDescentCache{true, false}(u, nothing, nothing, nothing)
+    @bb δu = similar(u)
+    INV && return NewtonDescentCache{true, false}(δu, nothing, nothing, nothing)
     lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    @bb δu = similar(u)
     return NewtonDescentCache{false, false}(δu, lincache, nothing, nothing)
 end
 
-function init_cache(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
+function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, kwargs...) where {INV}
     @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
@@ -83,8 +83,8 @@ function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu;
     skip_solve && return cache.δu
     @bb cache.JᵀJ_cache = transpose(J) × J
     @bb cache.Jᵀfu_cache = transpose(J) × fu
-    δu = cache.lincache(; A = cache.JᵀJ_cache, b = cache.Jᵀfu_cache, kwargs...,
-        du = _vec(cache.δu))
+    δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
+        kwargs..., du = _vec(cache.δu))
     cache.δu = _restructure(cache.δu, δu)
     @bb @. cache.δu *= -1
     return cache.δu

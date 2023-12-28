@@ -26,9 +26,9 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
-    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
-    used here directly, and they will be converted to the correct `LineSearch`.
+  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@ref),
+    which means that no line search is performed.  Algorithms from `LineSearches.jl` must be
+    wrapped in `LineSearchesJL` before being supplied.
   - `vjp_autodiff`: Automatic Differentiation Backend used for vector-jacobian products.
     This is applicable if the linear solver doesn't require a concrete jacobian, for eg.,
     Krylov Methods. Defaults to `nothing`, which means if the problem is out of place and

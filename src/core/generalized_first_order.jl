@@ -77,8 +77,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
     jac_cache = JacobianCache(prob, alg, f, fu, u, p, jacobian_ad, linsolve)
     J = jac_cache.J
-    descent_cache = init_cache(prob, alg.descent, J, fu, u; abstol, reltol, internalnorm,
-        linsolve_kwargs)
+    descent_cache = SciMLBase.init(prob, alg.descent, J, fu, u; abstol, reltol,
+        internalnorm, linsolve_kwargs)
     du = get_du(descent_cache)
 
     if supports_trust_region(alg.descent)
@@ -125,7 +125,7 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
 
     evaluate_f!(cache, cache.u, cache.p)
 
-    # update_trace!(cache, α)
+    # TODO: update_trace!(cache, α)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
