@@ -77,12 +77,6 @@ end
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
 
-# SparseAD --> NonSparseAD
-@inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
-@inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
-@inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
-@inline __get_nonsparse_ad(ad) = ad
-
 # Diagonal of type `u`
 __init_diagonal(u::Number, v) = oftype(u, v)
 function __init_diagonal(u::SArray, v)

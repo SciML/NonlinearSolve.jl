@@ -99,7 +99,7 @@ function get_concrete_reverse_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
     else
         use_sparse_ad = false
     end
-    ad = if isinplace(prob)
+    ad = if isinplace(prob) || !is_extension_loaded(Val(:Zygote)) # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
         use_sparse_ad ? AutoSparseZygote() : AutoZygote()

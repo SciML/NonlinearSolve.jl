@@ -75,7 +75,7 @@ Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
 """
-    AbstractNonlinearSolveAlgorithm{name}
+    AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm
 
 Abstract Type for all NonlinearSolve.jl Algorithms. `name` can be used to define custom
 dispatches by wrapped solvers.
@@ -105,15 +105,23 @@ function get_nsolve end
 function get_nfactors end
 
 """
-    AbstractLinearSolverCache
+    AbstractLinearSolverCache <: Function
 
 Wrapper Cache over LinearSolve.jl Caches.
 """
 abstract type AbstractLinearSolverCache <: Function end
 
 """
-    AbstractDampingFunction
+    AbstractDampingFunction <: Function
 
 Abstract Type for Damping Functions in DampedNewton.
 """
 abstract type AbstractDampingFunction <: Function end
+
+"""
+    AbstractNonlinearSolveOperator <: SciMLBase.AbstractSciMLOperator
+
+NonlinearSolve.jl houses a few custom operators. These will eventually be moved out but till
+then this serves as the abstract type for them.
+"""
+abstract type AbstractNonlinearSolveOperator{T} <: SciMLBase.AbstractSciMLOperator{T} end

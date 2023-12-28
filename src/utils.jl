@@ -73,3 +73,10 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __maybe_symmetric(x::StaticArray) = x
 @inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
 @inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+
+# SparseAD --> NonSparseAD
+@inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
+@inline __get_nonsparse_ad(::AutoSparsePolyesterForwardDiff) = AutoPolyesterForwardDiff()
+@inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
+@inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
+@inline __get_nonsparse_ad(ad) = ad

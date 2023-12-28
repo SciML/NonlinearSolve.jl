@@ -55,6 +55,9 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     ϕdϕ
     method
     alpha
+    grad_op
+    u_cache
+    fu_cache
 end
 
 get_fu(cache::LineSearchesJLCache) = cache.fu
@@ -78,15 +81,12 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         else
             autodiff = get_concrete_reverse_ad(alg.autodiff, prob;
                 check_forward_mode = true)
-            grad_op = @closure (u, fu) -> begin
-                # op = VecJac(SciMLBase.JacobianWrapper(f, p), u; fu = fu1, autodiff)
-                # if iip
-                #     mul!(g₀, op, fu)
-                #     return g₀
-                # else
-                #     return op * fu
-                # end
-                error("Not Implemented Yet!")
+            vjp_op = VecJacOperator(prob, fu, u; autodiff)
+            if isinplace(prob)
+                g_cache = similar(u)
+                grad_op = @closure (u, fu) -> vjp_op(g_cache, fu, u, p)
+            else
+                grad_op = @closure (u, fu) -> vjp_op(fu, u, p)
             end
         end
     end
@@ -94,20 +94,20 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
 
-    ϕ = @closure (u, du, α) -> begin
+    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
         return @fastmath internalnorm(fu_cache)^2 / 2
     end
 
-    dϕ = @closure (u, du, α) -> begin
+    dϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
         g₀ = grad_op(u_cache, fu_cache)
         return dot(g₀, du)
     end
 
-    ϕdϕ = @closure (u, du, α) -> begin
+    ϕdϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
         g₀ = grad_op(u_cache, fu_cache)
@@ -115,13 +115,14 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         return obj, dot(g₀, du)
     end
 
-    return LineSearchesJLCache(ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha))
+    return LineSearchesJLCache(ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
+        u_cache, fu_cache)
 end
 
 function SciMLBase.solve!(cache::LineSearchesJLCache, u, du)
-    ϕ = @closure α -> cache.ϕ(u, du, α)
-    dϕ = @closure α -> cache.dϕ(u, du, α)
-    ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α)
+    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
+    dϕ = @closure α -> cache.dϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
+    ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
