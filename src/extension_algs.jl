@@ -377,7 +377,7 @@ end
   - `method`: the choice of method for solving the nonlinear system.
   - `delta`: initial pseudo time step, default is 1e-3.
   - `linsolve` : JFNK linear solvers, choices are `gmres` and `bicgstab`.
-  - `m`: Depth for Anderson acceleration, default as 0 for Picard iteration
+  - `m`: Depth for Anderson acceleration, default as 0 for Picard iteration.
   - `beta`: Anderson mixing parameter, change f(x) to (1-beta)x+beta*f(x),
     equivalent to accelerating damped Picard iteration.
 

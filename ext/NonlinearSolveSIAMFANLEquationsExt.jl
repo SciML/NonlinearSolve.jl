@@ -108,8 +108,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
             sol = ptcsol(f!, u, FS, FPS; atol, rtol, maxit = maxiters,
                 delta0 = delta, printerr = ShT)
         elseif method == :anderson
-            println(u[:])
-            sol = aasol(f!, u[:], m, zeros(eltype(u), N, 2*m+4), atol, rtol,
+            sol = aasol(f!, u, m, zeros(eltype(u), N, 2*m+4), atol, rtol,
                 maxit = maxiters, beta = beta)
         end
     else
