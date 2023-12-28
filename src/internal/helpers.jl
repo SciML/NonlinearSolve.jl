@@ -11,12 +11,21 @@ function evaluate_f(prob::AbstractNonlinearProblem{uType, iip}, u) where {uType,
     return fu
 end
 
-function evaluate_f!(cache::AbstractNonlinearSolveCache, u, p)
+function evaluate_f!(cache, u, p)
     cache.nf += 1
     if isinplace(cache)
-        cache.prob.f(cache.fu, u, p)
+        cache.prob.f(get_fu(cache), u, p)
     else
         set_fu!(cache, cache.prob.f(u, p))
+    end
+end
+
+function evaluate_f!!(prob, fu, u, p)
+    if isinplace(prob)
+        prob.f(fu, u, p)
+        return fu
+    else
+        return prob.f(u, p)
     end
 end
 
