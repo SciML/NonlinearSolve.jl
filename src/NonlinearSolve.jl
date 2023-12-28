@@ -53,12 +53,8 @@ const False = Val(false)
 
 
 
-abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 # abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
-abstract type AbstractNonlinearSolveCache{iip} end
-
-SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 # function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
 #         p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
@@ -138,45 +134,10 @@ SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
 # __alg_print_modifiers(_) = String[]
 
-# function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
-#         alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
-#     cache = init(prob, alg, args...; kwargs...)
-#     return solve!(cache)
-# end
-
-# function not_terminated(cache::AbstractNonlinearSolveCache)
-#     return !cache.force_stop && cache.stats.nsteps < cache.maxiters
-# end
-
 # get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
 # set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 # get_u(cache::AbstractNonlinearSolveCache) = cache.u
 # SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
-
-# function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
-#     while not_terminated(cache)
-#         perform_step!(cache)
-#         cache.stats.nsteps += 1
-#     end
-
-#     # The solver might have set a different `retcode`
-#     if cache.retcode == ReturnCode.Default
-#         if cache.stats.nsteps == cache.maxiters
-#             cache.retcode = ReturnCode.MaxIters
-#         else
-#             cache.retcode = ReturnCode.Success
-#         end
-#     end
-
-#     trace = __getproperty(cache, Val{:trace}())
-#     if trace !== nothing
-#         update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
-#             nothing, nothing; last = Val(true))
-#     end
-
-#     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-#         cache.retcode, cache.stats, trace)
-# end
 
 include("abstract_types.jl")
 
@@ -187,23 +148,27 @@ include("descent/damped_newton.jl")
 
 include("internal/helpers.jl")
 include("internal/jacobian.jl")
-include("internal/forward_diff.jl")
+# include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
-include("internal/operators.jl")
+# include("internal/operators.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
 
-include("globalization/damping.jl")
+# include("globalization/damping.jl")
 include("globalization/line_search.jl")
-include("globalization/trust_region.jl")
+# include("globalization/trust_region.jl")
 
-include("core/approximate_jacobian.jl")
-include("core/newton.jl")
+# include("core/approximate_jacobian.jl")
+include("core/generalized_first_order.jl")
+# include("core/newton.jl")
 
-include("algorithms/broyden.jl")
-include("algorithms/klement.jl")
+include("algorithms/raphson.jl")
+# include("algorithms/broyden.jl")
+# include("algorithms/klement.jl")
 
-# include("utils.jl")
+include("utils.jl")
+include("default.jl")
+
 # include("function_wrappers.jl")
 # include("trace.jl")
 # include("extension_algs.jl")
@@ -270,6 +235,16 @@ include("algorithms/klement.jl")
 
 # Descent Algorithms
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent
+
+# Core Algorithms -- Mostly Wrappers
+export NewtonRaphson
+export GaussNewton
+
+# Advanced Algorithms -- Without Bells and Whistles
+export GeneralizedFirstOrderRootFindingAlgorithm
+
+# Line Search Algorithms
+export LineSearchesJL, NoLineSearch
 
 # export RadiusUpdateSchemes
 

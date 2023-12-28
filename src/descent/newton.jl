@@ -18,12 +18,15 @@ commonly refered to as the Gauss-Newton Descent.
 
 See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@ref).
 """
-@concrete @kwdef struct NewtonDescent <: AbstractDescentAlgorithm
+@kwdef @concrete struct NewtonDescent <: AbstractDescentAlgorithm
     linsolve = nothing
     precs = DEFAULT_PRECS
 end
 
-@concrete mutable struct NewtonDescentCache{preinverted, normalform}
+supports_line_search(::NewtonDescent) = true
+
+@concrete mutable struct NewtonDescentCache{pre_inverted, normalform} <:
+                         AbstractDescentCache
     δu
     lincache
     # For normal form else nothing
@@ -31,18 +34,18 @@ end
     Jᵀfu_cache
 end
 
-function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
-        preinverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, kwargs...)
+function init_cache(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
+        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
+        reltol = nothing, kwargs...) where {INV}
     INV && return NewtonDescentCache{true, false}(u, nothing, nothing, nothing)
-    lincache = LinearSolveCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
+    lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    δu = @bb similar(u)
+    @bb δu = similar(u)
     return NewtonDescentCache{false, false}(δu, lincache, nothing, nothing)
 end
 
-function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
-        preinverted::Val{INV} = False, linsolve_kwargs = (;),
+function init_cache(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
+        pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, kwargs...) where {INV}
     @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
@@ -57,7 +60,7 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
     end
     lincache = LinearSolveCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    δu = @bb similar(u)
+    @bb δu = similar(u)
     return NewtonDescentCache{false, normal_form}(δu, lincache, JᵀJ, Jᵀfu)
 end
 
@@ -65,7 +68,7 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu;
         skip_solve::Bool = false, kwargs...) where {INV}
     skip_solve && return cache.δu
     if INV
-        @assert J!==nothing "`J` must be provided when `preinverted = Val(true)`."
+        @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb cache.δu = J × vec(fu)
     else
         δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., du = _vec(cache.δu))

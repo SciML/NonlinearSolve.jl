@@ -10,19 +10,19 @@ in which case we use the normal form equations ``JᵀJ δu = Jᵀ fu``. Note tha
 factorization is often the faster choice, but it is not as numerically stable as the least
 squares solver.
 
-### `SciMLBase.init` specification
+### `init_cache` specification
 
 ```julia
-SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
-    preinverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
+init_cache(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
+    pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
     reltol = nothing, kwargs...) where {uType, iip}
 
-SciMLBase.init(prob::NonlinearLeastSquaresProblem{uType, iip},
-    alg::AbstractDescentAlgorithm, J, fu, u; preinverted::Val{INV} = Val(false),
+init_cache(prob::NonlinearLeastSquaresProblem{uType, iip},
+    alg::AbstractDescentAlgorithm, J, fu, u; pre_inverted::Val{INV} = Val(false),
     linsolve_kwargs = (;), abstol = nothing, reltol = nothing, kwargs...) where {uType, iip}
 ```
 
-  - `preinverted`: whether or not the Jacobian has been preinverted. Defaults to `False`.
+  - `pre_inverted`: whether or not the Jacobian has been pre_inverted. Defaults to `False`.
     Note that for most algorithms except `NewtonDescent` setting it to `Val(true)` is
     generally a bad idea.
   - `linsolve_kwargs`: keyword arguments to pass to the linear solver. Defaults to `(;)`.
@@ -39,7 +39,7 @@ SciMLBase.solve!(cache::NewtonDescentCache, J, fu, args...; skip_solve::Bool = f
     kwargs...)
 ```
 
-  - `J`: Jacobian or Inverse Jacobian (if `preinverted = Val(true)`).
+  - `J`: Jacobian or Inverse Jacobian (if `pre_inverted = Val(true)`).
   - `fu`: residual.
   - `args`: Allows for more arguments to compute the descent direction. Currently no
     algorithm uses this.
@@ -52,3 +52,59 @@ See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
 [`DampedNewton`](@ref).
 """
 abstract type AbstractDescentAlgorithm end
+
+supports_trust_region(::AbstractDescentAlgorithm) = false
+supports_line_search(::AbstractDescentAlgorithm) = false
+
+"""
+    AbstractDescentCache
+
+Abstract Type for all Descent Caches.
+"""
+abstract type AbstractDescentCache end
+
+SciMLBase.get_du(cache) = cache.δu
+
+"""
+    AbstractNonlinearSolveLineSearchAlgorithm
+
+Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
+"""
+abstract type AbstractNonlinearSolveLineSearchAlgorithm end
+
+"""
+    AbstractNonlinearSolveAlgorithm{name}
+
+Abstract Type for all NonlinearSolve.jl Algorithms. `name` can be used to define custom
+dispatches by wrapped solvers.
+"""
+abstract type AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm end
+
+concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
+
+"""
+    AbstractNonlinearSolveCache{iip}
+
+Abstract Type for all NonlinearSolve.jl Caches.
+"""
+abstract type AbstractNonlinearSolveCache{iip} end
+
+SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+
+import SciMLBase: set_u!
+function get_u end
+function get_fu end
+function set_fu! end
+
+function get_nf end
+function get_njacs end
+function get_nsteps end
+function get_nsolve end
+function get_nfactors end
+
+"""
+    AbstractLinearSolverCache
+
+Wrapper Cache over LinearSolve.jl Caches.
+"""
+abstract type AbstractLinearSolverCache <: Function end

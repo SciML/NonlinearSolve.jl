@@ -1,7 +1,5 @@
 import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinearSolver
 
-abstract type AbstractLinearSolverCache <: Function end
-
 @concrete mutable struct LinearSolverCache <: AbstractLinearSolverCache
     lincache
     linsolve
@@ -16,18 +14,17 @@ end
 @inline get_nsolve(cache::LinearSolverCache) = cache.nsolve
 @inline get_nfactors(cache::LinearSolverCache) = cache.nfactors
 
-@inline function LinearSolverCache(alg, args...; kwargs...)
-    return LinearSolverCache(alg.linsolve, args...; kwargs...)
-end
 @inline function LinearSolverCache(alg, linsolve, A::Number, b, args...; kwargs...)
     return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
 end
-@inline function LinearSolveCache(alg, ::Nothing, A::SMatrix, b, args...; kwargs...)
+@inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, args...; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, _vec(b), nothing, 0, 0, 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
-    linprob = LinearProblem(A, _vec(b); u0 = _vec(u), kwargs...)
+    @bb b_ = copy(b)
+    @bb u_ = copy(u)
+    linprob = LinearProblem(A, b_; u0 = u_, kwargs...)
 
     weight = __init_ones(u)
     if __hasfield(alg, Val(:precs))
@@ -37,17 +34,16 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     else
         precs, Pl_, Pr_ = nothing, nothing, nothing
     end
-    Pl, Pr = wrapprecs(Pl_, Pr_, weight)
+    Pl, Pr = __wrapprecs(Pl_, Pr_, weight)
 
     lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0, 0.0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, UInt(0), UInt(0),
+        0.0)
 end
-# TODO: For Krylov Versions
-# linsolve_caches(A::KrylovJᵀJ, b, u, p, alg) = linsolve_caches(A.JᵀJ, b, u, p, alg)
 
 # Direct Linear Solve Case without Caching
-function (cache::LinearSolveCache{Nothing})(; A = nothing, b = nothing, kwargs...)
+function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, kwargs...)
     time_start = time()
     cache.nsolve += 1
     cache.nfactors += 1
@@ -58,7 +54,7 @@ function (cache::LinearSolveCache{Nothing})(; A = nothing, b = nothing, kwargs..
     return res
 end
 # Use LinearSolve.jl
-function (cache::LinearSolveCache)(; A = nothing, b = nothing, linu = nothing, du = nothing,
+function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing, du = nothing,
         p = nothing, weight = nothing, cachedata = nothing,
         reuse_A_if_factorization = Val(false), kwargs...)
     time_start = time()

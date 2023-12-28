@@ -1,14 +1,3 @@
-
-@concrete mutable struct FakeLinearSolveJLCache
-    A
-    b
-end
-
-@concrete struct FakeLinearSolveJLResult
-    cache
-    u
-end
-
 # Ignores NaN
 function __findmin(f, x)
     return findmin(x) do xᵢ
@@ -17,12 +6,7 @@ function __findmin(f, x)
     end
 end
 
-struct NonlinearSolveTag end
 
-function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}}, f::F,
-        x::AbstractArray{T}) where {T, F}
-    return true
-end
 
 
 @inline value(x) = x
@@ -31,8 +15,6 @@ end
 
 
 
-concrete_jac(_) = nothing
-concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
@@ -59,11 +41,11 @@ function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
         fu_sym::Val{FUSYM} = Val(nothing)) where {FUSYM}
     cache.stats.nf += 1
     if FUSYM === nothing
-        if isinplace(cache)
-            cache.prob.f(get_fu(cache), u, p)
-        else
-            set_fu!(cache, cache.prob.f(u, p))
-        end
+        # if isinplace(cache)
+        #     cache.prob.f(get_fu(cache), u, p)
+        # else
+        #     set_fu!(cache, cache.prob.f(u, p))
+        # end
     else
         if isinplace(cache)
             cache.prob.f(__getproperty(cache, fu_sym), u, p)
@@ -73,32 +55,6 @@ function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
     end
     return nothing
 end
-
-# Concretize Algorithms
-function get_concrete_algorithm(alg, prob)
-    !hasfield(typeof(alg), :ad) && return alg
-    alg.ad isa ADTypes.AbstractADType && return alg
-
-    # Figure out the default AD
-    # Now that we have handed trivial cases, we can allow extending this function
-    # for specific algorithms
-    return __get_concrete_algorithm(alg, prob)
-end
-
-function __get_concrete_algorithm(alg, prob)
-    @unpack sparsity, jac_prototype = prob.f
-    use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
-    ad = if !ForwardDiff.can_dual(eltype(prob.u0))
-        # Use Finite Differencing
-        use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
-    else
-        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(;
-            tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0)))
-    end
-    return set_ad(alg, ad)
-end
-
-
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
         ::Val{threshold}) where {S1, S2, T1, T2, threshold}
@@ -126,10 +82,6 @@ end
 
 # Define special concatenation for certain Array combinations
 @inline _vcat(x, y) = vcat(x, y)
-
-
-
-
 
 # SparseAD --> NonSparseAD
 @inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()

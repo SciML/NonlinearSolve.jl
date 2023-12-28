@@ -14,7 +14,7 @@ end
 
 @generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
-    return :(nothing)
+    return :(missing)
 end
 
 @inline __needs_concrete_A(::Nothing) = false
@@ -22,9 +22,6 @@ end
 
 @inline __maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 @inline __maybe_mutable(x, _) = x
-
-__concrete_jac(::Any) = nothing
-# __concrete_jac(::AbstractNewtonAlgorithm{CJ}) where {CJ} = CJ
 
 @inline @generated function _vec(v)
     hasmethod(vec, Tuple{typeof(v)}) || return :(v)

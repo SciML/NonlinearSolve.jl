@@ -7,21 +7,23 @@ See also [`Dogleg`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDescent`](@ref
 """
 struct SteepestDescent <: AbstractDescentAlgorithm end
 
-@concrete mutable struct SteepestDescentCache{preinverted}
+@concrete mutable struct SteepestDescentCache{pre_inverted} <: AbstractDescentCache
     δu
 end
 
-@inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
-        u; preinverted::Val{INV} = False, kwargs...) where {INV}
-    @warn "Setting `preinverted = Val(true)` for `SteepestDescent` is not recommended." maxlog=1
-    δu = @bb similar(u)
+supports_line_search(::SteepestDescent) = true
+
+@inline function init_cache(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
+        u; pre_inverted::Val{INV} = False, kwargs...) where {INV}
+    @warn "Setting `pre_inverted = Val(true)` for `SteepestDescent` is not recommended." maxlog=1
+    @bb δu = similar(u)
     return SteepestDescentCache{INV}(_restructure(u, δu))
 end
 
 @inline function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu;
         kwargs...) where {INV}
     J_ = INV ? inv(J) : J
-    @bb cache.δu = transpose(J_) * vec(fu)
+    @bb cache.δu = transpose(J_) × vec(fu)
     @bb @. cache.δu *= -1
     return cache.δu
 end

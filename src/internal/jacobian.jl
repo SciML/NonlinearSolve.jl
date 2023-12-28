@@ -18,22 +18,19 @@ end
 
 @inline get_njacs(cache::JacobianCache) = cache.njacs
 
-# TODO: Cache for Non-Square Case
-function JacobianCache(prob, alg, f::F, fu_, u, p;
-        ad = __getproperty(alg, Val(:ad))) where {F}
+function JacobianCache(prob, alg, f::F, fu_, u, p, ad, linsolve) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
     haslinsolve = __hasfield(alg, Val(:linsolve))
 
     has_analytic_jac = SciMLBase.has_jac(f)
-    linsolve_needs_jac = haslinsolve && __needs_concrete_A(alg.linsolve)
-    alg_wants_jac = __concrete_jac(alg) !== nothing && __concrete_jac(alg)
+    linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
+                          (linsolve === nothing || __needs_concrete_A(alg.linsolve)))
+    alg_wants_jac = concrete_jac(alg) !== nothing && concrete_jac(alg)
     needs_jac = linsolve_needs_jac || alg_wants_jac
 
-    fu = similar(fu_)
-    #  f.resid_prototype === nothing ? (iip ? zero(u) : f(u, p)) :
-    #      (iip ? deepcopy(f.resid_prototype) : f.resid_prototype)
+    @bb fu = similar(fu_)
 
     if !has_analytic_jac && needs_jac
         sd = __sparsity_detection_alg(f, ad)
@@ -69,15 +66,16 @@ function JacobianCache(prob, alg, f::F, fu_, u, p;
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, 0, 0.0, ad)
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0, ad)
 end
 
-function JacobianCache(prob, alg, f::F, ::Number, u::Number, p) where {F}
+function JacobianCache(prob, alg, f::F, ::Number, u::Number, p, ad, linsolve) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, 0, 0.0, nothing)
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0, nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
+@inline (cache::JacobianCache)(::Nothing) = cache.J
 
 @inline (cache::JacobianCache)(J, u, p) = J     # Default Case is a NoOp: Operators and Such
 function (cache::JacobianCache)(::Number, u, p) # Scalar
