@@ -178,7 +178,6 @@ include("default.jl")
 # include("broyden.jl")
 # include("klement.jl")
 # include("lbroyden.jl")
-# include("jacobian.jl")
 # include("ad.jl")
 # include("default.jl")
 
