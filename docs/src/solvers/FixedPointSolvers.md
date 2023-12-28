@@ -47,3 +47,7 @@ In our tests, we have found the anderson method implemented here to NOT be the m
 robust.
 
   - `NLsolveJL(; method = :anderson)`: Anderson acceleration for fixed point problems.
+
+### SIAMFANLEquations.jl
+
+  - `SIAMFANLEquationsJL(; method = :anderson)`: Anderson acceleration for fixed point problems.
