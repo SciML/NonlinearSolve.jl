@@ -13,12 +13,12 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     alg
     njacs::UInt
     total_time::Float64
-    ad
 end
 
 @inline get_njacs(cache::JacobianCache) = cache.njacs
 
-function JacobianCache(prob, alg, f::F, fu_, u, p, ad, linsolve) where {F}
+function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
@@ -41,21 +41,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p, ad, linsolve) where {F}
     end
 
     J = if !needs_jac
-        if SciMLBase.has_jvp(f)
-            # JacVec(uf, u; fu, autodiff = __get_nonsparse_ad(alg.ad))
-        else
-            # if iip
-            #     jvp = (_, u, v) -> (du_ = similar(fu); f.jvp(du_, v, u, p); du_)
-            #     jvp! = (du_, _, u, v) -> f.jvp(du_, v, u, p)
-            # else
-            #     jvp = (_, u, v) -> f.jvp(v, u, p)
-            #     jvp! = (du_, _, u, v) -> (du_ .= f.jvp(v, u, p))
-            # end
-            # op = SparseDiffTools.FwdModeAutoDiffVecProd(f, u, (), jvp, jvp!)
-            # FunctionOperator(op, u, fu; isinplace = Val(true), outofplace = Val(false),
-            #     p, islinear = true)
-        end
-        error("Not Yet Implemented!")
+        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
         if has_analytic_jac
             f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
@@ -66,18 +52,23 @@ function JacobianCache(prob, alg, f::F, fu_, u, p, ad, linsolve) where {F}
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0, ad)
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0)
 end
 
-function JacobianCache(prob, alg, f::F, ::Number, u::Number, p, ad, linsolve) where {F}
+function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0, nothing)
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
-@inline (cache::JacobianCache)(::Nothing) = cache.J
+@inline function (cache::JacobianCache)(::Nothing)
+    J = cache.J
+    J isa JacobianOperator && return StatefulJacobianOperator(J, cache.u, cache.p)
+    return J
+end
 
-@inline (cache::JacobianCache)(J, u, p) = J     # Default Case is a NoOp: Operators and Such
+# @inline (cache::JacobianCache)(J, u, p) = J     # Default Case is a NoOp: Operators and Such
+(cache::JacobianCache)(J::JacobianOperator, u, p) = StatefulJacobianOperator(J, u, p)
 function (cache::JacobianCache)(::Number, u, p) # Scalar
     time_start = time()
     cache.njacs += 1

@@ -75,8 +75,9 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         termination_condition)
     linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
-    jac_cache = JacobianCache(prob, alg, f, fu, u, p, jacobian_ad, linsolve)
-    J = jac_cache.J
+    jac_cache = JacobianCache(prob, alg, f, fu, u, p; autodiff = jacobian_ad, linsolve,
+        jvp_autodiff = forward_ad, vjp_autodiff = reverse_ad)
+    J = jac_cache(nothing)
     descent_cache = SciMLBase.init(prob, alg.descent, J, fu, u; abstol, reltol,
         internalnorm, linsolve_kwargs)
     du = get_du(descent_cache)

@@ -67,9 +67,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
-        grad_op = @closure (u, fu) -> begin
-            last(__value_derivative(Base.Fix2(f, p), u)) * fu
-        end
+        grad_op = @closure (u, fu) -> last(__value_derivative(Base.Fix2(f, p), u)) * fu
     else
         if SciMLBase.has_jvp(f)
             if isinplace(prob)

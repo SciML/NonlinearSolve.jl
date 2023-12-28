@@ -144,10 +144,10 @@ include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 
 include("internal/helpers.jl")
+include("internal/operators.jl")
 include("internal/jacobian.jl")
 # include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
-include("internal/operators.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
 

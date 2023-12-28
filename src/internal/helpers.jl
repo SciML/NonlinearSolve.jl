@@ -38,11 +38,13 @@ function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}
 end
 
 function get_concrete_forward_ad(autodiff::Union{ADTypes.AbstractForwardMode,
-            ADTypes.AbstractFiniteDifferencesMode}, prob, args...; kwargs...)
+            ADTypes.AbstractFiniteDifferencesMode}, prob, sp::Val{test_sparse} = True,
+        args...; kwargs...) where {test_sparse}
     return autodiff
 end
-function get_concrete_forward_ad(autodiff::ADTypes.AbstractADType, prob, args...;
-        check_reverse_mode = true, kwargs...)
+function get_concrete_forward_ad(autodiff::ADTypes.AbstractADType, prob,
+        sp::Val{test_sparse} = True, args...;
+        check_reverse_mode = true, kwargs...) where {test_sparse}
     if check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a \
                `Abstract(Forward/FiniteDifferences)Mode`. Use with caution." maxlog=1
@@ -68,11 +70,12 @@ function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
 end
 
 function get_concrete_reverse_ad(autodiff::Union{ADTypes.AbstractReverseMode,
-            ADTypes.AbstractFiniteDifferencesMode}, prob, args...; kwargs...)
+            ADTypes.AbstractFiniteDifferencesMode}, prob, sp::Val{test_sparse} = True,
+        args...; kwargs...) where {test_sparse}
     return autodiff
 end
 function get_concrete_reverse_ad(autodiff::Union{AutoZygote, AutoSparseZygote}, prob,
-        args...; kwargs...)
+        sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     if isinplace(prob)
         @warn "Attempting to use Zygote.jl for inplace problems. Switching to FiniteDiff.\
                Sparsity even if present will be ignored for correctness purposes. Set \
@@ -82,8 +85,9 @@ function get_concrete_reverse_ad(autodiff::Union{AutoZygote, AutoSparseZygote}, 
     end
     return autodiff
 end
-function get_concrete_reverse_ad(autodiff::ADTypes.AbstractADType, prob, args...;
-        check_reverse_mode = true, kwargs...)
+function get_concrete_reverse_ad(autodiff::ADTypes.AbstractADType, prob,
+        sp::Val{test_sparse} = True, args...; check_reverse_mode = true,
+        kwargs...) where {test_sparse}
     if check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a \
                `Abstract(Forward/FiniteDifferences)Mode`. Use with caution." maxlog=1

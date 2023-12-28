@@ -37,6 +37,15 @@ JacVecOperator(args...; autodiff = nothing, kwargs...)
 end
 
 Base.size(J::JacobianOperator) = (prod(size(J.output_cache)), prod(size(J.input_cache)))
+function Base.size(J::JacobianOperator, d::Integer)
+    if d == 1
+        return prod(size(J.output_cache))
+    elseif d == 2
+        return prod(size(J.input_cache))
+    else
+        error("Invalid dimension $d for JacobianOperator")
+    end
+end
 
 for op in (:adjoint, :transpose)
     @eval function Base.$op(op::JacobianOperator{vjp, iip, T}) where {vjp, iip, T}
@@ -57,7 +66,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     elseif SciMLBase.has_vjp(f)
         f.vjp
     else
-        vjp_autodiff = __get_nonsparse_ad(get_concrete_reverse_ad(vjp_autodiff, f))
+        vjp_autodiff = __get_nonsparse_ad(get_concrete_reverse_ad(vjp_autodiff,
+            prob, False))
         if vjp_autodiff isa AutoZygote
             iip && error("`AutoZygote` cannot handle inplace problems.")
             @closure (v, u, p) -> auto_vecjac(uf, u, v)
@@ -80,7 +90,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     elseif SciMLBase.has_jvp(f)
         f.jvp
     else
-        jvp_autodiff = __get_nonsparse_ad(get_concrete_forward_ad(jvp_autodiff, f))
+        jvp_autodiff = __get_nonsparse_ad(get_concrete_forward_ad(jvp_autodiff,
+            prob, False))
         if jvp_autodiff isa AutoForwardDiff || jvp_autodiff isa AutoPolyesterForwardDiff
             if iip
                 # FIXME: Technically we should propagate the tag but ignoring that for now
@@ -164,9 +175,14 @@ end
     p
 end
 
-Base.:*(J::StatefulJacobianOperator, v) = J(v, J.u, J.p)
-function LinearAlgebra.mul!(Jv, J::StatefulJacobianOperator, v)
-    J(Jv, v, J.u, J.p)
+Base.size(J::StatefulJacobianOperator) = size(J.jac_op)
+Base.size(J::StatefulJacobianOperator, d::Integer) = size(J.jac_op, d)
+
+Base.:*(J::StatefulJacobianOperator, v::AbstractArray) = J.jac_op(v, J.u, J.p)
+function LinearAlgebra.mul!(Jv::AbstractArray, J::StatefulJacobianOperator,
+        v::AbstractArray)
+    J.jac_op(Jv, v, J.u, J.p)
+    return Jv
 end
 
 # TODO: Define JacobianOperatorᵀ * JacobianOperator for Normal Form Krylov Solvers, even
