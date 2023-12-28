@@ -13,6 +13,9 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     alg
     njacs::UInt
     total_time::Float64
+    autodiff
+    vjp_autodiff
+    jvp_autodiff
 end
 
 @inline get_njacs(cache::JacobianCache) = cache.njacs
@@ -33,9 +36,10 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
     @bb fu = similar(fu_)
 
     if !has_analytic_jac && needs_jac
-        sd = __sparsity_detection_alg(f, ad)
-        jac_cache = iip ? sparse_jacobian_cache(ad, sd, uf, fu, u) :
-                    sparse_jacobian_cache(ad, sd, uf, __maybe_mutable(u, ad); fx = fu)
+        sd = __sparsity_detection_alg(f, autodiff)
+        jac_cache = iip ? sparse_jacobian_cache(autodiff, sd, uf, fu, u) :
+                    sparse_jacobian_cache(autodiff, sd, uf, __maybe_mutable(u, autodiff);
+            fx = fu)
     else
         jac_cache = nothing
     end
@@ -52,12 +56,14 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0)
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0,
+        autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0)
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0,
+        nothing, nothing, nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
@@ -67,7 +73,6 @@ end
     return J
 end
 
-# @inline (cache::JacobianCache)(J, u, p) = J     # Default Case is a NoOp: Operators and Such
 (cache::JacobianCache)(J::JacobianOperator, u, p) = StatefulJacobianOperator(J, u, p)
 function (cache::JacobianCache)(::Number, u, p) # Scalar
     time_start = time()
@@ -84,17 +89,17 @@ function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u, p) wh
         if has_jac(cache.f)
             cache.f.jac(J, u, p)
         else
-            sparse_jacobian!(J, cache.ad, cache.jac_cache, cache.uf, cache.fu, u)
+            sparse_jacobian!(J, cache.autodiff, cache.jac_cache, cache.uf, cache.fu, u)
         end
         J_ = J
     else
         J_ = if has_jac(cache.f)
             cache.f.jac(u, p)
         elseif can_setindex(typeof(J))
-            sparse_jacobian!(J, cache.ad, cache.jac_cache, cache.uf, u)
+            sparse_jacobian!(J, cache.autodiff, cache.jac_cache, cache.uf, u)
             J
         else
-            sparse_jacobian(cache.ad, cache.jac_cache, cache.uf, u)
+            sparse_jacobian(cache.autodiff, cache.jac_cache, cache.uf, u)
         end
     end
     cache.total_time += time() - time_start

@@ -12,7 +12,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
         SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, StaticArrays
 
     import ADTypes: AbstractFiniteDifferencesMode
-    import ArrayInterface: undefmatrix, restructure, can_setindex,
+    import ArrayInterface: undefmatrix, restructure, can_setindex, restructure,
         matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
     import ConcreteStructs: @concrete
     import EnumX: @enumx

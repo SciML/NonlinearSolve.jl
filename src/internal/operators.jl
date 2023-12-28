@@ -36,7 +36,7 @@ JacVecOperator(args...; autodiff = nothing, kwargs...)
     output_cache
 end
 
-Base.size(J::JacobianOperator) = (prod(size(J.output_cache)), prod(size(J.input_cache)))
+Base.size(J::JacobianOperator) = prod(size(J.output_cache)), prod(size(J.input_cache))
 function Base.size(J::JacobianOperator, d::Integer)
     if d == 1
         return prod(size(J.output_cache))
@@ -48,9 +48,9 @@ function Base.size(J::JacobianOperator, d::Integer)
 end
 
 for op in (:adjoint, :transpose)
-    @eval function Base.$op(op::JacobianOperator{vjp, iip, T}) where {vjp, iip, T}
-        return JacobianOperator{!vjp, iip, T}(op.jvp_op, op.vjp_op, op.output_cache,
-            op.input_cache)
+    @eval function Base.$(op)(operator::JacobianOperator{vjp, iip, T}) where {vjp, iip, T}
+        return JacobianOperator{!vjp, iip, T}(operator.jvp_op, operator.vjp_op,
+            operator.output_cache, operator.input_cache)
     end
 end
 
@@ -178,12 +178,53 @@ end
 Base.size(J::StatefulJacobianOperator) = size(J.jac_op)
 Base.size(J::StatefulJacobianOperator, d::Integer) = size(J.jac_op, d)
 
+for op in (:adjoint, :transpose)
+    @eval function Base.$op(operator::StatefulJacobianOperator)
+        return StatefulJacobianOperator($(op)(operator.jac_op), operator.u, operator.p)
+    end
+end
+
 Base.:*(J::StatefulJacobianOperator, v::AbstractArray) = J.jac_op(v, J.u, J.p)
+
 function LinearAlgebra.mul!(Jv::AbstractArray, J::StatefulJacobianOperator,
         v::AbstractArray)
     J.jac_op(Jv, v, J.u, J.p)
     return Jv
 end
 
-# TODO: Define JacobianOperatorᵀ * JacobianOperator for Normal Form Krylov Solvers, even
-#       though in these cases solvers like LSMR should be used.
+@concrete mutable struct StatefulJacobianNormalFormOperator{T} <:
+                         AbstractNonlinearSolveOperator{T}
+    vjp_operator
+    jvp_operator
+    cache
+end
+
+function Base.size(J::StatefulJacobianNormalFormOperator)
+    return size(J.vjp_operator, 1), size(J.jvp_operator, 2)
+end
+
+function Base.:*(J1::StatefulJacobianOperator{true}, J2::StatefulJacobianOperator{false})
+    input = similar(J2.jac_op.input_cache)
+    cache = J2 * input
+    T = promote_type(eltype(J1), eltype(J2))
+    return StatefulJacobianNormalFormOperator{T}(J1, J2, cache)
+end
+
+function LinearAlgebra.mul!(C::StatefulJacobianNormalFormOperator,
+        A::StatefulJacobianOperator{true}, B::StatefulJacobianOperator{false})
+    C.vjp_operator = A
+    C.jvp_operator = B
+    return C
+end
+
+function Base.:*(JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
+    return JᵀJ.vjp_operator * (JᵀJ.jvp_operator * x)
+end
+
+function LinearAlgebra.mul!(JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator,
+        x::AbstractArray)
+    mul!(JᵀJ.cache, JᵀJ.jvp_operator, x)
+    mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
+    return JᵀJx
+end
+
