@@ -24,7 +24,7 @@ end
 # pseudo transient continuation has a fixed cost per iteration, iteration statistics are
 # not interesting here.
 @inline function __siam_fanl_equations_stats_mapping(method, sol)
-    method === :pseudotransient && return nothing
+    ((method === :pseudotransient) || (method === :anderson)) && return nothing
     return SciMLBase.NLStats(sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0,
         sum(sol.stats.iarm))
 end
@@ -36,16 +36,14 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     @assert (termination_condition ===
              nothing)||(termination_condition isa AbsNormTerminationMode) "SIAMFANLEquationsJL does not support termination conditions!"
 
-    (; method, delta, linsolve) = alg
-
-    iip = SciMLBase.isinplace(prob)
+    (; method, delta, linsolve, m, beta) = alg
 
     T = eltype(prob.u0)
     atol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, T)
     rtol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, T)
 
     if prob.u0 isa Number
-        f = (u) -> prob.f(u, prob.p)
+        f = method == :anderson ? (du, u) -> (du = prob.f(u, prob.p)) : ((u) -> prob.f(u, prob.p))
 
         if method == :newton
             sol = nsolsc(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
@@ -54,11 +52,16 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
                 printerr = ShT)
         elseif method == :secant
             sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
+        elseif method == :anderson
+            f, u = NonlinearSolve.__construct_f(prob; alias_u0,
+                make_fixed_point = Val(true), can_handle_arbitrary_dims = Val(true))
+            sol = aasol(f, [prob.u0], m, __zeros_like(u, 1, 2*m+4); maxit = maxiters,
+                atol, rtol, beta = beta)
         end
 
         retcode = __siam_fanl_equations_retcode_mapping(sol)
         stats = __siam_fanl_equations_stats_mapping(method, sol)
-        resid = NonlinearSolve.evaluate_f(prob, sol.solution)
+        resid = NonlinearSolve.evaluate_f(prob, sol.solution[1])
         return SciMLBase.build_solution(prob, alg, sol.solution, resid; retcode,
             stats, original = sol)
     end
@@ -104,6 +107,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         elseif method == :pseudotransient
             sol = ptcsol(f!, u, FS, FPS; atol, rtol, maxit = maxiters,
                 delta0 = delta, printerr = ShT)
+        elseif method == :anderson
+            f!, u = NonlinearSolve.__construct_f(prob; alias_u0,
+                can_handle_arbitrary_dims = Val(true), make_fixed_point = Val(true))
+            sol = aasol(f!, u, m, zeros(T, N, 2*m+4), atol = atol, rtol = rtol,
+                maxit = maxiters, beta = beta)
         end
     else
         AJ!(J, u, x) = prob.f.jac(J, x, prob.p)

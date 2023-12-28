@@ -1,4 +1,4 @@
-using NonlinearSolve, FixedPointAcceleration, SpeedMapping, NLsolve, LinearAlgebra, Test
+using NonlinearSolve, FixedPointAcceleration, SpeedMapping, NLsolve, SIAMFANLEquations, LinearAlgebra, Test
 
 # Simple Scalar Problem
 @testset "Simple Scalar Problem" begin
@@ -14,6 +14,7 @@ using NonlinearSolve, FixedPointAcceleration, SpeedMapping, NLsolve, LinearAlgeb
     @test abs(solve(prob, SpeedMappingJL(; stabilize = true)).resid) ≤ 1e-10
 
     @test abs(solve(prob, NLsolveJL(; method = :anderson)).resid) ≤ 1e-10
+    @test abs(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid) ≤ 1e-10
 end
 
 # Simple Vector Problem
@@ -28,6 +29,7 @@ end
     @test maximum(abs.(solve(prob, SpeedMappingJL()).resid)) ≤ 1e-10
     @test maximum(abs.(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid)) ≤ 1e-10
     @test maximum(abs.(solve(prob, SpeedMappingJL(; stabilize = true)).resid)) ≤ 1e-10
+    @test maximum(abs.(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid)) ≤ 1e-10
 
     @test_broken maximum(abs.(solve(prob, NLsolveJL(; method = :anderson)).resid)) ≤ 1e-10
 end
@@ -66,6 +68,9 @@ end
 
     sol = solve(prob, NLsolveJL(; method = :anderson))
     @test_broken sol.u' * A[:, 3] ≈ 32.916472867168096
+
+    sol = solve(prob, SIAMFANLEquationsJL(; method = :anderson))
+    @test sol.u' * A[:, 3] ≈ 32.916472867168096
 
     # Non vector inputs
     function power_method_nonvec!(du, u, A)

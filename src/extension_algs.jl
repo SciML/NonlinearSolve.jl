@@ -377,23 +377,30 @@ end
   - `method`: the choice of method for solving the nonlinear system.
   - `delta`: initial pseudo time step, default is 1e-3.
   - `linsolve` : JFNK linear solvers, choices are `gmres` and `bicgstab`.
+  - `m`: Depth for Anderson acceleration, default as 0 for Picard iteration.
+  - `beta`: Anderson mixing parameter, change f(x) to (1-beta)x+beta*f(x),
+    equivalent to accelerating damped Picard iteration.
 
 ### Submethod Choice
 
   - `:newton`: Classical Newton method.
   - `:pseudotransient`: Pseudo transient method.
   - `:secant`: Secant method for scalar equations.
+  - `:anderson`: Anderson acceleration for fixed point iterations.
 """
 @concrete struct SIAMFANLEquationsJL{L <: Union{Symbol, Nothing}} <:
                  AbstractNonlinearSolveAlgorithm
     method::Symbol
     delta
     linsolve::L
+    m::Int
+    beta
 end
 
-function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing)
+function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing, m = 0,
+        beta = 1.0)
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
     end
-    return SIAMFANLEquationsJL(method, delta, linsolve)
+    return SIAMFANLEquationsJL(method, delta, linsolve, m, beta)
 end
