@@ -236,8 +236,10 @@ include("default.jl")
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent
 
 # Core Algorithms -- Mostly Wrappers
-export NewtonRaphson
+export NewtonRaphson, PseudoTransient
 export GaussNewton
+
+# Extension Algorithms
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderRootFindingAlgorithm
@@ -245,9 +247,12 @@ export GeneralizedFirstOrderRootFindingAlgorithm
 # Line Search Algorithms
 export LineSearchesJL, NoLineSearch
 
+# Algorithm Specific Exports
+export SwitchedEvolutionRelaxation
+
 # export RadiusUpdateSchemes
 
-# export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
+# export TrustRegion, LevenbergMarquardt, DFSane,
 #     Broyden, Klement, LimitedMemoryBroyden
 # export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
 #     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL

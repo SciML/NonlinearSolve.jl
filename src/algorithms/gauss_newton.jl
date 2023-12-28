@@ -35,7 +35,7 @@ for large-scale and numerically-difficult nonlinear least squares problems.
     `Zygote` is loaded then, we use `AutoZygote`. In all other, cases `FiniteDiff` is used.
 """
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
-        linesearch = nothing, vjp_autodiff = nothing, autodiff = nothing)
+        linesearch = NoLineSearch(), vjp_autodiff = nothing, autodiff = nothing)
     descent = NewtonDescent(; linsolve, precs)
 
     if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)

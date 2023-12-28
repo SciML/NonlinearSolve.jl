@@ -58,7 +58,7 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, _vec(fu)
     end
-    lincache = LinearSolveCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
+    lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
         linsolve_kwargs...)
     @bb δu = similar(u)
     return NewtonDescentCache{false, normal_form}(δu, lincache, JᵀJ, Jᵀfu)

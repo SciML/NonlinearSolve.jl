@@ -14,12 +14,12 @@ end
 @inline get_nsolve(cache::LinearSolverCache) = cache.nsolve
 @inline get_nfactors(cache::LinearSolverCache) = cache.nfactors
 
-@inline function LinearSolverCache(alg, linsolve, A::Number, b, args...; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
+@inline function LinearSolverCache(alg, linsolve, A::Number, b::Number, u; kwargs...)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
 end
-@inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, args...; kwargs...)
+@inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, u; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     @bb b_ = copy(b)

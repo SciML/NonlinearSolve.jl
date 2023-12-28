@@ -26,7 +26,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p, ad, linsolve) where {F}
 
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
-                          (linsolve === nothing || __needs_concrete_A(alg.linsolve)))
+                          (linsolve === nothing || __needs_concrete_A(linsolve)))
     alg_wants_jac = concrete_jac(alg) !== nothing && concrete_jac(alg)
     needs_jac = linsolve_needs_jac || alg_wants_jac
 
@@ -81,7 +81,7 @@ end
 function (cache::JacobianCache)(::Number, u, p) # Scalar
     time_start = time()
     cache.njacs += 1
-    J = last(value_derivative(cache.uf, u))
+    J = last(__value_derivative(cache.uf, u))
     cache.total_time += time() - time_start
     return J
 end

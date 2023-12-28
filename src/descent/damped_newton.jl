@@ -8,26 +8,29 @@ end
 supports_line_search(::DampedNewtonDescent) = true
 supports_trust_region(::DampedNewtonDescent) = true
 
-@concrete mutable struct DampedNewtonDescent{pre_inverted, ls, normalform} <:
+@concrete mutable struct DampedNewtonDescentCache{pre_inverted, ls, normalform} <:
                          AbstractDescentCache
     J
     δu
     lincache
     JᵀJ_cache
     Jᵀfu_cache
+    damping_fn_cache
 end
 
 function SciMLBase.init(prob::NonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, alias_J = true, kwargs...) where {INV}
-    damping_fn_cache = init(prob, alg.damping_update_fn, alg.initial_damping, J, fu, u;
+    damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u;
         kwargs...)
     @bb δu = similar(u)
     J_cache = __maybe_unaliased(J, alias_J)
-    J_damped = __dampen_jacobian!!(J_cache, J, damping_fn_cache)
+    D = solve!(damping_fn_cache, J, fu)
+    J_damped = __dampen_jacobian!!(J_cache, J, D)
     lincache = LinearSolverCache(alg, alg.linsolve, J_damped, _vec(fu), _vec(u); abstol,
         reltol, linsolve_kwargs...)
-    return DampedNewtonDescent{INV, false, false}(J, δu, lincache, nothing, nothing)
+    return DampedNewtonDescentCache{INV, false, false}(J, δu, lincache, nothing, nothing,
+        damping_fn_cache)
 end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDescent, J, fu,
@@ -51,7 +54,7 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDes
 #     return NewtonDescentCache{false, normal_form}(δu, lincache, JᵀJ, Jᵀfu)
 end
 
-function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false, false}, J, fu;
+function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu;
         skip_solve::Bool = false, kwargs...) where {INV}
     skip_solve && return cache.δu
     if INV
@@ -66,9 +69,10 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false, false}, J,
     return cache.δu
 end
 
-# function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu;
-#         skip_solve::Bool = false, kwargs...)
-#     skip_solve && return cache.δu
+function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form}, J, fu;
+        skip_solve::Bool = false, kwargs...) where {INV, normal_form}
+    skip_solve && return cache.δu
+    error("Not Implemented Yet!")
 #     @bb cache.JᵀJ_cache = transpose(J) × J
 #     @bb cache.Jᵀfu_cache = transpose(J) × fu
 #     δu = cache.lincache(; A = cache.JᵀJ_cache, b = cache.Jᵀfu_cache, kwargs...,
@@ -76,12 +80,13 @@ end
 #     cache.δu = _restructure(cache.δu, δu)
 #     @bb @. cache.δu *= -1
 #     return cache.δu
-# end
+end
 
 # J_cache is allowed to alias J
 ## Compute ``J - D``
 @inline __dampen_jacobian!!(J_cache, J::SciMLBase.AbstractSciMLOperator, D) = J - D
-@inline function __dampen_jacobian!!(J_cache, J, D)
+@inline  __dampen_jacobian!!(J_cache, J::Number, D) = J - D
+@inline function __dampen_jacobian!!(J_cache, J::AbstractArray, D)
     if can_setindex(J_cache)
         D_ = diag(D)
         if fast_scalar_indexing(J_cache)
@@ -91,6 +96,21 @@ end
         else
             idxs = diagind(J_cache)
             @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) - D_
+        end
+        return J_cache
+    else
+        return @. J - D
+    end
+end
+@inline function __dampen_jacobian!!(J_cache, J::AbstractArray, D::UniformScaling)
+    if can_setindex(J_cache)
+        if fast_scalar_indexing(J_cache)
+            @inbounds for i in axes(J_cache, 1)
+                J_cache[i, i] = J[i, i] - D.λ
+            end
+        else
+            idxs = diagind(J_cache)
+            @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) - D.λ
         end
         return J_cache
     else

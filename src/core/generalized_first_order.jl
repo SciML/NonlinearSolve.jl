@@ -81,13 +81,23 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         internalnorm, linsolve_kwargs)
     du = get_du(descent_cache)
 
-    if supports_trust_region(alg.descent)
-        error("Trust Region not implemented yet!")
-        trustregion_cache = nothing
-        linesearch_cache = nothing
-        GB = :TrustRegion
-    else
-        linesearch_cache = init(prob, alg.linesearch, f, fu, u, p)
+    # if alg.trust_region !== missing && alg.linesearch !== missing
+    #     error("TrustRegion and LineSearch methods are algorithmically incompatible.")
+    # end
+
+    # if alg.trust_region !== missing
+    #     supports_trust_region(alg.descent) || error("Trust Region not supported by \
+    #                                                  $(alg.descent).")
+    #     trustregion_cache = nothing
+    #     linesearch_cache = nothing
+    #     GB = :TrustRegion
+    #     error("Trust Region not implemented yet!")
+    # end
+
+    if alg.linesearch !== missing
+        supports_line_search(alg.descent) || error("Line Search not supported by \
+                                                    $(alg.descent).")
+        linesearch_cache = SciMLBase.init(prob, alg.linesearch, f, fu, u, p)
         trustregion_cache = nothing
         GB = :LineSearch
     end
@@ -111,11 +121,11 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
         new_jacobian = false
     end
 
-    if GB === :LineSearch # Line Search
+    if GB === :LineSearch
         δu = solve!(cache.descent_cache, ifelse(new_jacobian, J, nothing), cache.fu)
         α = solve!(cache.linesearch_cache, cache.u, δu)
         @bb axpy!(α, δu, cache.u)
-    elseif GB === :TrustRegion # Trust Region
+    elseif GB === :TrustRegion
         error("Trust Region not implemented yet!")
         α = true
     else
