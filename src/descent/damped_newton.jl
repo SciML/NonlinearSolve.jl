@@ -1,3 +1,16 @@
+"""
+    DampedNewtonDescent(; linsolve = nothing, precs = DEFAULT_PRECS, initial_damping,
+        damping_fn)
+
+A Newton descent algorithm with damping. The damping factor is computed using the
+`damping_fn` function. The descent direction is computed as ``(JᵀJ + λDᵀD) δu = -fu``. For
+non-square Jacobians, we default to solving for `Jδx = -fu` and `√λ⋅D δx = 0`
+simultaneously. If the linear solver can't handle non-square matrices, we use the normal
+form equations ``(JᵀJ + λDᵀD) δu = Jᵀ fu``. Note that this factorization is often the faster
+choice, but it is not as numerically stable as the least squares solver.
+
+Based on the formulation we expect the damping factor returned to be a non-negative number.
+"""
 @kwdef @concrete struct DampedNewtonDescent <: AbstractDescentAlgorithm
     linsolve = nothing
     precs = DEFAULT_PRECS
@@ -46,7 +59,6 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDes
         @bb δu_ = similar(u)
     end
     normal_form = __needs_square_A(alg.linsolve, u)
-    # J_cache = __maybe_unaliased(J, alias_J)
 
     if normal_form
         JᵀJ = transpose(J) * J
@@ -118,6 +130,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form
         if J !== nothing
             INV && (J = inv(J))
             @bb cache.JᵀJ_cache = transpose(J) × J
+            # FIXME: We can compute the damping factor without the Jacobian
             D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, fu)
             if can_setindex(cache.J)
                 copyto!(@view(cache.J[1:size(J, 1), :]), J)
