@@ -76,5 +76,5 @@ function SciMLBase.solve!(damping::SwitchedEvolutionRelaxationCache, J, fu, args
     res_norm = damping.internalnorm(fu)
     damping.α = damping.res_norm / res_norm
     damping.res_norm = res_norm
-    return damping.α * I
+    return damping.α
 end

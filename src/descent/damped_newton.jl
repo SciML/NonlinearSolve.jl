@@ -38,19 +38,48 @@ end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDescent, J, fu,
         u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, alias_J = true, kwargs...) where {INV}
-    error("Not Implemented Yet!")
+        reltol = nothing, alias_J = true, shared::Val{N} = Val(1), kwargs...) where {N, INV}
+    length(fu) != length(u) &&
+        @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
+    @bb δu = similar(u)
+    δus = N ≤ 1 ? nothing : map(2:N) do i
+        @bb δu_ = similar(u)
+    end
+    normal_form = __needs_square_A(alg.linsolve, u)
+    # J_cache = __maybe_unaliased(J, alias_J)
+
+    if normal_form
+        JᵀJ = transpose(J) * J
+        Jᵀfu = transpose(J) * _vec(fu)
+        damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, JᵀJ, Jᵀfu, u;
+            kwargs...)
+        D = solve!(damping_fn_cache, JᵀJ, Jᵀfu)
+        @bb J_cache = similar(JᵀJ)
+        J_damped = __dampen_jacobian!!(J_cache, JᵀJ, D)
+        A, b = __maybe_symmetric(J_damped), _vec(Jᵀfu)
+    else
+        error("Not Implemented Yet!")
+        # JᵀJ = _vcat(J)
+        # JᵀJ, Jᵀfu = nothing, nothing
+        # A, b = JᵀJ, Jᵀfu
+    end
+
+    lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
+        linsolve_kwargs...)
+
+    return DampedNewtonDescentCache{INV, true, normal_form}(J_cache, δu, δus, lincache, JᵀJ,
+        Jᵀfu, damping_fn_cache)
 end
+
+# Define special concatenation for certain Array combinations
+@inline _vcat(x, y) = vcat(x, y)
 
 function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu, u,
         idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N}
     δu = get_du(cache, idx)
     skip_solve && return δu
-    if INV
-        @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
-        J = inv(J)
-    end
     if J !== nothing
+        INV && (J = inv(J))
         D = solve!(cache.damping_fn_cache, J, fu)
         J_ = __dampen_jacobian!!(cache.J, J, D)
     else # Use the old factorization
@@ -66,14 +95,35 @@ end
 function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form}, J, fu, u,
         idx::Val{N} = Val(1); skip_solve::Bool = false,
         kwargs...) where {INV, normal_form, N}
-    skip_solve && return cache.δu
-    error("Not Implemented Yet!")
+    δu = get_du(cache, idx)
+    skip_solve && return δu
+
+    if normal_form
+        if J !== nothing
+            INV && (J = inv(J))
+            @bb cache.JᵀJ_cache = transpose(J) × J
+            @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
+            D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache)
+            J_ = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
+        else
+            J_ = cache.JᵀJ_cache
+        end
+        δu = cache.lincache(; A = __maybe_symmetric(J_), b = cache.Jᵀfu_cache, kwargs...,
+            linu = _vec(δu))
+    else
+        error("Not Implemented Yet!")
+    end
+
+    δu = _restructure(get_du(cache, idx), δu)
+    @bb @. δu *= -1
+    set_du!(cache, δu, idx)
+    return δu, true, (;)
 end
 
 # J_cache is allowed to alias J
 ## Compute ``J - D``
 @inline __dampen_jacobian!!(J_cache, J::SciMLBase.AbstractSciMLOperator, D) = J - D
-@inline  __dampen_jacobian!!(J_cache, J::Number, D) = J - D
+@inline __dampen_jacobian!!(J_cache, J::Number, D) = J - D
 @inline function __dampen_jacobian!!(J_cache, J::AbstractArray, D)
     if can_setindex(J_cache)
         D_ = diag(D)
@@ -90,15 +140,15 @@ end
         return @. J - D
     end
 end
-@inline function __dampen_jacobian!!(J_cache, J::AbstractArray, D::UniformScaling)
+@inline function __dampen_jacobian!!(J_cache, J::AbstractArray, D::Number)
     if can_setindex(J_cache)
         if fast_scalar_indexing(J_cache)
             @inbounds for i in axes(J_cache, 1)
-                J_cache[i, i] = J[i, i] - D.λ
+                J_cache[i, i] = J[i, i] - D
             end
         else
             idxs = diagind(J_cache)
-            @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) - D.λ
+            @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) - D
         end
         return J_cache
     else

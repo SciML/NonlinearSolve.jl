@@ -81,7 +81,7 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u,
     skip_solve && return δu, true, (; a, v)
     v, _, _ = solve!(cache.descent_cache, J, fu, Val(2N - 1); skip_solve, kwargs...)
 
-    @bb cache.u_cache = u + cache.h * v
+    @bb @. cache.u_cache = u + cache.h * v
     evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     @bb cache.Jv = J × vec(v)
     Jv = _restructure(cache.fu_cache, cache.Jv)

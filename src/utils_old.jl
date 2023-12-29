@@ -68,8 +68,6 @@ end
 @inline __needs_square_A(_, ::Number) = true
 @inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)
 
-# Define special concatenation for certain Array combinations
-@inline _vcat(x, y) = vcat(x, y)
 
 # Diagonal of type `u`
 __init_diagonal(u::Number, v) = oftype(u, v)

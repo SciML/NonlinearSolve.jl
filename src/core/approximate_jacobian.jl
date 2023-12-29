@@ -174,7 +174,7 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
 
     if GB === :LineSearch
         δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-            ifelse(new_jacobian, J, nothing), cache.fu)
+            ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
         needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)  # TODO: use `needs_reset`
         @bb axpy!(α, δu, cache.u)
     elseif GB === :TrustRegion

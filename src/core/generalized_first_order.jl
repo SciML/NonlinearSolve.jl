@@ -124,7 +124,7 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
 
     if GB === :LineSearch
         δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-            ifelse(new_jacobian, J, nothing), cache.fu)
+            ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
         _, α = solve!(cache.linesearch_cache, cache.u, δu)
         @bb axpy!(α, δu, cache.u)
     elseif GB === :TrustRegion
