@@ -6,12 +6,12 @@
 end
 
 supports_line_search(::DampedNewtonDescent) = true
-supports_trust_region(::DampedNewtonDescent) = true
 
 @concrete mutable struct DampedNewtonDescentCache{pre_inverted, ls, normalform} <:
                          AbstractDescentCache
     J
     δu
+    δus
     lincache
     JᵀJ_cache
     Jᵀfu_cache
@@ -20,66 +20,54 @@ end
 
 function SciMLBase.init(prob::NonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, alias_J = true, kwargs...) where {INV}
+        reltol = nothing, alias_J = true, shared::Val{N} = Val(1), kwargs...) where {INV, N}
     damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u;
         kwargs...)
     @bb δu = similar(u)
+    δus = N ≤ 1 ? nothing : map(2:N) do i
+        @bb δu_ = similar(u)
+    end
     J_cache = __maybe_unaliased(J, alias_J)
     D = solve!(damping_fn_cache, J, fu)
     J_damped = __dampen_jacobian!!(J_cache, J, D)
     lincache = LinearSolverCache(alg, alg.linsolve, J_damped, _vec(fu), _vec(u); abstol,
         reltol, linsolve_kwargs...)
-    return DampedNewtonDescentCache{INV, false, false}(J, δu, lincache, nothing, nothing,
-        damping_fn_cache)
+    return DampedNewtonDescentCache{INV, false, false}(J, δu, δus, lincache, nothing,
+        nothing, damping_fn_cache)
 end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDescent, J, fu,
         u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, alias_J = true, kwargs...) where {INV}
     error("Not Implemented Yet!")
-#     @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
-
-#     normal_form = __needs_square_A(alg.linsolve, u)
-#     if normal_form
-#         JᵀJ = transpose(J) * J
-#         Jᵀfu = transpose(J) * _vec(fu)
-#         A, b = __maybe_symmetric(JᵀJ), Jᵀfu
-#     else
-#         JᵀJ, Jᵀfu = nothing, nothing
-#         A, b = J, _vec(fu)
-#     end
-#     lincache = LinearSolveCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
-#         linsolve_kwargs...)
-#     @bb δu = similar(u)
-#     return NewtonDescentCache{false, normal_form}(δu, lincache, JᵀJ, Jᵀfu)
 end
 
-function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu;
-        skip_solve::Bool = false, kwargs...) where {INV}
-    skip_solve && return cache.δu
+function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu, u,
+        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N}
+    δu = get_du(cache, idx)
+    skip_solve && return δu
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         J = inv(J)
     end
-    D = solve!(cache.damping_fn_cache, J, fu)
-    J_ = __dampen_jacobian!!(cache.J, J, D)
-    δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., linu = _vec(cache.δu))
-    cache.δu = _restructure(cache.δu, δu)
-    @bb @. cache.δu *= -1
-    return cache.δu
+    if J !== nothing
+        D = solve!(cache.damping_fn_cache, J, fu)
+        J_ = __dampen_jacobian!!(cache.J, J, D)
+    else # Use the old factorization
+        J_ = J
+    end
+    δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., linu = _vec(δu))
+    δu = _restructure(get_du(cache, idx), δu)
+    @bb @. δu *= -1
+    set_du!(cache, δu, idx)
+    return δu, true, (;)
 end
 
-function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form}, J, fu;
-        skip_solve::Bool = false, kwargs...) where {INV, normal_form}
+function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form}, J, fu, u,
+        idx::Val{N} = Val(1); skip_solve::Bool = false,
+        kwargs...) where {INV, normal_form, N}
     skip_solve && return cache.δu
     error("Not Implemented Yet!")
-#     @bb cache.JᵀJ_cache = transpose(J) × J
-#     @bb cache.Jᵀfu_cache = transpose(J) × fu
-#     δu = cache.lincache(; A = cache.JᵀJ_cache, b = cache.Jᵀfu_cache, kwargs...,
-#         du = _vec(cache.δu))
-#     cache.δu = _restructure(cache.δu, δu)
-#     @bb @. cache.δu *= -1
-#     return cache.δu
 end
 
 # J_cache is allowed to alias J

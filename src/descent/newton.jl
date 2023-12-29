@@ -28,6 +28,7 @@ supports_line_search(::NewtonDescent) = true
 @concrete mutable struct NewtonDescentCache{pre_inverted, normalform} <:
                          AbstractDescentCache
     δu
+    δus
     lincache
     # For normal form else nothing
     JᵀJ_cache
@@ -35,19 +36,23 @@ supports_line_search(::NewtonDescent) = true
 end
 
 function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, kwargs...) where {INV}
+        shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+        abstol = nothing, reltol = nothing, kwargs...) where {INV, N}
     @bb δu = similar(u)
-    INV && return NewtonDescentCache{true, false}(δu, nothing, nothing, nothing)
+    δus = N ≤ 1 ? nothing : map(2:N) do i
+        @bb δu_ = similar(u)
+    end
+    INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing)
     lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    return NewtonDescentCache{false, false}(δu, lincache, nothing, nothing)
+    return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing)
 end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, kwargs...) where {INV}
-    @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
+        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), shared::Val{N} = Val(1),
+        abstol = nothing, reltol = nothing, kwargs...) where {INV, N}
+    length(fu) != length(u) &&
+        @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
     normal_form = __needs_square_A(alg.linsolve, u)
     if normal_form
@@ -61,32 +66,39 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
     lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
         linsolve_kwargs...)
     @bb δu = similar(u)
-    return NewtonDescentCache{false, normal_form}(δu, lincache, JᵀJ, Jᵀfu)
+    δus = N ≤ 1 ? nothing : map(2:N) do i
+        @bb δu_ = similar(u)
+    end
+    return NewtonDescentCache{false, normal_form}(δu, δus, lincache, JᵀJ, Jᵀfu)
 end
 
-function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu;
-        skip_solve::Bool = false, kwargs...) where {INV}
-    skip_solve && return cache.δu
+function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
+        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N}
+    δu = get_du(cache, idx)
+    skip_solve && return δu
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
-        @bb cache.δu = J × vec(fu)
+        @bb δu = J × vec(fu)
     else
-        δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(cache.δu),
-            du = _vec(cache.δu))
-        cache.δu = _restructure(cache.δu, δu)
+        δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
+            du = _vec(δu))
+        δu = _restructure(get_du(cache, idx), δu)
     end
-    @bb @. cache.δu *= -1
-    return cache.δu
+    @bb @. δu *= -1
+    set_du!(cache, δu, idx)
+    return δu, true, (;)
 end
 
-function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu;
-        skip_solve::Bool = false, kwargs...)
-    skip_solve && return cache.δu
+function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
+        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {N}
+    δu = get_du(cache, idx)
+    skip_solve && return δu
     @bb cache.JᵀJ_cache = transpose(J) × J
     @bb cache.Jᵀfu_cache = transpose(J) × fu
     δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
-        kwargs..., linu = _vec(cache.δu), du = _vec(cache.δu))
-    cache.δu = _restructure(cache.δu, δu)
-    @bb @. cache.δu *= -1
-    return cache.δu
+        kwargs..., linu = _vec(δu), du = _vec(δu))
+    δu = _restructure(get_du(cache, N), δu)
+    @bb @. δu *= -1
+    set_du!(cache, δu, idx)
+    return δu, true, (;)
 end

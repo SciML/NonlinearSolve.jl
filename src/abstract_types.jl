@@ -15,12 +15,13 @@ squares solver.
 ```julia
 SciMLBase.init(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
     pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
-    reltol = nothing, alias_J::Bool = true, kwargs...) where {uType, iip}
+    reltol = nothing, alias_J::Bool = true, shared::Val{N} = Val(1),
+    kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
 
 SciMLBase.init(prob::NonlinearLeastSquaresProblem{uType, iip},
     alg::AbstractDescentAlgorithm, J, fu, u; pre_inverted::Val{INV} = Val(false),
     linsolve_kwargs = (;), abstol = nothing, reltol = nothing, alias_J::Bool = true,
-    kwargs...) where {uType, iip}
+    shared::Val{N} = Val(1), kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
 ```
 
   - `pre_inverted`: whether or not the Jacobian has been pre_inverted. Defaults to `False`.
@@ -30,6 +31,8 @@ SciMLBase.init(prob::NonlinearLeastSquaresProblem{uType, iip},
   - `abstol`: absolute tolerance for the linear solver. Defaults to `nothing`.
   - `reltol`: relative tolerance for the linear solver. Defaults to `nothing`.
   - `alias_J`: whether or not to alias the Jacobian. Defaults to `true`.
+  - `shared`: Store multiple descent directions in the cache. Allows efficient and correct
+    reuse of factorizations if needed,
 
 Some of the algorithms also allow additional keyword arguments. See the documentation for
 the specific algorithm for more information.
@@ -37,18 +40,34 @@ the specific algorithm for more information.
 ### `SciMLBase.solve!` specification
 
 ```julia
-SciMLBase.solve!(cache::NewtonDescentCache, J, fu, args...; skip_solve::Bool = false,
-    kwargs...)
+δu, success, intermediates = SciMLBase.solve!(cache::AbstractDescentCache, J, fu, u,
+    idx::Val; skip_solve::Bool = false, kwargs...)
 ```
 
   - `J`: Jacobian or Inverse Jacobian (if `pre_inverted = Val(true)`).
   - `fu`: residual.
-  - `args`: Allows for more arguments to compute the descent direction. Currently no
-    algorithm uses this.
+  - `u`: current state.
+  - `idx`: index of the descent problem to solve and return. Defaults to `Val(1)`.
   - `skip_solve`: Skip the direction computation and return the previous direction.
     Defaults to `false`. This is useful for Trust Region Methods where the previous
     direction was rejected and we want to try with a modified trust region.
   - `kwargs`: keyword arguments to pass to the linear solver if there is one.
+
+#### Returned values
+
+  - `δu`: the descent direction.
+  - `success`: Certain Descent Algorithms can reject a descent direction for example
+    `GeodesicAcceleration`.
+  - `intermediates`: A named tuple containing intermediates computed during the solve.
+    For example, `GeodesicAcceleration` returns `NamedTuple{(:v, :a)}` containing the
+    "velocity" and "acceleration" terms.
+
+### Interface Functions
+
+  - `supports_trust_region(alg)`: whether or not the algorithm supports trust region
+    methods. Defaults to `false`.
+  - `supports_line_search(alg)`: whether or not the algorithm supports line search
+    methods. Defaults to `false`.
 
 See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
 [`DampedNewton`](@ref).
@@ -62,10 +81,22 @@ supports_line_search(::AbstractDescentAlgorithm) = false
     AbstractDescentCache
 
 Abstract Type for all Descent Caches.
+
+## Interface Functions
+
+  - `get_du(cache)`: get the descent direction.
+  - `get_du(cache, ::Val{N})`: get the `N`th descent direction.
+  - `set_du!(cache, δu)`: set the descent direction.
+  - `set_du!(cache, δu, ::Val{N})`: set the `N`th descent direction.
 """
 abstract type AbstractDescentCache end
 
 SciMLBase.get_du(cache) = cache.δu
+SciMLBase.get_du(cache, ::Val{1}) = get_du(cache)
+SciMLBase.get_du(cache, ::Val{N}) where {N} = cache.δus[N]
+set_du!(cache, δu) = (cache.δu = δu)
+set_du!(cache, δu, ::Val{1}) = set_du!(cache, δu)
+set_du!(cache, δu, ::Val{N}) where {N} = (cache.δus[N] = δu)
 
 """
     AbstractNonlinearSolveLineSearchAlgorithm

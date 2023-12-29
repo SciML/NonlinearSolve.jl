@@ -20,13 +20,13 @@ function evaluate_f!(cache, u, p)
     end
 end
 
-function evaluate_f!!(prob, fu, u, p)
-    if isinplace(prob)
-        prob.f(fu, u, p)
+evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p) = evaluate_f!!(prob.f, fu, u, p)
+function evaluate_f!!(f::NonlinearFunction{iip}, fu, u, p) where {iip}
+    if iip
+        f(fu, u, p)
         return fu
-    else
-        return prob.f(u, p)
     end
+    return f(u, p)
 end
 
 # AutoDiff Selection Functions

@@ -123,8 +123,9 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
     end
 
     if GB === :LineSearch
-        δu = solve!(cache.descent_cache, ifelse(new_jacobian, J, nothing), cache.fu)
-        needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
+        δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            ifelse(new_jacobian, J, nothing), cache.fu)
+        _, α = solve!(cache.linesearch_cache, cache.u, δu)
         @bb axpy!(α, δu, cache.u)
     elseif GB === :TrustRegion
         error("Trust Region not implemented yet!")

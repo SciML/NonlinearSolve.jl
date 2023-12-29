@@ -142,6 +142,7 @@ include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
+include("descent/geodesic_acceleration.jl")
 
 include("internal/helpers.jl")
 include("internal/operators.jl")
@@ -150,6 +151,7 @@ include("internal/jacobian.jl")
 include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
+include("internal/approx_initialization.jl")
 
 include("globalization/line_search.jl")
 # include("globalization/trust_region.jl")
@@ -158,11 +160,16 @@ include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
 
 include("algorithms/raphson.jl")
-include("algorithms/gauss_newton.jl")
 include("algorithms/pseudo_transient.jl")
 include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
-include("algorithms/lbroyden.jl")
+# include("algorithms/lbroyden.jl")
+
+# include("algorithms/dfsane.jl")
+
+include("algorithms/gauss_newton.jl")
+include("algorithms/levenberg_marquardt.jl")
+# include("algorithms/newton_trust_region.jl")
 
 include("utils.jl")
 include("default.jl")
@@ -224,7 +231,8 @@ include("default.jl")
 # end
 
 # Descent Algorithms
-export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
+    GeodesicAcceleration
 
 # Core Algorithms -- Mostly Wrappers
 export NewtonRaphson, PseudoTransient, Klement, Broyden

@@ -227,4 +227,3 @@ function LinearAlgebra.mul!(JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormal
     mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
     return JᵀJx
 end
-
