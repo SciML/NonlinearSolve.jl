@@ -64,12 +64,6 @@ function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
     return U, Vᵀ
 end
 
-@inline __is_ill_conditioned(x::Number) = iszero(x)
-@inline __is_ill_conditioned(x::AbstractMatrix) = cond(x) ≥
-                                                  inv(eps(real(eltype(x)))^(1 // 2))
-@inline __is_ill_conditioned(x::AbstractVector) = any(iszero, x)
-@inline __is_ill_conditioned(x) = false
-
 # Non-square matrix
 @inline __needs_square_A(_, ::Number) = true
 @inline __needs_square_A(alg, _) = LinearSolve.needs_square_A(alg.linsolve)

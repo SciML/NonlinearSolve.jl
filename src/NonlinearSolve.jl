@@ -151,19 +151,17 @@ include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
 
-# include("globalization/damping.jl")
 include("globalization/line_search.jl")
 # include("globalization/trust_region.jl")
 
-# include("core/approximate_jacobian.jl")
+include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
-# include("core/newton.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/pseudo_transient.jl")
 # include("algorithms/broyden.jl")
-# include("algorithms/klement.jl")
+include("algorithms/klement.jl")
 
 include("utils.jl")
 include("default.jl")
@@ -172,11 +170,8 @@ include("default.jl")
 # include("extension_algs.jl")
 # include("trustRegion.jl")
 # include("levenberg.jl")
-# include("gaussnewton.jl")
 # include("dfsane.jl")
-# include("pseudotransient.jl")
 # include("broyden.jl")
-# include("klement.jl")
 # include("lbroyden.jl")
 # include("ad.jl")
 # include("default.jl")
@@ -232,24 +227,26 @@ include("default.jl")
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent
 
 # Core Algorithms -- Mostly Wrappers
-export NewtonRaphson, PseudoTransient
+export NewtonRaphson, PseudoTransient, Klement, Broyden
 export GaussNewton
 
 # Extension Algorithms
 
 # Advanced Algorithms -- Without Bells and Whistles
-export GeneralizedFirstOrderRootFindingAlgorithm
+export GeneralizedFirstOrderRootFindingAlgorithm, ApproximateJacobianSolveAlgorithm
 
 # Line Search Algorithms
 export LineSearchesJL, NoLineSearch
 
 # Algorithm Specific Exports
-export SwitchedEvolutionRelaxation
+export SwitchedEvolutionRelaxation                        # PseudoTransient
+export TrueJacobianInitialization, IdentityInitialization # Quasi Newton Methods
+export DiagonalStructure, FullStructure                   # Quasi Newton Methods
 
 # export RadiusUpdateSchemes
 
 # export TrustRegion, LevenbergMarquardt, DFSane,
-#     Broyden, Klement, LimitedMemoryBroyden
+#     Broyden, LimitedMemoryBroyden
 # export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
 #     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 # export NonlinearSolvePolyAlgorithm,

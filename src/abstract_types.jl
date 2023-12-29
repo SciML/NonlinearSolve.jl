@@ -125,3 +125,24 @@ NonlinearSolve.jl houses a few custom operators. These will eventually be moved 
 then this serves as the abstract type for them.
 """
 abstract type AbstractNonlinearSolveOperator{T} <: SciMLBase.AbstractSciMLOperator{T} end
+
+# Approximate Jacobian Algorithms
+
+abstract type AbstractApproximateJacobianStructure end
+
+stores_full_jacobian(::AbstractApproximateJacobianStructure) = false
+function get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
+    stores_full_jacobian(alg) && return J
+    error("This algorithm does not store the full Jacobian. Define `get_full_jacobian` for \
+           this algorithm.")
+end
+
+abstract type AbstractJacobianInitialization end
+
+abstract type AbstractApproximateJacobianUpdateRule{INV} end
+
+store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV} = INV
+
+abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
+
+store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where {INV} = INV

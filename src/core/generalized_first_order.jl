@@ -124,13 +124,12 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
 
     if GB === :LineSearch
         δu = solve!(cache.descent_cache, ifelse(new_jacobian, J, nothing), cache.fu)
-        α = solve!(cache.linesearch_cache, cache.u, δu)
+        needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
         @bb axpy!(α, δu, cache.u)
     elseif GB === :TrustRegion
         error("Trust Region not implemented yet!")
-        α = true
     else
-        error("Unknown Globalization Strategy: $(GB). Possible values are (:LineSearch, \
+        error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
                :TrustRegion)")
     end
 

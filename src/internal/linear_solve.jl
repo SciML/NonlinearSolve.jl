@@ -21,6 +21,9 @@ end
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
     return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
 end
+@inline function LinearSolverCache(alg, linsolve, A::Diagonal, b, u; kwargs...)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
+end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     @bb b_ = copy(b)
     @bb u_ = copy(u)
@@ -43,27 +46,32 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 end
 
 # Direct Linear Solve Case without Caching
-function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, kwargs...)
+function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = nothing,
+        kwargs...)
     time_start = time()
     cache.nsolve += 1
     cache.nfactors += 1
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
-    res = cache.A \ cache.b
+    if A isa Diagonal
+        @bb @. linu = cache.b / cache.A.diag
+        res = linu
+    else
+        res = cache.A \ cache.b
+    end
     cache.total_time += time() - time_start
     return res
 end
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
-        du = nothing,
-        p = nothing, weight = nothing, cachedata = nothing,
+        du = nothing, p = nothing, weight = nothing, cachedata = nothing,
         reuse_A_if_factorization = Val(false), kwargs...)
     time_start = time()
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
-    b === nothing || (cache.lincache.b = b)
-    linu === nothing || (cache.lincache.u = linu)
+    b !== nothing && (cache.lincache.b = b)
+    linu !== nothing && (cache.lincache.u = linu)
 
     Plprev = cache.lincache.Pl isa ComposePreconditioner ? cache.lincache.Pl.outer :
              cache.lincache.Pl

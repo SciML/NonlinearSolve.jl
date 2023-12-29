@@ -63,7 +63,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu;
     end
     D = solve!(cache.damping_fn_cache, J, fu)
     J_ = __dampen_jacobian!!(cache.J, J, D)
-    δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., du = _vec(cache.δu))
+    δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., linu = _vec(cache.δu))
     cache.δu = _restructure(cache.δu, δu)
     @bb @. cache.δu *= -1
     return cache.δu

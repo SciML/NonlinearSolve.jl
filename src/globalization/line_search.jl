@@ -14,7 +14,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F,
     return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
 end
 
-SciMLBase.solve!(cache::NoLineSearchCache, u, du) = cache.α
+SciMLBase.solve!(cache::NoLineSearchCache, u, du) = false, cache.α
 
 """
     LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
@@ -126,12 +126,12 @@ function SciMLBase.solve!(cache::LineSearchesJLCache, u, du)
 
     # Here we should be resetting the search direction for some algorithms especially
     # if we start mixing in jacobian reuse and such
-    dϕ₀ ≥ 0 && return one(eltype(u))
+    dϕ₀ ≥ 0 && return (false, one(eltype(u)))
 
     # We can technically reduce 1 axpy by reusing the returned value from cache.method
     # but it's not worth the extra complexity
     cache.alpha = first(cache.method(ϕ, dϕ, ϕdϕ, cache.alpha, ϕ₀, dϕ₀))
-    return cache.alpha
+    return (true, cache.alpha)
 end
 
 # """

@@ -71,7 +71,8 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu;
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb cache.δu = J × vec(fu)
     else
-        δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., du = _vec(cache.δu))
+        δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(cache.δu),
+            du = _vec(cache.δu))
         cache.δu = _restructure(cache.δu, δu)
     end
     @bb @. cache.δu *= -1
@@ -84,7 +85,7 @@ function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu;
     @bb cache.JᵀJ_cache = transpose(J) × J
     @bb cache.Jᵀfu_cache = transpose(J) × fu
     δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
-        kwargs..., du = _vec(cache.δu))
+        kwargs..., linu = _vec(cache.δu), du = _vec(cache.δu))
     cache.δu = _restructure(cache.δu, δu)
     @bb @. cache.δu *= -1
     return cache.δu
