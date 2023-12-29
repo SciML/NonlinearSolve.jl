@@ -146,3 +146,5 @@ store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV}
 abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
 
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where {INV} = INV
+
+abstract type AbstractResetCondition end

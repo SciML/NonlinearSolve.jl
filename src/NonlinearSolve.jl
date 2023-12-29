@@ -160,8 +160,9 @@ include("core/generalized_first_order.jl")
 include("algorithms/raphson.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/pseudo_transient.jl")
-# include("algorithms/broyden.jl")
+include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
+include("algorithms/lbroyden.jl")
 
 include("utils.jl")
 include("default.jl")
@@ -171,7 +172,6 @@ include("default.jl")
 # include("trustRegion.jl")
 # include("levenberg.jl")
 # include("dfsane.jl")
-# include("broyden.jl")
 # include("lbroyden.jl")
 # include("ad.jl")
 # include("default.jl")
@@ -242,6 +242,9 @@ export LineSearchesJL, NoLineSearch
 export SwitchedEvolutionRelaxation                        # PseudoTransient
 export TrueJacobianInitialization, IdentityInitialization # Quasi Newton Methods
 export DiagonalStructure, FullStructure                   # Quasi Newton Methods
+export GoodBroydenUpdateRule, BadBroydenUpdateRule        # Broyden
+export KlementUpdateRule                                  # Klement
+export NoChangeInStateReset, IllConditionedJacobianReset  # Reset Conditions
 
 # export RadiusUpdateSchemes
 

@@ -59,17 +59,36 @@ function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
                              or `:true_jacobian_diagonal`"))
     end
 
-    return ApproximateJacobianSolveAlgorithm{true, :Klement}(linesearch,
-        NewtonDescent(; linsolve, precs), KlementUpdateRule(), klement_reset_condition,
-        UInt(max_resets), initialization)
+    CJ = IJ === :true_jacobian || IJ === :true_jacobian_diagonal
+
+    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(linesearch,
+        NewtonDescent(; linsolve, precs), KlementUpdateRule(),
+        IllConditionedJacobianReset(), UInt(max_resets), initialization)
 end
 
 # Essentially checks ill conditioned Jacobian
-klement_reset_condition(J) = false
-klement_reset_condition(J::Number) = iszero(J)
-klement_reset_condition(J::AbstractMatrix) = cond(J) ≥ inv(eps(real(eltype(J)))^(1 // 2))
-klement_reset_condition(J::AbstractVector) = any(iszero, J)
-klement_reset_condition(J::Diagonal) = any(iszero, diag(J))
+struct IllConditionedJacobianReset <: AbstractResetCondition end
+
+@concrete struct IllConditionedJacobianResetCache
+    condition_number_threshold
+end
+
+function SciMLBase.init(alg::IllConditionedJacobianReset, J, fu, u, du, args...; kwargs...)
+    condition_number_threshold = if J isa AbstractMatrix
+        inv(eps(real(eltype(J)))^(1 // 2))
+    else
+        nothing
+    end
+    return IllConditionedJacobianResetCache(condition_number_threshold)
+end
+
+function SciMLBase.solve!(cache::IllConditionedJacobianResetCache, J, fu, u, du)
+    J isa Number && return iszero(J)
+    J isa Diagonal && return any(iszero, diag(J))
+    J isa AbstractMatrix && return cond(J) ≥ cache.condition_number_threshold
+    J isa AbstractVector && return any(iszero, J)
+    return false
+end
 
 # Update Rule
 @concrete struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule{false} end

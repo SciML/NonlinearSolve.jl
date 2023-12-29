@@ -30,7 +30,7 @@ end
     linesearch_cache
     trustregion_cache
     update_rule_cache
-    reinit_rule
+    reinit_rule_cache
 
     inv_workspace
 
@@ -95,8 +95,10 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
     J = initialization_cache(nothing)
     inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
     descent_cache = init(prob, alg.descent, J, fu, u; abstol, reltol, internalnorm,
-        linsolve_kwargs, preinverted = Val(INV))
+        linsolve_kwargs, pre_inverted = Val(INV))
     du = get_du(descent_cache)
+
+    reinit_rule_cache = init(alg.reinit_rule, J, fu, u, du)
 
     # if alg.trust_region !== missing && alg.linesearch !== missing
     #     error("TrustRegion and LineSearch methods are algorithmically incompatible.")
@@ -119,14 +121,14 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         GB = :LineSearch
     end
 
-    update_rule_cache = init(prob, alg.update_rule, J, fu, u, du)
+    update_rule_cache = init(prob, alg.update_rule, J, fu, u, du; internalnorm)
 
     trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
         uses_jacobian_inverse = Val(INV), kwargs...)
 
     cache = ApproximateJacobianSolveCache{INV, GB, iip}(fu, u, u_cache, p, du, J, alg, prob,
         initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
-        update_rule_cache, alg.reinit_rule, inv_workspace, UInt(0), UInt(0), UInt(0),
+        update_rule_cache, reinit_rule_cache, inv_workspace, UInt(0), UInt(0), UInt(0),
         UInt(alg.max_resets), UInt(maxiters), 0.0, 0.0, termination_cache, trace,
         ReturnCode.Default, false)
 
@@ -145,7 +147,7 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     else
         if recompute_jacobian === nothing
             # Standard Step
-            reinit = cache.reinit_rule(cache.J)
+            reinit = solve!(cache.reinit_rule_cache, cache.J, cache.fu, cache.u, cache.du)
             if reinit
                 cache.nresets += 1
                 if cache.nresets ≥ cache.max_resets
