@@ -143,11 +143,21 @@ Wrapper Cache over LinearSolve.jl Caches.
 abstract type AbstractLinearSolverCache <: Function end
 
 """
-    AbstractDampingFunction <: Function
+    AbstractDampingFunction
 
 Abstract Type for Damping Functions in DampedNewton.
 """
-abstract type AbstractDampingFunction <: Function end
+abstract type AbstractDampingFunction end
+
+"""
+    AbstractDampingFunctionCache
+
+Abstract Type for the Caches created by AbstractDampingFunctions
+"""
+abstract type AbstractDampingFunctionCache end
+
+function requires_normal_form_jacobian end
+function requires_normal_form_rhs end
 
 """
     AbstractNonlinearSolveOperator <: SciMLBase.AbstractSciMLOperator
@@ -179,3 +189,5 @@ abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where {INV} = INV
 
 abstract type AbstractResetCondition end
+
+abstract type AbstractTrustRegionMethod end

@@ -57,11 +57,17 @@ end
 
 struct SwitchedEvolutionRelaxation <: AbstractDampingFunction end
 
-@concrete mutable struct SwitchedEvolutionRelaxationCache <: AbstractDampingFunction
+requires_normal_form_jacobian(cache::SwitchedEvolutionRelaxation) = false
+requires_normal_form_rhs(cache::SwitchedEvolutionRelaxation) = false
+
+@concrete mutable struct SwitchedEvolutionRelaxationCache <: AbstractDampingFunctionCache
     res_norm
     α
     internalnorm
 end
+
+requires_normal_form_jacobian(cache::SwitchedEvolutionRelaxationCache) = false
+requires_normal_form_rhs(cache::SwitchedEvolutionRelaxationCache) = false
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
         initial_damping, J, fu, u, args...; internalnorm::F = DEFAULT_NORM,

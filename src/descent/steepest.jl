@@ -32,6 +32,10 @@ end
 
 supports_line_search(::SteepestDescent) = true
 
+function callback_into_cache!(cache, internalcache::SteepestDescentCache, args...)
+    callback_into_cache!(cache, internalcache.lincache, internalcache, args...)
+end
+
 @inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
         u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, kwargs...) where {INV, N}

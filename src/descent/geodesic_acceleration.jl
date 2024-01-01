@@ -36,6 +36,10 @@ supports_trust_region(::GeodesicAcceleration) = true
     u_cache
 end
 
+function callback_into_cache!(cache, internalcache::GeodesicAccelerationCache, args...)
+    callback_into_cache!(cache, internalcache.descent_cache, internalcache, args...)
+end
+
 get_velocity(cache::GeodesicAccelerationCache) = get_du(cache.descent_cache, Val(1))
 function set_velocity!(cache::GeodesicAccelerationCache, δv)
     set_du!(cache.descent_cache, δv, Val(1))

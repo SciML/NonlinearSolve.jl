@@ -191,10 +191,22 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
 
     @bb copyto!(cache.u_cache, cache.u)
 
-    (cache.force_stop || (recompute_jacobian !== nothing && !recompute_jacobian)) &&
+    if (cache.force_stop || (recompute_jacobian !== nothing && !recompute_jacobian))
+        callback_into_cache!(cache)
         return nothing
+    end
 
     cache.J = solve!(cache.update_rule_cache, cache.J, cache.fu, cache.u, δu)
+    callback_into_cache!(cache)
 
     return nothing
+end
+
+function callback_into_cache!(cache::ApproximateJacobianSolveCache)
+    callback_into_cache!(cache, cache.initialization_cache)
+    callback_into_cache!(cache, cache.descent_cache)
+    callback_into_cache!(cache, cache.linesearch_cache)
+    callback_into_cache!(cache, cache.trustregion_cache)
+    callback_into_cache!(cache, cache.update_rule_cache)
+    callback_into_cache!(cache, cache.reinit_rule_cache)
 end

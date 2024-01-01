@@ -35,6 +35,10 @@ supports_line_search(::NewtonDescent) = true
     Jᵀfu_cache
 end
 
+function callback_into_cache!(cache, internalcache::NewtonDescentCache, args...)
+    callback_into_cache!(cache, internalcache.lincache, internalcache, args...)
+end
+
 function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, kwargs...) where {INV, N}

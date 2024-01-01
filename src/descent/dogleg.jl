@@ -26,8 +26,17 @@ end
 
 supports_trust_region(::Dogleg) = true
 
-function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, kwargs...)
-    return Dogleg(NewtonDescent(; linsolve, precs), SteepestDescent(; linsolve, precs))
+function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
+        damping_fn = missing, initial_damping = missing, kwargs...)
+    if damping === False
+        return Dogleg(NewtonDescent(; linsolve, precs), SteepestDescent(; linsolve, precs))
+    end
+    if damping_fn === missing || initial_damping === missing
+        throw(ArgumentError("`damping_fn` and `initial_damping` must be supplied if \
+                             `damping = Val(true)`."))
+    end
+    return Dogleg(DampedNewtonDescent(; linsolve, precs, damping_fn, initial_damping),
+        SteepestDescent(; linsolve, precs))
 end
 
 @concrete mutable struct DoglegCache{pre_inverted, normalform,

@@ -110,3 +110,15 @@ function get_concrete_reverse_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
     end
     return ad
 end
+
+# Callbacks
+"""
+    callback_into_cache!(cache, internalcache, args...)
+
+Define custom operations on `internalcache` tightly coupled with the calling `cache`.
+`args...` contain the sequence of caches calling into `internalcache`.
+
+This unfortunately makes code very tightly coupled and not modular. It is recommended to not
+use this functionality unless it can't be avoided (like in [`LevenbergMarquardt`](@ref)).
+"""
+@inline callback_into_cache!(cache, internalcache, args...) = nothing  # By default do nothing

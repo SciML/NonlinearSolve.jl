@@ -113,11 +113,10 @@ end
 
 function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip, GB}
-    # TODO: Use `make_new_jacobian`
-    if recompute_jacobian === nothing || recompute_jacobian # Standard Step
+    if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
         J = cache.jac_cache(cache.u)
         new_jacobian = true
-    else # Don't recompute Jacobian
+    else
         J = cache.jac_cache(nothing)
         new_jacobian = false
     end
@@ -140,5 +139,15 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
+
+    callback_into_cache!(cache)
+
     return nothing
+end
+
+function callback_into_cache!(cache::GeneralizedFirstOrderRootFindingCache)
+    callback_into_cache!(cache, cache.jac_cache)
+    callback_into_cache!(cache, cache.descent_cache)
+    callback_into_cache!(cache, cache.linesearch_cache)
+    callback_into_cache!(cache, cache.trustregion_cache)
 end
