@@ -74,7 +74,7 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
         elseif vjp_autodiff isa AutoFiniteDiff
             if iip
                 cache1 = similar(fu)
-                cache2 = similar(u)
+                cache2 = similar(fu)
                 @closure (Jv, v, u, p) -> num_vecjac!(Jv, uf, u, v, cache1, cache2)
             else
                 @closure (v, u, p) -> num_vecjac(uf, u, v)

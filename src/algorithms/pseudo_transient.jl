@@ -40,25 +40,19 @@ damping value.
 ### References
 
 [1] Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient
-    Continuation and Differential-Algebraic Equations, SIAM Journal on Scientific Computing,
-    25, 553-569. https://doi.org/10.1137/S106482750241044X
+Continuation and Differential-Algebraic Equations, SIAM Journal on Scientific Computing,
+25, 553-569. https://doi.org/10.1137/S106482750241044X
 """
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),
         precs = DEFAULT_PRECS, autodiff = nothing, alpha_initial = 1e-3)
     descent = DampedNewtonDescent(; linsolve, precs, initial_damping = alpha_initial,
         damping_fn = SwitchedEvolutionRelaxation())
-    forward_ad = ifelse(autodiff isa ADTypes.AbstractForwardMode, autodiff, nothing)
-    reverse_ad = ifelse(autodiff isa ADTypes.AbstractReverseMode, autodiff, nothing)
-
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, :PseudoTransient}(linesearch,
-        descent, autodiff, forward_ad, reverse_ad)
+    return GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac,
+        name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)
 end
 
 struct SwitchedEvolutionRelaxation <: AbstractDampingFunction end
-
-requires_normal_form_jacobian(cache::SwitchedEvolutionRelaxation) = false
-requires_normal_form_rhs(cache::SwitchedEvolutionRelaxation) = false
 
 @concrete mutable struct SwitchedEvolutionRelaxationCache <: AbstractDampingFunctionCache
     res_norm
@@ -66,8 +60,14 @@ requires_normal_form_rhs(cache::SwitchedEvolutionRelaxation) = false
     internalnorm
 end
 
-requires_normal_form_jacobian(cache::SwitchedEvolutionRelaxationCache) = false
-requires_normal_form_rhs(cache::SwitchedEvolutionRelaxationCache) = false
+function requires_normal_form_jacobian(cache::Union{SwitchedEvolutionRelaxation,
+        SwitchedEvolutionRelaxationCache})
+    return false
+end
+function requires_normal_form_rhs(cache::Union{SwitchedEvolutionRelaxation,
+        SwitchedEvolutionRelaxationCache})
+    return false
+end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
         initial_damping, J, fu, u, args...; internalnorm::F = DEFAULT_NORM,

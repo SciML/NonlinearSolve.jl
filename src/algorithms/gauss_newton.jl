@@ -37,16 +37,6 @@ for large-scale and numerically-difficult nonlinear least squares problems.
 function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
         linesearch = NoLineSearch(), vjp_autodiff = nothing, autodiff = nothing)
     descent = NewtonDescent(; linsolve, precs)
-
-    if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
-        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.", :GaussNewton)
-        linesearch = LineSearchesJL(; method = linesearch)
-    end
-
-    forward_ad = ifelse(autodiff isa ADTypes.AbstractForwardMode, autodiff, nothing)
-    reverse_ad = vjp_autodiff
-
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, :GaussNewton}(linesearch,
-        descent, autodiff, forward_ad, reverse_ad)
+    return GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac, name = :GaussNewton,
+        descent, jacobian_ad = autodiff, reverse_ad = vjp_autodiff)
 end

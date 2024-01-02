@@ -93,10 +93,10 @@ abstract type AbstractDescentCache end
 
 SciMLBase.get_du(cache) = cache.δu
 SciMLBase.get_du(cache, ::Val{1}) = get_du(cache)
-SciMLBase.get_du(cache, ::Val{N}) where {N} = cache.δus[N]
+SciMLBase.get_du(cache, ::Val{N}) where {N} = cache.δus[N - 1]
 set_du!(cache, δu) = (cache.δu = δu)
 set_du!(cache, δu, ::Val{1}) = set_du!(cache, δu)
-set_du!(cache, δu, ::Val{N}) where {N} = (cache.δus[N] = δu)
+set_du!(cache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
 
 """
     AbstractNonlinearSolveLineSearchAlgorithm
@@ -191,3 +191,9 @@ store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where 
 abstract type AbstractResetCondition end
 
 abstract type AbstractTrustRegionMethod end
+
+abstract type AbstractTrustRegionMethodCache end
+
+function last_step_accepted(cache::AbstractTrustRegionMethodCache)
+    return cache.last_step_accepted
+end

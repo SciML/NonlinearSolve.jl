@@ -9,49 +9,39 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
 @recompile_invalidations begin
     using ADTypes, DiffEqBase, LazyArrays, LineSearches, LinearAlgebra, LinearSolve, Printf,
-        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, StaticArrays
+        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, SumTypes
 
-    import ADTypes: AbstractFiniteDifferencesMode
-    import ArrayInterface: undefmatrix, restructure, can_setindex, restructure,
-        matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
+    import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import ConcreteStructs: @concrete
-    import EnumX: @enumx
+    import DiffEqBase: AbstractNonlinearTerminationMode,
+        AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
+        NonlinearSafeTerminationReturnCode, get_termination_mode
+    import EnumX: @enumx  # Remove after deprecation period in v4
     import FastBroadcast: @..
     import FastClosures: @closure
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-    import MaybeInplace: setindex_trait, @bb, CanSetindex, CannotSetindex
-    import RecursiveArrayTools: ArrayPartition,
-        AbstractVectorOfArray, recursivecopy!, recursivefill!
-    import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
-    import SciMLOperators: FunctionOperator
-    import StaticArrays: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
-    import UnPack: @unpack
+    import MaybeInplace: @bb
+    import RecursiveArrayTools: recursivecopy!, recursivefill!
+
+    import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
+        AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
+    import SparseDiffTools: AbstractSparsityDetection
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
-import DiffEqBase: AbstractNonlinearTerminationMode,
-    AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-    NonlinearSafeTerminationReturnCode, get_termination_mode
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
-
-import SciMLBase: JacobianWrapper, AbstractNonlinearProblem
-
-import SparseDiffTools: AbstractSparsityDetection
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
 
 const True = Val(true)
 const False = Val(false)
-
-# abstract type AbstractNonlinearSolveLineSearchAlgorithm end
-
-# abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
 
 # function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
 #         p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
@@ -131,11 +121,6 @@ const False = Val(false)
 
 # __alg_print_modifiers(_) = String[]
 
-# get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
-# set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
-# get_u(cache::AbstractNonlinearSolveCache) = cache.u
-# SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
-
 include("abstract_types.jl")
 
 include("descent/newton.jl")
@@ -154,7 +139,7 @@ include("internal/tracing.jl")
 include("internal/approx_initialization.jl")
 
 include("globalization/line_search.jl")
-# include("globalization/trust_region.jl")
+include("globalization/trust_region.jl")
 
 include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
@@ -167,6 +152,7 @@ include("algorithms/klement.jl")
 
 # include("algorithms/dfsane.jl")
 
+include("algorithms/gradient_descent.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 # include("algorithms/newton_trust_region.jl")
@@ -236,7 +222,7 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
 
 # Core Algorithms -- Mostly Wrappers
 export NewtonRaphson, PseudoTransient, Klement, Broyden
-export GaussNewton
+export GaussNewton, GradientDescent, LevenbergMarquardt
 
 # Extension Algorithms
 
@@ -248,30 +234,33 @@ export LineSearchesJL, NoLineSearch
 
 # Algorithm Specific Exports
 export SwitchedEvolutionRelaxation                        # PseudoTransient
+export LevenbergMarquardtDampingFunction                  # LevenbergMarquardt
 export TrueJacobianInitialization, IdentityInitialization # Quasi Newton Methods
 export DiagonalStructure, FullStructure                   # Quasi Newton Methods
 export GoodBroydenUpdateRule, BadBroydenUpdateRule        # Broyden
 export KlementUpdateRule                                  # Klement
 export NoChangeInStateReset, IllConditionedJacobianReset  # Reset Conditions
 
+# Trust Region Algorithms
+export LevenbergMarquardtTrustRegion
+
 # export RadiusUpdateSchemes
 
-# export TrustRegion, LevenbergMarquardt, DFSane,
-#     Broyden, LimitedMemoryBroyden
+# export TrustRegion, DFSane, LimitedMemoryBroyden
 # export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
 #     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 # export NonlinearSolvePolyAlgorithm,
 #     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-# export LineSearch, LiFukushimaLineSearch
+# export LiFukushimaLineSearch
 
-# # Export the termination conditions from DiffEqBase
-# export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
-#     NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
-#     AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
-#     RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+# Export the termination conditions from DiffEqBase
+export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
+    NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+    AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+    RelSafeBestTerminationMode, AbsSafeBestTerminationMode
 
-# # Tracing Functionality
-# export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
+# Tracing Functionality
+export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
 
 end # module

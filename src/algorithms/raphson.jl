@@ -33,16 +33,6 @@ for large-scale and numerically-difficult nonlinear systems.
 function NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
         linesearch = NoLineSearch(), precs = DEFAULT_PRECS, autodiff = nothing)
     descent = NewtonDescent(; linsolve, precs)
-
-    if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
-        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.", :NewtonRaphson)
-        linesearch = LineSearchesJL(; method = linesearch)
-    end
-
-    forward_ad = ifelse(autodiff isa ADTypes.AbstractForwardMode, autodiff, nothing)
-    reverse_ad = ifelse(autodiff isa ADTypes.AbstractReverseMode, autodiff, nothing)
-
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, :NewtonRaphson}(linesearch,
-        descent, autodiff, forward_ad, reverse_ad)
+    return GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac, name = :NewtonRaphson,
+        linesearch, descent, jacobian_ad = autodiff)
 end

@@ -11,8 +11,8 @@ for other methods are not theorectically or experimentally verified.
 ### References
 
 [1] Transtrum, Mark K., and James P. Sethna. "Improvements to the Levenberg-Marquardt
-    algorithm for nonlinear least-squares minimization." arXiv preprint arXiv:1201.5885
-    (2012).
+algorithm for nonlinear least-squares minimization." arXiv preprint arXiv:1201.5885
+(2012).
 """
 @concrete struct GeodesicAcceleration <: AbstractDescentAlgorithm
     descent
@@ -73,7 +73,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleratio
     descent_cache = init(prob, alg.descent, J, fu, u; shared = Val(N * 2), pre_inverted,
         linsolve_kwargs, abstol, reltol, kwargs...)
     @bb Jv = similar(fu)
-    @bb fu_cache = similar(fu)
+    @bb fu_cache = copy(fu)
     @bb u_cache = similar(u)
     return GeodesicAccelerationCache(δu, δus, descent_cache, prob.f, prob.p, T(alg.α),
         internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache)
@@ -86,11 +86,13 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u,
     v, _, _ = solve!(cache.descent_cache, J, fu, Val(2N - 1); skip_solve, kwargs...)
 
     @bb @. cache.u_cache = u + cache.h * v
-    evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    @bb cache.Jv = J × vec(v)
+    cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
+
+    J !== nothing && @bb(cache.Jv=J × vec(v))
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
-    a, _, _ = solve!(cache.descent_cache, nothing, cache.fu_cache, Val(2N); skip_solve,
+    # FIXME: Deepcopy, J
+    a, _, _ = solve!(deepcopy(cache.descent_cache), J, cache.fu_cache, Val(2N); skip_solve,
         kwargs...)
 
     norm_v = cache.internalnorm(v)

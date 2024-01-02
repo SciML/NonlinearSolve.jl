@@ -275,7 +275,7 @@ function SciMLBase.__init(prob::Union{NonlinearProblem{uType, iip},
     @bb u_cache_2 = similar(u)
     @bb u_cauchy = similar(u)
     @bb u_gauss_newton = similar(u)
-    J_cache = J isa SciMLOperators.AbstractSciMLOperator ||
+    J_cache = J isa AbstractSciMLOperator ||
               setindex_trait(J) === CannotSetindex() ? J : similar(J)
     @bb lr_mul_cache = similar(du)
 

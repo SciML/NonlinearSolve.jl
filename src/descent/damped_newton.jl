@@ -19,6 +19,7 @@ Based on the formulation we expect the damping factor returned to be a non-negat
 end
 
 supports_line_search(::DampedNewtonDescent) = true
+supports_trust_region(::DampedNewtonDescent) = true
 
 @concrete mutable struct DampedNewtonDescentCache{pre_inverted, ls, normalform} <:
                          AbstractDescentCache
@@ -37,17 +38,19 @@ function callback_into_cache!(cache, internalcache::DampedNewtonDescentCache, ar
     callback_into_cache!(cache, internalcache.damping_fn_cache, internalcache, args...)
 end
 
+# TODO: Damping is not exactly correct for non-normal form
+
 function SciMLBase.init(prob::NonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, alias_J = true, shared::Val{N} = Val(1), kwargs...) where {INV, N}
-    damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u;
+    damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u, False;
         kwargs...)
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
     J_cache = __maybe_unaliased(J, alias_J)
-    D = solve!(damping_fn_cache, J, fu)
+    D = solve!(damping_fn_cache, J, fu, False)
     J_damped = __dampen_jacobian!!(J_cache, J, D)
     lincache = LinearSolverCache(alg, alg.linsolve, J_damped, _vec(fu), _vec(u); abstol,
         reltol, linsolve_kwargs...)
@@ -72,8 +75,8 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDes
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
         damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, jac_damp,
-            rhs_damp, u; kwargs...)
-        D = solve!(damping_fn_cache, jac_damp, rhs_damp)
+            rhs_damp, u, True; kwargs...)
+        D = solve!(damping_fn_cache, jac_damp, rhs_damp, True)
         @bb J_cache = similar(JᵀJ)
         J_damped = __dampen_jacobian!!(J_cache, JᵀJ, D)
         A, b = __maybe_symmetric(J_damped), _vec(Jᵀfu)
@@ -94,12 +97,12 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDes
             rhs_damp = fu
         end
         damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, jac_damp,
-            rhs_damp, u; kwargs...)
-        D = solve!(damping_fn_cache, jac_damp, rhs_damp)
+            rhs_damp, u, False; kwargs...)
+        D = solve!(damping_fn_cache, jac_damp, rhs_damp, False)
         D isa Number && (D = D * I)
         rhs_cache = vcat(_vec(fu), _vec(u))
         J_cache = _vcat(J, D)
-        A, b = J_cache, Jᵀfu
+        A, b = J_cache, rhs_cache
     end
 
     lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
@@ -118,7 +121,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu, u,
     skip_solve && return δu
     if J !== nothing
         INV && (J = inv(J))
-        D = solve!(cache.damping_fn_cache, J, fu)
+        D = solve!(cache.damping_fn_cache, J, fu, False)
         J_ = __dampen_jacobian!!(cache.J, J, D)
     else # Use the old factorization
         J_ = J
@@ -141,11 +144,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form
             INV && (J = inv(J))
             @bb cache.JᵀJ_cache = transpose(J) × J
             @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-            jac_damp = requires_normal_form_jacobian(cache.damping_fn_cache) ?
-                       cache.JᵀJ_cache : J
-            rhs_damp = requires_normal_form_rhs(cache.damping_fn_cache) ? cache.Jᵀfu_cache :
-                       fu
-            D = solve!(cache.damping_fn_cache, jac_damp, frhs_damp, True)
+            D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
             J_ = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
         else
             J_ = cache.JᵀJ_cache
