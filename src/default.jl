@@ -10,7 +10,7 @@ end
 
 function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     while not_terminated(cache)
-        SciMLBase.step!(cache)
+        step!(cache)
         cache.nsteps += 1
     end
 

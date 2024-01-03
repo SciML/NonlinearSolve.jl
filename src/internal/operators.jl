@@ -54,6 +54,7 @@ for op in (:adjoint, :transpose)
     end
 end
 
+# TODO: handle the scalar case
 function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
         vjp_autodiff = nothing, skip_vjp::Val{NoVJP} = False,
         skip_jvp::Val{NoJVP} = False) where {NoVJP, NoJVP}

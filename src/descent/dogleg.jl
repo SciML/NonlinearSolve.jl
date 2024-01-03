@@ -39,13 +39,12 @@ function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
         SteepestDescent(; linsolve, precs))
 end
 
-@concrete mutable struct DoglegCache{pre_inverted, normalform,
-    NC <: NewtonDescentCache{pre_inverted, normalform},
-    CC <: SteepestDescentCache{pre_inverted}} <: AbstractDescentCache
+@concrete mutable struct DoglegCache{pre_inverted, normalform} <:
+                         AbstractDescentCache
     δu
     δus
-    newton_cache::NC
-    cauchy_cache::CC
+    newton_cache
+    cauchy_cache
     internalnorm
     JᵀJ_cache
     δu_cache_1
@@ -57,7 +56,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, internalnorm::F = DEFAULT_NORM, shared::Val{N} = Val(1),
         kwargs...) where {F, INV, N}
-    @warn "Setting `pre_inverted = Val(true)` for `Dogleg` is not recommended." maxlog=1
+    INV &&
+        @warn "Setting `pre_inverted = Val(true)` for `Dogleg` is not recommended." maxlog=1
     newton_cache = SciMLBase.init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     cauchy_cache = SciMLBase.init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
@@ -72,7 +72,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
 
     T = promote_type(eltype(u), eltype(fu))
 
-    normal_form = __needs_square_A(alg.linsolve, u)
+    normal_form = __needs_square_A(alg.newton_descent.linsolve, u)
     JᵀJ_cache = !normal_form ? transpose(J) * J : nothing
 
     return DoglegCache{INV, normal_form}(δu, δus, newton_cache, cauchy_cache, internalnorm,
@@ -82,11 +82,12 @@ end
 # If TrustRegion is not specified, then use a Gauss-Newton step
 function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = Val(1);
         trust_region = nothing, skip_solve::Bool = false, kwargs...) where {INV, NF, N}
-    @assert trust_region===nothing "Trust Region must be specified for Dogleg. Use \
+    @assert trust_region!==nothing "Trust Region must be specified for Dogleg. Use \
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
-    δu_newton = solve!(cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
+    # FIXME: Use the returned stats
+    δu_newton, _, _ = solve!(cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
@@ -102,7 +103,7 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
         JᵀJ = cache.newton_cache.JᵀJ_cache
         @bb @. δu_cauchy *= -1
     else
-        δu_cauchy = solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
+        δu_cauchy, _, _ = solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
         if !skip_solve
             J_ = INV ? inv(J) : J
             @bb cache.JᵀJ_cache = transpose(J_) × J_

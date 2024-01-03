@@ -11,16 +11,22 @@ end
 function GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac = nothing,
         name::Symbol = :unknown, linesearch = missing, trustregion = missing,
         descent, jacobian_ad = nothing, forward_ad = nothing, reverse_ad = nothing)
-    forward_ad = forward_ad === nothing ?
-                 (jacobian_ad isa ADTypes.AbstractForwardMode ? jacobian_ad : nothing) :
-                 forward_ad
-    reverse_ad = reverse_ad === nothing ?
-                 (jacobian_ad isa ADTypes.AbstractReverseMode ? jacobian_ad : nothing) :
-                 reverse_ad
+    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; linesearch,
+        trustregion, descent, jacobian_ad, forward_ad, reverse_ad)
+end
+
+function GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; descent,
+        linesearch = missing, trustregion = missing, jacobian_ad = nothing,
+        forward_ad = nothing, reverse_ad = nothing) where {concrete_jac, name}
+    forward_ad = ifelse(forward_ad !== nothing, forward_ad,
+        ifelse(jacobian_ad isa ADTypes.AbstractForwardMode, jacobian_ad, nothing))
+    reverse_ad = ifelse(reverse_ad !== nothing, reverse_ad,
+        ifelse(jacobian_ad isa ADTypes.AbstractReverseMode, jacobian_ad, nothing))
 
     if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.", :NewtonRaphson)
+                      Please use `LineSearchesJL` instead.",
+            :GeneralizedFirstOrderRootFindingAlgorithm)
         linesearch = LineSearchesJL(; method = linesearch)
     end
 
@@ -143,9 +149,17 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
         new_jacobian = false
     end
 
-    δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-        ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
+    if cache.trustregion_cache !== nothing &&
+       hasfield(typeof(cache.trustregion_cache), :trust_region)
+        δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            ifelse(new_jacobian, J, nothing), cache.fu, cache.u;
+            trust_region = cache.trustregion_cache.trust_region)
+    else
+        δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
+    end
 
+    # TODO: Shrink counter termination for trust region methods
     if descent_success
         cache.make_new_jacobian = true
         if GB === :LineSearch
@@ -153,8 +167,8 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
             @bb axpy!(α, δu, cache.u)
             evaluate_f!(cache, cache.u, cache.p)
         elseif GB === :TrustRegion
-            tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, cache.u, δu,
-                descent_intermediates)
+            tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
+                cache.u, δu, descent_intermediates)
             if tr_accepted
                 @bb copyto!(cache.u, u_new)
                 @bb copyto!(cache.fu, fu_new)

@@ -16,7 +16,6 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode
-    import EnumX: @enumx  # Remove after deprecation period in v4
     import FastBroadcast: @..
     import FastClosures: @closure
     import FiniteDiff
@@ -155,7 +154,7 @@ include("algorithms/klement.jl")
 include("algorithms/gradient_descent.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
-# include("algorithms/newton_trust_region.jl")
+include("algorithms/trust_region.jl")
 
 include("utils.jl")
 include("default.jl")
@@ -216,43 +215,30 @@ include("default.jl")
 #     end
 # end
 
-# Descent Algorithms
-export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
-    GeodesicAcceleration
 
-# Core Algorithms -- Mostly Wrappers
+# Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden
-export GaussNewton, GradientDescent, LevenbergMarquardt
+export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
+# export DFSane, LimitedMemoryBroyden
+# export NonlinearSolvePolyAlgorithm,
+#     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-# Extension Algorithms
+## Extension Algorithms
+# export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
+#     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderRootFindingAlgorithm, ApproximateJacobianSolveAlgorithm
 
-# Line Search Algorithms
-export LineSearchesJL, NoLineSearch
+# Descent Algorithms
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
+    GeodesicAcceleration
 
-# Algorithm Specific Exports
-export SwitchedEvolutionRelaxation                        # PseudoTransient
-export LevenbergMarquardtDampingFunction                  # LevenbergMarquardt
-export TrueJacobianInitialization, IdentityInitialization # Quasi Newton Methods
-export DiagonalStructure, FullStructure                   # Quasi Newton Methods
-export GoodBroydenUpdateRule, BadBroydenUpdateRule        # Broyden
-export KlementUpdateRule                                  # Klement
-export NoChangeInStateReset, IllConditionedJacobianReset  # Reset Conditions
-
-# Trust Region Algorithms
-export LevenbergMarquardtTrustRegion
-
-# export RadiusUpdateSchemes
-
-# export TrustRegion, DFSane, LimitedMemoryBroyden
-# export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
-#     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
-# export NonlinearSolvePolyAlgorithm,
-#     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
-
-# export LiFukushimaLineSearch
+# Globalization
+## Line Search Algorithms
+export LineSearchesJL, NoLineSearch # LiFukushimaLineSearch
+## Trust Region Algorithms
+export LevenbergMarquardtTrustRegion, RadiusUpdateSchemes
 
 # Export the termination conditions from DiffEqBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
