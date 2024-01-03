@@ -9,18 +9,6 @@ solves. It is recommended to use `Broyden` for most problems over this.
 ## Keyword Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
-
-  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
-    LinearSolve.jl default algorithm choice. For more information on available algorithm
-    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@ref),
-    which means that no line search is performed.  Algorithms from `LineSearches.jl` must be
-    wrapped in `LineSearchesJL` before being supplied.
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
     inverse is set to be `αI`. Defaults to `1`. Can be set to `nothing` which implies
     `α = max(norm(u), 1) / (2 * norm(fu))`.
@@ -33,10 +21,6 @@ solves. It is recommended to use `Broyden` for most problems over this.
         reliable convergence.
       + `Val(:true_jacobian_diagonal)`: Diagonal of True Jacobian. This is a good choice for
         differentiable problems.
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `nothing` which means that a default is selected according to the problem specification!
-    Valid choices are types from ADTypes.jl. (Used if `init_jacobian = Val(:true_jacobian)`)
 """
 function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
         linesearch = NoLineSearch(), precs = DEFAULT_PRECS,
@@ -61,9 +45,9 @@ function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
 
     CJ = IJ === :true_jacobian || IJ === :true_jacobian_diagonal
 
-    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(linesearch,
-        NewtonDescent(; linsolve, precs), KlementUpdateRule(),
-        IllConditionedJacobianReset(), UInt(max_resets), initialization)
+    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(; linesearch,
+        descent = NewtonDescent(; linsolve, precs), update_rule = KlementUpdateRule(),
+        reinit_rule = IllConditionedJacobianReset(), max_resets, initialization)
 end
 
 # Essentially checks ill conditioned Jacobian

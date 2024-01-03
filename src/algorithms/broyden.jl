@@ -7,14 +7,8 @@ An implementation of `Broyden` with resetting and line search.
 ## Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
-
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
     `sqrt(eps(real(eltype(u))))`.
-  - `linesearch`: the line search algorithm to use. Defaults to [`LineSearch()`](@ref),
-    which means that no line search is performed. Algorithms from `LineSearches.jl` can be
-    used here directly, and they will be converted to the correct `LineSearch`. It is
-    recommended to use [`LiFukushimaLineSearch`](@ref) -- a derivative free linesearch
-    specifically designed for Broyden's method.
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
     inverse is set to be `(αI)⁻¹`. Defaults to `nothing` which implies
     `α = max(norm(u), 1) / (2 * norm(fu))`.
@@ -24,10 +18,6 @@ An implementation of `Broyden` with resetting and line search.
       + `Val(:identity)`: Identity Matrix.
       + `Val(:true_jacobian)`: True Jacobian. This is a good choice for differentiable
         problems.
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `nothing` which means that a default is selected according to the problem specification!
-    Valid choices are types from ADTypes.jl. (Used if `init_jacobian = Val(:true_jacobian)`)
   - `update_rule`: Update Rule for the Jacobian. Choices are:
 
       + `Val(:good_broyden)`: Good Broyden's Update Rule
@@ -39,12 +29,6 @@ An implementation of `Broyden` with resetting and line search.
 function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing, alpha = nothing,
         update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
-    if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
-        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.", :Broyden)
-        linesearch = LineSearchesJL(; method = linesearch)
-    end
-
     # TODO: Support alpha
     if IJ === :identity
         if UR === :diagonal
@@ -70,10 +54,9 @@ function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_toleranc
                              or `:diagonal`"))
     end
 
-    CJ = IJ === :true_jacobian
-    return ApproximateJacobianSolveAlgorithm{CJ, :Broyden}(linesearch, NewtonDescent(),
-        update_rule, NoChangeInStateReset(; reset_tolerance), UInt(max_resets),
-        initialization)
+    return ApproximateJacobianSolveAlgorithm{IJ === :true_jacobian, :Broyden}(; linesearch,
+        descent = NewtonDescent(), update_rule, max_resets, initialization,
+        reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 # Essentially checks ill conditioned Jacobian

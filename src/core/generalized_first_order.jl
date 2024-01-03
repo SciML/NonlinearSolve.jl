@@ -9,10 +9,8 @@
 end
 
 function GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac = nothing,
-        name::Symbol = :unknown, linesearch = missing, trustregion = missing,
-        descent, jacobian_ad = nothing, forward_ad = nothing, reverse_ad = nothing)
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; linesearch,
-        trustregion, descent, jacobian_ad, forward_ad, reverse_ad)
+        name::Symbol = :unknown, kwargs...)
+    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; kwargs...)
 end
 
 function GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; descent,

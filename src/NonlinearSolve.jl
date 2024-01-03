@@ -161,10 +161,6 @@ include("default.jl")
 
 # include("function_wrappers.jl")
 # include("extension_algs.jl")
-# include("trustRegion.jl")
-# include("levenberg.jl")
-# include("dfsane.jl")
-# include("lbroyden.jl")
 # include("ad.jl")
 # include("default.jl")
 

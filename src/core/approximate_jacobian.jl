@@ -1,13 +1,24 @@
-# TODO: Trust Region
-# TODO: alpha_scaling
 @concrete struct ApproximateJacobianSolveAlgorithm{concrete_jac, name} <:
                  AbstractNonlinearSolveAlgorithm{name}
     linesearch
+    trustregion
     descent
     update_rule
     reinit_rule
     max_resets::UInt
     initialization
+end
+
+function ApproximateJacobianSolveAlgorithm(; concrete_jac = nothing,
+        name::Symbol = :unknown, kwargs...)
+    return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; kwargs...)
+end
+
+function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = missing,
+        trustregion = missing, descent, update_rule, reinit_rule, initialization,
+        max_resets = typemax(UInt)) where {concrete_jac, name}
+    return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(linesearch, trustregion,
+        descent, update_rule, reinit_rule, UInt(max_resets), initialization)
 end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
@@ -48,6 +59,7 @@ end
     trace
     retcode::ReturnCode.T
     force_stop::Bool
+    force_reinit::Bool
 end
 
 # Accessors Interface
@@ -100,24 +112,26 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
     reinit_rule_cache = init(alg.reinit_rule, J, fu, u, du)
 
-    # if alg.trust_region !== missing && alg.linesearch !== missing
-    #     error("TrustRegion and LineSearch methods are algorithmically incompatible.")
-    # end
+    if alg.trustregion !== missing && alg.linesearch !== missing
+        error("TrustRegion and LineSearch methods are algorithmically incompatible.")
+    end
 
-    # if alg.trust_region !== missing
-    #     supports_trust_region(alg.descent) || error("Trust Region not supported by \
-    #                                                  $(alg.descent).")
-    #     trustregion_cache = nothing
-    #     linesearch_cache = nothing
-    #     GB = :TrustRegion
-    #     error("Trust Region not implemented yet!")
-    # end
+    GB = :None
+    linesearch_cache = nothing
+    trustregion_cache = nothing
+
+    if alg.trustregion !== missing
+        supports_trust_region(alg.descent) || error("Trust Region not supported by \
+                                                     $(alg.descent).")
+        trustregion_cache = init(prob, alg.trustregion, f, fu, u, p; internalnorm,
+            kwargs...)
+        GB = :TrustRegion
+    end
 
     if alg.linesearch !== missing
         supports_line_search(alg.descent) || error("Line Search not supported by \
                                                     $(alg.descent).")
-        linesearch_cache = init(prob, alg.linesearch, f, fu, u, p)
-        trustregion_cache = nothing
+        linesearch_cache = init(prob, alg.linesearch, f, fu, u, p; internalnorm, kwargs...)
         GB = :LineSearch
     end
 
@@ -130,7 +144,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
         update_rule_cache, reinit_rule_cache, inv_workspace, UInt(0), UInt(0), UInt(0),
         UInt(alg.max_resets), UInt(maxiters), 0.0, 0.0, termination_cache, trace,
-        ReturnCode.Default, false)
+        ReturnCode.Default, false, false)
 
     cache.cache_initialization_time = time() - time_start
     return cache
@@ -145,22 +159,28 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
         J = cache.J
     else
-        if recompute_jacobian === nothing
+        countable_reinit = false
+        if cache.force_reinit
+            reinit, countable_reinit = true, true
+            cache.force_reinit = false
+        elseif recompute_jacobian === nothing
             # Standard Step
             reinit = solve!(cache.reinit_rule_cache, cache.J, cache.fu, cache.u, cache.du)
-            if reinit
-                cache.nresets += 1
-                if cache.nresets ≥ cache.max_resets
-                    cache.retcode = ReturnCode.ConvergenceFailure
-                    cache.force_stop = true
-                    return
-                end
-            end
+            countable_reinit = true
         elseif recompute_jacobian
             reinit = true  # Force ReInitialization: Don't count towards resetting
         else
             new_jacobian = false # Jacobian won't be updated in this step
             reinit = false # Override Checks: Unsafe operation
+        end
+
+        if countable_reinit
+            cache.nresets += 1
+            if cache.nresets ≥ cache.max_resets
+                cache.retcode = ReturnCode.ConvergenceFailure
+                cache.force_stop = true
+                return
+            end
         end
 
         if reinit
@@ -172,26 +192,51 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         end
     end
 
-    if GB === :LineSearch
+    if cache.trustregion_cache !== nothing &&
+       hasfield(typeof(cache.trustregion_cache), :trust_region)
+        δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            ifelse(new_jacobian, J, nothing), cache.fu, cache.u;
+            trust_region = cache.trustregion_cache.trust_region)
+    else
         δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
             ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
-        needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)  # TODO: use `needs_reset`
-        @bb axpy!(α, δu, cache.u)
-    elseif GB === :TrustRegion
-        error("Trust Region not implemented yet!")
-    else
-        error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
-               :TrustRegion)")
     end
 
-    evaluate_f!(cache, cache.u, cache.p)
+    # TODO: Shrink counter termination for trust region methods
+    if descent_success
+        if GB === :LineSearch
+            needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
+            if needs_reset
+                cache.force_reinit = true
+            else
+                @bb axpy!(α, δu, cache.u)
+                evaluate_f!(cache, cache.u, cache.p)
+            end
+        elseif GB === :TrustRegion
+            tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
+                cache.u, δu, descent_intermediates)
+            if tr_accepted
+                @bb copyto!(cache.u, u_new)
+                @bb copyto!(cache.fu, fu_new)
+            end
+        elseif GB === :None
+            @bb axpy!(1, δu, cache.u)
+            evaluate_f!(cache, cache.u, cache.p)
+        else
+            error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
+                  :TrustRegion, :None)")
+        end
+        check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    else
+        cache.force_reinit = true
+    end
 
     # TODO: update_trace!(cache, α)
-    check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     @bb copyto!(cache.u_cache, cache.u)
 
-    if (cache.force_stop || (recompute_jacobian !== nothing && !recompute_jacobian))
+    if (cache.force_stop || cache.force_reinit ||
+        (recompute_jacobian !== nothing && !recompute_jacobian))
         callback_into_cache!(cache)
         return nothing
     end
