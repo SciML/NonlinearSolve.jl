@@ -131,7 +131,7 @@ include("descent/geodesic_acceleration.jl")
 include("internal/helpers.jl")
 include("internal/operators.jl")
 include("internal/jacobian.jl")
-# include("internal/forward_diff.jl")
+include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
@@ -161,7 +161,6 @@ include("default.jl")
 
 # include("function_wrappers.jl")
 # include("extension_algs.jl")
-# include("ad.jl")
 # include("default.jl")
 
 # @setup_workload begin
