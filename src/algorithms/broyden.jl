@@ -7,6 +7,7 @@ An implementation of `Broyden` with resetting and line search.
 ## Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
+
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
     `sqrt(eps(real(eltype(u))))`.
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian

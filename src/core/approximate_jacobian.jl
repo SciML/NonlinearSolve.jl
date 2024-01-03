@@ -98,7 +98,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
     # TODO: alpha = __initial_alpha(alg_.alpha, u, fu, internalnorm)
 
     linsolve = __getproperty(alg.descent, Val(:linsolve))
-    initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve)
+    initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve,
+        maxiters)
 
     abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, u, u,
         termination_condition)
@@ -156,6 +157,7 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     if get_nsteps(cache) == 0
         # First Step is special ignore kwargs
         J_init = solve!(cache.initialization_cache, cache.u, Val(false))
+        # TODO: trait to check if init was pre inverted
         cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
         J = cache.J
     else
@@ -166,7 +168,7 @@ function SciMLBase.step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         elseif recompute_jacobian === nothing
             # Standard Step
             reinit = solve!(cache.reinit_rule_cache, cache.J, cache.fu, cache.u, cache.du)
-            countable_reinit = true
+            reinit && (countable_reinit = true)
         elseif recompute_jacobian
             reinit = true  # Force ReInitialization: Don't count towards resetting
         else

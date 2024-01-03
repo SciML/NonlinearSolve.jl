@@ -147,7 +147,7 @@ include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")
 include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
-# include("algorithms/lbroyden.jl")
+include("algorithms/lbroyden.jl")
 
 # include("algorithms/dfsane.jl")
 
@@ -212,13 +212,13 @@ include("default.jl")
 
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden
 export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
-# export DFSane, LimitedMemoryBroyden
+# export DFSane
 # export NonlinearSolvePolyAlgorithm,
 #     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-## Extension Algorithms
+# # Extension Algorithms
 # export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
 #     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 
