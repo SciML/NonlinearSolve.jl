@@ -1,106 +1,109 @@
-# This file only include the algorithm struct to be exported by LinearSolve.jl. The main
-# functionality is implemented as package extensions
+# # This file only include the algorithm struct to be exported by LinearSolve.jl. The main
+# # functionality is implemented as package extensions
+# """
+#     LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
+
+# Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl)
+# for solving `NonlinearLeastSquaresProblem`.
+
+# ## Arguments:
+
+#   - `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
+#   - `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If `nothing`,
+#     then `LeastSquaresOptim.jl` will choose the best linear solver based on the Jacobian
+#     structure.
+#   - `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or
+#     `:forward`.
+
+# !!! note
+
+#     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
+# """
+# struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
+#     autodiff::Symbol
+# end
+
+# function LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
+#     @assert alg in (:lm, :dogleg)
+#     @assert linsolve === nothing || linsolve in (:qr, :cholesky, :lsmr)
+#     @assert autodiff in (:central, :forward)
+
+#     if Base.get_extension(@__MODULE__, :NonlinearSolveLeastSquaresOptimExt) === nothing
+#         error("LeastSquaresOptimJL requires LeastSquaresOptim.jl to be loaded")
+#     end
+
+#     return LeastSquaresOptimJL{alg, linsolve}(autodiff)
+# end
+
+# """
+#     FastLevenbergMarquardtJL(linsolve = :cholesky; autodiff = nothing)
+
+# Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl)
+# for solving `NonlinearLeastSquaresProblem`.
+
+# !!! warning
+
+#     This is not really the fastest solver. It is called that since the original package
+#     is called "Fast". `LevenbergMarquardt()` is almost always a better choice.
+
+# ## Arguments:
+
+#   - `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
+#   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
+#     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+#     `nothing` which means that a default is selected according to the problem specification!
+#     Valid choices are `nothing`, `AutoForwardDiff` or `AutoFiniteDiff`.
+
+# !!! note
+
+#     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
+# """
+# @concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
+#     ad
+#     factor
+#     factoraccept
+#     factorreject
+#     factorupdate::Symbol
+#     minscale
+#     maxscale
+#     minfactor
+#     maxfactor
+# end
+
+# function set_ad(alg::FastLevenbergMarquardtJL{linsolve}, ad) where {linsolve}
+#     return FastLevenbergMarquardtJL{linsolve}(ad, alg.factor, alg.factoraccept,
+#         alg.factorreject, alg.factorupdate, alg.minscale, alg.maxscale, alg.minfactor,
+#         alg.maxfactor)
+# end
+
+# function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
+#         factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+#         minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
+#         autodiff = nothing)
+#     @assert linsolve in (:qr, :cholesky)
+#     @assert factorupdate in (:marquardt, :nielson)
+#     @assert autodiff === nothing || autodiff isa AutoFiniteDiff ||
+#             autodiff isa AutoForwardDiff
+
+#     if Base.get_extension(@__MODULE__, :NonlinearSolveFastLevenbergMarquardtExt) === nothing
+#         error("FastLevenbergMarquardtJL requires FastLevenbergMarquardt.jl to be loaded")
+#     end
+
+#     return FastLevenbergMarquardtJL{linsolve}(autodiff, factor, factoraccept, factorreject,
+#         factorupdate, minscale, maxscale, minfactor, maxfactor)
+# end
+
 """
-    LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
-
-Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl)
-for solving `NonlinearLeastSquaresProblem`.
-
-## Arguments:
-
-  - `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
-  - `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If `nothing`,
-    then `LeastSquaresOptim.jl` will choose the best linear solver based on the Jacobian
-    structure.
-  - `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or
-    `:forward`.
-
-!!! note
-
-    This algorithm is only available if `LeastSquaresOptim.jl` is installed.
-"""
-struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
-    autodiff::Symbol
-end
-
-function LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
-    @assert alg in (:lm, :dogleg)
-    @assert linsolve === nothing || linsolve in (:qr, :cholesky, :lsmr)
-    @assert autodiff in (:central, :forward)
-
-    if Base.get_extension(@__MODULE__, :NonlinearSolveLeastSquaresOptimExt) === nothing
-        error("LeastSquaresOptimJL requires LeastSquaresOptim.jl to be loaded")
-    end
-
-    return LeastSquaresOptimJL{alg, linsolve}(autodiff)
-end
-
-"""
-    FastLevenbergMarquardtJL(linsolve = :cholesky; autodiff = nothing)
-
-Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl)
-for solving `NonlinearLeastSquaresProblem`.
-
-!!! warning
-
-    This is not really the fastest solver. It is called that since the original package
-    is called "Fast". `LevenbergMarquardt()` is almost always a better choice.
-
-## Arguments:
-
-  - `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `nothing` which means that a default is selected according to the problem specification!
-    Valid choices are `nothing`, `AutoForwardDiff` or `AutoFiniteDiff`.
-
-!!! note
-
-    This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
-"""
-@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
-    ad
-    factor
-    factoraccept
-    factorreject
-    factorupdate::Symbol
-    minscale
-    maxscale
-    minfactor
-    maxfactor
-end
-
-function set_ad(alg::FastLevenbergMarquardtJL{linsolve}, ad) where {linsolve}
-    return FastLevenbergMarquardtJL{linsolve}(ad, alg.factor, alg.factoraccept,
-        alg.factorreject, alg.factorupdate, alg.minscale, alg.maxscale, alg.minfactor,
-        alg.maxfactor)
-end
-
-function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
-        factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
-        autodiff = nothing)
-    @assert linsolve in (:qr, :cholesky)
-    @assert factorupdate in (:marquardt, :nielson)
-    @assert autodiff === nothing || autodiff isa AutoFiniteDiff ||
-            autodiff isa AutoForwardDiff
-
-    if Base.get_extension(@__MODULE__, :NonlinearSolveFastLevenbergMarquardtExt) === nothing
-        error("FastLevenbergMarquardtJL requires FastLevenbergMarquardt.jl to be loaded")
-    end
-
-    return FastLevenbergMarquardtJL{linsolve}(autodiff, factor, factoraccept, factorreject,
-        factorupdate, minscale, maxscale, minfactor, maxfactor)
-end
-
-"""
-    CMINPACK(; method::Symbol = :auto)
+    CMINPACK(; method::Symbol = :auto, autodiff = missing)
 
 ### Keyword Arguments
 
   - `method`: the choice of method for the solver.
+  - `autodiff`: Defaults to `missing`, which means we will default to letting `MINPACK`
+    construct the jacobian if `f.jac` is not provided. In other cases, we use it to generate
+    a jacobian similar to other NonlinearSolve solvers.
 
-### Method Choices
+### Submethod Choice
 
 The keyword argument `method` can take on different value depending on which method of
 `fsolve` you are calling. The standard choices of `method` are:
@@ -132,13 +135,15 @@ then the following methods are allowed:
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
 NonlinearLeastSquaresProblem.
 """
-struct CMINPACK <: AbstractNonlinearSolveExtensionAlgorithm
+@concrete struct CMINPACK <: AbstractNonlinearSolveExtensionAlgorithm
     show_trace::Bool
     tracing::Bool
     method::Symbol
+    autodiff
 end
 
-function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :auto)
+function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :auto,
+        autodiff = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveMINPACKExt) === nothing
         error("CMINPACK requires MINPACK.jl to be loaded")
     end
@@ -161,7 +166,7 @@ function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :a
         tracing = false
     end
 
-    return CMINPACK(show_trace, tracing, method)
+    return CMINPACK(show_trace, tracing, method, autodiff)
 end
 
 """
@@ -252,138 +257,133 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         extended_trace = false
     end
 
-    if autodiff isa Symbol
-        if autodiff === :central
-            autodiff = AutoFiniteDiff(:central, :central, :central)
-        elseif autodiff === :forward
-            autodiff = AutoForwardDiff()
-        else
-            error("`autodiff` must be `:central` or `:forward`.")
-        end
+    if autodiff isa Symbol && (autodiff !== :central || autodiff !== :forward)
+        error("`autodiff` must be `:central` or `:forward`.")
     end
 
     return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
         factor, autoscale, m, beta, show_trace)
 end
 
+# """
+#     SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
+#         orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
+
+# Wrapper over [SpeedMapping.jl](https://nicolasl-s.github.io/SpeedMapping.jl) for solving
+# Fixed Point Problems. We allow using this algorithm to solve root finding problems as well.
+
+# ## Arguments:
+
+#   - `σ_min`: Setting to `1` may avoid stalling (see paper).
+#   - `stabilize`: performs a stabilization mapping before extrapolating. Setting to `true`
+#     may improve the performance for applications like accelerating the EM or MM algorithms
+#     (see paper).
+#   - `check_obj`: In case of NaN or Inf values, the algorithm restarts at the best past
+#     iterate.
+#   - `orders`: determines ACX's alternating order. Must be between `1` and `3` (where `1`
+#     means no extrapolation). The two recommended orders are `[3, 2]` and `[3, 3, 2]`, the
+#     latter being potentially better for highly non-linear applications (see paper).
+#   - `time_limit`: time limit for the algorithm.
+
+# ## References:
+
+#   - N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
+#     arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
+# """
+# @concrete struct SpeedMappingJL <: AbstractNonlinearSolveExtensionAlgorithm
+#     σ_min
+#     stabilize::Bool
+#     check_obj::Bool
+#     orders::Vector{Int}
+#     time_limit
+# end
+
+# function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
+#         orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
+#     if Base.get_extension(@__MODULE__, :NonlinearSolveSpeedMappingExt) === nothing
+#         error("SpeedMappingJL requires SpeedMapping.jl to be loaded")
+#     end
+
+#     return SpeedMappingJL(σ_min, stabilize, check_obj, orders, time_limit)
+# end
+
+# """
+#     FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
+#         condition_number_threshold = missing, extrapolation_period = missing,
+#         replace_invalids = :NoAction)
+
+# Wrapper over [FixedPointAcceleration.jl](https://s-baumann.github.io/FixedPointAcceleration.jl/)
+# for solving Fixed Point Problems. We allow using this algorithm to solve root finding
+# problems as well.
+
+# ## Arguments:
+
+#   - `algorithm`: The algorithm to use. Can be `:Anderson`, `:MPE`, `:RRE`, `:VEA`, `:SEA`,
+#     `:Simple`, `:Aitken` or `:Newton`.
+#   - `m`: The number of previous iterates to use for the extrapolation. Only valid for
+#     `:Anderson`.
+#   - `condition_number_threshold`: The condition number threshold for Least Squares Problem.
+#     Only valid for `:Anderson`.
+#   - `extrapolation_period`: The number of iterates between extrapolations. Only valid for
+#     `:MPE`, `:RRE`, `:VEA` and `:SEA`. Defaults to `7` for `:MPE` & `:RRE`, and `6` for
+#     `:SEA` and `:VEA`. For `:SEA` and `:VEA`, this must be a multiple of `2`.
+#   - `replace_invalids`: The method to use for replacing invalid iterates. Can be
+#     `:ReplaceInvalids`, `:ReplaceVector` or `:NoAction`.
+# """
+# @concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveExtensionAlgorithm
+#     algorithm::Symbol
+#     extrapolation_period::Int
+#     replace_invalids::Symbol
+#     dampening
+#     m::Int
+#     condition_number_threshold
+# end
+
+# function FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
+#         condition_number_threshold = missing, extrapolation_period = missing,
+#         replace_invalids = :NoAction, dampening = 1.0)
+#     if Base.get_extension(@__MODULE__, :NonlinearSolveFixedPointAccelerationExt) === nothing
+#         error("FixedPointAccelerationJL requires FixedPointAcceleration.jl to be loaded")
+#     end
+
+#     @assert algorithm in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
+#     @assert replace_invalids in (:ReplaceInvalids, :ReplaceVector, :NoAction)
+
+#     if algorithm !== :Anderson
+#         if condition_number_threshold !== missing
+#             error("`condition_number_threshold` is only valid for Anderson acceleration")
+#         end
+#         if m !== missing
+#             error("`m` is only valid for Anderson acceleration")
+#         end
+#     end
+#     condition_number_threshold === missing && (condition_number_threshold = 1e3)
+#     m === missing && (m = 10)
+
+#     if algorithm !== :MPE && algorithm !== :RRE && algorithm !== :VEA && algorithm !== :SEA
+#         if extrapolation_period !== missing
+#             error("`extrapolation_period` is only valid for MPE, RRE, VEA and SEA")
+#         end
+#     end
+#     if extrapolation_period === missing
+#         if algorithm === :SEA || algorithm === :VEA
+#             extrapolation_period = 6
+#         else
+#             extrapolation_period = 7
+#         end
+#     else
+#         if (algorithm === :SEA || algorithm === :VEA) && extrapolation_period % 2 != 0
+#             error("`extrapolation_period` must be multiples of 2 for SEA and VEA")
+#         end
+#     end
+
+#     return FixedPointAccelerationJL(algorithm, extrapolation_period, replace_invalids,
+#         dampening, m, condition_number_threshold)
+# end
+
 """
-    SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
-        orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
-
-Wrapper over [SpeedMapping.jl](https://nicolasl-s.github.io/SpeedMapping.jl) for solving
-Fixed Point Problems. We allow using this algorithm to solve root finding problems as well.
-
-## Arguments:
-
-  - `σ_min`: Setting to `1` may avoid stalling (see paper).
-  - `stabilize`: performs a stabilization mapping before extrapolating. Setting to `true`
-    may improve the performance for applications like accelerating the EM or MM algorithms
-    (see paper).
-  - `check_obj`: In case of NaN or Inf values, the algorithm restarts at the best past
-    iterate.
-  - `orders`: determines ACX's alternating order. Must be between `1` and `3` (where `1`
-    means no extrapolation). The two recommended orders are `[3, 2]` and `[3, 3, 2]`, the
-    latter being potentially better for highly non-linear applications (see paper).
-  - `time_limit`: time limit for the algorithm.
-
-## References:
-
-  - N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
-    arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
-"""
-@concrete struct SpeedMappingJL <: AbstractNonlinearSolveExtensionAlgorithm
-    σ_min
-    stabilize::Bool
-    check_obj::Bool
-    orders::Vector{Int}
-    time_limit
-end
-
-function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
-        orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
-    if Base.get_extension(@__MODULE__, :NonlinearSolveSpeedMappingExt) === nothing
-        error("SpeedMappingJL requires SpeedMapping.jl to be loaded")
-    end
-
-    return SpeedMappingJL(σ_min, stabilize, check_obj, orders, time_limit)
-end
-
-"""
-    FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
-        condition_number_threshold = missing, extrapolation_period = missing,
-        replace_invalids = :NoAction)
-
-Wrapper over [FixedPointAcceleration.jl](https://s-baumann.github.io/FixedPointAcceleration.jl/)
-for solving Fixed Point Problems. We allow using this algorithm to solve root finding
-problems as well.
-
-## Arguments:
-
-  - `algorithm`: The algorithm to use. Can be `:Anderson`, `:MPE`, `:RRE`, `:VEA`, `:SEA`,
-    `:Simple`, `:Aitken` or `:Newton`.
-  - `m`: The number of previous iterates to use for the extrapolation. Only valid for
-    `:Anderson`.
-  - `condition_number_threshold`: The condition number threshold for Least Squares Problem.
-    Only valid for `:Anderson`.
-  - `extrapolation_period`: The number of iterates between extrapolations. Only valid for
-    `:MPE`, `:RRE`, `:VEA` and `:SEA`. Defaults to `7` for `:MPE` & `:RRE`, and `6` for
-    `:SEA` and `:VEA`. For `:SEA` and `:VEA`, this must be a multiple of `2`.
-  - `replace_invalids`: The method to use for replacing invalid iterates. Can be
-    `:ReplaceInvalids`, `:ReplaceVector` or `:NoAction`.
-"""
-@concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveExtensionAlgorithm
-    algorithm::Symbol
-    extrapolation_period::Int
-    replace_invalids::Symbol
-    dampening
-    m::Int
-    condition_number_threshold
-end
-
-function FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
-        condition_number_threshold = missing, extrapolation_period = missing,
-        replace_invalids = :NoAction, dampening = 1.0)
-    if Base.get_extension(@__MODULE__, :NonlinearSolveFixedPointAccelerationExt) === nothing
-        error("FixedPointAccelerationJL requires FixedPointAcceleration.jl to be loaded")
-    end
-
-    @assert algorithm in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
-    @assert replace_invalids in (:ReplaceInvalids, :ReplaceVector, :NoAction)
-
-    if algorithm !== :Anderson
-        if condition_number_threshold !== missing
-            error("`condition_number_threshold` is only valid for Anderson acceleration")
-        end
-        if m !== missing
-            error("`m` is only valid for Anderson acceleration")
-        end
-    end
-    condition_number_threshold === missing && (condition_number_threshold = 1e3)
-    m === missing && (m = 10)
-
-    if algorithm !== :MPE && algorithm !== :RRE && algorithm !== :VEA && algorithm !== :SEA
-        if extrapolation_period !== missing
-            error("`extrapolation_period` is only valid for MPE, RRE, VEA and SEA")
-        end
-    end
-    if extrapolation_period === missing
-        if algorithm === :SEA || algorithm === :VEA
-            extrapolation_period = 6
-        else
-            extrapolation_period = 7
-        end
-    else
-        if (algorithm === :SEA || algorithm === :VEA) && extrapolation_period % 2 != 0
-            error("`extrapolation_period` must be multiples of 2 for SEA and VEA")
-        end
-    end
-
-    return FixedPointAccelerationJL(algorithm, extrapolation_period, replace_invalids,
-        dampening, m, condition_number_threshold)
-end
-
-"""
-    SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing)
+    SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing,
+        autodiff = missing)
 
 ### Keyword Arguments
 
@@ -393,6 +393,9 @@ end
   - `m`: Depth for Anderson acceleration, default as 0 for Picard iteration.
   - `beta`: Anderson mixing parameter, change f(x) to (1-beta)x+beta*f(x),
     equivalent to accelerating damped Picard iteration.
+  - `autodiff`: Defaults to `missing`, which means we will default to letting
+    `SIAMFANLEquations` construct the jacobian if `f.jac` is not provided. In other cases,
+    we use it to generate a jacobian similar to other NonlinearSolve solvers.
 
 ### Submethod Choice
 
@@ -408,12 +411,13 @@ end
     linsolve::L
     m::Int
     beta
+    autodiff``
 end
 
 function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing, m = 0,
-        beta = 1.0)
+        beta = 1.0, autodiff = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
     end
-    return SIAMFANLEquationsJL(method, delta, linsolve, m, beta)
+    return SIAMFANLEquationsJL(method, delta, linsolve, m, beta, autodiff)
 end

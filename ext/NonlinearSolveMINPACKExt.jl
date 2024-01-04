@@ -1,21 +1,17 @@
 module NonlinearSolveMINPACKExt
 
-using NonlinearSolve, DiffEqBase, SciMLBase
-using MINPACK
+using MINPACK, NonlinearSolve, SciMLBase
 import FastClosures: @closure
+import SciMLBase: AbstractNonlinearProblem
 
-function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
-            NonlinearLeastSquaresProblem{uType, iip}}, alg::CMINPACK, args...;
+function SciMLBase.__solve(prob::AbstractNonlinearProblem, alg::CMINPACK, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
         show_trace::Val{ShT} = Val(false), store_trace::Val{StT} = Val(false),
         termination_condition = nothing, kwargs...) where {uType, iip, ShT, StT}
-    @assert (termination_condition ===
-             nothing)||(termination_condition isa AbsNormTerminationMode) "CMINPACK does not support termination conditions!"
+    NonlinearSolve.__test_termination_condition(termination_condition, :CMINPACK)
 
-    f!_, u0 = NonlinearSolve.__construct_f(prob; alias_u0)
-    f! = @closure (du, u) -> (f!_(du, u); Cint(0))
-
-    resid = NonlinearSolve.evaluate_f(prob, prob.u0)
+    _f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
+    f! = @closure (du, u) -> (_f!(du, u); Cint(0))
     m = length(resid)
 
     method = ifelse(alg.method === :auto,
@@ -25,13 +21,12 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem{uType, iip},
     tracing = alg.tracing || StT
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
-    jac!_ = NonlinearSolve.__construct_jac(prob, alg, u0)
-
-    if jac!_ === nothing
+    if alg.autodiff === missing && prob.f.jac === nothing
         original = MINPACK.fsolve(f!, u0, m; tol, show_trace, tracing, method,
             iterations = maxiters)
     else
-        jac! = @closure((J, u)->(jac!_(J, u); Cint(0)))
+        _jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+        jac! = @closure (J, u) -> (_jac!(J, u); Cint(0))
         original = MINPACK.fsolve(f!, jac!, u0, m; tol, show_trace, tracing, method,
             iterations = maxiters)
     end

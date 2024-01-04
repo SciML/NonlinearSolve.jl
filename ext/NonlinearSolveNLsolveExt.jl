@@ -10,13 +10,19 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     NonlinearSolve.__test_termination_condition(termination_condition, :NLsolveJL)
 
     f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
-    jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
-    if prob.f.jac_prototype === nothing
-        J = similar(u0, promote_type(eltype(u0), eltype(resid)), length(u0), length(resid))
+
+    if prob.f.jac === nothing
+        df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
     else
-        J = zero(prob.f.jac_prototype)
+        jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+        if prob.f.jac_prototype === nothing
+            J = similar(u0, promote_type(eltype(u0), eltype(resid)), length(u0),
+                length(resid))
+        else
+            J = zero(prob.f.jac_prototype)
+        end
+        df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
     end
-    df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
 
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
     show_trace = ShT || alg.show_trace
