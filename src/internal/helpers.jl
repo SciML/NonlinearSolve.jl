@@ -179,8 +179,10 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
     𝐅 = if force_oop === True && applicable(𝐟, u0, u0)
         _resid = resid isa Number ? [resid] : _vec(resid)
         du = _vec(similar(_resid))
-        @closure (u) -> (𝐟(du, u);
-        du)
+        @closure u -> begin
+            𝐟(du, u)
+            return du
+        end
     else
         𝐟
     end

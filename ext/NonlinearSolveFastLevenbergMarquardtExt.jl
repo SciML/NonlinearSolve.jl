@@ -2,8 +2,9 @@ module NonlinearSolveFastLevenbergMarquardtExt
 
 using ArrayInterface, NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
+import FastClosures: @closure
 import FastLevenbergMarquardt as FastLM
-import FiniteDiff, ForwardDiff
+import StaticArraysCore: StaticArray
 
 @inline function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve === :cholesky
@@ -28,31 +29,25 @@ end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
         alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
-        reltol = nothing, maxiters = 1000, kwargs...)
-    # FIXME: Support scalar u0
-    prob.u0 isa Number &&
-        throw(ArgumentError("FastLevenbergMarquardtJL does not support scalar `u0`"))
-    iip = SciMLBase.isinplace(prob)
-    u = NonlinearSolve.__maybe_unaliased(prob.u0, alias_u0)
-    fu = NonlinearSolve.evaluate_f(prob, u)
+        reltol = nothing, maxiters = 1000, termination_condition = nothing, kwargs...)
+    NonlinearSolve.__test_termination_condition(termination_condition,
+        :FastLevenbergMarquardt)
+    if prob.u0 isa StaticArray  # FIXME
+        error("FastLevenbergMarquardtJL does not support StaticArrays yet.")
+    end
 
-    f! = NonlinearSolve.__make_inplace{iip}(prob.f, nothing)
-
+    _f!, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
+    f! = @closure (du, u, p) -> _f!(du, u)
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
     reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
-    if prob.f.jac === nothing
-        alg = NonlinearSolve.get_concrete_algorithm(alg, prob)
-        J! = NonlinearSolve.__construct_jac(prob, alg, u;
-            can_handle_arbitrary_dims = Val(true))
-    else
-        J! = NonlinearSolve.__make_inplace{iip}(prob.f.jac, nothing)
-    end
-
-    J = similar(u, length(fu), length(u))
+    _J! = NonlinearSolve.__construct_extension_jac(prob, alg, u, resid; alg.autodiff)
+    J! = @closure (J, u, p) -> _J!(J, u)
+    J = prob.f.jac_prototype === nothing ? similar(u, length(resid), length(u)) :
+        zero(prob.f.jac_prototype)
 
     solver = _fast_lm_solver(alg, u)
-    LM = FastLM.LMWorkspace(u, fu, J)
+    LM = FastLM.LMWorkspace(u, resid, J)
 
     return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
         (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters, alg.factor,
@@ -62,7 +57,7 @@ end
 
 function SciMLBase.solve!(cache::FastLevenbergMarquardtJLCache)
     res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(cache.f!, cache.J!,
-        cache.lmworkspace, cache.prob.p; cache.solver, cache.kwargs...)
+        cache.lmworkspace; cache.solver, cache.kwargs...)
     stats = SciMLBase.NLStats(nfev, njev, -1, -1, iter)
     retcode = info == -1 ? ReturnCode.MaxIters : ReturnCode.Success
     return SciMLBase.build_solution(cache.prob, cache.alg, res, fx;

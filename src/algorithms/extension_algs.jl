@@ -1,97 +1,98 @@
 # This file only include the algorithm struct to be exported by NonlinearSolve.jl. The main
 # functionality is implemented as package extensions
-# """
-#     LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
+"""
+    LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
 
-# Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl)
-# for solving `NonlinearLeastSquaresProblem`.
+Wrapper over [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl)
+for solving `NonlinearLeastSquaresProblem`.
 
-# ## Arguments:
+### Arguments
 
-#   - `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
-#   - `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If `nothing`,
-#     then `LeastSquaresOptim.jl` will choose the best linear solver based on the Jacobian
-#     structure.
-#   - `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or
-#     `:forward`.
+  - `alg`: Algorithm to use. Can be `:lm` or `:dogleg`.
 
-# !!! note
+### Keyword Arguments
 
-#     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
-# """
-# struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
-#     autodiff::Symbol
-# end
+  - `linsolve`: Linear solver to use. Can be `:qr`, `:cholesky` or `:lsmr`. If `nothing`,
+    then `LeastSquaresOptim.jl` will choose the best linear solver based on the Jacobian
+    structure.
+  - `autodiff`: Automatic differentiation / Finite Differences. Can be `:central` or
+    `:forward`.
 
-# function LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff::Symbol = :central)
-#     @assert alg in (:lm, :dogleg)
-#     @assert linsolve === nothing || linsolve in (:qr, :cholesky, :lsmr)
-#     @assert autodiff in (:central, :forward)
+!!! note
 
-#     if Base.get_extension(@__MODULE__, :NonlinearSolveLeastSquaresOptimExt) === nothing
-#         error("LeastSquaresOptimJL requires LeastSquaresOptim.jl to be loaded")
-#     end
+    This algorithm is only available if `LeastSquaresOptim.jl` is installed.
+"""
+struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
+    autodiff
+end
 
-#     return LeastSquaresOptimJL{alg, linsolve}(autodiff)
-# end
+function LeastSquaresOptimJL(alg = :lm; linsolve = nothing, autodiff = :central)
+    @assert alg in (:lm, :dogleg)
+    @assert linsolve === nothing || linsolve in (:qr, :cholesky, :lsmr)
+    autodiff isa Symbol && @assert autodiff in (:central, :forward)
 
-# """
-#     FastLevenbergMarquardtJL(linsolve = :cholesky; autodiff = nothing)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveLeastSquaresOptimExt) === nothing
+        error("LeastSquaresOptimJL requires LeastSquaresOptim.jl to be loaded")
+    end
 
-# Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl)
-# for solving `NonlinearLeastSquaresProblem`.
+    return LeastSquaresOptimJL{alg, linsolve}(autodiff)
+end
 
-# !!! warning
+"""
+    FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
+        factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
+        autodiff = nothing)
 
-#     This is not really the fastest solver. It is called that since the original package
-#     is called "Fast". `LevenbergMarquardt()` is almost always a better choice.
+Wrapper over [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl)
+for solving `NonlinearLeastSquaresProblem`. For details about the other keyword arguments
+see the documentation for `FastLevenbergMarquardt.jl`.
 
-# ## Arguments:
+!!! warning
 
-#   - `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
-#   - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-#     ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-#     `nothing` which means that a default is selected according to the problem specification!
-#     Valid choices are `nothing`, `AutoForwardDiff` or `AutoFiniteDiff`.
+    This is not really the fastest solver. It is called that since the original package
+    is called "Fast". `LevenbergMarquardt()` is almost always a better choice.
 
-# !!! note
+### Arguments
 
-#     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
-# """
-# @concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
-#     ad
-#     factor
-#     factoraccept
-#     factorreject
-#     factorupdate::Symbol
-#     minscale
-#     maxscale
-#     minfactor
-#     maxfactor
-# end
+  - `linsolve`: Linear solver to use. Can be `:qr` or `:cholesky`.
 
-# function set_ad(alg::FastLevenbergMarquardtJL{linsolve}, ad) where {linsolve}
-#     return FastLevenbergMarquardtJL{linsolve}(ad, alg.factor, alg.factoraccept,
-#         alg.factorreject, alg.factorupdate, alg.minscale, alg.maxscale, alg.minfactor,
-#         alg.maxfactor)
-# end
+### Keyword Arguments
 
-# function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
-#         factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-#         minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
-#         autodiff = nothing)
-#     @assert linsolve in (:qr, :cholesky)
-#     @assert factorupdate in (:marquardt, :nielson)
-#     @assert autodiff === nothing || autodiff isa AutoFiniteDiff ||
-#             autodiff isa AutoForwardDiff
+  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
+    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+    `nothing` which means that a default is selected according to the problem specification!
 
-#     if Base.get_extension(@__MODULE__, :NonlinearSolveFastLevenbergMarquardtExt) === nothing
-#         error("FastLevenbergMarquardtJL requires FastLevenbergMarquardt.jl to be loaded")
-#     end
+!!! note
 
-#     return FastLevenbergMarquardtJL{linsolve}(autodiff, factor, factoraccept, factorreject,
-#         factorupdate, minscale, maxscale, minfactor, maxfactor)
-# end
+    This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
+"""
+@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
+    autodiff
+    factor
+    factoraccept
+    factorreject
+    factorupdate::Symbol
+    minscale
+    maxscale
+    minfactor
+    maxfactor
+end
+
+function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
+        factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
+        autodiff = nothing)
+    @assert linsolve in (:qr, :cholesky)
+    @assert factorupdate in (:marquardt, :nielson)
+
+    if Base.get_extension(@__MODULE__, :NonlinearSolveFastLevenbergMarquardtExt) === nothing
+        error("FastLevenbergMarquardtJL requires FastLevenbergMarquardt.jl to be loaded")
+    end
+
+    return FastLevenbergMarquardtJL{linsolve}(autodiff, factor, factoraccept, factorreject,
+        factorupdate, minscale, maxscale, minfactor, maxfactor)
+end
 
 """
     CMINPACK(; method::Symbol = :auto, autodiff = missing)
@@ -134,6 +135,10 @@ then the following methods are allowed:
 
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
 NonlinearLeastSquaresProblem.
+
+!!! note
+
+    This algorithm is only available if `MINPACK.jl` is installed.
 """
 @concrete struct CMINPACK <: AbstractNonlinearSolveExtensionAlgorithm
     show_trace::Bool
@@ -206,6 +211,10 @@ Choices for methods in `NLsolveJL`:
 
 For more information on these arguments, consult the
 [NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
+
+!!! note
+
+    This algorithm is only available if `NLsolve.jl` is installed.
 """
 @concrete struct NLsolveJL <: AbstractNonlinearSolveExtensionAlgorithm
     method::Symbol
@@ -289,6 +298,10 @@ Fixed Point Problems. We allow using this algorithm to solve root finding proble
 
 [1] N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
     arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
+
+!!! note
+
+    This algorithm is only available if `SpeedMapping.jl` is installed.
 """
 @concrete struct SpeedMappingJL <: AbstractNonlinearSolveExtensionAlgorithm
     σ_min
@@ -337,6 +350,10 @@ problems as well.
     `:SEA` and `:VEA`. For `:SEA` and `:VEA`, this must be a multiple of `2`.
   - `replace_invalids`: The method to use for replacing invalid iterates. Can be
     `:ReplaceInvalids`, `:ReplaceVector` or `:NoAction`.
+
+!!! note
+
+    This algorithm is only available if `FixedPointAcceleration.jl` is installed.
 """
 @concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveExtensionAlgorithm
     algorithm::Symbol
@@ -411,6 +428,10 @@ end
   - `:pseudotransient`: Pseudo transient method.
   - `:secant`: Secant method for scalar equations.
   - `:anderson`: Anderson acceleration for fixed point iterations.
+
+!!! note
+
+    This algorithm is only available if `SIAMFANLEquations.jl` is installed.
 """
 @concrete struct SIAMFANLEquationsJL{L <: Union{Symbol, Nothing}} <:
                  AbstractNonlinearSolveExtensionAlgorithm

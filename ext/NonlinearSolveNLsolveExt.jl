@@ -11,7 +11,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
 
     f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
 
-    if prob.f.jac === nothing
+    if prob.f.jac === nothing && alg.autodiff isa Symbol
         df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
     else
         jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)

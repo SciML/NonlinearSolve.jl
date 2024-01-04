@@ -25,6 +25,12 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_reverse_mode = false)
+    jvp_autodiff = get_concrete_forward_ad(jvp_autodiff, prob, Val(false);
+        check_reverse_mode = true)
+    vjp_autodiff = get_concrete_reverse_ad(vjp_autodiff, prob, Val(false);
+        check_forward_mode = false)
+
     haslinsolve = __hasfield(alg, Val(:linsolve))
 
     has_analytic_jac = SciMLBase.has_jac(f)
