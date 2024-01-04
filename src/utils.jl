@@ -24,8 +24,8 @@ end
 @inline __maybe_mutable(x, _) = x
 
 @inline @generated function _vec(v)
-    hasmethod(vec, Tuple{typeof(v)}) || return :(v)
-    return :(vec(v))
+    hasmethod(vec, Tuple{typeof(v)}) || return :(vec(v))
+    return :(v)
 end
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v

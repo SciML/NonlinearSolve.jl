@@ -2,12 +2,12 @@ module NonlinearSolveMINPACKExt
 
 using MINPACK, NonlinearSolve, SciMLBase
 import FastClosures: @closure
-import SciMLBase: AbstractNonlinearProblem
 
-function SciMLBase.__solve(prob::AbstractNonlinearProblem, alg::CMINPACK, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
-        show_trace::Val{ShT} = Val(false), store_trace::Val{StT} = Val(false),
-        termination_condition = nothing, kwargs...) where {uType, iip, ShT, StT}
+function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem,
+            NonlinearProblem}, alg::CMINPACK, args...; abstol = nothing, maxiters = 1000,
+        alias_u0::Bool = false, show_trace::Val{ShT} = Val(false),
+        store_trace::Val{StT} = Val(false), termination_condition = nothing,
+        kwargs...) where {ShT, StT}
     NonlinearSolve.__test_termination_condition(termination_condition, :CMINPACK)
 
     _f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)

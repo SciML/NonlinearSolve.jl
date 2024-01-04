@@ -138,7 +138,7 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
 
     resid = evaluate_f(prob, prob.u0)
     u0 = can_handle_scalar === True || !(prob.u0 isa Number) ?
-         vec(__maybe_unaliased(prob.u0, alias_u0)) : [prob.u0]
+         __maybe_unaliased(prob.u0, alias_u0) : [prob.u0]
 
     fₚ = if make_fixed_point === True
         if isinplace(prob)
@@ -177,14 +177,15 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
     end
 
     𝐅 = if force_oop === True && applicable(𝐟, u0, u0)
-        du = _vec(similar(resid))
+        _resid = resid isa Number ? [resid] : _vec(resid)
+        du = _vec(similar(_resid))
         @closure (u) -> (𝐟(du, u);
         du)
     else
         𝐟
     end
 
-    return 𝐅, u0, (resid isa Number ? [resid] : _vec(resid))
+    return 𝐅, _vec(u0), (resid isa Number ? [resid] : _vec(resid))
 end
 
 function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = False,
@@ -198,7 +199,6 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
 
     return 𝐉
 end
-
 
 # @concrete struct InplaceFunction{iip} <: Function
 #     f
