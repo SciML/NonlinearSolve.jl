@@ -48,13 +48,16 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
             sol = ptcsolsc(f, prob.u0; delta0 = delta, maxit = maxiters, atol, rtol,
                 printerr = ShT)
         elseif method == :secant
-            sol = secant(f, u; maxit = maxiters, atol, rtol, printerr = ShT)
+            sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
         elseif method == :anderson
-            sol = aasol(f, u, m, __zeros_like(u, 1, 2 * m + 4); maxit = maxiters,
+            f_aa, u, _ = NonlinearSolve.__construct_extension_f(prob; alias_u0,
+                make_fixed_point = Val(true))
+            sol = aasol(f_aa, u, m, __zeros_like(u, 1, 2 * m + 4); maxit = maxiters,
                 atol, rtol, beta)
         end
     else
-        f, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
+        f, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0,
+            make_fixed_point = Val(method == :anderson))
         N = length(u)
         FS = __zeros_like(u, N)
 
@@ -80,7 +83,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
                     sol = ptcsol(f, u, FS, FPS; atol, rtol, maxit = maxiters,
                         delta0 = delta, printerr = ShT)
                 elseif method == :anderson
-                    sol = aasol(f!, u, m, zeros(T, N, 2 * m + 4), atol, rtol,
+                    sol = aasol(f, u, m, zeros(T, N, 2 * m + 4); atol, rtol,
                         maxit = maxiters, beta)
                 end
             else
@@ -102,9 +105,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
     retcode = __siam_fanl_equations_retcode_mapping(sol)
     stats = __siam_fanl_equations_stats_mapping(method, sol)
-    resid = NonlinearSolve.evaluate_f(prob, sol.solution)
-    return SciMLBase.build_solution(prob, alg, sol.solution, resid; retcode, stats,
-        original = sol)
+    res = prob.u0 isa Number && method === :anderson ? sol.solution[1] : sol.solution
+    resid = NonlinearSolve.evaluate_f(prob, res)
+    return SciMLBase.build_solution(prob, alg, res, resid; retcode, stats, original = sol)
 end
 
 end

@@ -201,18 +201,3 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
 
     return 𝐉
 end
-
-# @concrete struct InplaceFunction{iip} <: Function
-#     f
-#     p
-# end
-
-# (f::InplaceFunction{true})(du, u) = f.f(du, u, f.p)
-# (f::InplaceFunction{true})(du, u, p) = f.f(du, u, p)
-# (f::InplaceFunction{false})(du, u) = (du .= f.f(u, f.p))
-# (f::InplaceFunction{false})(du, u, p) = (du .= f.f(u, p))
-
-# struct __make_inplace{iip} end
-
-# @inline __make_inplace{iip}(f::F, p) where {iip, F} = InplaceFunction{iip}(f, p)
-# @inline __make_inplace{iip}(::Nothing, p) where {iip} = nothing
