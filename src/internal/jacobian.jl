@@ -73,8 +73,10 @@ end
     return J
 end
 
-(cache::JacobianCache)(J::JacobianOperator, u, p) = StatefulJacobianOperator(J, u, p)
-function (cache::JacobianCache)(::Number, u, p) # Scalar
+function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
+    return StatefulJacobianOperator(J, u, p)
+end
+function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
     time_start = time()
     cache.njacs += 1
     J = last(__value_derivative(cache.uf, u))
@@ -82,7 +84,8 @@ function (cache::JacobianCache)(::Number, u, p) # Scalar
     return J
 end
 # Compute the Jacobian
-function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u, p) where {iip}
+function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u,
+        p = cache.p) where {iip}
     time_start = time()
     cache.njacs += 1
     if iip

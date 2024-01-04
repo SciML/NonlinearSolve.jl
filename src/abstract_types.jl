@@ -115,6 +115,9 @@ abstract type AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorith
 
 concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
 
+abstract type AbstractNonlinearSolveExtensionAlgorithm <:
+              AbstractNonlinearSolveAlgorithm{:Extension} end
+
 """
     AbstractNonlinearSolveCache{iip}
 

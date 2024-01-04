@@ -154,12 +154,12 @@ include("algorithms/gradient_descent.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
+include("algorithms/extension_algs.jl")
 
 include("utils.jl")
 include("default.jl")
 
 # include("function_wrappers.jl")
-# include("extension_algs.jl")
 
 # @setup_workload begin
 #     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
@@ -215,9 +215,9 @@ export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
 # export NonlinearSolvePolyAlgorithm,
 #     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-# # Extension Algorithms
-# export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
-#     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+# Extension Algorithms
+export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
+    FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm

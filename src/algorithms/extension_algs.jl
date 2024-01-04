@@ -19,7 +19,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `LeastSquaresOptim.jl` is installed.
 """
-struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveAlgorithm
+struct LeastSquaresOptimJL{alg, linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
     autodiff::Symbol
 end
 
@@ -58,7 +58,7 @@ for solving `NonlinearLeastSquaresProblem`.
 
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
-@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveAlgorithm
+@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
     ad
     factor
     factoraccept
@@ -132,7 +132,7 @@ then the following methods are allowed:
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
 NonlinearLeastSquaresProblem.
 """
-struct CMINPACK <: AbstractNonlinearSolveAlgorithm
+struct CMINPACK <: AbstractNonlinearSolveExtensionAlgorithm
     show_trace::Bool
     tracing::Bool
     method::Symbol
@@ -173,7 +173,8 @@ end
 
   - `method`: the choice of method for solving the nonlinear system.
   - `autodiff`: the choice of method for generating the Jacobian. Defaults to `:central` or
-    central differencing via FiniteDiff.jl. The other choices are `:forward`
+    central differencing via FiniteDiff.jl. The other choices are `:forward` or `ADTypes`
+    similar to other solvers in NonlinearSolve.
   - `linesearch`: the line search method to be used within the solver method. The choices
     are line search types from
     [LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl).
@@ -185,8 +186,9 @@ end
   - `m`: the amount of history in the Anderson method. Naive "Picard"-style iteration can be
     achieved by setting m=0, but that isn't advisable for contractions whose Lipschitz
     constants are close to 1. If convergence fails, though, you may consider lowering it.
-  - `beta`: It is also known as DIIS or Pulay mixing, this method is based on the acceleration
-    of the fixed-point iteration xₙ₊₁ = xₙ + beta*f(xₙ), where by default beta = 1.
+  - `beta`: It is also known as DIIS or Pulay mixing, this method is based on the
+    acceleration of the fixed-point iteration xₙ₊₁ = xₙ + beta*f(xₙ), where by default
+    beta = 1.
 
 ### Submethod Choice
 
@@ -195,13 +197,14 @@ Choices for methods in `NLsolveJL`:
   - `:anderson`: Anderson-accelerated fixed-point iteration
   - `:broyden`: Broyden's quasi-Newton method
   - `:newton`: Classical Newton method with an optional line search
-  - `:trust_region`: Trust region Newton method (the default choice) For more information on
-    these arguments, consult the
-    [NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
+  - `:trust_region`: Trust region Newton method (the default choice)
+
+For more information on these arguments, consult the
+[NLsolve.jl documentation](https://github.com/JuliaNLSolvers/NLsolve.jl).
 """
-@concrete struct NLsolveJL <: AbstractNonlinearSolveAlgorithm
+@concrete struct NLsolveJL <: AbstractNonlinearSolveExtensionAlgorithm
     method::Symbol
-    autodiff::Symbol
+    autodiff
     store_trace::Bool
     extended_trace::Bool
     linesearch
@@ -249,6 +252,16 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         extended_trace = false
     end
 
+    if autodiff isa Symbol
+        if autodiff === :central
+            autodiff = AutoFiniteDiff(:central, :central, :central)
+        elseif autodiff === :forward
+            autodiff = AutoForwardDiff()
+        else
+            error("`autodiff` must be `:central` or `:forward`.")
+        end
+    end
+
     return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
         factor, autoscale, m, beta, show_trace)
 end
@@ -278,7 +291,7 @@ Fixed Point Problems. We allow using this algorithm to solve root finding proble
   - N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
     arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
 """
-@concrete struct SpeedMappingJL <: AbstractNonlinearSolveAlgorithm
+@concrete struct SpeedMappingJL <: AbstractNonlinearSolveExtensionAlgorithm
     σ_min
     stabilize::Bool
     check_obj::Bool
@@ -318,7 +331,7 @@ problems as well.
   - `replace_invalids`: The method to use for replacing invalid iterates. Can be
     `:ReplaceInvalids`, `:ReplaceVector` or `:NoAction`.
 """
-@concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveAlgorithm
+@concrete struct FixedPointAccelerationJL <: AbstractNonlinearSolveExtensionAlgorithm
     algorithm::Symbol
     extrapolation_period::Int
     replace_invalids::Symbol
@@ -389,7 +402,7 @@ end
   - `:anderson`: Anderson acceleration for fixed point iterations.
 """
 @concrete struct SIAMFANLEquationsJL{L <: Union{Symbol, Nothing}} <:
-                 AbstractNonlinearSolveAlgorithm
+                 AbstractNonlinearSolveExtensionAlgorithm
     method::Symbol
     delta
     linsolve::L
