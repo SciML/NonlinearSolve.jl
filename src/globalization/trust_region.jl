@@ -193,7 +193,7 @@ end
     u_cache
     fu_cache
     last_step_accepted::Bool
-    shrink_counter::UInt
+    shrink_counter::Int
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
@@ -278,7 +278,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
         initial_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
         expand_threshold, shrink_factor, expand_factor, p1, p2, p3, p4, ϵ, T(0),
         vjp_operator, Jᵀfu_cache, Jδu_cache, r_predict, internalnorm, u_cache,
-        fu_cache, false, UInt(0))
+        fu_cache, false, Int(0))
 end
 
 function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,

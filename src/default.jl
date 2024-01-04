@@ -36,6 +36,8 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     #     cache.retcode, cache.stats, trace)
 end
 
+# Poly Algorithms
+
 # """
 #     NonlinearSolvePolyAlgorithm(algs, ::Val{pType} = Val(:NLS)) where {pType}
 

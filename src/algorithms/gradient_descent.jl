@@ -8,6 +8,6 @@ function GradientDescent(; autodiff = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch())
     descent = SteepestDescent()
 
-    return GeneralizedFirstOrderRootFindingAlgorithm{false, :GradientDescent}(linesearch,
+    return GeneralizedFirstOrderAlgorithm{false, :GradientDescent}(linesearch,
         descent, autodiff, nothing, nothing)
 end

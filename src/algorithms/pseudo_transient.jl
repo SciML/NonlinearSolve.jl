@@ -28,7 +28,7 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, autodiff = nothing, alpha_initial = 1e-3)
     descent = DampedNewtonDescent(; linsolve, precs, initial_damping = alpha_initial,
         damping_fn = SwitchedEvolutionRelaxation())
-    return GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac,
+    return GeneralizedFirstOrderAlgorithm(; concrete_jac,
         name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)
 end
 

@@ -6,8 +6,8 @@ import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinear
     A
     b
     precs
-    nsolve::UInt
-    nfactors::UInt
+    nsolve::Int
+    nfactors::Int
     total_time::Float64
 end
 
@@ -15,14 +15,14 @@ end
 @inline get_nfactors(cache::LinearSolverCache) = cache.nfactors
 
 @inline function LinearSolverCache(alg, linsolve, A::Number, b::Number, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, Int(0), Int(0), 0.0)
 end
 @inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, u; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, Int(0), Int(0), 0.0)
 end
 @inline function LinearSolverCache(alg, linsolve, A::Diagonal, b, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, UInt(0), UInt(0), 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, Int(0), Int(0), 0.0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     @bb b_ = copy(b)
@@ -41,7 +41,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 
     lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, UInt(0), UInt(0),
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, Int(0), Int(0),
         0.0)
 end
 

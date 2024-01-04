@@ -56,8 +56,6 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, internalnorm::F = DEFAULT_NORM, shared::Val{N} = Val(1),
         kwargs...) where {F, INV, N}
-    INV &&
-        @warn "Setting `pre_inverted = Val(true)` for `Dogleg` is not recommended." maxlog=1
     newton_cache = SciMLBase.init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     cauchy_cache = SciMLBase.init(prob, alg.steepest_descent, J, fu, u; pre_inverted,

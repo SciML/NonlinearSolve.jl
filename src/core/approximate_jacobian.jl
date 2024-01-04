@@ -5,7 +5,7 @@
     descent
     update_rule
     reinit_rule
-    max_resets::UInt
+    max_resets::Int
     initialization
 end
 
@@ -16,9 +16,9 @@ end
 
 function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = missing,
         trustregion = missing, descent, update_rule, reinit_rule, initialization,
-        max_resets = typemax(UInt)) where {concrete_jac, name}
+        max_resets = typemax(Int)) where {concrete_jac, name}
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(linesearch, trustregion,
-        descent, update_rule, reinit_rule, UInt(max_resets), initialization)
+        descent, update_rule, reinit_rule, Int(max_resets), initialization)
 end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
@@ -46,11 +46,11 @@ end
     inv_workspace
 
     # Counters
-    nf::UInt
-    nsteps::UInt
-    nresets::UInt
-    max_resets::UInt
-    maxiters::UInt
+    nf::Int
+    nsteps::Int
+    nresets::Int
+    max_resets::Int
+    maxiters::Int
     total_time::Float64
     cache_initialization_time::Float64
 
@@ -143,8 +143,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
     cache = ApproximateJacobianSolveCache{INV, GB, iip}(fu, u, u_cache, p, du, J, alg, prob,
         initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
-        update_rule_cache, reinit_rule_cache, inv_workspace, UInt(0), UInt(0), UInt(0),
-        UInt(alg.max_resets), UInt(maxiters), 0.0, 0.0, termination_cache, trace,
+        update_rule_cache, reinit_rule_cache, inv_workspace, Int(0), Int(0), Int(0),
+        Int(alg.max_resets), Int(maxiters), 0.0, 0.0, termination_cache, trace,
         ReturnCode.Default, false, false)
 
     cache.cache_initialization_time = time() - time_start

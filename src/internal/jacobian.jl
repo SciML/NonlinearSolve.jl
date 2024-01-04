@@ -11,7 +11,7 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     p
     jac_cache
     alg
-    njacs::UInt
+    njacs::Int
     total_time::Float64
     autodiff
     vjp_autodiff
@@ -56,13 +56,13 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, UInt(0), 0.0,
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, Int(0), 0.0,
         autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, UInt(0), 0.0,
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, Int(0), 0.0,
         nothing, nothing, nothing)
 end
 

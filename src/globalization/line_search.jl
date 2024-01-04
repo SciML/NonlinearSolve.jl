@@ -60,9 +60,6 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     fu_cache
 end
 
-get_fu(cache::LineSearchesJLCache) = cache.fu
-set_fu!(cache::LineSearchesJLCache, fu) = (cache.fu = fu)
-
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
         p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
@@ -117,7 +114,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         u_cache, fu_cache)
 end
 
-function SciMLBase.solve!(cache::LineSearchesJLCache, u, du)
+function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
     dϕ = @closure α -> cache.dϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
     ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
@@ -132,6 +129,97 @@ function SciMLBase.solve!(cache::LineSearchesJLCache, u, du)
     # but it's not worth the extra complexity
     cache.alpha = first(cache.method(ϕ, dϕ, ϕdϕ, cache.alpha, ϕ₀, dϕ₀))
     return (true, cache.alpha)
+end
+
+"""
+    RobustNonMonotoneLineSearch(; gamma = 1 // 10000, sigma_0 = 1)
+
+Robust NonMonotone Line Search is a derivative free line search method from DF Sane.
+
+### References
+
+[1] La Cruz, William, José Martínez, and Marcos Raydan. "Spectral residual method without
+gradient information for solving large-scale nonlinear systems of equations."
+Mathematics of computation 75.255 (2006): 1429-1448.
+"""
+@kwdef @concrete struct RobustNonMonotoneLineSearch
+    gamma = 1 // 10000
+    sigma_1 = 1
+    M::Int = 10
+    tau_min = 1 // 10
+    tau_max = 1 // 2
+    n_exp::Int = 2
+    maxiters::Int = 100
+    η_strategy = (fn₁, n, uₙ, fₙ) -> fn₁ / n^2
+end
+
+@concrete mutable struct RobustNonMonotoneLineSearchCache
+    ϕ
+    u_cache
+    fu_cache
+    internalnorm
+    maxiters
+    history
+    γ
+    σ₁
+    M::Int
+    τ_min
+    τ_max
+    iter::Int
+    η_strategy
+    n_exp::Int
+end
+
+function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
+        f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
+    T = promote_type(eltype(fu), eltype(u))
+
+    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
+        @bb @. u_cache = u + α * du
+        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        return internalnorm(fu_cache)^alg.n_exp
+    end
+
+    fn₁ = internalnorm(fu)^alg.n_exp
+    η_strategy = @closure (n, xₙ, fₙ) -> alg.η_strategy(fn₁, n, xₙ, fₙ)
+
+    return RobustNonMonotoneLineSearchCache(ϕ, u_cache, fu_cache, internalnorm,
+        alg.maxiters, fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M, T(alg.tau_min),
+        T(alg.tau_max), 1, η_strategy, alg.n_exp)
+end
+
+function SciMLBase.solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
+    T = promote_type(eltype(u), eltype(du))
+    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
+    f_norm_old = ϕ(eltype(u)(0))
+    α₊, α₋ = T(cache.σ₁), T(cache.σ₁)
+    η = cache.η_strategy(cache.iter, u, f_norm_old)
+    f_bar = maximum(cache.history)
+
+    for k in 1:(cache.maxiters)
+        f_norm = ϕ(α₊)
+        f_norm ≤ f_bar + η - cache.γ * α₊ * f_norm_old && return (true, α₊)
+
+        α₊ *= clamp(α₊ * f_norm_old / (f_norm + (T(2) * α₊ - T(1)) * f_norm_old),
+            cache.τ_min, cache.τ_max)
+
+        f_norm = ϕ(-α₋)
+        f_norm ≤ f_bar + η - cache.γ * α₋ * f_norm_old && return (true, -α₋)
+
+        α₋ *= clamp(α₋ * f_norm_old / (f_norm + (T(2) * α₋ - T(1)) * f_norm_old),
+            cache.τ_min, cache.τ_max)
+    end
+
+    return false, T(cache.σ₁)
+end
+
+function callback_into_cache!(topcache, cache::RobustNonMonotoneLineSearchCache, args...)
+    fu = get_fu(topcache)
+    cache.history[mod1(cache.iter, cache.M)] = cache.internalnorm(fu)^cache.n_exp
+    cache.iter += 1
+    return
 end
 
 # """

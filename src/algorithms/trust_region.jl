@@ -9,6 +9,6 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
     trustregion = GenericTrustRegionScheme(; method = radius_update_scheme, step_threshold,
         shrink_threshold, expand_threshold, shrink_factor, expand_factor,
         reverse_ad = vjp_autodiff)
-    return GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac, name = :TrustRegion,
+    return GeneralizedFirstOrderAlgorithm(; concrete_jac, name = :TrustRegion,
         trustregion, descent, jacobian_ad = autodiff)
 end

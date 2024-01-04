@@ -142,15 +142,14 @@ include("globalization/trust_region.jl")
 
 include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
+include("core/spectral_methods.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")
 include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
 include("algorithms/lbroyden.jl")
-
-# include("algorithms/dfsane.jl")
-
+include("algorithms/dfsane.jl")
 include("algorithms/gradient_descent.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
@@ -161,7 +160,6 @@ include("default.jl")
 
 # include("function_wrappers.jl")
 # include("extension_algs.jl")
-# include("default.jl")
 
 # @setup_workload begin
 #     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
@@ -212,9 +210,8 @@ include("default.jl")
 
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
 export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
-# export DFSane
 # export NonlinearSolvePolyAlgorithm,
 #     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
@@ -223,7 +220,7 @@ export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
 #     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 
 # Advanced Algorithms -- Without Bells and Whistles
-export GeneralizedFirstOrderRootFindingAlgorithm, ApproximateJacobianSolveAlgorithm
+export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm
 
 # Descent Algorithms
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
@@ -231,9 +228,9 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
 
 # Globalization
 ## Line Search Algorithms
-export LineSearchesJL, NoLineSearch # LiFukushimaLineSearch
+export LineSearchesJL, NoLineSearch, RobustNonMonotoneLineSearch, LiFukushimaLineSearch
 ## Trust Region Algorithms
-export LevenbergMarquardtTrustRegion, RadiusUpdateSchemes
+export LevenbergMarquardtTrustRegion, RadiusUpdateSchemes, GenericTrustRegionScheme
 
 # Export the termination conditions from DiffEqBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,

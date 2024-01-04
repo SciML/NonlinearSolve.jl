@@ -1,4 +1,4 @@
-@concrete struct GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name} <:
+@concrete struct GeneralizedFirstOrderAlgorithm{concrete_jac, name} <:
                  AbstractNonlinearSolveAlgorithm{name}
     linesearch
     trustregion
@@ -8,12 +8,12 @@
     reverse_ad
 end
 
-function GeneralizedFirstOrderRootFindingAlgorithm(; concrete_jac = nothing,
+function GeneralizedFirstOrderAlgorithm(; concrete_jac = nothing,
         name::Symbol = :unknown, kwargs...)
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; kwargs...)
+    return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; kwargs...)
 end
 
-function GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; descent,
+function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent,
         linesearch = missing, trustregion = missing, jacobian_ad = nothing,
         forward_ad = nothing, reverse_ad = nothing) where {concrete_jac, name}
     forward_ad = ifelse(forward_ad !== nothing, forward_ad,
@@ -24,17 +24,17 @@ function GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(; descent
     if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
                       Please use `LineSearchesJL` instead.",
-            :GeneralizedFirstOrderRootFindingAlgorithm)
+            :GeneralizedFirstOrderAlgorithm)
         linesearch = LineSearchesJL(; method = linesearch)
     end
 
-    return GeneralizedFirstOrderRootFindingAlgorithm{concrete_jac, name}(linesearch,
+    return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(linesearch,
         trustregion, descent, jacobian_ad, forward_ad, reverse_ad)
 end
 
-concrete_jac(::GeneralizedFirstOrderRootFindingAlgorithm{CJ}) where {CJ} = CJ
+concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
 
-@concrete mutable struct GeneralizedFirstOrderRootFindingCache{iip, GB} <:
+@concrete mutable struct GeneralizedFirstOrderAlgorithmCache{iip, GB} <:
                          AbstractNonlinearSolveCache{iip}
     # Basic Requirements
     fu
@@ -53,9 +53,9 @@ concrete_jac(::GeneralizedFirstOrderRootFindingAlgorithm{CJ}) where {CJ} = CJ
     trustregion_cache
 
     # Counters
-    nf::UInt
-    nsteps::UInt
-    maxiters::UInt
+    nf::Int
+    nsteps::Int
+    maxiters::Int
 
     # State Affect
     make_new_jacobian::Bool
@@ -67,15 +67,15 @@ concrete_jac(::GeneralizedFirstOrderRootFindingAlgorithm{CJ}) where {CJ} = CJ
     force_stop::Bool
 end
 
-get_u(cache::GeneralizedFirstOrderRootFindingCache) = cache.u
-set_u!(cache::GeneralizedFirstOrderRootFindingCache, u) = (cache.u = u)
-get_fu(cache::GeneralizedFirstOrderRootFindingCache) = cache.fu
-set_fu!(cache::GeneralizedFirstOrderRootFindingCache, fu) = (cache.fu = fu)
+get_u(cache::GeneralizedFirstOrderAlgorithmCache) = cache.u
+set_u!(cache::GeneralizedFirstOrderAlgorithmCache, u) = (cache.u = u)
+get_fu(cache::GeneralizedFirstOrderAlgorithmCache) = cache.fu
+set_fu!(cache::GeneralizedFirstOrderAlgorithmCache, fu) = (cache.fu = fu)
 
-get_nsteps(cache::GeneralizedFirstOrderRootFindingCache) = cache.nsteps
+get_nsteps(cache::GeneralizedFirstOrderAlgorithmCache) = cache.nsteps
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
-        alg::GeneralizedFirstOrderRootFindingAlgorithm, args...; alias_u0 = false,
+        alg::GeneralizedFirstOrderAlgorithm, args...; alias_u0 = false,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
         kwargs...) where {uType, iip}
@@ -131,13 +131,13 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
     trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-    return GeneralizedFirstOrderRootFindingCache{iip, GB}(fu, u, u_cache, p,
+    return GeneralizedFirstOrderAlgorithmCache{iip, GB}(fu, u, u_cache, p,
         du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-        trustregion_cache, UInt(0), UInt(0), UInt(maxiters), true, termination_cache, trace,
+        trustregion_cache, Int(0), Int(0), Int(maxiters), true, termination_cache, trace,
         ReturnCode.Default, false)
 end
 
-function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
+function SciMLBase.step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip, GB}
     if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
         J = cache.jac_cache(cache.u)
@@ -194,7 +194,7 @@ function SciMLBase.step!(cache::GeneralizedFirstOrderRootFindingCache{iip, GB};
     return nothing
 end
 
-function callback_into_cache!(cache::GeneralizedFirstOrderRootFindingCache)
+function callback_into_cache!(cache::GeneralizedFirstOrderAlgorithmCache)
     callback_into_cache!(cache, cache.jac_cache)
     callback_into_cache!(cache, cache.descent_cache)
     callback_into_cache!(cache, cache.linesearch_cache)

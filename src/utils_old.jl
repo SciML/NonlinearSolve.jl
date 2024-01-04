@@ -6,10 +6,6 @@ function __findmin(f, x)
     end
 end
 
-@inline value(x) = x
-@inline value(x::Dual) = ForwardDiff.value(x)
-@inline value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
-
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
 
@@ -29,25 +25,6 @@ function evaluate_f(f::F, u, p, ::Val{iip}; fu = nothing) where {F, iip}
     else
         return f(u, p)
     end
-end
-
-function evaluate_f(cache::AbstractNonlinearSolveCache, u, p,
-        fu_sym::Val{FUSYM} = Val(nothing)) where {FUSYM}
-    cache.stats.nf += 1
-    if FUSYM === nothing
-        # if isinplace(cache)
-        #     cache.prob.f(get_fu(cache), u, p)
-        # else
-        #     set_fu!(cache, cache.prob.f(u, p))
-        # end
-    else
-        if isinplace(cache)
-            cache.prob.f(__getproperty(cache, fu_sym), u, p)
-        else
-            setproperty!(cache, FUSYM, cache.prob.f(u, p))
-        end
-    end
-    return nothing
 end
 
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},

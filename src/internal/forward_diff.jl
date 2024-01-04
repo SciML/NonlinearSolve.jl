@@ -1,5 +1,5 @@
 # Not part of public API but helps reduce code duplication
-import SimpleNonlinearsolve: __nlsolve_ad, __nlsolve_dual_soln
+import SimpleNonlinearSolve: __nlsolve_ad, __nlsolve_dual_soln
 
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
             iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
@@ -22,11 +22,11 @@ end
 
 function SciMLBase.reinit!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
         u0 = get_u(cache.cache), kwargs...)
-    inner_cache = SciMLBase.reinit!(cache.cache; p = ForwardDiff.value(p),
-        u0 = ForwardDiff.value(u0), kwargs...)
+    inner_cache = SciMLBase.reinit!(cache.cache; p = __value(p), u0 = __value(u0),
+        kwargs...)
     cache.cache = inner_cache
     cache.p = p
-    cache.values_p = ForwardDiff.value(p)
+    cache.values_p = __value(p)
     cache.partials_p = ForwardDiff.partials(p)
     return cache
 end
@@ -35,8 +35,8 @@ function SciMLBase.init(prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
             iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
         alg::Union{Nothing, AbstractNonlinearAlgorithm}, args...;
         kwargs...) where {T, V, P, iip}
-    p = ForwardDiff.value(prob.p)
-    newprob = NonlinearProblem(prob.f, ForwardDiff.value(prob.u0), p; prob.kwargs...)
+    p = __value(prob.p)
+    newprob = NonlinearProblem(prob.f, __value(prob.u0), p; prob.kwargs...)
     cache = init(newprob, alg, args...; kwargs...)
     return NonlinearSolveForwardDiffCache(cache, newprob, alg, prob.p, p,
         ForwardDiff.partials(prob.p))
@@ -63,3 +63,7 @@ function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
     return SciMLBase.build_solution(prob, cache.alg, dual_soln, sol.resid; sol.retcode,
         sol.stats, sol.original)
 end
+
+@inline __value(x) = x
+@inline __value(x::Dual) = ForwardDiff.value(x)
+@inline __value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
