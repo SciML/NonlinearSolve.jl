@@ -35,6 +35,7 @@ end
         @time @safetestset "Matrix Resizing" include("misc/matrix_resizing.jl")
         @time @safetestset "Infeasible Problems" include("misc/infeasible.jl")
         @time @safetestset "Banded Matrices" include("misc/banded_matrices.jl")
+        @time @safetestset "No AD" include("misc/no_ad.jl")
     end
 
     if GROUP == "GPU"

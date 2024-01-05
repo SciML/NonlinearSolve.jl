@@ -43,7 +43,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
     rtol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, T)
 
     if prob.u0 isa Number
-        f = method == :anderson ? (du, u) -> (du = prob.f(u, prob.p)) : ((u) -> prob.f(u, prob.p))
+        f = method == :anderson ? (du, u) -> (du = prob.f(u, prob.p)) :
+            ((u) -> prob.f(u, prob.p))
 
         if method == :newton
             sol = nsolsc(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
@@ -55,7 +56,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         elseif method == :anderson
             f, u = NonlinearSolve.__construct_f(prob; alias_u0,
                 make_fixed_point = Val(true), can_handle_arbitrary_dims = Val(true))
-            sol = aasol(f, [prob.u0], m, __zeros_like(u, 1, 2*m+4); maxit = maxiters,
+            sol = aasol(f, [prob.u0], m, __zeros_like(u, 1, 2 * m + 4); maxit = maxiters,
                 atol, rtol, beta = beta)
         end
 
@@ -110,7 +111,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
         elseif method == :anderson
             f!, u = NonlinearSolve.__construct_f(prob; alias_u0,
                 can_handle_arbitrary_dims = Val(true), make_fixed_point = Val(true))
-            sol = aasol(f!, u, m, zeros(T, N, 2*m+4), atol = atol, rtol = rtol,
+            sol = aasol(f!, u, m, zeros(T, N, 2 * m + 4), atol = atol, rtol = rtol,
                 maxit = maxiters, beta = beta)
         end
     else

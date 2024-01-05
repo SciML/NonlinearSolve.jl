@@ -1,4 +1,5 @@
-using NonlinearSolve, FixedPointAcceleration, SpeedMapping, NLsolve, SIAMFANLEquations, LinearAlgebra, Test
+using NonlinearSolve,
+    FixedPointAcceleration, SpeedMapping, NLsolve, SIAMFANLEquations, LinearAlgebra, Test
 
 # Simple Scalar Problem
 @testset "Simple Scalar Problem" begin
@@ -29,7 +30,8 @@ end
     @test maximum(abs.(solve(prob, SpeedMappingJL()).resid)) ≤ 1e-10
     @test maximum(abs.(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid)) ≤ 1e-10
     @test maximum(abs.(solve(prob, SpeedMappingJL(; stabilize = true)).resid)) ≤ 1e-10
-    @test maximum(abs.(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid)) ≤ 1e-10
+    @test maximum(abs.(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid)) ≤
+          1e-10
 
     @test_broken maximum(abs.(solve(prob, NLsolveJL(; method = :anderson)).resid)) ≤ 1e-10
 end
