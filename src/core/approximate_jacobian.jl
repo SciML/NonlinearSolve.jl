@@ -9,8 +9,7 @@
     initialization
 end
 
-function Base.show(io::IO,
-        alg::ApproximateJacobianSolveAlgorithm{concrete_jac, name}) where {concrete_jac, name}
+function __show_algorithm(io::IO, alg::ApproximateJacobianSolveAlgorithm, name, indent)
     modifiers = String[]
     __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
     __is_present(alg.trustregion) && push!(modifiers, "trustregion = $(alg.trustregion)")
@@ -19,7 +18,9 @@ function Base.show(io::IO,
     push!(modifiers, "reinit_rule = $(alg.reinit_rule)")
     push!(modifiers, "max_resets = $(alg.max_resets)")
     push!(modifiers, "initialization = $(alg.initialization)")
-    print(io, "$(name)(\n    $(join(modifiers, ",\n    "))\n)")
+    spacing = " "^indent * "    "
+    spacing_last = " "^indent
+    print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
 end
 
 function ApproximateJacobianSolveAlgorithm(; concrete_jac = nothing,

@@ -86,3 +86,16 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __is_present(::Nothing) = false
 @inline __is_present(::Missing) = false
 @inline __is_present(::Any) = true
+@inline __is_present(::NoLineSearch) = false
+
+@inline __is_complex(::Type{ComplexF64}) = true
+@inline __is_complex(::Type{ComplexF32}) = true
+@inline __is_complex(::Type{Complex}) = true
+@inline __is_complex(::Type{T}) where {T} = false
+
+function __findmin(f, x)
+    return findmin(x) do xᵢ
+        fx = f(xᵢ)
+        return isnan(fx) ? Inf : fx
+    end
+end

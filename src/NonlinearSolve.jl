@@ -128,8 +128,6 @@ include("algorithms/extension_algs.jl")
 include("utils.jl")
 include("default.jl")
 
-# include("function_wrappers.jl")
-
 # @setup_workload begin
 #     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
 #         (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
@@ -181,8 +179,8 @@ include("default.jl")
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
 export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
-# export NonlinearSolvePolyAlgorithm,
-#     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+export NonlinearSolvePolyAlgorithm,
+    RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,

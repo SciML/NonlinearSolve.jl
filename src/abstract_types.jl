@@ -121,6 +121,12 @@ abstract type AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorith
 
 concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
 
+function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm{name}) where {name}
+    __show_algorithm(io, alg, name, 0)
+end
+
+get_name(::AbstractNonlinearSolveAlgorithm{name}) where {name} = name
+
 abstract type AbstractNonlinearSolveExtensionAlgorithm <:
               AbstractNonlinearSolveAlgorithm{:Extension} end
 

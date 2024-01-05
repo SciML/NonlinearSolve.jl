@@ -8,8 +8,7 @@
     reverse_ad
 end
 
-function Base.show(io::IO,
-        alg::GeneralizedFirstOrderAlgorithm{concrete_jac, name}) where {concrete_jac, name}
+function __show_algorithm(io::IO, alg::GeneralizedFirstOrderAlgorithm, name, indent)
     modifiers = String[]
     __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
     __is_present(alg.trustregion) && push!(modifiers, "trustregion = $(alg.trustregion)")
@@ -17,7 +16,9 @@ function Base.show(io::IO,
     __is_present(alg.jacobian_ad) && push!(modifiers, "jacobian_ad = $(alg.jacobian_ad)")
     __is_present(alg.forward_ad) && push!(modifiers, "forward_ad = $(alg.forward_ad)")
     __is_present(alg.reverse_ad) && push!(modifiers, "reverse_ad = $(alg.reverse_ad)")
-    print(io, "$(name)(\n    $(join(modifiers, ",\n    "))\n)")
+    spacing = " "^indent * "   "
+    spacing_last = " "^indent
+    print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
 end
 
 function GeneralizedFirstOrderAlgorithm(; concrete_jac = nothing,
