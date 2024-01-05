@@ -24,21 +24,20 @@ See also [`Dogleg`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDescent`](@ref
     precs = DEFAULT_PRECS
 end
 
+supports_line_search(::SteepestDescent) = true
+
 @concrete mutable struct SteepestDescentCache{pre_inverted} <: AbstractDescentCache
     δu
     δus
     lincache
+    timer::TimerOutput
 end
 
-supports_line_search(::SteepestDescent) = true
-
-function callback_into_cache!(cache, internalcache::SteepestDescentCache, args...)
-    callback_into_cache!(cache, internalcache.lincache, internalcache, args...)
-end
+@internal_caches SteepestDescentCache :lincache
 
 @inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
         u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
     INV && @assert length(fu)==length(u) "Non-Square Jacobian Inverse doesn't make sense."
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
@@ -50,16 +49,19 @@ end
     else
         lincache = nothing
     end
-    return SteepestDescentCache{INV}(δu, δus, lincache)
+    return SteepestDescentCache{INV}(δu, δus, lincache, timer)
 end
 
-@inline function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu, u,
-        idx::Val{N} = Val(1); kwargs...) where {INV, N}
+function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val = Val(1);
+        kwargs...) where {INV}
     δu = get_du(cache, idx)
     if INV
         A = J === nothing ? nothing : transpose(J)
-        δu = cache.lincache(; A, b = _vec(fu), kwargs..., linu = _vec(δu), du = _vec(δu))
-        δu = _restructure(get_du(cache, idx), δu)
+        @timeit_debug cache.timer "linear solve" begin
+            δu = cache.lincache(; A, b = _vec(fu), kwargs..., linu = _vec(δu),
+                du = _vec(δu))
+            δu = _restructure(get_du(cache, idx), δu)
+        end
     else
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(false)`."
         @bb δu = transpose(J) × vec(fu)

@@ -203,15 +203,47 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
 end
 
 # Query Statistics
-for stat in (:nsolve, :nfactors, :nsteps, :njacs, :nf, :total_time)
+# TODO: Deal with the total time in a dedicated way
+for stat in (:nsolve, :nfactors, :nsteps, :njacs, :nf) # , :total_time)
     fname = Symbol("get_$(stat)")
     @eval @inline $(fname)(cache) = __query_stat(cache, $(Val(stat)))
 end
 
-@inline @generated function __query_stat(cache::T, ::Val{stat}) where {T, stat}
+@inline __query_stat(cache, stat::Val) = __direct_query_stat(cache, stat)
+@inline @generated function __direct_query_stat(cache::T, ::Val{stat}) where {T, stat}
     hasfield(T, stat) || return :(0)
     return :(__get_data(cache.$(stat)))
 end
 
-@inline __get_data(x::Int) = x
+@inline __get_data(x::Number) = x
 @inline __get_data(x::Base.RefValue{<:Int}) = x
+
+# Auto-generate some of the helper functions
+macro internal_caches(cType, internal_cache_names...)
+    return __internal_caches(__source__, __module__, cType, internal_cache_names)
+end
+
+function __internal_caches(__source__, __module__, cType, internal_cache_names::Tuple)
+    fields = map(name -> :($(__query_stat)(getproperty(cache, $(name)), ST)),
+        internal_cache_names)
+    callback_caches = map(name -> :($(callback_into_cache!)(cache,
+            getproperty(internalcache, $(name)), internalcache, args...)),
+        internal_cache_names)
+    callbacks_self = map(name -> :($(callback_into_cache!)(internalcache,
+            getproperty(internalcache, $(name)))), internal_cache_names)
+    return esc(quote
+        function __query_stat(cache::$(cType), ST::Val{stat}) where {stat}
+            val = $(__direct_query_stat)(cache, ST)
+            return +($(fields...)) + val
+        end
+        function __query_stat(cache::$(cType), ST::Val{:nsteps})
+            return $(__direct_query_stat)(cache, ST)
+        end
+        function callback_into_cache!(cache, internalcache::$(cType), args...)
+            $(callback_caches...)
+        end
+        function callback_into_cache!(internalcache::$(cType))
+            $(callbacks_self...)
+        end
+    end)
+end

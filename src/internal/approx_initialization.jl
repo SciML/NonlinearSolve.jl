@@ -48,8 +48,7 @@ end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
         f::F, fu, u::Number, p; kwargs...) where {F}
-    return InitializedApproximateJacobianCache(one(u), alg.structure, alg, nothing, true,
-        0.0)
+    return InitializedApproximateJacobianCache(one(u), alg.structure, alg, nothing, true)
 end
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
         f::F, fu::StaticArray, u::StaticArray, p; kwargs...) where {F}
@@ -65,7 +64,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitializat
         end
         J = alg.structure(J_; alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true, 0.0)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true)
 end
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
         f::F, fu, u, p; kwargs...) where {F}
@@ -76,7 +75,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitializat
         J_ = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
         J = alg.structure(__make_identity!!(J_); alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true, 0.0)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true)
 end
 
 @inline __make_identity!!(A::Number) = one(A)
@@ -111,7 +110,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitial
         kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
     J = alg.structure(jac_cache(nothing))
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false, 0.0)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false)
 end
 
 @concrete mutable struct InitializedApproximateJacobianCache
@@ -120,13 +119,9 @@ end
     alg
     cache
     initialized::Bool
-    total_time::Float64
 end
 
-# @inline function get_njacs(cache::InitializedApproximateJacobianCache)
-#     cache.cache === nothing && return 0
-#     return get_njacs(cache.cache)
-# end
+@internal_caches InitializedApproximateJacobianCache :cache
 
 function (cache::InitializedApproximateJacobianCache)(::Nothing)
     return get_full_jacobian(cache, cache.structure, cache.J)
@@ -134,7 +129,6 @@ end
 
 function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, u,
         ::Val{reinit}) where {reinit}
-    time_start = time()
     if reinit || !cache.initialized
         cache(cache.alg, u)
         cache.initialized = true
@@ -144,7 +138,6 @@ function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, u,
     else
         full_J = get_full_jacobian(cache, cache.structure, cache.J)
     end
-    cache.total_time += time() - time_start
     return full_J
 end
 

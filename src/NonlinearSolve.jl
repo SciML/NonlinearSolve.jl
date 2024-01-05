@@ -8,21 +8,18 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes, DiffEqBase, LazyArrays, LineSearches, LinearAlgebra, LinearSolve, Printf,
-        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, SumTypes
+    using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
+        LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Printf, SciMLBase,
+        SimpleNonlinearSolve, SparseArrays, SparseDiffTools, SumTypes, TimerOutputs
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
-    import ConcreteStructs: @concrete
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode
-    import FastBroadcast: @..
-    import FastClosures: @closure
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-    import MaybeInplace: @bb
     import RecursiveArrayTools: recursivecopy!, recursivefill!
 
     import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
@@ -121,6 +118,7 @@ const False = Val(false)
 # __alg_print_modifiers(_) = String[]
 
 include("abstract_types.jl")
+include("internal/helpers.jl")
 
 include("descent/newton.jl")
 include("descent/steepest.jl")
@@ -128,7 +126,6 @@ include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
 
-include("internal/helpers.jl")
 include("internal/operators.jl")
 include("internal/jacobian.jl")
 include("internal/forward_diff.jl")
@@ -140,6 +137,7 @@ include("internal/approx_initialization.jl")
 include("globalization/line_search.jl")
 include("globalization/trust_region.jl")
 
+include("core/generic.jl")
 include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
 include("core/spectral_methods.jl")

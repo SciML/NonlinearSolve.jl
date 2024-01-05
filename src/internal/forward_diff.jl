@@ -20,6 +20,8 @@ end
     partials_p
 end
 
+@internal_caches NonlinearSolveForwardDiffCache :cache
+
 function SciMLBase.reinit!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
         u0 = get_u(cache.cache), kwargs...)
     inner_cache = SciMLBase.reinit!(cache.cache; p = __value(p), u0 = __value(u0),

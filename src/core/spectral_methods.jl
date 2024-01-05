@@ -33,6 +33,11 @@ concrete_jac(::GeneralizedDFSane) = nothing
     nf::Int
     nsteps::Int
     maxiters::Int
+    maxtime
+
+    # Timer
+    timer::TimerOutput
+    total_time::Float64   # Simple Counter which works even if TimerOutput is disabled
 
     # Termination & Tracking
     termination_cache
@@ -41,35 +46,33 @@ concrete_jac(::GeneralizedDFSane) = nothing
     force_stop::Bool
 end
 
-get_u(cache::GeneralizedDFSaneCache) = cache.u
-set_u!(cache::GeneralizedDFSaneCache, u) = (cache.u = u)
-get_fu(cache::GeneralizedDFSaneCache) = cache.fu
-set_fu!(cache::GeneralizedDFSaneCache, fu) = (cache.fu = fu)
-
-get_nsteps(cache::GeneralizedDFSaneCache) = cache.nsteps
+@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM, maxtime = Inf,
         kwargs...) where {F}
-    u = __maybe_unaliased(prob.u0, alias_u0)
-    T = eltype(u)
+    timer = TimerOutput()
+    @timeit_debug timer "cache construction" begin
+        u = __maybe_unaliased(prob.u0, alias_u0)
+        T = eltype(u)
 
-    @bb du = similar(u)
-    @bb u_cache = copy(u)
-    fu = evaluate_f(prob, u)
-    @bb fu_cache = copy(fu)
+        @bb du = similar(u)
+        @bb u_cache = copy(u)
+        fu = evaluate_f(prob, u)
+        @bb fu_cache = copy(fu)
 
-    linesearch_cache = init(prob, alg.linesearch, prob.f, fu, u, prob.p; maxiters,
-        internalnorm, kwargs...)
+        linesearch_cache = init(prob, alg.linesearch, prob.f, fu, u, prob.p; maxiters,
+            internalnorm, kwargs...)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u_cache,
-        termination_condition)
-    trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
+        abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u_cache,
+            termination_condition)
+        trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
-    return GeneralizedDFSaneCache{isinplace(prob)}(fu, fu_cache, u, u_cache, prob.p, du,
-        alg, prob, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), linesearch_cache, 0, 0, maxiters,
-        tc_cache, trace, ReturnCode.Default, false)
+        return GeneralizedDFSaneCache{isinplace(prob)}(fu, fu_cache, u, u_cache, prob.p, du,
+            alg, prob, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), linesearch_cache, 0, 0,
+            maxiters, maxtime, timer, 0.0, tc_cache, trace, ReturnCode.Default, false)
+    end
 end
 
 function SciMLBase.step!(cache::GeneralizedDFSaneCache{iip};
@@ -79,33 +82,41 @@ function SciMLBase.step!(cache::GeneralizedDFSaneCache{iip};
               `recompute_jacobian`" maxlog=1
     end
 
-    @bb @. cache.du = -cache.σ_n * cache.fu
+    @timeit_debug cache.timer "descent" begin
+        @bb @. cache.du = -cache.σ_n * cache.fu
+    end
 
-    ls_success, α = solve!(cache.linesearch_cache, cache.u, cache.du)
+    @timeit_debug cache.timer "linesearch" begin
+        linesearch_failed, α = solve!(cache.linesearch_cache, cache.u, cache.du)
+    end
 
-    if !ls_success
-        cache.retcode = ReturnCode.ConvergenceFailure
+    if linesearch_failed
+        cache.retcode = ReturnCode.InternalLineSearchFailed
         cache.force_stop = true
         return
     end
 
-    @bb axpy!(α, cache.du, cache.u)
-    evaluate_f!(cache, cache.u, cache.p)
+    @timeit_debug cache.timer "step" begin
+        @bb axpy!(α, cache.du, cache.u)
+        evaluate_f!(cache, cache.u, cache.p)
+    end
 
     # update_trace!(cache, α)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     # Update Spectral Parameter
-    @bb @. cache.u_cache = cache.u - cache.u_cache
-    @bb @. cache.fu_cache = cache.fu - cache.fu_cache
+    @timeit_debug cache.timer "update spectral parameter" begin
+        @bb @. cache.u_cache = cache.u - cache.u_cache
+        @bb @. cache.fu_cache = cache.fu - cache.fu_cache
 
-    cache.σ_n = dot(cache.u_cache, cache.u_cache) / dot(cache.u_cache, cache.fu_cache)
+        cache.σ_n = dot(cache.u_cache, cache.u_cache) / dot(cache.u_cache, cache.fu_cache)
 
-    # Spectral parameter bounds check
-    if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)
-        test_norm = dot(cache.fu, cache.fu)
-        T = eltype(cache.σ_n)
-        cache.σ_n = clamp(inv(test_norm), T(1), T(1e5))
+        # Spectral parameter bounds check
+        if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)
+            test_norm = dot(cache.fu, cache.fu)
+            T = eltype(cache.σ_n)
+            cache.σ_n = clamp(inv(test_norm), T(1), T(1e5))
+        end
     end
 
     # Take step

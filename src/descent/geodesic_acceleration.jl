@@ -36,9 +36,7 @@ supports_trust_region(::GeodesicAcceleration) = true
     u_cache
 end
 
-function callback_into_cache!(cache, internalcache::GeodesicAccelerationCache, args...)
-    callback_into_cache!(cache, internalcache.descent_cache, internalcache, args...)
-end
+@internal_caches GeodesicAccelerationCache :descent_cache
 
 get_velocity(cache::GeodesicAccelerationCache) = get_du(cache.descent_cache, Val(1))
 function set_velocity!(cache::GeodesicAccelerationCache, δv)
@@ -79,8 +77,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleratio
         internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache)
 end
 
-function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {N}
+function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
+        skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return δu, true, (; a, v)
     v, _, _ = solve!(cache.descent_cache, J, fu, Val(2N - 1); skip_solve, kwargs...)

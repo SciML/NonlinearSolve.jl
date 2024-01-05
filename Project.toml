@@ -27,6 +27,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 SumTypes = "8e1ec7a9-0e02-4297-b0fe-6433085c89f2"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"

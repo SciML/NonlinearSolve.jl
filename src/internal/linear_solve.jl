@@ -8,18 +8,17 @@ import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinear
     precs
     nsolve::Int
     nfactors::Int
-    total_time::Float64
 end
 
 @inline function LinearSolverCache(alg, linsolve, A::Number, b::Number, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
 end
 @inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, u; kwargs...)
     # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
 end
 @inline function LinearSolverCache(alg, linsolve, A::Diagonal, b, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0, 0.0)
+    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
 end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     @bb b_ = copy(b)
@@ -38,13 +37,12 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 
     lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0, 0.0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0)
 end
 
 # Direct Linear Solve Case without Caching
 function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = nothing,
         kwargs...)
-    time_start = time()
     cache.nsolve += 1
     cache.nfactors += 1
     A === nothing || (cache.A = A)
@@ -55,14 +53,12 @@ function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = 
     else
         res = cache.A \ cache.b
     end
-    cache.total_time += time() - time_start
     return res
 end
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
         du = nothing, p = nothing, weight = nothing, cachedata = nothing,
         reuse_A_if_factorization = False, kwargs...)
-    time_start = time()
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
@@ -92,7 +88,6 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
 
     linres = solve!(cache.lincache)
     cache.lincache = linres.cache
-    cache.total_time += time() - time_start
 
     return linres.u
 end

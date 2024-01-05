@@ -31,18 +31,17 @@ supports_trust_region(::DampedNewtonDescent) = true
     Jᵀfu_cache
     rhs_cache
     damping_fn_cache
+    timer::TimerOutput
 end
 
-function callback_into_cache!(cache, internalcache::DampedNewtonDescentCache, args...)
-    callback_into_cache!(cache, internalcache.lincache, internalcache, args...)
-    callback_into_cache!(cache, internalcache.damping_fn_cache, internalcache, args...)
-end
+@internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
 # TODO: Damping is not exactly correct for non-normal form
 
 function SciMLBase.init(prob::NonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, alias_J = true, shared::Val{N} = Val(1), kwargs...) where {INV, N}
+        timer = TimerOutput(), reltol = nothing, alias_J = true, shared::Val{N} = Val(1),
+        kwargs...) where {INV, N}
     damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u, False;
         kwargs...)
     @bb δu = similar(u)
@@ -55,12 +54,13 @@ function SciMLBase.init(prob::NonlinearProblem, alg::DampedNewtonDescent, J, fu,
     lincache = LinearSolverCache(alg, alg.linsolve, J_damped, _vec(fu), _vec(u); abstol,
         reltol, linsolve_kwargs...)
     return DampedNewtonDescentCache{INV, false, false}(J, δu, δus, lincache, nothing,
-        nothing, nothing, damping_fn_cache)
+        nothing, nothing, damping_fn_cache, timer)
 end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDescent, J, fu,
         u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, alias_J = true, shared::Val{N} = Val(1), kwargs...) where {N, INV}
+        timer = TimerOutput(), reltol = nothing, alias_J = true, shared::Val{N} = Val(1),
+        kwargs...) where {N, INV}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
     @bb δu = similar(u)
@@ -109,7 +109,7 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::DampedNewtonDes
         linsolve_kwargs...)
 
     return DampedNewtonDescentCache{INV, true, normal_form}(J_cache, δu, δus, lincache, JᵀJ,
-        Jᵀfu, rhs_cache, damping_fn_cache)
+        Jᵀfu, rhs_cache, damping_fn_cache, timer)
 end
 
 # Define special concatenation for certain Array combinations
@@ -119,69 +119,81 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, false}, J, fu, u,
         idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N}
     δu = get_du(cache, idx)
     skip_solve && return δu
-    if J !== nothing
-        INV && (J = inv(J))
-        D = solve!(cache.damping_fn_cache, J, fu, False)
-        J_ = __dampen_jacobian!!(cache.J, J, D)
-    else # Use the old factorization
-        J_ = J
+    @timeit_debug cache.timer "dampen" begin
+        if J !== nothing
+            INV && (J = inv(J))
+            D = solve!(cache.damping_fn_cache, J, fu, False)
+            J_ = __dampen_jacobian!!(cache.J, J, D)
+        else # Use the old factorization
+            J_ = J
+        end
     end
-    δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., linu = _vec(δu))
-    δu = _restructure(get_du(cache, idx), δu)
+    @timeit_debug cache.timer "linear solve" begin
+        δu = cache.lincache(; A = J_, b = _vec(fu), kwargs..., linu = _vec(δu))
+        δu = _restructure(get_du(cache, idx), δu)
+    end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
     return δu, true, (;)
 end
 
 function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form}, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false,
-        kwargs...) where {INV, normal_form, N}
+        idx::Val = Val(1); skip_solve::Bool = false, kwargs...) where {INV, normal_form}
     δu = get_du(cache, idx)
     skip_solve && return δu
 
     if normal_form
-        if J !== nothing
-            INV && (J = inv(J))
-            @bb cache.JᵀJ_cache = transpose(J) × J
-            @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-            D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
-            J_ = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
-        else
-            J_ = cache.JᵀJ_cache
-        end
-        δu = cache.lincache(; A = __maybe_symmetric(J_), b = cache.Jᵀfu_cache, kwargs...,
-            linu = _vec(δu))
-    else
-        if J !== nothing
-            INV && (J = inv(J))
-            if requires_normal_form_jacobian(cache.damping_fn_cache)
+        @timeit_debug cache.timer "dampen" begin
+            if J !== nothing
+                INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
-                jac_damp = cache.JᵀJ_cache
+                @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
+                D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
+                J_ = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
             else
-                jac_damp = J
+                J_ = cache.JᵀJ_cache
             end
-            if requires_normal_form_rhs(cache.damping_fn_cache)
-                @bb cache.Jᵀfu_cache = transpose(J) × fu
-                rhs_damp = cache.Jᵀfu_cache
-            else
-                rhs_damp = fu
-            end
-            D = solve!(cache.damping_fn_cache, jac_damp, rhs_damp, False)
-            if can_setindex(cache.J)
-                copyto!(@view(cache.J[1:size(J, 1), :]), J)
-                cache.J[(size(J, 1) + 1):end, :] .= sqrt.(D)
-            else
-                cache.J = _vcat(J, sqrt.(D))
-            end
-            if can_setindex(cache.Jᵀfu_cache)
-                cache.rhs_cache[1:size(J, 1)] .= _vec(fu)
-                cache.rhs_cache[(size(J, 1) + 1):end] .= false
-            else
-                cache.rhs_cache = vcat(_vec(fu), zero(_vec(u)))
+        end
+
+        @timeit_debug cache.timer "linear solve" begin
+            δu = cache.lincache(; A = __maybe_symmetric(J_), b = cache.Jᵀfu_cache,
+                kwargs..., linu = _vec(δu))
+        end
+    else
+        @timeit_debug cache.timer "dampen" begin
+            if J !== nothing
+                INV && (J = inv(J))
+                if requires_normal_form_jacobian(cache.damping_fn_cache)
+                    @bb cache.JᵀJ_cache = transpose(J) × J
+                    jac_damp = cache.JᵀJ_cache
+                else
+                    jac_damp = J
+                end
+                if requires_normal_form_rhs(cache.damping_fn_cache)
+                    @bb cache.Jᵀfu_cache = transpose(J) × fu
+                    rhs_damp = cache.Jᵀfu_cache
+                else
+                    rhs_damp = fu
+                end
+                D = solve!(cache.damping_fn_cache, jac_damp, rhs_damp, False)
+                if can_setindex(cache.J)
+                    copyto!(@view(cache.J[1:size(J, 1), :]), J)
+                    cache.J[(size(J, 1) + 1):end, :] .= sqrt.(D)
+                else
+                    cache.J = _vcat(J, sqrt.(D))
+                end
+                if can_setindex(cache.Jᵀfu_cache)
+                    cache.rhs_cache[1:size(J, 1)] .= _vec(fu)
+                    cache.rhs_cache[(size(J, 1) + 1):end] .= false
+                else
+                    cache.rhs_cache = vcat(_vec(fu), zero(_vec(u)))
+                end
             end
         end
         A, b = cache.J, cache.rhs_cache
-        δu = cache.lincache(; A, b, kwargs..., linu = _vec(δu))
+        @timeit_debug cache.timer "linear solve" begin
+            δu = cache.lincache(; A, b, kwargs..., linu = _vec(δu))
+        end
     end
 
     δu = _restructure(get_du(cache, idx), δu)

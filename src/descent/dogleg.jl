@@ -52,6 +52,8 @@ end
     δu_cache_mul
 end
 
+@internal_caches DoglegCache :newton_cache :cauchy_cache
+
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, internalnorm::F = DEFAULT_NORM, shared::Val{N} = Val(1),

@@ -129,16 +129,10 @@ abstract type AbstractNonlinearSolveCache{iip} end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 
-import SciMLBase: set_u!
-function get_u end
-function get_fu end
-function set_fu! end
-
-function get_nf end
-function get_njacs end
-function get_nsteps end
-function get_nsolve end
-function get_nfactors end
+get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+get_u(cache::AbstractNonlinearSolveCache) = cache.u
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
+SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
 """
     AbstractLinearSolverCache <: Function
@@ -202,3 +196,7 @@ abstract type AbstractTrustRegionMethodCache end
 function last_step_accepted(cache::AbstractTrustRegionMethodCache)
     return cache.last_step_accepted
 end
+
+abstract type AbstractNonlinearSolveJacobianCache{iip} <: Function end
+
+SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = iip

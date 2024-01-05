@@ -14,6 +14,7 @@ end
     last_step_accepted::Bool
     u_cache
     fu_cache
+    nf::Int
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
@@ -23,7 +24,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtT
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     return LevenbergMarquardtTrustRegionCache(f, p, T(Inf), v, T(Inf), internalnorm,
-        alg.β_uphill, false, u_cache, fu_cache)
+        alg.β_uphill, false, u_cache, fu_cache, 0, 0.0)
 end
 
 function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
@@ -35,6 +36,7 @@ function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, �
 
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
+    cache.nf += 1
 
     loss = cache.internalnorm(cache.fu_cache)
 
@@ -50,7 +52,6 @@ function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, �
 end
 
 # Don't Pollute the namespace
-
 """
     RadiusUpdateSchemes
 
@@ -77,6 +78,8 @@ using SumTypes
     Bastin
     Fan
 end
+
+const T = RadiusUpdateScheme
 
 @doc """
     RadiusUpdateSchemes.Simple
@@ -194,6 +197,7 @@ end
     fu_cache
     last_step_accepted::Bool
     shrink_counter::Int
+    nf::Int
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
@@ -278,15 +282,15 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
         initial_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
         expand_threshold, shrink_factor, expand_factor, p1, p2, p3, p4, ϵ, T(0),
         vjp_operator, Jᵀfu_cache, Jδu_cache, r_predict, internalnorm, u_cache,
-        fu_cache, false, Int(0))
+        fu_cache, false, 0, 0)
 end
 
-function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
-        damping_stats)
+function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, damping_stats)
     @bb cache.Jδu_cache = J × vec(δu)
     @bb @. cache.r_predict = fu + cache.Jδu_cache
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
+    cache.nf += 1
 
     fu_abs2_sum = sum(abs2, fu)
     cache.ρ = (fu_abs2_sum - sum(abs2, cache.fu_cache)) /

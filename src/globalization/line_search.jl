@@ -1,10 +1,3 @@
-function SciMLBase.solve!(cache::AbstractNonlinearSolveLineSearchCache, u, du; kwargs...)
-    time_start = time()
-    res = __solve!(cache, u, du; kwargs...)
-    cache.total_time += time() - time_start
-    return res
-end
-
 """
     NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm
 
@@ -14,15 +7,14 @@ struct NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm end
 
 @concrete mutable struct NoLineSearchCache <: AbstractNonlinearSolveLineSearchCache
     α
-    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F, fu, u,
         p, args...; kwargs...) where {F}
-    return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true), 0.0)
+    return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
 end
 
-__solve!(cache::NoLineSearchCache, u, du) = false, cache.α
+SciMLBase.solve!(cache::NoLineSearchCache, u, du) = false, cache.α
 
 """
     LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
@@ -67,7 +59,6 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     u_cache
     fu_cache
     nf::Base.RefValue{Int}
-    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
@@ -125,10 +116,10 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
     end
 
     return LineSearchesJLCache(ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
-        u_cache, fu_cache, nf, 0.0)
+        u_cache, fu_cache, nf)
 end
 
-function __solve!(cache::LineSearchesJLCache, u, du; kwargs...)
+function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
     dϕ = @closure α -> cache.dϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
     ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
@@ -185,7 +176,6 @@ end
     η_strategy
     n_exp::Int
     nf::Base.RefValue{Int}
-    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
@@ -207,10 +197,10 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
 
     return RobustNonMonotoneLineSearchCache(ϕ, u_cache, fu_cache, internalnorm,
         alg.maxiters, fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M, T(alg.tau_min),
-        T(alg.tau_max), 0, η_strategy, alg.n_exp, nf, 0.0)
+        T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
 end
 
-function __solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
+function SciMLBase.solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
     f_norm_old = ϕ(eltype(u)(0))
@@ -220,19 +210,19 @@ function __solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
 
     for k in 1:(cache.maxiters)
         f_norm = ϕ(α₊)
-        f_norm ≤ f_bar + η - cache.γ * α₊ * f_norm_old && return (true, α₊)
+        f_norm ≤ f_bar + η - cache.γ * α₊ * f_norm_old && return (false, α₊)
 
         α₊ *= clamp(α₊ * f_norm_old / (f_norm + (T(2) * α₊ - T(1)) * f_norm_old),
             cache.τ_min, cache.τ_max)
 
         f_norm = ϕ(-α₋)
-        f_norm ≤ f_bar + η - cache.γ * α₋ * f_norm_old && return (true, -α₋)
+        f_norm ≤ f_bar + η - cache.γ * α₋ * f_norm_old && return (false, -α₋)
 
         α₋ *= clamp(α₋ * f_norm_old / (f_norm + (T(2) * α₋ - T(1)) * f_norm_old),
             cache.τ_min, cache.τ_max)
     end
 
-    return false, T(cache.σ₁)
+    return true, T(cache.σ₁)
 end
 
 function callback_into_cache!(topcache, cache::RobustNonMonotoneLineSearchCache, args...)
@@ -284,7 +274,6 @@ end
     nan_maxiters::Int
     maxiters::Int
     nf::Base.RefValue{Int}
-    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch,
@@ -303,10 +292,10 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSear
 
     return LiFukushimaLineSearchCache(ϕ, f, p, internalnorm, u_cache, fu_cache,
         T(alg.lambda_0), T(alg.beta), T(alg.sigma_1), T(alg.sigma_2), T(alg.eta),
-        T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf, 0.0)
+        T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf)
 end
 
-function __solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
+function SciMLBase.solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
 

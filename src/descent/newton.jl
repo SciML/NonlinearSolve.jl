@@ -30,31 +30,29 @@ supports_line_search(::NewtonDescent) = true
     δu
     δus
     lincache
-    # For normal form else nothing
-    JᵀJ_cache
+    JᵀJ_cache  # For normal form else nothing
     Jᵀfu_cache
+    timer::TimerOutput
 end
 
-function callback_into_cache!(cache, internalcache::NewtonDescentCache, args...)
-    callback_into_cache!(cache, internalcache.lincache, internalcache, args...)
-end
+@internal_caches NewtonDescentCache :lincache
 
 function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
-    INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing)
+    INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing, timer)
     lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing)
+    return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing, timer)
 end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), shared::Val{N} = Val(1),
-        abstol = nothing, reltol = nothing, kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
@@ -73,20 +71,22 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
-    return NewtonDescentCache{false, normal_form}(δu, δus, lincache, JᵀJ, Jᵀfu)
+    return NewtonDescentCache{false, normal_form}(δu, δus, lincache, JᵀJ, Jᵀfu, timer)
 end
 
 function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N}
+        idx::Val = Val(1); skip_solve::Bool = false, kwargs...) where {INV}
     δu = get_du(cache, idx)
     skip_solve && return δu
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb δu = J × vec(fu)
     else
-        δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
-            du = _vec(δu))
-        δu = _restructure(get_du(cache, idx), δu)
+        @timeit_debug cache.timer "linear solve" begin
+            δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
+                du = _vec(δu))
+            δu = _restructure(get_du(cache, idx), δu)
+        end
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
@@ -94,14 +94,16 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
 end
 
 function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {N}
+        idx::Val = Val(1); skip_solve::Bool = false, kwargs...)
     δu = get_du(cache, idx)
     skip_solve && return δu
     @bb cache.JᵀJ_cache = transpose(J) × J
     @bb cache.Jᵀfu_cache = transpose(J) × fu
-    δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
-        kwargs..., linu = _vec(δu), du = _vec(δu))
-    δu = _restructure(get_du(cache, N), δu)
+    @timeit_debug cache.timer "linear solve" begin
+        δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
+            kwargs..., linu = _vec(δu), du = _vec(δu))
+        δu = _restructure(get_du(cache, idx), δu)
+    end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
     return δu, true, (;)

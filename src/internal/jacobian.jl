@@ -1,7 +1,3 @@
-abstract type AbstractNonlinearSolveJacobianCache{iip} <: Function end
-
-SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = iip
-
 @concrete mutable struct JacobianCache{iip} <: AbstractNonlinearSolveJacobianCache{iip}
     J
     f
@@ -12,7 +8,6 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     jac_cache
     alg
     njacs::Int
-    total_time::Float64
     autodiff
     vjp_autodiff
     jvp_autodiff
@@ -60,14 +55,14 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, Int(0), 0.0,
-        autodiff, vjp_autodiff, jvp_autodiff)
+    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff,
+        jvp_autodiff)
 end
 
 function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, Int(0), 0.0,
-        nothing, nothing, nothing)
+    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, 0, nothing, nothing,
+        nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
@@ -81,16 +76,13 @@ function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
     return StatefulJacobianOperator(J, u, p)
 end
 function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
-    time_start = time()
     cache.njacs += 1
     J = last(__value_derivative(cache.uf, u))
-    cache.total_time += time() - time_start
     return J
 end
 # Compute the Jacobian
 function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u,
         p = cache.p) where {iip}
-    time_start = time()
     cache.njacs += 1
     if iip
         if has_jac(cache.f)
@@ -109,7 +101,6 @@ function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u,
             sparse_jacobian(cache.autodiff, cache.jac_cache, cache.uf, u)
         end
     end
-    cache.total_time += time() - time_start
     return J_
 end
 
