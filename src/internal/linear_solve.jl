@@ -94,7 +94,7 @@ end
 
 @inline __update_A!(cache::LinearSolverCache, ::Nothing, reuse) = cache
 @inline function __update_A!(cache::LinearSolverCache, A, reuse)
-    return __update_A!(cache, __getproperty(cache.linsolve, Val(:alg)), A, reuse)
+    return __update_A!(cache, __getproperty(cache.lincache, Val(:alg)), A, reuse)
 end
 @inline function __update_A!(cache, alg, A, reuse)
     # Not a Factorization Algorithm so don't update `nfactors`

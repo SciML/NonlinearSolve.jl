@@ -203,8 +203,7 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
 end
 
 # Query Statistics
-# TODO: Deal with the total time in a dedicated way
-for stat in (:nsolve, :nfactors, :nsteps, :njacs, :nf) # , :total_time)
+for stat in (:nsolve, :nfactors, :nsteps, :njacs, :nf)
     fname = Symbol("get_$(stat)")
     @eval @inline $(fname)(cache) = __query_stat(cache, $(Val(stat)))
 end
@@ -216,7 +215,7 @@ end
 end
 
 @inline __get_data(x::Number) = x
-@inline __get_data(x::Base.RefValue{<:Int}) = x
+@inline __get_data(x::Base.RefValue{Int}) = x[]
 
 # Auto-generate some of the helper functions
 macro internal_caches(cType, internal_cache_names...)

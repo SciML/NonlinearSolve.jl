@@ -28,8 +28,11 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     #             nothing, nothing; last = Val(true))
     #     end
 
+    stats = SciMLBase.NLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
+        get_nsolve(cache), get_nsteps(cache))
+
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode)
+        cache.retcode, stats)
 
     # return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
     #     cache.retcode, cache.stats, trace)

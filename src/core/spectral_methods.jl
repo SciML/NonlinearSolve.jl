@@ -75,7 +75,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
     end
 end
 
-function SciMLBase.step!(cache::GeneralizedDFSaneCache{iip};
+function __step!(cache::GeneralizedDFSaneCache{iip};
         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip}
     if recompute_jacobian !== nothing
         @warn "GeneralizedDFSane is a Jacobian-Free Algorithm. Ignoring \

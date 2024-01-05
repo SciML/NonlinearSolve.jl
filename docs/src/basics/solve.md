@@ -8,12 +8,13 @@ solve(prob::SciMLBase.NonlinearProblem, args...; kwargs...)
 
   - `alias_u0::Bool`: Whether to alias the initial condition or use a copy.
     Defaults to `false`.
-  - `internal_norm::Function`: The norm used by the solver. Default depends on algorithm
+  - `internalnorm::Function`: The norm used by the solver. Default depends on algorithm
     choice.
 
 ## Iteration Controls
 
   - `maxiters::Int`: The maximum number of iterations to perform. Defaults to `1000`.
+  - `maxtime`: The maximum time for solving the nonlinear system of equations. Defaults to `Inf`.
   - `abstol::Number`: The absolute tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `reltol::Number`: The relative tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `termination_condition`: Termination Condition from DiffEqBase. Defaults to

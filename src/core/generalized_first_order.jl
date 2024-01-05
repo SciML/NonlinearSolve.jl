@@ -132,7 +132,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
     end
 end
 
-function SciMLBase.step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
+function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip, GB}
     @timeit_debug cache.timer "jacobian" begin
         if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
