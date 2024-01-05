@@ -105,6 +105,8 @@ Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
 """
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
+abstract type AbstractNonlinearSolveLineSearchCache end
+
 """
     AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm
 

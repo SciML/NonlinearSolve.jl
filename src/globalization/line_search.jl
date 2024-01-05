@@ -1,3 +1,10 @@
+function SciMLBase.solve!(cache::AbstractNonlinearSolveLineSearchCache, u, du; kwargs...)
+    time_start = time()
+    res = __solve!(cache, u, du; kwargs...)
+    cache.total_time += time() - time_start
+    return res
+end
+
 """
     NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm
 
@@ -5,16 +12,17 @@ Don't perform a line search. Just return the initial step length of `1`.
 """
 struct NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm end
 
-@concrete struct NoLineSearchCache
+@concrete mutable struct NoLineSearchCache <: AbstractNonlinearSolveLineSearchCache
     α
+    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F, fu, u,
         p, args...; kwargs...) where {F}
-    return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
+    return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true), 0.0)
 end
 
-SciMLBase.solve!(cache::NoLineSearchCache, u, du) = false, cache.α
+__solve!(cache::NoLineSearchCache, u, du) = false, cache.α
 
 """
     LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
@@ -49,7 +57,7 @@ end
 Base.@deprecate_binding LineSearch LineSearchesJL true
 
 # Wrapper over LineSearches.jl algorithms
-@concrete mutable struct LineSearchesJLCache
+@concrete mutable struct LineSearchesJLCache <: AbstractNonlinearSolveLineSearchCache
     ϕ
     dϕ
     ϕdϕ
@@ -58,6 +66,8 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     grad_op
     u_cache
     fu_cache
+    nf::Base.RefValue{Int}
+    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
@@ -88,16 +98,19 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
 
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
+    nf = Base.RefValue(0)
 
     ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        nf[] += 1
         return @fastmath internalnorm(fu_cache)^2 / 2
     end
 
     dϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        nf[] += 1
         g₀ = grad_op(u_cache, fu_cache)
         return dot(g₀, du)
     end
@@ -105,16 +118,17 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
     ϕdϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        nf[] += 1
         g₀ = grad_op(u_cache, fu_cache)
         obj = @fastmath internalnorm(fu_cache)^2 / 2
         return obj, dot(g₀, du)
     end
 
     return LineSearchesJLCache(ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
-        u_cache, fu_cache)
+        u_cache, fu_cache, nf, 0.0)
 end
 
-function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
+function __solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
     dϕ = @closure α -> cache.dϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
     ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
@@ -142,7 +156,8 @@ Robust NonMonotone Line Search is a derivative free line search method from DF S
 gradient information for solving large-scale nonlinear systems of equations."
 Mathematics of computation 75.255 (2006): 1429-1448.
 """
-@kwdef @concrete struct RobustNonMonotoneLineSearch
+@kwdef @concrete struct RobustNonMonotoneLineSearch <:
+                        AbstractNonlinearSolveLineSearchAlgorithm
     gamma = 1 // 10000
     sigma_1 = 1
     M::Int = 10
@@ -153,21 +168,24 @@ Mathematics of computation 75.255 (2006): 1429-1448.
     η_strategy = (fn₁, n, uₙ, fₙ) -> fn₁ / n^2
 end
 
-@concrete mutable struct RobustNonMonotoneLineSearchCache
+@concrete mutable struct RobustNonMonotoneLineSearchCache <:
+                         AbstractNonlinearSolveLineSearchCache
     ϕ
     u_cache
     fu_cache
     internalnorm
-    maxiters
+    maxiters::Int
     history
     γ
     σ₁
     M::Int
     τ_min
     τ_max
-    iter::Int
+    nsteps::Int
     η_strategy
     n_exp::Int
+    nf::Base.RefValue{Int}
+    total_time::Float64
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
@@ -176,9 +194,11 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
 
+    nf = Base.RefValue(0)
     ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        nf[] += 1
         return internalnorm(fu_cache)^alg.n_exp
     end
 
@@ -187,15 +207,15 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
 
     return RobustNonMonotoneLineSearchCache(ϕ, u_cache, fu_cache, internalnorm,
         alg.maxiters, fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M, T(alg.tau_min),
-        T(alg.tau_max), 1, η_strategy, alg.n_exp)
+        T(alg.tau_max), 0, η_strategy, alg.n_exp, nf, 0.0)
 end
 
-function SciMLBase.solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
+function __solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
     ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
     f_norm_old = ϕ(eltype(u)(0))
     α₊, α₋ = T(cache.σ₁), T(cache.σ₁)
-    η = cache.η_strategy(cache.iter, u, f_norm_old)
+    η = cache.η_strategy(cache.nsteps, u, f_norm_old)
     f_bar = maximum(cache.history)
 
     for k in 1:(cache.maxiters)
@@ -217,124 +237,109 @@ end
 
 function callback_into_cache!(topcache, cache::RobustNonMonotoneLineSearchCache, args...)
     fu = get_fu(topcache)
-    cache.history[mod1(cache.iter, cache.M)] = cache.internalnorm(fu)^cache.n_exp
-    cache.iter += 1
+    cache.history[mod1(cache.nsteps, cache.M)] = cache.internalnorm(fu)^cache.n_exp
+    cache.nsteps += 1
     return
 end
 
-# """
-#     LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.5, sigma_1 = 0.001,
-#         eta = 0.1, nan_max_iter = 5, maxiters = 50)
+"""
+    LiFukushimaLineSearch(; lambda_0 = 1, beta = 1 // 2, sigma_1 = 1 // 1000,
+        sigma_2 = 1 // 1000, eta = 1 // 10, nan_max_iter::Int = 5, maxiters::Int = 100)
 
-# A derivative-free line search and global convergence of Broyden-like method for nonlinear
-# equations by Dong-Hui Li & Masao Fukushima. For more details see
-# https://doi.org/10.1080/10556780008805782
-# """
-# struct LiFukushimaLineSearch{T} <: AbstractNonlinearSolveLineSearchAlgorithm
-#     λ₀::T
-#     β::T
-#     σ₁::T
-#     σ₂::T
-#     η::T
-#     ρ::T
-#     nan_max_iter::Int
-#     maxiters::Int
-# end
+A derivative-free line search and global convergence of Broyden-like method for nonlinear
+equations by Dong-Hui Li & Masao Fukushima. For more details see
+https://doi.org/10.1080/10556780008805782
 
-# function LiFukushimaLineSearch(; lambda_0 = 1.0, beta = 0.1, sigma_1 = 0.001,
-#         sigma_2 = 0.001, eta = 0.1, rho = 0.9, nan_max_iter = 5, maxiters = 50)
-#     T = promote_type(typeof(lambda_0), typeof(beta), typeof(sigma_1), typeof(eta),
-#         typeof(rho), typeof(sigma_2))
-#     return LiFukushimaLineSearch{T}(lambda_0, beta, sigma_1, sigma_2, eta, rho,
-#         nan_max_iter, maxiters)
-# end
+### References
 
-# @concrete mutable struct LiFukushimaLineSearchCache{iip}
-#     f
-#     p
-#     u_cache
-#     fu_cache
-#     alg
-#     α
-# end
+[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
+of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
+(2000): 181-201.
+"""
+@kwdef @concrete struct LiFukushimaLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm
+    lambda_0 = 1
+    beta = 1 // 2
+    sigma_1 = 1 // 1000
+    sigma_2 = 1 // 1000
+    eta = 1 // 10
+    rho = 9 // 10
+    nan_max_iter::Int = 5  # TODO: Change this to nan_maxiters for uniformity
+    maxiters::Int = 100
+end
 
-# function init_linesearch_cache(alg::LiFukushimaLineSearch, ls::LineSearch, f::F, _u, p, _fu,
-#         ::Val{iip}) where {iip, F}
-#     fu = iip ? deepcopy(_fu) : nothing
-#     u = iip ? deepcopy(_u) : nothing
-#     return LiFukushimaLineSearchCache{iip}(f, p, u, fu, alg, ls.α)
-# end
+@concrete mutable struct LiFukushimaLineSearchCache <: AbstractNonlinearSolveLineSearchCache
+    ϕ
+    f
+    p
+    internalnorm
+    u_cache
+    fu_cache
+    λ₀
+    β
+    σ₁
+    σ₂
+    η
+    ρ
+    α
+    nan_maxiters::Int
+    maxiters::Int
+    nf::Base.RefValue{Int}
+    total_time::Float64
+end
 
-# function perform_linesearch!(cache::LiFukushimaLineSearchCache{iip}, u, du) where {iip}
-#     (; β, σ₁, σ₂, η, λ₀, ρ, nan_max_iter, maxiters) = cache.alg
-#     λ₂ = λ₀
-#     λ₁ = λ₂
+function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch,
+        f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
+    T = promote_type(eltype(fu), eltype(u))
 
-#     if iip
-#         cache.f(cache.fu_cache, u, cache.p)
-#         fx_norm = norm(cache.fu_cache, 2)
-#     else
-#         fx_norm = norm(cache.f(u, cache.p), 2)
-#     end
+    nf = Base.RefValue(0)
+    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
+        @bb @. u_cache = u + α * du
+        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        nf[] += 1
+        return internalnorm(fu_cache)
+    end
 
-#     # Non-Blocking exit if the norm is NaN or Inf
-#     !isfinite(fx_norm) && return cache.α
+    return LiFukushimaLineSearchCache(ϕ, f, p, internalnorm, u_cache, fu_cache,
+        T(alg.lambda_0), T(alg.beta), T(alg.sigma_1), T(alg.sigma_2), T(alg.eta),
+        T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf, 0.0)
+end
 
-#     # Early Terminate based on Eq. 2.7
-#     if iip
-#         cache.u_cache .= u .- du
-#         cache.f(cache.fu_cache, cache.u_cache, cache.p)
-#         fxλ_norm = norm(cache.fu_cache, 2)
-#     else
-#         fxλ_norm = norm(cache.f(u .- du, cache.p), 2)
-#     end
+function __solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
+    T = promote_type(eltype(u), eltype(du))
+    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
 
-#     fxλ_norm ≤ ρ * fx_norm - σ₂ * norm(du, 2)^2 && return cache.α
+    fx_norm = ϕ(T(0))
 
-#     if iip
-#         cache.u_cache .= u .- λ₂ .* du
-#         cache.f(cache.fu_cache, cache.u_cache, cache.p)
-#         fxλp_norm = norm(cache.fu_cache, 2)
-#     else
-#         fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
-#     end
+    # Non-Blocking exit if the norm is NaN or Inf
+    !isfinite(fx_norm) && return (true, cache.α)
 
-#     if !isfinite(fxλp_norm)
-#         # Backtrack a finite number of steps
-#         nan_converged = false
-#         for _ in 1:nan_max_iter
-#             λ₁, λ₂ = λ₂, β * λ₂
+    # Early Terminate based on Eq. 2.7
+    du_norm = cache.internalnorm(du)
+    fxλ_norm = ϕ(cache.α)
+    fxλ_norm ≤ cache.ρ * fx_norm - cache.σ₂ * du_norm^2 && return (false, cache.α)
 
-#             if iip
-#                 cache.u_cache .= u .+ λ₂ .* du
-#                 cache.f(cache.fu_cache, cache.u_cache, cache.p)
-#                 fxλp_norm = norm(cache.fu_cache, 2)
-#             else
-#                 fxλp_norm = norm(cache.f(u .+ λ₂ .* du, cache.p), 2)
-#             end
+    λ₂, λ₁ = cache.λ₀, cache.λ₀
+    fxλp_norm = ϕ(λ₂)
 
-#             nan_converged = isfinite(fxλp_norm)
-#             nan_converged && break
-#         end
+    if !isfinite(fxλp_norm)
+        nan_converged = false
+        for _ in 1:(cache.nan_maxiters)
+            λ₁, λ₂ = λ₂, cache.β * λ₂
+            fxλp_norm = ϕ(λ₂)
+            nan_converged = isfinite(fxλp_norm)
+            nan_converged && break
+        end
+        nan_converged || return (true, cache.α)
+    end
 
-#         # Non-Blocking exit if the norm is still NaN or Inf
-#         !nan_converged && return cache.α
-#     end
+    for i in 1:(cache.maxiters)
+        fxλp_norm = ϕ(λ₂)
+        converged = fxλp_norm ≤ (1 + cache.η) * fx_norm - cache.σ₁ * λ₂^2 * du_norm^2
+        converged && return (false, λ₂)
+        λ₁, λ₂ = λ₂, cache.β * λ₂
+    end
 
-#     for _ in 1:maxiters
-#         if iip
-#             cache.u_cache .= u .- λ₂ .* du
-#             cache.f(cache.fu_cache, cache.u_cache, cache.p)
-#             fxλp_norm = norm(cache.fu_cache, 2)
-#         else
-#             fxλp_norm = norm(cache.f(u .- λ₂ .* du, cache.p), 2)
-#         end
-
-#         converged = fxλp_norm ≤ (1 + η) * fx_norm - σ₁ * λ₂^2 * norm(du, 2)^2
-
-#         converged && break
-#         λ₁, λ₂ = λ₂, β * λ₂
-#     end
-
-#     return λ₂
-# end
+    return true, cache.α
+end

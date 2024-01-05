@@ -1,5 +1,5 @@
 """
-    Broyden(; max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
+    Broyden(; max_resets::Int = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing)
 
 An implementation of `Broyden` with resetting and line search.

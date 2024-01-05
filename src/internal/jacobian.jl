@@ -18,8 +18,6 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
     jvp_autodiff
 end
 
-@inline get_njacs(cache::JacobianCache) = cache.njacs
-
 function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
