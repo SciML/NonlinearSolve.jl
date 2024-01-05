@@ -30,12 +30,11 @@ An implementation of `Broyden` with resetting and line search.
 function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing, alpha = nothing,
         update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
-    # TODO: Support alpha
     if IJ === :identity
         if UR === :diagonal
-            initialization = IdentityInitialization(DiagonalStructure())
+            initialization = IdentityInitialization(alpha, DiagonalStructure())
         else
-            initialization = IdentityInitialization(FullStructure())
+            initialization = IdentityInitialization(alpha, FullStructure())
         end
     elseif IJ === :true_jacobian
         initialization = TrueJacobianInitialization(FullStructure(), autodiff)

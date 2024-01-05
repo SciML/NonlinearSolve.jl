@@ -1,6 +1,6 @@
 """
     Klement(; max_resets = 100, linsolve = NoLineSearch(), linesearch = nothing,
-        precs = DEFAULT_PRECS, alpha = true, init_jacobian::Val = Val(:identity),
+        precs = DEFAULT_PRECS, alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
 An implementation of `Klement` with line search, preconditioning and customizable linear
@@ -22,18 +22,17 @@ solves. It is recommended to use `Broyden` for most problems over this.
       + `Val(:true_jacobian_diagonal)`: Diagonal of True Jacobian. This is a good choice for
         differentiable problems.
 """
-function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = true,
-        linesearch = NoLineSearch(), precs = DEFAULT_PRECS,
-        init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing) where {IJ}
+function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
+        linesearch = NoLineSearch(), precs = DEFAULT_PRECS, autodiff = nothing,
+        init_jacobian::Val{IJ} = Val(:identity)) where {IJ}
     if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
                       Please use `LineSearchesJL` instead.", :Klement)
         linesearch = LineSearchesJL(; method = linesearch)
     end
 
-    # TODO: Support alpha
     if IJ === :identity
-        initialization = IdentityInitialization(DiagonalStructure())
+        initialization = IdentityInitialization(alpha, DiagonalStructure())
     elseif IJ === :true_jacobian
         initialization = TrueJacobianInitialization(FullStructure(), autodiff)
     elseif IJ === :true_jacobian_diagonal

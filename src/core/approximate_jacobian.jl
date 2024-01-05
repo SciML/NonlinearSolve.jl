@@ -93,11 +93,10 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         @bb u_cache = copy(u)
 
         INV = store_inverse_jacobian(alg.update_rule)
-        # TODO: alpha = __initial_alpha(alg_.alpha, u, fu, internalnorm)
 
         linsolve = __getproperty(alg.descent, Val(:linsolve))
         initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve,
-            maxiters)
+            maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, u, u,
             termination_condition)
@@ -154,7 +153,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     @timeit_debug cache.timer "jacobian init/reinit" begin
         if get_nsteps(cache) == 0
             # First Step is special ignore kwargs
-            J_init = solve!(cache.initialization_cache, cache.u, Val(false))
+            J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(false))
             # TODO: trait to check if init was pre inverted
             cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
             J = cache.J
@@ -185,7 +184,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
 
             if reinit
-                J_init = solve!(cache.initialization_cache, cache.u, Val(true))
+                J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(true))
                 cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
             else

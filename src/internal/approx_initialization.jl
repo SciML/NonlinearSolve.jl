@@ -43,56 +43,74 @@ end
 
 # Initialization Strategies
 @concrete struct IdentityInitialization <: AbstractJacobianInitialization
+    alpha
     structure
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
-        f::F, fu, u::Number, p; kwargs...) where {F}
-    return InitializedApproximateJacobianCache(one(u), alg.structure, alg, nothing, true)
+        f::F, fu, u::Number, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+    α = __initial_alpha(alg.alpha, u, fu, internalnorm)
+    return InitializedApproximateJacobianCache(α, alg.structure, alg, nothing, true,
+        internalnorm)
 end
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
-        f::F, fu::StaticArray, u::StaticArray, p; kwargs...) where {F}
+        f::F, fu::StaticArray, u::StaticArray, p; internalnorm::IN = DEFAULT_NORM,
+        kwargs...) where {IN, F}
+    α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
-        J = one.(fu)
+        J = one.(fu) .* α
     else
         T = promote_type(eltype(u), eltype(fu))
         if fu isa SArray
-            J_ = SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+            J_ = SArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
         else
-            J_ = MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I)
+            J_ = MArray{Tuple{prod(Size(fu)), prod(Size(u))}, T}(I * α)
         end
         J = alg.structure(J_; alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true,
+        internalnorm)
 end
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
-        f::F, fu, u, p; kwargs...) where {F}
+        f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+    α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
-        J = one.(fu)
+        J = one.(fu) .* α
     else
         J_ = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
-        J = alg.structure(__make_identity!!(J_); alias = true)
+        J = alg.structure(__make_identity!!(J_, α); alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true,
+        internalnorm)
 end
 
-@inline __make_identity!!(A::Number) = one(A)
-@inline __make_identity!!(A::AbstractVector) = can_setindex(A) ? (A .= true) : (one.(A))
-@inline function __make_identity!!(A::AbstractMatrix{T}) where {T}
+@inline function __initial_alpha(α, u, fu, internalnorm::F) where {F}
+    return convert(promote_type(eltype(u), eltype(fu)), α)
+end
+@inline function __initial_alpha(::Nothing, u, fu, internalnorm::F) where {F}
+    fu_norm = internalnorm(fu)
+    return ifelse(fu_norm ≥ 1e-5, (2 * fu_norm) / max(norm(u), true),
+        __initial_alpha(true, u, fu, internalnorm))
+end
+
+@inline __make_identity!!(A::Number, α) = one(A) * α
+@inline __make_identity!!(A::AbstractVector, α) = can_setindex(A) ? (A .= α) :
+                                                  (one.(A) .* α)
+@inline function __make_identity!!(A::AbstractMatrix{T}, α) where {T}
     if A isa SMatrix
         Sz = Size(A)
-        return SArray{Tuple{Sz[1], Sz[2]}, eltype(Sz)}(I)
+        return SArray{Tuple{Sz[1], Sz[2]}, eltype(Sz)}(I * α)
     end
     @assert can_setindex(A) "__make_identity!!(::AbstractMatrix) only works on mutable arrays!"
     fill!(A, false)
     if fast_scalar_indexing(A)
         @inbounds for i in axes(A, 1)
-            A[i, i] = true
+            A[i, i] = α
         end
     else
-        A[diagind(A)] .= true
+        A[diagind(A)] .= α
     end
     return A
 end
@@ -102,15 +120,15 @@ end
     autodiff
 end
 
-# TODO: For just the diagonal elements of the Jacobian we don't need to construct the full
-# Jacobian
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
-        solver, f::F, fu, u, p; linsolve = missing, autodiff = nothing, kwargs...) where {F}
+        solver, f::F, fu, u, p; linsolve = missing, autodiff = nothing,
+        internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_reverse_mode = false,
         kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
     J = alg.structure(jac_cache(nothing))
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false)
+    return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false,
+        internalnorm)
 end
 
 @concrete mutable struct InitializedApproximateJacobianCache
@@ -119,6 +137,7 @@ end
     alg
     cache
     initialized::Bool
+    internalnorm
 end
 
 @internal_caches InitializedApproximateJacobianCache :cache
@@ -127,7 +146,7 @@ function (cache::InitializedApproximateJacobianCache)(::Nothing)
     return get_full_jacobian(cache, cache.structure, cache.J)
 end
 
-function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, u,
+function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, fu, u,
         ::Val{reinit}) where {reinit}
     if reinit || !cache.initialized
         cache(cache.alg, u)
@@ -141,12 +160,14 @@ function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, u,
     return full_J
 end
 
-function (cache::InitializedApproximateJacobianCache)(alg::IdentityInitialization, u)
-    cache.J = __make_identity!!(cache.J)
+function (cache::InitializedApproximateJacobianCache)(alg::IdentityInitialization, fu, u)
+    α = __initial_alpha(alg.alpha, u, fu, cache.internalnorm)
+    cache.J = __make_identity!!(cache.J, α)
     return
 end
 
-function (cache::InitializedApproximateJacobianCache)(alg::TrueJacobianInitialization, u)
+function (cache::InitializedApproximateJacobianCache)(alg::TrueJacobianInitialization, fu,
+        u)
     J_new = cache.cache(u)
     cache.J = cache.structure(cache.J, J_new)
     return
