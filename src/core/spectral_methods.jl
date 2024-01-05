@@ -110,7 +110,7 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
         evaluate_f!(cache, cache.u, cache.p)
     end
 
-    # update_trace!(cache, α)
+    update_trace!(cache, α)
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     # Update Spectral Parameter

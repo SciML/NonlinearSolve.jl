@@ -103,7 +103,7 @@ include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
-include("internal/approx_initialization.jl")
+include("internal/approximate_initialization.jl")
 
 include("globalization/line_search.jl")
 include("globalization/trust_region.jl")

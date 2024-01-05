@@ -78,6 +78,8 @@ end
     force_reinit::Bool
 end
 
+store_inverse_jacobian(::ApproximateJacobianSolveCache{INV}) where {INV} = INV
+
 @internal_caches ApproximateJacobianSolveCache :initialization_cache :descent_cache :linesearch_cache :trustregion_cache :update_rule_cache :reinit_rule_cache
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
@@ -219,6 +221,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                     evaluate_f!(cache, cache.u, cache.p)
                 end
             end
+            update_trace!(cache, α)
         elseif GB === :TrustRegion
             @timeit_debug cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
@@ -228,11 +231,13 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                     @bb copyto!(cache.fu, fu_new)
                 end
             end
+            update_trace!(cache, true)
         elseif GB === :None
             @timeit_debug cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
+            update_trace!(cache, true)
         else
             error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
                 :TrustRegion, :None)")
@@ -241,8 +246,6 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     else
         cache.force_reinit = true
     end
-
-    # TODO: update_trace!(cache, α)
 
     @bb copyto!(cache.u_cache, cache.u)
 

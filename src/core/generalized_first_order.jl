@@ -183,6 +183,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                 @bb axpy!(α, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
+            update_trace!(cache, true)
         elseif GB === :TrustRegion
             @timeit_debug cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
@@ -194,11 +195,13 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                     cache.make_new_jacobian = false
                 end
             end
+            update_trace!(cache, true)
         elseif GB === :None
             @timeit_debug cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
+            update_trace!(cache, true)
         else
             error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
                   :TrustRegion, :None)")
@@ -207,8 +210,6 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
     else
         cache.make_new_jacobian = false
     end
-
-    # TODO: update_trace!(cache, α)
 
     @bb copyto!(cache.u_cache, cache.u)
 

@@ -10,11 +10,11 @@ Trace Minimal Information
  2. f(u) inf-norm
  3. Step 2-norm
 
-## Arguments
+### Arguments
 
   - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
 
-## Keyword Arguments
+### Keyword Arguments
 
   - `print_frequency`: Print the trace every `print_frequency` iterations if
     `show_trace == Val(true)`.
@@ -32,11 +32,11 @@ end
 
 `TraceMinimal` + Print the Condition Number of the Jacobian.
 
-## Arguments
+### Arguments
 
   - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
 
-## Keyword Arguments
+### Keyword Arguments
 
   - `print_frequency`: Print the trace every `print_frequency` iterations if
     `show_trace == Val(true)`.
@@ -58,11 +58,11 @@ end
 
     This is very expensive and makes copyies of the Jacobian, u, f(u), and δu.
 
-## Arguments
+### Arguments
 
   - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
 
-## Keyword Arguments
+### Keyword Arguments
 
   - `print_frequency`: Print the trace every `print_frequency` iterations if
     `show_trace == Val(true)`.
@@ -217,16 +217,13 @@ function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
 
     J = __getproperty(cache, Val(:J))
     if J === nothing
-        J_inv = __getproperty(cache, Val(:J⁻¹))
-        if J_inv === nothing
-            update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
-                nothing, cache.du, α)
-        else
-            update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache),
-                ApplyArray(__safe_inv, J_inv), cache.du, α)
-        end
+        update_trace!(trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache),
+            nothing, cache.du, α)
+    elseif cache isa ApproximateJacobianSolveCache && store_inverse_jacobian(cache)
+        update_trace!(trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache),
+            ApplyArray(__safe_inv, J), cache.du, α)
     else
-        update_trace!(trace, cache.stats.nsteps + 1, get_u(cache), get_fu(cache), J,
+        update_trace!(trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache), J,
             cache.du, α)
     end
 end

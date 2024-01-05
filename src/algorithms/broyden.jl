@@ -4,7 +4,7 @@
 
 An implementation of `Broyden` with resetting and line search.
 
-## Arguments
+### Keyword Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
 

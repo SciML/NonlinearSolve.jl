@@ -6,7 +6,7 @@
 An implementation of `Klement` with line search, preconditioning and customizable linear
 solves. It is recommended to use `Broyden` for most problems over this.
 
-## Keyword Arguments
+### Keyword Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
