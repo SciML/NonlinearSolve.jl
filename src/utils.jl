@@ -81,3 +81,8 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
 @inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
 @inline __get_nonsparse_ad(ad) = ad
+
+# Simple Checks
+@inline __is_present(::Nothing) = false
+@inline __is_present(::Missing) = false
+@inline __is_present(::Any) = true

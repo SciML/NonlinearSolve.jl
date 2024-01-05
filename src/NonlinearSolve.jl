@@ -88,35 +88,6 @@ const False = Val(false)
 
 # __reinit_internal!(::AbstractNonlinearSolveCache; kwargs...) = nothing
 
-# function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
-#     str = "$(nameof(typeof(alg)))("
-#     modifiers = String[]
-#     if __getproperty(alg, Val(:ad)) !== nothing
-#         push!(modifiers, "ad = $(nameof(typeof(alg.ad)))()")
-#     end
-#     if __getproperty(alg, Val(:linsolve)) !== nothing
-#         push!(modifiers, "linsolve = $(nameof(typeof(alg.linsolve)))()")
-#     end
-#     if __getproperty(alg, Val(:linesearch)) !== nothing
-#         ls = alg.linesearch
-#         if ls isa LineSearch
-#             ls.method !== nothing &&
-#                 push!(modifiers, "linesearch = $(nameof(typeof(ls.method)))()")
-#         else
-#             push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
-#         end
-#     end
-#     append!(modifiers, __alg_print_modifiers(alg))
-#     if __getproperty(alg, Val(:radius_update_scheme)) !== nothing
-#         push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
-#     end
-#     str = str * join(modifiers, ", ")
-#     print(io, "$(str))")
-#     return nothing
-# end
-
-# __alg_print_modifiers(_) = String[]
-
 include("abstract_types.jl")
 include("internal/helpers.jl")
 

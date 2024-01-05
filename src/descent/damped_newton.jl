@@ -18,6 +18,15 @@ Based on the formulation we expect the damping factor returned to be a non-negat
     damping_fn
 end
 
+function Base.show(io::IO, d::DampedNewtonDescent)
+    modifiers = String[]
+    d.linsolve !== nothing && push!(modifiers, "linsolve = $(d.linsolve)")
+    d.precs !== DEFAULT_PRECS && push!(modifiers, "precs = $(d.precs)")
+    push!(modifiers, "initial_damping = $(d.initial_damping)")
+    push!(modifiers, "damping_fn = $(d.damping_fn)")
+    print(io, "DampedNewtonDescent($(join(modifiers, ", ")))")
+end
+
 supports_line_search(::DampedNewtonDescent) = true
 supports_trust_region(::DampedNewtonDescent) = true
 

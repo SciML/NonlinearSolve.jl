@@ -9,6 +9,19 @@
     initialization
 end
 
+function Base.show(io::IO,
+        alg::ApproximateJacobianSolveAlgorithm{concrete_jac, name}) where {concrete_jac, name}
+    modifiers = String[]
+    __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
+    __is_present(alg.trustregion) && push!(modifiers, "trustregion = $(alg.trustregion)")
+    push!(modifiers, "descent = $(alg.descent)")
+    push!(modifiers, "update_rule = $(alg.update_rule)")
+    push!(modifiers, "reinit_rule = $(alg.reinit_rule)")
+    push!(modifiers, "max_resets = $(alg.max_resets)")
+    push!(modifiers, "initialization = $(alg.initialization)")
+    print(io, "$(name)(\n    $(join(modifiers, ",\n    "))\n)")
+end
+
 function ApproximateJacobianSolveAlgorithm(; concrete_jac = nothing,
         name::Symbol = :unknown, kwargs...)
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; kwargs...)

@@ -33,12 +33,22 @@ differentiation for fast Vector Jacobian Products.
     to `AutoFiniteDiff()`, which means that finite differencing is used to compute the VJP.
     `AutoZygote()` will be faster in most cases, but it requires `Zygote.jl` to be manually
     installed and loaded.
-  - `alpha`: the initial step size to use. Defaults to `true` (which is equivalent to `1`).
+  - `α`: the initial step size to use. Defaults to `true` (which is equivalent to `1`).
 """
 @concrete struct LineSearchesJL <: AbstractNonlinearSolveLineSearchAlgorithm
     method
     initial_alpha
     autodiff
+end
+
+function Base.show(io::IO, alg::LineSearchesJL)
+    str = "$(nameof(typeof(alg)))("
+    modifiers = String[]
+    alg.autodiff !== nothing &&
+        push!(modifiers, "autodiff = $(nameof(typeof(alg.autodiff)))()")
+    alg.initial_alpha != true && push!(modifiers, "initial_alpha = $(alg.initial_alpha)")
+    push!(modifiers, "method = $(alg.method)")
+    print(io, str, join(modifiers, ", "), ")")
 end
 
 LineSearchesJL(method; kwargs...) = LineSearchesJL(; method, kwargs...)

@@ -20,6 +20,11 @@ algorithm for nonlinear least-squares minimization." arXiv preprint arXiv:1201.5
     α
 end
 
+function Base.show(io::IO, alg::GeodesicAcceleration)
+    print(io, "GeodesicAcceleration(descent = $(alg.descent), finite_diff_step_geodesic = ",
+        "$(alg.finite_diff_step_geodesic), α = $(alg.α))")
+end
+
 supports_trust_region(::GeodesicAcceleration) = true
 
 @concrete mutable struct GeodesicAccelerationCache <: AbstractDescentCache

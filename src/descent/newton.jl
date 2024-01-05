@@ -23,6 +23,13 @@ See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@r
     precs = DEFAULT_PRECS
 end
 
+function Base.show(io::IO, d::NewtonDescent)
+    modifiers = String[]
+    d.linsolve !== nothing && push!(modifiers, "linsolve = $(d.linsolve)")
+    d.precs !== DEFAULT_PRECS && push!(modifiers, "precs = $(d.precs)")
+    print(io, "NewtonDescent($(join(modifiers, ", ")))")
+end
+
 supports_line_search(::NewtonDescent) = true
 
 @concrete mutable struct NewtonDescentCache{pre_inverted, normalform} <:

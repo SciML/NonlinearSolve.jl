@@ -24,6 +24,11 @@ See also [`SteepestDescent`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDesce
     steepest_descent
 end
 
+function Base.show(io::IO, d::Dogleg)
+    print(io,
+        "Dogleg(newton_descent = $(d.newton_descent), steepest_descent = $(d.steepest_descent))")
+end
+
 supports_trust_region(::Dogleg) = true
 
 function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,

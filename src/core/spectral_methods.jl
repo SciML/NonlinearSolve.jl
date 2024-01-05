@@ -8,6 +8,15 @@
     σ_1
 end
 
+function Base.show(io::IO, alg::GeneralizedDFSane{name}) where {name}
+    modifiers = String[]
+    __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
+    push!(modifiers, "σ_min = $(alg.σ_min)")
+    push!(modifiers, "σ_max = $(alg.σ_max)")
+    push!(modifiers, "σ_1 = $(alg.σ_1)")
+    print(io, "$(name)(\n    $(join(modifiers, ",\n    "))\n)")
+end
+
 concrete_jac(::GeneralizedDFSane) = nothing
 
 @concrete mutable struct GeneralizedDFSaneCache{iip} <: AbstractNonlinearSolveCache{iip}

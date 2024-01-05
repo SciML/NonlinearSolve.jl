@@ -105,6 +105,10 @@ Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
 """
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
+function Base.show(io::IO, alg::AbstractNonlinearSolveLineSearchAlgorithm)
+    print(io, "$(nameof(typeof(alg)))()")
+end
+
 abstract type AbstractNonlinearSolveLineSearchCache end
 
 """
@@ -179,7 +183,24 @@ end
 
 abstract type AbstractJacobianInitialization end
 
+function Base.show(io::IO, alg::AbstractJacobianInitialization)
+    modifiers = String[]
+    hasfield(typeof(alg), :structure) &&
+        push!(modifiers, "structure = $(nameof(typeof(alg.structure)))()")
+    print(io, "$(nameof(typeof(alg)))($(join(modifiers, ", ")))")
+    return nothing
+end
+
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
+
+function Base.show(io::IO, alg::AbstractApproximateJacobianUpdateRule{INV}) where {INV}
+    if INV
+        print(io, "$(nameof(typeof(alg)))(stores_inverse = true)")
+    else
+        print(io, "$(nameof(typeof(alg)))()")
+    end
+    return nothing
+end
 
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV} = INV
 
@@ -188,6 +209,11 @@ abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where {INV} = INV
 
 abstract type AbstractResetCondition end
+
+function Base.show(io::IO, alg::AbstractResetCondition)
+    print(io, "$(nameof(typeof(alg)))()")
+    return nothing
+end
 
 abstract type AbstractTrustRegionMethod end
 
