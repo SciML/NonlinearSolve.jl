@@ -94,7 +94,7 @@ function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u,
     else
         J_ = if has_jac(cache.f)
             cache.f.jac(u, p)
-        elseif can_setindex(typeof(J))
+        elseif __can_setindex(typeof(J))
             sparse_jacobian!(J, cache.autodiff, cache.jac_cache, cache.uf, u)
             J
         else

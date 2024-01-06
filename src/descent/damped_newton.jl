@@ -185,13 +185,13 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, true, normal_form
                     rhs_damp = fu
                 end
                 D = solve!(cache.damping_fn_cache, jac_damp, rhs_damp, False)
-                if can_setindex(cache.J)
+                if __can_setindex(cache.J)
                     copyto!(@view(cache.J[1:size(J, 1), :]), J)
                     cache.J[(size(J, 1) + 1):end, :] .= sqrt.(D)
                 else
                     cache.J = _vcat(J, sqrt.(D))
                 end
-                if can_setindex(cache.Jᵀfu_cache)
+                if __can_setindex(cache.Jᵀfu_cache)
                     cache.rhs_cache[1:size(J, 1)] .= _vec(fu)
                     cache.rhs_cache[(size(J, 1) + 1):end] .= false
                 else
@@ -216,7 +216,7 @@ end
 @inline __dampen_jacobian!!(J_cache, J::SciMLBase.AbstractSciMLOperator, D) = J + D
 @inline __dampen_jacobian!!(J_cache, J::Number, D) = J + D
 @inline function __dampen_jacobian!!(J_cache, J::AbstractMatrix, D::AbstractMatrix)
-    if can_setindex(J_cache)
+    if __can_setindex(J_cache)
         if fast_scalar_indexing(J_cache)
             @inbounds for i in axes(J_cache, 1)
                 J_cache[i, i] = J[i, i] + D[i, i]
@@ -231,7 +231,7 @@ end
     end
 end
 @inline function __dampen_jacobian!!(J_cache, J::AbstractMatrix, D::Number)
-    if can_setindex(J_cache)
+    if __can_setindex(J_cache)
         if fast_scalar_indexing(J_cache)
             @inbounds for i in axes(J_cache, 1)
                 J_cache[i, i] = J[i, i] + D

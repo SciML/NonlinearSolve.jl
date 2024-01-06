@@ -13,7 +13,7 @@ end
 
 (::DiagonalStructure)(::Number, J_new::Number) = J_new
 function (::DiagonalStructure)(J::AbstractVector, J_new::AbstractMatrix)
-    if can_setindex(J)
+    if __can_setindex(J)
         if fast_scalar_indexing(J)
             @inbounds for i in eachindex(J)
                 J[i] = J_new[i, i]
@@ -96,14 +96,14 @@ end
 end
 
 @inline __make_identity!!(A::Number, α) = one(A) * α
-@inline __make_identity!!(A::AbstractVector, α) = can_setindex(A) ? (A .= α) :
+@inline __make_identity!!(A::AbstractVector, α) = __can_setindex(A) ? (A .= α) :
                                                   (one.(A) .* α)
 @inline function __make_identity!!(A::AbstractMatrix{T}, α) where {T}
     if A isa SMatrix
         Sz = Size(A)
         return SArray{Tuple{Sz[1], Sz[2]}, eltype(Sz)}(I * α)
     end
-    @assert can_setindex(A) "__make_identity!!(::AbstractMatrix) only works on mutable arrays!"
+    @assert __can_setindex(A) "__make_identity!!(::AbstractMatrix) only works on mutable arrays!"
     fill!(A, false)
     if fast_scalar_indexing(A)
         @inbounds for i in axes(A, 1)

@@ -50,7 +50,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem,
     else
         @bb J_diag_cache = similar(u)
     end
-    if can_setindex(J)
+    if __can_setindex(J)
         J_damped = similar(J, length(u), length(u))
     else
         J_damped = J
@@ -62,8 +62,10 @@ end
 
 function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false};
         kwargs...)
-    if can_setindex(damping.J_diag_cache)
+    if __can_setindex(damping.J_diag_cache)
         sum!(abs2, _vec(damping.J_diag_cache), J')
+    elseif damping.J_diag_cache isa Number
+        damping.J_diag_cache = abs2(J)
     else
         damping.J_diag_cache = dropdims(sum(abs2, J'; dims = 1); dims = 1)
     end
@@ -89,7 +91,7 @@ end
 
 @inline __update_LM_diagonal!!(y::Number, x::Number) = max(y, x)
 @inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractVector)
-    if can_setindex(y.diag)
+    if __can_setindex(y.diag)
         @. y.diag = max(y.diag, x)
         return y
     else
@@ -97,7 +99,7 @@ end
     end
 end
 @inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
-    if can_setindex(y.diag)
+    if __can_setindex(y.diag)
         if fast_scalar_indexing(y.diag)
             @inbounds for i in axes(x, 1)
                 y.diag[i] = max(y.diag[i], x[i, i])

@@ -2,6 +2,10 @@
     β_uphill
 end
 
+function Base.show(io::IO, alg::LevenbergMarquardtTrustRegion)
+    print(io, "LevenbergMarquardtTrustRegion(β_uphill = $(alg.β_uphill))")
+end
+
 @concrete mutable struct LevenbergMarquardtTrustRegionCache <:
                          AbstractTrustRegionMethodCache
     f
@@ -24,7 +28,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtT
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     return LevenbergMarquardtTrustRegionCache(f, p, T(Inf), v, T(Inf), internalnorm,
-        alg.β_uphill, false, u_cache, fu_cache, 0, 0.0)
+        alg.β_uphill, false, u_cache, fu_cache, 0)
 end
 
 function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
@@ -168,6 +172,10 @@ end
     max_trust_radius = 0 // 1
     initial_trust_radius = 0 // 1
     reverse_ad = nothing
+end
+
+function Base.show(io::IO, alg::GenericTrustRegionScheme)
+    print(io, "GenericTrustRegionScheme(method = $(alg.method))")
 end
 
 @concrete mutable struct GenericTrustRegionSchemeCache <: AbstractTrustRegionMethodCache

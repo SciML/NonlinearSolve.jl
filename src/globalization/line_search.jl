@@ -44,10 +44,10 @@ end
 function Base.show(io::IO, alg::LineSearchesJL)
     str = "$(nameof(typeof(alg)))("
     modifiers = String[]
-    alg.autodiff !== nothing &&
+    __is_present(alg.autodiff) &&
         push!(modifiers, "autodiff = $(nameof(typeof(alg.autodiff)))()")
     alg.initial_alpha != true && push!(modifiers, "initial_alpha = $(alg.initial_alpha)")
-    push!(modifiers, "method = $(alg.method)")
+    push!(modifiers, "method = $(nameof(typeof(alg.method)))()")
     print(io, str, join(modifiers, ", "), ")")
 end
 

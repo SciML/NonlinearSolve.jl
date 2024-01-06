@@ -14,7 +14,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::FixedPointAccelerationJL
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     sol = fixed_point(f, u0; Algorithm = alg.algorithm, MaxIter = maxiters, MaxM = alg.m,
-        ConvergenceMetricThreshold = tol,  ExtrapolationPeriod = alg.extrapolation_period,
+        ConvergenceMetricThreshold = tol, ExtrapolationPeriod = alg.extrapolation_period,
         Dampening = alg.dampening, PrintReports, ReplaceInvalids = alg.replace_invalids,
         ConditionNumberThreshold = alg.condition_number_threshold, quiet_errors = true)
 

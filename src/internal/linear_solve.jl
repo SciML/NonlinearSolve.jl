@@ -136,6 +136,6 @@ end
 end
 
 @inline __needs_square_A(_, ::Number) = false
-@inline __needs_square_A(::Nothing, ::Number) = true
+@inline __needs_square_A(::Nothing, ::Number) = false
 @inline __needs_square_A(::Nothing, _) = false
 @inline __needs_square_A(linsolve, _) = LinearSolve.needs_square_A(linsolve)

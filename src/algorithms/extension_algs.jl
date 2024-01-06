@@ -67,7 +67,8 @@ see the documentation for `FastLevenbergMarquardt.jl`.
 
     This algorithm is only available if `FastLevenbergMarquardt.jl` is installed.
 """
-@concrete struct FastLevenbergMarquardtJL{linsolve} <: AbstractNonlinearSolveExtensionAlgorithm
+@concrete struct FastLevenbergMarquardtJL{linsolve} <:
+                 AbstractNonlinearSolveExtensionAlgorithm
     autodiff
     factor
     factoraccept
@@ -297,7 +298,7 @@ Fixed Point Problems. We allow using this algorithm to solve root finding proble
 ### References:
 
 [1] N. Lepage-Saucier, Alternating cyclic extrapolation methods for optimization algorithms,
-    arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
+arXiv:2104.04974 (2021). https://arxiv.org/abs/2104.04974.
 
 !!! note
 

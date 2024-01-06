@@ -105,10 +105,6 @@ Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
 """
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
-function Base.show(io::IO, alg::AbstractNonlinearSolveLineSearchAlgorithm)
-    print(io, "$(nameof(typeof(alg)))()")
-end
-
 abstract type AbstractNonlinearSolveLineSearchCache end
 
 """
@@ -199,15 +195,6 @@ end
 
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
 
-function Base.show(io::IO, alg::AbstractApproximateJacobianUpdateRule{INV}) where {INV}
-    if INV
-        print(io, "$(nameof(typeof(alg)))(stores_inverse = true)")
-    else
-        print(io, "$(nameof(typeof(alg)))()")
-    end
-    return nothing
-end
-
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV} = INV
 
 abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
@@ -216,19 +203,20 @@ store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where 
 
 abstract type AbstractResetCondition end
 
-function Base.show(io::IO, alg::AbstractResetCondition)
-    print(io, "$(nameof(typeof(alg)))()")
-    return nothing
-end
-
 abstract type AbstractTrustRegionMethod end
 
 abstract type AbstractTrustRegionMethodCache end
 
-function last_step_accepted(cache::AbstractTrustRegionMethodCache)
-    return cache.last_step_accepted
-end
+last_step_accepted(cache::AbstractTrustRegionMethodCache) = cache.last_step_accepted
 
 abstract type AbstractNonlinearSolveJacobianCache{iip} <: Function end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = iip
+
+# Default Printing
+for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,
+    AbstractResetCondition, AbstractApproximateJacobianUpdateRule)
+    @eval function Base.show(io::IO, alg::$(aType))
+        print(io, "$(nameof(typeof(alg)))()")
+    end
+end

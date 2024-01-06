@@ -43,7 +43,7 @@ end
 @inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
 @inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
     # Spend time coping iff we will mutate the array
-    (alias || !can_setindex(typeof(x))) && return x
+    (alias || !__can_setindex(typeof(x))) && return x
     return deepcopy(x)
 end
 @inline __maybe_unaliased(x::AbstractNonlinearSolveOperator, alias::Bool) = x
@@ -99,3 +99,6 @@ function __findmin(f, x)
         return isnan(fx) ? Inf : fx
     end
 end
+
+@inline __can_setindex(x) = can_setindex(x)
+@inline __can_setindex(::Number) = false

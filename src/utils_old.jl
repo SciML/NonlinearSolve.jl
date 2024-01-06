@@ -1,10 +1,4 @@
 # Ignores NaN
-function __findmin(f, x)
-    return findmin(x) do xᵢ
-        fx = f(xᵢ)
-        return isnan(fx) ? Inf : fx
-    end
-end
 
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)

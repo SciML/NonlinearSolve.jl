@@ -9,6 +9,7 @@ solves. It is recommended to use `Broyden` for most problems over this.
 ### Keyword Arguments
 
   - `max_resets`: the maximum number of resets to perform. Defaults to `100`.
+
   - `alpha`: If `init_jacobian` is set to `Val(:identity)`, then the initial Jacobian
     inverse is set to be `αI`. Defaults to `1`. Can be set to `nothing` which implies
     `α = max(norm(u), 1) / (2 * norm(fu))`.

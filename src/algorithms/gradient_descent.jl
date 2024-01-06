@@ -6,8 +6,7 @@ An Implementation of Gradient Descent with Line Search.
 """
 function GradientDescent(; autodiff = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch())
-    descent = SteepestDescent()
-
-    return GeneralizedFirstOrderAlgorithm{false, :GradientDescent}(linesearch,
-        descent, autodiff, nothing, nothing)
+    return GeneralizedFirstOrderAlgorithm(; concrete_jac = false, name = :GradientDescent,
+        linesearch, descent = SteepestDescent(), jacobian_ad = autodiff,
+        forward_ad = nothing, reverse_ad = nothing)
 end

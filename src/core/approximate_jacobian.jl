@@ -18,6 +18,7 @@ function __show_algorithm(io::IO, alg::ApproximateJacobianSolveAlgorithm, name, 
     push!(modifiers, "reinit_rule = $(alg.reinit_rule)")
     push!(modifiers, "max_resets = $(alg.max_resets)")
     push!(modifiers, "initialization = $(alg.initialization)")
+    store_inverse_jacobian(alg.update_rule) && push!(modifiers, "inverse_jacobian = true")
     spacing = " "^indent * "    "
     spacing_last = " "^indent
     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")

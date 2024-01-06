@@ -56,7 +56,7 @@ __safe_inv!!(workspace, op::BroydenLowRankJacobian) = op  # Already Inverted for
 
 @inline function __get_components(op::BroydenLowRankJacobian)
     op.idx ≥ size(op.U, 2) && return op.cache, op.U, op.Vᵀ
-    return view(op.cache, 1:op.idx), view(op.U, :, 1:op.idx), view(op.Vᵀ, 1:op.idx, :)
+    return view(op.cache, 1:(op.idx)), view(op.U, :, 1:(op.idx)), view(op.Vᵀ, 1:(op.idx), :)
 end
 
 Base.size(op::BroydenLowRankJacobian) = size(op.U, 1), size(op.Vᵀ, 2)
