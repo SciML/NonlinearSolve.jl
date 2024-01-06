@@ -22,17 +22,16 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         end
     end
 
-    trace = __getproperty(cache, Val{:trace}())
-    if trace !== nothing
-        update_trace!(trace, get_nsteps(cache), get_u(cache), get_fu(cache), nothing,
-            nothing, nothing; last = Val(true))
-    end
+    update_from_termination_cache!(cache.termination_cache, cache)
+
+    update_trace!(cache.trace, get_nsteps(cache), get_u(cache), get_fu(cache), nothing,
+        nothing, nothing; last = True)
 
     stats = SciMLBase.NLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
         get_nsolve(cache), get_nsteps(cache))
 
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode, stats, trace)
+        cache.retcode, stats, cache.trace)
 end
 
 function SciMLBase.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)

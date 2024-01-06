@@ -247,8 +247,7 @@ end
         sigma_2 = 1 // 1000, eta = 1 // 10, nan_max_iter::Int = 5, maxiters::Int = 100)
 
 A derivative-free line search and global convergence of Broyden-like method for nonlinear
-equations by Dong-Hui Li & Masao Fukushima. For more details see
-https://doi.org/10.1080/10556780008805782
+equations by Dong-Hui Li & Masao Fukushima.
 
 ### References
 
@@ -263,7 +262,7 @@ of Broyden-like method for nonlinear equations." Optimization methods and softwa
     sigma_2 = 1 // 1000
     eta = 1 // 10
     rho = 9 // 10
-    nan_max_iter::Int = 5  # TODO: Change this to nan_maxiters for uniformity
+    nan_max_iter::Int = 5  # TODO (breaking): Change this to nan_maxiters for uniformity
     maxiters::Int = 100
 end
 

@@ -59,8 +59,9 @@ function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_toleranc
         reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
-# Essentially checks ill conditioned Jacobian
+# Checks for no significant change for `nsteps`
 @kwdef @concrete struct NoChangeInStateReset <: AbstractResetCondition
+    nsteps::Int = 3
     reset_tolerance = nothing
     check_du::Bool = true
     check_dfu::Bool = true
@@ -71,6 +72,9 @@ end
     reset_tolerance
     check_du
     check_dfu
+    nsteps::Int
+    steps_since_change_du::Int
+    steps_since_change_dfu::Int
 end
 
 function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs...)
@@ -80,15 +84,40 @@ function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs
         dfu = fu
     end
     T = real(eltype(u))
-    tol = alg.reset_tolerance === nothing ? sqrt(eps(T)) : T(alg.reset_tolerance)
-    return NoChangeInStateResetCache(dfu, tol, alg.check_du, alg.check_dfu)
+    tol = alg.reset_tolerance === nothing ? eps(T)^(3 // 4) : T(alg.reset_tolerance)
+    return NoChangeInStateResetCache(dfu, tol, alg.check_du, alg.check_dfu, alg.nsteps, 0,
+        0)
 end
 
 function SciMLBase.solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
-    cache.check_du && any(x -> abs(x) ≤ cache.reset_tolerance, du) && return true
+    if cache.check_du
+        if any(x -> abs(x) ≤ cache.reset_tolerance, du)
+            cache.steps_since_change_du += 1
+            if cache.steps_since_change_du ≥ cache.nsteps
+                cache.steps_since_change_du = 0
+                cache.steps_since_change_dfu = 0
+                return true
+            end
+        else
+            cache.steps_since_change_du = 0
+            cache.steps_since_change_dfu = 0
+        end
+    end
     if cache.check_dfu
         @bb @. cache.dfu = fu - cache.dfu
-        any(x -> abs(x) ≤ cache.reset_tolerance, cache.dfu) && return true
+        if any(x -> abs(x) ≤ cache.reset_tolerance, cache.dfu)
+            cache.steps_since_change_dfu += 1
+            if cache.steps_since_change_dfu ≥ cache.nsteps
+                cache.steps_since_change_dfu = 0
+                cache.steps_since_change_du = 0
+                @bb copyto!(cache.dfu, fu)
+                return true
+            end
+        else
+            cache.steps_since_change_dfu = 0
+            cache.steps_since_change_du = 0
+        end
+        @bb copyto!(cache.dfu, fu)
     end
     return false
 end

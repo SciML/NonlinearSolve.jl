@@ -80,8 +80,19 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
             termination_condition)
         trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
+        if alg.σ_1 === nothing
+            σ_n = dot(u, u) / dot(u, fu)
+            # Spectral parameter bounds check
+            if !(alg.σ_min ≤ abs(σ_n) ≤ alg.σ_max)
+                test_norm = dot(fu, fu)
+                σ_n = clamp(inv(test_norm), T(1), T(1e5))
+            end
+        else
+            σ_n = T(alg.σ_1)
+        end
+
         return GeneralizedDFSaneCache{isinplace(prob)}(fu, fu_cache, u, u_cache, prob.p, du,
-            alg, prob, T(alg.σ_1), T(alg.σ_min), T(alg.σ_max), linesearch_cache, 0, 0,
+            alg, prob, σ_n, T(alg.σ_min), T(alg.σ_max), linesearch_cache, 0, 0,
             maxiters, maxtime, timer, 0.0, tc_cache, trace, ReturnCode.Default, false)
     end
 end

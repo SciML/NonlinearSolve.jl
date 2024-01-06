@@ -24,9 +24,9 @@ end
         @time @safetestset "Nonlinear Least Squares Solvers" include("wrappers/nlls.jl")
     end
 
-    # if GROUP == "All" || GROUP == "23TestProblems"
-    #     @time @safetestset "23 Test Problems" include("core/23_test_problems.jl")
-    # end
+    if GROUP == "All" || GROUP == "23TestProblems"
+        @time @safetestset "23 Test Problems" include("core/23_test_problems.jl")
+    end
 
     # if GROUP == "All" || GROUP == "Miscellaneous"
     #     @time @safetestset "Quality Assurance" include("misc/qa.jl")

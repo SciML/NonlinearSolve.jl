@@ -19,12 +19,7 @@ end
 function check_and_update!(tc_cache, cache, fu, u, uprev,
         mode::AbstractNonlinearTerminationMode)
     if tc_cache(fu, u, uprev)
-        # Just a sanity measure!
-        if isinplace(cache)
-            cache.prob.f(get_fu(cache), u, cache.prob.p)
-        else
-            set_fu!(cache, cache.prob.f(u, cache.prob.p))
-        end
+        update_from_termination_cache!(tc_cache, cache, mode, u)
         cache.force_stop = true
     end
 end
@@ -41,12 +36,7 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
         if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
             cache.retcode = ReturnCode.Unstable
         end
-        # Just a sanity measure!
-        if isinplace(cache)
-            cache.prob.f(get_fu(cache), u, cache.prob.p)
-        else
-            set_fu!(cache, cache.prob.f(u, cache.prob.p))
-        end
+        update_from_termination_cache!(tc_cache, cache, mode, u)
         cache.force_stop = true
     end
 end
@@ -63,13 +53,27 @@ function check_and_update!(tc_cache, cache, fu, u, uprev,
         if tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
             cache.retcode = ReturnCode.Unstable
         end
-        if isinplace(cache)
-            copyto!(get_u(cache), tc_cache.u)
-            cache.prob.f(get_fu(cache), get_u(cache), cache.prob.p)
-        else
-            set_u!(cache, tc_cache.u)
-            set_fu!(cache, cache.prob.f(get_u(cache), cache.prob.p))
-        end
+        update_from_termination_cache!(tc_cache, cache, mode, u)
         cache.force_stop = true
     end
+end
+
+function update_from_termination_cache!(tc_cache, cache, u = get_u(cache))
+    return update_from_termination_cache!(tc_cache, cache,
+        DiffEqBase.get_termination_mode(tc_cache), u)
+end
+
+function update_from_termination_cache!(tc_cache, cache,
+        mode::AbstractNonlinearTerminationMode, u = get_u(cache))
+    evaluate_f!(cache, u, cache.p)
+end
+
+function update_from_termination_cache!(tc_cache, cache,
+        mode::AbstractSafeBestNonlinearTerminationMode, u = get_u(cache))
+    if isinplace(cache)
+        copyto!(get_u(cache), tc_cache.u)
+    else
+        set_u!(cache, tc_cache.u)
+    end
+    evaluate_f!(cache, get_u(cache), cache.p)
 end

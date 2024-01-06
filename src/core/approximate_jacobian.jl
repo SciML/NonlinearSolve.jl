@@ -102,7 +102,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve,
             maxiters, internalnorm)
 
-        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, u, u,
+        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
             termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 

@@ -96,7 +96,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule, 
         @bb J_cache_2 = similar(J)
         @bb Jdu_cache = similar(Jdu)
     end
-    @bb fu_cache = similar(fu)
+    @bb fu_cache = copy(fu)
     return KlementUpdateRuleCache(Jdu, J_cache, J_cache_2, Jdu_cache, fu_cache)
 end
 

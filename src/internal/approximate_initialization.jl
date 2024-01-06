@@ -149,7 +149,7 @@ end
 function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, fu, u,
         ::Val{reinit}) where {reinit}
     if reinit || !cache.initialized
-        cache(cache.alg, u)
+        cache(cache.alg, fu, u)
         cache.initialized = true
     end
     if stores_full_jacobian(cache.structure)

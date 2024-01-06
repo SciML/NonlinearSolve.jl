@@ -100,7 +100,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         linsolve = __getproperty(alg.descent, Val(:linsolve))
 
-        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, u, u,
+        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
             termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
