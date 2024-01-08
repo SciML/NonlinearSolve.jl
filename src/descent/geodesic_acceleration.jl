@@ -39,6 +39,7 @@ supports_trust_region(::GeodesicAcceleration) = true
     Jv
     fu_cache
     u_cache
+    last_step_accepted::Bool
 end
 
 @internal_caches GeodesicAccelerationCache :descent_cache
@@ -79,14 +80,14 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleratio
     @bb fu_cache = copy(fu)
     @bb u_cache = similar(u)
     return GeodesicAccelerationCache(δu, δus, descent_cache, prob.f, prob.p, T(alg.α),
-        internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache)
+        internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false)
 end
 
 function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return δu, true, (; a, v)
-    v, _, _ = solve!(cache.descent_cache, J, fu, Val(2N - 1); skip_solve, kwargs...)
+    v, _, _ = solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve, kwargs...)
 
     @bb @. cache.u_cache = u + cache.h * v
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
@@ -94,17 +95,23 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N
     J !== nothing && @bb(cache.Jv=J × vec(v))
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
-    # FIXME: Deepcopy, J
-    a, _, _ = solve!(deepcopy(cache.descent_cache), J, cache.fu_cache, Val(2N); skip_solve,
+    a, _, _ = solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N); skip_solve,
         kwargs...)
 
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
 
+    @show norm_v, 2 * norm_a, cache.α
+
     if 2 * norm_a ≤ norm_v * cache.α
         @bb @. δu = v + a / 2
         set_du!(cache, δu, idx)
-        return δu, true, (; a, v)
+        cache.last_step_accepted = true
+    else
+        cache.last_step_accepted = false
     end
-    return δu, false, (; a, v)
+
+    @show :geo, cache.last_step_accepted
+
+    return δu, cache.last_step_accepted, (; a, v)
 end

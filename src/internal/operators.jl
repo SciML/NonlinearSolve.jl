@@ -125,8 +125,7 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
 end
 
 function VecJacOperator(args...; autodiff = nothing, kwargs...)
-    op = JacobianOperator(args...; kwargs..., skip_jvp = True, vjp_autodiff = autodiff)'
-    return op
+    return JacobianOperator(args...; kwargs..., skip_jvp = True, vjp_autodiff = autodiff)'
 end
 function JacVecOperator(args...; autodiff = nothing, kwargs...)
     return JacobianOperator(args...; kwargs..., skip_vjp = True, jvp_autodiff = autodiff)

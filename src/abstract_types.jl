@@ -98,6 +98,11 @@ set_du!(cache, δu) = (cache.δu = δu)
 set_du!(cache, δu, ::Val{1}) = set_du!(cache, δu)
 set_du!(cache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
 
+function last_step_accepted(cache::AbstractDescentCache)
+    hasfield(typeof(cache), :last_step_accepted) && return cache.last_step_accepted
+    return true
+end
+
 """
     AbstractNonlinearSolveLineSearchAlgorithm
 
@@ -163,6 +168,9 @@ abstract type AbstractDampingFunctionCache end
 
 function requires_normal_form_jacobian end
 function requires_normal_form_rhs end
+function returns_norm_form_damping(f::F) where {F}
+    return requires_normal_form_jacobian(f) || requires_normal_form_rhs(f)
+end
 
 """
     AbstractNonlinearSolveOperator <: SciMLBase.AbstractSciMLOperator
@@ -193,6 +201,8 @@ function Base.show(io::IO, alg::AbstractJacobianInitialization)
     return nothing
 end
 
+jacobian_initialized_preinverted(::AbstractJacobianInitialization) = false
+
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
 
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV} = INV
@@ -215,7 +225,7 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
 
 # Default Printing
 for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,
-    AbstractResetCondition, AbstractApproximateJacobianUpdateRule)
+    AbstractResetCondition, AbstractApproximateJacobianUpdateRule, AbstractDampingFunction)
     @eval function Base.show(io::IO, alg::$(aType))
         print(io, "$(nameof(typeof(alg)))()")
     end

@@ -64,17 +64,18 @@ end
 #     test_on_library(problems, dicts, alg_ops, broken_tests)
 # end
 
-# @testset "LevenbergMarquardt 23 Test Problems" begin
-#     alg_ops = (LevenbergMarquardt(), LevenbergMarquardt(; α_geodesic = 0.1),
-#         LevenbergMarquardt(; linsolve = CholeskyFactorization()))
+@testset "LevenbergMarquardt 23 Test Problems" begin
+    alg_ops = (LevenbergMarquardt(),
+        LevenbergMarquardt(; α_geodesic = 0.1),
+        LevenbergMarquardt(; linsolve = CholeskyFactorization()))
 
-#     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-#     broken_tests[alg_ops[1]] = [11, 21]
-#     broken_tests[alg_ops[2]] = [11, 21]
-#     broken_tests[alg_ops[3]] = [11, 21]
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [11, 21]
+    broken_tests[alg_ops[2]] = [11, 21]
+    broken_tests[alg_ops[3]] = [11, 21]
 
-#     test_on_library(problems, dicts, alg_ops, broken_tests)
-# end
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
 
 @testset "DFSane 23 Test Problems" begin
     alg_ops = (DFSane(),)
@@ -110,11 +111,13 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-# @testset "PseudoTransient 23 Test Problems" begin
-#     alg_ops = (PseudoTransient(; alpha_initial = 10.0),)
+@testset "PseudoTransient 23 Test Problems" begin
+    # PT relies on the root being a stable equilibrium for convergence, so it won't work on
+    # most problems
+    alg_ops = (PseudoTransient(),)
 
-#     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-#     broken_tests[alg_ops[1]] = [1, 9, 18, 21, 22]
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 2, 3, 11, 15, 16]
 
-#     test_on_library(problems, dicts, alg_ops, broken_tests)
-# end
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end

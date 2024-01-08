@@ -33,6 +33,8 @@ struct BroydenLowRankInitialization <: AbstractJacobianInitialization
     threshold::Int
 end
 
+jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
+
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
         solver, f::F, fu, u, p; maxiters = 1000, kwargs...) where {F}
     threshold = min(alg.threshold, maxiters)

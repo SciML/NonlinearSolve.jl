@@ -109,7 +109,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
             jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
         descent_cache = SciMLBase.init(prob, alg.descent, J, fu, u; abstol, reltol,
-            internalnorm, linsolve_kwargs)
+            internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)
 
         if alg.trustregion !== missing && alg.linesearch !== missing
@@ -156,6 +156,8 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
             new_jacobian = false
         end
     end
+
+    # FIXME: We need to pass in the jacobian even if it is not new
 
     @timeit_debug cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&

@@ -39,6 +39,10 @@ function requires_normal_form_rhs(::Union{LevenbergMarquardtDampingFunction,
         LevenbergMarquardtDampingCache})
     return false
 end
+function returns_norm_form_damping(::Union{LevenbergMarquardtDampingFunction,
+        LevenbergMarquardtDampingCache})
+    return true
+end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem,
         f::LevenbergMarquardtDampingFunction, initial_damping, J, fu, u, ::Val{NF};
@@ -50,15 +54,13 @@ function SciMLBase.init(prob::AbstractNonlinearProblem,
     else
         @bb J_diag_cache = similar(u)
     end
-    if __can_setindex(J)
-        J_damped = similar(J, length(u), length(u))
-    else
-        J_damped = J
-    end
+    J_damped = J .+ T(initial_damping) .* DᵀD
     return LevenbergMarquardtDampingCache(T(f.increase_factor), T(f.decrease_factor),
         T(f.min_damping), T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache,
         J_damped)
 end
+
+(damping::LevenbergMarquardtDampingCache)(::Nothing) = damping.J_damped
 
 function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false};
         kwargs...)
@@ -82,10 +84,13 @@ function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, JᵀJ, fu, ::
 end
 
 function callback_into_cache!(topcache, cache::LevenbergMarquardtDampingCache, args...)
-    if last_step_accepted(topcache.trustregion_cache)
+    if last_step_accepted(topcache.trustregion_cache) &&
+       last_step_accepted(topcache.descent_cache)
         cache.λ_factor = 1 / cache.decrease_factor
     end
+    @show cache.λ_factor
     cache.λ *= cache.λ_factor
+    @show cache.λ
     cache.λ_factor = cache.increase_factor
 end
 

@@ -91,7 +91,6 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
-    # FIXME: Use the returned stats
     δu_newton, _, _ = solve!(cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
 
     # Newton's Step within the trust region

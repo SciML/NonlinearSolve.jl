@@ -158,8 +158,19 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         if get_nsteps(cache) == 0
             # First Step is special ignore kwargs
             J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(false))
-            # TODO: trait to check if init was pre inverted
-            cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
+            if INV
+                if jacobian_initialized_preinverted(cache.initialization_cache.alg)
+                    cache.J = J_init
+                else
+                    cache.J = __safe_inv!!(cache.inv_workspace, J_init)
+                end
+            else
+                if jacobian_initialized_preinverted(cache.initialization_cache.alg)
+                    cache.J = __safe_inv!!(cache.inv_workspace, J_init)
+                else
+                    cache.J = J_init
+                end
+            end
             J = cache.J
         else
             countable_reinit = false

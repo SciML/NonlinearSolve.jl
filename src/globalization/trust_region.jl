@@ -24,7 +24,7 @@ end
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
-    @bb v = similar(u)
+    @bb v = copy(u)
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     return LevenbergMarquardtTrustRegionCache(f, p, T(Inf), v, T(Inf), internalnorm,
@@ -51,6 +51,8 @@ function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, Î
     else
         cache.last_step_accepted = false
     end
+
+    @show :tr, cache.last_step_accepted
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end
