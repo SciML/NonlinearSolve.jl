@@ -88,9 +88,7 @@ function callback_into_cache!(topcache, cache::LevenbergMarquardtDampingCache, a
        last_step_accepted(topcache.descent_cache)
         cache.λ_factor = 1 / cache.decrease_factor
     end
-    @show cache.λ_factor
     cache.λ *= cache.λ_factor
-    @show cache.λ
     cache.λ_factor = cache.increase_factor
 end
 

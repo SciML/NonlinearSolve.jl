@@ -101,8 +101,6 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
 
-    @show norm_v, 2 * norm_a, cache.α
-
     if 2 * norm_a ≤ norm_v * cache.α
         @bb @. δu = v + a / 2
         set_du!(cache, δu, idx)
@@ -110,8 +108,6 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N
     else
         cache.last_step_accepted = false
     end
-
-    @show :geo, cache.last_step_accepted
 
     return δu, cache.last_step_accepted, (; a, v)
 end

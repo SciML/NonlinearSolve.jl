@@ -52,8 +52,6 @@ function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, Î
         cache.last_step_accepted = false
     end
 
-    @show :tr, cache.last_step_accepted
-
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end
 
@@ -117,6 +115,8 @@ This scheme is proposed by Hei, L. [1]. The trust region radius depends on the s
 the iterations progress, which is more reliable and robust for ill-conditioned as well
 as degenerate problems.
 
+### References
+
 [1] Hei, Long. "A self-adaptive trust region algorithm." Journal of Computational
 Mathematics (2003): 229-236.
 """ Hei
@@ -129,6 +129,8 @@ updated in a way so that it converges to zero, however here, the radius depends 
 size (norm) of the current gradient of the objective (merit) function. The hypothesis is
 that the step size is bounded by the gradient size, so it makes sense to let the radius
 depend on the gradient.
+
+### References
 
 [1] Fan, Jinyan, Jianyu Pan, and Hongyan Song. "A retrospective trust region algorithm
 with trust region converging to zero." Journal of Computational Mathematics 34.4 (2016):
@@ -145,6 +147,8 @@ and use this ratio to update the trust region radius. The hypothesis is to explo
 information made available during the optimization process in order to vary the accuracy
 of the objective function computation.
 
+### References
+
 [1] Bastin, Fabian, et al. "A retrospective trust-region method for unconstrained
 optimization." Mathematical programming 123 (2010): 395-418.
 """ Bastin
@@ -156,6 +160,8 @@ This scheme is proposed by Fan, J. [1]. It is very much similar to Hei's and Yua
 schemes as it lets the trust region radius depend on the current size (norm) of the
 objective (merit) function itself. These new update schemes are known to improve local
 convergence.
+
+### References
 
 [1] Fan, Jinyan. "Convergence rate of the trust region method for nonlinear equations
 under local error bound condition." Computational Optimization and Applications 34.2

@@ -212,11 +212,11 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-                ifelse(new_jacobian, J, nothing), cache.fu, cache.u;
+                J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-                ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
+                J, cache.fu, cache.u; new_jacobian)
         end
     end
 
@@ -234,7 +234,6 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                     evaluate_f!(cache, cache.u, cache.p)
                 end
             end
-            update_trace!(cache, α)
         elseif GB === :TrustRegion
             @timeit_debug cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
@@ -244,22 +243,24 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                     @bb copyto!(cache.fu, fu_new)
                 end
             end
-            update_trace!(cache, true)
+            α = true
         elseif GB === :None
             @timeit_debug cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
-            update_trace!(cache, true)
+            α = true
         else
             error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
                 :TrustRegion, :None)")
         end
         check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else
+        α = false
         cache.force_reinit = true
     end
 
+    update_trace!(cache, α)
     @bb copyto!(cache.u_cache, cache.u)
 
     if (cache.force_stop || cache.force_reinit ||

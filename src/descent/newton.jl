@@ -82,7 +82,8 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
 end
 
 function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
-        idx::Val = Val(1); skip_solve::Bool = false, kwargs...) where {INV}
+        idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
+        kwargs...) where {INV}
     δu = get_du(cache, idx)
     skip_solve && return δu
     if INV
@@ -91,7 +92,7 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
     else
         @timeit_debug cache.timer "linear solve" begin
             δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
-                du = _vec(δu))
+                du = _vec(δu), reuse_A_if_factorization = false)
             δu = _restructure(get_du(cache, idx), δu)
         end
     end

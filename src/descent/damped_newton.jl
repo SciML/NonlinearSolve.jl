@@ -120,7 +120,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
 end
 
 function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false, kwargs...) where {INV, N, mode}
+        idx::Val{N} = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
+        kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
     skip_solve && return δu, true, (;)
 
@@ -128,7 +129,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
 
     @timeit_debug cache.timer "dampen" begin
         if mode === :least_squares
-            if J !== nothing && recompute_A
+            if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
                 if requires_normal_form_jacobian(cache.damping_fn_cache)
                     @bb cache.JᵀJ_cache = transpose(J) × J
@@ -161,7 +162,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
             end
             b = cache.rhs_cache
         elseif mode === :simple
-            if J !== nothing && recompute_A
+            if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
                 D = solve!(cache.damping_fn_cache, J, fu, False)
                 J_ = __dampen_jacobian!!(cache.J, J, D)
@@ -170,7 +171,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
             end
             A, b = J_, _vec(fu)
         elseif mode === :normal_form
-            if J !== nothing && recompute_A
+            if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)

@@ -58,7 +58,7 @@ end
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
         du = nothing, p = nothing, weight = nothing, cachedata = nothing,
-        reuse_A_if_factorization = False, kwargs...)
+        reuse_A_if_factorization = false, kwargs...)
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
@@ -101,13 +101,13 @@ end
     cache.lincache.A = A
     return cache
 end
-@inline function __update_A!(cache, ::AbstractFactorization, A, ::Val{reuse}) where {reuse}
+@inline function __update_A!(cache, ::AbstractFactorization, A, reuse)
     reuse && return cache
     cache.lincache.A = A
     cache.nfactors += 1
     return cache
 end
-@inline function __update_A!(cache, alg::DefaultLinearSolver, A, ::Val{reuse}) where {reuse}
+@inline function __update_A!(cache, alg::DefaultLinearSolver, A, reuse)
     if alg == DefaultLinearSolver(DefaultAlgorithmChoice.KrylovJL_GMRES)
         # Force a reset of the cache. This is not properly handled in LinearSolve.jl
         cache.lincache.A = A

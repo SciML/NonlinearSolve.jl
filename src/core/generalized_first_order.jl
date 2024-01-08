@@ -153,21 +153,20 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
             new_jacobian = true
         else
             J = cache.jac_cache(nothing)
+            # new_jacobian = true
             new_jacobian = false
         end
     end
-
-    # FIXME: We need to pass in the jacobian even if it is not new
 
     @timeit_debug cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-                ifelse(new_jacobian, J, nothing), cache.fu, cache.u;
+                J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
-                ifelse(new_jacobian, J, nothing), cache.fu, cache.u)
+                J, cache.fu, cache.u; new_jacobian)
         end
     end
 
@@ -186,7 +185,6 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                 @bb axpy!(α, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
-            update_trace!(cache, true)
         elseif GB === :TrustRegion
             @timeit_debug cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
@@ -198,22 +196,24 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                     cache.make_new_jacobian = false
                 end
             end
-            update_trace!(cache, true)
+            α = true
         elseif GB === :None
             @timeit_debug cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
-            update_trace!(cache, true)
+            α = true
         else
             error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
                   :TrustRegion, :None)")
         end
         check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else
+        α = false
         cache.make_new_jacobian = false
     end
 
+    update_trace!(cache, α)
     @bb copyto!(cache.u_cache, cache.u)
 
     callback_into_cache!(cache)
