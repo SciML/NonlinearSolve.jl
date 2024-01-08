@@ -192,7 +192,9 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)
+                    α = true
                 else
+                    α = false
                     cache.make_new_jacobian = false
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
@@ -201,7 +203,6 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                     cache.force_stop = true
                 end
             end
-            α = true
         elseif GB === :None
             @timeit_debug cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)

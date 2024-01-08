@@ -102,3 +102,11 @@ end
 
 @inline __can_setindex(x) = can_setindex(x)
 @inline __can_setindex(::Number) = false
+
+@inline function __mutable(x)
+    __can_setindex(x) && return x
+    y = similar(x)
+    copyto!(y, x)
+    return y
+end
+@inline __mutable(x::SArray) = MArray(x)

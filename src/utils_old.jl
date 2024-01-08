@@ -3,8 +3,6 @@
 _mutable_zero(x) = zero(x)
 _mutable_zero(x::SArray) = MArray(x)
 
-_mutable(x) = x
-_mutable(x::SArray) = MArray(x)
 
 # __maybe_mutable(x, ::AbstractFiniteDifferencesMode) = _mutable(x)
 # The shadow allocated for Enzyme needs to be mutable

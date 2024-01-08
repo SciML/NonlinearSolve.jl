@@ -77,7 +77,7 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
                 cache2 = similar(fu)
                 @closure (Jv, v, u, p) -> num_vecjac!(Jv, uf, u, v, cache1, cache2)
             else
-                @closure (v, u, p) -> num_vecjac(uf, u, v)
+                @closure (v, u, p) -> num_vecjac(uf, __mutable(u), v)
             end
         else
             error("`vjp_autodiff` = `$(typeof(vjp_autodiff))` is not supported in \
