@@ -64,8 +64,9 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
                              Normal Form. This is not supported."))
     end
 
-    mode = ifelse(normal_form_damping & !normal_form_linsolve, :least_squares,
-        ifelse(!normal_form_damping & !normal_form_linsolve, :simple, :normal_form))
+    mode = ifelse(u isa Number, :simple,
+        ifelse(normal_form_damping & !normal_form_linsolve, :least_squares,
+            ifelse(!normal_form_damping & !normal_form_linsolve, :simple, :normal_form)))
 
     if mode === :least_squares
         if requires_normal_form_jacobian(alg.damping_fn)

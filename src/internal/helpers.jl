@@ -77,7 +77,7 @@ end
 function get_concrete_reverse_ad(autodiff::Union{AutoZygote, AutoSparseZygote}, prob,
         sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     if isinplace(prob)
-        @warn "Attempting to use Zygote.jl for inplace problems. Switching to FiniteDiff.\
+        @warn "Attempting to use Zygote.jl for inplace problems. Switching to FiniteDiff. \
                Sparsity even if present will be ignored for correctness purposes. Set \
                the reverse ad option to `nothing` to automatically select the best option \
                and exploit sparsity."

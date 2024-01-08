@@ -92,7 +92,7 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
     else
         @timeit_debug cache.timer "linear solve" begin
             δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
-                du = _vec(δu), reuse_A_if_factorization = false)
+                du = _vec(δu), reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
             δu = _restructure(get_du(cache, idx), δu)
         end
     end
@@ -102,14 +102,17 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
 end
 
 function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
-        idx::Val = Val(1); skip_solve::Bool = false, kwargs...)
+        idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...)
     δu = get_du(cache, idx)
     skip_solve && return δu
-    @bb cache.JᵀJ_cache = transpose(J) × J
+    if idx === Val(1)
+        @bb cache.JᵀJ_cache = transpose(J) × J
+    end
     @bb cache.Jᵀfu_cache = transpose(J) × fu
     @timeit_debug cache.timer "linear solve" begin
         δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
-            kwargs..., linu = _vec(δu), du = _vec(δu))
+            kwargs..., linu = _vec(δu), du = _vec(δu),
+            reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
         δu = _restructure(get_du(cache, idx), δu)
     end
     @bb @. δu *= -1

@@ -1,3 +1,33 @@
+"""
+    LevenbergMarquardtTrustRegion(β_uphill)
+
+Trust Region method for [`LevenbergMarquardt`](@ref). This method is tightly coupled with
+the Levenberg-Marquardt method and works by directly updating the damping parameter instead
+of specifying a trust region radius.
+
+### Arguments
+
+  - `β_uphill`: a factor that determines if a step is accepted or rejected. The standard
+  choice in the Levenberg-Marquardt method is to accept all steps that decrease the cost
+  and reject all steps that increase the cost. Although this is a natural and safe choice,
+  it is often not the most efficient. Therefore downhill moves are always accepted, but
+  uphill moves are only conditionally accepted. To decide whether an uphill move will be
+  accepted at each iteration ``i``, we compute
+  ``\\beta_i = \\cos(v_{\\text{new}}, v_{\\text{old}})``, which denotes the cosine angle
+  between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
+  step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
+  specify, uphill moves are accepted if
+  ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
+  iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
+  allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
+  will be accepted. Defaults to `1.0`. For more details, see section 4 of [1]
+  [this paper](https://arxiv.org/abs/1201.5885).
+
+### References
+
+[1] Transtrum, Mark K., and James P. Sethna. "Improvements to the Levenberg-Marquardt
+algorithm for nonlinear least-squares minimization." arXiv preprint arXiv:1201.5885 (2012).
+"""
 @concrete struct LevenbergMarquardtTrustRegion <: AbstractTrustRegionMethod
     β_uphill
 end
@@ -170,15 +200,64 @@ under local error bound condition." Computational Optimization and Applications 
 
 end
 
+"""
+    GenericTrustRegionScheme(; method = RadiusUpdateSchemes.Simple,
+        max_trust_radius = nothing, initial_trust_radius = nothing,
+        step_threshold = nothing, shrink_threshold = nothing, expand_threshold = nothing,
+        shrink_factor = nothing, expand_factor = nothing, reverse_ad = nothing)
+
+Trust Region Method that updates and stores the current trust region radius in
+`trust_region`. For any of the keyword arguments, if the value is `nothing`, then we use
+the value used in the respective paper.
+
+### Keyword Arguments
+
+  - `radius_update_scheme`: the choice of radius update scheme to be used. Defaults to
+    `RadiusUpdateSchemes.Simple` which follows the conventional approach. Other available
+    schemes are documented in [`RadiusUpdateSchemes`](@ref),. These schemes have the trust
+    region radius converging to zero that is seen to improve convergence. For more details,
+    see [1].
+  - `max_trust_radius`: the maximal trust region radius. Defaults to
+    `max(norm(fu), maximum(u) - minimum(u))`, except for `RadiusUpdateSchemes.NLsolve`
+    where it defaults to `Inf`.
+  - `initial_trust_radius`: the initial trust region radius. Defaults to
+    `max_trust_radius / 11`, except for `RadiusUpdateSchemes.NLsolve` where it defaults
+    to `u0_norm > 0 ? u0_norm : 1`.
+  - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
+    compared with a value `r`, which is the actual reduction in the objective function
+    divided by the predicted reduction. If `step_threshold > r` the model is not a good
+    approximation, and the step is rejected. Defaults to `nothing`. For more details, see
+    [2].
+  - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
+    iteration, the threshold is compared with a value `r` which is the actual reduction in
+    the objective function divided by the predicted reduction. If `shrink_threshold > r` the
+    trust region radius is shrunk by `shrink_factor`. Defaults to `nothing`. For more
+    details, see [2].
+  - `expand_threshold`: the threshold for expanding the trust region radius. If a step is
+    taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is
+    also made to see if `expand_threshold < r`. If that is true, the trust region radius is
+    expanded by `expand_factor`. Defaults to `nothing`.
+  - `shrink_factor`: the factor to shrink the trust region radius with if
+    `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
+  - `expand_factor`: the factor to expand the trust region radius with if
+    `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
+
+### References
+
+[1] Yuan, Ya-xiang. "Recent advances in trust region algorithms." Mathematical Programming
+151 (2015): 249-281.
+[2] Rahpeymaii, Farzad. "An efficient line search trust-region for systems of nonlinear
+equations." Mathematical Sciences 14.3 (2020): 257-268.
+"""
 @kwdef @concrete struct GenericTrustRegionScheme
     method = RadiusUpdateSchemes.Simple
-    step_threshold
-    shrink_threshold
-    shrink_factor
-    expand_factor
-    expand_threshold
-    max_trust_radius = 0 // 1
-    initial_trust_radius = 0 // 1
+    step_threshold = nothing
+    shrink_threshold = nothing
+    shrink_factor = nothing
+    expand_factor = nothing
+    expand_threshold = nothing
+    max_trust_radius = nothing
+    initial_trust_radius = nothing
     reverse_ad = nothing
 end
 

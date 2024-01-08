@@ -119,7 +119,6 @@ include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
 include("algorithms/lbroyden.jl")
 include("algorithms/dfsane.jl")
-include("algorithms/gradient_descent.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
@@ -128,7 +127,6 @@ include("algorithms/extension_algs.jl")
 include("utils.jl")
 include("default.jl")
 
-#=
 @setup_workload begin
     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
         (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
@@ -138,7 +136,9 @@ include("default.jl")
         push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
     end
 
-    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
+    nls_algs = (NewtonRaphson(),
+        # TrustRegion(),
+        LevenbergMarquardt(), PseudoTransient(),
         Broyden(), Klement(), DFSane(), nothing)
 
     probs_nlls = NonlinearLeastSquaresProblem[]
@@ -162,10 +162,12 @@ include("default.jl")
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
     end
 
-    nlls_algs = (LevenbergMarquardt(), GaussNewton(),  GradientDescent(), TrustRegion(),
+    nlls_algs = (LevenbergMarquardt(), GaussNewton()
+        # TrustRegion(),
         LevenbergMarquardt(; linsolve = LUFactorization()),
         GaussNewton(; linsolve = LUFactorization()),
-        TrustRegion(; linsolve = LUFactorization()), nothing)
+        # TrustRegion(; linsolve = LUFactorization()),
+        nothing)
 
     @compile_workload begin
         for prob in probs_nls, alg in nls_algs
@@ -176,11 +178,10 @@ include("default.jl")
         end
     end
 end
-=#
 
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
-export GaussNewton, GradientDescent, LevenbergMarquardt, TrustRegion
+export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 

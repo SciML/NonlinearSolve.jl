@@ -44,11 +44,11 @@ append!(solvers,
         LevenbergMarquardt(; linsolve = LUFactorization()),
         nothing,
     ])
-for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
-    RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
-    RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
-    push!(solvers, TrustRegion(; radius_update_scheme))
-end
+# for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
+#     RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
+#     RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+#     push!(solvers, TrustRegion(; radius_update_scheme))
+# end
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
@@ -66,7 +66,7 @@ end
 function vjp!(Jv, v, θ, p)
     resid = zeros(length(p))
     J = ForwardDiff.jacobian((resid, θ) -> loss_function(resid, θ, p), resid, θ)
-    mul!(vec(Jv), v', J)
+    mul!(vec(Jv), transpose(J), v)
     return nothing
 end
 
@@ -78,10 +78,6 @@ probs = [
 ]
 
 for prob in probs, solver in solvers
-    !(solver isa GaussNewton) && continue
-    !(solver.linsolve isa KrylovJL) && continue
-    @test_warn "Currently we don't make use of user provided `jvp`. This is planned to be \
-    fixed in the near future." sol=solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
 end

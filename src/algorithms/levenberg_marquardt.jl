@@ -54,7 +54,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem,
     else
         @bb J_diag_cache = similar(u)
     end
-    J_damped = J .+ T(initial_damping) .* DᵀD
+    J_damped = T(initial_damping) .* DᵀD
     return LevenbergMarquardtDampingCache(T(f.increase_factor), T(f.decrease_factor),
         T(f.min_damping), T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache,
         J_damped)

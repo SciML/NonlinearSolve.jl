@@ -133,7 +133,7 @@ end
 function (op::JacobianOperator{vjp, iip})(v, u, p) where {vjp, iip}
     if vjp
         if iip
-            res = similar(J.input_cache)
+            res = similar(op.output_cache)
             op.vjp_op(res, v, u, p)
             return res
         else
@@ -141,7 +141,7 @@ function (op::JacobianOperator{vjp, iip})(v, u, p) where {vjp, iip}
         end
     else
         if iip
-            res = similar(J.output_cache)
+            res = similar(op.output_cache)
             op.jvp_op(res, v, u, p)
             return res
         else

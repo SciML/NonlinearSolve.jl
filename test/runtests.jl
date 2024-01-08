@@ -14,9 +14,9 @@ end
     #     @time @safetestset "Forward AD" include("core/forward_ad.jl")
     # end
 
-    # if GROUP == "All" || GROUP == "NLLSSolvers"
-    #     @time @safetestset "Basic NLLS Solvers" include("core/nlls.jl")
-    # end
+    if GROUP == "All" || GROUP == "NLLSSolvers"
+        @time @safetestset "Basic NLLS Solvers" include("core/nlls.jl")
+    end
 
     if GROUP == "All" || GROUP == "Wrappers"
         @time @safetestset "Fixed Point Solvers" include("wrappers/fixedpoint.jl")

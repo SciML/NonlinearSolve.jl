@@ -66,7 +66,7 @@ function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val =
         A = J === nothing ? nothing : transpose(J)
         @timeit_debug cache.timer "linear solve" begin
             δu = cache.lincache(; A, b = _vec(fu), kwargs..., linu = _vec(δu),
-                du = _vec(δu), reuse_A_if_factorization = !new_jacobian)
+                du = _vec(δu), reuse_A_if_factorization = !new_jacobian || idx !== Val(1))
             δu = _restructure(get_du(cache, idx), δu)
         end
     else
