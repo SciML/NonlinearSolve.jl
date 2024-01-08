@@ -203,8 +203,7 @@ function Base.size(J::StatefulJacobianNormalFormOperator)
 end
 
 function Base.:*(J1::StatefulJacobianOperator{true}, J2::StatefulJacobianOperator{false})
-    input = similar(J2.jac_op.input_cache)
-    cache = J2 * input
+    cache = J2 * J2.jac_op.input_cache
     T = promote_type(eltype(J1), eltype(J2))
     return StatefulJacobianNormalFormOperator{T}(J1, J2, cache)
 end

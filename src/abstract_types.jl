@@ -77,6 +77,8 @@ abstract type AbstractDescentAlgorithm end
 supports_trust_region(::AbstractDescentAlgorithm) = false
 supports_line_search(::AbstractDescentAlgorithm) = false
 
+get_linear_solver(alg::AbstractDescentAlgorithm) = __getproperty(alg, Val(:linsolve))
+
 """
     AbstractDescentCache
 

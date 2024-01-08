@@ -24,8 +24,6 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
     vjp_autodiff = get_concrete_reverse_ad(vjp_autodiff, prob, Val(false);
         check_forward_mode = false)
 
-    haslinsolve = __hasfield(alg, Val(:linsolve))
-
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
                           (linsolve === nothing || __needs_concrete_A(linsolve)))

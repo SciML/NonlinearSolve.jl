@@ -204,7 +204,8 @@ end
     GenericTrustRegionScheme(; method = RadiusUpdateSchemes.Simple,
         max_trust_radius = nothing, initial_trust_radius = nothing,
         step_threshold = nothing, shrink_threshold = nothing, expand_threshold = nothing,
-        shrink_factor = nothing, expand_factor = nothing, reverse_ad = nothing)
+        shrink_factor = nothing, expand_factor = nothing, forward_ad = nothing,
+        reverse_ad = nothing)
 
 Trust Region Method that updates and stores the current trust region radius in
 `trust_region`. For any of the keyword arguments, if the value is `nothing`, then we use
@@ -258,6 +259,7 @@ equations." Mathematical Sciences 14.3 (2020): 257-268.
     expand_threshold = nothing
     max_trust_radius = nothing
     initial_trust_radius = nothing
+    forward_ad = nothing
     reverse_ad = nothing
 end
 
@@ -284,9 +286,10 @@ end
     ϵ
     ρ
     vjp_operator
+    jvp_operator
     Jᵀfu_cache
     Jδu_cache
-    r_predict
+    δu_cache
     internalnorm
     u_cache
     fu_cache
@@ -387,53 +390,62 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
 
     # Scheme Specific Setup
     p1, p2, p3, p4 = ntuple(_ -> T(0), 4)
-    ϵ, vjp_operator, Jᵀfu_cache = T(1e-8), nothing, nothing
+    ϵ, vjp_operator, jvp_operator, δu_cache = T(1e-8), nothing, nothing, nothing
 
     @cases alg.method begin
         NLsolve => (p1 = T(1 // 2))
         Hei => begin
-            p1, p2, p3, p4 = T(5), T(0.1), T(0.15), T(0.15)
+            p1, p2, p3, p4 = T(5), T(1 // 10), T(15 // 100), T(15 // 100)
         end
         Yuan => begin
-            p1, p2, p3 = T(2), T(1 // 6), T(6.0)
-            vjp_operator = VecJacOperator(prob, fu, u; vjp_autodiff = alg.reverse_ad,
-                skip_jvp = True)
-            Jᵀfu_cache = vjp_operator * _vec(fu)
-            initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
+            p1, p2, p3 = T(2), T(1 // 6), T(6)
+            vjp_operator = VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad)
         end
         Fan => begin
-            p1, p2, p3, p4 = T(0.1), T(1 // 4), T(12.0), T(1e18)
+            p1, p2, p3, p4 = T(1 // 10), T(1 // 4), T(12), T(1e18)
             initial_trust_radius = T(p1 * fu_norm^0.99)
         end
         Bastin => begin
-            p1, p2 = T(2.5), T(1 // 4)
-            # TODO: retrospective step
+            p1, p2 = T(5 // 2), T(1 // 4)
+            vjp_operator = VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad)
+            jvp_operator = JacVecOperator(prob, fu, u; autodiff = alg.forward_ad)
+            @bb δu_cache = similar(u)
         end
         _ => ()
+    end
+
+    Jᵀfu_cache = nothing
+    @cases alg.method begin
+        Yuan => begin
+            Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * _vec(fu)
+            initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
+        end
+        _ => begin
+            @bb Jᵀfu_cache = similar(u)
+        end
     end
 
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
-    @bb r_predict = similar(fu)
 
     return GenericTrustRegionSchemeCache(alg.method, f, p, max_trust_radius,
         initial_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
         expand_threshold, shrink_factor, expand_factor, p1, p2, p3, p4, ϵ, T(0),
-        vjp_operator, Jᵀfu_cache, Jδu_cache, r_predict, internalnorm, u_cache,
-        fu_cache, false, 0, 0)
+        vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache, δu_cache, internalnorm,
+        u_cache, fu_cache, false, 0, 0)
 end
 
 function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, damping_stats)
-    @bb cache.Jδu_cache = J × vec(δu)
-    @bb @. cache.r_predict = fu + cache.Jδu_cache
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.nf += 1
 
-    fu_abs2_sum = sum(abs2, fu)
-    cache.ρ = (fu_abs2_sum - sum(abs2, cache.fu_cache)) /
-              (fu_abs2_sum - sum(abs2, cache.r_predict))
+    @bb cache.Jδu_cache = J × vec(δu)
+    @bb cache.Jᵀfu_cache = transpose(J) × vec(cache.fu_cache)
+    num = (cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2) / 2
+    denom = dot(_vec(δu), cache.Jᵀfu_cache) + dot(cache.Jδu_cache, cache.Jδu_cache) / 2
+    cache.ρ = num / denom
 
     if cache.ρ > cache.step_threshold
         cache.last_step_accepted = true
@@ -501,7 +513,8 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
                 end
                 cache.shrink_counter = 0
             end
-            @bb cache.Jᵀfu_cache = cache.vjp_operator × vec(cache.fu)
+            operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
+            @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
             cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
         end
         Fan => begin
@@ -513,16 +526,24 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
                 cache.ρ > cache.expand_threshold && (cache.p1 = min(cache.p1 * cache.p3,
                     cache.p4))
             end
-            cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu)^0.99)
+            cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^0.99)
         end
         Bastin => begin
-            # TODO: retrospective step
-            error("Not implemented yet")
             if cache.ρ > cache.step_threshold
-                #     if retrospective_step!(cache) ≥ cache.expand_threshold
-                #         cache.trust_region = max(cache.p1 * cache.internalnorm(cache.du),
-                #             cache.trust_region)
-                #     end
+                jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache,
+                    cache.p)
+                vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache,
+                    cache.p)
+                @bb cache.Jδu_cache = jvp_op × vec(δu)
+                @bb cache.Jᵀfu_cache = vjp_op × vec(cache.fu_cache)
+                denom_1 = dot(_vec(δu), cache.Jᵀfu_cache)
+                @bb cache.Jᵀfu_cache = vjp_op × vec(cache.Jδu_cache)
+                denom_2 = dot(_vec(δu), cache.Jᵀfu_cache)
+                denom = denom_1 + denom_2 / 2
+                ρ = num / denom
+                if ρ ≥ cache.expand_threshold
+                    cache.trust_region = cache.p1 * cache.internalnorm(δu)
+                end
                 cache.shrink_counter = 0
             else
                 cache.trust_region *= cache.p2
@@ -542,13 +563,3 @@ function __rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real}
         (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / R(π),
         (1 - γ1 - β) * (exp(r - c2) + β / (1 - γ1 - β)))
 end
-
-# function retrospective_step!(cache::TrustRegionCache{iip}) where {iip}
-#     J = jacobian!!(cache.J_cache, cache)
-#     __update_JᵀJ!(cache, J)
-#     __update_Jᵀf!(cache, J)
-
-#     num = __trust_region_loss(cache, cache.fu) - __trust_region_loss(cache, cache.fu_cache)
-#     denom = dot(_vec(cache.du), _vec(cache.Jᵀf)) + __lr_mul(cache, cache.JᵀJ, cache.du) / 2
-#     return num / denom
-# end

@@ -30,6 +30,7 @@ function Base.show(io::IO, d::Dogleg)
 end
 
 supports_trust_region(::Dogleg) = true
+get_linear_solver(alg::Dogleg) = get_linear_solver(alg.newton_descent)
 
 function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
         damping_fn = missing, initial_damping = missing, kwargs...)

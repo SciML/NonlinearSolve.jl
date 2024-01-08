@@ -151,10 +151,8 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 else
                     cache.J = _vcat(J, sqrt.(D))
                 end
-                A = cache.J
-            else
-                A = nothing
             end
+            A = cache.J
             if __can_setindex(cache.Jᵀfu_cache)
                 cache.rhs_cache[1:length(fu)] .= _vec(fu)
                 cache.rhs_cache[(length(fu) + 1):end] .= false
@@ -166,22 +164,20 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
             if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
                 D = solve!(cache.damping_fn_cache, J, fu, False)
-                J_ = __dampen_jacobian!!(cache.J, J, D)
-            else # Use the old factorization
-                J_ = nothing
+                cache.J = __dampen_jacobian!!(cache.J, J, D)
             end
-            A, b = J_, _vec(fu)
+            A, b = cache.J, _vec(fu)
         elseif mode === :normal_form
             if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
                 D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
-                J_ = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
-                A = __maybe_symmetric(J_)
+                cache.J = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
+                A = __maybe_symmetric(cache.J)
             elseif !recompute_A
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-                A = nothing
+                A = __maybe_symmetric(cache.J)
             else
                 A = nothing
             end
@@ -192,7 +188,9 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
     end
 
     @timeit_debug cache.timer "linear solve" begin
-        δu = cache.lincache(; A, b, kwargs..., linu = _vec(δu))
+        δu = cache.lincache(; A, b,
+            reuse_A_if_factorization = !new_jacobian && !recompute_A,
+            kwargs..., linu = _vec(δu))
         δu = _restructure(get_du(cache, idx), δu)
     end
 

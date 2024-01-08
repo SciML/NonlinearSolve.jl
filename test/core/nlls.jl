@@ -29,7 +29,7 @@ prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
 nlls_problems = [prob_oop, prob_iip]
 
 solvers = []
-for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES()]
+for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
     vjp_autodiffs = linsolve isa KrylovJL ? [nothing, AutoZygote(), AutoFiniteDiff()] :
                     [nothing]
     for linesearch in [Static(), BackTracking(), HagerZhang(), StrongWolfe(), MoreThuente()],
@@ -42,13 +42,15 @@ append!(solvers,
     [
         LevenbergMarquardt(),
         LevenbergMarquardt(; linsolve = LUFactorization()),
+        LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
+        LevenbergMarquardt(; linsolve = KrylovJL_LSMR()),
         nothing,
     ])
-# for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
-#     RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
-#     RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
-#     push!(solvers, TrustRegion(; radius_update_scheme))
-# end
+for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
+    RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
+    RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+    push!(solvers, TrustRegion(; radius_update_scheme))
+end
 
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)

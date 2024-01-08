@@ -101,15 +101,14 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         fu = evaluate_f(prob, u)
         @bb u_cache = copy(u)
 
-        linsolve = __getproperty(alg.descent, Val(:linsolve))
+        linsolve = get_linear_solver(alg.descent)
 
         abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
             termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         jac_cache = JacobianCache(prob, alg, f, fu, u, p; autodiff = alg.jacobian_ad,
-            linsolve,
-            jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
+            linsolve, jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
         descent_cache = SciMLBase.init(prob, alg.descent, J, fu, u; abstol, reltol,
             internalnorm, linsolve_kwargs, timer)

@@ -101,7 +101,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         INV = store_inverse_jacobian(alg.update_rule)
 
-        linsolve = __getproperty(alg.descent, Val(:linsolve))
+        linsolve = get_linear_solver(alg.descent)
         initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve,
             maxiters, internalnorm)
 

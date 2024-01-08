@@ -27,6 +27,8 @@ end
 
 supports_trust_region(::GeodesicAcceleration) = true
 
+get_linear_solver(alg::GeodesicAcceleration) = get_linear_solver(alg.descent)
+
 @concrete mutable struct GeodesicAccelerationCache <: AbstractDescentCache
     δu
     δus
@@ -96,7 +98,7 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
     a, _, _ = solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N); skip_solve,
-        kwargs...)
+        kwargs..., reuse_A_if_factorization = true)
 
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
