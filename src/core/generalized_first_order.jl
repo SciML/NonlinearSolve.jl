@@ -3,6 +3,7 @@
     linesearch
     trustregion
     descent
+    max_shrink_times::Int
     jacobian_ad
     forward_ad
     reverse_ad
@@ -28,7 +29,8 @@ end
 
 function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent,
         linesearch = missing, trustregion = missing, jacobian_ad = nothing,
-        forward_ad = nothing, reverse_ad = nothing) where {concrete_jac, name}
+        forward_ad = nothing, reverse_ad = nothing,
+        max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     forward_ad = ifelse(forward_ad !== nothing, forward_ad,
         ifelse(jacobian_ad isa ADTypes.AbstractForwardMode, jacobian_ad, nothing))
     reverse_ad = ifelse(reverse_ad !== nothing, reverse_ad,
@@ -42,7 +44,7 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent,
     end
 
     return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(linesearch,
-        trustregion, descent, jacobian_ad, forward_ad, reverse_ad)
+        trustregion, descent, max_shrink_times, jacobian_ad, forward_ad, reverse_ad)
 end
 
 concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
@@ -70,6 +72,7 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     nsteps::Int
     maxiters::Int
     maxtime
+    max_shrink_times::Int
 
     # Timer
     timer::TimerOutput
@@ -140,8 +143,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         return GeneralizedFirstOrderAlgorithmCache{iip, GB}(fu, u, u_cache, p,
             du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-            trustregion_cache, 0, 0, maxiters, maxtime, timer, 0.0, true, termination_cache,
-            trace, ReturnCode.Default, false)
+            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times, timer, 0.0,
+            true, termination_cache, trace, ReturnCode.Default, false)
     end
 end
 
@@ -153,7 +156,6 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
             new_jacobian = true
         else
             J = cache.jac_cache(nothing)
-            # new_jacobian = true
             new_jacobian = false
         end
     end
@@ -170,7 +172,6 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         end
     end
 
-    # TODO: Shrink counter termination for trust region methods
     if descent_success
         cache.make_new_jacobian = true
         if GB === :LineSearch
@@ -194,6 +195,11 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                     @bb copyto!(cache.fu, fu_new)
                 else
                     cache.make_new_jacobian = false
+                end
+                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                    cache.force_stop = true
                 end
             end
             α = true

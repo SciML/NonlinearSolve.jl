@@ -136,9 +136,7 @@ include("default.jl")
         push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
     end
 
-    nls_algs = (NewtonRaphson(),
-        # TrustRegion(),
-        LevenbergMarquardt(), PseudoTransient(),
+    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
         Broyden(), Klement(), DFSane(), nothing)
 
     probs_nlls = NonlinearLeastSquaresProblem[]
@@ -162,19 +160,17 @@ include("default.jl")
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
     end
 
-    nlls_algs = (LevenbergMarquardt(), GaussNewton()
-        # TrustRegion(),
+    nlls_algs = (LevenbergMarquardt(), GaussNewton(), TrustRegion(),
         LevenbergMarquardt(; linsolve = LUFactorization()),
         GaussNewton(; linsolve = LUFactorization()),
-        # TrustRegion(; linsolve = LUFactorization()),
-        nothing)
+        TrustRegion(; linsolve = LUFactorization()), nothing)
 
     @compile_workload begin
         for prob in probs_nls, alg in nls_algs
-            solve(prob, alg, abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2)
         end
         for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg, abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2)
         end
     end
 end

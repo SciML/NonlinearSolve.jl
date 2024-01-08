@@ -6,6 +6,7 @@
     update_rule
     reinit_rule
     max_resets::Int
+    max_shrink_times::Int
     initialization
 end
 
@@ -31,9 +32,10 @@ end
 
 function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = missing,
         trustregion = missing, descent, update_rule, reinit_rule, initialization,
-        max_resets = typemax(Int)) where {concrete_jac, name}
+        max_resets::Int = typemax(Int),
+        max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(linesearch, trustregion,
-        descent, update_rule, reinit_rule, Int(max_resets), initialization)
+        descent, update_rule, reinit_rule, max_resets, max_shrink_times, initialization)
 end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
@@ -67,6 +69,7 @@ end
     max_resets::Int
     maxiters::Int
     maxtime
+    max_shrink_times::Int
 
     # Timer
     timer::TimerOutput
@@ -146,8 +149,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         return ApproximateJacobianSolveCache{INV, GB, iip}(fu, u, u_cache, p, du, J, alg,
             prob, initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
             update_rule_cache, reinit_rule_cache, inv_workspace, 0, 0, 0, alg.max_resets,
-            maxiters, maxtime, timer, 0.0, termination_cache, trace, ReturnCode.Default,
-            false, false)
+            maxiters, maxtime, alg.max_shrink_times, timer, 0.0, termination_cache, trace,
+            ReturnCode.Default, false, false)
     end
 end
 
@@ -220,7 +223,6 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         end
     end
 
-    # TODO: Shrink counter termination for trust region methods
     if descent_success
         if GB === :LineSearch
             @timeit_debug cache.timer "linesearch" begin
@@ -241,6 +243,11 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)
+                end
+                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                    cache.force_stop = true
                 end
             end
             α = true

@@ -8,20 +8,20 @@ of specifying a trust region radius.
 ### Arguments
 
   - `β_uphill`: a factor that determines if a step is accepted or rejected. The standard
-  choice in the Levenberg-Marquardt method is to accept all steps that decrease the cost
-  and reject all steps that increase the cost. Although this is a natural and safe choice,
-  it is often not the most efficient. Therefore downhill moves are always accepted, but
-  uphill moves are only conditionally accepted. To decide whether an uphill move will be
-  accepted at each iteration ``i``, we compute
-  ``\\beta_i = \\cos(v_{\\text{new}}, v_{\\text{old}})``, which denotes the cosine angle
-  between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
-  step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
-  specify, uphill moves are accepted if
-  ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
-  iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
-  allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
-  will be accepted. Defaults to `1.0`. For more details, see section 4 of [1]
-  [this paper](https://arxiv.org/abs/1201.5885).
+    choice in the Levenberg-Marquardt method is to accept all steps that decrease the cost
+    and reject all steps that increase the cost. Although this is a natural and safe choice,
+    it is often not the most efficient. Therefore downhill moves are always accepted, but
+    uphill moves are only conditionally accepted. To decide whether an uphill move will be
+    accepted at each iteration ``i``, we compute
+    ``\\beta_i = \\cos(v_{\\text{new}}, v_{\\text{old}})``, which denotes the cosine angle
+    between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
+    step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
+    specify, uphill moves are accepted if
+    ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
+    iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
+    allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
+    will be accepted. Defaults to `1.0`. For more details, see section 4 of [1]
+    [this paper](https://arxiv.org/abs/1201.5885).
 
 ### References
 
@@ -295,56 +295,106 @@ end
     nf::Int
 end
 
+# Defaults
+for func in (:__max_trust_radius, :__initial_trust_raidus, :__step_threshold,
+    :__shrink_threshold, :__shrink_factor, :__expand_threshold, :__expand_factor)
+    @eval begin
+        @inline function $(func)(val, ::Type{T}, args...) where {T}
+            val_T = T(val)
+            iszero(val_T) && return $(func)(nothing, T, args...)
+            return val_T
+        end
+    end
+end
+
+@inline function __max_trust_radius(::Nothing, ::Type{T}, method, u, fu_norm) where {T}
+    return @cases method begin
+        Simple => begin
+            u_min, u_max = extrema(u)
+            max(T(fu_norm), u_max - u_min)
+        end
+        NocedalWright => begin
+            u_min, u_max = extrema(u)
+            max(T(fu_norm), u_max - u_min)
+        end
+        _ => T(Inf)
+    end
+end
+
+@inline function __initial_trust_raidus(::Nothing, ::Type{T}, method, max_tr,
+        u0_norm) where {T}
+    return @cases method begin
+        NLsolveJL => T(ifelse(u0_norm > 0, u0_norm, 1))
+        Hei => T(1)
+        Bastin => T(1)
+        _ => T(max_tr / 11)
+    end
+end
+
+@inline function __step_threshold(::Nothing, ::Type{T}, method) where {T}
+    return @cases method begin
+        Hei => T(0)
+        Yuan => T(1 // 1000)
+        Bastin => T(1 // 20)
+        _ => T(1 // 10000)
+    end
+end
+
+@inline function __shrink_threshold(::Nothing, ::Type{T}, method) where {T}
+    return @cases method begin
+        NLsolve => T(1 // 20)
+        Hei => T(0)
+        Bastin => T(1 // 20)
+        _ => T(1 // 4)
+    end
+end
+
+@inline function __expand_threshold(::Nothing, ::Type{T}, method) where {T}
+    return @cases method begin
+        NLsolve => T(9 // 10)
+        Hei => T(0)
+        Bastin => T(9 // 10)
+        _ => T(3 // 4)
+    end
+end
+
+@inline function __shrink_factor(::Nothing, ::Type{T}, method) where {T}
+    return @cases method begin
+        NLsolve => T(1 // 2)
+        Hei => T(0)
+        Bastin => T(1 // 20)
+        _ => T(1 // 4)
+    end
+end
+
+@inline __expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
+
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)
 
-    max_trust_radius = T(0)
-    initial_trust_radius = T(0)
-    @cases alg.method begin
-        NLsolve => begin
-            max_trust_radius = T(Inf)
-            initial_trust_radius = u0_norm > 0 ? T(u0_norm) : T(1)
-        end
-        _ => begin
-            max_trust_radius = T(alg.max_trust_radius)
-            if iszero(max_trust_radius)
-                u_min, u_max = extrema(u)
-                max_trust_radius = T(max(fu_norm, u_max - u_min))
-            end
-            initial_trust_radius = T(alg.initial_trust_radius)
-            iszero(initial_trust_radius) &&
-                (initial_trust_radius = T(max_trust_radius) / 11)
-        end
-    end
+    # Common Setup
+    max_trust_radius = __max_trust_radius(alg.max_trust_radius, T, alg.method, u, fu_norm)
+    initial_trust_radius = __initial_trust_raidus(alg.initial_trust_radius, T, alg.method,
+        max_trust_radius, u0_norm)
+    step_threshold = __step_threshold(alg.step_threshold, T, alg.method)
+    shrink_threshold = __shrink_threshold(alg.shrink_threshold, T, alg.method)
+    expand_threshold = __expand_threshold(alg.expand_threshold, T, alg.method)
+    shrink_factor = __shrink_factor(alg.shrink_factor, T, alg.method)
+    expand_factor = __expand_factor(alg.expand_factor, T, alg.method)
 
-    step_threshold = T(alg.step_threshold)
-    shrink_threshold = T(alg.shrink_threshold)
-    expand_threshold = T(alg.expand_threshold)
-    shrink_factor = T(alg.shrink_factor)
-    expand_factor = T(alg.expand_factor)
+    # Scheme Specific Setup
     p1, p2, p3, p4 = ntuple(_ -> T(0), 4)
-    ϵ = T(1e-8)
-    vjp_operator = nothing
-    Jᵀfu_cache = nothing
+    ϵ, vjp_operator, Jᵀfu_cache = T(1e-8), nothing, nothing
 
     @cases alg.method begin
-        NLsolve => begin
-            p1 = T(1 // 2)
-        end
+        NLsolve => (p1 = T(1 // 2))
         Hei => begin
-            step_threshold = T(0 // 1)
-            shrink_threshold = T(1 // 4)
-            expand_threshold = T(1 // 4)
             p1, p2, p3, p4 = T(5), T(0.1), T(0.15), T(0.15)
-            initial_trust_radius = T(1)
         end
         Yuan => begin
-            step_threshold = T(0.001)
-            shrink_threshold = T(1 // 4)
-            expand_threshold = T(1 // 4)
             p1, p2, p3 = T(2), T(1 // 6), T(6.0)
             vjp_operator = VecJacOperator(prob, fu, u; vjp_autodiff = alg.reverse_ad,
                 skip_jvp = True)
@@ -352,18 +402,12 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
             initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
         end
         Fan => begin
-            step_threshold = T(0.0001)
-            shrink_threshold = T(1 // 4)
-            expand_threshold = T(3 // 4)
             p1, p2, p3, p4 = T(0.1), T(1 // 4), T(12.0), T(1e18)
-            initial_trust_radius = T(p1 * internalnorm(fu)^0.99)
+            initial_trust_radius = T(p1 * fu_norm^0.99)
         end
         Bastin => begin
-            step_threshold = T(1 // 20)
-            shrink_threshold = T(1 // 20)
-            expand_threshold = T(9 // 10)
             p1, p2 = T(2.5), T(1 // 4)
-            initial_trust_radius = T(1)
+            # TODO: retrospective step
         end
         _ => ()
     end
@@ -405,34 +449,34 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
             else
                 cache.shrink_counter = 0
                 if cache.ρ > cache.step_threshold && cache.ρ > cache.expand_threshold
-                    cache.trust_region = min(cache.expand_factor * cache.trust_region,
-                        cache.max_trust_radius)
+                    cache.trust_region = cache.expand_factor * cache.trust_region
                 end
             end
         end
         NLsolve => begin
-            if cache.ρ < 1 // 10
+            if cache.ρ < cache.shrink_threshold
+                cache.trust_region *= cache.shrink_factor
                 cache.shrink_counter += 1
-                cache.trust_region *= 1 // 2
             else
                 cache.shrink_counter = 0
-                if cache.ρ ≥ 9 // 10
-                    cache.trust_region = 2 * cache.internalnorm(δu)
-                elseif cache.ρ ≥ 1 // 2
-                    cache.trust_region = max(cache.trust_region, 2 * cache.internalnorm(δu))
+                if cache.ρ ≥ cache.expand_threshold
+                    cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
+                elseif cache.ρ ≥ cache.p1
+                    cache.trust_region = max(cache.trust_region,
+                        cache.expand_factor * cache.internalnorm(δu))
                 end
             end
         end
         NocedalWright => begin
-            if cache.ρ < 1 // 4
+            if cache.ρ < cache.shrink_threshold
+                cache.trust_region = cache.shrink_factor * cache.internalnorm(δu)
                 cache.shrink_counter += 1
-                cache.trust_region = (1 // 4) * cache.internalnorm(δu)
             else
                 cache.shrink_counter = 0
-                if cache.ρ > 3 // 4 &&
+                if cache.ρ > cache.expand_threshold &&
                    abs(cache.internalnorm(δu) - cache.trust_region) <
                    1e-6 * cache.trust_region
-                    cache.trust_region = min(2 * cache.trust_region, cache.max_trust_radius)
+                    cache.trust_region = cache.expand_factor * cache.trust_region
                 end
             end
         end
@@ -452,12 +496,11 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
                 cache.shrink_counter += 1
             else
                 if cache.ρ ≥ cache.expand_threshold &&
-                   cache.internalnorm(δu) > cache.trust_region / 2
+                   2 * cache.internalnorm(δu) > cache.trust_region
                     cache.p1 = cache.p3 * cache.p1
                 end
                 cache.shrink_counter = 0
             end
-
             @bb cache.Jᵀfu_cache = cache.vjp_operator × vec(cache.fu)
             cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
         end
@@ -487,6 +530,8 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
             end
         end
     end
+
+    cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end
