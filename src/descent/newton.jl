@@ -2,7 +2,7 @@
     NewtonDescent(; linsolve = nothing, precs = DEFAULT_PRECS)
 
 Compute the descent direction as ``J δu = -fu``. For non-square Jacobian problems, this is
-commonly refered to as the Gauss-Newton Descent.
+commonly referred to as the Gauss-Newton Descent.
 
 ### Keyword Arguments
 

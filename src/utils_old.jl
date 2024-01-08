@@ -11,7 +11,6 @@ _mutable(x::SArray) = MArray(x)
 __maybe_mutable(x, ::AutoSparseEnzyme) = _mutable(x)
 __maybe_mutable(x, _) = x
 
-
 function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
         ::Val{threshold}) where {S1, S2, T1, T2, threshold}
     T = promote_type(T1, T2)
