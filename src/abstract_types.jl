@@ -227,7 +227,8 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
 
 # Default Printing
 for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,
-    AbstractResetCondition, AbstractApproximateJacobianUpdateRule, AbstractDampingFunction)
+    AbstractResetCondition, AbstractApproximateJacobianUpdateRule, AbstractDampingFunction,
+    AbstractNonlinearSolveExtensionAlgorithm)
     @eval function Base.show(io::IO, alg::$(aType))
         print(io, "$(nameof(typeof(alg)))()")
     end

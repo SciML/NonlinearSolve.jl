@@ -444,7 +444,7 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
     @bb cache.Jδu_cache = J × vec(δu)
     @bb cache.Jᵀfu_cache = transpose(J) × vec(cache.fu_cache)
     num = (cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2) / 2
-    denom = dot(_vec(δu), cache.Jᵀfu_cache) + dot(cache.Jδu_cache, cache.Jδu_cache) / 2
+    denom = __dot(δu, cache.Jᵀfu_cache) + __dot(cache.Jδu_cache, cache.Jδu_cache) / 2
     cache.ρ = num / denom
 
     if cache.ρ > cache.step_threshold

@@ -119,7 +119,7 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
 
     l_grad = cache.internalnorm(δu_cauchy)
     @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-    d_cauchy = (l_grad^3) / dot(_vec(δu_cauchy), cache.δu_cache_mul)
+    d_cauchy = (l_grad^3) / __dot(δu_cauchy, cache.δu_cache_mul)
 
     if d_cauchy ≥ trust_region
         @bb @. δu = (trust_region / l_grad) * δu_cauchy
@@ -134,8 +134,8 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
     # trust region
     @bb @. cache.δu_cache_1 = (d_cauchy / l_grad) * δu_cauchy
     @bb @. cache.δu_cache_2 = δu_newton - cache.δu_cache_1
-    a = dot(_vec(cache.δu_cache_2), _vec(cache.δu_cache_2))
-    b = 2 * dot(_vec(cache.δu_cache_1), _vec(cache.δu_cache_2))
+    a = dot(cache.δu_cache_2, cache.δu_cache_2)
+    b = 2 * dot(cache.δu_cache_1, cache.δu_cache_2)
     c = d_cauchy^2 - trust_region^2
     aux = max(0, b^2 - 4 * a * c)
     τ = (-b + sqrt(aux)) / (2 * a)

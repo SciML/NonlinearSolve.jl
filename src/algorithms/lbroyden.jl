@@ -80,7 +80,7 @@ function BroydenLowRankJacobian(fu, u; threshold = 10)
     T = promote_type(eltype(u), eltype(fu))
     # TODO: Mutable for StaticArrays
     U = similar(fu, T, length(fu), threshold)
-    # Storing the transpose to ensure contiguous memmory on splicing
+    # Storing the transpose to ensure contiguous memory on splicing
     Vᵀ = similar(u, T, length(u), threshold)
     cache = similar(u, T, threshold)
     return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache)

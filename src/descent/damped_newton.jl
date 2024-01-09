@@ -153,7 +153,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 end
             end
             A = cache.J
-            if __can_setindex(cache.Jᵀfu_cache)
+            if __can_setindex(cache.rhs_cache)
                 cache.rhs_cache[1:length(fu)] .= _vec(fu)
                 cache.rhs_cache[(length(fu) + 1):end] .= false
             else

@@ -110,3 +110,5 @@ end
     return y
 end
 @inline __mutable(x::SArray) = MArray(x)
+
+@inline __dot(x, y) = dot(_vec(x), _vec(y))

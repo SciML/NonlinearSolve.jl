@@ -15,11 +15,8 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 
     # The solver might have set a different `retcode`
     if cache.retcode == ReturnCode.Default
-        if cache.nsteps == cache.maxiters
-            cache.retcode = ReturnCode.MaxIters
-        else
-            cache.retcode = ReturnCode.Success
-        end
+        cache.retcode = ifelse(get_nsteps(cache) ≥ cache.maxiters, ReturnCode.MaxIters,
+            ReturnCode.Success)
     end
 
     update_from_termination_cache!(cache.termination_cache, cache)
@@ -34,6 +31,20 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
         cache.retcode, stats, cache.trace)
 end
 
+"""
+    step!(cache::AbstractNonlinearSolveCache;
+        recompute_jacobian::Union{Nothing, Bool} = nothing)
+
+Performs one step of the nonlinear solver.
+
+### Keyword Arguments
+
+  - `recompute_jacobian`: allows controlling whether the jacobian is recomputed at the
+    current step. If `nothing`, then the algorithm determines whether to recompute the
+    jacobian. If `true` or `false`, then the jacobian is recomputed or not recomputed,
+    respectively. For algorithms that don't use jacobian information, this keyword is
+    ignored with a one-time warning.
+"""
 function SciMLBase.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     time_start = time()
     res = @timeit_debug cache.timer "solve" begin
