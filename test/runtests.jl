@@ -29,10 +29,10 @@ end
     end
 
     if GROUP == "All" || GROUP == "Miscellaneous"
-    #     @time @safetestset "Quality Assurance" include("misc/qa.jl")
-    #     @time @safetestset "Sparsity Tests: Bruss Steady State" include("misc/bruss.jl")
+        @time @safetestset "Quality Assurance" include("misc/qa.jl")
+        @time @safetestset "Sparsity Tests: Bruss Steady State" include("misc/bruss.jl")
         @time @safetestset "Polyalgs" include("misc/polyalgs.jl")
-    #     @time @safetestset "Matrix Resizing" include("misc/matrix_resizing.jl")
+        @time @safetestset "Matrix Resizing" include("misc/matrix_resizing.jl")
         @time @safetestset "Banded Matrices" include("misc/banded_matrices.jl")
     end
 

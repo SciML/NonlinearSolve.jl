@@ -59,7 +59,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitializat
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
-        J = one.(fu) .* α
+        J = one.(_vec(fu)) .* α
     else
         T = promote_type(eltype(u), eltype(fu))
         if fu isa SArray
@@ -77,7 +77,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitializat
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
-        J = one.(fu) .* α
+        J = one.(_vec(fu)) .* α
     else
         J_ = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
         J = alg.structure(__make_identity!!(J_, α); alias = true)

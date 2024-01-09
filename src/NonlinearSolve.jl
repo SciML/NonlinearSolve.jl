@@ -221,7 +221,7 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
 ## Line Search Algorithms
 export LineSearchesJL, NoLineSearch, RobustNonMonotoneLineSearch, LiFukushimaLineSearch
 ## Trust Region Algorithms
-export LevenbergMarquardtTrustRegion, RadiusUpdateSchemes, GenericTrustRegionScheme
+export RadiusUpdateSchemes
 
 # Export the termination conditions from DiffEqBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,

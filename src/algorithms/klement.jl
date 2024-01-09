@@ -114,7 +114,7 @@ function SciMLBase.solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, du
     @bb @. J += ((fu - cache.fu_cache - J * du) /
                  ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * du * (J^2)
     @bb copyto!(cache.fu_cache, fu)
-    return Diagonal(J)
+    return Diagonal(vec(J))
 end
 
 function SciMLBase.solve!(cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du)

@@ -150,6 +150,11 @@ function (op::JacobianOperator{vjp, iip})(v, u, p) where {vjp, iip}
     end
 end
 
+# Prevent Ambiguity
+function (op::JacobianOperator{vjp, iip})(Jv::Number, v::Number, u, p) where {vjp, iip}
+    error("Inplace Jacobian Operator not possible for scalars.")
+end
+
 function (op::JacobianOperator{vjp, iip})(Jv, v, u, p) where {vjp, iip}
     if vjp
         if iip

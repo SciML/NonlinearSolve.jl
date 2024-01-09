@@ -48,7 +48,8 @@ function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = 
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
     if A isa Diagonal
-        @bb @. linu = cache.b / cache.A.diag
+        _diag = _restructure(cache.b, cache.A.diag)
+        @bb @. linu = cache.b / _diag
         res = linu
     else
         res = cache.A \ cache.b

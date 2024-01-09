@@ -93,12 +93,12 @@ Abstract Type for all Descent Caches.
 """
 abstract type AbstractDescentCache end
 
-SciMLBase.get_du(cache) = cache.δu
-SciMLBase.get_du(cache, ::Val{1}) = get_du(cache)
-SciMLBase.get_du(cache, ::Val{N}) where {N} = cache.δus[N - 1]
-set_du!(cache, δu) = (cache.δu = δu)
-set_du!(cache, δu, ::Val{1}) = set_du!(cache, δu)
-set_du!(cache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
+SciMLBase.get_du(cache::AbstractDescentCache) = cache.δu
+SciMLBase.get_du(cache::AbstractDescentCache, ::Val{1}) = get_du(cache)
+SciMLBase.get_du(cache::AbstractDescentCache, ::Val{N}) where {N} = cache.δus[N - 1]
+set_du!(cache::AbstractDescentCache, δu) = (cache.δu = δu)
+set_du!(cache::AbstractDescentCache, δu, ::Val{1}) = set_du!(cache, δu)
+set_du!(cache::AbstractDescentCache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
 
 function last_step_accepted(cache::AbstractDescentCache)
     hasfield(typeof(cache), :last_step_accepted) && return cache.last_step_accepted
