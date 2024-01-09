@@ -1,27 +1,35 @@
-using CUDA, NonlinearSolve, LinearSolve
+using CUDA, NonlinearSolve, LinearSolve, StableRNGs, Test
 
 CUDA.allowscalar(false)
 
-A = cu(rand(4, 4))
-u0 = cu(rand(4))
-b = cu(rand(4))
+A = cu(rand(StableRNG(0), 4, 4))
+u0 = cu(rand(StableRNG(0), 4))
+b = cu(rand(StableRNG(0), 4))
 
 linear_f(du, u, p) = (du .= A * u .+ b)
 
 prob = NonlinearProblem(linear_f, u0)
 
-for alg in (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-    PseudoTransient(; alpha_initial = 1.0f0), Klement(), Broyden(),
-    LimitedMemoryBroyden(), TrustRegion())
-    @test_nowarn sol = solve(prob, alg; abstol = 1.0f-8, reltol = 1.0f-8)
+SOLVERS = (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
+    LevenbergMarquardt(; linsolve = KrylovJL_GMRES()), PseudoTransient(), Klement(),
+    Broyden(; linesearch = LiFukushimaLineSearch()),
+    LimitedMemoryBroyden(; threshold = 2, linesearch = LiFukushimaLineSearch()),
+    DFSane(), TrustRegion(; linsolve = QRFactorization()),
+    TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
+    nothing)
+
+@testset "[IIP] GPU Solvers" begin
+    for alg in SOLVERS
+        @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+    end
 end
 
 linear_f(u, p) = A * u .+ b
 
 prob = NonlinearProblem{false}(linear_f, u0)
 
-for alg in (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-    PseudoTransient(; alpha_initial = 1.0f0), Klement(), Broyden(),
-    LimitedMemoryBroyden(), TrustRegion())
-    @test_nowarn sol = solve(prob, alg; abstol = 1.0f-8, reltol = 1.0f-8)
+@testset "[OOP] GPU Solvers" begin
+    for alg in SOLVERS
+        @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+    end
 end

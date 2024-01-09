@@ -9,10 +9,10 @@ function activate_env(env)
 end
 
 @time begin
-    # if GROUP == "All" || GROUP == "RootFinding"
+    if GROUP == "All" || GROUP == "RootFinding"
     #     @time @safetestset "Basic Root Finding Tests" include("core/rootfind.jl")
     #     @time @safetestset "Forward AD" include("core/forward_ad.jl")
-    # end
+    end
 
     if GROUP == "All" || GROUP == "NLLSSolvers"
         @time @safetestset "Basic NLLS Solvers" include("core/nlls.jl")
@@ -36,8 +36,8 @@ end
         @time @safetestset "Banded Matrices" include("misc/banded_matrices.jl")
     end
 
-    # if GROUP == "GPU"
-    #     activate_env("gpu")
-    #     @time @safetestset "GPU Tests" include("gpu/core.jl")
-    # end
+    if GROUP == "GPU"
+        activate_env("gpu")
+        @time @safetestset "GPU Tests" include("gpu/core.jl")
+    end
 end

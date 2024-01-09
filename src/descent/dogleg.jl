@@ -78,7 +78,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
 
     T = promote_type(eltype(u), eltype(fu))
 
-    normal_form = __needs_square_A(alg.newton_descent.linsolve, u)
+    normal_form = prob isa NonlinearLeastSquaresProblem &&
+                  __needs_square_A(alg.newton_descent.linsolve, u)
     JᵀJ_cache = !normal_form ? transpose(J) * J : nothing
 
     return DoglegCache{INV, normal_form}(δu, δus, newton_cache, cauchy_cache, internalnorm,

@@ -90,8 +90,9 @@ function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs
 end
 
 function SciMLBase.solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
+    reset_tolerance = cache.reset_tolerance
     if cache.check_du
-        if any(x -> abs(x) ≤ cache.reset_tolerance, du)
+        if any(@closure(x -> abs(x) ≤ reset_tolerance), du)
             cache.steps_since_change_du += 1
             if cache.steps_since_change_du ≥ cache.nsteps
                 cache.steps_since_change_du = 0
@@ -105,7 +106,7 @@ function SciMLBase.solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
     end
     if cache.check_dfu
         @bb @. cache.dfu = fu - cache.dfu
-        if any(x -> abs(x) ≤ cache.reset_tolerance, cache.dfu)
+        if any(@closure(x -> abs(x) ≤ reset_tolerance), cache.dfu)
             cache.steps_since_change_dfu += 1
             if cache.steps_since_change_dfu ≥ cache.nsteps
                 cache.steps_since_change_dfu = 0

@@ -42,7 +42,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::BroydenLowRankIniti
     return InitializedApproximateJacobianCache(J, FullStructure(), alg, nothing, true, 0.0)
 end
 
-function (cache::InitializedApproximateJacobianCache)(alg::BroydenLowRankInitialization, u)
+function (cache::InitializedApproximateJacobianCache)(alg::BroydenLowRankInitialization, fu,
+        u)
     cache.J.idx = 0
     return
 end
@@ -57,18 +58,20 @@ end
 __safe_inv!!(workspace, op::BroydenLowRankJacobian) = op  # Already Inverted form
 
 @inline function __get_components(op::BroydenLowRankJacobian)
-    op.idx ≥ size(op.U, 2) && return op.cache, op.U, op.Vᵀ
-    return view(op.cache, 1:(op.idx)), view(op.U, :, 1:(op.idx)), view(op.Vᵀ, 1:(op.idx), :)
+    op.idx ≥ size(op.U, 2) && return op.cache, op.U, transpose(op.Vᵀ)
+    return (view(op.cache, 1:(op.idx)), view(op.U, :, 1:(op.idx)),
+        transpose(view(op.Vᵀ, :, 1:(op.idx))))
 end
 
-Base.size(op::BroydenLowRankJacobian) = size(op.U, 1), size(op.Vᵀ, 2)
+Base.size(op::BroydenLowRankJacobian) = size(op.U, 1), size(op.Vᵀ, 1)
 function Base.size(op::BroydenLowRankJacobian, d::Integer)
-    return ifelse(d == 1, size(op.U, 1), size(op.Vᵀ, 2))
+    return ifelse(d == 1, size(op.U, 1), size(op.Vᵀ, 1))
 end
 
 for op in (:adjoint, :transpose)
+    # FIXME: adjoint might be a problem here. Fix if a complex number issue shows up
     @eval function Base.$(op)(operator::BroydenLowRankJacobian{T}) where {T}
-        return BroydenLowRankJacobian{T}($(op)(operator.Vᵀ), $(op)(operator.U),
+        return BroydenLowRankJacobian{T}(operator.Vᵀ, operator.U,
             operator.idx, operator.cache)
     end
 end
@@ -77,7 +80,8 @@ function BroydenLowRankJacobian(fu, u; threshold = 10)
     T = promote_type(eltype(u), eltype(fu))
     # TODO: Mutable for StaticArrays
     U = similar(fu, T, length(fu), threshold)
-    Vᵀ = similar(u, T, threshold, length(u))
+    # Storing the transpose to ensure contiguous memmory on splicing
+    Vᵀ = similar(u, T, length(u), threshold)
     cache = similar(u, T, threshold)
     return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache)
 end
@@ -111,7 +115,7 @@ function LinearAlgebra.mul!(J::BroydenLowRankJacobian, u,
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))
     copyto!(@view(J.U[:, idx_update]), _vec(u))
-    copyto!(@view(J.Vᵀ[idx_update, :]), _vec(vᵀ))
+    copyto!(@view(J.Vᵀ[:, idx_update]), _vec(vᵀ))
     J.idx += 1
     return J
 end

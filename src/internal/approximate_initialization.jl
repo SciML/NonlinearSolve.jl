@@ -197,8 +197,8 @@ end
 @inline function __safe_inv!!(workspace, A::StridedMatrix{T}) where {T}
     LinearAlgebra.checksquare(A)
     if istriu(A)
+        issingular = any(iszero, @view(A[diagind(A)]))
         A_ = UpperTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
         !issingular && return triu!(parent(inv(A_)))
     elseif istril(A)
         A_ = LowerTriangular(A)

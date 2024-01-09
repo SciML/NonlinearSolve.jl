@@ -193,8 +193,8 @@ function RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve
         algs = (TrustRegion(; concrete_jac, linsolve, precs),
             TrustRegion(; concrete_jac, linsolve, precs, autodiff,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin),
-            NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                autodiff),
+            NewtonRaphson(; concrete_jac, linsolve, precs,
+                linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.NLsolve, autodiff),
             TrustRegion(; concrete_jac, linsolve, precs,
@@ -225,8 +225,8 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
             algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),)
         else
             algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
-                NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                    autodiff),
+                NewtonRaphson(; concrete_jac, linsolve, precs,
+                    linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,
                     radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
@@ -246,9 +246,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
-                    NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
+                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
             end
@@ -264,7 +262,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
                     Klement(; linsolve, precs),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
+                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
@@ -290,15 +288,15 @@ function FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing,
         linsolve = nothing, precs = DEFAULT_PRECS, kwargs...) where {T}
     if __is_complex(T)
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
-            LevenbergMarquardt(; concrete_jac, linsolve, precs, kwargs...))
+            LevenbergMarquardt(; linsolve, precs, kwargs...))
     else
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs, kwargs...),
-            GaussNewton(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                kwargs...),
+            GaussNewton(; concrete_jac, linsolve, precs,
+                linesearch = LineSearchesJL(; method = BackTracking()), kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin, kwargs...),
-            LevenbergMarquardt(; concrete_jac, linsolve, precs, kwargs...))
+            LevenbergMarquardt(; linsolve, precs, kwargs...))
     end
     return NonlinearSolvePolyAlgorithm(algs, Val(:NLLS))
 end
