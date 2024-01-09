@@ -116,6 +116,8 @@ end
 end
 
 
+using NonlinearSolve, LinearAlgebra
+
 # this is infeasible
 function f1_infeasible!(out, u, p)
     μ = 3.986004415e14
