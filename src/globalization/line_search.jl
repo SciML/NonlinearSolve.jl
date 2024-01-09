@@ -60,6 +60,8 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
 
 # Wrapper over LineSearches.jl algorithms
 @concrete mutable struct LineSearchesJLCache <: AbstractNonlinearSolveLineSearchCache
+    f
+    p
     ϕ
     dϕ
     ϕdϕ
@@ -75,14 +77,14 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
-        grad_op = @closure (u, fu) -> last(__value_derivative(Base.Fix2(f, p), u)) * fu
+        grad_op = @closure (u, fu, p) -> last(__value_derivative(Base.Fix2(f, p), u)) * fu
     else
         if SciMLBase.has_jvp(f)
             if isinplace(prob)
                 g_cache = similar(u)
-                grad_op = @closure (u, fu) -> f.vjp(g_cache, fu, u, p)
+                grad_op = @closure (u, fu, p) -> f.vjp(g_cache, fu, u, p)
             else
-                grad_op = @closure (u, fu) -> f.vjp(fu, u, p)
+                grad_op = @closure (u, fu, p) -> f.vjp(fu, u, p)
             end
         else
             autodiff = get_concrete_reverse_ad(alg.autodiff, prob;
@@ -90,9 +92,9 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
             vjp_op = VecJacOperator(prob, fu, u; autodiff)
             if isinplace(prob)
                 g_cache = similar(u)
-                grad_op = @closure (u, fu) -> vjp_op(g_cache, fu, u, p)
+                grad_op = @closure (u, fu, p) -> vjp_op(g_cache, fu, u, p)
             else
-                grad_op = @closure (u, fu) -> vjp_op(fu, u, p)
+                grad_op = @closure (u, fu, p) -> vjp_op(fu, u, p)
             end
         end
     end
@@ -101,38 +103,40 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
     @bb fu_cache = similar(fu)
     nf = Base.RefValue(0)
 
-    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
+    ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
-        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
         nf[] += 1
         return @fastmath internalnorm(fu_cache)^2 / 2
     end
 
-    dϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
+    dϕ = @closure (f, p, u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
-        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
         nf[] += 1
-        g₀ = grad_op(u_cache, fu_cache)
+        g₀ = grad_op(u_cache, fu_cache, p)
         return dot(g₀, du)
     end
 
-    ϕdϕ = @closure (u, du, α, u_cache, fu_cache, grad_op) -> begin
+    ϕdϕ = @closure (f, p, u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
-        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
         nf[] += 1
-        g₀ = grad_op(u_cache, fu_cache)
+        g₀ = grad_op(u_cache, fu_cache, p)
         obj = @fastmath internalnorm(fu_cache)^2 / 2
         return obj, dot(g₀, du)
     end
 
-    return LineSearchesJLCache(ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
+    return LineSearchesJLCache(f, p, ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
         u_cache, fu_cache, nf)
 end
 
 function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
-    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
-    dϕ = @closure α -> cache.dϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
-    ϕdϕ = @closure α -> cache.ϕdϕ(u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
+    ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
+    dϕ = @closure α -> cache.dϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
+        cache.grad_op)
+    ϕdϕ = @closure α -> cache.ϕdϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
+        cache.grad_op)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
@@ -171,6 +175,8 @@ end
 
 @concrete mutable struct RobustNonMonotoneLineSearchCache <:
                          AbstractNonlinearSolveLineSearchCache
+    f
+    p
     ϕ
     u_cache
     fu_cache
@@ -195,9 +201,9 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
     T = promote_type(eltype(fu), eltype(u))
 
     nf = Base.RefValue(0)
-    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
+    ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
-        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
         nf[] += 1
         return internalnorm(fu_cache)^alg.n_exp
     end
@@ -205,14 +211,14 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
     fn₁ = internalnorm(fu)^alg.n_exp
     η_strategy = @closure (n, xₙ, fₙ) -> alg.η_strategy(fn₁, n, xₙ, fₙ)
 
-    return RobustNonMonotoneLineSearchCache(ϕ, u_cache, fu_cache, internalnorm,
+    return RobustNonMonotoneLineSearchCache(f, p, ϕ, u_cache, fu_cache, internalnorm,
         alg.maxiters, fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M, T(alg.tau_min),
         T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
 end
 
 function SciMLBase.solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
-    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
+    ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
     f_norm_old = ϕ(eltype(u)(0))
     α₊, α₋ = T(cache.σ₁), T(cache.σ₁)
     η = cache.η_strategy(cache.nsteps, u, f_norm_old)
@@ -292,9 +298,9 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSear
     T = promote_type(eltype(fu), eltype(u))
 
     nf = Base.RefValue(0)
-    ϕ = @closure (u, du, α, u_cache, fu_cache) -> begin
+    ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
-        fu_cache = evaluate_f!!(prob, fu_cache, u_cache, p)
+        fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
         nf[] += 1
         return internalnorm(fu_cache)
     end

@@ -217,6 +217,10 @@ end
 @inline __get_data(x::Number) = x
 @inline __get_data(x::Base.RefValue{Int}) = x[]
 
+function __reinit_internal! end
+__reinit_internal!(::Nothing, args...; kwargs...) = nothing
+__reinit_internal!(cache, args...; kwargs...) = nothing
+
 # Auto-generate some of the helper functions
 macro internal_caches(cType, internal_cache_names...)
     return __internal_caches(__source__, __module__, cType, internal_cache_names)
@@ -230,6 +234,8 @@ function __internal_caches(__source__, __module__, cType, internal_cache_names::
         internal_cache_names)
     callbacks_self = map(name -> :($(callback_into_cache!)(internalcache,
             getproperty(internalcache, $(name)))), internal_cache_names)
+    reinit_caches = map(name -> :($(SciMLBase.reinit!)(getproperty(cache, $(name)),
+            args...; kwargs...)), internal_cache_names)
     return esc(quote
         function __query_stat(cache::$(cType), ST::Val{stat}) where {stat}
             val = $(__direct_query_stat)(cache, ST)
@@ -243,6 +249,10 @@ function __internal_caches(__source__, __module__, cType, internal_cache_names::
         end
         function callback_into_cache!(internalcache::$(cType))
             $(callbacks_self...)
+        end
+        function SciMLBase.reinit!(cache::$(cType), args...; kwargs...)
+            $(reinit_caches...)
+            $(__reinit_internal!)(cache, args...; kwargs...)
         end
     end)
 end

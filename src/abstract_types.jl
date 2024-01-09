@@ -114,6 +114,12 @@ abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
 abstract type AbstractNonlinearSolveLineSearchCache end
 
+function __reinit_internal!(cache::AbstractNonlinearSolveLineSearchCache, args...;
+        p = cache.p, kwargs...)
+    cache.nf[] = 0
+    cache.p = p
+end
+
 """
     AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm
 
@@ -224,6 +230,22 @@ last_step_accepted(cache::AbstractTrustRegionMethodCache) = cache.last_step_acce
 abstract type AbstractNonlinearSolveJacobianCache{iip} <: Function end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = iip
+
+"""
+    AbstractNonlinearSolveTraceLevel
+
+### Common Arguments
+
+  - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
+
+### Common Keyword Arguments
+
+  - `print_frequency`: Print the trace every `print_frequency` iterations if
+    `show_trace == Val(true)`.
+  - `store_frequency`: Store the trace every `store_frequency` iterations if
+    `store_trace == Val(true)`.
+"""
+abstract type AbstractNonlinearSolveTraceLevel end
 
 # Default Printing
 for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,

@@ -44,6 +44,12 @@ get_linear_solver(alg::GeodesicAcceleration) = get_linear_solver(alg.descent)
     last_step_accepted::Bool
 end
 
+function __reinit_internal!(cache::GeodesicAccelerationCache, args...; p = cache.p,
+        kwargs...)
+    cache.p = p
+    cache.last_step_accepted = false
+end
+
 @internal_caches GeodesicAccelerationCache :descent_cache
 
 get_velocity(cache::GeodesicAccelerationCache) = get_du(cache.descent_cache, Val(1))

@@ -1,5 +1,3 @@
-abstract type AbstractNonlinearSolveTraceLevel end
-
 """
     TraceMinimal(freq)
     TraceMinimal(; print_frequency = 1, store_frequency::Int = 1)
@@ -10,16 +8,7 @@ Trace Minimal Information
  2. f(u) inf-norm
  3. Step 2-norm
 
-### Arguments
-
-  - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
-
-### Keyword Arguments
-
-  - `print_frequency`: Print the trace every `print_frequency` iterations if
-    `show_trace == Val(true)`.
-  - `store_frequency`: Store the trace every `store_frequency` iterations if
-    `store_trace == Val(true)`.
+See also [`TraceWithJacobianConditionNumber`](@ref) and [`TraceAll`](@ref).
 """
 @kwdef struct TraceMinimal <: AbstractNonlinearSolveTraceLevel
     print_frequency::Int = 1
@@ -30,18 +19,9 @@ end
     TraceWithJacobianConditionNumber(freq)
     TraceWithJacobianConditionNumber(; print_frequency = 1, store_frequency::Int = 1)
 
-`TraceMinimal` + Print the Condition Number of the Jacobian.
+[`TraceMinimal`](@ref) + Print the Condition Number of the Jacobian.
 
-### Arguments
-
-  - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
-
-### Keyword Arguments
-
-  - `print_frequency`: Print the trace every `print_frequency` iterations if
-    `show_trace == Val(true)`.
-  - `store_frequency`: Store the trace every `store_frequency` iterations if
-    `store_trace == Val(true)`.
+See also [`TraceMinimal`](@ref) and [`TraceAll`](@ref).
 """
 @kwdef struct TraceWithJacobianConditionNumber <: AbstractNonlinearSolveTraceLevel
     print_frequency::Int = 1
@@ -52,22 +32,13 @@ end
     TraceAll(freq)
     TraceAll(; print_frequency = 1, store_frequency::Int = 1)
 
-`TraceWithJacobianConditionNumber` + Store the Jacobian, u, f(u), and δu.
+[`TraceWithJacobianConditionNumber`](@ref) + Store the Jacobian, u, f(u), and δu.
 
 !!! warning
 
     This is very expensive and makes copyies of the Jacobian, u, f(u), and δu.
 
-### Arguments
-
-  - `freq`: Sets both `print_frequency` and `store_frequency` to `freq`.
-
-### Keyword Arguments
-
-  - `print_frequency`: Print the trace every `print_frequency` iterations if
-    `show_trace == Val(true)`.
-  - `store_frequency`: Store the trace every `store_frequency` iterations if
-    `store_trace == Val(true)`.
+See also [`TraceMinimal`](@ref) and [`TraceWithJacobianConditionNumber`](@ref).
 """
 @kwdef struct TraceAll <: AbstractNonlinearSolveTraceLevel
     print_frequency::Int = 1

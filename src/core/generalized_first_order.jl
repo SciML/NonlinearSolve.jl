@@ -88,6 +88,32 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     force_stop::Bool
 end
 
+function __reinit_internal!(cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...;
+        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = Inf,
+        kwargs...) where {iip}
+    if iip
+        recursivecopy!(cache.u, u0)
+        cache.f(cache.fu, cache.u, p)
+    else
+        cache.u = __maybe_unaliased(u0, alias_u0)
+        set_fu!(cache, cache.f(cache.u, p))
+    end
+    cache.p = p
+
+    cache.nf = 1
+    cache.nsteps = 0
+    cache.maxiters = maxiters
+    cache.maxtime = maxtime
+    cache.total_time = 0.0
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    cache.make_new_jacobian = true
+
+    reset!(cache.trace)
+    reinit!(cache.termination_cache, get_fu(cache), get_u(cache); kwargs...)
+    reset_timer!(cache.timer)
+end
+
 @internal_caches GeneralizedFirstOrderAlgorithmCache :jac_cache :descent_cache :linesearch_cache :trustregion_cache
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},

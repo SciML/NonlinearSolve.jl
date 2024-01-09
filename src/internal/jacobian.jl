@@ -13,6 +13,14 @@
     jvp_autodiff
 end
 
+function SciMLBase.reinit!(cache::JacobianCache{iip}, args...; p = cache.p, u0 = cache.u,
+        kwargs...) where {iip}
+    cache.njacs = 0
+    cache.u = u0
+    cache.p = p
+    cache.uf = JacobianWrapper{iip}(cache.f, p)
+end
+
 function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)

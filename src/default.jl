@@ -51,6 +51,11 @@ end
     current::Int
 end
 
+function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
+    foreach(c -> SciMLBase.reinit!(c, args...; kwargs...), cache.caches)
+    cache.current = 1
+end
+
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
@@ -158,12 +163,6 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
 
             return Expr(:block, calls...)
         end
-    end
-end
-
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
-    for c in cache.caches
-        SciMLBase.reinit!(c, args...; kwargs...)
     end
 end
 

@@ -51,6 +51,16 @@ end
     nf::Int
 end
 
+function SciMLBase.reinit!(cache::LevenbergMarquardtDampingCache, args...; p = cache.p,
+        u0 = cache.v_cache, kwargs...)
+    cache.p = p
+    @bb copyto!(cache.v_cache, u0)
+    cache.loss_old = oftype(cache.loss_old, Inf)
+    cache.norm_v_old = oftype(cache.norm_v_old, Inf)
+    cache.last_step_accepted = false
+    cache.nf = 0
+end
+
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
@@ -298,8 +308,18 @@ end
     nf::Int
 end
 
+function SciMLBase.reinit!(cache::GenericTrustRegionSchemeCache, args...;
+        p = cache.p, kwargs...)
+    cache.p = p
+    cache.trust_region = __initial_trust_radius(alg.initial_trust_radius, T, alg.method,
+        max_trust_radius, u0_norm)  # FIXME: scheme specific
+    cache.last_step_accepted = false
+    cache.shrink_counter = 0
+    cache.nf = 0
+end
+
 # Defaults
-for func in (:__max_trust_radius, :__initial_trust_raidus, :__step_threshold,
+for func in (:__max_trust_radius, :__initial_trust_radius, :__step_threshold,
     :__shrink_threshold, :__shrink_factor, :__expand_threshold, :__expand_factor)
     @eval begin
         @inline function $(func)(val, ::Type{T}, args...) where {T}
@@ -324,7 +344,7 @@ end
     end
 end
 
-@inline function __initial_trust_raidus(::Nothing, ::Type{T}, method, max_tr,
+@inline function __initial_trust_radius(::Nothing, ::Type{T}, method, max_tr,
         u0_norm) where {T}
     return @cases method begin
         NLsolveJL => T(ifelse(u0_norm > 0, u0_norm, 1))
@@ -380,7 +400,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
 
     # Common Setup
     max_trust_radius = __max_trust_radius(alg.max_trust_radius, T, alg.method, u, fu_norm)
-    initial_trust_radius = __initial_trust_raidus(alg.initial_trust_radius, T, alg.method,
+    initial_trust_radius = __initial_trust_radius(alg.initial_trust_radius, T, alg.method,
         max_trust_radius, u0_norm)
     step_threshold = __step_threshold(alg.step_threshold, T, alg.method)
     shrink_threshold = __shrink_threshold(alg.shrink_threshold, T, alg.method)

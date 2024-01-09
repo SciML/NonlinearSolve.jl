@@ -10,6 +10,12 @@ import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinear
     nfactors::Int
 end
 
+# FIXME: Do we need to reinit the precs?
+function SciMLBase.reinit!(cache::LinearSolverCache, args...; kwargs...)
+    cache.nsolve = 0
+    cache.nfactors = 0
+end
+
 @inline function LinearSolverCache(alg, linsolve, A::Number, b::Number, u; kwargs...)
     return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
 end
