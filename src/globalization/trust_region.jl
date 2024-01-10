@@ -352,7 +352,7 @@ end
 @inline function __initial_trust_radius(::Nothing, ::Type{T}, method, max_tr,
         u0_norm) where {T}
     return @cases method begin
-        NLsolveJL => T(ifelse(u0_norm > 0, u0_norm, 1))
+        NLsolve => T(ifelse(u0_norm > 0, u0_norm, 1))
         Hei => T(1)
         Bastin => T(1)
         _ => T(max_tr / 11)

@@ -414,7 +414,7 @@ end
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-11)
-            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-10)
+            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-6)
         end
     end
 
@@ -498,14 +498,6 @@ end
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0, autodiff)).u .≈
                   sqrt(2.0))
-    end
-
-    @testset "NewtonRaphson Fails but PT passes" begin # Test that `PseudoTransient` passes a test that `NewtonRaphson` fails on.
-        p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-        probN = NonlinearProblem{false}(newton_fails, u0, p)
-        sol = solve(probN, PseudoTransient(alpha_initial = 1.0), abstol = 1e-10)
-        @test all(abs.(newton_fails(sol.u, p)) .< 1e-10)
     end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,

@@ -41,7 +41,8 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     end
     Pl, Pr = __wrapprecs(Pl_, Pr_, weight)
 
-    lincache = init(linprob, linsolve; alias_A = true, alias_b = true, Pl, Pr)
+    # Unalias here, we will later use these as caches
+    lincache = init(linprob, linsolve; alias_A = false, alias_b = false, Pl, Pr)
 
     return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0)
 end
@@ -93,7 +94,7 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
         cache.lincache.Pr = Pr
     end
 
-    linres = solve!(cache.lincache)
+    linres = solve!(cache.lincache; alias_A = false)
     cache.lincache = linres.cache
 
     return linres.u
@@ -105,25 +106,38 @@ end
 end
 @inline function __update_A!(cache, alg, A, reuse)
     # Not a Factorization Algorithm so don't update `nfactors`
-    cache.lincache.A = A
+    __set_lincache_A(cache.lincache, A)
     return cache
 end
 @inline function __update_A!(cache, ::AbstractFactorization, A, reuse)
     reuse && return cache
-    cache.lincache.A = A
+    __set_lincache_A(cache.lincache, A)
     cache.nfactors += 1
     return cache
 end
 @inline function __update_A!(cache, alg::DefaultLinearSolver, A, reuse)
     if alg == DefaultLinearSolver(DefaultAlgorithmChoice.KrylovJL_GMRES)
         # Force a reset of the cache. This is not properly handled in LinearSolve.jl
-        cache.lincache.A = A
+        __set_lincache_A(cache.lincache, A)
         return cache
     end
     reuse && return cache
-    cache.lincache.A = A
+    __set_lincache_A(cache.lincache, A)
     cache.nfactors += 1
     return cache
+end
+
+function __set_lincache_A(lincache, new_A)
+    if LinearSolve.default_alias_A(lincache.alg, new_A, lincache.b)
+        lincache.A = new_A
+    else
+        if can_setindex(lincache.A)
+            copyto!(lincache.A, new_A)
+            lincache.A = lincache.A
+        else
+            lincache.A = new_A
+        end
+    end
 end
 
 @inline function __wrapprecs(_Pl, _Pr, weight)

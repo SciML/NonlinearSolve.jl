@@ -56,17 +56,21 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
         @bb δu_ = similar(u)
     end
 
-    normal_form_linsolve = __needs_square_A(alg.linsolve, u)
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
-
-    if normal_form_linsolve & !normal_form_damping
-        throw(ArgumentError("Linear Solver expects Normal Form but returned Damping is not \
-                             Normal Form. This is not supported."))
+    normal_form_linsolve = __needs_square_A(alg.linsolve, u)
+    if u isa Number
+        mode = :simple
+    elseif prob isa NonlinearProblem
+        mode = ifelse(!normal_form_damping, :simple,
+            ifelse(normal_form_linsolve, :normal_form, :least_squares))
+    else
+        if normal_form_linsolve & !normal_form_damping
+            throw(ArgumentError("Linear Solver expects Normal Form but returned Damping is \
+                                 not Normal Form. This is not supported."))
+        end
+        mode = ifelse(normal_form_damping & !normal_form_linsolve, :least_squares,
+            ifelse(!normal_form_damping & !normal_form_linsolve, :simple, :normal_form))
     end
-
-    mode = ifelse(u isa Number, :simple,
-        ifelse(normal_form_damping & !normal_form_linsolve, :least_squares,
-            ifelse(!normal_form_damping & !normal_form_linsolve, :simple, :normal_form)))
 
     if mode === :least_squares
         if requires_normal_form_jacobian(alg.damping_fn)
@@ -96,6 +100,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
         J_cache = __maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
         J_damped = __dampen_jacobian!!(J_cache, J, D)
+        J_cache = J_damped
         A, b = J_damped, _vec(fu)
         JᵀJ, Jᵀfu, rhs_cache = nothing, nothing, nothing
     elseif mode === :normal_form
