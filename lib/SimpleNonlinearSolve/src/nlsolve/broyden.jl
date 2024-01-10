@@ -50,7 +50,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         @bb δx .*= -1
 
         α = ls_cache === nothing ? true : ls_cache(x, δx)
-
         @bb @. x = xo + α * δx
         fx = __eval_f(prob, fx, x)
         @bb @. δf = fx - fprev

@@ -75,8 +75,12 @@ end
     Tcache = __lbroyden_threshold_cache(x, x isa StaticArray ? threshold : Val(η))
     @bb mat_cache = copy(x)
 
+    ls_cache = __get_linesearch(alg) === Val(true) ?
+               __LiFukushimaLineSearch()(prob, fx, x) : nothing
+
     for i in 1:maxiters
-        @bb @. x = xo + δx
+        α = ls_cache === nothing ? true : ls_cache(x, δx)
+        @bb @. x = xo + α * δx
         fx = __eval_f(prob, fx, x)
         @bb @. δf = fx - fo
 
