@@ -1,10 +1,26 @@
 """
-    SimpleBroyden()
+    SimpleBroyden(; linesearch = Val(false))
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
+
+If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch` [1] line search else
+no line search is used. For advanced customization of the line search, use the
+`Broyden` algorithm in `NonlinearSolve.jl`.
+
+### References
+
+[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
+of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
+(2000): 181-201.
 """
-struct SimpleBroyden <: AbstractSimpleNonlinearSolveAlgorithm end
+struct SimpleBroyden{linesearch} <: AbstractSimpleNonlinearSolveAlgorithm end
+
+function SimpleBroyden(; linesearch = Val(false))
+    SimpleBroyden{SciMLBase._unwrap_val(linesearch)}()
+end
+
+__get_linesearch(::SimpleBroyden{LS}) where {LS} = Val(LS)
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
@@ -26,9 +42,16 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
 
+    ls_cache = __get_linesearch(alg) === Val(true) ?
+               __LiFukushimaLineSearch()(prob, fx, x) : nothing
+
     for _ in 1:maxiters
         @bb δx = J⁻¹ × vec(fprev)
-        @bb @. x = xo - δx
+        @bb δx .*= -1
+
+        α = ls_cache === nothing ? true : ls_cache(x, δx)
+
+        @bb @. x = xo + α * δx
         fx = __eval_f(prob, fx, x)
         @bb @. δf = fx - fprev
 
@@ -37,7 +60,6 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         tc_sol !== nothing && return tc_sol
 
         @bb J⁻¹δf = J⁻¹ × vec(δf)
-        @bb δx .*= -1
         d = dot(δx, J⁻¹δf)
         @bb xᵀJ⁻¹ = transpose(J⁻¹) × vec(δx)
 

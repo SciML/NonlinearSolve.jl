@@ -1,6 +1,6 @@
 """
-    SimpleLimitedMemoryBroyden(; threshold::Int = 27)
-    SimpleLimitedMemoryBroyden(; threshold::Val = Val(27))
+    SimpleLimitedMemoryBroyden(; threshold::Int = 27, linesearch = Val(true))
+    SimpleLimitedMemoryBroyden(; threshold::Val = Val(27), linesearch = Val(true))
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
 Broyden's method. This Alogrithm unfortunately cannot non-allocating for StaticArrays
@@ -8,17 +8,26 @@ without compromising on the "simple" aspect.
 
 If the threshold is larger than the problem size, then this method will use `SimpleBroyden`.
 
-!!! warning
+If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch` [1] line search else
+no line search is used. For advanced customization of the line search, use the
+`LimitedMemoryBroyden` algorithm in `NonlinearSolve.jl`.
 
-    This method is not very stable and can diverge even for very simple problems. This has
-    mostly been tested for neural networks in DeepEquilibriumNetworks.jl.
+### References
+
+[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
+of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
+(2000): 181-201.
 """
-struct SimpleLimitedMemoryBroyden{threshold} <: AbstractSimpleNonlinearSolveAlgorithm end
+struct SimpleLimitedMemoryBroyden{threshold, linesearch} <:
+       AbstractSimpleNonlinearSolveAlgorithm end
 
 __get_threshold(::SimpleLimitedMemoryBroyden{threshold}) where {threshold} = Val(threshold)
+__use_linesearch(::SimpleLimitedMemoryBroyden{Th, LS}) where {Th, LS} = Val(LS)
 
-function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27))
-    return SimpleLimitedMemoryBroyden{SciMLBase._unwrap_val(threshold)}()
+function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
+        linesearch = Val(true))
+    return SimpleLimitedMemoryBroyden{SciMLBase._unwrap_val(threshold),
+        SciMLBase._unwrap_val(linesearch)}()
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
@@ -45,8 +54,8 @@ end
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
-        return SciMLBase.__solve(prob, SimpleBroyden(), args...;
-            abstol, reltol, maxiters, termination_condition, kwargs...)
+        return SciMLBase.__solve(prob, SimpleBroyden(; linesearch = __use_linesearch(alg)),
+            args...; abstol, reltol, maxiters, termination_condition, kwargs...)
     end
 
     fx = _get_fx(prob, x)

@@ -3,14 +3,13 @@ module SimpleNonlinearSolve
 import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
 
 @recompile_invalidations begin
-    using ADTypes,
-        ArrayInterface, ConcreteStructs, DiffEqBase, Reexport, LinearAlgebra, SciMLBase
+    using ADTypes, ArrayInterface, ConcreteStructs, DiffEqBase, FastClosures, FiniteDiff,
+        ForwardDiff, Reexport, LinearAlgebra, SciMLBase
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode,
         NONLINEARSOLVE_DEFAULT_NORM, _get_tolerance
-    using FiniteDiff, ForwardDiff
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
@@ -26,6 +25,7 @@ abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm e
 @inline __is_extension_loaded(::Val) = false
 
 include("utils.jl")
+include("linesearch.jl")
 
 ## Nonlinear Solvers
 include("nlsolve/raphson.jl")
