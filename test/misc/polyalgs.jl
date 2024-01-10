@@ -18,16 +18,16 @@ using NonlinearSolve, Test, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebra
     @test SciMLBase.successful_retcode(solver)
 
     # Test the caching interface
-    cache = init(probN; abstol = 1e-9);
+    cache = init(probN; abstol = 1e-9)
     @time solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
-    cache = init(probN, RobustMultiNewton(); abstol = 1e-9);
+    cache = init(probN, RobustMultiNewton(); abstol = 1e-9)
     @time solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
-    cache = init(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9);
+    cache = init(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
     @time solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
-    cache = init(probN, custom_polyalg; abstol = 1e-9);
+    cache = init(probN, custom_polyalg; abstol = 1e-9)
     @time solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
 end

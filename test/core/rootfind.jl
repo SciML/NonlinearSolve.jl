@@ -43,7 +43,7 @@ const TERMINATION_CONDITIONS = [
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
-        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -533,7 +533,7 @@ end
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
 
-        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -604,7 +604,7 @@ end
         ad in (AutoFiniteDiff(), AutoZygote()),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
-        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s

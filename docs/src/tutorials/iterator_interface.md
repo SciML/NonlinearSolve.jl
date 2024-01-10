@@ -17,7 +17,7 @@ nlcache = init(probB, NewtonRaphson())
 cache object that satisfies `typeof(nlcache) <: AbstractNonlinearSolveCache` and can be used
 to iterate the solver.
 
-The iterator inferface supports:
+The iterator interface supports:
 
 ```@docs
 step!(nlcache::NonlinearSolve.AbstractNonlinearSolveCache, args...; kwargs...)

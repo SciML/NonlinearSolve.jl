@@ -39,7 +39,7 @@ end
     damping_f
 end
 
-function reinit_cache!(cache::LevenbergMarquardtDampingCache, args...;  kwargs...)
+function reinit_cache!(cache::LevenbergMarquardtDampingCache, args...; kwargs...)
     cache.λ = cache.damping_f.initial_damping
     cache.λ_factor = cache.damping_f.increase_factor
     if !(cache.DᵀD isa Number)
