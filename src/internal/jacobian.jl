@@ -13,7 +13,7 @@
     jvp_autodiff
 end
 
-function SciMLBase.reinit!(cache::JacobianCache{iip}, args...; p = cache.p, u0 = cache.u,
+function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p, u0 = cache.u,
         kwargs...) where {iip}
     cache.njacs = 0
     cache.u = u0
@@ -152,5 +152,11 @@ end
 @inline function __value_derivative(f::F, x::R) where {F, R}
     T = typeof(ForwardDiff.Tag(f, R))
     out = f(ForwardDiff.Dual{T}(x, one(x)))
+    return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+end
+
+@inline function __scalar_jacvec(f::F, x::R, v::V) where {F, R, V}
+    T = typeof(ForwardDiff.Tag(f, R))
+    out = f(ForwardDiff.Dual{T}(x, v))
     return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
 end

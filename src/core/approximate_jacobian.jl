@@ -34,6 +34,12 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = mi
         trustregion = missing, descent, update_rule, reinit_rule, initialization,
         max_resets::Int = typemax(Int),
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
+    if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
+        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
+                      Please use `LineSearchesJL` instead.",
+            :GeneralizedFirstOrderAlgorithm)
+        linesearch = LineSearchesJL(; method = linesearch)
+    end
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(linesearch, trustregion,
         descent, update_rule, reinit_rule, max_resets, max_shrink_times, initialization)
 end
@@ -70,6 +76,7 @@ end
     maxiters::Int
     maxtime
     max_shrink_times::Int
+    steps_since_last_reset::Int
 
     # Timer
     timer::TimerOutput
@@ -85,21 +92,22 @@ end
 
 store_inverse_jacobian(::ApproximateJacobianSolveCache{INV}) where {INV} = INV
 
-function __reinit_internal!(cache::ApproximateJacobianSolveCache{iip}, args...;
+function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip}, args...;
         p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = Inf,
-        kwargs...) where {iip}
+        kwargs...) where {INV, GB, iip}
     if iip
         recursivecopy!(cache.u, u0)
-        cache.f(cache.fu, cache.u, p)
+        cache.prob.f(cache.fu, cache.u, p)
     else
         cache.u = __maybe_unaliased(u0, alias_u0)
-        set_fu!(cache, cache.f(cache.u, p))
+        set_fu!(cache, cache.prob.f(cache.u, p))
     end
     cache.p = p
 
     cache.nf = 1
     cache.nsteps = 0
     cache.nresets = 0
+    cache.steps_since_last_reset = 0
     cache.maxiters = maxiters
     cache.maxtime = maxtime
     cache.total_time = 0.0
@@ -176,8 +184,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         return ApproximateJacobianSolveCache{INV, GB, iip}(fu, u, u_cache, p, du, J, alg,
             prob, initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
             update_rule_cache, reinit_rule_cache, inv_workspace, 0, 0, 0, alg.max_resets,
-            maxiters, maxtime, alg.max_shrink_times, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false)
+            maxiters, maxtime, alg.max_shrink_times, 0, timer, 0.0, termination_cache,
+            trace, ReturnCode.Default, false, false)
     end
 end
 
@@ -185,8 +193,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         recompute_jacobian::Union{Nothing, Bool} = nothing) where {INV, GB, iip}
     new_jacobian = true
     @timeit_debug cache.timer "jacobian init/reinit" begin
-        if get_nsteps(cache) == 0
-            # First Step is special ignore kwargs
+        if get_nsteps(cache) == 0  # First Step is special ignore kwargs
             J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(false))
             if INV
                 if jacobian_initialized_preinverted(cache.initialization_cache.alg)
@@ -202,6 +209,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 end
             end
             J = cache.J
+            cache.steps_since_last_reset += 1
         else
             countable_reinit = false
             if cache.force_reinit
@@ -232,8 +240,10 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(true))
                 cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
+                cache.steps_since_last_reset = 0
             else
                 J = cache.J
+                cache.steps_since_last_reset += 1
             end
         end
     end
@@ -255,7 +265,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             @timeit_debug cache.timer "linesearch" begin
                 needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
             end
-            if needs_reset
+            if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
                 cache.force_reinit = true
             else
                 @timeit_debug cache.timer "step" begin

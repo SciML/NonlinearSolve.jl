@@ -114,8 +114,8 @@ abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
 abstract type AbstractNonlinearSolveLineSearchCache end
 
-function __reinit_internal!(cache::AbstractNonlinearSolveLineSearchCache, args...;
-        p = cache.p, kwargs...)
+function reinit_cache!(cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p,
+        kwargs...)
     cache.nf[] = 0
     cache.p = p
 end
@@ -152,6 +152,10 @@ get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
+
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
+    return reinit_cache!(cache; u0, kwargs...)
+end
 
 """
     AbstractLinearSolverCache <: Function

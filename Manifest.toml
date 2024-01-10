@@ -158,7 +158,7 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "DataStructures", "DocStringExtensions", "EnumX", "EnzymeCore", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "Parameters", "PreallocationTools", "PrecompileTools", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Static", "StaticArraysCore", "Statistics", "Tricks", "TruncatedStacktraces"]
-git-tree-sha1 = "707ffde2554bab897018299f1ec68838713f3caf"
+git-tree-sha1 = "1c52934ef077a4ad62fe51835c142ac294a03f9a"
 repo-rev = "ap/retcode"
 repo-url = "https://github.com/SciML/DiffEqBase.jl.git"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
@@ -678,9 +678,9 @@ version = "1.3.4"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "SparseArrays", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "efdbd081a889c9effb45b1717e2e2e0ccff80a04"
+git-tree-sha1 = "e1d18e3f1e7c66133acd00f0ae2964f9eedefb0b"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "3.5.0"
+version = "3.5.1"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsFastBroadcastExt = "FastBroadcast"

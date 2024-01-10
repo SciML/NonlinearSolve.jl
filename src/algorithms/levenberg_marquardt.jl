@@ -36,6 +36,20 @@ end
     DᵀD
     J_diag_cache
     J_damped
+    damping_f
+end
+
+function reinit_cache!(cache::LevenbergMarquardtDampingCache, args...;  kwargs...)
+    cache.λ = cache.damping_f.initial_damping
+    cache.λ_factor = cache.damping_f.increase_factor
+    if !(cache.DᵀD isa Number)
+        if can_setindex(cache.DᵀD.diag)
+            cache.DᵀD.diag .= cache.min_damping
+        else
+            cache.DᵀD = Diagonal(ones(typeof(cache.DᵀD.diag)) * cache.min_damping)
+        end
+    end
+    cache.J_damped = cache.λ .* cache.DᵀD
 end
 
 function requires_normal_form_jacobian(::Union{LevenbergMarquardtDampingFunction,
@@ -64,7 +78,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem,
     J_damped = T(initial_damping) .* DᵀD
     return LevenbergMarquardtDampingCache(T(f.increase_factor), T(f.decrease_factor),
         T(f.min_damping), T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache,
-        J_damped)
+        J_damped, f)
 end
 
 (damping::LevenbergMarquardtDampingCache)(::Nothing) = damping.J_damped

@@ -14,6 +14,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F,
     return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
 end
 
+reinit_cache!(cache::NoLineSearchCache, args...; p = cache.p, kwargs...) = nothing
+
 SciMLBase.solve!(cache::NoLineSearchCache, u, du) = false, cache.α
 
 """
@@ -53,6 +55,12 @@ end
 
 LineSearchesJL(method; kwargs...) = LineSearchesJL(; method, kwargs...)
 function LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
+    if method isa AbstractNonlinearSolveLineSearchAlgorithm
+        Base.depwarn("Passing a native NonlinearSolve line search algorithm to \
+                      `LineSearchesJL` or `LineSearch` is deprecated. Pass the method \
+                      directly instead.", :LineSearchesJL)
+        return method
+    end
     return LineSearchesJL(method, α, autodiff)
 end
 
@@ -142,12 +150,12 @@ function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
 
     # Here we should be resetting the search direction for some algorithms especially
     # if we start mixing in jacobian reuse and such
-    dϕ₀ ≥ 0 && return (false, one(eltype(u)))
+    dϕ₀ ≥ 0 && return (true, one(eltype(u)))
 
     # We can technically reduce 1 axpy by reusing the returned value from cache.method
     # but it's not worth the extra complexity
     cache.alpha = first(cache.method(ϕ, dϕ, ϕdϕ, cache.alpha, ϕ₀, dϕ₀))
-    return (true, cache.alpha)
+    return (false, cache.alpha)
 end
 
 """
@@ -312,7 +320,7 @@ end
 
 function SciMLBase.solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
-    ϕ = @closure α -> cache.ϕ(u, du, α, cache.u_cache, cache.fu_cache)
+    ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
 
     fx_norm = ϕ(T(0))
 

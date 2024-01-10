@@ -11,7 +11,7 @@ import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinear
 end
 
 # FIXME: Do we need to reinit the precs?
-function SciMLBase.reinit!(cache::LinearSolverCache, args...; kwargs...)
+function reinit_cache!(cache::LinearSolverCache, args...; kwargs...)
     cache.nsolve = 0
     cache.nfactors = 0
 end
@@ -88,7 +88,7 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
         _weight = weight === nothing ?
                   (cache.lincache.Pr isa Diagonal ? cache.lincache.Pr.diag :
                    cache.lincache.Pr.inner.diag) : weight
-        Pl, Pr = wrapprecs(_Pl, _Pr, _weight)
+        Pl, Pr = __wrapprecs(_Pl, _Pr, _weight)
         cache.lincache.Pl = Pl
         cache.lincache.Pr = Pr
     end

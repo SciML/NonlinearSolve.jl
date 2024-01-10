@@ -10,7 +10,7 @@ end
 
 @time begin
     if GROUP == "All" || GROUP == "RootFinding"
-    #     @time @safetestset "Basic Root Finding Tests" include("core/rootfind.jl")
+        @time @safetestset "Basic Root Finding Tests" include("core/rootfind.jl")
         @time @safetestset "Forward AD" include("core/forward_ad.jl")
     end
 

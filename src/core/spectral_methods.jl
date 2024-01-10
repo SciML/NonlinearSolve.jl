@@ -62,14 +62,24 @@ function __reinit_internal!(cache::GeneralizedDFSaneCache{iip}, args...; p = cac
         kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
-        cache.f(cache.fu, cache.u, p)
+        cache.prob.f(cache.fu, cache.u, p)
     else
         cache.u = __maybe_unaliased(u0, alias_u0)
-        set_fu!(cache, cache.f(cache.u, p))
+        set_fu!(cache, cache.prob.f(cache.u, p))
     end
     cache.p = p
 
-    cache.σ_n = cache.alg.σ_1
+    if cache.alg.σ_1 === nothing
+        σ_n = dot(cache.u, cache.u) / dot(cache.u, cache.fu)
+        # Spectral parameter bounds check
+        if !(cache.alg.σ_min ≤ abs(σ_n) ≤ cache.alg.σ_max)
+            test_norm = dot(cache.fu, cache.fu)
+            σ_n = clamp(inv(test_norm), T(1), T(1e5))
+        end
+    else
+        σ_n = T(cache.alg.σ_1)
+    end
+    cache.σ_n = σ_n
 
     reset_timer!(cache.timer)
     cache.total_time = 0.0
@@ -158,7 +168,8 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
         @bb @. cache.u_cache = cache.u - cache.u_cache
         @bb @. cache.fu_cache = cache.fu - cache.fu_cache
 
-        cache.σ_n = dot(cache.u_cache, cache.u_cache) / dot(cache.u_cache, cache.fu_cache)
+        cache.σ_n = __dot(cache.u_cache, cache.u_cache) /
+                    __dot(cache.u_cache, cache.fu_cache)
 
         # Spectral parameter bounds check
         if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)

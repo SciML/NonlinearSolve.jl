@@ -77,6 +77,11 @@ end
     steps_since_change_dfu::Int
 end
 
+function reinit_cache!(cache::NoChangeInStateResetCache, args...; kwargs...)
+    cache.steps_since_change_du = 0
+    cache.steps_since_change_dfu = 0
+end
+
 function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs...)
     if alg.check_dfu
         @bb dfu = copy(fu)

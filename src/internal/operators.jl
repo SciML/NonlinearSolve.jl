@@ -65,6 +65,12 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
         nothing
     elseif SciMLBase.has_vjp(f)
         f.vjp
+    elseif u isa Number  # Ignore vjp directives
+        if ForwardDiff.can_dual(typeof(u))
+            @closure (v, u, p) -> last(__value_derivative(uf, u)) * v
+        else
+            @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
+        end
     else
         vjp_autodiff = __get_nonsparse_ad(get_concrete_reverse_ad(vjp_autodiff,
             prob, False))
@@ -89,6 +95,12 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
         nothing
     elseif SciMLBase.has_jvp(f)
         f.jvp
+    elseif u isa Number  # Ignore jvp directives
+        if ForwardDiff.can_dual(typeof(u))
+            @closure (v, u, p) -> last(__scalar_jacvec(uf, u, v)) * v
+        else
+            @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
+        end
     else
         jvp_autodiff = __get_nonsparse_ad(get_concrete_forward_ad(jvp_autodiff,
             prob, False))
@@ -189,6 +201,10 @@ for op in (:adjoint, :transpose)
 end
 
 Base.:*(J::StatefulJacobianOperator, v::AbstractArray) = J.jac_op(v, J.u, J.p)
+function Base.:*(J_op::StatefulJacobianOperator{vjp, iip, T, J, <:Number},
+        v::Number) where {vjp, iip, T, J}
+    return J_op.jac_op(v, J_op.u, J_op.p)
+end
 
 function LinearAlgebra.mul!(Jv::AbstractArray, J::StatefulJacobianOperator,
         v::AbstractArray)

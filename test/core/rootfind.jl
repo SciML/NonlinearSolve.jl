@@ -134,8 +134,6 @@ end
     @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in u0s,
         radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
 
-        !(u0 isa Array) && linsolve !== nothing && continue
-
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
 
         sol = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme, linsolve, abstol)
@@ -686,7 +684,7 @@ end
             LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
-        linesearch = LineSearch(; method = lsmethod, autodiff = ad)
+        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s

@@ -140,6 +140,10 @@ end
     internalnorm
 end
 
+function __reinit_internal!(cache::InitializedApproximateJacobianCache, args...; kwargs...)
+    cache.initialized = false
+end
+
 @internal_caches InitializedApproximateJacobianCache :cache
 
 function (cache::InitializedApproximateJacobianCache)(::Nothing)

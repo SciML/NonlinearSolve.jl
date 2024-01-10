@@ -93,10 +93,10 @@ function __reinit_internal!(cache::GeneralizedFirstOrderAlgorithmCache{iip}, arg
         kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
-        cache.f(cache.fu, cache.u, p)
+        cache.prob.f(cache.fu, cache.u, p)
     else
         cache.u = __maybe_unaliased(u0, alias_u0)
-        set_fu!(cache, cache.f(cache.u, p))
+        set_fu!(cache, cache.prob.f(cache.u, p))
     end
     cache.p = p
 

@@ -51,8 +51,8 @@ end
     current::Int
 end
 
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
-    foreach(c -> SciMLBase.reinit!(c, args...; kwargs...), cache.caches)
+function reinit_cache!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
+    foreach(c -> reinit_cache!(c, args...; kwargs...), cache.caches)
     cache.current = 1
 end
 

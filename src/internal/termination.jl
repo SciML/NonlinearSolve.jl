@@ -1,6 +1,6 @@
 function init_termination_cache(abstol, reltol, du, u, ::Nothing)
     return init_termination_cache(abstol, reltol, du, u,
-        AbsSafeBestTerminationMode(; max_stalled_steps = 25))
+        AbsSafeBestTerminationMode(; max_stalled_steps = 100))
 end
 function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     tc_cache = init(du, u, tc; abstol, reltol, use_deprecated_retcodes = Val(false))

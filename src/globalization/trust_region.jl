@@ -51,7 +51,7 @@ end
     nf::Int
 end
 
-function SciMLBase.reinit!(cache::LevenbergMarquardtDampingCache, args...; p = cache.p,
+function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...; p = cache.p,
         u0 = cache.v_cache, kwargs...)
     cache.p = p
     @bb copyto!(cache.v_cache, u0)
@@ -306,13 +306,18 @@ end
     last_step_accepted::Bool
     shrink_counter::Int
     nf::Int
+    alg
 end
 
-function SciMLBase.reinit!(cache::GenericTrustRegionSchemeCache, args...;
+function reinit_cache!(cache::GenericTrustRegionSchemeCache, args...; u0 = nothing,
         p = cache.p, kwargs...)
+    T = eltype(cache.u_cache)
     cache.p = p
-    cache.trust_region = __initial_trust_radius(alg.initial_trust_radius, T, alg.method,
-        max_trust_radius, u0_norm)  # FIXME: scheme specific
+    if u0 !== nothing
+        u0_norm = cache.internalnorm(u0)
+        cache.trust_region = __initial_trust_radius(cache.alg.initial_trust_radius, T,
+            cache.alg.method, cache.max_trust_radius, u0_norm)  # FIXME: scheme specific
+    end
     cache.last_step_accepted = false
     cache.shrink_counter = 0
     cache.nf = 0
@@ -441,7 +446,11 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
             initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
         end
         _ => begin
-            @bb Jᵀfu_cache = similar(u)
+            if u isa Number
+                Jᵀfu_cache = u
+            else
+                @bb Jᵀfu_cache = similar(u)
+            end
         end
     end
 
@@ -453,7 +462,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
         initial_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
         expand_threshold, shrink_factor, expand_factor, p1, p2, p3, p4, ϵ, T(0),
         vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache, δu_cache, internalnorm,
-        u_cache, fu_cache, false, 0, 0)
+        u_cache, fu_cache, false, 0, 0, alg)
 end
 
 function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, damping_stats)
@@ -462,8 +471,8 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
     cache.nf += 1
 
     @bb cache.Jδu_cache = J × vec(δu)
-    @bb cache.Jᵀfu_cache = transpose(J) × vec(cache.fu_cache)
-    num = (cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2) / 2
+    @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
+    num = (cache.internalnorm(cache.fu_cache)^2 - cache.internalnorm(fu)^2) / 2
     denom = __dot(δu, cache.Jᵀfu_cache) + __dot(cache.Jδu_cache, cache.Jδu_cache) / 2
     cache.ρ = num / denom
 

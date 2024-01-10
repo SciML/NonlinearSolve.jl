@@ -23,9 +23,9 @@ end
 
 @internal_caches NonlinearSolveForwardDiffCache :cache
 
-function SciMLBase.reinit!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
+function reinit_cache!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
         u0 = get_u(cache.cache), kwargs...)
-    inner_cache = SciMLBase.reinit!(cache.cache; p = __value(p), u0 = __value(u0),
+    inner_cache = reinit_cache!(cache.cache; p = __value(p), u0 = __value(u0),
         kwargs...)
     cache.cache = inner_cache
     cache.p = p

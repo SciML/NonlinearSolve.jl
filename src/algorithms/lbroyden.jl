@@ -1,6 +1,6 @@
 """
-    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
-        threshold::Int = 10, reset_tolerance = nothing)
+    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
+        threshold::Val = Val(10), reset_tolerance = nothing)
 
 An implementation of `LimitedMemoryBroyden` with resetting and line search.
 
@@ -10,7 +10,7 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
   - `reset_tolerance`: the tolerance for the reset check. Defaults to
     `sqrt(eps(real(eltype(u))))`.
   - `threshold`: the number of vectors to store in the low rank approximation. Defaults
-    to `10`.
+    to `Val(10)`.
 
 ### References
 
@@ -18,27 +18,33 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
 high-dimensional systems of nonlinear equations." EQUADIFF 2003. 2005. 196-201.
 """
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
-        threshold::Union{Val, Int} = 10, reset_tolerance = nothing)
-    if threshold isa Val
-        Base.depwarn("Passing `Val(threshold)` is deprecated. Use `threshold` instead.",
-            :LimitedMemoryBroyden)
-    end
+        threshold::Val = Val(10), reset_tolerance = nothing)
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
         descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(), max_resets,
-        initialization = BroydenLowRankInitialization(_unwrap_val(threshold)),
+        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(threshold),
         reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
-struct BroydenLowRankInitialization <: AbstractJacobianInitialization
-    threshold::Int
+struct BroydenLowRankInitialization{T} <: AbstractJacobianInitialization
+    threshold::Val{T}
 end
 
 jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
-        solver, f::F, fu, u, p; maxiters = 1000, kwargs...) where {F}
-    threshold = min(alg.threshold, maxiters)
-    J = BroydenLowRankJacobian(fu, u; threshold)
+function SciMLBase.init(prob::AbstractNonlinearProblem,
+        alg::BroydenLowRankInitialization{T},
+        solver, f::F, fu, u, p; maxiters = 1000, kwargs...) where {T, F}
+    if u isa Number # Use the standard broyden
+        return init(prob, IdentityInitialization(true, FullStructure()), solver, f, fu, u,
+            p; maxiters, kwargs...)
+    end
+    # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
+    if u isa StaticArray
+        J = BroydenLowRankJacobian(fu, u; alg.threshold)
+    else
+        threshold = min(_unwrap_val(alg.threshold), maxiters)
+        J = BroydenLowRankJacobian(fu, u; threshold)
+    end
     return InitializedApproximateJacobianCache(J, FullStructure(), alg, nothing, true, 0.0)
 end
 
@@ -59,8 +65,8 @@ __safe_inv!!(workspace, op::BroydenLowRankJacobian) = op  # Already Inverted for
 
 @inline function __get_components(op::BroydenLowRankJacobian)
     op.idx ≥ size(op.U, 2) && return op.cache, op.U, transpose(op.Vᵀ)
-    return (view(op.cache, 1:(op.idx)), view(op.U, :, 1:(op.idx)),
-        transpose(view(op.Vᵀ, :, 1:(op.idx))))
+    _cache = op.cache === nothing ? op.cache : view(op.cache, 1:(op.idx))
+    return (_cache, view(op.U, :, 1:(op.idx)), transpose(view(op.Vᵀ, :, 1:(op.idx))))
 end
 
 Base.size(op::BroydenLowRankJacobian) = size(op.U, 1), size(op.Vᵀ, 1)
@@ -76,14 +82,28 @@ for op in (:adjoint, :transpose)
     end
 end
 
-function BroydenLowRankJacobian(fu, u; threshold = 10)
+# Storing the transpose to ensure contiguous memory on splicing
+function BroydenLowRankJacobian(fu::StaticArray{S2, T2}, u::StaticArray{S1, T1};
+        threshold::Val{Th} = Val(10)) where {S1, S2, T1, T2, Th}
+    T = promote_type(T1, T2)
+    fuSize, uSize = Size(fu), Size(u)
+    U = MArray{Tuple{prod(fuSize), Th}, T}(undef)
+    Vᵀ = MArray{Tuple{prod(uSize), Th}, T}(undef)
+    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, nothing)
+end
+
+function BroydenLowRankJacobian(fu, u; threshold::Int = 10)
     T = promote_type(eltype(u), eltype(fu))
-    # TODO: Mutable for StaticArrays
     U = similar(fu, T, length(fu), threshold)
-    # Storing the transpose to ensure contiguous memory on splicing
     Vᵀ = similar(u, T, length(u), threshold)
     cache = similar(u, T, threshold)
     return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache)
+end
+
+function Base.:*(J::BroydenLowRankJacobian, x::AbstractVector)
+    J.idx == 0 && return -x
+    cache, U, Vᵀ = __get_components(J)
+    return U * (Vᵀ * x) .- x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::AbstractVector)
@@ -96,6 +116,12 @@ function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::Abs
     mul!(y, U, cache)
     @bb @. y -= x
     return y
+end
+
+function Base.:*(x::AbstractVector, J::BroydenLowRankJacobian)
+    J.idx == 0 && return -x
+    cache, U, Vᵀ = __get_components(J)
+    return Vᵀ' * (U' * x) .- x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowRankJacobian)
