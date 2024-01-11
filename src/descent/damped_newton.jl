@@ -46,15 +46,15 @@ supports_trust_region(::DampedNewtonDescent) = true
     Jᵀfu_cache
     rhs_cache
     damping_fn_cache
-    timer::TimerOutput
+    timer
 end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        timer = TimerOutput(), reltol = nothing, alias_J = true, shared::Val{N} = Val(1),
-        kwargs...) where {INV, N}
+        timer = get_timer_output(), reltol = nothing, alias_J = true,
+        shared::Val{N} = Val(1), kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
     @bb δu = similar(u)
@@ -139,7 +139,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
 
     recompute_A = idx === Val(1)
 
-    @timeit_debug cache.timer "dampen" begin
+    @static_timeit cache.timer "dampen" begin
         if mode === :least_squares
             if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
@@ -198,7 +198,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
         end
     end
 
-    @timeit_debug cache.timer "linear solve" begin
+    @static_timeit cache.timer "linear solve" begin
         δu = cache.lincache(; A, b,
             reuse_A_if_factorization = !new_jacobian && !recompute_A,
             kwargs..., linu = _vec(δu))

@@ -72,9 +72,9 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtT
 end
 
 function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
-        damping_stats)
+        descent_stats)
     # This should be true if Geodesic Acceleration is being used
-    v = hasfield(typeof(damping_stats), :v) ? damping_stats.v : δu
+    v = hasfield(typeof(descent_stats), :v) ? descent_stats.v : δu
     norm_v = cache.internalnorm(v)
     β = dot(v, cache.v_cache) / (norm_v * cache.norm_v_old)
 
@@ -110,44 +110,45 @@ Simply put the desired scheme as follows:
 `sol = solve(prob, alg = TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Hei))`.
 """
 module RadiusUpdateSchemes
+# The weird definitions here are needed to main compatibility with the older enum variants
 
-using SumTypes
+abstract type AbstractRadiusUpdateScheme end
 
-@sum_type RadiusUpdateScheme begin
-    Simple
-    NLsolve
-    NocedalWright
-    Hei
-    Yuan
-    Bastin
-    Fan
+function Base.show(io::IO, rus::AbstractRadiusUpdateScheme)
+    print(io, "RadiusUpdateSchemes.$(string(nameof(typeof(rus)))[3:end])")
 end
 
-const T = RadiusUpdateScheme
+const T = AbstractRadiusUpdateScheme
 
-@doc """
+"""
     RadiusUpdateSchemes.Simple
 
 The simple or conventional radius update scheme. This scheme is chosen by default and
 follows the conventional approach to update the trust region radius, i.e. if the trial
 step is accepted it increases the radius by a fixed factor (bounded by a maximum radius)
 and if the trial step is rejected, it shrinks the radius by a fixed factor.
-""" Simple
+"""
+struct __Simple <: AbstractRadiusUpdateScheme end
+const Simple = __Simple()
 
-@doc """
+"""
     RadiusUpdateSchemes.NLsolve
 
 The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl)
 trust region dogleg implementation.
-""" NLsolve
+"""
+struct __NLsolve <: AbstractRadiusUpdateScheme end
+const NLsolve = __NLsolve()
 
-@doc """
+"""
     RadiusUpdateSchemes.NocedalWright
 
 Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291].
-""" NocedalWright
+"""
+struct __NocedalWright <: AbstractRadiusUpdateScheme end
+const NocedalWright = __NocedalWright()
 
-@doc """
+"""
     RadiusUpdateSchemes.Hei
 
 This scheme is proposed by Hei, L. [1]. The trust region radius depends on the size
@@ -159,9 +160,11 @@ as degenerate problems.
 
 [1] Hei, Long. "A self-adaptive trust region algorithm." Journal of Computational
 Mathematics (2003): 229-236.
-""" Hei
+"""
+struct __Hei <: AbstractRadiusUpdateScheme end
+const Hei = __Hei()
 
-@doc """
+"""
     RadiusUpdateSchemes.Yuan
 
 This scheme is proposed by Yuan, Y [1]. Similar to Hei's scheme, the trust region is
@@ -175,9 +178,11 @@ depend on the gradient.
 [1] Fan, Jinyan, Jianyu Pan, and Hongyan Song. "A retrospective trust region algorithm
 with trust region converging to zero." Journal of Computational Mathematics 34.4 (2016):
 421-436.
-""" Yuan
+"""
+struct __Yuan <: AbstractRadiusUpdateScheme end
+const Yuan = __Yuan()
 
-@doc """
+"""
     RadiusUpdateSchemes.Bastin
 
 This scheme is proposed by Bastin, et al. [1]. The scheme is called a retrospective
@@ -191,9 +196,11 @@ of the objective function computation.
 
 [1] Bastin, Fabian, et al. "A retrospective trust-region method for unconstrained
 optimization." Mathematical programming 123 (2010): 395-418.
-""" Bastin
+"""
+struct __Bastin <: AbstractRadiusUpdateScheme end
+const Bastin = __Bastin()
 
-@doc """
+"""
     RadiusUpdateSchemes.Fan
 
 This scheme is proposed by Fan, J. [1]. It is very much similar to Hei's and Yuan's
@@ -206,9 +213,13 @@ convergence.
 [1] Fan, Jinyan. "Convergence rate of the trust region method for nonlinear equations
 under local error bound condition." Computational Optimization and Applications 34.2
 (2006): 215-227.
-""" Fan
+"""
+struct __Fan <: AbstractRadiusUpdateScheme end
+const Fan = __Fan()
 
 end
+
+const RUS = RadiusUpdateSchemes
 
 """
     GenericTrustRegionScheme(; method = RadiusUpdateSchemes.Simple,
@@ -260,8 +271,9 @@ the value used in the respective paper.
 [2] Rahpeymaii, Farzad. "An efficient line search trust-region for systems of nonlinear
 equations." Mathematical Sciences 14.3 (2020): 257-268.
 """
-@kwdef @concrete struct GenericTrustRegionScheme
-    method = RadiusUpdateSchemes.Simple
+@kwdef @concrete struct GenericTrustRegionScheme{
+    M <: RadiusUpdateSchemes.AbstractRadiusUpdateScheme}
+    method::M = RadiusUpdateSchemes.Simple
     step_threshold = nothing
     shrink_threshold = nothing
     shrink_factor = nothing
@@ -335,64 +347,55 @@ for func in (:__max_trust_radius, :__initial_trust_radius, :__step_threshold,
     end
 end
 
-@inline function __max_trust_radius(::Nothing, ::Type{T}, method, u, fu_norm) where {T}
-    return @cases method begin
-        Simple => begin
-            u_min, u_max = extrema(u)
-            max(T(fu_norm), u_max - u_min)
-        end
-        NocedalWright => begin
-            u_min, u_max = extrema(u)
-            max(T(fu_norm), u_max - u_min)
-        end
-        _ => T(Inf)
-    end
+@inline __max_trust_radius(::Nothing, ::Type{T}, method, u, fu_norm) where {T} = T(Inf)
+@inline function __max_trust_radius(::Nothing, ::Type{T},
+        ::Union{RUS.__Simple, RUS.__NocedalWright}, u, fu_norm) where {T}
+    u_min, u_max = extrema(u)
+    return max(T(fu_norm), u_max - u_min)
 end
 
 @inline function __initial_trust_radius(::Nothing, ::Type{T}, method, max_tr,
-        u0_norm) where {T}
-    return @cases method begin
-        NLsolve => T(ifelse(u0_norm > 0, u0_norm, 1))
-        Hei => T(1)
-        Bastin => T(1)
-        _ => T(max_tr / 11)
-    end
+        u0_norm, fu_norm) where {T}
+    method isa RUS.__NLsolve && return T(ifelse(u0_norm > 0, u0_norm, 1))
+    (method isa RUS.__Hei || method isa RUS.__Bastin) && return T(1)
+    method isa RUS.__Fan && return T((fu_norm^0.99) // 10)
+    return T(max_tr / 11)
 end
 
 @inline function __step_threshold(::Nothing, ::Type{T}, method) where {T}
-    return @cases method begin
-        Hei => T(0)
-        Yuan => T(1 // 1000)
-        Bastin => T(1 // 20)
-        _ => T(1 // 10000)
-    end
+    method isa RUS.__Hei && return T(0)
+    method isa RUS.__Yuan && return T(1 // 1000)
+    method isa RUS.__Bastin && return T(1 // 20)
+    return T(1 // 10000)
 end
 
 @inline function __shrink_threshold(::Nothing, ::Type{T}, method) where {T}
-    return @cases method begin
-        NLsolve => T(1 // 20)
-        Hei => T(0)
-        Bastin => T(1 // 20)
-        _ => T(1 // 4)
-    end
+    method isa RUS.__Hei && return T(0)
+    (method isa RUS.__NLsolve || method isa RUS.__Bastin) && return T(1 // 20)
+    return T(1 // 4)
 end
 
 @inline function __expand_threshold(::Nothing, ::Type{T}, method) where {T}
-    return @cases method begin
-        NLsolve => T(9 // 10)
-        Hei => T(0)
-        Bastin => T(9 // 10)
-        _ => T(3 // 4)
-    end
+    method isa RUS.__NLsolve && return T(9 // 10)
+    method isa RUS.__Hei && return T(0)
+    method isa RUS.__Bastin && return T(9 // 10)
+    return T(3 // 4)
 end
 
 @inline function __shrink_factor(::Nothing, ::Type{T}, method) where {T}
-    return @cases method begin
-        NLsolve => T(1 // 2)
-        Hei => T(0)
-        Bastin => T(1 // 20)
-        _ => T(1 // 4)
-    end
+    method isa RUS.__NLsolve && return T(1 // 2)
+    method isa RUS.__Hei && return T(0)
+    method isa RUS.__Bastin && return T(1 // 20)
+    return T(1 // 4)
+end
+
+@inline function __get_parameters(::Type{T}, method) where {T}
+    method isa RUS.__NLsolve && return (T(1 // 2), T(0), T(0), T(0))
+    method isa RUS.__Hei && return (T(5), T(1 // 10), T(15 // 100), T(15 // 100))
+    method isa RUS.__Yuan && return (T(2), T(1 // 6), T(6), T(0))
+    method isa RUS.__Fan && return (T(1 // 10), T(1 // 4), T(12), T(1e18))
+    method isa RUS.__Bastin && return (T(5 // 2), T(1 // 4), T(0), T(0))
+    return (T(0), T(0), T(0), T(0))
 end
 
 @inline __expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
@@ -406,7 +409,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
     # Common Setup
     max_trust_radius = __max_trust_radius(alg.max_trust_radius, T, alg.method, u, fu_norm)
     initial_trust_radius = __initial_trust_radius(alg.initial_trust_radius, T, alg.method,
-        max_trust_radius, u0_norm)
+        max_trust_radius, u0_norm, fu_norm)
     step_threshold = __step_threshold(alg.step_threshold, T, alg.method)
     shrink_threshold = __shrink_threshold(alg.shrink_threshold, T, alg.method)
     expand_threshold = __expand_threshold(alg.expand_threshold, T, alg.method)
@@ -414,44 +417,30 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
     expand_factor = __expand_factor(alg.expand_factor, T, alg.method)
 
     # Scheme Specific Setup
-    p1, p2, p3, p4 = ntuple(_ -> T(0), 4)
-    ϵ, vjp_operator, jvp_operator, δu_cache = T(1e-8), nothing, nothing, nothing
+    p1, p2, p3, p4 = __get_parameters(T, alg.method)
+    ϵ = T(1e-8)
 
-    @cases alg.method begin
-        NLsolve => (p1 = T(1 // 2))
-        Hei => begin
-            p1, p2, p3, p4 = T(5), T(1 // 10), T(15 // 100), T(15 // 100)
+    vjp_operator = alg.method isa RUS.__Yuan || alg.method isa RUS.__Bastin ?
+                   VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad) : nothing
+
+    jvp_operator = alg.method isa RUS.__Bastin ?
+                   JacVecOperator(prob, fu, u; autodiff = alg.forward_ad) : nothing
+
+    if alg.method isa RUS.__Yuan
+        Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * _vec(fu)
+        initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
+    else
+        if u isa Number
+            Jᵀfu_cache = u
+        else
+            @bb Jᵀfu_cache = similar(u)
         end
-        Yuan => begin
-            p1, p2, p3 = T(2), T(1 // 6), T(6)
-            vjp_operator = VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad)
-        end
-        Fan => begin
-            p1, p2, p3, p4 = T(1 // 10), T(1 // 4), T(12), T(1e18)
-            initial_trust_radius = T(p1 * fu_norm^0.99)
-        end
-        Bastin => begin
-            p1, p2 = T(5 // 2), T(1 // 4)
-            vjp_operator = VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad)
-            jvp_operator = JacVecOperator(prob, fu, u; autodiff = alg.forward_ad)
-            @bb δu_cache = similar(u)
-        end
-        _ => ()
     end
 
-    Jᵀfu_cache = nothing
-    @cases alg.method begin
-        Yuan => begin
-            Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * _vec(fu)
-            initial_trust_radius = T(p1 * internalnorm(Jᵀfu_cache))
-        end
-        _ => begin
-            if u isa Number
-                Jᵀfu_cache = u
-            else
-                @bb Jᵀfu_cache = similar(u)
-            end
-        end
+    if alg.method isa RUS.__Bastin
+        @bb δu_cache = similar(u)
+    else
+        δu_cache = nothing
     end
 
     @bb u_cache = similar(u)
@@ -465,15 +454,21 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
         u_cache, fu_cache, false, 0, 0, alg)
 end
 
-function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, damping_stats)
+function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, descent_stats)
+    T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.nf += 1
 
-    @bb cache.Jδu_cache = J × vec(δu)
+    if hasfield(typeof(descent_stats), :δuJᵀJδu) && !isnan(descent_stats.δuJᵀJδu)
+        δuJᵀJδu = descent_stats.δuJᵀJδu
+    else
+        @bb cache.Jδu_cache = J × vec(δu)
+        δuJᵀJδu = __dot(cache.Jδu_cache, cache.Jδu_cache)
+    end
     @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     num = (cache.internalnorm(cache.fu_cache)^2 - cache.internalnorm(fu)^2) / 2
-    denom = __dot(δu, cache.Jᵀfu_cache) + __dot(cache.Jδu_cache, cache.Jδu_cache) / 2
+    denom = __dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
     cache.ρ = num / denom
 
     if cache.ρ > cache.step_threshold
@@ -482,102 +477,94 @@ function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, d
         cache.last_step_accepted = false
     end
 
-    @cases cache.method begin
-        Simple => begin
-            if cache.ρ < cache.shrink_threshold
-                cache.trust_region *= cache.shrink_factor
-                cache.shrink_counter += 1
-            else
-                cache.shrink_counter = 0
-                if cache.ρ > cache.step_threshold && cache.ρ > cache.expand_threshold
-                    cache.trust_region = cache.expand_factor * cache.trust_region
-                end
+    if cache.method isa RUS.__Simple
+        if cache.ρ < cache.shrink_threshold
+            cache.trust_region *= cache.shrink_factor
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            if cache.ρ > cache.expand_threshold && cache.ρ > cache.step_threshold
+                cache.trust_region = cache.expand_factor * cache.trust_region
             end
         end
-        NLsolve => begin
-            if cache.ρ < cache.shrink_threshold
-                cache.trust_region *= cache.shrink_factor
-                cache.shrink_counter += 1
-            else
-                cache.shrink_counter = 0
-                if cache.ρ ≥ cache.expand_threshold
-                    cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
-                elseif cache.ρ ≥ cache.p1
-                    cache.trust_region = max(cache.trust_region,
-                        cache.expand_factor * cache.internalnorm(δu))
-                end
+    elseif cache.method isa RUS.__NLsolve
+        if cache.ρ < cache.shrink_threshold
+            cache.trust_region *= cache.shrink_factor
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            if cache.ρ ≥ cache.expand_threshold
+                cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
+            elseif cache.ρ ≥ cache.p1
+                cache.trust_region = max(cache.trust_region,
+                    cache.expand_factor * cache.internalnorm(δu))
             end
         end
-        NocedalWright => begin
-            if cache.ρ < cache.shrink_threshold
-                cache.trust_region = cache.shrink_factor * cache.internalnorm(δu)
-                cache.shrink_counter += 1
-            else
-                cache.shrink_counter = 0
-                if cache.ρ > cache.expand_threshold &&
-                   abs(cache.internalnorm(δu) - cache.trust_region) <
-                   1e-6 * cache.trust_region
-                    cache.trust_region = cache.expand_factor * cache.trust_region
-                end
+    elseif cache.method isa RUS.__NocedalWright
+        if cache.ρ < cache.shrink_threshold
+            cache.trust_region = cache.shrink_factor * cache.internalnorm(δu)
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            if cache.ρ > cache.expand_threshold &&
+               abs(cache.internalnorm(δu) - cache.trust_region) <
+               1e-6 * cache.trust_region
+                cache.trust_region = cache.expand_factor * cache.trust_region
             end
         end
-        Hei => begin
-            tr_new = __rfunc(cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4,
-                cache.p2) * cache.internalnorm(δu)
-            if tr_new < cache.trust_region
-                cache.shrink_counter += 1
-            else
-                cache.shrink_counter = 0
-            end
-            cache.trust_region = tr_new
+    elseif cache.method isa RUS.__Hei
+        tr_new = __rfunc(cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4,
+            cache.p2) * cache.internalnorm(δu)
+        if tr_new < cache.trust_region
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
         end
-        Yuan => begin
-            if cache.ρ < cache.shrink_threshold
-                cache.p1 = cache.p2 * cache.p1
-                cache.shrink_counter += 1
-            else
-                if cache.ρ ≥ cache.expand_threshold &&
-                   2 * cache.internalnorm(δu) > cache.trust_region
-                    cache.p1 = cache.p3 * cache.p1
-                end
-                cache.shrink_counter = 0
+        cache.trust_region = tr_new
+    elseif cache.method isa RUS.__Yuan
+        if cache.ρ < cache.shrink_threshold
+            cache.p1 = cache.p2 * cache.p1
+            cache.shrink_counter += 1
+        else
+            if cache.ρ ≥ cache.expand_threshold &&
+               2 * cache.internalnorm(δu) > cache.trust_region
+                cache.p1 = cache.p3 * cache.p1
             end
-            operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
-            @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
-            cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
+            cache.shrink_counter = 0
         end
-        Fan => begin
-            if cache.ρ < cache.shrink_threshold
-                cache.p1 *= cache.p2
-                cache.shrink_counter += 1
-            else
-                cache.shrink_counter = 0
-                cache.ρ > cache.expand_threshold && (cache.p1 = min(cache.p1 * cache.p3,
-                    cache.p4))
-            end
-            cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^0.99)
+        operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
+        @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
+        cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
+    elseif cache.method isa RUS.__Fan
+        if cache.ρ < cache.shrink_threshold
+            cache.p1 *= cache.p2
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            cache.ρ > cache.expand_threshold && (cache.p1 = min(cache.p1 * cache.p3,
+                cache.p4))
         end
-        Bastin => begin
-            if cache.ρ > cache.step_threshold
-                jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache,
-                    cache.p)
-                vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache,
-                    cache.p)
-                @bb cache.Jδu_cache = jvp_op × vec(δu)
-                @bb cache.Jᵀfu_cache = vjp_op × vec(cache.fu_cache)
-                denom_1 = dot(_vec(δu), cache.Jᵀfu_cache)
-                @bb cache.Jᵀfu_cache = vjp_op × vec(cache.Jδu_cache)
-                denom_2 = dot(_vec(δu), cache.Jᵀfu_cache)
-                denom = denom_1 + denom_2 / 2
-                ρ = num / denom
-                if ρ ≥ cache.expand_threshold
-                    cache.trust_region = cache.p1 * cache.internalnorm(δu)
-                end
-                cache.shrink_counter = 0
-            else
-                cache.trust_region *= cache.p2
-                cache.shrink_counter += 1
+        cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^T(0.99))
+    elseif cache.method isa RUS.__Bastin
+        if cache.ρ > cache.step_threshold
+            jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache,
+                cache.p)
+            vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache,
+                cache.p)
+            @bb cache.Jδu_cache = jvp_op × vec(δu)
+            @bb cache.Jᵀfu_cache = vjp_op × vec(cache.fu_cache)
+            denom_1 = dot(_vec(δu), cache.Jᵀfu_cache)
+            @bb cache.Jᵀfu_cache = vjp_op × vec(cache.Jδu_cache)
+            denom_2 = dot(_vec(δu), cache.Jᵀfu_cache)
+            denom = denom_1 + denom_2 / 2
+            ρ = num / denom
+            if ρ ≥ cache.expand_threshold
+                cache.trust_region = cache.p1 * cache.internalnorm(δu)
             end
+            cache.shrink_counter = 0
+        else
+            cache.trust_region *= cache.p2
+            cache.shrink_counter += 1
         end
     end
 

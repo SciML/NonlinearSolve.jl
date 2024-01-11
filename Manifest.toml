@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "2fa62d6199f8a6cecd1dab4dd969e2f9c3e4eb5d"
+project_hash = "ee8f38812d75ecf5b51425c9f9559c9e53418c46"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "41c37aa88889c171f1300ceac1313c06e891d245"
@@ -893,12 +893,6 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.2.1+1"
-
-[[deps.SumTypes]]
-deps = ["MacroTools"]
-git-tree-sha1 = "dc8ae794496a9f04e16393612511223750291547"
-uuid = "8e1ec7a9-0e02-4297-b0fe-6433085c89f2"
-version = "0.5.1"
 
 [[deps.SymbolicIndexingInterface]]
 git-tree-sha1 = "74502f408d99fc217a9d7cd901d9ffe45af892b1"

@@ -68,7 +68,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
 
     normal_form = prob isa NonlinearLeastSquaresProblem &&
                   __needs_square_A(alg.newton_descent.linsolve, u)
-    JᵀJ_cache = !normal_form ? transpose(J) * J : nothing
+    JᵀJ_cache = !normal_form ? J * _vec(δu) : nothing  # TODO: Rename
 
     return DoglegCache{INV, normal_form}(δu, δus, newton_cache, cauchy_cache, internalnorm,
         JᵀJ_cache, δu_cache_1, δu_cache_2, δu_cache_mul)
@@ -81,13 +81,14 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
+    T = promote_type(eltype(u), eltype(fu))
     δu_newton, _, _ = solve!(cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
         @bb copyto!(δu, δu_newton)
         set_du!(cache, δu, idx)
-        return δu, true, (;)
+        return δu, true, (; δuJᵀJδu = T(NaN))
     end
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies
@@ -96,23 +97,24 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
         δu_cauchy = cache.newton_cache.Jᵀfu_cache
         JᵀJ = cache.newton_cache.JᵀJ_cache
         @bb @. δu_cauchy *= -1
+
+        l_grad = cache.internalnorm(δu_cauchy)
+        @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
+        δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
         δu_cauchy, _, _ = solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
-        if !skip_solve
-            J_ = INV ? inv(J) : J
-            @bb cache.JᵀJ_cache = transpose(J_) × J_
-        end
-        JᵀJ = cache.JᵀJ_cache
+        J_ = INV ? inv(J) : J
+        l_grad = cache.internalnorm(δu_cauchy)
+        @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename
+        δuJᵀJδu = __dot(cache.JᵀJ_cache, cache.JᵀJ_cache)
     end
-
-    l_grad = cache.internalnorm(δu_cauchy)
-    @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-    d_cauchy = (l_grad^3) / __dot(δu_cauchy, cache.δu_cache_mul)
+    d_cauchy = (l_grad^3) / δuJᵀJδu
 
     if d_cauchy ≥ trust_region
-        @bb @. δu = (trust_region / l_grad) * δu_cauchy
+        λ = trust_region / l_grad
+        @bb @. δu = λ * δu_cauchy
         set_du!(cache, δu, idx)
-        return δu, true, (;)
+        return δu, true, (; δuJᵀJδu = λ^2 * δuJᵀJδu)
     end
 
     # FIXME: For anything other than 2-norm a quadratic root will give incorrect results
@@ -130,5 +132,5 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
 
     @bb @. δu = cache.δu_cache_1 + τ * cache.δu_cache_2
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return δu, true, (; δuJᵀJδu = T(NaN))
 end

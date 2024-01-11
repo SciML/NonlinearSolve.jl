@@ -46,8 +46,8 @@ end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
 
-@concrete mutable struct ApproximateJacobianSolveCache{INV, GB, iip} <:
-                         AbstractNonlinearSolveCache{iip}
+@concrete mutable struct ApproximateJacobianSolveCache{INV, GB, iip, timeit} <:
+                         AbstractNonlinearSolveCache{iip, timeit}
     # Basic Requirements
     fu
     u
@@ -79,7 +79,7 @@ end
     steps_since_last_reset::Int
 
     # Timer
-    timer::TimerOutput
+    timer
     total_time::Float64   # Simple Counter which works even if TimerOutput is disabled
 
     # Termination & Tracking
@@ -93,8 +93,8 @@ end
 store_inverse_jacobian(::ApproximateJacobianSolveCache{INV}) where {INV} = INV
 
 function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip}, args...;
-        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = Inf,
-        kwargs...) where {INV, GB, iip}
+        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000,
+        maxtime = nothing, kwargs...) where {INV, GB, iip}
     if iip
         recursivecopy!(cache.u, u0)
         cache.prob.f(cache.fu, cache.u, p)
@@ -123,12 +123,12 @@ end
 @internal_caches ApproximateJacobianSolveCache :initialization_cache :descent_cache :linesearch_cache :trustregion_cache :update_rule_cache :reinit_rule_cache
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
-        alg::ApproximateJacobianSolveAlgorithm, args...; alias_u0 = false, maxtime = Inf,
-        maxiters = 1000, abstol = nothing, reltol = nothing, linsolve_kwargs = (;),
-        termination_condition = nothing, internalnorm::F = DEFAULT_NORM,
-        kwargs...) where {uType, iip, F}
-    timer = TimerOutput()
-    @timeit_debug timer "cache construction" begin
+        alg::ApproximateJacobianSolveAlgorithm, args...; alias_u0 = false,
+        maxtime = nothing, maxiters = 1000, abstol = nothing, reltol = nothing,
+        linsolve_kwargs = (;), termination_condition = nothing,
+        internalnorm::F = DEFAULT_NORM, kwargs...) where {uType, iip, F}
+    timer = get_timer_output()
+    @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
         u = __maybe_unaliased(u0, alias_u0)
         fu = evaluate_f(prob, u)
@@ -181,18 +181,18 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
             uses_jacobian_inverse = Val(INV), kwargs...)
 
-        return ApproximateJacobianSolveCache{INV, GB, iip}(fu, u, u_cache, p, du, J, alg,
-            prob, initialization_cache, descent_cache, linesearch_cache, trustregion_cache,
-            update_rule_cache, reinit_rule_cache, inv_workspace, 0, 0, 0, alg.max_resets,
-            maxiters, maxtime, alg.max_shrink_times, 0, timer, 0.0, termination_cache,
-            trace, ReturnCode.Default, false, false)
+        return ApproximateJacobianSolveCache{INV, GB, iip, maxtime !== nothing}(fu, u,
+            u_cache, p, du, J, alg, prob, initialization_cache, descent_cache,
+            linesearch_cache, trustregion_cache, update_rule_cache, reinit_rule_cache,
+            inv_workspace, 0, 0, 0, alg.max_resets, maxiters, maxtime, alg.max_shrink_times,
+            0, timer, 0.0, termination_cache, trace, ReturnCode.Default, false, false)
     end
 end
 
 function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         recompute_jacobian::Union{Nothing, Bool} = nothing) where {INV, GB, iip}
     new_jacobian = true
-    @timeit_debug cache.timer "jacobian init/reinit" begin
+    @static_timeit cache.timer "jacobian init/reinit" begin
         if get_nsteps(cache) == 0  # First Step is special ignore kwargs
             J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(false))
             if INV
@@ -248,7 +248,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         end
     end
 
-    @timeit_debug cache.timer "descent" begin
+    @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
@@ -262,19 +262,19 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
 
     if descent_success
         if GB === :LineSearch
-            @timeit_debug cache.timer "linesearch" begin
+            @static_timeit cache.timer "linesearch" begin
                 needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
             end
             if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
                 cache.force_reinit = true
             else
-                @timeit_debug cache.timer "step" begin
+                @static_timeit cache.timer "step" begin
                     @bb axpy!(α, δu, cache.u)
                     evaluate_f!(cache, cache.u, cache.p)
                 end
             end
         elseif GB === :TrustRegion
-            @timeit_debug cache.timer "trustregion" begin
+            @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
                     cache.u, δu, descent_intermediates)
                 if tr_accepted
@@ -289,7 +289,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
             α = true
         elseif GB === :None
-            @timeit_debug cache.timer "step" begin
+            @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
@@ -313,7 +313,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         return nothing
     end
 
-    @timeit_debug cache.timer "jacobian update" begin
+    @static_timeit cache.timer "jacobian update" begin
         cache.J = solve!(cache.update_rule_cache, cache.J, cache.fu, cache.u, δu)
         callback_into_cache!(cache)
     end

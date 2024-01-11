@@ -140,11 +140,11 @@ abstract type AbstractNonlinearSolveExtensionAlgorithm <:
               AbstractNonlinearSolveAlgorithm{:Extension} end
 
 """
-    AbstractNonlinearSolveCache{iip}
+    AbstractNonlinearSolveCache{iip, timeit}
 
 Abstract Type for all NonlinearSolve.jl Caches.
 """
-abstract type AbstractNonlinearSolveCache{iip} end
+abstract type AbstractNonlinearSolveCache{iip, timeit} end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 

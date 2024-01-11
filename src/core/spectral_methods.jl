@@ -21,7 +21,8 @@ end
 
 concrete_jac(::GeneralizedDFSane) = nothing
 
-@concrete mutable struct GeneralizedDFSaneCache{iip} <: AbstractNonlinearSolveCache{iip}
+@concrete mutable struct GeneralizedDFSaneCache{iip, timeit} <:
+                         AbstractNonlinearSolveCache{iip, timeit}
     # Basic Requirements
     fu
     fu_cache
@@ -47,7 +48,7 @@ concrete_jac(::GeneralizedDFSane) = nothing
     maxtime
 
     # Timer
-    timer::TimerOutput
+    timer
     total_time::Float64   # Simple Counter which works even if TimerOutput is disabled
 
     # Termination & Tracking
@@ -58,7 +59,7 @@ concrete_jac(::GeneralizedDFSane) = nothing
 end
 
 function __reinit_internal!(cache::GeneralizedDFSaneCache{iip}, args...; p = cache.p,
-        u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = Inf,
+        u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = nothing,
         kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
@@ -98,10 +99,10 @@ end
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
         alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing, internalnorm::F = DEFAULT_NORM, maxtime = Inf,
+        termination_condition = nothing, internalnorm::F = DEFAULT_NORM, maxtime = nothing,
         kwargs...) where {F}
-    timer = TimerOutput()
-    @timeit_debug timer "cache construction" begin
+    timer = get_timer_output()
+    @static_timeit timer "cache construction" begin
         u = __maybe_unaliased(prob.u0, alias_u0)
         T = eltype(u)
 
@@ -128,9 +129,10 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
             σ_n = T(alg.σ_1)
         end
 
-        return GeneralizedDFSaneCache{isinplace(prob)}(fu, fu_cache, u, u_cache, prob.p, du,
-            alg, prob, σ_n, T(alg.σ_min), T(alg.σ_max), linesearch_cache, 0, 0,
-            maxiters, maxtime, timer, 0.0, tc_cache, trace, ReturnCode.Default, false)
+        return GeneralizedDFSaneCache{isinplace(prob), maxtime !== nothing}(fu, fu_cache, u,
+            u_cache, prob.p, du, alg, prob, σ_n, T(alg.σ_min), T(alg.σ_max),
+            linesearch_cache, 0, 0, maxiters, maxtime, timer, 0.0, tc_cache, trace,
+            ReturnCode.Default, false)
     end
 end
 
@@ -141,11 +143,11 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
               `recompute_jacobian`" maxlog=1
     end
 
-    @timeit_debug cache.timer "descent" begin
+    @static_timeit cache.timer "descent" begin
         @bb @. cache.du = -cache.σ_n * cache.fu
     end
 
-    @timeit_debug cache.timer "linesearch" begin
+    @static_timeit cache.timer "linesearch" begin
         linesearch_failed, α = solve!(cache.linesearch_cache, cache.u, cache.du)
     end
 
@@ -155,7 +157,7 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
         return
     end
 
-    @timeit_debug cache.timer "step" begin
+    @static_timeit cache.timer "step" begin
         @bb axpy!(α, cache.du, cache.u)
         evaluate_f!(cache, cache.u, cache.p)
     end
@@ -164,7 +166,7 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
     check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     # Update Spectral Parameter
-    @timeit_debug cache.timer "update spectral parameter" begin
+    @static_timeit cache.timer "update spectral parameter" begin
         @bb @. cache.u_cache = cache.u - cache.u_cache
         @bb @. cache.fu_cache = cache.fu - cache.fu_cache
 

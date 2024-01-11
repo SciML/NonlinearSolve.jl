@@ -94,7 +94,7 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
         cache.lincache.Pr = Pr
     end
 
-    linres = solve!(cache.lincache; alias_A = false)
+    linres = solve!(cache.lincache)
     cache.lincache = linres.cache
 
     return linres.u

@@ -14,9 +14,13 @@ solve(prob::SciMLBase.NonlinearProblem, args...; kwargs...)
 ## Iteration Controls
 
   - `maxiters::Int`: The maximum number of iterations to perform. Defaults to `1000`.
-  - `maxtime`: The maximum time for solving the nonlinear system of equations. Defaults to `Inf`.
-  - `abstol::Number`: The absolute tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
-  - `reltol::Number`: The relative tolerance. Defaults to `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
+  - `maxtime`: The maximum time for solving the nonlinear system of equations. Defaults to
+    `nothing` which means no time limit. Note that setting a time limit does have a small
+    overhead.
+  - `abstol::Number`: The absolute tolerance. Defaults to
+    `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
+  - `reltol::Number`: The relative tolerance. Defaults to
+    `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `termination_condition`: Termination Condition from DiffEqBase. Defaults to
     `AbsSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsTerminateMode()` for
     `SimpleNonlinearSolve.jl`.

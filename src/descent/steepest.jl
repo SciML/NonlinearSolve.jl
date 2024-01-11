@@ -24,14 +24,15 @@ supports_line_search(::SteepestDescent) = true
     δu
     δus
     lincache
-    timer::TimerOutput
+    timer
 end
 
 @internal_caches SteepestDescentCache :lincache
 
 @inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
         u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = get_timer_output(),
+        kwargs...) where {INV, N}
     INV && @assert length(fu)==length(u) "Non-Square Jacobian Inverse doesn't make sense."
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
@@ -51,7 +52,7 @@ function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val =
     δu = get_du(cache, idx)
     if INV
         A = J === nothing ? nothing : transpose(J)
-        @timeit_debug cache.timer "linear solve" begin
+        @static_timeit cache.timer "linear solve" begin
             δu = cache.lincache(; A, b = _vec(fu), kwargs..., linu = _vec(δu),
                 du = _vec(δu), reuse_A_if_factorization = !new_jacobian || idx !== Val(1))
             δu = _restructure(get_du(cache, idx), δu)

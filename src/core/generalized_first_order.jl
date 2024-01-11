@@ -49,8 +49,8 @@ end
 
 concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
 
-@concrete mutable struct GeneralizedFirstOrderAlgorithmCache{iip, GB} <:
-                         AbstractNonlinearSolveCache{iip}
+@concrete mutable struct GeneralizedFirstOrderAlgorithmCache{iip, GB, timeit} <:
+                         AbstractNonlinearSolveCache{iip, timeit}
     # Basic Requirements
     fu
     u
@@ -75,7 +75,7 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     max_shrink_times::Int
 
     # Timer
-    timer::TimerOutput
+    timer
     total_time::Float64   # Simple Counter which works even if TimerOutput is disabled
 
     # State Affect
@@ -89,8 +89,8 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
 end
 
 function __reinit_internal!(cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...;
-        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = Inf,
-        kwargs...) where {iip}
+        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000,
+        maxtime = nothing, kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
         cache.prob.f(cache.fu, cache.u, p)
@@ -118,10 +118,11 @@ end
 
 function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         alg::GeneralizedFirstOrderAlgorithm, args...; alias_u0 = false, maxiters = 1000,
-        abstol = nothing, reltol = nothing, maxtime = Inf, termination_condition = nothing,
-        internalnorm = DEFAULT_NORM, linsolve_kwargs = (;), kwargs...) where {uType, iip}
-    timer = TimerOutput()
-    @timeit_debug timer "cache construction" begin
+        abstol = nothing, reltol = nothing, maxtime = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
+        kwargs...) where {uType, iip}
+    timer = get_timer_output()
+    @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
         u = __maybe_unaliased(u0, alias_u0)
         fu = evaluate_f(prob, u)
@@ -166,8 +167,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-        return GeneralizedFirstOrderAlgorithmCache{iip, GB}(fu, u, u_cache, p,
-            du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
+        return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(fu, u,
+            u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
             trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times, timer, 0.0,
             true, termination_cache, trace, ReturnCode.Default, false)
     end
@@ -175,7 +176,7 @@ end
 
 function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip, GB}
-    @timeit_debug cache.timer "jacobian" begin
+    @static_timeit cache.timer "jacobian" begin
         if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
             J = cache.jac_cache(cache.u)
             new_jacobian = true
@@ -185,7 +186,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         end
     end
 
-    @timeit_debug cache.timer "descent" begin
+    @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
@@ -200,19 +201,19 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
     if descent_success
         cache.make_new_jacobian = true
         if GB === :LineSearch
-            @timeit_debug cache.timer "linesearch" begin
+            @static_timeit cache.timer "linesearch" begin
                 linesearch_failed, α = solve!(cache.linesearch_cache, cache.u, δu)
             end
             if linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
                 cache.force_stop = true
             end
-            @timeit_debug cache.timer "step" begin
+            @static_timeit cache.timer "step" begin
                 @bb axpy!(α, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
         elseif GB === :TrustRegion
-            @timeit_debug cache.timer "trustregion" begin
+            @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
                     cache.u, δu, descent_intermediates)
                 if tr_accepted
@@ -230,7 +231,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                 end
             end
         elseif GB === :None
-            @timeit_debug cache.timer "step" begin
+            @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end

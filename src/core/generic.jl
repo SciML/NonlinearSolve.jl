@@ -24,7 +24,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     update_trace!(cache.trace, get_nsteps(cache), get_u(cache), get_fu(cache), nothing,
         nothing, nothing; last = True)
 
-    stats = SciMLBase.NLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
+    stats = ImmutableNLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
         get_nsolve(cache), get_nsteps(cache))
 
     return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
@@ -45,18 +45,21 @@ Performs one step of the nonlinear solver.
     respectively. For algorithms that don't use jacobian information, this keyword is
     ignored with a one-time warning.
 """
-function SciMLBase.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
-    time_start = time()
-    res = @timeit_debug cache.timer "solve" begin
+function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit}, args...;
+        kwargs...) where {iip, timeit}
+    timeit && (time_start = time())
+    res = @static_timeit cache.timer "solve" begin
         __step!(cache, args...; kwargs...)
     end
     cache.nsteps += 1
-    cache.total_time += time() - time_start
 
-    if !cache.force_stop && cache.retcode == ReturnCode.Default &&
-       cache.total_time ≥ cache.maxtime
-        cache.retcode = ReturnCode.MaxTime
-        cache.force_stop = true
+    if timeit
+        cache.total_time += time() - time_start
+        if !cache.force_stop && cache.retcode == ReturnCode.Default &&
+           cache.total_time ≥ cache.maxtime
+            cache.retcode = ReturnCode.MaxTime
+            cache.force_stop = true
+        end
     end
 
     return res

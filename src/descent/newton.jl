@@ -27,14 +27,15 @@ supports_line_search(::NewtonDescent) = true
     lincache
     JᵀJ_cache  # For normal form else nothing
     Jᵀfu_cache
-    timer::TimerOutput
+    timer
 end
 
 @internal_caches NewtonDescentCache :lincache
 
 function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = get_timer_output(),
+        kwargs...) where {INV, N}
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
@@ -47,7 +48,8 @@ end
 
 function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), shared::Val{N} = Val(1),
-        abstol = nothing, reltol = nothing, timer = TimerOutput(), kwargs...) where {INV, N}
+        abstol = nothing, reltol = nothing, timer = get_timer_output(),
+        kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
@@ -73,12 +75,12 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
         idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
         kwargs...) where {INV}
     δu = get_du(cache, idx)
-    skip_solve && return δu
+    skip_solve && return δu, true, (;)
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb δu = J × vec(fu)
     else
-        @timeit_debug cache.timer "linear solve" begin
+        @static_timeit cache.timer "linear solve" begin
             δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
                 du = _vec(δu), reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
             δu = _restructure(get_du(cache, idx), δu)
@@ -92,12 +94,12 @@ end
 function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
         idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...)
     δu = get_du(cache, idx)
-    skip_solve && return δu
+    skip_solve && return δu, true, (;)
     if idx === Val(1)
         @bb cache.JᵀJ_cache = transpose(J) × J
     end
     @bb cache.Jᵀfu_cache = transpose(J) × fu
-    @timeit_debug cache.timer "linear solve" begin
+    @static_timeit cache.timer "linear solve" begin
         δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
             kwargs..., linu = _vec(δu), du = _vec(δu),
             reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))

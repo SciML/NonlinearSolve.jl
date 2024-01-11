@@ -45,7 +45,7 @@ function Base.show(io::IO, alg::NonlinearSolvePolyAlgorithm{pType, N}) where {pT
 end
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache{iip, N} <:
-                         AbstractNonlinearSolveCache{iip}
+                         AbstractNonlinearSolveCache{iip, false}
     caches
     alg
     current::Int
