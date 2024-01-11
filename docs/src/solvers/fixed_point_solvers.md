@@ -33,21 +33,23 @@ We are only listing the methods that natively solve fixed point problems.
 
 ### SpeedMapping.jl
 
-  - `SpeedMappingJL()`: accelerates the convergence of a mapping to a fixed point by the
-    Alternating cyclic extrapolation algorithm (ACX).
+  - [`SpeedMappingJL()`](@ref): accelerates the convergence of a mapping to a fixed point by
+    the Alternating cyclic extrapolation algorithm (ACX).
 
 ### FixedPointAcceleration.jl
 
-  - `FixedPointAccelerationJL()`: accelerates the convergence of a mapping to a fixed point
-    by the Anderson acceleration algorithm and a few other methods.
+  - [`FixedPointAccelerationJL()`](@ref): accelerates the convergence of a mapping to a
+    fixed point by the Anderson acceleration algorithm and a few other methods.
 
 ### NLsolve.jl
 
 In our tests, we have found the anderson method implemented here to NOT be the most
 robust.
 
-  - `NLsolveJL(; method = :anderson)`: Anderson acceleration for fixed point problems.
+  - [`NLsolveJL(; method = :anderson)`](@ref): Anderson acceleration for fixed point
+    problems.
 
 ### SIAMFANLEquations.jl
 
-  - `SIAMFANLEquationsJL(; method = :anderson)`: Anderson acceleration for fixed point problems.
+  - [`SIAMFANLEquationsJL(; method = :anderson)`](@ref): Anderson acceleration for fixed
+    point problems.

@@ -13,6 +13,10 @@ using SteadyStateDiffEq
 
 These methods can be used independently of the rest of NonlinearSolve.jl
 
+```@index
+Pages = ["steadystatediffeq.md"]
+```
+
 ## Solver API
 
 ```@docs

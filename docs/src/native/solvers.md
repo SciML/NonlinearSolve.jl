@@ -1,6 +1,10 @@
-# NonlinearSolve.jl Native Solvers
+# NonlinearSolve.jl Solvers
 
 These are the native solvers of NonlinearSolve.jl.
+
+```@index
+Pages = ["solvers.md"]
+```
 
 ## General Keyword Arguments
 
@@ -19,8 +23,10 @@ documentation.
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@ref),
-    which means that no line search is performed.  Algorithms from `LineSearches.jl` must be
-    wrapped in `LineSearchesJL` before being supplied.
+    which means that no line search is performed.  Algorithms from
+    [`LineSearches.jl`](https://github.com/JuliaNLSolvers/LineSearches.jl/) must be
+    wrapped in [`LineSearchesJL`](@ref) before being supplied. For a detailed documentation
+    refer to [Line Search Algorithms](@ref line-search).
   - `autodiff`/`jacobian_ad`: etermines the backend used for the Jacobian. Note that this
     argument is ignored if an analytical Jacobian is passed, as that will be used instead.
     Defaults to `nothing` which means that a default is selected according to the problem
@@ -40,7 +46,6 @@ documentation.
 
 ```@docs
 NewtonRaphson
-PseudoTransient
 DFSane
 Broyden
 Klement
@@ -60,6 +65,7 @@ These solvers can be used for both nonlinear and nonlinear least squares problem
 ```@docs
 TrustRegion
 LevenbergMarquardt
+PseudoTransient
 ```
 
 ## Polyalgorithms
@@ -71,20 +77,13 @@ FastShortcutNLLSPolyalg
 RobustMultiNewton
 ```
 
-## Radius Update Schemes for Trust Region (RadiusUpdateSchemes)
+## Advanced Solvers
+
+All of the previously mentioned solvers are wrappers around the following solvers. These
+are meant for advanced users and allow building custom solvers.
 
 ```@docs
-RadiusUpdateSchemes
-```
-
-### Available Radius Update Schemes
-
-```@docs
-RadiusUpdateSchemes.Simple
-RadiusUpdateSchemes.Hei
-RadiusUpdateSchemes.Yuan
-RadiusUpdateSchemes.Bastin
-RadiusUpdateSchemes.Fan
-RadiusUpdateSchemes.NLsolve
-RadiusUpdateSchemes.NocedalWright
+ApproximateJacobianSolveAlgorithm
+GeneralizedFirstOrderAlgorithm
+GeneralizedDFSane
 ```

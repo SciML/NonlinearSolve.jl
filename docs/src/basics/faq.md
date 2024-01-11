@@ -36,7 +36,7 @@ speedup.
 
 For more information on performance of SciML, see the [SciMLBenchmarks](https://docs.sciml.ai/SciMLBenchmarksOutput/stable/).
 
-## The solver tried to set a Dual Number in my Vector of Floats.How do I fix that?
+## The solver tried to set a Dual Number in my Vector of Floats. How do I fix that?
 
 This is a common problem that occurs if the code was not written to be generic based on the
 input types. For example, consider this example taken from
@@ -90,3 +90,7 @@ end
 prob_oop = NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
 sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
 ```
+
+## I thought NonlinearSolve.jl was type-stable and fast. But it isn't, why?
+
+

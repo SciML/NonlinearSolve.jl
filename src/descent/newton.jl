@@ -4,18 +4,6 @@
 Compute the descent direction as ``J δu = -fu``. For non-square Jacobian problems, this is
 commonly referred to as the Gauss-Newton Descent.
 
-### Keyword Arguments
-
-  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
-    LinearSolve.jl default algorithm choice. For more information on available algorithm
-    choices, see the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-
 See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@ref).
 """
 @kwdef @concrete struct NewtonDescent <: AbstractDescentAlgorithm

@@ -3,24 +3,17 @@
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),
         precs = DEFAULT_PRECS, autodiff = nothing)
 
-An implementation of PseudoTransient method that is used to solve steady state problems in
-an accelerated manner. It uses an adaptive time-stepping to integrate an initial value of
-nonlinear problem until sufficient accuracy in the desired steady-state is achieved to
-switch over to Newton's method and gain a rapid convergence. This implementation
-specifically uses "switched evolution relaxation" SER method.
+An implementation of PseudoTransient Method [coffey2003pseudotransient](@cite) that is used
+to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping
+to integrate an initial value of nonlinear problem until sufficient accuracy in the desired
+steady-state is achieved to switch over to Newton's method and gain a rapid convergence.
+This implementation specifically uses "switched evolution relaxation"
+[kelley1998convergence](@cite) SER method.
 
 ### Keyword Arguments
 
-  - `alpha_initial` : the initial pseudo time step. it defaults to 1e-3. If it is small,
+  - `alpha_initial` : the initial pseudo time step. It defaults to `1e-3`. If it is small,
     you are going to need more iterations to converge but it can be more stable.
-
-### References
-
-[1] Kelley, Carl Timothy, and David E. Keyes. "Convergence analysis of pseudo-transient
-continuation." SIAM Journal on Numerical Analysis 35.2 (1998): 508-523.
-[2] Coffey, Todd S. and Kelley, C. T. and Keyes, David E. (2003), Pseudotransient
-Continuation and Differential-Algebraic Equations, SIAM Journal on Scientific Computing,
-25, 553-569. https://doi.org/10.1137/S106482750241044X
 """
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),

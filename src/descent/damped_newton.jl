@@ -10,6 +10,12 @@ form equations ``(JᵀJ + λDᵀD) δu = Jᵀ fu``. Note that this factorization
 choice, but it is not as numerically stable as the least squares solver.
 
 The damping factor returned must be a non-negative number.
+
+### Keyword Arguments
+
+  - `initial_damping`: The initial damping factor to use
+  - `damping_fn`: The function to use to compute the damping factor. This must satisfy the
+    [`NonlinearSolve.AbstractDampingFunction`](@ref) interface.
 """
 @kwdef @concrete struct DampedNewtonDescent <: AbstractDescentAlgorithm
     linsolve = nothing

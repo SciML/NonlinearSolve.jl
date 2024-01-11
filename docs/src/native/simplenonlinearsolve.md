@@ -2,9 +2,11 @@
 
 These methods can be used independently of the rest of NonlinearSolve.jl
 
-## Solver API
+```@index
+Pages = ["simplenonlinearsolve.md"]
+```
 
-### Interval Methods
+## Interval Methods
 
 These methods are suited for interval (scalar) root-finding problems,
 i.e. `IntervalNonlinearProblem`.
@@ -18,7 +20,7 @@ Ridder
 Brent
 ```
 
-### General Methods
+## General Methods
 
 These methods are suited for any general nonlinear root-finding problem, i.e.
 `NonlinearProblem`.
@@ -32,3 +34,6 @@ SimpleTrustRegion
 SimpleDFSane
 SimpleLimitedMemoryBroyden
 ```
+
+`SimpleGaussNewton` is aliased to [`SimpleNewtonRaphson`](@ref) for solving Nonlinear Least
+Squares problems.

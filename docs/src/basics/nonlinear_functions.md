@@ -1,4 +1,4 @@
-# [NonlinearFunctions and Jacobian Types](@id nonlinearfunctions)
+# [Nonlinear Functions and Jacobian Types](@id nonlinearfunctions)
 
 The SciML ecosystem provides an extensive interface for declaring extra functions
 associated with the differential equation's data. In traditional libraries, there is usually

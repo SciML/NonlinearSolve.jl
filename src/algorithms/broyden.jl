@@ -2,7 +2,8 @@
     Broyden(; max_resets::Int = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing)
 
-An implementation of `Broyden` with resetting and line search.
+An implementation of `Broyden`'s Method [broyden1965class](@cite) with resetting and line
+search.
 
 ### Keyword Arguments
 
@@ -25,7 +26,7 @@ An implementation of `Broyden` with resetting and line search.
       + `Val(:bad_broyden)`: Bad Broyden's Update Rule
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
-        problem.
+        problem
 """
 function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing, alpha = nothing,

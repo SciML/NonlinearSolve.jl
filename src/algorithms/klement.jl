@@ -3,8 +3,9 @@
         precs = DEFAULT_PRECS, alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
-An implementation of `Klement` with line search, preconditioning and customizable linear
-solves. It is recommended to use `Broyden` for most problems over this.
+An implementation of `Klement` [klement2014using](@citep) with line search, preconditioning
+and customizable linear solves. It is recommended to use [`Broyden`](@ref) for most problems
+over this.
 
 ### Keyword Arguments
 

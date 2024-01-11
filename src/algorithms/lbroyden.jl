@@ -2,7 +2,8 @@
     LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
         threshold::Val = Val(10), reset_tolerance = nothing)
 
-An implementation of `LimitedMemoryBroyden` with resetting and line search.
+An implementation of `LimitedMemoryBroyden` [ziani2008autoadaptative](@cite) with resetting
+and line search.
 
 ### Keyword Arguments
 
@@ -11,11 +12,6 @@ An implementation of `LimitedMemoryBroyden` with resetting and line search.
     `sqrt(eps(real(eltype(u))))`.
   - `threshold`: the number of vectors to store in the low rank approximation. Defaults
     to `Val(10)`.
-
-### References
-
-[1] van de Rotten, Bart, and Sjoerd Verduyn Lunel. "A limited memory Broyden method to solve
-high-dimensional systems of nonlinear equations." EQUADIFF 2003. 2005. 196-201.
 """
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
         threshold::Val = Val(10), reset_tolerance = nothing)

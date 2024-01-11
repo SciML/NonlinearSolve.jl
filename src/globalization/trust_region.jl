@@ -1,5 +1,5 @@
 """
-    LevenbergMarquardtTrustRegion(β_uphill)
+    LevenbergMarquardtTrustRegion(b_uphill)
 
 Trust Region method for [`LevenbergMarquardt`](@ref). This method is tightly coupled with
 the Levenberg-Marquardt method and works by directly updating the damping parameter instead
@@ -7,7 +7,7 @@ of specifying a trust region radius.
 
 ### Arguments
 
-  - `β_uphill`: a factor that determines if a step is accepted or rejected. The standard
+  - `b_uphill`: a factor that determines if a step is accepted or rejected. The standard
     choice in the Levenberg-Marquardt method is to accept all steps that decrease the cost
     and reject all steps that increase the cost. Although this is a natural and safe choice,
     it is often not the most efficient. Therefore downhill moves are always accepted, but
@@ -18,10 +18,10 @@ of specifying a trust region radius.
     step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
     specify, uphill moves are accepted if
     ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
-    iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with `b_uphill=2.0`
-    allowing higher uphill moves than `b_uphill=1.0`. When `b_uphill=0.0`, no uphill moves
-    will be accepted. Defaults to `1.0`. For more details, see section 4 of [1]
-    [this paper](https://arxiv.org/abs/1201.5885).
+    iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with
+    `b_uphill = 2.0` allowing higher uphill moves than `b_uphill = 1.0`. When
+    `b_uphill = 0.0`, no uphill moves will be accepted. Defaults to `1.0`. See Section 4 of
+    [1].
 
 ### References
 

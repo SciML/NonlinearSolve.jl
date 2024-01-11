@@ -1,5 +1,5 @@
 """
-    GaussNewton(; concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing, linesearch = NoLineSearch(),
         precs = DEFAULT_PRECS, adkwargs...)
 
 An advanced GaussNewton implementation with support for efficient handling of sparse

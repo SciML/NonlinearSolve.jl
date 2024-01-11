@@ -7,8 +7,8 @@ NonlinearSolve.jl tackles four related types of nonlinear systems:
  1. Interval rootfinding problems. I.e., find the ``t \in [t_0, t_f]`` such that
     ``f(t) = 0``.
  2. Systems of nonlinear equations, i.e., find the ``u`` such that ``f(u) = 0``.
- 3. Steady state problems, i.e., find the ``u`` such that ``u' = f(u,t)`` has reached steady state,
-    i.e., ``0 = f(u, ∞)``.
+ 3. Steady state problems, i.e., find the ``u`` such that ``u' = f(u,t)`` has reached steady
+    state, i.e., ``0 = f(u, ∞)``.
  4. The nonlinear least squares problem, which is an under/over-constrained nonlinear system
     which might not be satisfiable, i.e. there may be no `u` such that `f(u) = 0`, and thus
     we find the `u` which minimizes `||f(u)||` in the least squares sense.
@@ -44,8 +44,8 @@ ODE `u' = f(u,t)`.
 ## Problem Construction Details
 
 ```@docs
-SciMLBase.IntervalNonlinearProblem
-SciMLBase.NonlinearProblem
-SciMLBase.SteadyStateProblem
-SciMLBase.NonlinearLeastSquaresProblem
+IntervalNonlinearProblem
+NonlinearProblem
+SteadyStateProblem
+NonlinearLeastSquaresProblem
 ```

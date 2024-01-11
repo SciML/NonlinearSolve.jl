@@ -31,10 +31,8 @@ differentiation for fast Vector Jacobian Products.
   - `method`: the line search algorithm to use. Defaults to
     `method = LineSearches.Static()`, which means that the step size is fixed to the value
     of `alpha`.
-  - `autodiff`: the automatic differentiation backend to use for the line search. Defaults
-    to `AutoFiniteDiff()`, which means that finite differencing is used to compute the VJP.
-    `AutoZygote()` will be faster in most cases, but it requires `Zygote.jl` to be manually
-    installed and loaded.
+  - `autodiff`: the automatic differentiation backend to use for the line search. Using a
+    reverse mode automatic differentiation backend if recommended.
   - `α`: the initial step size to use. Defaults to `true` (which is equivalent to `1`).
 """
 @concrete struct LineSearchesJL <: AbstractNonlinearSolveLineSearchAlgorithm
@@ -161,13 +159,8 @@ end
 """
     RobustNonMonotoneLineSearch(; gamma = 1 // 10000, sigma_0 = 1)
 
-Robust NonMonotone Line Search is a derivative free line search method from DF Sane.
-
-### References
-
-[1] La Cruz, William, José Martínez, and Marcos Raydan. "Spectral residual method without
-gradient information for solving large-scale nonlinear systems of equations."
-Mathematics of computation 75.255 (2006): 1429-1448.
+Robust NonMonotone Line Search is a derivative free line search method from DF Sane
+[la2006spectral](@cite).
 """
 @kwdef @concrete struct RobustNonMonotoneLineSearch <:
                         AbstractNonlinearSolveLineSearchAlgorithm
@@ -261,13 +254,7 @@ end
         sigma_2 = 1 // 1000, eta = 1 // 10, nan_max_iter::Int = 5, maxiters::Int = 100)
 
 A derivative-free line search and global convergence of Broyden-like method for nonlinear
-equations by Dong-Hui Li & Masao Fukushima.
-
-### References
-
-[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
-of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
-(2000): 181-201.
+equations [li2000derivative](@cite).
 """
 @kwdef @concrete struct LiFukushimaLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm
     lambda_0 = 1
