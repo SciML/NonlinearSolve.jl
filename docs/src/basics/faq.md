@@ -76,7 +76,8 @@ sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiter
 ```
 
 This worked but, Finite Differencing is not the recommended approach in any scenario.
-Instead, rewrite the function to use
+
+  2. Rewrite the function to use
 [PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
 
 ```@example dual_error_faq
@@ -93,4 +94,58 @@ sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
 
 ## I thought NonlinearSolve.jl was type-stable and fast. But it isn't, why?
 
+It is hard to say why your code is not fast. Take a look at the
+[Diagnostics API](@ref diagnostics_api) to pin-point the problem. One common issue is that
+there is type instability.
 
+If you are using the defaults for the autodiff and your problem is not a scalar or using
+static arrays, ForwardDiff will create type unstable code. See this simple example:
+
+```@example type_unstable
+using NonlinearSolve, InteractiveUtils
+
+f(u, p) = @. u^2 - p
+
+prob = NonlinearProblem{false}(f, 1.0, 2.0)
+
+@code_warntype solve(prob, NewtonRaphson())
+nothing # hide
+```
+
+Notice that this was type-stable, since it is a scalar problem. Now what happens for static
+arrays
+
+```@example type_unstable
+using StaticArrays
+
+prob = NonlinearProblem{false}(f, @SVector([1.0, 2.0]), 2.0)
+
+@code_warntype solve(prob, NewtonRaphson())
+nothing # hide
+```
+
+Again Type-Stable! Now let's try using a regular array:
+
+```@example type_unstable
+prob = NonlinearProblem(f, [1.0, 2.0], 2.0)
+
+@code_warntype solve(prob, NewtonRaphson())
+nothing # hide
+```
+
+Oh no! This is type unstable. This is because ForwardDiff.jl will chunk the jacobian
+computation and the type of this chunksize can't be statically inferred. To fix this, we
+directly specify the chunksize:
+
+```@example type_unstable
+@code_warntype solve(prob, NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 2)))
+nothing # hide
+```
+
+And boom! Type stable again. For selecting the chunksize the method is:
+
+  1. For small inputs `≤ 12` use `chunksize = <length of input>`
+  2. For larger inputs, use `chunksize = 12`
+
+In general, the chunksize should be `≤ length of input`. However, a very large chunksize
+can lead to excessive compilation times and slowdown.

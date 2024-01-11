@@ -1,3 +1,5 @@
+# [Diagnostics API](@id diagnostics_api)
+
 # Logging the Solve Process
 
 All NonlinearSolve.jl native solvers allow storing and displaying the trace of the nonlinear

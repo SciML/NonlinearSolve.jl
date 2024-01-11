@@ -137,11 +137,14 @@ Symbolic Sparsity Detection. See the manual entry on
 using BenchmarkTools # for @btime
 
 @btime solve(prob_brusselator_2d, NewtonRaphson());
-@btime solve(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KLUFactorization()));
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32)));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(), linsolve = KrylovJL_GMRES()));
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32),
+        linsolve = KLUFactorization()));
+@btime solve(prob_brusselator_2d,
+    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32),
+        linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
 
@@ -175,7 +178,7 @@ ff = NonlinearFunction(brusselator_2d_loop; sparsity = jac_sparsity)
 Build the `NonlinearProblem`:
 
 ```@example ill_conditioned_nlprob
-prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)
+prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p; abstol = 1e-10, reltol = 1e-10)
 ```
 
 Now let's see how the version with sparsity compares to the version without:

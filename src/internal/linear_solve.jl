@@ -81,8 +81,8 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
     if cache.precs === nothing
         _Pl, _Pr = nothing, nothing
     else
-        _Pl, _Pr = cache.precs(cache.A, du, linu, p, nothing, A !== nothing, Plprev, Prprev,
-            cachedata)
+        _Pl, _Pr = cache.precs(cache.lincache.A, du, linu, p, nothing, A !== nothing,
+            Plprev, Prprev, cachedata)
     end
 
     if (_Pl !== nothing || _Pr !== nothing)

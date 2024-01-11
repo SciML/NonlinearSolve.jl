@@ -35,7 +35,7 @@ that `f(u) = 0`, the `NonlinearProblem` does not have a preferred solution, whil
 `SteadyStateProblem` the preferred solution is the `u(∞)` that would arise from solving the
 ODE `u' = f(u,t)`.
 
-!!! warn
+!!! warning
     
     Most solvers for `SteadyStateProblem` do not guarantee the preferred solution and
     instead will solve for some `u` in the set of solutions. The documentation of the

@@ -12,6 +12,7 @@ Pages = ["globalization.md"]
 LiFukushimaLineSearch
 LineSearchesJL
 RobustNonMonotoneLineSearch
+NoLineSearch
 ```
 
 ## Radius Update Schemes for Trust Region

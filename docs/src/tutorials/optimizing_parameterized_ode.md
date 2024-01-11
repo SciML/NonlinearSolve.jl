@@ -54,7 +54,7 @@ Now, we can use any NLLS solver to solve this problem.
 
 ```@example parameterized_ode
 res = solve(nlls_prob, LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
-    trace_level = TraceAll())
+    trace_level = TraceWithJacobianConditionNumber(25))
 nothing # hide
 ```
 
@@ -66,7 +66,7 @@ We can also use Trust Region methods.
 
 ```@example parameterized_ode
 res = solve(nlls_prob, TrustRegion(); maxiters = 1000, show_trace = Val(true),
-    trace_level = TraceAll())
+    trace_level = TraceWithJacobianConditionNumber(25))
 nothing # hide
 ```
 

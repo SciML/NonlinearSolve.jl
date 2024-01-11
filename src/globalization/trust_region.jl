@@ -21,12 +21,7 @@ of specifying a trust region radius.
     iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with
     `b_uphill = 2.0` allowing higher uphill moves than `b_uphill = 1.0`. When
     `b_uphill = 0.0`, no uphill moves will be accepted. Defaults to `1.0`. See Section 4 of
-    [1].
-
-### References
-
-[1] Transtrum, Mark K., and James P. Sethna. "Improvements to the Levenberg-Marquardt
-algorithm for nonlinear least-squares minimization." arXiv preprint arXiv:1201.5885 (2012).
+    [transtrum2012improvements](@ref).
 """
 @concrete struct LevenbergMarquardtTrustRegion <: AbstractTrustRegionMethod
     β_uphill
@@ -120,6 +115,7 @@ end
 
 const T = AbstractRadiusUpdateScheme
 
+struct __Simple <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.Simple
 
@@ -128,93 +124,70 @@ follows the conventional approach to update the trust region radius, i.e. if the
 step is accepted it increases the radius by a fixed factor (bounded by a maximum radius)
 and if the trial step is rejected, it shrinks the radius by a fixed factor.
 """
-struct __Simple <: AbstractRadiusUpdateScheme end
 const Simple = __Simple()
 
+struct __NLsolve <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.NLsolve
 
 The same updating scheme as in NLsolve's (https://github.com/JuliaNLSolvers/NLsolve.jl)
 trust region dogleg implementation.
 """
-struct __NLsolve <: AbstractRadiusUpdateScheme end
 const NLsolve = __NLsolve()
 
+struct __NocedalWright <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.NocedalWright
 
 Trust region updating scheme as in Nocedal and Wright [see Alg 11.5, page 291].
 """
-struct __NocedalWright <: AbstractRadiusUpdateScheme end
 const NocedalWright = __NocedalWright()
 
+struct __Hei <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.Hei
 
-This scheme is proposed by Hei, L. [1]. The trust region radius depends on the size
-(norm) of the current step size. The hypothesis is to let the radius converge to zero as
-the iterations progress, which is more reliable and robust for ill-conditioned as well
+This scheme is proposed in [hei2003self](@citet). The trust region radius depends on the
+size (norm) of the current step size. The hypothesis is to let the radius converge to zero
+as the iterations progress, which is more reliable and robust for ill-conditioned as well
 as degenerate problems.
-
-### References
-
-[1] Hei, Long. "A self-adaptive trust region algorithm." Journal of Computational
-Mathematics (2003): 229-236.
 """
-struct __Hei <: AbstractRadiusUpdateScheme end
 const Hei = __Hei()
 
+struct __Yuan <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.Yuan
 
-This scheme is proposed by Yuan, Y [1]. Similar to Hei's scheme, the trust region is
-updated in a way so that it converges to zero, however here, the radius depends on the
-size (norm) of the current gradient of the objective (merit) function. The hypothesis is
-that the step size is bounded by the gradient size, so it makes sense to let the radius
-depend on the gradient.
-
-### References
-
-[1] Fan, Jinyan, Jianyu Pan, and Hongyan Song. "A retrospective trust region algorithm
-with trust region converging to zero." Journal of Computational Mathematics 34.4 (2016):
-421-436.
+This scheme is proposed by [yuan2015recent](@citet). Similar to Hei's scheme, the
+trust region is updated in a way so that it converges to zero, however here, the radius
+depends on the size (norm) of the current gradient of the objective (merit) function. The
+hypothesis is that the step size is bounded by the gradient size, so it makes sense to let
+the radius depend on the gradient.
 """
-struct __Yuan <: AbstractRadiusUpdateScheme end
 const Yuan = __Yuan()
 
+struct __Bastin <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.Bastin
 
-This scheme is proposed by Bastin, et al. [1]. The scheme is called a retrospective
-update scheme as it uses the model function at the current iteration to compute the
-ratio of the actual reduction and the predicted reduction in the previous trial step,
-and use this ratio to update the trust region radius. The hypothesis is to exploit the
+This scheme is proposed by [bastin2010retrospective](@citet). The scheme is called a
+retrospective update scheme as it uses the model function at the current iteration to
+compute the ratio of the actual reduction and the predicted reduction in the previous trial
+step, and use this ratio to update the trust region radius. The hypothesis is to exploit the
 information made available during the optimization process in order to vary the accuracy
 of the objective function computation.
-
-### References
-
-[1] Bastin, Fabian, et al. "A retrospective trust-region method for unconstrained
-optimization." Mathematical programming 123 (2010): 395-418.
 """
-struct __Bastin <: AbstractRadiusUpdateScheme end
 const Bastin = __Bastin()
 
+struct __Fan <: AbstractRadiusUpdateScheme end
 """
     RadiusUpdateSchemes.Fan
 
-This scheme is proposed by Fan, J. [1]. It is very much similar to Hei's and Yuan's
-schemes as it lets the trust region radius depend on the current size (norm) of the
-objective (merit) function itself. These new update schemes are known to improve local
+This scheme is proposed by [fan2006convergence](@citet). It is very much similar to Hei's
+and Yuan's schemes as it lets the trust region radius depend on the current size (norm) of
+the objective (merit) function itself. These new update schemes are known to improve local
 convergence.
-
-### References
-
-[1] Fan, Jinyan. "Convergence rate of the trust region method for nonlinear equations
-under local error bound condition." Computational Optimization and Applications 34.2
-(2006): 215-227.
 """
-struct __Fan <: AbstractRadiusUpdateScheme end
 const Fan = __Fan()
 
 end
@@ -248,13 +221,11 @@ the value used in the respective paper.
   - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
     compared with a value `r`, which is the actual reduction in the objective function
     divided by the predicted reduction. If `step_threshold > r` the model is not a good
-    approximation, and the step is rejected. Defaults to `nothing`. For more details, see
-    [2].
+    approximation, and the step is rejected. Defaults to `nothing`.
   - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
     iteration, the threshold is compared with a value `r` which is the actual reduction in
     the objective function divided by the predicted reduction. If `shrink_threshold > r` the
-    trust region radius is shrunk by `shrink_factor`. Defaults to `nothing`. For more
-    details, see [2].
+    trust region radius is shrunk by `shrink_factor`. Defaults to `nothing`.
   - `expand_threshold`: the threshold for expanding the trust region radius. If a step is
     taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is
     also made to see if `expand_threshold < r`. If that is true, the trust region radius is
@@ -263,13 +234,6 @@ the value used in the respective paper.
     `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
   - `expand_factor`: the factor to expand the trust region radius with if
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
-
-### References
-
-[1] Yuan, Ya-xiang. "Recent advances in trust region algorithms." Mathematical Programming
-151 (2015): 249-281.
-[2] Rahpeymaii, Farzad. "An efficient line search trust-region for systems of nonlinear
-equations." Mathematical Sciences 14.3 (2020): 257-268.
 """
 @kwdef @concrete struct GenericTrustRegionScheme{
     M <: RadiusUpdateSchemes.AbstractRadiusUpdateScheme}
@@ -358,7 +322,7 @@ end
         u0_norm, fu_norm) where {T}
     method isa RUS.__NLsolve && return T(ifelse(u0_norm > 0, u0_norm, 1))
     (method isa RUS.__Hei || method isa RUS.__Bastin) && return T(1)
-    method isa RUS.__Fan && return T((fu_norm^0.99) // 10)
+    method isa RUS.__Fan && return T((fu_norm^0.99) / 10)
     return T(max_tr / 11)
 end
 

@@ -3,6 +3,10 @@
 # Preferences
 const TIMER_OUTPUTS_ENABLED = @load_preference("enable_timer_outputs", false)
 
+@static if TIMER_OUTPUTS_ENABLED
+    import TimerOutputs
+end
+
 """
     enable_timer_outputs()
 
@@ -27,7 +31,7 @@ end
 
 function get_timer_output()
     @static if TIMER_OUTPUTS_ENABLED
-        return get_timer_output()
+        return TimerOutputs.TimerOutput()
     else
         return nothing
     end
@@ -41,8 +45,13 @@ Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is dis
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED
-        return TimerOutput.timer_expr(__module__, true, to, name, expr)
+        return TimerOutputs.timer_expr(__module__, true, to, name, expr)
     else
         return esc(expr)
     end
+end
+
+@inline reset_timer!(::Nothing) = nothing
+@static if TIMER_OUTPUTS_ENABLED
+    @inline reset_timer!(timer::TimerOutputs.TimerOutput) = TimerOutputs.reset_timer!(timer)
 end

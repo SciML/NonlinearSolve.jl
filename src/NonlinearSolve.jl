@@ -10,7 +10,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 @recompile_invalidations begin
     using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
         LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
-        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, TimerOutputs
+        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import DiffEqBase: AbstractNonlinearTerminationMode,
