@@ -24,7 +24,6 @@ jobs:
           - Wrappers
           - Miscellaneous
         version:
-          - '1.9'
           - '1.10'
         os:
           - ubuntu-latest
