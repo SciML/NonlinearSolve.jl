@@ -4,7 +4,7 @@
 const TIMER_OUTPUTS_ENABLED = @load_preference("enable_timer_outputs", false)
 
 @static if TIMER_OUTPUTS_ENABLED
-    import TimerOutputs
+    using TimerOutputs
 end
 
 """
@@ -31,7 +31,7 @@ end
 
 function get_timer_output()
     @static if TIMER_OUTPUTS_ENABLED
-        return TimerOutputs.TimerOutput()
+        return TimerOutput()
     else
         return nothing
     end
@@ -41,17 +41,16 @@ end
     @static_timeit to name expr
 
 Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is disabled via
-`disable_timer_outputs()`.
+[`NonlinearSolve.disable_timer_outputs()`](@ref).
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED
-        return TimerOutputs.timer_expr(__module__, true, to, name, expr)
+        return TimerOutputs.timer_expr(__module__, false, to, name, expr)
     else
         return esc(expr)
     end
 end
 
-@inline reset_timer!(::Nothing) = nothing
-@static if TIMER_OUTPUTS_ENABLED
-    @inline reset_timer!(timer::TimerOutputs.TimerOutput) = TimerOutputs.reset_timer!(timer)
+@static if !TIMER_OUTPUTS_ENABLED
+    @inline reset_timer!(::Nothing) = nothing
 end

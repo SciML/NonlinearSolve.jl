@@ -1,5 +1,8 @@
 # [Diagnostics API](@id diagnostics_api)
 
+Detailed API Documentation is provided at
+[Diagonstics API Reference](@ref diagnostics_api_reference).
+
 # Logging the Solve Process
 
 All NonlinearSolve.jl native solvers allow storing and displaying the trace of the nonlinear
@@ -56,11 +59,3 @@ sol.trace
     
     For `iteration == 0` only the `norm(fu, Inf)` is guaranteed to be meaningful. The other
     values being meaningful are solver dependent.
-
-## API
-
-```@docs
-TraceMinimal
-TraceWithJacobianConditionNumber
-TraceAll
-```

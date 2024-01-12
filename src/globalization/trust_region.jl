@@ -292,7 +292,7 @@ function reinit_cache!(cache::GenericTrustRegionSchemeCache, args...; u0 = nothi
     if u0 !== nothing
         u0_norm = cache.internalnorm(u0)
         cache.trust_region = __initial_trust_radius(cache.alg.initial_trust_radius, T,
-            cache.alg.method, cache.max_trust_radius, u0_norm)  # FIXME: scheme specific
+            cache.alg.method, cache.max_trust_radius, u0_norm, u0_norm)  # FIXME: scheme specific
     end
     cache.last_step_accepted = false
     cache.shrink_counter = 0

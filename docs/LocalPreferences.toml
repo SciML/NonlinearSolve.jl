@@ -1,0 +1,2 @@
+[NonlinearSolve]
+enable_timer_outputs = true
