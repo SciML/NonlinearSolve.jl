@@ -45,7 +45,7 @@ function (cache::__LiFukushimaLineSearchCache)(u, δu)
     fx_norm = ϕ(T(0))
 
     # Non-Blocking exit if the norm is NaN or Inf
-    !isfinite(fx_norm) && return cache.α
+    (fx_norm == Inf || fx_norm == NaN) && return cache.α
 
     # Early Terminate based on Eq. 2.7
     du_norm = norm(δu, 2)
