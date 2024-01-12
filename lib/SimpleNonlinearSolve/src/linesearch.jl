@@ -25,13 +25,11 @@ end
 end
 
 function (alg::__LiFukushimaLineSearch)(prob, fu, u)
-    @bb u_cache = similar(u)
-    @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
 
     ϕ = @closure (u, δu, α) -> begin
-        @bb @. u_cache = u + α * δu
-        return NONLINEARSOLVE_DEFAULT_NORM(__eval_f(prob, fu_cache, u_cache))
+        u_cache = @. u + α * δu
+        return NONLINEARSOLVE_DEFAULT_NORM(prob.f(u_cache, prob.p))
     end
 
     return __LiFukushimaLineSearchCache(ϕ, T(alg.lambda_0), T(alg.beta), T(alg.sigma_1),
@@ -45,22 +43,22 @@ function (cache::__LiFukushimaLineSearchCache)(u, δu)
     fx_norm = ϕ(T(0))::T
 
     # Non-Blocking exit if the norm is NaN or Inf
-    DiffEqBase.NAN_CHECK(fx_norm) && return cache.α
+    DiffEqBase.NAN_CHECK(fx_norm)::Bool && return cache.α
 
     # Early Terminate based on Eq. 2.7
-    du_norm = NONLINEARSOLVE_DEFAULT_NORM(δu)
-    fxλ_norm = ϕ(cache.α)
+    du_norm = NONLINEARSOLVE_DEFAULT_NORM(δu)::T
+    fxλ_norm = ϕ(cache.α)::T
     fxλ_norm ≤ cache.ρ * fx_norm - cache.σ₂ * du_norm^2 && return cache.α
 
     λ₂, λ₁ = cache.λ₀, cache.λ₀
-    fxλp_norm = ϕ(λ₂)
+    fxλp_norm = ϕ(λ₂)::T
 
-    if DiffEqBase.NAN_CHECK(fxλp_norm)
+    if DiffEqBase.NAN_CHECK(fxλp_norm)::Bool
         nan_converged = false
         for _ in 1:(cache.nan_maxiters)
             λ₁, λ₂ = λ₂, cache.β * λ₂
             fxλp_norm = ϕ(λ₂)
-            nan_converged = DiffEqBase.NAN_CHECK(fxλp_norm)
+            nan_converged = DiffEqBase.NAN_CHECK(fxλp_norm)::Bool
             nan_converged && break
         end
         nan_converged || return cache.α
