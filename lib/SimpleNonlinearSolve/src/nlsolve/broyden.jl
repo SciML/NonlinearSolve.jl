@@ -39,8 +39,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
     @bb δJ⁻¹n = copy(x)
     @bb δJ⁻¹ = copy(J⁻¹)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
-        termination_condition)
+    # abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    #     termination_condition)
 
     ls_cache = __get_linesearch(alg) === Val(true) ?
                __LiFukushimaLineSearch()(prob, fx, x) : nothing
@@ -55,8 +55,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         @bb @. δf = fx - fprev
 
         # Termination Checks
-        tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
-        tc_sol !== nothing && return tc_sol
+        # tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
+        # tc_sol !== nothing && return tc_sol
 
         @bb J⁻¹δf = J⁻¹ × vec(δf)
         d = dot(δx, J⁻¹δf)
