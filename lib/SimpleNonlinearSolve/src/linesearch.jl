@@ -25,11 +25,13 @@ end
 end
 
 function (alg::__LiFukushimaLineSearch)(prob, fu, u)
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
 
     ϕ = @closure (u, δu, α) -> begin
         u_cache = @. u + α * δu
-        return NONLINEARSOLVE_DEFAULT_NORM(prob.f(u_cache, prob.p))
+        return NONLINEARSOLVE_DEFAULT_NORM(__eval_f(prob, fu_cache, u_cache))
     end
 
     return __LiFukushimaLineSearchCache(ϕ, T(alg.lambda_0), T(alg.beta), T(alg.sigma_1),
