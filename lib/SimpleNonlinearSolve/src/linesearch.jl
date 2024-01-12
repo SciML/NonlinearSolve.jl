@@ -42,7 +42,7 @@ function (cache::__LiFukushimaLineSearchCache)(u, δu)
     T = promote_type(eltype(u), eltype(δu))
     ϕ = @closure α -> cache.ϕ(u, δu, α)
 
-    fx_norm::T = ϕ(T(0))
+    fx_norm = ϕ(T(0))::T
 
     # Non-Blocking exit if the norm is NaN or Inf
     DiffEqBase.NAN_CHECK(fx_norm) && return cache.α
