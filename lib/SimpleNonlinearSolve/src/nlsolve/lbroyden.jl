@@ -259,12 +259,9 @@ function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2
     U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
     return U, Vᵀ
 end
-
 @generated function __init_low_rank_jacobian(u::SVector{Lu, T1}, fu::SVector{Lfu, T2},
         ::Val{threshold}) where {Lu, Lfu, T1, T2, threshold}
     T = promote_type(T1, T2)
-    # Lfu, Lu = __prod_size(S2), __prod_size(S1)
-    # Lfu, Lu = __prod(Size(fu)), __prod(Size(u))
     inner_inits_Vᵀ = [:(zeros(SVector{$Lu, $T})) for i in 1:threshold]
     inner_inits_U = [:(zeros(SVector{$Lfu, $T})) for i in 1:threshold]
     return quote
@@ -273,7 +270,6 @@ end
         return U, Vᵀ
     end
 end
-
 function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
     Vᵀ = similar(u, threshold, length(u))
     U = similar(u, length(fu), threshold)
