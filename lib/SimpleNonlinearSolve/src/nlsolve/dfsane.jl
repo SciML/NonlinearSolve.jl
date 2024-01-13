@@ -1,6 +1,6 @@
 """
     SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-        M::Int = 10, γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
         nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2)
 
 A low-overhead implementation of the df-sane method for solving large-scale nonlinear
@@ -42,21 +42,26 @@ see the paper [1].
 information for solving large-scale nonlinear systems of equations, Mathematics of
 Computation, 75, 1429-1448.
 """
-@kwdef @concrete struct SimpleDFSane <: AbstractSimpleNonlinearSolveAlgorithm
-    σ_min = 1e-10
-    σ_max = 1e10
-    σ_1 = 1.0
-    M::Int = 10
-    γ = 1e-4
-    τ_min = 0.1
-    τ_max = 0.5
-    nexp::Int = 2
-    η_strategy = (f_1, k, x, F) -> f_1 ./ k^2
+@concrete struct SimpleDFSane{M} <: AbstractSimpleNonlinearSolveAlgorithm
+    σ_min
+    σ_max
+    σ_1
+    γ
+    τ_min
+    τ_max
+    nexp::Int
+    η_strategy
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
+function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        nexp::Int = 2, η_strategy::F = (f_1, k, x, F) -> f_1 ./ k^2) where {F}
+    return SimpleDFSane{SciMLBase._unwrap_val(M)}(σ_min, σ_max, σ_1, γ, τ_min, τ_max, nexp, η_strategy)
+end
+
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        termination_condition = nothing, kwargs...) where {M}
     x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
     T = eltype(x)
@@ -65,7 +70,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     σ_max = T(alg.σ_max)
     σ_k = T(alg.σ_1)
 
-    (; M, nexp, η_strategy) = alg
+    (; nexp, η_strategy) = alg
     γ = T(alg.γ)
     τ_min = T(alg.τ_min)
     τ_max = T(alg.τ_max)
@@ -77,7 +82,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
     α_1 = one(T)
     f_1 = fx_norm
 
-    history_f_k = fill(fx_norm, M)
+    history_f_k = if x isa SArray
+        ones(SVector{M, T}) * fx_norm
+    else
+        fill(fx_norm, M)
+    end
 
     # Generate the cache
     @bb x_cache = similar(x)
@@ -143,7 +152,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane, args...;
         fx_norm = fx_norm_new
 
         # Store function value
-        history_f_k[mod1(k, M)] = fx_norm_new
+        if history_f_k isa SVector
+            history_f_k = Base.setindex(history_f_k, fx_norm_new, mod1(k, M))
+        else
+            history_f_k[mod1(k, M)] = fx_norm_new
+        end
         k += 1
     end
 

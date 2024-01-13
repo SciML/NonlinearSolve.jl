@@ -164,7 +164,7 @@ end
 ## SimpleDFSane needs to allocate a history vector
 @testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
     SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-    SimpleTrustRegion())
+    SimpleTrustRegion(), SimpleDFSane())
     @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
 
     nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
@@ -175,7 +175,8 @@ end
         @test true
     catch e
         @error e
-        @test false
+        # History Vector Allocates
+        @test false broken=(alg isa SimpleDFSane)
     end
 
     # ForwardDiff allocates for hessian since we don't propagate the chunksize

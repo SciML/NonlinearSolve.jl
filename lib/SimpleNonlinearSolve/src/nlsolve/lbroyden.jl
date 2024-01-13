@@ -107,7 +107,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
     fx = _get_fx(prob, x)
     threshold = __get_threshold(alg)
 
-    U, Vᵀ = __init_low_rank_jacobian(x, fx, threshold)
+    U, Vᵀ = __init_low_rank_jacobian(vec(x), vec(fx), threshold)
 
     abstol = DiffEqBase._get_tolerance(abstol, eltype(x))
 
@@ -230,8 +230,8 @@ function __mapdot(x::SVector{S1}, Y::SVector{S2, <:SVector{S1}}) where {S1, S2}
 end
 @generated function __mapTdot(x::SVector{S1}, Y::SVector{S1, <:SVector{S2}}) where {S1, S2}
     calls = []
-    syms = [gensym("m$(i)") for i in 1:length(Y)]
-    for i in 1:length(Y)
+    syms = [gensym("m$(i)") for i in 1:S1]
+    for i in 1:S1
         push!(calls, :($(syms[i]) = x[$(i)] .* Y[$i]))
     end
     push!(calls, :(return .+($(syms...))))
@@ -259,18 +259,21 @@ function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2
     U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
     return U, Vᵀ
 end
-@generated function __init_low_rank_jacobian(u::SArray{S1, T1}, fu::SArray{S2, T2},
-        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
+
+@generated function __init_low_rank_jacobian(u::SVector{Lu, T1}, fu::SVector{Lfu, T2},
+        ::Val{threshold}) where {Lu, Lfu, T1, T2, threshold}
     T = promote_type(T1, T2)
-    Lfu, Lu = prod(Size(fu)), prod(Size(u))
-    inner_inits_Vᵀ = [zeros(SVector{Lu, T}) for i in 1:threshold]
-    inner_inits_U = [zeros(SVector{Lfu, T}) for i in 1:threshold]
+    # Lfu, Lu = __prod_size(S2), __prod_size(S1)
+    # Lfu, Lu = __prod(Size(fu)), __prod(Size(u))
+    inner_inits_Vᵀ = [:(zeros(SVector{$Lu, $T})) for i in 1:threshold]
+    inner_inits_U = [:(zeros(SVector{$Lfu, $T})) for i in 1:threshold]
     return quote
         Vᵀ = SVector($(inner_inits_Vᵀ...))
         U = SVector($(inner_inits_U...))
         return U, Vᵀ
     end
 end
+
 function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
     Vᵀ = similar(u, threshold, length(u))
     U = similar(u, length(fu), threshold)
