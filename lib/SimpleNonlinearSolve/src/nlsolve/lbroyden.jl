@@ -21,7 +21,22 @@ function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27))
     return SimpleLimitedMemoryBroyden{SciMLBase._unwrap_val(threshold)}()
 end
 
-@views function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
+function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
+        args...; termination_condition = nothing, kwargs...)
+    if prob.u0 isa SArray
+        if termination_condition === nothing ||
+           termination_condition isa AbsNormTerminationMode
+            return __static_solve(prob, alg, args...; termination_condition, kwargs...)
+        end
+        @warn "Specifying `termination_condition = $(termination_condition)` for \
+               `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
+               either `termination_condition = AbsNormTerminationMode()` or \
+               `termination_condition = nothing`." maxlog=1
+    end
+    return __generic_solve(prob, alg, args...; termination_condition, kwargs...)
+end
+
+@views function __generic_solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
@@ -85,17 +100,9 @@ end
 
 # Non-allocating StaticArrays version of SimpleLimitedMemoryBroyden is actually quite
 # finicky, so we'll implement it separately from the generic version
-# We make an exception here and don't support termination conditions
-@views function SciMLBase.__solve(prob::NonlinearProblem{<:SArray},
-        alg::SimpleLimitedMemoryBroyden, args...; abstol = nothing,
-        termination_condition = nothing,
-        maxiters = 1000, kwargs...)
-    if termination_condition !== nothing &&
-       !(termination_condition isa AbsNormTerminationMode)
-        error("SimpleLimitedMemoryBroyden with StaticArrays does not support termination \
-               conditions!")
-    end
-
+# Ignore termination_condition. Don't pass things into internal functions
+function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden,
+        args...; abstol = nothing, maxiters = 1000, kwargs...)
     x = prob.u0
     fx = _get_fx(prob, x)
     threshold = __get_threshold(alg)
