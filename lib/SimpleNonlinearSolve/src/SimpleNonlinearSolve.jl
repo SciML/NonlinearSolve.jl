@@ -59,6 +59,12 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
     return solve(prob, ITP(), args...; kwargs...)
 end
 
+# By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
+function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...; kwargs...)
+    return SciMLBase.__solve(prob, alg, args...; kwargs...)
+end
+
 @setup_workload begin
     for T in (Float32, Float64)
         prob_no_brack_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
