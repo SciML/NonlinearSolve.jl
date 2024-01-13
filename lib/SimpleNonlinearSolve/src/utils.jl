@@ -243,20 +243,6 @@ function __init_identity_jacobian!!(J::SVector{S1}) where {S1}
     return ones(SVector{S1, eltype(J)})
 end
 
-function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
-        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
-    T = promote_type(T1, T2)
-    fuSize, uSize = Size(fu), Size(u)
-    Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
-    U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
-    return U, Vᵀ
-end
-function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
-    Vᵀ = similar(u, threshold, length(u))
-    U = similar(u, length(fu), threshold)
-    return U, Vᵀ
-end
-
 @inline _vec(v) = vec(v)
 @inline _vec(v::Number) = v
 @inline _vec(v::AbstractVector) = v
