@@ -1,6 +1,6 @@
 """
-    SimpleLimitedMemoryBroyden(; threshold::Int = 27, linesearch = Val(true))
-    SimpleLimitedMemoryBroyden(; threshold::Val = Val(27), linesearch = Val(true))
+    SimpleLimitedMemoryBroyden(; threshold::Int = 27, linesearch = Val(false))
+    SimpleLimitedMemoryBroyden(; threshold::Val = Val(27), linesearch = Val(false))
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
 Broyden's method. This Alogrithm unfortunately cannot non-allocating for StaticArrays
@@ -25,9 +25,8 @@ __get_threshold(::SimpleLimitedMemoryBroyden{threshold}) where {threshold} = Val
 __use_linesearch(::SimpleLimitedMemoryBroyden{Th, LS}) where {Th, LS} = Val(LS)
 
 function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
-        linesearch = Val(true))
-    return SimpleLimitedMemoryBroyden{SciMLBase._unwrap_val(threshold),
-        SciMLBase._unwrap_val(linesearch)}()
+        linesearch = Val(false))
+    return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}()
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
@@ -50,7 +49,7 @@ end
         termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     threshold = __get_threshold(alg)
-    η = min(SciMLBase._unwrap_val(threshold), maxiters)
+    η = min(_unwrap_val(threshold), maxiters)
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
@@ -134,7 +133,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 
     xo, fo, δx = res.x, res.fx, res.δx
 
-    for i in 1:(maxiters - SciMLBase._unwrap_val(threshold))
+    for i in 1:(maxiters - _unwrap_val(threshold))
         x = xo .+ δx
         fx = prob.f(x, prob.p)
         δf = fx - fo
@@ -148,8 +147,8 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
         d = dot(vᵀ, δf)
         δx = @. (δx - mvec) / d
 
-        U = Base.setindex(U, vec(δx), mod1(i, SciMLBase._unwrap_val(threshold)))
-        Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), mod1(i, SciMLBase._unwrap_val(threshold)))
+        U = Base.setindex(U, vec(δx), mod1(i, _unwrap_val(threshold)))
+        Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), mod1(i, _unwrap_val(threshold)))
 
         δx = -_restructure(fx, _matvec!!(U, Vᵀ, vec(fx)))
 

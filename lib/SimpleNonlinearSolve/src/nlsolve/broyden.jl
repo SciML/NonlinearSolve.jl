@@ -16,9 +16,7 @@ of Broyden-like method for nonlinear equations." Optimization methods and softwa
 """
 struct SimpleBroyden{linesearch} <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SimpleBroyden(; linesearch = Val(false))
-    SimpleBroyden{SciMLBase._unwrap_val(linesearch)}()
-end
+SimpleBroyden(; linesearch = Val(false)) = SimpleBroyden{_unwrap_val(linesearch)}()
 
 __get_linesearch(::SimpleBroyden{LS}) where {LS} = Val(LS)
 
@@ -39,11 +37,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
     @bb δJ⁻¹n = copy(x)
     @bb δJ⁻¹ = copy(J⁻¹)
 
-    # abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
-    #     termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+        termination_condition)
 
     ls_cache = __get_linesearch(alg) === Val(true) ?
-               __LiFukushimaLineSearch()(prob, fx, x) : nothing
+               LiFukushimaLineSearch()(prob, fx, x) : nothing
 
     for _ in 1:maxiters
         @bb δx = J⁻¹ × vec(fprev)
@@ -55,8 +53,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         @bb @. δf = fx - fprev
 
         # Termination Checks
-        # tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
-        # tc_sol !== nothing && return tc_sol
+        tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
+        tc_sol !== nothing && return tc_sol
 
         @bb J⁻¹δf = J⁻¹ × vec(δf)
         d = dot(δx, J⁻¹δf)
