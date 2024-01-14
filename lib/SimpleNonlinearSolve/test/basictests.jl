@@ -1,4 +1,4 @@
-using AllocCheck, BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
+using AllocCheck, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
     LinearAlgebra, Test, ForwardDiff, DiffEqBase
 import PolyesterForwardDiff
 
@@ -57,13 +57,6 @@ const TERMINATION_CONDITIONS = [
         end
     end
 
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
-            2.0; autodiff = AutoForwardDiff())) < 200
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
-            autodiff = AutoForwardDiff())) == 0
-    end
-
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
@@ -89,11 +82,6 @@ end
         end
     end
 
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
-            autodiff = AutoForwardDiff())) == 0
-    end
-
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
@@ -105,7 +93,8 @@ end
 # --- SimpleBroyden / SimpleKlement / SimpleLimitedMemoryBroyden tests ---
 
 @testset "$(_nameof(alg))" for alg in [SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
-    SimpleLimitedMemoryBroyden()]
+    SimpleLimitedMemoryBroyden(), SimpleBroyden(; linesearch = Val(true)),
+    SimpleLimitedMemoryBroyden(; linesearch = Val(true))]
     function benchmark_nlsolve_oop(f, u0, p = 2.0)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, alg, abstol = 1e-9)
@@ -126,13 +115,6 @@ end
         sol = benchmark_nlsolve_iip(quadratic_f!, u0)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-    end
-
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
-            2.0)) < 200
-        allocs = alg isa SimpleDFSane ? 144 : 0
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0)) == allocs
     end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
@@ -164,7 +146,8 @@ end
 ## SimpleDFSane needs to allocate a history vector
 @testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
     SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-    SimpleTrustRegion(), SimpleDFSane())
+    SimpleTrustRegion(), SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
+    SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
     @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
 
     nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
@@ -175,8 +158,7 @@ end
         @test true
     catch e
         @error e
-        # History Vector Allocates
-        @test false broken=(alg isa SimpleDFSane)
+        @test false
     end
 
     # ForwardDiff allocates for hessian since we don't propagate the chunksize

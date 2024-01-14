@@ -7,7 +7,6 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, <:AbstractArray}
         sol.original)
 end
 
-# Handle Ambiguities
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     @eval begin
         function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
