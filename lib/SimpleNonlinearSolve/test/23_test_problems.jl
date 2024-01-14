@@ -70,12 +70,9 @@ end
     alg_ops = (SimpleBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 4, 5, 6, 11, 12, 13, 14]
+    broken_tests[alg_ops[1]] = [1, 5, 11]
 
-    skip_tests = Dict(alg => Int[] for alg in alg_ops)
-    skip_tests[alg_ops[1]] = [2, 22]
-
-    test_on_library(problems, dicts, alg_ops, broken_tests; skip_tests)
+    test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
 @testset "SimpleKlement 23 Test Problems" begin
