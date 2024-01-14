@@ -7,7 +7,8 @@ f!(du, u, p) = du .= u .* u .- 2
 
 @testset "Solving on GPUs" begin
     for alg in (SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(), SimpleBroyden(),
-        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley())
+        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
+        SimpleBroyden(; linesearch = Val(true)))
         @info "Testing $alg on CUDA"
 
         # Static Arrays
@@ -43,7 +44,8 @@ end
     prob = NonlinearProblem{false}(f, @SVector[1.0f0, 1.0f0])
 
     for alg in (SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(), SimpleBroyden(),
-        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley())
+        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
+        SimpleBroyden(; linesearch = Val(true)))
         @test begin
             try
                 @cuda kernel_function(prob, alg)

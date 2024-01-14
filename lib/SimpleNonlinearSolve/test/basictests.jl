@@ -105,7 +105,7 @@ end
 # --- SimpleBroyden / SimpleKlement / SimpleLimitedMemoryBroyden tests ---
 
 @testset "$(_nameof(alg))" for alg in [SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
-    SimpleLimitedMemoryBroyden()]
+    SimpleLimitedMemoryBroyden(), SimpleBroyden(; linesearch = Val(true))]
     function benchmark_nlsolve_oop(f, u0, p = 2.0)
         prob = NonlinearProblem{false}(f, u0, p)
         return solve(prob, alg, abstol = 1e-9)
@@ -164,7 +164,7 @@ end
 ## SimpleDFSane needs to allocate a history vector
 @testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
     SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-    SimpleTrustRegion(), SimpleDFSane())
+    SimpleTrustRegion(), SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)))
     @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
 
     nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
