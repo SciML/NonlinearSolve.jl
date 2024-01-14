@@ -24,7 +24,7 @@ nonlinear systems.
     a minimum value of the elements in `DᵀD` to prevent the damping from being too small.
     Defaults to `1e-8`.
   - `disable_geodesic`: Disables Geodesic Acceleration if set to `Val(true)`. It provides
-    a way to trade-off robustness for speed, though in most sitations Geodesic Acceleration
+    a way to trade-off robustness for speed, though in most situations Geodesic Acceleration
     should not be disabled.
 
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and

@@ -77,8 +77,8 @@ sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiter
 
 This worked but, Finite Differencing is not the recommended approach in any scenario.
 
-  2. Rewrite the function to use
-[PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
+ 2. Rewrite the function to use
+    [PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
 
 ```@example dual_error_faq
 function fff_correct(var, p)
@@ -144,8 +144,8 @@ nothing # hide
 
 And boom! Type stable again. For selecting the chunksize the method is:
 
-  1. For small inputs `≤ 12` use `chunksize = <length of input>`
-  2. For larger inputs, use `chunksize = 12`
+ 1. For small inputs `≤ 12` use `chunksize = <length of input>`
+ 2. For larger inputs, use `chunksize = 12`
 
 In general, the chunksize should be `≤ length of input`. However, a very large chunksize
 can lead to excessive compilation times and slowdown.

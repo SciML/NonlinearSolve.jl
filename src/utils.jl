@@ -120,6 +120,7 @@ end
 Statistics from the nonlinear equation solver about the solution process.
 
 ## Fields
+
   - nf: Number of function evaluations.
   - njacs: Number of Jacobians created during the solve.
   - nfactors: Number of factorzations of the jacobian required for the solve.
