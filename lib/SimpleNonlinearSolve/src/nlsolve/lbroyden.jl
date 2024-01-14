@@ -3,14 +3,13 @@
     SimpleLimitedMemoryBroyden(; threshold::Val = Val(27), linesearch = Val(false))
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
-Broyden's method. This Alogrithm unfortunately cannot non-allocating for StaticArrays
-without compromising on the "simple" aspect.
+Broyden's method.
 
 If the threshold is larger than the problem size, then this method will use `SimpleBroyden`.
 
 If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch` [1] line search else
 no line search is used. For advanced customization of the line search, use the
-`LimitedMemoryBroyden` algorithm in `NonlinearSolve.jl`.
+[`LimitedMemoryBroyden`](@ref) algorithm in `NonlinearSolve.jl`.
 
 ### References
 
@@ -75,7 +74,7 @@ end
     @bb mat_cache = copy(x)
 
     ls_cache = __use_linesearch(alg) === Val(true) ?
-               __LiFukushimaLineSearch()(prob, fx, x) : nothing
+               LiFukushimaLineSearch()(prob, fx, x) : nothing
 
     for i in 1:maxiters
         α = ls_cache === nothing ? true : ls_cache(x, δx)
@@ -125,8 +124,11 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 
     xo, δx, fo, δf = x, -fx, fx, fx
 
+    ls_cache = __use_linesearch(alg) === Val(true) ?
+               LiFukushimaLineSearch()(prob, fx, x) : nothing
+
     converged, res = __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U, Vᵀ,
-        threshold)
+        threshold, ls_cache)
 
     converged &&
         return build_solution(prob, alg, res.x, res.fx; retcode = ReturnCode.Success)
@@ -134,7 +136,8 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
     xo, fo, δx = res.x, res.fx, res.δx
 
     for i in 1:(maxiters - _unwrap_val(threshold))
-        x = xo .+ δx
+        α = ls_cache === nothing ? true : ls_cache(xo, δx)
+        x = xo .+ α .* δx
         fx = prob.f(x, prob.p)
         δf = fx - fo
 
@@ -160,13 +163,14 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 end
 
 @generated function __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U,
-        Vᵀ, ::Val{threshold}) where {threshold}
+        Vᵀ, ::Val{threshold}, ls_cache) where {threshold}
     calls = []
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
         push!(calls,
             quote
-                x = xo .+ δx
+                α = ls_cache === nothing ? true : ls_cache(xo, δx)
+                x = xo .+ α .* δx
                 fx = prob.f(x, prob.p)
                 δf = fx - fo
 

@@ -8,7 +8,8 @@ f!(du, u, p) = du .= u .* u .- 2
 @testset "Solving on GPUs" begin
     for alg in (SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(), SimpleBroyden(),
         SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
-        SimpleBroyden(; linesearch = Val(true)))
+        SimpleBroyden(; linesearch = Val(true)),
+        SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         @info "Testing $alg on CUDA"
 
         # Static Arrays
@@ -45,7 +46,8 @@ end
 
     for alg in (SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(), SimpleBroyden(),
         SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
-        SimpleBroyden(; linesearch = Val(true)))
+        SimpleBroyden(; linesearch = Val(true)),
+        SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         @test begin
             try
                 @cuda kernel_function(prob, alg)
