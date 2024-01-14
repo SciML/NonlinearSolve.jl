@@ -214,12 +214,12 @@ function compute_jacobian_and_hessian(ad::AutoFiniteDiff, prob, fx, x)
     end
 end
 
-__init_identity_jacobian(u::Number, _) = one(u)
+__init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
 __init_identity_jacobian!!(J::Number) = one(J)
-function __init_identity_jacobian(u, fu)
+function __init_identity_jacobian(u, fu, α = true)
     J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    J[diagind(J)] .= eltype(J)(α)
     return J
 end
 function __init_identity_jacobian!!(J)
@@ -231,9 +231,9 @@ function __init_identity_jacobian!!(J::AbstractVector)
     fill!(J, one(eltype(J)))
     return J
 end
-function __init_identity_jacobian(u::StaticArray, fu)
+function __init_identity_jacobian(u::StaticArray, fu, α = true)
     S1, S2 = length(fu), length(u)
-    J = SMatrix{S1, S2, eltype(u)}(I)
+    J = SMatrix{S1, S2, eltype(u)}(I * α)
     return J
 end
 function __init_identity_jacobian!!(J::SMatrix{S1, S2}) where {S1, S2}

@@ -1,15 +1,20 @@
 """
-    SimpleLimitedMemoryBroyden(; threshold::Int = 27, linesearch = Val(false))
-    SimpleLimitedMemoryBroyden(; threshold::Val = Val(27), linesearch = Val(false))
+    SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
+        linesearch = Val(false), alpha = nothing)
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
 Broyden's method.
 
 If the threshold is larger than the problem size, then this method will use `SimpleBroyden`.
 
-If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch` [1] line search else
-no line search is used. For advanced customization of the line search, use the
-[`LimitedMemoryBroyden`](@ref) algorithm in `NonlinearSolve.jl`.
+### Keyword Arguments:
+
+  - `linesearch`: If `linesearch` is `Val(true)`, then we use the
+    `LiFukushimaLineSearch` [1] line search else no line search is used. For advanced
+    customization of the line search, use the [`LimitedMemoryBroyden`](@ref) algorithm in
+    `NonlinearSolve.jl`.
+  - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
+    will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
 
 ### References
 
@@ -17,20 +22,22 @@ no line search is used. For advanced customization of the line search, use the
 of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
 (2000): 181-201.
 """
-struct SimpleLimitedMemoryBroyden{threshold, linesearch} <:
-       AbstractSimpleNonlinearSolveAlgorithm end
+@concrete struct SimpleLimitedMemoryBroyden{threshold, linesearch} <:
+                 AbstractSimpleNonlinearSolveAlgorithm
+    alpha
+end
 
 __get_threshold(::SimpleLimitedMemoryBroyden{threshold}) where {threshold} = Val(threshold)
 __use_linesearch(::SimpleLimitedMemoryBroyden{Th, LS}) where {Th, LS} = Val(LS)
 
 function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
-        linesearch = Val(false))
-    return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}()
+        linesearch = Val(false), alpha = nothing)
+    return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}(alpha)
 end
 
+# Don't resolve the `abstol` and `reltol` here
 function SciMLBase.solve(prob::NonlinearProblem{<:Union{<:Number, <:SArray}},
         alg::SimpleLimitedMemoryBroyden, args...; kwargs...)
-    # Don't resolve the `abstol` and `reltol` here
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
@@ -133,8 +140,17 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
     ls_cache = __use_linesearch(alg) === Val(true) ?
                LiFukushimaLineSearch()(prob, fx, x) : nothing
 
+    T = promote_type(eltype(x), eltype(fx))
+    if alg.alpha === nothing
+        fx_norm = NONLINEARSOLVE_DEFAULT_NORM(fx)
+        x_norm = NONLINEARSOLVE_DEFAULT_NORM(x)
+        init_α = ifelse(fx_norm ≥ 1e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
+    else
+        init_α = inv(alg.alpha)
+    end
+
     converged, res = __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U, Vᵀ,
-        threshold, ls_cache)
+        threshold, ls_cache, init_α)
 
     converged &&
         return build_solution(prob, alg, res.x, res.fx; retcode = ReturnCode.Success)
@@ -150,8 +166,8 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
         maximum(abs, fx) ≤ abstol &&
             return build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
-        vᵀ = _restructure(x, _rmatvec!!(U, Vᵀ, vec(δx)))
-        mvec = _restructure(x, _matvec!!(U, Vᵀ, vec(δf)))
+        vᵀ = _restructure(x, _rmatvec!!(U, Vᵀ, vec(δx), init_α))
+        mvec = _restructure(x, _matvec!!(U, Vᵀ, vec(δf), init_α))
 
         d = dot(vᵀ, δf)
         δx = @. (δx - mvec) / d
@@ -159,7 +175,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
         U = Base.setindex(U, vec(δx), mod1(i, _unwrap_val(threshold)))
         Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), mod1(i, _unwrap_val(threshold)))
 
-        δx = -_restructure(fx, _matvec!!(U, Vᵀ, vec(fx)))
+        δx = -_restructure(fx, _matvec!!(U, Vᵀ, vec(fx), init_α))
 
         xo = x
         fo = fx
@@ -169,7 +185,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 end
 
 @generated function __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U,
-        Vᵀ, ::Val{threshold}, ls_cache) where {threshold}
+        Vᵀ, ::Val{threshold}, ls_cache, init_α) where {threshold}
     calls = []
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
@@ -185,8 +201,8 @@ end
                 _U = __first_n_getindex(U, $(static_idx))
                 _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx))
 
-                vᵀ = _restructure(x, _rmatvec!!(_U, _Vᵀ, vec(δx)))
-                mvec = _restructure(x, _matvec!!(_U, _Vᵀ, vec(δf)))
+                vᵀ = _restructure(x, _rmatvec!!(_U, _Vᵀ, vec(δx), init_α))
+                mvec = _restructure(x, _matvec!!(_U, _Vᵀ, vec(δf), init_α))
 
                 d = dot(vᵀ, δf)
                 δx = @. (δx - mvec) / d
@@ -196,7 +212,7 @@ end
 
                 _U = __first_n_getindex(U, $(static_idx_p1))
                 _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx_p1))
-                δx = -_restructure(fx, _matvec!!(_U, _Vᵀ, vec(fx)))
+                δx = -_restructure(fx, _matvec!!(_U, _Vᵀ, vec(fx), init_α))
 
                 xo = x
                 fo = fx
@@ -226,8 +242,8 @@ function _rmatvec!!(y, xᵀU, U, Vᵀ, x)
     return y
 end
 
-@inline _rmatvec!!(::Nothing, Vᵀ, x) = -x
-@inline _rmatvec!!(U, Vᵀ, x) = __mapTdot(__mapdot(x, U), Vᵀ) .- x
+@inline _rmatvec!!(::Nothing, Vᵀ, x, init_α) = -x .* init_α
+@inline _rmatvec!!(U, Vᵀ, x, init_α) = __mapTdot(__mapdot(x, U), Vᵀ) .- x .* init_α
 
 function _matvec!!(y, Vᵀx, U, Vᵀ, x)
     # (-I + UVᵀ) × x
@@ -244,8 +260,8 @@ function _matvec!!(y, Vᵀx, U, Vᵀ, x)
     return y
 end
 
-@inline _matvec!!(::Nothing, Vᵀ, x) = -x
-@inline _matvec!!(U, Vᵀ, x) = __mapTdot(__mapdot(x, Vᵀ), U) .- x
+@inline _matvec!!(::Nothing, Vᵀ, x, init_α) = -x .* init_α
+@inline _matvec!!(U, Vᵀ, x, init_α) = __mapTdot(__mapdot(x, Vᵀ), U) .- x .* init_α
 
 function __mapdot(x::SVector{S1}, Y::SVector{S2, <:SVector{S1}}) where {S1, S2}
     return map(Base.Fix1(dot, x), Y)

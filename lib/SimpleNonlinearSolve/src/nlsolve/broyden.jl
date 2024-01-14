@@ -1,12 +1,16 @@
 """
-    SimpleBroyden(; linesearch = Val(false))
+    SimpleBroyden(; linesearch = Val(false), alpha = nothing)
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar
 and static array problems.
 
-If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch` [1] line search else
-no line search is used. For advanced customization of the line search, use the
-[`Broyden`](@ref) algorithm in `NonlinearSolve.jl`.
+### Keyword Arguments
+
+  * `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
+    [1] line search else no line search is used. For advanced customization of the line
+    search, use the [`Broyden`](@ref) algorithm in `NonlinearSolve.jl`.
+  * `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
+    will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
 
 ### References
 
@@ -14,9 +18,13 @@ no line search is used. For advanced customization of the line search, use the
 of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
 (2000): 181-201.
 """
-struct SimpleBroyden{linesearch} <: AbstractSimpleNonlinearSolveAlgorithm end
+@concrete struct SimpleBroyden{linesearch} <: AbstractSimpleNonlinearSolveAlgorithm
+    alpha
+end
 
-SimpleBroyden(; linesearch = Val(false)) = SimpleBroyden{_unwrap_val(linesearch)}()
+function SimpleBroyden(; linesearch = Val(false), alpha = nothing)
+    return SimpleBroyden{_unwrap_val(linesearch)}(alpha)
+end
 
 __get_linesearch(::SimpleBroyden{LS}) where {LS} = Val(LS)
 
@@ -25,13 +33,22 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
+    T = promote_type(eltype(x), eltype(fx))
 
     @bb xo = copy(x)
     @bb δx = copy(x)
     @bb δf = copy(fx)
     @bb fprev = copy(fx)
 
-    J⁻¹ = __init_identity_jacobian(fx, x)
+    if alg.alpha === nothing
+        fx_norm = NONLINEARSOLVE_DEFAULT_NORM(fx)
+        x_norm = NONLINEARSOLVE_DEFAULT_NORM(x)
+        init_α = ifelse(fx_norm ≥ 1e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
+    else
+        init_α = inv(alg.alpha)
+    end
+
+    J⁻¹ = __init_identity_jacobian(fx, x, init_α)
     @bb J⁻¹δf = copy(x)
     @bb xᵀJ⁻¹ = copy(x)
     @bb δJ⁻¹n = copy(x)
@@ -47,7 +64,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
         @bb δx = J⁻¹ × vec(fprev)
         @bb δx .*= -1
 
-        α = ls_cache === nothing ? true : ls_cache(x, δx)
+        α = ls_cache === nothing ? true : ls_cache(xo, δx)
         @bb @. x = xo + α * δx
         fx = __eval_f(prob, fx, x)
         @bb @. δf = fx - fprev

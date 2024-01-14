@@ -112,11 +112,10 @@ function (cache::StaticLiFukushimaLineSearchCache)(u, δu)
     # Early Terminate based on Eq. 2.7
     fx_norm = NONLINEARSOLVE_DEFAULT_NORM(cache.f(u, cache.p))
     du_norm = NONLINEARSOLVE_DEFAULT_NORM(δu)
-    fxλ_norm = NONLINEARSOLVE_DEFAULT_NORM(cache.f(u .+ cache.λ₀ .* δu, cache.p))
+    fxλ_norm = NONLINEARSOLVE_DEFAULT_NORM(cache.f(u .+ δu, cache.p))
     fxλ_norm ≤ cache.ρ * fx_norm - cache.σ₂ * du_norm^2 && return T(true)
 
     λ₂, λ₁ = cache.λ₀, cache.λ₀
-    fxλp_norm = NONLINEARSOLVE_DEFAULT_NORM(cache.f(u .+ λ₂ .* δu, cache.p))
 
     for i in 1:(cache.maxiters)
         fxλp_norm = NONLINEARSOLVE_DEFAULT_NORM(cache.f(u .+ λ₂ .* δu, cache.p))
