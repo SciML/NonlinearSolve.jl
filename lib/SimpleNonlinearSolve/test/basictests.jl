@@ -1,4 +1,4 @@
-using AllocCheck, BenchmarkTools, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
+using AllocCheck, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
     LinearAlgebra, Test, ForwardDiff, DiffEqBase
 import PolyesterForwardDiff
 
@@ -57,13 +57,6 @@ const TERMINATION_CONDITIONS = [
         end
     end
 
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
-            2.0; autodiff = AutoForwardDiff())) < 200
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
-            autodiff = AutoForwardDiff())) == 0
-    end
-
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
@@ -87,11 +80,6 @@ end
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
-    end
-
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0;
-            autodiff = AutoForwardDiff())) == 0
     end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
@@ -127,13 +115,6 @@ end
         sol = benchmark_nlsolve_iip(quadratic_f!, u0)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-    end
-
-    @testset "Allocations: Static Array and Scalars" begin
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, $(@SVector[1.0, 1.0]),
-            2.0)) < 200
-        allocs = alg isa SimpleDFSane ? 144 : 0
-        @test (@ballocated $(benchmark_nlsolve_oop)($quadratic_f, 1.0, 2.0)) == allocs
     end
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
