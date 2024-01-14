@@ -370,3 +370,10 @@ end
 
 @inline __reshape(x::Number, args...) = x
 @inline __reshape(x::AbstractArray, args...) = reshape(x, args...)
+
+# Override cases which might be used in a kernel launch
+__get_tolerance(x, η, ::Type{T}) where {T} = DiffEqBase._get_tolerance(η, T)
+function __get_tolerance(x::Union{SArray, Number}, ::Nothing, ::Type{T}) where {T}
+    η = real(oneunit(T)) * (eps(real(one(T))))^(real(T)(0.8))
+    return T(η)
+end

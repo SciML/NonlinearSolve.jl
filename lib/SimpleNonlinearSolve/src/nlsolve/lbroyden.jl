@@ -28,6 +28,12 @@ function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
     return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}()
 end
 
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{<:Number, <:SArray}},
+        alg::SimpleLimitedMemoryBroyden, args...; kwargs...)
+    # Don't resolve the `abstol` and `reltol` here
+    return SciMLBase.__solve(prob, alg, args...; kwargs...)
+end
+
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; termination_condition = nothing, kwargs...)
     if prob.u0 isa SArray
@@ -120,7 +126,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 
     U, Vᵀ = __init_low_rank_jacobian(vec(x), vec(fx), threshold)
 
-    abstol = DiffEqBase._get_tolerance(abstol, eltype(x))
+    abstol = __get_tolerance(x, abstol, eltype(x))
 
     xo, δx, fo, δf = x, -fx, fx, fx
 

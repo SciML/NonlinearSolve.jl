@@ -8,6 +8,20 @@ function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, <:AbstractArray}
 end
 
 # Handle Ambiguities
+for algType in (SimpleNewtonRaphson, SimpleDFSane, SimpleTrustRegion, SimpleBroyden,
+    SimpleLimitedMemoryBroyden, SimpleKlement, SimpleHalley)
+    @eval begin
+        function SciMLBase.solve(prob::NonlinearProblem{uType, iip,
+                    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+                alg::$(algType), args...; kwargs...) where {uType, T, V, P, iip}
+            sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
+            dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
+            return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode,
+                sol.stats, sol.original)
+        end
+    end
+end
+
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     @eval begin
         function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,

@@ -12,7 +12,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Falsi, args...;
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
-    abstol = _get_tolerance(abstol,
+    abstol = __get_tolerance(nothing, abstol,
         promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)

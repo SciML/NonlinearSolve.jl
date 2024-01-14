@@ -9,7 +9,7 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode,
-        NONLINEARSOLVE_DEFAULT_NORM, _get_tolerance
+        NONLINEARSOLVE_DEFAULT_NORM
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val
@@ -63,6 +63,15 @@ end
 function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; kwargs...)
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
+end
+
+function SciMLBase.solve(prob::NonlinearProblem{<:Union{<:Number, <:SArray}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; abstol = nothing,
+        reltol = nothing, kwargs...)
+    _abstol = __get_tolerance(prob.u0, abstol, eltype(prob.u0))
+    _reltol = __get_tolerance(prob.u0, reltol, eltype(prob.u0))
+    return SciMLBase.__solve(prob, alg, args...; abstol = _abstol, reltol = _reltol,
+        kwargs...)
 end
 
 @setup_workload begin

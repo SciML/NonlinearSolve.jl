@@ -37,7 +37,7 @@ f!(du, u, p) = du .= u .* u .- 2
 end
 
 function kernel_function(prob, alg)
-    solve(prob, alg; abstol = 1.0f-6, reltol = 1.0f-6)
+    solve(prob, alg)
     return nothing
 end
 
