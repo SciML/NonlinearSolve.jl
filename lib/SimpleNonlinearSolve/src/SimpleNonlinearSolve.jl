@@ -65,15 +65,6 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSol
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{<:Number, <:SArray}},
-        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; abstol = nothing,
-        reltol = nothing, kwargs...)
-    _abstol = __get_tolerance(prob.u0, abstol, eltype(prob.u0))
-    _reltol = __get_tolerance(prob.u0, reltol, eltype(prob.u0))
-    return SciMLBase.__solve(prob, alg, args...; abstol = _abstol, reltol = _reltol,
-        kwargs...)
-end
-
 @setup_workload begin
     for T in (Float32, Float64)
         prob_no_brack_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))

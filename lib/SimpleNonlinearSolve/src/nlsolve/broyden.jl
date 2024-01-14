@@ -6,10 +6,10 @@ and static array problems.
 
 ### Keyword Arguments
 
-  * `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
+  - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
     [1] line search else no line search is used. For advanced customization of the line
     search, use the [`Broyden`](@ref) algorithm in `NonlinearSolve.jl`.
-  * `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
+  - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
 
 ### References

@@ -35,12 +35,6 @@ function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
     return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}(alpha)
 end
 
-# Don't resolve the `abstol` and `reltol` here
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{<:Number, <:SArray}},
-        alg::SimpleLimitedMemoryBroyden, args...; kwargs...)
-    return SciMLBase.__solve(prob, alg, args...; kwargs...)
-end
-
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; termination_condition = nothing, kwargs...)
     if prob.u0 isa SArray

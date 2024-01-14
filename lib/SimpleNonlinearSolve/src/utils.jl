@@ -282,8 +282,8 @@ function init_termination_cache(abstol, reltol, du, u, ::Nothing)
 end
 function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
-    abstol !== nothing && (abstol = T(abstol))
-    reltol !== nothing && (reltol = T(reltol))
+    abstol = __get_tolerance(u, abstol, T)
+    reltol = __get_tolerance(u, reltol, T)
     tc_cache = init(du, u, tc; abstol, reltol)
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
