@@ -37,7 +37,8 @@ end
 end
 
 (alg::LiFukushimaLineSearch)(prob, fu, u) = __generic_init(alg, prob, fu, u)
-function (alg::LiFukushimaLineSearch)(prob, fu::SArray, u::SArray)
+function (alg::LiFukushimaLineSearch)(prob, fu::Union{Number, SArray},
+        u::Union{Number, SArray})
     (alg.nan_maxiters === missing || alg.nan_maxiters === nothing) &&
         return __static_init(alg, prob, fu, u)
     @warn "`LiFukushimaLineSearch` with NaN checking is not non-allocating" maxlog=1

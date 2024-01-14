@@ -20,9 +20,11 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [weakdeps]
 PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [extensions]
 SimpleNonlinearSolvePolyesterForwardDiffExt = "PolyesterForwardDiff"
+SimpleNonlinearSolveStaticArraysExt = "StaticArrays"
 
 [compat]
 ADTypes = "0.2.6"
@@ -38,4 +40,5 @@ PrecompileTools = "1"
 Reexport = "1"
 SciMLBase = "2.7"
 StaticArraysCore = "1.4"
+StaticArrays = "1"
 julia = "1.9"

@@ -158,8 +158,7 @@ end
         @test true
     catch e
         @error e
-        # History Vector Allocates
-        @test false broken=(alg isa SimpleDFSane)
+        @test false
     end
 
     # ForwardDiff allocates for hessian since we don't propagate the chunksize
