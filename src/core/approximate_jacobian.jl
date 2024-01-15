@@ -11,7 +11,7 @@ examples include [`Broyden`](@ref)'s Method.
 ### Keyword Arguments
 
   - `trustregion`: Globalization using a Trust Region Method. This needs to follow the
-    [`NonlinearSolve.AbstractNonlinearSolveTrustRegionAlgorithm`](@ref) interface.
+    [`NonlinearSolve.AbstractTrustRegionMethod`](@ref) interface.
   - `descent`: The descent method to use to compute the step. This needs to follow the
     [`NonlinearSolve.AbstractDescentAlgorithm`](@ref) interface.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk

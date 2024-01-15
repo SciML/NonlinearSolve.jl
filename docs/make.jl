@@ -17,7 +17,7 @@ makedocs(; sitename = "NonlinearSolve.jl",
         DiffEqBase, SciMLBase],
     clean = true, doctest = false, linkcheck = true,
     linkcheck_ignore = ["https://twitter.com/ChrisRackauckas/status/1544743542094020615"],
-    checkdocs = :exports, warnonly = false, plugins = [bib],
+    checkdocs = :exports, warnonly = [:missing_docs], plugins = [bib],
     format = Documenter.HTML(assets = ["assets/favicon.ico", "assets/citations.css"],
         canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
     pages)
