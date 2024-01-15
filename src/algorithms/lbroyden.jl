@@ -1,6 +1,6 @@
 """
     LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
-        threshold::Val = Val(10), reset_tolerance = nothing)
+        threshold::Val = Val(10), reset_tolerance = nothing, alpha = nothing)
 
 An implementation of `LimitedMemoryBroyden` [ziani2008autoadaptative](@cite) with resetting
 and line search.
@@ -12,54 +12,61 @@ and line search.
     `sqrt(eps(real(eltype(u))))`.
   - `threshold`: the number of vectors to store in the low rank approximation. Defaults
     to `Val(10)`.
+  - `alpha`: The initial Jacobian inverse is set to be `(αI)⁻¹`. Defaults to `nothing`
+    which implies `α = max(norm(u), 1) / (2 * norm(fu))`.
 """
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
-        threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing)
+        threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing, alpha = nothing)
     threshold isa Int && (threshold = Val(threshold))
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
         descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(), max_resets,
-        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(threshold),
-        reinit_rule = NoChangeInStateReset(; reset_tolerance))
+        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(alpha,
+            threshold), reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 """
-    BroydenLowRankInitialization{T}(threshold::Val{T})
+    BroydenLowRankInitialization{T}(alpha, threshold::Val{T})
 
 An initialization for `LimitedMemoryBroyden` that uses a low rank approximation of the
 Jacobian. The low rank updates to the Jacobian matrix corresponds to what SciPy calls
 ["simple"](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.broyden2.html#scipy-optimize-broyden2).
 """
-struct BroydenLowRankInitialization{T} <: AbstractJacobianInitialization
+@concrete struct BroydenLowRankInitialization{T} <: AbstractJacobianInitialization
+    alpha
     threshold::Val{T}
 end
 
 jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
 
 function SciMLBase.init(prob::AbstractNonlinearProblem,
-        alg::BroydenLowRankInitialization{T},
-        solver, f::F, fu, u, p; maxiters = 1000, kwargs...) where {T, F}
+        alg::BroydenLowRankInitialization{T}, solver, f::F, fu, u, p; maxiters = 1000,
+        internalnorm::IN = DEFAULT_NORM, kwargs...) where {T, F, IN}
     if u isa Number # Use the standard broyden
         return init(prob, IdentityInitialization(true, FullStructure()), solver, f, fu, u,
             p; maxiters, kwargs...)
     end
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
+    α = inv(__initial_alpha(alg.alpha, u, fu, internalnorm))
     if u isa StaticArray
-        J = BroydenLowRankJacobian(fu, u; alg.threshold)
+        J = BroydenLowRankJacobian(fu, u; alg.threshold, alpha = α)
     else
         threshold = min(_unwrap_val(alg.threshold), maxiters)
-        J = BroydenLowRankJacobian(fu, u; threshold)
+        J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end
-    return InitializedApproximateJacobianCache(J, FullStructure(), alg, nothing, true, 0.0)
+    return InitializedApproximateJacobianCache(J, FullStructure(), alg, nothing, true,
+        internalnorm)
 end
 
 function (cache::InitializedApproximateJacobianCache)(alg::BroydenLowRankInitialization, fu,
         u)
+    α = __initial_alpha(alg.alpha, u, fu, cache.internalnorm)
     cache.J.idx = 0
+    cache.J.alpha = inv(α)
     return
 end
 
 """
-    BroydenLowRankJacobian{T}(U, Vᵀ, idx, cache)
+    BroydenLowRankJacobian{T}(U, Vᵀ, idx, cache, alpha)
 
 Low Rank Approximation of the Jacobian Matrix. Currently only used for
 [`LimitedMemoryBroyden`](@ref). This computes the Jacobian as ``U \\times V^T``.
@@ -69,6 +76,7 @@ Low Rank Approximation of the Jacobian Matrix. Currently only used for
     Vᵀ
     idx::Int
     cache
+    alpha
 end
 
 __safe_inv!!(workspace, op::BroydenLowRankJacobian) = op  # Already Inverted form
@@ -88,61 +96,61 @@ for op in (:adjoint, :transpose)
     # FIXME: adjoint might be a problem here. Fix if a complex number issue shows up
     @eval function Base.$(op)(operator::BroydenLowRankJacobian{T}) where {T}
         return BroydenLowRankJacobian{T}(operator.Vᵀ, operator.U,
-            operator.idx, operator.cache)
+            operator.idx, operator.cache, operator.alpha)
     end
 end
 
 # Storing the transpose to ensure contiguous memory on splicing
 function BroydenLowRankJacobian(fu::StaticArray{S2, T2}, u::StaticArray{S1, T1};
-        threshold::Val{Th} = Val(10)) where {S1, S2, T1, T2, Th}
+        alpha = true, threshold::Val{Th} = Val(10)) where {S1, S2, T1, T2, Th}
     T = promote_type(T1, T2)
     fuSize, uSize = Size(fu), Size(u)
     U = MArray{Tuple{prod(fuSize), Th}, T}(undef)
     Vᵀ = MArray{Tuple{prod(uSize), Th}, T}(undef)
-    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, nothing)
+    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, nothing, T(alpha))
 end
 
-function BroydenLowRankJacobian(fu, u; threshold::Int = 10)
+function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
     T = promote_type(eltype(u), eltype(fu))
     U = similar(fu, T, length(fu), threshold)
     Vᵀ = similar(u, T, length(u), threshold)
     cache = similar(u, T, threshold)
-    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache)
+    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache, T(alpha))
 end
 
 function Base.:*(J::BroydenLowRankJacobian, x::AbstractVector)
     J.idx == 0 && return -x
     cache, U, Vᵀ = __get_components(J)
-    return U * (Vᵀ * x) .- x
+    return U * (Vᵀ * x) .- J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::AbstractVector)
     if J.idx == 0
-        @. y = -x
+        @. y = -J.alpha * x
         return y
     end
     cache, U, Vᵀ = __get_components(J)
     @bb cache = Vᵀ × x
     mul!(y, U, cache)
-    @bb @. y -= x
+    @bb @. y -= J.alpha * x
     return y
 end
 
 function Base.:*(x::AbstractVector, J::BroydenLowRankJacobian)
     J.idx == 0 && return -x
     cache, U, Vᵀ = __get_components(J)
-    return Vᵀ' * (U' * x) .- x
+    return Vᵀ' * (U' * x) .- J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowRankJacobian)
     if J.idx == 0
-        @. y = -x
+        @. y = -J.alpha * x
         return y
     end
     cache, U, Vᵀ = __get_components(J)
     @bb cache = transpose(U) × x
     mul!(y, transpose(Vᵀ), cache)
-    @bb @. y -= x
+    @bb @. y -= J.alpha * x
     return y
 end
 
