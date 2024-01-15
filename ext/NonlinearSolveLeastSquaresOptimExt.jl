@@ -16,12 +16,15 @@ import LeastSquaresOptim as LSO
     end
 end
 
-# TODO: Implement reinit
 @concrete struct LeastSquaresOptimJLCache
     prob
     alg
     allocated_prob
     kwargs
+end
+
+function SciMLBase.reinit!(cache::LeastSquaresOptimJLCache, args...; kwargs...)
+    error("Reinitialization not supported for LeastSquaresOptimJL.")
 end
 
 function SciMLBase.__init(prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem},

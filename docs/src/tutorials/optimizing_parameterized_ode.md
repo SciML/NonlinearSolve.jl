@@ -34,7 +34,6 @@ sol = solve(prob, Tsit5(); saveat = tsteps)
 # Plot the solution
 using Plots
 plot(sol; linewidth = 3)
-savefig("LV_ode.png")
 ```
 
 Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.
