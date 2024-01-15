@@ -37,6 +37,28 @@ SciMLBase.init(prob::NonlinearLeastSquaresProblem{uType, iip},
 Some of the algorithms also allow additional keyword arguments. See the documentation for
 the specific algorithm for more information.
 
+### Interface Functions
+
+  - `supports_trust_region(alg)`: whether or not the algorithm supports trust region
+    methods. Defaults to `false`.
+  - `supports_line_search(alg)`: whether or not the algorithm supports line search
+    methods. Defaults to `false`.
+
+See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
+[`DampedNewtonDescent`](@ref).
+"""
+abstract type AbstractDescentAlgorithm end
+
+supports_trust_region(::AbstractDescentAlgorithm) = false
+supports_line_search(::AbstractDescentAlgorithm) = false
+
+get_linear_solver(alg::AbstractDescentAlgorithm) = __getproperty(alg, Val(:linsolve))
+
+"""
+    AbstractDescentCache
+
+Abstract Type for all Descent Caches.
+
 ### `SciMLBase.solve!` specification
 
 ```julia
@@ -64,32 +86,12 @@ the specific algorithm for more information.
 
 ### Interface Functions
 
-  - `supports_trust_region(alg)`: whether or not the algorithm supports trust region
-    methods. Defaults to `false`.
-  - `supports_line_search(alg)`: whether or not the algorithm supports line search
-    methods. Defaults to `false`.
-
-See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
-[`DampedNewton`](@ref).
-"""
-abstract type AbstractDescentAlgorithm end
-
-supports_trust_region(::AbstractDescentAlgorithm) = false
-supports_line_search(::AbstractDescentAlgorithm) = false
-
-get_linear_solver(alg::AbstractDescentAlgorithm) = __getproperty(alg, Val(:linsolve))
-
-"""
-    AbstractDescentCache
-
-Abstract Type for all Descent Caches.
-
-## Interface Functions
-
   - `get_du(cache)`: get the descent direction.
   - `get_du(cache, ::Val{N})`: get the `N`th descent direction.
   - `set_du!(cache, δu)`: set the descent direction.
   - `set_du!(cache, δu, ::Val{N})`: set the `N`th descent direction.
+  - `last_step_accepted(cache)`: whether or not the last step was accepted. Checks if the
+    cache has a `last_step_accepted` field and returns it if it does, else returns `true`.
 """
 abstract type AbstractDescentCache end
 
@@ -109,9 +111,34 @@ end
     AbstractNonlinearSolveLineSearchAlgorithm
 
 Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(prob::AbstractNonlinearProblem,
+    alg::AbstractNonlinearSolveLineSearchAlgorithm, f::F, fu, u, p, args...;
+    internalnorm::IN = DEFAULT_NORM,
+    kwargs...) where {F, IN} --> AbstractNonlinearSolveLineSearchCache
+```
 """
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
 
+"""
+    AbstractNonlinearSolveLineSearchCache
+
+Abstract Type for all Line Search Caches used in NonlinearSolve.jl.
+
+### `SciMLBase.solve!` specification
+
+```julia
+SciMLBase.solve!(cache::AbstractNonlinearSolveLineSearchCache, u, du; kwargs...)
+```
+
+Returns 2 values:
+
+  - `unsuccessful`: If `true` it means that the Line Search Failed.
+  - `alpha`: The step size.
+"""
 abstract type AbstractNonlinearSolveLineSearchCache end
 
 function reinit_cache!(cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p,
@@ -125,9 +152,21 @@ end
 
 Abstract Type for all NonlinearSolve.jl Algorithms. `name` can be used to define custom
 dispatches by wrapped solvers.
+
+### Interface Functions
+
+  - `concrete_jac(alg)`: whether or not the algorithm uses a concrete Jacobian. Defaults
+    to `nothing`.
+  - `get_name(alg)`: get the name of the algorithm.
 """
 abstract type AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm end
 
+"""
+    concrete_jac(alg::AbstractNonlinearSolveAlgorithm)
+
+Whether the algorithm uses a concrete Jacobian. Defaults to `nothing` if it is unknown or
+not applicable. Else a boolean value is returned.
+"""
 concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
 
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm{name}) where {name}
@@ -136,6 +175,12 @@ end
 
 get_name(::AbstractNonlinearSolveAlgorithm{name}) where {name} = name
 
+"""
+    AbstractNonlinearSolveExtensionAlgorithm <: AbstractNonlinearSolveAlgorithm{:Extension}
+
+Abstract Type for all NonlinearSolve.jl Extension Algorithms, i.e. wrappers over 3rd party
+solvers.
+"""
 abstract type AbstractNonlinearSolveExtensionAlgorithm <:
               AbstractNonlinearSolveAlgorithm{:Extension} end
 
@@ -143,6 +188,18 @@ abstract type AbstractNonlinearSolveExtensionAlgorithm <:
     AbstractNonlinearSolveCache{iip, timeit}
 
 Abstract Type for all NonlinearSolve.jl Caches.
+
+### Interface Functions
+
+  - `get_fu(cache)`: get the residual.
+  - `get_u(cache)`: get the current state.
+  - `set_fu!(cache, fu)`: set the residual.
+  - `set_u!(cache, u)`: set the current state.
+  - `reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state `u0` and
+    any additional keyword arguments.
+  - `step!(cache; kwargs...)`: See [`SciMLBase.step!`](@ref) for more details.
+  - `not_terminated(cache)`: whether or not the solver has terminated.
+  - `isinplace(cache)`: whether or not the solver is inplace.
 """
 abstract type AbstractNonlinearSolveCache{iip, timeit} end
 
@@ -160,7 +217,7 @@ end
 """
     AbstractLinearSolverCache <: Function
 
-Wrapper Cache over LinearSolve.jl Caches.
+Abstract Type for all Linear Solvers used in NonlinearSolve.jl.
 """
 abstract type AbstractLinearSolverCache <: Function end
 
@@ -168,6 +225,16 @@ abstract type AbstractLinearSolverCache <: Function end
     AbstractDampingFunction
 
 Abstract Type for Damping Functions in DampedNewton.
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
+    J, fu, u, args...; internal_norm = DEFAULT_NORM,
+    kwargs...) --> AbstractDampingFunctionCache
+```
+
+Returns a [`AbstractDampingFunctionCache`](@ref).
 """
 abstract type AbstractDampingFunction end
 
@@ -175,6 +242,26 @@ abstract type AbstractDampingFunction end
     AbstractDampingFunctionCache
 
 Abstract Type for the Caches created by AbstractDampingFunctions
+
+### Interface Functions
+
+  - `requires_normal_form_jacobian(f)`: whether or not the Jacobian is needed in normal
+    form. No default.
+  - `requires_normal_form_rhs(f)`: whether or not the residual is needed in normal form.
+    No default.
+  - `returns_norm_form_damping(f)`: whether or not the damping function returns the
+    damping factor in normal form. Defaults to `requires_normal_form_jacobian(f) ||
+    requires_normal_form_rhs(f)`.
+  - `(cache::AbstractDampingFunctionCache)(::Nothing)`: returns the damping factor. The type
+    of the damping factor returned from `solve!` is guaranteed to be the same as this.
+
+### `SciMLBase.solve!` specification
+
+```julia
+SciMLBase.solve!(cache::AbstractDampingFunctionCache, J, fu, args...; kwargs...)
+```
+
+Returns the damping factor.
 """
 abstract type AbstractDampingFunctionCache end
 
@@ -193,7 +280,18 @@ then this serves as the abstract type for them.
 abstract type AbstractNonlinearSolveOperator{T} <: SciMLBase.AbstractSciMLOperator{T} end
 
 # Approximate Jacobian Algorithms
+"""
+    AbstractApproximateJacobianStructure
 
+Abstract Type for all Approximate Jacobian Structures used in NonlinearSolve.jl.
+
+### Interface Functions
+
+  - `stores_full_jacobian(alg)`: whether or not the algorithm stores the full Jacobian.
+    Defaults to `false`.
+  - `get_full_jacobian(cache, alg, J)`: get the full Jacobian. Defaults to throwing an
+    error if `stores_full_jacobian(alg)` is `false`.
+"""
 abstract type AbstractApproximateJacobianStructure end
 
 stores_full_jacobian(::AbstractApproximateJacobianStructure) = false
@@ -203,6 +301,30 @@ function get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
            this algorithm.")
 end
 
+"""
+    AbstractJacobianInitialization
+
+Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolve.jl.
+
+### Interface Functions
+
+  - `jacobian_initialized_preinverted(alg)`: whether or not the Jacobian is initialized
+    preinverted. Defaults to `false`.
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization,
+        solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
+        kwargs...)
+```
+
+Returns a [`NonlinearSolve.InitializedApproximateJacobianCache`](@ref).
+
+All subtypes need to define
+`(cache::InitializedApproximateJacobianCache)(alg::NewSubType, fu, u)` which reinitializes
+the Jacobian in `cache.J`.
+"""
 abstract type AbstractJacobianInitialization end
 
 function Base.show(io::IO, alg::AbstractJacobianInitialization)
@@ -215,22 +337,111 @@ end
 
 jacobian_initialized_preinverted(::AbstractJacobianInitialization) = false
 
+"""
+    AbstractApproximateJacobianUpdateRule{INV}
+
+Abstract Type for all Approximate Jacobian Update Rules used in NonlinearSolve.jl.
+
+### Interface Functions
+
+  - `store_inverse_jacobian(alg)`: Return `INV`
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(prob::AbstractNonlinearProblem,
+    alg::AbstractApproximateJacobianUpdateRule, J, fu, u, du, args...;
+    internalnorm::F = DEFAULT_NORM,
+    kwargs...) where {F} --> AbstractApproximateJacobianUpdateRuleCache{INV}
+```
+"""
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
 
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRule{INV}) where {INV} = INV
 
+"""
+    AbstractApproximateJacobianUpdateRuleCache{INV}
+
+Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearSolve.jl.
+
+### Interface Functions
+
+- `store_inverse_jacobian(alg)`: Return `INV`
+
+### `SciMLBase.solve!` specification
+
+```julia
+SciMLBase.solve!(cache::AbstractApproximateJacobianUpdateRuleCache, J, fu, u, du;
+    kwargs...) --> J or J⁻¹
+```
+"""
 abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
 
 store_inverse_jacobian(::AbstractApproximateJacobianUpdateRuleCache{INV}) where {INV} = INV
 
+"""
+    AbstractResetCondition
+
+Condition for resetting the Jacobian in Quasi-Newton's methods.
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(alg::AbstractResetCondition, J, fu, u, du, args...;
+    kwargs...) --> ResetCache
+```
+
+### `SciMLBase.solve!` specification
+
+```julia
+SciMLBase.solve!(cache::ResetCache, J, fu, u, du) --> Bool
+```
+"""
 abstract type AbstractResetCondition end
 
+"""
+    AbstractTrustRegionMethod
+
+Abstract Type for all Trust Region Methods used in NonlinearSolve.jl.
+
+### `SciMLBase.init` specification
+
+```julia
+SciMLBase.init(prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod,
+    f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM,
+    kwargs...) where {F, IF} --> AbstractTrustRegionMethodCache
+```
+"""
 abstract type AbstractTrustRegionMethod end
 
+"""
+    AbstractTrustRegionMethodCache
+
+Abstract Type for all Trust Region Method Caches used in NonlinearSolve.jl.
+
+### Interface Functions
+
+  - `last_step_accepted(cache)`: whether or not the last step was accepted. Defaults to
+    `cache.last_step_accepted`. Should if overloaded if the field is not present.
+
+### `SciMLBase.solve!` specification
+
+```julia
+SciMLBase.solve!(cache::AbstractTrustRegionMethodCache, J, fu, u, δu, descent_stats)
+```
+
+Returns `last_step_accepted`, updated `u_cache` and `fu_cache`. If the last step was
+accepted then these values should be copied into the toplevel cache.
+"""
 abstract type AbstractTrustRegionMethodCache end
 
 last_step_accepted(cache::AbstractTrustRegionMethodCache) = cache.last_step_accepted
 
+"""
+    AbstractNonlinearSolveJacobianCache{iip} <: Function
+
+Abstract Type for all Jacobian Caches used in NonlinearSolve.jl.
+"""
 abstract type AbstractNonlinearSolveJacobianCache{iip} <: Function end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = iip

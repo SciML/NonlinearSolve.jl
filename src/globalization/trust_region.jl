@@ -21,7 +21,7 @@ of specifying a trust region radius.
     iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with
     `b_uphill = 2.0` allowing higher uphill moves than `b_uphill = 1.0`. When
     `b_uphill = 0.0`, no uphill moves will be accepted. Defaults to `1.0`. See Section 4 of
-    [transtrum2012improvements](@ref).
+    [transtrum2012improvements](@citet).
 """
 @concrete struct LevenbergMarquardtTrustRegion <: AbstractTrustRegionMethod
     β_uphill

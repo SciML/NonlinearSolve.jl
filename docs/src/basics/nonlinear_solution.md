@@ -4,6 +4,13 @@
 SciMLBase.NonlinearSolution
 ```
 
+## Statistics
+
+```@docs
+SciMLBase.NLStats
+NonlinearSolve.ImmutableNLStats
+```
+
 ## Return Code
 
 ```@docs

@@ -1,5 +1,5 @@
 """
-    NewtonRaphson(; concrete_jac = nothing, linsolve = nothing,
+    PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),
         precs = DEFAULT_PRECS, autodiff = nothing)
 
@@ -24,8 +24,19 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)
 end
 
+"""
+    SwitchedEvolutionRelaxation()
+
+Method for updating the damping parameter in the [`PseudoTransient`](@ref) method based on
+"switched evolution relaxation" [kelley1998convergence](@cite) SER method.
+"""
 struct SwitchedEvolutionRelaxation <: AbstractDampingFunction end
 
+"""
+    SwitchedEvolutionRelaxationCache <: AbstractDampingFunctionCache
+
+Cache for the [`SwitchedEvolutionRelaxation`](@ref) method.
+"""
 @concrete mutable struct SwitchedEvolutionRelaxationCache <: AbstractDampingFunctionCache
     res_norm
     α⁻¹

@@ -1,5 +1,38 @@
 import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinearSolver
 
+"""
+    LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
+
+Construct a cache for solving linear systems of the form `A * u = b`. Following cases are
+handled:
+
+  1. `A` is Number, then we solve it with `u = b / A`
+  2. `A` is `SMatrix`, then we solve it with `u = A \\ b` (using the defaults from base
+     Julia)
+  3. `A` is `Diagonal`, then we solve it with `u = b ./ A.diag`
+  4. In all other cases, we use `alg` to solve the linear system using
+     [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl).
+
+### Solving the System
+
+```julia
+(cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
+    du = nothing, p = nothing, weight = nothing, cachedata = nothing,
+    reuse_A_if_factorization = false, kwargs...)
+```
+
+Returns the solution of the system `u` and stores the updated cache in `cache.lincache`.
+
+#### Keyword Arguments
+
+  * `reuse_A_if_factorization`: If `true`, then the factorization of `A` is reused if
+    possible. This is useful when solving the same system with different `b` values.
+    If the algorithm is an iterative solver, then we reset the internal linear solve cache.
+
+One distinct feature of this compared to the cache from LinearSolve is that it respects the
+aliasing arguments even after cache construction, i.e., if we passed in an `A` that `A` is
+not mutated, we do this by copying over `A` to a preconstructed cache.
+"""
 @concrete mutable struct LinearSolverCache <: AbstractLinearSolverCache
     lincache
     linsolve

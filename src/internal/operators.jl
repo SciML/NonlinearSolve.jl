@@ -21,12 +21,8 @@ JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
     skip_jvp::Val{NoJVP} = False) where {NoVJP, NoJVP}
 ```
 
-Shorthand constructors are also available:
-
-```julia
-VecJacOperator(args...; autodiff = nothing, kwargs...)
-JacVecOperator(args...; autodiff = nothing, kwargs...)
-```
+See also [`NonlinearSolve.VecJacOperator`](@ref) and
+[`NonlinearSolve.JacVecOperator`](@ref).
 """
 @concrete struct JacobianOperator{vjp, iip, T} <: AbstractNonlinearSolveOperator{T}
     jvp_op
@@ -135,9 +131,30 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
         u, fu)
 end
 
+"""
+    VecJacOperator(args...; autodiff = nothing, kwargs...)
+
+Constructs a [`JacobianOperator`](@ref) which only provides the VJP using the
+`vjp_autodiff = autodiff`.
+
+This is very similar to `SparseDiffTools.VecJac` but is geared towards
+[`NonlinearProblem`](@ref)s. For arguments and keyword arguments see
+[`JacobianOperator`](@ref).
+"""
 function VecJacOperator(args...; autodiff = nothing, kwargs...)
     return JacobianOperator(args...; kwargs..., skip_jvp = True, vjp_autodiff = autodiff)'
 end
+
+"""
+    JacVecOperator(args...; autodiff = nothing, kwargs...)
+
+Constructs a [`JacobianOperator`](@ref) which only provides the JVP using the
+`jvp_autodiff = autodiff`.
+
+This is very similar to `SparseDiffTools.JacVec` but is geared towards
+[`NonlinearProblem`](@ref)s. For arguments and keyword arguments see
+[`JacobianOperator`](@ref).
+"""
 function JacVecOperator(args...; autodiff = nothing, kwargs...)
     return JacobianOperator(args...; kwargs..., skip_vjp = True, jvp_autodiff = autodiff)
 end
@@ -184,6 +201,12 @@ function (op::JacobianOperator{vjp, iip})(Jv, v, u, p) where {vjp, iip}
     return Jv
 end
 
+"""
+    StatefulJacobianOperator(jac_op::JacobianOperator, u, p)
+
+Wrapper over a [`JacobianOperator`](@ref) which stores the input `u` and `p` and defines
+`mul!` and `*` for computing VJPs and JVPs.
+"""
 @concrete struct StatefulJacobianOperator{vjp, iip, T,
     J <: JacobianOperator{vjp, iip, T}} <: AbstractNonlinearSolveOperator{T}
     jac_op::J
@@ -212,6 +235,13 @@ function LinearAlgebra.mul!(Jv::AbstractArray, J::StatefulJacobianOperator,
     return Jv
 end
 
+"""
+    StatefulJacobianNormalFormOperator(vjp_operator, jvp_operator, cache)
+
+This constructs a Normal Form Jacobian Operator, i.e. it constructs the operator
+corresponding to `JᵀJ` where `J` is the Jacobian Operator. This is not meant to be directly
+constructed, rather it is constructed with `*` on two [`StatefulJacobianOperator`](@ref)s.
+"""
 @concrete mutable struct StatefulJacobianNormalFormOperator{T} <:
                          AbstractNonlinearSolveOperator{T}
     vjp_operator

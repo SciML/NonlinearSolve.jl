@@ -1,4 +1,9 @@
 # Jacobian Structure
+"""
+    DiagonalStructure()
+
+Preserves only the Diagonal of the Matrix.
+"""
 struct DiagonalStructure <: AbstractApproximateJacobianStructure end
 
 get_full_jacobian(cache, ::DiagonalStructure, J::Number) = J
@@ -29,6 +34,11 @@ function (st::DiagonalStructure)(J::AbstractArray, J_new::AbstractMatrix)
     return _restructure(J, st(vec(J), J_new))
 end
 
+"""
+    FullStructure()
+
+Stores the full matrix.
+"""
 struct FullStructure <: AbstractApproximateJacobianStructure end
 
 stores_full_jacobian(::FullStructure) = true
@@ -42,6 +52,12 @@ function (::FullStructure)(J, J_new)
 end
 
 # Initialization Strategies
+"""
+    IdentityInitialization(alpha, structure)
+
+Initialize the Jacobian to be an Identity Matrix scaled by `alpha` and maintain the
+structure as specified by `structure`.
+"""
 @concrete struct IdentityInitialization <: AbstractJacobianInitialization
     alpha
     structure
@@ -115,14 +131,21 @@ end
     return A
 end
 
+"""
+    TrueJacobianInitialization(structure, autodiff)
+
+Initialize the Jacobian to be the true Jacobian and maintain the structure as specified
+by `structure`. `autodiff` is used to compute the true Jacobian and if not specied we
+make a selection automatically.
+"""
 @concrete struct TrueJacobianInitialization <: AbstractJacobianInitialization
     structure
     autodiff
 end
 
 function SciMLBase.init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
-        solver, f::F, fu, u, p; linsolve = missing, autodiff = nothing,
-        internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
+        kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_reverse_mode = false,
         kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
@@ -131,6 +154,36 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitial
         internalnorm)
 end
 
+"""
+    InitializedApproximateJacobianCache(J, structure, alg, cache, initialized::Bool,
+        internalnorm)
+
+A cache for Approximate Jacobian.
+
+### Arguments
+
+  * `J`: The current Jacobian.
+  * `structure`: The structure of the Jacobian.
+  * `alg`: The initialization algorithm.
+  * `cache`: The Jacobian cache [`NonlinearSolve.JacobianCache`](@ref) (if needed).
+  * `initialized`: A boolean indicating whether the Jacobian has been initialized.
+  * `internalnorm`: The norm to be used.
+
+### Interface
+
+```julia
+(cache::InitializedApproximateJacobianCache)(::Nothing)
+```
+
+Returns the current Jacobian `cache.J` with the proper `structure`.
+
+```julia
+SciMLBase.solve!(cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit})
+```
+
+Solves for the Jacobian `cache.J` and returns it. If `reinit` is `true`, then the Jacobian
+is reinitialized.
+"""
 @concrete mutable struct InitializedApproximateJacobianCache
     J
     structure

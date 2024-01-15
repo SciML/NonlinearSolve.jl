@@ -61,6 +61,21 @@ function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_toleranc
 end
 
 # Checks for no significant change for `nsteps`
+"""
+    NoChangeInStateReset(; nsteps::Int = 3, reset_tolerance = nothing,
+        check_du::Bool = true, check_dfu::Bool = true)
+
+Recommends a reset if the state or the function value has not changed significantly in
+`nsteps` steps. This is used in [`Broyden`](@ref).
+
+### Keyword Arguments
+
+  - `nsteps`: the number of steps to check for no change. Defaults to `3`.
+  - `reset_tolerance`: the tolerance for the reset check. Defaults to
+    `sqrt(eps(real(eltype(u))))`.
+  - `check_du`: whether to check the state. Defaults to `true`.
+  - `check_dfu`: whether to check the function value. Defaults to `true`.
+"""
 @kwdef @concrete struct NoChangeInStateReset <: AbstractResetCondition
     nsteps::Int = 3
     reset_tolerance = nothing
@@ -130,8 +145,18 @@ function SciMLBase.solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
 end
 
 # Broyden Update Rules
+"""
+    BadBroydenUpdateRule()
+
+Broyden Update Rule corresponding to "bad broyden's method" [broyden1965class](@cite).
+"""
 @concrete struct BadBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
 
+"""
+    GoodBroydenUpdateRule()
+
+Broyden Update Rule corresponding to "good broyden's method" [broyden1965class](@cite).
+"""
 @concrete struct GoodBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
 
 @concrete mutable struct BroydenUpdateRuleCache{mode} <:

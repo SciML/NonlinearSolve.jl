@@ -52,6 +52,12 @@ function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
 end
 
 # Essentially checks ill conditioned Jacobian
+"""
+    IllConditionedJacobianReset()
+
+Recommend resetting the Jacobian if the current jacobian is ill-conditioned. This is used
+in [`Klement`](@ref).
+"""
 struct IllConditionedJacobianReset <: AbstractResetCondition end
 
 @concrete struct IllConditionedJacobianResetCache
@@ -76,6 +82,11 @@ function SciMLBase.solve!(cache::IllConditionedJacobianResetCache, J, fu, u, du)
 end
 
 # Update Rule
+"""
+    KlementUpdateRule()
+
+Update rule for [`Klement`](@ref).
+"""
 @concrete struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule{false} end
 
 @concrete mutable struct KlementUpdateRuleCache <:

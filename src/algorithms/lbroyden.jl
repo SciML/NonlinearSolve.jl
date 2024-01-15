@@ -21,6 +21,13 @@ function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch()
         reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
+"""
+    BroydenLowRankInitialization{T}(threshold::Val{T})
+
+An initialization for `LimitedMemoryBroyden` that uses a low rank approximation of the
+Jacobian. The low rank updates to the Jacobian matrix corresponds to what SciPy calls
+["simple"](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.broyden2.html#scipy-optimize-broyden2).
+"""
 struct BroydenLowRankInitialization{T} <: AbstractJacobianInitialization
     threshold::Val{T}
 end
@@ -50,6 +57,12 @@ function (cache::InitializedApproximateJacobianCache)(alg::BroydenLowRankInitial
     return
 end
 
+"""
+    BroydenLowRankJacobian{T}(U, Vᵀ, idx, cache)
+
+Low Rank Approximation of the Jacobian Matrix. Currently only used for
+[`LimitedMemoryBroyden`](@ref). This computes the Jacobian as ``U \\times V^T``.
+"""
 @concrete mutable struct BroydenLowRankJacobian{T} <: AbstractNonlinearSolveOperator{T}
     U
     Vᵀ
