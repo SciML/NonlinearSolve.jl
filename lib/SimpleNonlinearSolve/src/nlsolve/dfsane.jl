@@ -5,7 +5,7 @@
 
 A low-overhead implementation of the df-sane method for solving large-scale nonlinear
 systems of equations. For in depth information about all the parameters and the algorithm,
-see the paper [1].
+see [la2006spectral](@citet).
 
 ### Keyword Arguments
 
@@ -35,12 +35,6 @@ see the paper [1].
     ``f_1=||F(x_1)||^{nexp}``, `k` is the iteration number, `x` is the current `x`-value and
     `F` the current residual. Should satisfy ``η_k > 0`` and ``∑ₖ ηₖ < ∞``. Defaults to
     ``||F||^2 / k^2``.
-
-### References
-
-[1] W LaCruz, JM Martinez, and M Raydan (2006), Spectral residual mathod without gradient
-information for solving large-scale nonlinear systems of equations, Mathematics of
-Computation, 75, 1429-1448.
 """
 @concrete struct SimpleDFSane{M} <: AbstractSimpleNonlinearSolveAlgorithm
     σ_min
