@@ -1,4 +1,5 @@
-using NonlinearSolve, LinearAlgebra, Test, StableRNGs, Random, ForwardDiff, Zygote
+using NonlinearSolve,
+    LinearAlgebra, Test, StableRNGs, StaticArrays, Random, ForwardDiff, Zygote
 import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
@@ -8,7 +9,7 @@ true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]
 
 x = [-1.0, -0.5, 0.0, 0.5, 1.0]
 
-y_target = true_function(x, θ_true)
+const y_target = true_function(x, θ_true)
 
 function loss_function(θ, p)
     ŷ = true_function(p, θ)
@@ -34,7 +35,7 @@ autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff(), :central, :forward)]
 for prob in nlls_problems, solver in solvers
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
     @test SciMLBase.successful_retcode(sol)
-    @test norm(sol.resid) < 1e-6
+    @test norm(sol.resid, Inf) < 1e-6
 end
 
 function jac!(J, θ, p)
@@ -76,5 +77,21 @@ append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
 
 for solver in solvers, prob in probs
     @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid) < 1e-6
+    @test norm(sol.resid, Inf) < 1e-6
 end
+
+# Static Arrays -- Fast Levenberg-Marquardt
+x_sa = SA[-1.0, -0.5, 0.0, 0.5, 1.0]
+
+const y_target_sa = true_function(x_sa, θ_true)
+
+function loss_function_sa(θ, p)
+    ŷ = true_function(p, θ)
+    return ŷ .- y_target_sa
+end
+
+θ_init_sa = SVector{4}(θ_init)
+prob_sa = NonlinearLeastSquaresProblem{false}(loss_function_sa, θ_init_sa, x)
+
+@time sol = solve(prob_sa, FastLevenbergMarquardtJL())
+@test norm(sol.resid, Inf) < 1e-6

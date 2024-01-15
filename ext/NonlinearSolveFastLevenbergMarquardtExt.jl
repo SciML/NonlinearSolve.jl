@@ -4,7 +4,7 @@ using ArrayInterface, NonlinearSolve, SciMLBase
 import ConcreteStructs: @concrete
 import FastClosures: @closure
 import FastLevenbergMarquardt as FastLM
-import StaticArraysCore: StaticArray
+import StaticArraysCore: SArray
 
 @inline function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve === :cholesky
@@ -15,53 +15,54 @@ import StaticArraysCore: StaticArray
         throw(ArgumentError("Unknown FastLevenbergMarquardt Linear Solver: $linsolve"))
     end
 end
+@inline _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, ::SArray) where {linsolve} = linsolve
 
-# TODO: Implement reinit
-@concrete struct FastLevenbergMarquardtJLCache
-    f!
-    J!
-    prob
-    alg
-    lmworkspace
-    solver
-    kwargs
-end
-
-function SciMLBase.__init(prob::NonlinearLeastSquaresProblem,
+function SciMLBase.__solve(prob::NonlinearLeastSquaresProblem,
         alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
         reltol = nothing, maxiters = 1000, termination_condition = nothing, kwargs...)
     NonlinearSolve.__test_termination_condition(termination_condition,
         :FastLevenbergMarquardt)
-    if prob.u0 isa StaticArray  # FIXME
-        error("FastLevenbergMarquardtJL does not support StaticArrays yet.")
-    end
 
-    _f!, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
-    f! = @closure (du, u, p) -> _f!(du, u)
+    fn, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0,
+        can_handle_oop = Val(prob.u0 isa SArray))
+    f = if prob.u0 isa SArray
+        @closure (u, p) -> fn(u)
+    else
+        @closure (du, u, p) -> fn(du, u)
+    end
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
     reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
-    _J! = NonlinearSolve.__construct_extension_jac(prob, alg, u, resid; alg.autodiff)
-    J! = @closure (J, u, p) -> _J!(J, u)
-    J = prob.f.jac_prototype === nothing ? similar(u, length(resid), length(u)) :
-        zero(prob.f.jac_prototype)
+    _jac_fn = NonlinearSolve.__construct_extension_jac(prob, alg, u, resid; alg.autodiff,
+        can_handle_oop = Val(prob.u0 isa SArray))
+    jac_fn = if prob.u0 isa SArray
+        @closure (u, p) -> _jac_fn(u)
+    else
+        @closure (J, u, p) -> _jac_fn(J, u)
+    end
 
-    solver = _fast_lm_solver(alg, u)
-    LM = FastLM.LMWorkspace(u, resid, J)
+    solver_kwargs = (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters,
+        alg.factor, alg.factoraccept, alg.factorreject, alg.minscale, alg.maxscale,
+        alg.factorupdate, alg.minfactor, alg.maxfactor)
 
-    return FastLevenbergMarquardtJLCache(f!, J!, prob, alg, LM, solver,
-        (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters, alg.factor,
-            alg.factoraccept, alg.factorreject, alg.minscale, alg.maxscale,
-            alg.factorupdate, alg.minfactor, alg.maxfactor))
-end
+    if prob.u0 isa SArray
+        res, fx, info, iter, nfev, njev = FastLM.lmsolve(f, jac_fn, prob.u0;
+            solver_kwargs...)
+        LM, solver = nothing, nothing
+    else
+        J = prob.f.jac_prototype === nothing ? similar(u, length(resid), length(u)) :
+            zero(prob.f.jac_prototype)
+        solver = _fast_lm_solver(alg, u)
+        LM = FastLM.LMWorkspace(u, resid, J)
 
-function SciMLBase.solve!(cache::FastLevenbergMarquardtJLCache)
-    res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(cache.f!, cache.J!,
-        cache.lmworkspace; cache.solver, cache.kwargs...)
+        res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(f, jac_fn, LM;
+            solver, solver_kwargs...)
+    end
+
     stats = SciMLBase.NLStats(nfev, njev, -1, -1, iter)
     retcode = info == -1 ? ReturnCode.MaxIters : ReturnCode.Success
-    return SciMLBase.build_solution(cache.prob, cache.alg, res, fx;
-        retcode, original = (res, fx, info, iter, nfev, njev, LM, solver), stats)
+    return SciMLBase.build_solution(prob, alg, res, fx; retcode,
+        original = (res, fx, info, iter, nfev, njev, LM, solver), stats)
 end
 
 end
