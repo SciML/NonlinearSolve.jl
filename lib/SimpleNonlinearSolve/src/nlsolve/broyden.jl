@@ -1,22 +1,16 @@
 """
     SimpleBroyden(; linesearch = Val(false), alpha = nothing)
 
-A low-overhead implementation of Broyden. This method is non-allocating on scalar
-and static array problems.
+A low-overhead implementation of Broyden. This method is non-allocating on scalar and static
+array problems.
 
 ### Keyword Arguments
 
   - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
-    [1] line search else no line search is used. For advanced customization of the line
-    search, use the [`Broyden`](@ref) algorithm in `NonlinearSolve.jl`.
+    [li2000derivative](@cite) line search else no line search is used. For advanced
+    customization of the line search, use `Broyden` from `NonlinearSolve.jl`.
   - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
-
-### References
-
-[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
-of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
-(2000): 181-201.
 """
 @concrete struct SimpleBroyden{linesearch} <: AbstractSimpleNonlinearSolveAlgorithm
     alpha

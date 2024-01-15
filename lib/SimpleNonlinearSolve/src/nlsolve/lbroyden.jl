@@ -9,18 +9,12 @@ If the threshold is larger than the problem size, then this method will use `Sim
 
 ### Keyword Arguments:
 
-  - `linesearch`: If `linesearch` is `Val(true)`, then we use the
-    `LiFukushimaLineSearch` [1] line search else no line search is used. For advanced
-    customization of the line search, use the [`LimitedMemoryBroyden`](@ref) algorithm in
+  - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
+    [li2000derivative](@cite) line search else no line search is used. For advanced
+    customization of the line search, use the `LimitedMemoryBroyden` algorithm in
     `NonlinearSolve.jl`.
   - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
-
-### References
-
-[1] Li, Dong-Hui, and Masao Fukushima. "A derivative-free line search and global convergence
-of Broyden-like method for nonlinear equations." Optimization methods and software 13.3
-(2000): 181-201.
 """
 @concrete struct SimpleLimitedMemoryBroyden{threshold, linesearch} <:
                  AbstractSimpleNonlinearSolveAlgorithm
