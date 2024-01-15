@@ -14,7 +14,8 @@ and line search.
     to `Val(10)`.
 """
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
-        threshold::Val = Val(10), reset_tolerance = nothing)
+        threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing)
+    threshold isa Int && (threshold = Val(threshold))
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
         descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(), max_resets,
         initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(threshold),

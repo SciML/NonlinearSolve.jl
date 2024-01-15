@@ -1,6 +1,7 @@
 # [Nonlinear Solutions](@id solution)
 
 ```@docs
+SciMLBase.AbstractNonlinearSolution
 SciMLBase.NonlinearSolution
 ```
 
