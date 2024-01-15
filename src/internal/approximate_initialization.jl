@@ -135,7 +135,7 @@ end
     TrueJacobianInitialization(structure, autodiff)
 
 Initialize the Jacobian to be the true Jacobian and maintain the structure as specified
-by `structure`. `autodiff` is used to compute the true Jacobian and if not specied we
+by `structure`. `autodiff` is used to compute the true Jacobian and if not specified we
 make a selection automatically.
 """
 @concrete struct TrueJacobianInitialization <: AbstractJacobianInitialization
@@ -162,12 +162,12 @@ A cache for Approximate Jacobian.
 
 ### Arguments
 
-  * `J`: The current Jacobian.
-  * `structure`: The structure of the Jacobian.
-  * `alg`: The initialization algorithm.
-  * `cache`: The Jacobian cache [`NonlinearSolve.JacobianCache`](@ref) (if needed).
-  * `initialized`: A boolean indicating whether the Jacobian has been initialized.
-  * `internalnorm`: The norm to be used.
+  - `J`: The current Jacobian.
+  - `structure`: The structure of the Jacobian.
+  - `alg`: The initialization algorithm.
+  - `cache`: The Jacobian cache [`NonlinearSolve.JacobianCache`](@ref) (if needed).
+  - `initialized`: A boolean indicating whether the Jacobian has been initialized.
+  - `internalnorm`: The norm to be used.
 
 ### Interface
 

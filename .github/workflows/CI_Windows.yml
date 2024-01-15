@@ -1,4 +1,4 @@
-name: CI
+name: CI Windows
 on:
   pull_request:
     branches:
@@ -26,8 +26,7 @@ jobs:
         version:
           - '1.10'
         os:
-          - ubuntu-latest
-          - macos-latest
+          - windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1

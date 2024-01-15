@@ -1,3 +1,28 @@
+"""
+    ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = missing,
+        trustregion = missing, descent, update_rule, reinit_rule, initialization,
+        max_resets::Int = typemax(Int), max_shrink_times::Int = typemax(Int))
+    ApproximateJacobianSolveAlgorithm(; concrete_jac = nothing,
+        name::Symbol = :unknown, kwargs...)
+
+Nonlinear Solve Algorithms using an Iterative Approximation of the Jacobian. Most common
+examples include [`Broyden`](@ref)'s Method.
+
+### Keyword Arguments
+
+  - `trustregion`: Globalization using a Trust Region Method. This needs to follow the
+    [`NonlinearSolve.AbstractNonlinearSolveTrustRegionAlgorithm`](@ref) interface.
+  - `descent`: The descent method to use to compute the step. This needs to follow the
+    [`NonlinearSolve.AbstractDescentAlgorithm`](@ref) interface.
+  - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
+    before the algorithm terminates.
+  - `update_rule`: The update rule to use to update the Jacobian. This needs to follow the
+    [`NonlinearSolve.AbstractApproximateJacobianUpdateRule`](@ref) interface.
+  - `reinit_rule`: The reinitialization rule to use to reinitialize the Jacobian. This
+    needs to follow the [`NonlinearSolve.AbstractResetCondition`](@ref) interface.
+  - `initialization`: The initialization method to use to initialize the Jacobian. This
+    needs to follow the [`NonlinearSolve.AbstractJacobianInitialization`](@ref) interface.
+"""
 @concrete struct ApproximateJacobianSolveAlgorithm{concrete_jac, name} <:
                  AbstractNonlinearSolveAlgorithm{name}
     linesearch

@@ -1,3 +1,27 @@
+"""
+    GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent, linesearch = missing,
+        trustregion = missing, jacobian_ad = nothing, forward_ad = nothing,
+        reverse_ad = nothing, max_shrink_times::Int = typemax(Int))
+    GeneralizedFirstOrderAlgorithm(; concrete_jac = nothing, name::Symbol = :unknown,
+        kwargs...)
+
+This is a Generalization of First-Order (uses Jacobian) Nonlinear Solve Algorithms. The most
+common example of this is Newton-Raphson Method.
+
+First Order here refers to the order of differentiation, and should not be confused with the
+order of convergence.
+
+`trustregion` and `linesearch` cannot be specified together.
+
+### Keyword Arguments
+
+  - `trustregion`: Globalization using a Trust Region Method. This needs to follow the
+    [`NonlinearSolve.AbstractNonlinearSolveTrustRegionAlgorithm`](@ref) interface.
+  - `descent`: The descent method to use to compute the step. This needs to follow the
+    [`NonlinearSolve.AbstractDescentAlgorithm`](@ref) interface.
+  - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
+    before the algorithm terminates.
+"""
 @concrete struct GeneralizedFirstOrderAlgorithm{concrete_jac, name} <:
                  AbstractNonlinearSolveAlgorithm{name}
     linesearch

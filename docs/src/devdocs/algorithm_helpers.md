@@ -57,7 +57,7 @@ NonlinearSolve.LevenbergMarquardtTrustRegion
 NonlinearSolve.GenericTrustRegionScheme
 ```
 
-## Miscelleneous
+## Miscellaneous
 
 ```@docs
 SimpleNonlinearSolve.__nextfloat_tdir

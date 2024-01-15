@@ -250,8 +250,7 @@ Abstract Type for the Caches created by AbstractDampingFunctions
   - `requires_normal_form_rhs(f)`: whether or not the residual is needed in normal form.
     No default.
   - `returns_norm_form_damping(f)`: whether or not the damping function returns the
-    damping factor in normal form. Defaults to `requires_normal_form_jacobian(f) ||
-    requires_normal_form_rhs(f)`.
+    damping factor in normal form. Defaults to `requires_normal_form_jacobian(f) || requires_normal_form_rhs(f)`.
   - `(cache::AbstractDampingFunctionCache)(::Nothing)`: returns the damping factor. The type
     of the damping factor returned from `solve!` is guaranteed to be the same as this.
 
@@ -315,8 +314,8 @@ Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolve.
 
 ```julia
 SciMLBase.init(prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization,
-        solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
-        kwargs...)
+    solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
+    kwargs...)
 ```
 
 Returns a [`NonlinearSolve.InitializedApproximateJacobianCache`](@ref).
@@ -366,13 +365,13 @@ Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearS
 
 ### Interface Functions
 
-- `store_inverse_jacobian(alg)`: Return `INV`
+  - `store_inverse_jacobian(alg)`: Return `INV`
 
 ### `SciMLBase.solve!` specification
 
 ```julia
 SciMLBase.solve!(cache::AbstractApproximateJacobianUpdateRuleCache, J, fu, u, du;
-    kwargs...) --> J or J⁻¹
+    kwargs...) --> J / J⁻¹
 ```
 """
 abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end

@@ -1,6 +1,24 @@
 # For spectral methods we currently only implement DF-SANE since after reading through
 # papers, this seems to be the only one that is widely used. If we have a list of more
 # papers we can see what is the right level of abstraction to implement here
+"""
+    GeneralizedDFSane{name}(linesearch, σ_min, σ_max, σ_1)
+
+A generalized version of the DF-SANE algorithm. This algorithm is a Jacobian-Free Spectral
+Method.
+
+### Arguments
+
+  - `linesearch`: Globalization using a Line Search Method. This needs to follow the
+    [`NonlinearSolve.AbstractNonlinearSolveLineSearchAlgorithm`](@ref) interface. This
+    is not optional currently, but that restriction might be lifted in the future.
+  - `σ_min`: The minimum spectral parameter allowed. This is used to ensure that the
+    spectral parameter is not too small.
+  - `σ_max`: The maximum spectral parameter allowed. This is used to ensure that the
+    spectral parameter is not too large.
+  - `σ_1`: The initial spectral parameter. If this is not provided, then the algorithm
+    initializes it as `σ_1 = <u, u> / <u, f(u)>`.
+"""
 @concrete struct GeneralizedDFSane{name} <: AbstractNonlinearSolveAlgorithm{name}
     linesearch
     σ_min
