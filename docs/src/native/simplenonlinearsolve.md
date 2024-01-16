@@ -29,7 +29,7 @@ These methods are suited for any general nonlinear root-finding problem, i.e.
 |:------------------------------------ |:-------- |:------------ |:------------------------ |:------------------------- |
 | [`SimpleNewtonRaphson`](@ref)        | ✔️       | ✔️           | ✔️                       | ✔️                        |
 | [`SimpleBroyden`](@ref)              | ✔️       | ✔️           | ✔️                       | ✔️                        |
-| [`SimpleHalley`](@ref)               | ❌        | ✔️           | ✔️                       | ❌                         |
+| [`SimpleHalley`](@ref)               | ❌       | ✔️           | ✔️                       | ❌                         |
 | [`SimpleKlement`](@ref)              | ✔️       | ✔️           | ✔️                       | ✔️                        |
 | [`SimpleTrustRegion`](@ref)          | ✔️       | ✔️           | ✔️                       | ✔️                        |
 | [`SimpleDFSane`](@ref)               | ✔️       | ✔️           | ✔️[^1]                   | ✔️                        |
