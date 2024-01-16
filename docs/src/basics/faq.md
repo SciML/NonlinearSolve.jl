@@ -138,8 +138,9 @@ computation and the type of this chunksize can't be statically inferred. To fix 
 directly specify the chunksize:
 
 ```@example type_unstable
-@code_warntype solve(prob, NewtonRaphson(;
-    autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))))
+@code_warntype solve(prob,
+    NewtonRaphson(;
+        autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))))
 nothing # hide
 ```
 
@@ -147,3 +148,7 @@ And boom! Type stable again. We always recommend picking the chunksize via
 [`NonlinearSolve.pickchunksize`](@ref), however, if you manually specify the chunksize, it
 must be `≤ length of input`. However, a very large chunksize can lead to excessive
 compilation times and slowdown.
+
+```@docs
+NonlinearSolve.pickchunksize
+```
