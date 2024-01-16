@@ -36,7 +36,7 @@ arrays.
   - `SimpleGaussNewton()`: Simple Gauss Newton implementation using QR factorizations for
     numerical stability (aliased to [`SimpleNewtonRaphson`](@ref)).
 
-### FastLevenbergMarquardt.jl
+### [FastLevenbergMarquardt.jl](@id fastlm_wrapper_summary)
 
 A wrapper over
 [FastLevenbergMarquardt.jl](https://github.com/kamesy/FastLevenbergMarquardt.jl). Note that
@@ -46,7 +46,7 @@ benchmarks demonstrate [`LevenbergMarquardt()`](@ref) usually outperforms.
   - [`FastLevenbergMarquardtJL(linsolve = :cholesky)`](@ref), can also choose
     `linsolve = :qr`.
 
-### LeastSquaresOptim.jl
+### [LeastSquaresOptim.jl](@id lso_wrapper_summary)
 
 A wrapper over
 [LeastSquaresOptim.jl](https://github.com/matthieugomez/LeastSquaresOptim.jl). Has a core

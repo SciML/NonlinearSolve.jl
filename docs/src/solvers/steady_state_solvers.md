@@ -23,7 +23,7 @@ the direct [`SteadyStateProblem`](@ref) approach can give different answers (i.e
 correct unique fixed point) on ODEs with non-autonomous dynamics.
 
 If you have an unstable equilibrium and you want to solve for the unstable equilibrium,
-then [`DynamicSS`](@ref) might converge to the equilibrium based on the initial condition.
+then [`DynamicSS`](@ref) will not converge to that equilibrium for any initial condition.
 However, Nonlinear Solvers don't suffer from this issue, and thus it's recommended to
 use a nonlinear solver if you want to solve for the unstable equilibrium.
 

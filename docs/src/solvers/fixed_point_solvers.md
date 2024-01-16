@@ -27,7 +27,7 @@ Using [native NonlinearSolve.jl methods](@ref nonlinearsystemsolvers) is the rec
 approach. For systems where constructing Jacobian Matrices are expensive, we recommend
 using a Krylov Method with one of those solvers.
 
-## Full List of Methods
+## [Full List of Methods](@id fixed_point_methods_full_list)
 
 We are only listing the methods that natively solve fixed point problems.
 

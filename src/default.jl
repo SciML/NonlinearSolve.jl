@@ -189,7 +189,7 @@ function RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve
         # Let's atleast have something here for complex numbers
         algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),)
     else
-        algs = (TrustRegion(; concrete_jac, linsolve, precs),
+        algs = (TrustRegion(; concrete_jac, linsolve, precs, autodiff),
             TrustRegion(; concrete_jac, linsolve, precs, autodiff,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin),
             NewtonRaphson(; concrete_jac, linsolve, precs,

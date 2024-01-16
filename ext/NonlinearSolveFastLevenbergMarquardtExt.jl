@@ -17,7 +17,7 @@ import StaticArraysCore: SArray
 end
 @inline _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, ::SArray) where {linsolve} = linsolve
 
-function SciMLBase.__solve(prob::NonlinearLeastSquaresProblem,
+function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem},
         alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
         reltol = nothing, maxiters = 1000, termination_condition = nothing, kwargs...)
     NonlinearSolve.__test_termination_condition(termination_condition,

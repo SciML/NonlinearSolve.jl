@@ -32,6 +32,8 @@ solving of very large systems. Meanwhile, [`SimpleNewtonRaphson`](@ref) and
 [`SimpleTrustRegion`](@ref) are implementations which are specialized for small equations.
 They are non-allocating on static arrays and thus really well-optimized for small systems,
 thus usually outperforming the other methods when such types are used for `u0`.
+Additionally, these solvers can be used inside GPU kernels. See
+[PSOGPU.jl](https://github.com/SciML/PSOGPU.jl) for an example of this.
 
 ## Full List of Methods
 
@@ -134,8 +136,9 @@ Submethod choices for this algorithm include:
 
 ### MINPACK.jl
 
-MINPACK.jl methods are good for medium-sized nonlinear solves. It does not scale due to
-the lack of sparse Jacobian support, though the methods are very robust and stable.
+MINPACK.jl is a wrapper package for bringing the Fortran solvers from MINPACK. However, our
+benchmarks reveal that these methods are rarely competitive with our native solvers. Thus,
+our recommendation is to use these only for benchmarking and debugging purposes.
 
   - [`CMINPACK()`](@ref): A wrapper for using the classic MINPACK method through
     [MINPACK.jl](https://github.com/sglyon/MINPACK.jl)
@@ -161,3 +164,7 @@ SIAMFANLEquations.jl is a wrapper for the methods in the SIAMFANLEquations.jl li
 
   - [`SIAMFANLEquationsJL()`](@ref): A wrapper for using the methods in
     [SIAMFANLEquations.jl](https://github.com/ctkelley/SIAMFANLEquations.jl)
+
+Other solvers listed in [Fixed Point Solvers](@ref fixed_point_methods_full_list),
+[FastLevenbergMarquardt.jl](@ref fastlm_wrapper_summary) and
+[LeastSquaresOptim.jl](@ref lso_wrapper_summary) can also solve nonlinear systems.

@@ -53,7 +53,6 @@ function get_concrete_forward_ad(autodiff::ADTypes.AbstractADType, prob,
 end
 function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, args...;
         kwargs...) where {test_sparse}
-    # TODO: Default to PolyesterForwardDiff for non sparse problems
     if test_sparse
         (; sparsity, jac_prototype) = prob.f
         use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
@@ -96,7 +95,6 @@ function get_concrete_reverse_ad(autodiff::ADTypes.AbstractADType, prob,
 end
 function get_concrete_reverse_ad(autodiff, prob, sp::Val{test_sparse} = True, args...;
         kwargs...) where {test_sparse}
-    # TODO: Default to Enzyme / ReverseDiff for inplace problems?
     if test_sparse
         (; sparsity, jac_prototype) = prob.f
         use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing

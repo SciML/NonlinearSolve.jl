@@ -148,3 +148,12 @@ function Base.merge(s1::ImmutableNLStats, s2::ImmutableNLStats)
     return ImmutableNLStats(s1.nf + s2.nf, s1.njacs + s2.njacs, s1.nfactors + s2.nfactors,
         s1.nsolve + s2.nsolve, s1.nsteps + s2.nsteps)
 end
+
+"""
+    pickchunksize(x) = pickchunksize(length(x))
+    pickchunksize(x::Int)
+
+Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
+"""
+@inline pickchunksize(x) = pickchunksize(length(x))
+@inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
