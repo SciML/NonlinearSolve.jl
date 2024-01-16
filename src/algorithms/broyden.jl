@@ -98,7 +98,7 @@ function reinit_cache!(cache::NoChangeInStateResetCache, args...; kwargs...)
     cache.steps_since_change_dfu = 0
 end
 
-function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs...)
+function __internal_init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs...)
     if alg.check_dfu
         @bb dfu = copy(fu)
     else
@@ -110,7 +110,7 @@ function SciMLBase.init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwargs
         0)
 end
 
-function SciMLBase.solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
+function __internal_solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
     reset_tolerance = cache.reset_tolerance
     if cache.check_du
         if any(@closure(x->abs(x) ≤ reset_tolerance), du)
@@ -168,7 +168,7 @@ Broyden Update Rule corresponding to "good broyden's method" [broyden1965class](
     internalnorm
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem,
+function __internal_init(prob::AbstractNonlinearProblem,
         alg::Union{GoodBroydenUpdateRule, BadBroydenUpdateRule}, J, fu, u, du, args...;
         internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
     @bb J⁻¹dfu = similar(u)
@@ -187,7 +187,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem,
     return BroydenUpdateRuleCache{mode}(J⁻¹dfu, dfu, u_cache, du_cache, internalnorm)
 end
 
-function SciMLBase.solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹, fu, u, du) where {mode}
+function __internal_solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹, fu, u, du) where {mode}
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu
     @bb cache.J⁻¹dfu = J⁻¹ × vec(cache.dfu)
@@ -205,7 +205,7 @@ function SciMLBase.solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹, fu, u, du
     return J⁻¹
 end
 
-function SciMLBase.solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹::Diagonal, fu, u,
+function __internal_solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹::Diagonal, fu, u,
         du) where {mode}
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu

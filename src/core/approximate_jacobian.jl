@@ -162,7 +162,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         INV = store_inverse_jacobian(alg.update_rule)
 
         linsolve = get_linear_solver(alg.descent)
-        initialization_cache = init(prob, alg.initialization, alg, f, fu, u, p; linsolve,
+        initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
+            linsolve,
             maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
@@ -171,11 +172,12 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         J = initialization_cache(nothing)
         inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
-        descent_cache = init(prob, alg.descent, J, fu, u; abstol, reltol, internalnorm,
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
+            internalnorm,
             linsolve_kwargs, pre_inverted = Val(INV), timer)
         du = get_du(descent_cache)
 
-        reinit_rule_cache = init(alg.reinit_rule, J, fu, u, du)
+        reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)
 
         if alg.trustregion !== missing && alg.linesearch !== missing
             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
@@ -188,7 +190,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.trustregion !== missing
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
-            trustregion_cache = init(prob, alg.trustregion, f, fu, u, p; internalnorm,
+            trustregion_cache = __internal_init(prob, alg.trustregion, f, fu, u, p;
+                internalnorm,
                 kwargs...)
             GB = :TrustRegion
         end
@@ -196,12 +199,19 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = init(prob, alg.linesearch, f, fu, u, p; internalnorm,
+            linesearch_cache = __internal_init(prob, alg.linesearch, f, fu, u, p;
+                internalnorm,
                 kwargs...)
             GB = :LineSearch
         end
 
-        update_rule_cache = init(prob, alg.update_rule, J, fu, u, du; internalnorm)
+        update_rule_cache = __internal_init(prob,
+            alg.update_rule,
+            J,
+            fu,
+            u,
+            du;
+            internalnorm)
 
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
             uses_jacobian_inverse = Val(INV), kwargs...)
@@ -219,7 +229,10 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
         if get_nsteps(cache) == 0  # First Step is special ignore kwargs
-            J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(false))
+            J_init = __internal_solve!(cache.initialization_cache,
+                cache.fu,
+                cache.u,
+                Val(false))
             if INV
                 if jacobian_initialized_preinverted(cache.initialization_cache.alg)
                     cache.J = J_init
@@ -242,7 +255,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 cache.force_reinit = false
             elseif recompute_jacobian === nothing
                 # Standard Step
-                reinit = solve!(cache.reinit_rule_cache, cache.J, cache.fu, cache.u,
+                reinit = __internal_solve!(cache.reinit_rule_cache, cache.J, cache.fu,
+                    cache.u,
                     cache.du)
                 reinit && (countable_reinit = true)
             elseif recompute_jacobian
@@ -262,7 +276,10 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
 
             if reinit
-                J_init = solve!(cache.initialization_cache, cache.fu, cache.u, Val(true))
+                J_init = __internal_solve!(cache.initialization_cache,
+                    cache.fu,
+                    cache.u,
+                    Val(true))
                 cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
                 cache.steps_since_last_reset = 0
@@ -276,11 +293,11 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
-            δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            δu, descent_success, descent_intermediates = __internal_solve!(cache.descent_cache,
                 J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
-            δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            δu, descent_success, descent_intermediates = __internal_solve!(cache.descent_cache,
                 J, cache.fu, cache.u; new_jacobian)
         end
     end
@@ -288,7 +305,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     if descent_success
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
-                needs_reset, α = solve!(cache.linesearch_cache, cache.u, δu)
+                needs_reset, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)
             end
             if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
                 cache.force_reinit = true
@@ -300,7 +317,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
+                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
+                    cache.fu,
                     cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
@@ -339,7 +357,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     end
 
     @static_timeit cache.timer "jacobian update" begin
-        cache.J = solve!(cache.update_rule_cache, cache.J, cache.fu, cache.u, δu)
+        cache.J = __internal_solve!(cache.update_rule_cache, cache.J, cache.fu, cache.u, δu)
         callback_into_cache!(cache)
     end
 

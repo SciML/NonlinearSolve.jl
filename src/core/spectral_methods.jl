@@ -129,7 +129,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         fu = evaluate_f(prob, u)
         @bb fu_cache = copy(fu)
 
-        linesearch_cache = init(prob, alg.linesearch, prob.f, fu, u, prob.p; maxiters,
+        linesearch_cache = __internal_init(prob, alg.linesearch, prob.f, fu, u, prob.p;
+            maxiters,
             internalnorm, kwargs...)
 
         abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u_cache,
@@ -166,7 +167,7 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
     end
 
     @static_timeit cache.timer "linesearch" begin
-        linesearch_failed, α = solve!(cache.linesearch_cache, cache.u, cache.du)
+        linesearch_failed, α = __internal_solve!(cache.linesearch_cache, cache.u, cache.du)
     end
 
     if linesearch_failed

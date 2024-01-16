@@ -56,7 +56,7 @@ function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...; p = c
     cache.nf = 0
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
+function __internal_init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
@@ -66,7 +66,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtT
         alg.β_uphill, false, u_cache, fu_cache, 0)
 end
 
-function SciMLBase.solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
+function __internal_solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
         descent_stats)
     # This should be true if Geodesic Acceleration is being used
     v = hasfield(typeof(descent_stats), :v) ? descent_stats.v : δu
@@ -364,7 +364,7 @@ end
 
 @inline __expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
+function __internal_init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
@@ -418,7 +418,12 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionS
         u_cache, fu_cache, false, 0, 0, alg)
 end
 
-function SciMLBase.solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu, descent_stats)
+function __internal_solve!(cache::GenericTrustRegionSchemeCache,
+        J,
+        fu,
+        u,
+        δu,
+        descent_stats)
     T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)

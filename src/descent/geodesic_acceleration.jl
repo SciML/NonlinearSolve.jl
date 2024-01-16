@@ -83,7 +83,8 @@ function set_acceleration!(cache::GeodesicAccelerationCache, δa, ::Val{N}) wher
     set_du!(cache.descent_cache, δa, Val(2N))
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J, fu, u;
+function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J, fu,
+        u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
         kwargs...) where {INV, N, F}
@@ -92,7 +93,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleratio
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
-    descent_cache = init(prob, alg.descent, J, fu, u; shared = Val(N * 2), pre_inverted,
+    descent_cache = __internal_init(prob, alg.descent, J, fu, u; shared = Val(N * 2),
+        pre_inverted,
         linsolve_kwargs, abstol, reltol, kwargs...)
     @bb Jv = similar(fu)
     @bb fu_cache = copy(fu)
@@ -101,11 +103,17 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleratio
         internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false)
 end
 
-function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
+function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return δu, true, (; a, v)
-    v, _, _ = solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve, kwargs...)
+    v, _, _ = __internal_solve!(cache.descent_cache,
+        J,
+        fu,
+        u,
+        Val(2N - 1);
+        skip_solve,
+        kwargs...)
 
     @bb @. cache.u_cache = u + cache.h * v
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
@@ -113,7 +121,8 @@ function SciMLBase.solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N
     J !== nothing && @bb(cache.Jv=J × vec(v))
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
-    a, _, _ = solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N); skip_solve,
+    a, _, _ = __internal_solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N);
+        skip_solve,
         kwargs..., reuse_A_if_factorization = true)
 
     norm_v = cache.internalnorm(v)

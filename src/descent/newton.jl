@@ -32,7 +32,7 @@ end
 
 @internal_caches NewtonDescentCache :lincache
 
-function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
+function __internal_init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
@@ -46,7 +46,7 @@ function SciMLBase.init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
     return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing, timer)
 end
 
-function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
+function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), shared::Val{N} = Val(1),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
@@ -71,7 +71,7 @@ function SciMLBase.init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, 
     return NewtonDescentCache{false, normal_form}(δu, δus, lincache, JᵀJ, Jᵀfu, timer)
 end
 
-function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
+function __internal_solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
         idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
         kwargs...) where {INV}
     δu = get_du(cache, idx)
@@ -91,7 +91,7 @@ function SciMLBase.solve!(cache::NewtonDescentCache{INV, false}, J, fu, u,
     return δu, true, (;)
 end
 
-function SciMLBase.solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
+function __internal_solve!(cache::NewtonDescentCache{false, true}, J, fu, u,
         idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...)
     δu = get_du(cache, idx)
     skip_solve && return δu, true, (;)

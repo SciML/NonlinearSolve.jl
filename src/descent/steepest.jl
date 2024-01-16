@@ -29,7 +29,8 @@ end
 
 @internal_caches SteepestDescentCache :lincache
 
-@inline function SciMLBase.init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
+@inline function __internal_init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J,
+        fu,
         u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
@@ -47,7 +48,7 @@ end
     return SteepestDescentCache{INV}(δu, δus, lincache, timer)
 end
 
-function SciMLBase.solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val = Val(1);
+function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val = Val(1);
         new_jacobian::Bool = true, kwargs...) where {INV}
     δu = get_du(cache, idx)
     if INV

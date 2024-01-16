@@ -48,13 +48,13 @@ end
 
 @internal_caches DoglegCache :newton_cache :cauchy_cache
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
+function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         reltol = nothing, internalnorm::F = DEFAULT_NORM, shared::Val{N} = Val(1),
         kwargs...) where {F, INV, N}
-    newton_cache = SciMLBase.init(prob, alg.newton_descent, J, fu, u; pre_inverted,
+    newton_cache = __internal_init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
-    cauchy_cache = SciMLBase.init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
+    cauchy_cache = __internal_init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
@@ -75,14 +75,20 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
 end
 
 # If TrustRegion is not specified, then use a Gauss-Newton step
-function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = Val(1);
+function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = Val(1);
         trust_region = nothing, skip_solve::Bool = false, kwargs...) where {INV, NF, N}
     @assert trust_region!==nothing "Trust Region must be specified for Dogleg. Use \
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton, _, _ = solve!(cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
+    δu_newton, _, _ = __internal_solve!(cache.newton_cache,
+        J,
+        fu,
+        u,
+        idx;
+        skip_solve,
+        kwargs...)
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
@@ -102,7 +108,13 @@ function SciMLBase.solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = V
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
         δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
-        δu_cauchy, _, _ = solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
+        δu_cauchy, _, _ = __internal_solve!(cache.cauchy_cache,
+            J,
+            fu,
+            u,
+            idx;
+            skip_solve,
+            kwargs...)
         J_ = INV ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename

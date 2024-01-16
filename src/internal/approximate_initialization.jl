@@ -63,13 +63,15 @@ structure as specified by `structure`.
     structure
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
+function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
+        solver,
         f::F, fu, u::Number, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     return InitializedApproximateJacobianCache(α, alg.structure, alg, nothing, true,
         internalnorm)
 end
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
+function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
+        solver,
         f::F, fu::StaticArray, u::StaticArray, p; internalnorm::IN = DEFAULT_NORM,
         kwargs...) where {IN, F}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
@@ -88,7 +90,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitializat
     return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true,
         internalnorm)
 end
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
+function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
+        solver,
         f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
@@ -143,7 +146,7 @@ make a selection automatically.
     autodiff
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
+function __internal_init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
         solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
         kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_reverse_mode = false,
@@ -178,7 +181,7 @@ A cache for Approximate Jacobian.
 Returns the current Jacobian `cache.J` with the proper `structure`.
 
 ```julia
-SciMLBase.solve!(cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit})
+__internal_solve!(cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit})
 ```
 
 Solves for the Jacobian `cache.J` and returns it. If `reinit` is `true`, then the Jacobian
@@ -203,7 +206,7 @@ function (cache::InitializedApproximateJacobianCache)(::Nothing)
     return get_full_jacobian(cache, cache.structure, cache.J)
 end
 
-function SciMLBase.solve!(cache::InitializedApproximateJacobianCache, fu, u,
+function __internal_solve!(cache::InitializedApproximateJacobianCache, fu, u,
         ::Val{reinit}) where {reinit}
     if reinit || !cache.initialized
         cache(cache.alg, fu, u)

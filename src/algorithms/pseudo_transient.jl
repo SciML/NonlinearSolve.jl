@@ -52,7 +52,7 @@ function requires_normal_form_rhs(cache::Union{SwitchedEvolutionRelaxation,
     return false
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
+function __internal_init(prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
         initial_damping, J, fu, u, args...; internalnorm::F = DEFAULT_NORM,
         kwargs...) where {F}
     T = promote_type(eltype(u), eltype(fu))
@@ -62,7 +62,7 @@ end
 
 (damping::SwitchedEvolutionRelaxationCache)(::Nothing) = damping.α⁻¹
 
-function SciMLBase.solve!(damping::SwitchedEvolutionRelaxationCache, J, fu, args...;
+function __internal_solve!(damping::SwitchedEvolutionRelaxationCache, J, fu, args...;
         kwargs...)
     res_norm = damping.internalnorm(fu)
     damping.α⁻¹ *= res_norm / damping.res_norm

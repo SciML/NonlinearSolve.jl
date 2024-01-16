@@ -9,14 +9,14 @@ struct NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm end
     α
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F, fu, u,
+function __internal_init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F, fu, u,
         p, args...; kwargs...) where {F}
     return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
 end
 
 reinit_cache!(cache::NoLineSearchCache, args...; p = cache.p, kwargs...) = nothing
 
-SciMLBase.solve!(cache::NoLineSearchCache, u, du) = false, cache.α
+__internal_solve!(cache::NoLineSearchCache, u, du) = false, cache.α
 
 """
     LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
@@ -79,7 +79,7 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     nf::Base.RefValue{Int}
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
+function __internal_init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
         p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
@@ -137,7 +137,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::
         u_cache, fu_cache, nf)
 end
 
-function SciMLBase.solve!(cache::LineSearchesJLCache, u, du; kwargs...)
+function __internal_solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
     dϕ = @closure α -> cache.dϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
         cache.grad_op)
@@ -223,7 +223,7 @@ end
     nf::Base.RefValue{Int}
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
+function __internal_init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
         f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
@@ -245,7 +245,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLi
         T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
 end
 
-function SciMLBase.solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
+function __internal_solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
     ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
     f_norm_old = ϕ(eltype(u)(0))
@@ -314,7 +314,7 @@ end
     nf::Base.RefValue{Int}
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch,
+function __internal_init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch,
         f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
@@ -333,7 +333,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSear
         T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf)
 end
 
-function SciMLBase.solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
+function __internal_solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)
     T = promote_type(eltype(u), eltype(du))
     ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
 

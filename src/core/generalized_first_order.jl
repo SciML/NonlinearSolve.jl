@@ -161,7 +161,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         jac_cache = JacobianCache(prob, alg, f, fu, u, p; autodiff = alg.jacobian_ad,
             linsolve, jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
-        descent_cache = SciMLBase.init(prob, alg.descent, J, fu, u; abstol, reltol,
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
             internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)
 
@@ -176,7 +176,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.trustregion !== missing
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
-            trustregion_cache = init(prob, alg.trustregion, f, fu, u, p; internalnorm,
+            trustregion_cache = __internal_init(prob, alg.trustregion, f, fu, u, p;
+                internalnorm,
                 kwargs...)
             GB = :TrustRegion
         end
@@ -184,7 +185,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = init(prob, alg.linesearch, f, fu, u, p; internalnorm,
+            linesearch_cache = __internal_init(prob, alg.linesearch, f, fu, u, p;
+                internalnorm,
                 kwargs...)
             GB = :LineSearch
         end
@@ -213,11 +215,11 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
-            δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            δu, descent_success, descent_intermediates = __internal_solve!(cache.descent_cache,
                 J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
-            δu, descent_success, descent_intermediates = solve!(cache.descent_cache,
+            δu, descent_success, descent_intermediates = __internal_solve!(cache.descent_cache,
                 J, cache.fu, cache.u; new_jacobian)
         end
     end
@@ -226,7 +228,9 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         cache.make_new_jacobian = true
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
-                linesearch_failed, α = solve!(cache.linesearch_cache, cache.u, δu)
+                linesearch_failed, α = __internal_solve!(cache.linesearch_cache,
+                    cache.u,
+                    δu)
             end
             if linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
@@ -238,7 +242,8 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
             end
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = solve!(cache.trustregion_cache, J, cache.fu,
+                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
+                    cache.fu,
                     cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)

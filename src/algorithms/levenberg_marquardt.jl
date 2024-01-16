@@ -97,7 +97,7 @@ function returns_norm_form_damping(::Union{LevenbergMarquardtDampingFunction,
     return true
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem,
+function __internal_init(prob::AbstractNonlinearProblem,
         f::LevenbergMarquardtDampingFunction, initial_damping, J, fu, u, ::Val{NF};
         internalnorm::F = DEFAULT_NORM, kwargs...) where {F, NF}
     T = promote_type(eltype(u), eltype(fu))
@@ -115,7 +115,7 @@ end
 
 (damping::LevenbergMarquardtDampingCache)(::Nothing) = damping.J_damped
 
-function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false};
+function __internal_solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false};
         kwargs...)
     if __can_setindex(damping.J_diag_cache)
         sum!(abs2, _vec(damping.J_diag_cache), J')
@@ -129,7 +129,7 @@ function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{
     return damping.J_damped
 end
 
-function SciMLBase.solve!(damping::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true};
+function __internal_solve!(damping::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true};
         kwargs...)
     damping.DᵀD = __update_LM_diagonal!!(damping.DᵀD, JᵀJ)
     @bb @. damping.J_damped = damping.λ * damping.DᵀD

@@ -51,7 +51,7 @@ end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
+function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         timer = get_timer_output(), reltol = nothing, alias_J = true,
         shared::Val{N} = Val(1), kwargs...) where {INV, N}
@@ -93,7 +93,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
             Jᵀfu = nothing
             rhs_damp = fu
         end
-        damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, jac_damp,
+        damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
+            jac_damp,
             rhs_damp, u, False; kwargs...)
         D = damping_fn_cache(nothing)
         D isa Number && (D = D * I)
@@ -101,7 +102,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
         J_cache = _vcat(J, D)
         A, b = J_cache, rhs_cache
     elseif mode === :simple
-        damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, J, fu, u, False;
+        damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping, J, fu,
+            u, False;
             kwargs...)
         J_cache = __maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
@@ -114,7 +116,8 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
         Jᵀfu = transpose(J) * _vec(fu)
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
-        damping_fn_cache = init(prob, alg.damping_fn, alg.initial_damping, jac_damp,
+        damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
+            jac_damp,
             rhs_damp, u, True; kwargs...)
         D = damping_fn_cache(nothing)
         @bb J_cache = similar(JᵀJ)
@@ -131,7 +134,7 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent
         rhs_cache, damping_fn_cache, timer)
 end
 
-function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
+function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
         idx::Val{N} = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
         kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
@@ -155,7 +158,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 else
                     rhs_damp = fu
                 end
-                D = solve!(cache.damping_fn_cache, jac_damp, rhs_damp, False)
+                D = __internal_solve!(cache.damping_fn_cache, jac_damp, rhs_damp, False)
                 if __can_setindex(cache.J)
                     copyto!(@view(cache.J[1:size(J, 1), :]), J)
                     cache.J[(size(J, 1) + 1):end, :] .= sqrt.(D)
@@ -174,7 +177,7 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
         elseif mode === :simple
             if (J !== nothing || new_jacobian) && recompute_A
                 INV && (J = inv(J))
-                D = solve!(cache.damping_fn_cache, J, fu, False)
+                D = __internal_solve!(cache.damping_fn_cache, J, fu, False)
                 cache.J = __dampen_jacobian!!(cache.J, J, D)
             end
             A, b = cache.J, _vec(fu)
@@ -183,7 +186,10 @@ function SciMLBase.solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-                D = solve!(cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
+                D = __internal_solve!(cache.damping_fn_cache,
+                    cache.JᵀJ_cache,
+                    cache.Jᵀfu_cache,
+                    True)
                 cache.J = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
                 A = __maybe_symmetric(cache.J)
             elseif !recompute_A

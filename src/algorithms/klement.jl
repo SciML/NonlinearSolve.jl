@@ -64,7 +64,7 @@ struct IllConditionedJacobianReset <: AbstractResetCondition end
     condition_number_threshold
 end
 
-function SciMLBase.init(alg::IllConditionedJacobianReset, J, fu, u, du, args...; kwargs...)
+function __internal_init(alg::IllConditionedJacobianReset, J, fu, u, du, args...; kwargs...)
     condition_number_threshold = if J isa AbstractMatrix
         inv(eps(real(eltype(J)))^(1 // 2))
     else
@@ -73,7 +73,7 @@ function SciMLBase.init(alg::IllConditionedJacobianReset, J, fu, u, du, args...;
     return IllConditionedJacobianResetCache(condition_number_threshold)
 end
 
-function SciMLBase.solve!(cache::IllConditionedJacobianResetCache, J, fu, u, du)
+function __internal_solve!(cache::IllConditionedJacobianResetCache, J, fu, u, du)
     J isa Number && return iszero(J)
     J isa Diagonal && return any(iszero, diag(J))
     J isa AbstractMatrix && return cond(J) ≥ cache.condition_number_threshold
@@ -98,7 +98,7 @@ Update rule for [`Klement`](@ref).
     fu_cache
 end
 
-function SciMLBase.init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule, J, fu, u,
+function __internal_init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule, J, fu, u,
         du, args...; kwargs...)
     @bb Jdu = similar(fu)
     if J isa Diagonal || J isa Number
@@ -112,14 +112,14 @@ function SciMLBase.init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule, 
     return KlementUpdateRuleCache(Jdu, J_cache, J_cache_2, Jdu_cache, fu_cache)
 end
 
-function SciMLBase.solve!(cache::KlementUpdateRuleCache, J::Number, fu, u, du)
+function __internal_solve!(cache::KlementUpdateRuleCache, J::Number, fu, u, du)
     Jdu = J^2 * du^2
     J = J + ((fu - cache.fu_cache - J * du) / ifelse(iszero(Jdu), 1e-5, Jdu)) * du * J^2
     cache.fu_cache = fu
     return J
 end
 
-function SciMLBase.solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, du)
+function __internal_solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, du)
     T = eltype(u)
     J = _restructure(u, diag(J_))
     @bb @. cache.Jdu = (J^2) * (du^2)
@@ -129,7 +129,7 @@ function SciMLBase.solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, du
     return Diagonal(vec(J))
 end
 
-function SciMLBase.solve!(cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du)
+function __internal_solve!(cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du)
     T = eltype(u)
     @bb @. cache.J_cache = J'^2
     @bb @. cache.Jdu = du^2
