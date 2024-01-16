@@ -61,6 +61,7 @@ The resulting `NonlinearProblem` definition is:
 
 ```@example ill_conditioned_nlprob
 using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve, SparseDiffTools
+import PolyesterForwardDiff
 
 const N = 32
 const xyd_brusselator = range(0, stop = 1, length = N)
