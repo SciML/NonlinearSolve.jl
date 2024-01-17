@@ -194,8 +194,8 @@ solve(prob, GaussNewton(), reltol = 1e-12, abstol = 1e-12)
 
 ## Going Beyond the Basics: How to use the Documentation
 
-Congrats, you now know how to use the basics of NonlinearSolve.jl! However, there is so much more to
-see. Next check out:
+Congrats, you now know how to use the basics of NonlinearSolve.jl! However, there is so much
+more to see. Next check out:
 
   - [Some code optimization tricks to know about with NonlinearSolve.jl](@ref code_optimization)
   - [An iterator interface which lets you step through the solving process step by step](@ref iterator)

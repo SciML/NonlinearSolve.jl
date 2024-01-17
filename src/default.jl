@@ -1,3 +1,4 @@
+# Poly Algorithms
 """
     NonlinearSolvePolyAlgorithm(algs, ::Val{pType} = Val(:NLS)) where {pType}
 
@@ -6,7 +7,7 @@ A general way to define PolyAlgorithms for `NonlinearProblem` and
 tried in order until one succeeds. If none succeed, then the algorithm with the lowest
 residual is returned.
 
-## Arguments
+### Arguments
 
   - `algs`: a tuple of algorithms to try in-order! (If this is not a Tuple, then the
     returned algorithm is not type-stable).
@@ -14,7 +15,7 @@ residual is returned.
     `NonlinearLeastSquaresProblem`. This is used to determine the correct problem type to
     dispatch on.
 
-## Example
+### Example
 
 ```julia
 using NonlinearSolve
@@ -22,7 +23,7 @@ using NonlinearSolve
 alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), Broyden()))
 ```
 """
-struct NonlinearSolvePolyAlgorithm{pType, N, A} <: AbstractNonlinearSolveAlgorithm
+struct NonlinearSolvePolyAlgorithm{pType, N, A} <: AbstractNonlinearSolveAlgorithm{:PolyAlg}
     algs::A
 
     function NonlinearSolvePolyAlgorithm(algs, ::Val{pType} = Val(:NLS)) where {pType}
@@ -35,17 +36,24 @@ end
 function Base.show(io::IO, alg::NonlinearSolvePolyAlgorithm{pType, N}) where {pType, N}
     problem_kind = ifelse(pType == :NLS, "NonlinearProblem", "NonlinearLeastSquaresProblem")
     println(io, "NonlinearSolvePolyAlgorithm for $(problem_kind) with $(N) algorithms")
-    for i in 1:(N - 1)
-        println(io, "  $(i): $(alg.algs[i])")
+    for i in 1:N
+        num = "  [$(i)]: "
+        print(io, num)
+        __show_algorithm(io, alg.algs[i], get_name(alg.algs[i]), length(num))
+        i == N || println(io)
     end
-    print(io, "  $(N): $(alg.algs[N])")
 end
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache{iip, N} <:
-                         AbstractNonlinearSolveCache{iip}
+                         AbstractNonlinearSolveCache{iip, false}
     caches
     alg
     current::Int
+end
+
+function reinit_cache!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
+    foreach(c -> reinit_cache!(c, args...; kwargs...), cache.caches)
+    cache.current = 1
 end
 
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
@@ -158,12 +166,6 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
     end
 end
 
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
-    for c in cache.caches
-        SciMLBase.reinit!(c, args...; kwargs...)
-    end
-end
-
 """
     RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, autodiff = nothing)
@@ -180,26 +182,6 @@ or more precision / more stable linear solver choice is required).
 
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
-
-### Keyword Arguments
-
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `nothing`.
-  - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
-    then the Jacobian will not be constructed and instead direct Jacobian-vector products
-    `J*v` are computed using forward-mode automatic differentiation or finite differencing
-    tricks (without ever constructing the Jacobian). However, if the Jacobian is still needed,
-    for example for a preconditioner, `concrete_jac = true` can be passed in order to force
-    the construction of the Jacobian.
-  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
-    LinearSolve.jl default algorithm choice. For more information on available algorithm
-    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 """
 function RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, autodiff = nothing) where {T}
@@ -210,8 +192,8 @@ function RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve
         algs = (TrustRegion(; concrete_jac, linsolve, precs, autodiff),
             TrustRegion(; concrete_jac, linsolve, precs, autodiff,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin),
-            NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                autodiff),
+            NewtonRaphson(; concrete_jac, linsolve, precs,
+                linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.NLsolve, autodiff),
             TrustRegion(; concrete_jac, linsolve, precs,
@@ -232,26 +214,6 @@ for more performance and then tries more robust techniques if the faster ones fa
 
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
-
-### Keyword Arguments
-
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `nothing`.
-  - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
-    then the Jacobian will not be constructed and instead direct Jacobian-vector products
-    `J*v` are computed using forward-mode automatic differentiation or finite differencing
-    tricks (without ever constructing the Jacobian). However, if the Jacobian is still needed,
-    for example for a preconditioner, `concrete_jac = true` can be passed in order to force
-    the construction of the Jacobian.
-  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
-    LinearSolve.jl default algorithm choice. For more information on available algorithm
-    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 """
 function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothing,
         linsolve = nothing, precs = DEFAULT_PRECS, must_use_jacobian::Val{JAC} = Val(false),
@@ -262,8 +224,8 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
             algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),)
         else
             algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
-                NewtonRaphson(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                    autodiff),
+                NewtonRaphson(; concrete_jac, linsolve, precs,
+                    linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,
                     radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
@@ -283,9 +245,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
-                    NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
+                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
             end
@@ -301,7 +261,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
                     Klement(; linsolve, precs),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = BackTracking(), autodiff),
+                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
@@ -322,40 +282,20 @@ for more performance and then tries more robust techniques if the faster ones fa
 
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
-
-### Keyword Arguments
-
-  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
-    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
-    `AutoForwardDiff()`. Valid choices are types from ADTypes.jl.
-  - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is used,
-    then the Jacobian will not be constructed and instead direct Jacobian-vector products
-    `J*v` are computed using forward-mode automatic differentiation or finite differencing
-    tricks (without ever constructing the Jacobian). However, if the Jacobian is still needed,
-    for example for a preconditioner, `concrete_jac = true` can be passed in order to force
-    the construction of the Jacobian.
-  - `linsolve`: the [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl) used for the
-    linear solves within the Newton method. Defaults to `nothing`, which means it uses the
-    LinearSolve.jl default algorithm choice. For more information on available algorithm
-    choices, see the [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
 """
 function FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing,
         linsolve = nothing, precs = DEFAULT_PRECS, kwargs...) where {T}
     if __is_complex(T)
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
-            LevenbergMarquardt(; concrete_jac, linsolve, precs, kwargs...))
+            LevenbergMarquardt(; linsolve, precs, kwargs...))
     else
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs, kwargs...),
-            GaussNewton(; concrete_jac, linsolve, precs, linesearch = BackTracking(),
-                kwargs...),
+            GaussNewton(; concrete_jac, linsolve, precs,
+                linesearch = LineSearchesJL(; method = BackTracking()), kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs,
                 radius_update_scheme = RadiusUpdateSchemes.Bastin, kwargs...),
-            LevenbergMarquardt(; concrete_jac, linsolve, precs, kwargs...))
+            LevenbergMarquardt(; linsolve, precs, kwargs...))
     end
     return NonlinearSolvePolyAlgorithm(algs, Val(:NLLS))
 end

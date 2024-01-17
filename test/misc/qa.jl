@@ -7,7 +7,8 @@ using NonlinearSolve, Aqua
     Aqua.test_piracies(NonlinearSolve,
         treat_as_own = [NonlinearProblem, NonlinearLeastSquaresProblem])
     Aqua.test_project_extras(NonlinearSolve)
-    Aqua.test_stale_deps(NonlinearSolve)
+    # Timer Outputs needs to be enabled via Preferences
+    Aqua.test_stale_deps(NonlinearSolve; ignore = [:TimerOutputs])
     Aqua.test_unbound_args(NonlinearSolve)
     Aqua.test_undefined_exports(NonlinearSolve)
 end

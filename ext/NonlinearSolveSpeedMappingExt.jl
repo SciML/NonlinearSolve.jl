@@ -1,27 +1,27 @@
 module NonlinearSolveSpeedMappingExt
 
-using NonlinearSolve, SpeedMapping, DiffEqBase, SciMLBase
+using NonlinearSolve, SciMLBase, SpeedMapping
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        abstol = nothing, maxiters = 1000, alias_u0::Bool = false, maxtime = nothing,
         store_trace::Val{store_info} = Val(false), termination_condition = nothing,
         kwargs...) where {store_info}
-    @assert (termination_condition ===
-             nothing)||(termination_condition isa AbsNormTerminationMode) "SpeedMappingJL does not support termination conditions!"
+    NonlinearSolve.__test_termination_condition(termination_condition, :SpeedMappingJL)
 
-    m!, u0 = NonlinearSolve.__construct_f(prob; alias_u0, make_fixed_point = Val(true),
-        can_handle_arbitrary_dims = Val(true))
+    m!, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0,
+        make_fixed_point = Val(true))
+    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
 
-    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
+    time_limit = ifelse(maxtime === nothing, alg.time_limit, maxtime)
 
-    sol = speedmapping(u0; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
-        alg.check_obj, store_info, alg.σ_min, alg.stabilize)
+    sol = speedmapping(u; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
+        alg.check_obj, store_info, alg.σ_min, alg.stabilize, time_limit)
     res = prob.u0 isa Number ? first(sol.minimizer) : sol.minimizer
     resid = NonlinearSolve.evaluate_f(prob, res)
 
-    return SciMLBase.build_solution(prob, alg, res, resid;
+    return SciMLBase.build_solution(prob, alg, res, resid; original = sol,
         retcode = sol.converged ? ReturnCode.Success : ReturnCode.Failure,
-        stats = SciMLBase.NLStats(sol.maps, 0, 0, 0, sol.maps), original = sol)
+        stats = SciMLBase.NLStats(sol.maps, 0, 0, 0, sol.maps))
 end
 
 end

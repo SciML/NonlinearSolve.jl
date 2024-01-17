@@ -1,43 +1,37 @@
 module NonlinearSolveNLsolveExt
 
-using NonlinearSolve, NLsolve, DiffEqBase, SciMLBase
+using NonlinearSolve, NLsolve, SciMLBase
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
-        termination_condition = nothing, kwargs...)
-    @assert (termination_condition ===
-             nothing)||(termination_condition isa AbsNormTerminationMode) "NLsolveJL does not support termination conditions!"
+        termination_condition = nothing, store_trace::Val{StT} = Val(false),
+        show_trace::Val{ShT} = Val(false), trace_level = TraceMinimal(),
+        kwargs...) where {StT, ShT}
+    NonlinearSolve.__test_termination_condition(termination_condition, :NLsolveJL)
 
-    f!, u0 = NonlinearSolve.__construct_f(prob; alias_u0)
+    f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
 
-    # unwrapping alg params
-    (; method, autodiff, store_trace, extended_trace, linesearch, linsolve, factor,
-    autoscale, m, beta, show_trace) = alg
-
-    if prob.u0 isa Number
-        resid = [NonlinearSolve.evaluate_f(prob, first(u0))]
+    if prob.f.jac === nothing && alg.autodiff isa Symbol
+        df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
     else
-        resid = NonlinearSolve.evaluate_f(prob, prob.u0)
-    end
-
-    jac! = NonlinearSolve.__construct_jac(prob, alg, u0)
-
-    if jac! === nothing
-        df = OnceDifferentiable(f!, vec(u0), vec(resid); autodiff)
-    else
-        if prob.f.jac_prototype !== nothing
-            J = zero(prob.f.jac_prototype)
-            df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
+        jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+        if prob.f.jac_prototype === nothing
+            J = similar(u0, promote_type(eltype(u0), eltype(resid)), length(u0),
+                length(resid))
         else
-            df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid))
+            J = zero(prob.f.jac_prototype)
         end
+        df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
     end
 
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
+    show_trace = ShT || alg.show_trace
+    store_trace = StT || alg.store_trace
+    extended_trace = !(trace_level isa TraceMinimal) || alg.extended_trace
 
-    original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, method,
-        store_trace, extended_trace, linesearch, linsolve, factor, autoscale, m, beta,
-        show_trace)
+    original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, alg.method,
+        store_trace, extended_trace, alg.linesearch, alg.linsolve, alg.factor,
+        alg.autoscale, alg.m, alg.beta, show_trace)
 
     f!(vec(resid), original.zero)
     u = prob.u0 isa Number ? original.zero[1] : reshape(original.zero, size(prob.u0))

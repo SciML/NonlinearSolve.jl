@@ -115,7 +115,7 @@ to normal array expressions, for example:
 ```@example small_opt
 using StaticArrays
 A = SA[2.0, 3.0, 5.0]
-typeof(A) # SVector{3, Float64} (alias for SArray{Tuple{3}, Float64, 1, 3})
+typeof(A)
 ```
 
 Notice that the `3` after `SVector` gives the size of the `SVector`. It cannot be changed.

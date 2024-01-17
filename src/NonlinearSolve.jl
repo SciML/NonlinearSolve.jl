@@ -8,33 +8,27 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes, DiffEqBase, LazyArrays, LineSearches, LinearAlgebra, LinearSolve, Printf,
-        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools, StaticArrays
+    using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
+        LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
+        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
-    import ADTypes: AbstractFiniteDifferencesMode
-    import ArrayInterface: undefmatrix, restructure, can_setindex,
-        matrix_colors, parameterless_type, ismutable, issingular, fast_scalar_indexing
-    import ConcreteStructs: @concrete
-    import EnumX: @enumx
-    import FastBroadcast: @..
-    import FastClosures: @closure
+    import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
+    import DiffEqBase: AbstractNonlinearTerminationMode,
+        AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
+        NonlinearSafeTerminationReturnCode, get_termination_mode
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-    import MaybeInplace: setindex_trait, @bb, CanSetindex, CannotSetindex
-    import RecursiveArrayTools: ArrayPartition,
-        AbstractVectorOfArray, recursivecopy!, recursivefill!
-    import SciMLBase: AbstractNonlinearAlgorithm, NLStats, _unwrap_val, has_jac, isinplace
-    import SciMLOperators: FunctionOperator
-    import StaticArrays: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
-    import UnPack: @unpack
+    import RecursiveArrayTools: recursivecopy!, recursivefill!
+
+    import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
+        AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
+    import SparseDiffTools: AbstractSparsityDetection
+    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
 end
 
 @reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
-import DiffEqBase: AbstractNonlinearTerminationMode,
-    AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-    NonlinearSafeTerminationReturnCode, get_termination_mode
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
@@ -42,149 +36,47 @@ const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
 
-abstract type AbstractNonlinearSolveLineSearchAlgorithm end
+const True = Val(true)
+const False = Val(false)
 
-abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
-abstract type AbstractNewtonAlgorithm{CJ, AD} <: AbstractNonlinearSolveAlgorithm end
+include("abstract_types.jl")
+include("timer_outputs.jl")
+include("internal/helpers.jl")
 
-abstract type AbstractNonlinearSolveCache{iip} end
+include("descent/newton.jl")
+include("descent/steepest.jl")
+include("descent/dogleg.jl")
+include("descent/damped_newton.jl")
+include("descent/geodesic_acceleration.jl")
 
-isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
+include("internal/operators.jl")
+include("internal/jacobian.jl")
+include("internal/forward_diff.jl")
+include("internal/linear_solve.jl")
+include("internal/termination.jl")
+include("internal/tracing.jl")
+include("internal/approximate_initialization.jl")
 
-function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache{iip}, u0 = get_u(cache);
-        p = cache.p, abstol = cache.abstol, reltol = cache.reltol,
-        maxiters = cache.maxiters, alias_u0 = false, termination_condition = missing,
-        kwargs...) where {iip}
-    cache.p = p
-    if iip
-        recursivecopy!(get_u(cache), u0)
-        cache.f(get_fu(cache), get_u(cache), p)
-    else
-        cache.u = __maybe_unaliased(u0, alias_u0)
-        set_fu!(cache, cache.f(cache.u, p))
-    end
+include("globalization/line_search.jl")
+include("globalization/trust_region.jl")
 
-    reset!(cache.trace)
+include("core/generic.jl")
+include("core/approximate_jacobian.jl")
+include("core/generalized_first_order.jl")
+include("core/spectral_methods.jl")
 
-    # Some algorithms store multiple termination caches
-    if hasfield(typeof(cache), :tc_cache)
-        # TODO: We need an efficient way to reset this upstream
-        tc = termination_condition === missing ? get_termination_mode(cache.tc_cache) :
-             termination_condition
-        abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, get_fu(cache),
-            get_u(cache), tc)
-        cache.tc_cache = tc_cache
-    end
-
-    if hasfield(typeof(cache), :ls_cache)
-        # TODO: A more efficient way to do this
-        cache.ls_cache = init_linesearch_cache(cache.alg.linesearch, cache.f,
-            get_u(cache), p, get_fu(cache), Val(iip))
-    end
-
-    hasfield(typeof(cache), :uf) && cache.uf !== nothing && (cache.uf.p = p)
-
-    cache.abstol = abstol
-    cache.reltol = reltol
-    cache.maxiters = maxiters
-    cache.stats.nf = 1
-    cache.stats.nsteps = 1
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
-
-    __reinit_internal!(cache; u0, p, abstol, reltol, maxiters, alias_u0,
-        termination_condition, kwargs...)
-
-    return cache
-end
-
-__reinit_internal!(::AbstractNonlinearSolveCache; kwargs...) = nothing
-
-function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
-    str = "$(nameof(typeof(alg)))("
-    modifiers = String[]
-    if __getproperty(alg, Val(:ad)) !== nothing
-        push!(modifiers, "ad = $(nameof(typeof(alg.ad)))()")
-    end
-    if __getproperty(alg, Val(:linsolve)) !== nothing
-        push!(modifiers, "linsolve = $(nameof(typeof(alg.linsolve)))()")
-    end
-    if __getproperty(alg, Val(:linesearch)) !== nothing
-        ls = alg.linesearch
-        if ls isa LineSearch
-            ls.method !== nothing &&
-                push!(modifiers, "linesearch = $(nameof(typeof(ls.method)))()")
-        else
-            push!(modifiers, "linesearch = $(nameof(typeof(alg.linesearch)))()")
-        end
-    end
-    append!(modifiers, __alg_print_modifiers(alg))
-    if __getproperty(alg, Val(:radius_update_scheme)) !== nothing
-        push!(modifiers, "radius_update_scheme = $(alg.radius_update_scheme)")
-    end
-    str = str * join(modifiers, ", ")
-    print(io, "$(str))")
-    return nothing
-end
-
-__alg_print_modifiers(_) = String[]
-
-function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
-        alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
-    cache = init(prob, alg, args...; kwargs...)
-    return solve!(cache)
-end
-
-function not_terminated(cache::AbstractNonlinearSolveCache)
-    return !cache.force_stop && cache.stats.nsteps < cache.maxiters
-end
-
-get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
-set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
-get_u(cache::AbstractNonlinearSolveCache) = cache.u
-SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
-
-function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
-    while not_terminated(cache)
-        perform_step!(cache)
-        cache.stats.nsteps += 1
-    end
-
-    # The solver might have set a different `retcode`
-    if cache.retcode == ReturnCode.Default
-        if cache.stats.nsteps == cache.maxiters
-            cache.retcode = ReturnCode.MaxIters
-        else
-            cache.retcode = ReturnCode.Success
-        end
-    end
-
-    trace = __getproperty(cache, Val{:trace}())
-    if trace !== nothing
-        update_trace!(trace, cache.stats.nsteps, get_u(cache), get_fu(cache), nothing,
-            nothing, nothing; last = Val(true))
-    end
-
-    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode, cache.stats, trace)
-end
+include("algorithms/raphson.jl")
+include("algorithms/pseudo_transient.jl")
+include("algorithms/broyden.jl")
+include("algorithms/klement.jl")
+include("algorithms/lbroyden.jl")
+include("algorithms/dfsane.jl")
+include("algorithms/gauss_newton.jl")
+include("algorithms/levenberg_marquardt.jl")
+include("algorithms/trust_region.jl")
+include("algorithms/extension_algs.jl")
 
 include("utils.jl")
-include("function_wrappers.jl")
-include("trace.jl")
-include("extension_algs.jl")
-include("linesearch.jl")
-include("raphson.jl")
-include("trustRegion.jl")
-include("levenberg.jl")
-include("gaussnewton.jl")
-include("dfsane.jl")
-include("pseudotransient.jl")
-include("broyden.jl")
-include("klement.jl")
-include("lbroyden.jl")
-include("jacobian.jl")
-include("ad.jl")
 include("default.jl")
 
 @setup_workload begin
@@ -220,31 +112,43 @@ include("default.jl")
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
     end
 
-    nlls_algs = (LevenbergMarquardt(), GaussNewton(),
+    nlls_algs = (LevenbergMarquardt(), GaussNewton(), TrustRegion(),
         LevenbergMarquardt(; linsolve = LUFactorization()),
-        GaussNewton(; linsolve = LUFactorization()))
+        GaussNewton(; linsolve = LUFactorization()),
+        TrustRegion(; linsolve = LUFactorization()), nothing)
 
     @compile_workload begin
         for prob in probs_nls, alg in nls_algs
-            solve(prob, alg, abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2)
         end
         for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg, abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2)
         end
     end
 end
 
-export RadiusUpdateSchemes
-
-export NewtonRaphson, TrustRegion, LevenbergMarquardt, DFSane, GaussNewton, PseudoTransient,
-    Broyden, Klement, LimitedMemoryBroyden
-export LeastSquaresOptimJL,
-    FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, FixedPointAccelerationJL, SpeedMappingJL,
-    SIAMFANLEquationsJL
+# Core Algorithms
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
+export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm,
     RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
-export LineSearch, LiFukushimaLineSearch
+# Extension Algorithms
+export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
+    FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+
+# Advanced Algorithms -- Without Bells and Whistles
+export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
+
+# Descent Algorithms
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
+    GeodesicAcceleration
+
+# Globalization
+## Line Search Algorithms
+export LineSearchesJL, NoLineSearch, RobustNonMonotoneLineSearch, LiFukushimaLineSearch
+## Trust Region Algorithms
+export RadiusUpdateSchemes
 
 # Export the termination conditions from DiffEqBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,

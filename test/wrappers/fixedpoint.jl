@@ -1,5 +1,5 @@
-using NonlinearSolve,
-    FixedPointAcceleration, SpeedMapping, NLsolve, SIAMFANLEquations, LinearAlgebra, Test
+using NonlinearSolve, LinearAlgebra, Test
+import SIAMFANLEquations, FixedPointAcceleration, SpeedMapping, NLsolve
 
 # Simple Scalar Problem
 @testset "Simple Scalar Problem" begin
