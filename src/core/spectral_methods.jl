@@ -130,8 +130,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         @bb fu_cache = copy(fu)
 
         linesearch_cache = __internal_init(prob, alg.linesearch, prob.f, fu, u, prob.p;
-            maxiters,
-            internalnorm, kwargs...)
+            maxiters, internalnorm, kwargs...)
 
         abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u_cache,
             termination_condition)

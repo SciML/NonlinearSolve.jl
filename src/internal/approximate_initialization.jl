@@ -91,8 +91,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitializa
         internalnorm)
 end
 function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
-        solver,
-        f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        solver, f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"

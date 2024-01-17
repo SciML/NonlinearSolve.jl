@@ -229,8 +229,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
                 linesearch_failed, α = __internal_solve!(cache.linesearch_cache,
-                    cache.u,
-                    δu)
+                    cache.u, δu)
             end
             if linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
@@ -243,8 +242,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu,
-                    cache.u, δu, descent_intermediates)
+                    cache.fu, cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)

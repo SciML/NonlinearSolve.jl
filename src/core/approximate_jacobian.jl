@@ -173,8 +173,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         J = initialization_cache(nothing)
         inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
         descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
-            internalnorm,
-            linsolve_kwargs, pre_inverted = Val(INV), timer)
+            internalnorm, linsolve_kwargs, pre_inverted = Val(INV), timer)
         du = get_du(descent_cache)
 
         reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)
@@ -191,8 +190,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
             trustregion_cache = __internal_init(prob, alg.trustregion, f, fu, u, p;
-                internalnorm,
-                kwargs...)
+                internalnorm, kwargs...)
             GB = :TrustRegion
         end
 
@@ -205,12 +203,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
             GB = :LineSearch
         end
 
-        update_rule_cache = __internal_init(prob,
-            alg.update_rule,
-            J,
-            fu,
-            u,
-            du;
+        update_rule_cache = __internal_init(prob, alg.update_rule, J, fu, u, du;
             internalnorm)
 
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
@@ -256,8 +249,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             elseif recompute_jacobian === nothing
                 # Standard Step
                 reinit = __internal_solve!(cache.reinit_rule_cache, cache.J, cache.fu,
-                    cache.u,
-                    cache.du)
+                    cache.u, cache.du)
                 reinit && (countable_reinit = true)
             elseif recompute_jacobian
                 reinit = true  # Force ReInitialization: Don't count towards resetting
@@ -276,9 +268,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
 
             if reinit
-                J_init = __internal_solve!(cache.initialization_cache,
-                    cache.fu,
-                    cache.u,
+                J_init = __internal_solve!(cache.initialization_cache, cache.fu, cache.u,
                     Val(true))
                 cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
@@ -318,8 +308,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu,
-                    cache.u, δu, descent_intermediates)
+                    cache.fu, cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)

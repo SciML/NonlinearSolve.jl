@@ -94,8 +94,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
             rhs_damp = fu
         end
         damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
-            jac_damp,
-            rhs_damp, u, False; kwargs...)
+            jac_damp, rhs_damp, u, False; kwargs...)
         D = damping_fn_cache(nothing)
         D isa Number && (D = D * I)
         rhs_cache = vcat(_vec(fu), _vec(u))
@@ -103,8 +102,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
         A, b = J_cache, rhs_cache
     elseif mode === :simple
         damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping, J, fu,
-            u, False;
-            kwargs...)
+            u, False; kwargs...)
         J_cache = __maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
         J_damped = __dampen_jacobian!!(J_cache, J, D)
@@ -186,10 +184,8 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-                D = __internal_solve!(cache.damping_fn_cache,
-                    cache.JᵀJ_cache,
-                    cache.Jᵀfu_cache,
-                    True)
+                D = __internal_solve!(cache.damping_fn_cache, cache.JᵀJ_cache,
+                    cache.Jᵀfu_cache, True)
                 cache.J = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
                 A = __maybe_symmetric(cache.J)
             elseif !recompute_A

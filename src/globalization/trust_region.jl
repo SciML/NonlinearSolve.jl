@@ -418,11 +418,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GenericTrustRegion
         u_cache, fu_cache, false, 0, 0, alg)
 end
 
-function __internal_solve!(cache::GenericTrustRegionSchemeCache,
-        J,
-        fu,
-        u,
-        δu,
+function __internal_solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
         descent_stats)
     T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu

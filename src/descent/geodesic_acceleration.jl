@@ -84,8 +84,7 @@ function set_acceleration!(cache::GeodesicAccelerationCache, δa, ::Val{N}) wher
 end
 
 function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J, fu,
-        u;
-        shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+        u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
         kwargs...) where {INV, N, F}
     T = promote_type(eltype(u), eltype(fu))
@@ -94,8 +93,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAccelerati
         @bb δu_ = similar(u)
     end
     descent_cache = __internal_init(prob, alg.descent, J, fu, u; shared = Val(N * 2),
-        pre_inverted,
-        linsolve_kwargs, abstol, reltol, kwargs...)
+        pre_inverted, linsolve_kwargs, abstol, reltol, kwargs...)
     @bb Jv = similar(fu)
     @bb fu_cache = copy(fu)
     @bb u_cache = similar(u)
@@ -107,12 +105,7 @@ function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return δu, true, (; a, v)
-    v, _, _ = __internal_solve!(cache.descent_cache,
-        J,
-        fu,
-        u,
-        Val(2N - 1);
-        skip_solve,
+    v, _, _ = __internal_solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve,
         kwargs...)
 
     @bb @. cache.u_cache = u + cache.h * v
@@ -121,9 +114,9 @@ function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{
     J !== nothing && @bb(cache.Jv=J × vec(v))
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
+
     a, _, _ = __internal_solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N);
-        skip_solve,
-        kwargs..., reuse_A_if_factorization = true)
+        skip_solve, kwargs..., reuse_A_if_factorization = true)
 
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
