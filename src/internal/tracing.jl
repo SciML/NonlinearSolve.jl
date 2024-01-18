@@ -187,6 +187,7 @@ function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
     trace === nothing && return nothing
 
     J = __getproperty(cache, Val(:J))
+    # TODO: fix tracing for multi-step methods where du is not aliased properly
     if J === nothing
         update_trace!(trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache),
             nothing, cache.du, α)
