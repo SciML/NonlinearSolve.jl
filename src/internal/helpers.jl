@@ -123,7 +123,8 @@ use this functionality unless it can't be avoided (like in [`LevenbergMarquardt`
 
 # Extension Algorithm Helpers
 function __test_termination_condition(termination_condition, alg)
-    termination_condition !== AbsNormTerminationMode && termination_condition !== nothing &&
+    !(termination_condition isa AbsNormTerminationMode) &&
+        termination_condition !== nothing &&
         error("`$(alg)` does not support termination conditions!")
 end
 

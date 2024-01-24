@@ -72,7 +72,7 @@ const TERMINATION_CONDITIONS = [
         ]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
-                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES(), \)
             ad isa AutoZygote && continue
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
@@ -139,7 +139,7 @@ end
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
         RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-    linear_solvers = [nothing, LUFactorization(), KrylovJL_GMRES()]
+    linear_solvers = [nothing, LUFactorization(), KrylovJL_GMRES(), \]
 
     @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in u0s,
         radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
@@ -471,7 +471,7 @@ end
         precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
-                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES())
+                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES(), \)
             ad isa AutoZygote && continue
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
