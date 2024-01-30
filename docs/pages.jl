@@ -13,6 +13,7 @@ pages = [
         "basics/nonlinear_functions.md",
         "basics/solve.md",
         "basics/nonlinear_solution.md",
+        "basics/autodiff.md",
         "basics/termination_condition.md",
         "basics/diagnostics_api.md",
         "basics/sparsity_detection.md",
