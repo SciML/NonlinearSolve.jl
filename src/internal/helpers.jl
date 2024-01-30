@@ -63,14 +63,7 @@ function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
         tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0))
-        if use_sparse_ad
-            AutoSparseForwardDiff(; tag) # Polyester Sparse Mode is not implemented yet
-        elseif is_extension_loaded(Val(:PolyesterForwardDiff)) &&
-               !(prob.u0 isa Number || prob.u0 isa SArray)
-            AutoPolyesterForwardDiff()
-        else
-            AutoForwardDiff(; tag)
-        end
+        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(; tag)
     end
     return ad
 end
