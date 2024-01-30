@@ -49,17 +49,11 @@ function reinit_cache!(cache::LinearSolverCache, args...; kwargs...)
     cache.nfactors = 0
 end
 
-@inline function LinearSolverCache(alg, linsolve, A::Number, b::Number, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
-end
-@inline function LinearSolverCache(alg, ::Nothing, A::SMatrix, b, u; kwargs...)
-    # Default handling for SArrays caching in LinearSolve is not the best. Override it here
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
-end
-@inline function LinearSolverCache(alg, linsolve, A::Diagonal, b, u; kwargs...)
-    return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
-end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
+    if (A isa Number && b isa Number) || (linsolve === nothing && A isa SMatrix) ||
+       (A isa Diagonal) || (linsolve isa typeof(\))
+        return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
+    end
     @bb b_ = copy(b)
     @bb u_ = copy(u)
     linprob = LinearProblem(A, b_; u0 = u_, kwargs...)
@@ -193,3 +187,5 @@ end
 @inline __needs_square_A(::Nothing, ::Number) = false
 @inline __needs_square_A(::Nothing, _) = false
 @inline __needs_square_A(linsolve, _) = LinearSolve.needs_square_A(linsolve)
+@inline __needs_square_A(::typeof(\), _) = false
+@inline __needs_square_A(::typeof(\), ::Number) = false  # Ambiguity Fix

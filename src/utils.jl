@@ -18,6 +18,7 @@ end
 end
 
 @inline __needs_concrete_A(::Nothing) = false
+@inline __needs_concrete_A(::typeof(\)) = true
 @inline __needs_concrete_A(linsolve) = needs_concrete_A(linsolve)
 
 @inline __maybe_mutable(x, ::AutoSparseEnzyme) = __mutable(x)
