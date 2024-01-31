@@ -54,9 +54,8 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
        (A isa Diagonal) || (linsolve isa typeof(\))
         return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
     end
-    @bb b_ = copy(b)
     @bb u_ = copy(u)
-    linprob = LinearProblem(A, b_; u0 = u_, kwargs...)
+    linprob = LinearProblem(A, b; u0 = u_, kwargs...)
 
     weight = __init_ones(u)
     if __hasfield(alg, Val(:precs))
