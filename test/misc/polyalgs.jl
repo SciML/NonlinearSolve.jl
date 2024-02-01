@@ -93,8 +93,8 @@ end
         maxiters = 10)
 end
 
-no_ad_fast = FastShortcutNonlinearPolyalg(autodiff=AutoFiniteDiff())
-no_ad_robust = RobustMultiNewton(autodiff=AutoFiniteDiff())
+no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
+no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
 no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
 @testset "[IIP] no AD" begin
     f_iip = Base.Experimental.@opaque (du, u, p) -> du .= u .* u .- p

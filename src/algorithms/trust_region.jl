@@ -26,7 +26,8 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32, autodiff = nothing, vjp_autodiff = nothing)
     descent = Dogleg(; linsolve, precs)
-    if autodiff isa Union{ADTypes.AbstractForwardMode, ADTypes.AbstractFiniteDifferencesMode}
+    if autodiff isa
+       Union{ADTypes.AbstractForwardMode, ADTypes.AbstractFiniteDifferencesMode}
         forward_ad = autodiff
     else
         forward_ad = nothing
