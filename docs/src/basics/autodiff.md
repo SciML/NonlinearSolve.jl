@@ -24,6 +24,17 @@
     If `PolyesterForwardDiff.jl` is installed and loaded, then `SimpleNonlinearSolve.jl`
     will automatically use `AutoPolyesterForwardDiff` as the default AD backend.
 
+!!! note
+    
+    The `Sparse` versions of the methods refers to automated sparsity detection. These
+    methods automatically discover the sparse Jacobian form from the function `f`. Note that
+    all methods specialize the differentiation on a sparse Jacobian if the sparse Jacobian
+    is given as `prob.f.jac_prototype` in the `NonlinearFunction` definition, and the
+    `AutoSparse` here simply refers to whether this `jac_prototype` should be generated
+    automatically. For more details, see
+    [SparseDiffTools.jl](https://github.com/JuliaDiff/SparseDiffTools.jl) and
+    [Sparsity Detection Manual Entry](@ref sparsity-detection).
+
 ## API Reference
 
 ### Finite Differencing Backends
