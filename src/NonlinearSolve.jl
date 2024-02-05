@@ -24,7 +24,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
     import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
         AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
-    import SparseDiffTools: AbstractSparsityDetection
+    import SparseDiffTools: AbstractSparsityDetection, AutoSparseEnzyme
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
 end
 
@@ -40,6 +40,7 @@ const True = Val(true)
 const False = Val(false)
 
 include("abstract_types.jl")
+include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
