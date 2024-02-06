@@ -15,6 +15,7 @@ end
         @time @safetestset "Matrix Resizing Tests" include("matrix_resizing_tests.jl")
         @time @safetestset "Least Squares Tests" include("least_squares.jl")
         @time @safetestset "23 Test Problems" include("23_test_problems.jl")
+        @time @safetestset "Simple Adjoint Tests" include("adjoint.jl")
     end
 
     if GROUP == "CUDA"
