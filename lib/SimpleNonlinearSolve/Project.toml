@@ -31,7 +31,7 @@ SimpleNonlinearSolveStaticArraysExt = "StaticArrays"
 [compat]
 ADTypes = "0.2.6"
 ArrayInterface = "7.7"
-ChainRulesCore = "1"
+ChainRulesCore = "1.18"
 ConcreteStructs = "0.2.2"
 DiffEqBase = "6.144"
 FastClosures = "0.3"
