@@ -1,6 +1,6 @@
-using NonlinearSolve, Test, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebra
+using NonlinearSolve, XUnit, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebra
 
-@testset "Basic PolyAlgorithms" begin
+@testcase "Basic PolyAlgorithms" begin
     f(u, p) = u .* u .- 2
     u0 = [1.0, 1.0]
     probN = NonlinearProblem{false}(f, u0)
@@ -8,31 +8,31 @@ using NonlinearSolve, Test, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebra
     custom_polyalg = NonlinearSolvePolyAlgorithm((Broyden(), LimitedMemoryBroyden()))
 
     # Uses the `__solve` function
-    @time solver = solve(probN; abstol = 1e-9)
+    solver = solve(probN; abstol = 1e-9)
     @test SciMLBase.successful_retcode(solver)
-    @time solver = solve(probN, RobustMultiNewton(); abstol = 1e-9)
+    solver = solve(probN, RobustMultiNewton(); abstol = 1e-9)
     @test SciMLBase.successful_retcode(solver)
-    @time solver = solve(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
+    solver = solve(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
     @test SciMLBase.successful_retcode(solver)
-    @time solver = solve(probN, custom_polyalg; abstol = 1e-9)
+    solver = solve(probN, custom_polyalg; abstol = 1e-9)
     @test SciMLBase.successful_retcode(solver)
 
     # Test the caching interface
     cache = init(probN; abstol = 1e-9)
-    @time solver = solve!(cache)
+    solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
     cache = init(probN, RobustMultiNewton(); abstol = 1e-9)
-    @time solver = solve!(cache)
+    solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
     cache = init(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
-    @time solver = solve!(cache)
+    solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
     cache = init(probN, custom_polyalg; abstol = 1e-9)
-    @time solver = solve!(cache)
+    solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
 end
 
-@testset "Testing #153 Singular Exception" begin
+@testcase "Testing #153 Singular Exception" begin
     # https://github.com/SciML/NonlinearSolve.jl/issues/153
     function f(du, u, p)
         s1, s1s2, s2 = u
@@ -48,7 +48,7 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testset "Simple Scalar Problem #187" begin
+@testcase "Simple Scalar Problem #187" begin
     # https://github.com/SciML/NonlinearSolve.jl/issues/187
     # If we use a General Nonlinear Solver the solution might go out of the domain!
     ff_interval(u, p) = 0.5 / 1.5 * NaNMath.log.(u ./ (1.0 .- u)) .- 2.0 * u .+ 1.0
@@ -68,7 +68,7 @@ end
 # Shooting Problem: Taken from BoundaryValueDiffEq.jl
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
-@testset "Complex Valued Problems: Single-Shooting" begin
+@testcase "Complex Valued Problems: Single-Shooting" begin
     function ode_func!(du, u, p, t)
         du[1] = u[2]
         du[2] = -u[1]
@@ -96,7 +96,7 @@ end
 no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
 no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
 no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
-@testset "[IIP] no AD" begin
+@testcase "[IIP] no AD" begin
     f_iip = Base.Experimental.@opaque (du, u, p) -> du .= u .* u .- p
     u0 = [0.5]
     prob = NonlinearProblem(f_iip, u0, 1.0)
@@ -107,7 +107,7 @@ no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.alg
     end
 end
 
-@testset "[OOP] no AD" begin
+@testcase "[OOP] no AD" begin
     f_oop = Base.Experimental.@opaque (u, p) -> u .* u .- p
     u0 = [0.5]
     prob = NonlinearProblem{false}(f_oop, u0, 1.0)
@@ -157,7 +157,7 @@ function f1_infeasible(u, p)
     return [a - 42.0e6, e - 1e-5, i - 1e-5]
 end
 
-@testset "[IIP] Infeasible" begin
+@testcase "[IIP] Infeasible" begin
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible!, u0)
     sol = solve(prob)
@@ -166,7 +166,7 @@ end
     @test !SciMLBase.successful_retcode(sol.retcode)
 end
 
-@testset "[OOP] Infeasible" begin
+@testcase "[OOP] Infeasible" begin
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
     sol = solve(prob)

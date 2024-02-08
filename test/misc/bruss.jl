@@ -1,4 +1,4 @@
-using NonlinearSolve, LinearAlgebra, SparseArrays, Symbolics
+using NonlinearSolve, LinearAlgebra, SparseArrays, Symbolics, XUnit
 
 const N = 32
 const xyd_brusselator = range(0, stop = 1, length = N)
@@ -38,37 +38,39 @@ function init_brusselator_2d(xyd)
     return u
 end
 
-u0 = init_brusselator_2d(xyd_brusselator)
-prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
-sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
-@test norm(sol.resid, Inf) < 1e-8
+@testcase "Brusselator" begin
+    u0 = init_brusselator_2d(xyd_brusselator)
+    prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
+    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
 
-sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseForwardDiff());
-    abstol = 1e-8)
-@test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseForwardDiff());
+        abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
 
-sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
-    abstol = 1e-8)
-@test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
+        abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
 
-du0 = copy(u0)
-jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p), du0,
-    u0)
-jac_prototype = float.(jac_sparsity)
-fill!(jac_prototype, 0)
-@test all(iszero, jac_prototype)
+    du0 = copy(u0)
+    jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p),
+        du0, u0)
+    jac_prototype = float.(jac_sparsity)
+    fill!(jac_prototype, 0)
+    @test all(iszero, jac_prototype)
 
-ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
-prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)
+    ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
+    prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)
 
-sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
-@test norm(sol.resid, Inf) < 1e-8
-@test !all(iszero, jac_prototype)
+    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
+    @test !all(iszero, jac_prototype)
 
-sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
-    abstol = 1e-8)
-@test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
+        abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
 
-cache = init(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()));
-@test maximum(cache.jac_cache.jac_cache.coloring.colorvec) == 12
-@test cache.jac_cache.autodiff isa AutoSparseForwardDiff
+    cache = init(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()))
+    @test maximum(cache.jac_cache.jac_cache.coloring.colorvec) == 12
+    @test cache.jac_cache.autodiff isa AutoSparseForwardDiff
+end

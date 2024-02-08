@@ -1,8 +1,8 @@
-using NonlinearSolve, LinearAlgebra, Test
+using NonlinearSolve, LinearAlgebra, XUnit
 import SIAMFANLEquations, FixedPointAcceleration, SpeedMapping, NLsolve
 
 # Simple Scalar Problem
-@testset "Simple Scalar Problem" begin
+@testcase "Simple Scalar Problem" begin
     f1(x, p) = cos(x) - x
     prob = NonlinearProblem(f1, 1.1)
 
@@ -19,7 +19,7 @@ import SIAMFANLEquations, FixedPointAcceleration, SpeedMapping, NLsolve
 end
 
 # Simple Vector Problem
-@testset "Simple Vector Problem" begin
+@testcase "Simple Vector Problem" begin
     f2(x, p) = cos.(x) .- x
     prob = NonlinearProblem(f2, [1.1, 1.1])
 
@@ -38,7 +38,7 @@ end
 
 # Fixed Point for Power Method
 # Taken from https://github.com/NicolasL-S/SpeedMapping.jl/blob/95951db8f8a4457093090e18802ad382db1c76da/test/runtests.jl
-@testset "Power Method" begin
+@testcase "Power Method" begin
     C = [1 2 3; 4 5 6; 7 8 9]
     A = C + C'
     B = Hermitian(ones(10) * ones(10)' .* im + Diagonal(1:10))

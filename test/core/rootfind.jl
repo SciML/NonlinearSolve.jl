@@ -1,5 +1,5 @@
 using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random, LinearAlgebra,
-    Test, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
+    XUnit, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
 function __autosparseenzyme()
     @static if Sys.iswindows()
@@ -35,20 +35,31 @@ const TERMINATION_CONDITIONS = [
     AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
 ]
 
+function benchmark_nlsolve_oop(f, u0, p = 2.0; solver, kwargs...)
+    prob = NonlinearProblem{false}(f, u0, p)
+    return solve(prob, solver; abstol = 1e-9, kwargs...)
+end
+
+function benchmark_nlsolve_iip(f, u0, p = 2.0; solver, kwargs...)
+    prob = NonlinearProblem{true}(f, u0, p)
+    return solve(prob, solver; abstol = 1e-9, kwargs...)
+end
+
+function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
+    probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
+    cache = init(probN, solver; maxiters = 100, abstol = 1e-10)
+    sols = zeros(length(p_range))
+    for (i, p) in enumerate(p_range)
+        reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
+        sol = solve!(cache)
+        sols[i] = iip ? sol.u[1] : sol.u
+    end
+    return sols
+end
+
 # --- NewtonRaphson tests ---
 
-@testset "NewtonRaphson" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, NewtonRaphson(; linesearch), abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-            linesearch = nothing)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, NewtonRaphson(; linsolve, precs, linesearch), abstol = 1e-9)
-    end
-
+@testcase "NewtonRaphson" begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
@@ -57,7 +68,8 @@ const TERMINATION_CONDITIONS = [
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            solver = NewtonRaphson(; linesearch)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -77,8 +89,8 @@ const TERMINATION_CONDITIONS = [
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
             end
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linsolve, precs = prec(u0),
-                linesearch)
+            solver = NewtonRaphson(; linsolve, precs = prec(u0), linesearch)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -89,20 +101,9 @@ const TERMINATION_CONDITIONS = [
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, NewtonRaphson(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false), NewtonRaphson()) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true), NewtonRaphson()) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
             AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0])
@@ -120,21 +121,7 @@ end
 
 # --- TrustRegion tests ---
 
-@testset "TrustRegion" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; radius_update_scheme, linsolve = nothing,
-            vjp_autodiff = nothing, kwargs...)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, TrustRegion(; radius_update_scheme, linsolve, vjp_autodiff);
-            abstol = 1e-9, kwargs...)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; radius_update_scheme, linsolve = nothing,
-            vjp_autodiff = nothing, kwargs...)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, TrustRegion(; radius_update_scheme, linsolve, vjp_autodiff);
-            abstol = 1e-9, kwargs...)
-    end
-
+@testcase "TrustRegion" begin
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
         RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
@@ -146,7 +133,8 @@ end
 
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
 
-        sol = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme, linsolve, abstol)
+        solver = TrustRegion(; radius_update_scheme, linsolve)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0; solver, abstol)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< abstol)
 
@@ -158,8 +146,8 @@ end
     @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in ([
             1.0, 1.0],), radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0; radius_update_scheme, linsolve,
-            abstol)
+        solver = TrustRegion(; radius_update_scheme, linsolve)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver, abstol)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< abstol)
 
@@ -169,20 +157,9 @@ end
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, TrustRegion(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false), TrustRegion()) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true), TrustRegion()) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (AutoSparseForwardDiff(),
             AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0]),
@@ -198,7 +175,8 @@ end
         RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
         p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        sol = benchmark_nlsolve_oop(newton_fails, u0, p; radius_update_scheme)
+        solver = TrustRegion(; radius_update_scheme)
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
     end
@@ -238,10 +216,9 @@ end
         @testset "radius_update_scheme: $(radius_update_scheme) maxiters: $(maxiters)" for radius_update_scheme in radius_update_schemes,
             maxiters in maxiterations
 
-            sol_iip = benchmark_nlsolve_iip(quadratic_f!, u0; radius_update_scheme,
-                maxiters)
-            sol_oop = benchmark_nlsolve_oop(quadratic_f, u0; radius_update_scheme,
-                maxiters)
+            solver = TrustRegion(; radius_update_scheme)
+            sol_iip = benchmark_nlsolve_iip(quadratic_f!, u0; solver, maxiters)
+            sol_oop = benchmark_nlsolve_oop(quadratic_f, u0; solver, maxiters)
             @test sol_iip.u ≈ sol_oop.u
         end
     end
@@ -256,20 +233,10 @@ end
 
 # --- LevenbergMarquardt tests ---
 
-@testset "LevenbergMarquardt" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, LevenbergMarquardt(), abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, LevenbergMarquardt(), abstol = 1e-9)
-    end
-
+@testcase "LevenbergMarquardt" begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = LevenbergMarquardt())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -279,7 +246,7 @@ end
     end
 
     @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = LevenbergMarquardt())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -299,10 +266,17 @@ end
     @testset "Newton Raphson Fails" begin
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
         p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        sol = benchmark_nlsolve_oop(newton_fails, u0, p)
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = LevenbergMarquardt())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
     end
+
+    # Iterator interface
+    p = range(0.01, 2, length = 200)
+    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false),
+        LevenbergMarquardt())) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true),
+        LevenbergMarquardt())) ≈ sqrt.(p)
 
     # Test kwargs in `LevenbergMarquardt`
     @testset "Keyword Arguments" begin
@@ -341,21 +315,11 @@ end
 
 # --- DFSane tests ---
 
-@testset "DFSane" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, DFSane(), abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, DFSane(), abstol = 1e-9)
-    end
-
+@testcase "DFSane" begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = DFSane())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -365,7 +329,7 @@ end
     end
 
     @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = DFSane())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -374,26 +338,15 @@ end
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, DFSane(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false))) ≈ sqrt.(p)
-    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true))) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false), DFSane())) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true), DFSane())) ≈ sqrt.(p)
 
     # Test that `DFSane` passes a test that `NewtonRaphson` fails on.
     @testset "Newton Raphson Fails" begin
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
         p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        sol = benchmark_nlsolve_oop(newton_fails, u0, p)
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = DFSane())
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
     end
@@ -438,27 +391,16 @@ end
 
 # --- PseudoTransient tests ---
 
-@testset "PseudoTransient" begin
+@testcase "PseudoTransient" begin
     # These are tests for NewtonRaphson so we should set alpha_initial to be high so that we
     # converge quickly
-
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; alpha_initial = 10.0)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, PseudoTransient(; alpha_initial), abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linsolve, precs,
-            alpha_initial = 10.0)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, PseudoTransient(; linsolve, precs, alpha_initial), abstol = 1e-9)
-    end
-
     @testset "PT: alpha_initial = 10.0 PT AD: $(ad)" for ad in (AutoFiniteDiff(),
         AutoZygote())
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0)
+            solver = PseudoTransient(; alpha_initial = 10.0)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver)
             # Failing by a margin for some
             # @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
@@ -476,32 +418,22 @@ end
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
             end
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linsolve, precs = prec)
+            solver = PseudoTransient(; alpha_initial = 10.0, linsolve, precs = prec)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
-                PseudoTransient(; alpha_initial = 10.0, linsolve, precs = prec),
+            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), solver;
                 abstol = 1e-9)
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
 
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, PseudoTransient(alpha_initial = 10.0); maxiters = 100,
-            abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p, alpha = 10.0)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false),
+        PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true),
+        PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
             AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0])
@@ -521,21 +453,7 @@ end
 
 # --- Broyden tests ---
 
-@testset "Broyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
-            init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, Broyden(; linesearch, init_jacobian, update_rule);
-            abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
-            init_jacobian = Val(:identity), update_rule = Val(:good_broyden))
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, Broyden(; linesearch, init_jacobian, update_rule);
-            abstol = 1e-9)
-    end
-
+@testcase "Broyden" begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
@@ -547,8 +465,8 @@ end
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch, update_rule,
-                init_jacobian)
+            solver = Broyden(; linesearch, init_jacobian, update_rule)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -559,8 +477,8 @@ end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch, update_rule,
-                init_jacobian)
+            solver = Broyden(; linesearch, init_jacobian, update_rule)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -571,20 +489,9 @@ end
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, Broyden(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false), Broyden()) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true), Broyden()) ≈ sqrt.(p)
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
@@ -596,19 +503,7 @@ end
 
 # --- Klement tests ---
 
-@testset "Klement" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
-            init_jacobian = Val(:identity))
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, Klement(; linesearch, init_jacobian), abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
-            init_jacobian = Val(:identity))
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, Klement(; linesearch, init_jacobian), abstol = 1e-9)
-    end
-
+@testcase "Klement" begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote()),
@@ -618,7 +513,8 @@ end
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch, init_jacobian)
+            solver = Klement(; linesearch, init_jacobian)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver)
             # Some are failing by a margin
             # @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 3e-9)
@@ -630,7 +526,8 @@ end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch, init_jacobian)
+            solver = Klement(; linesearch, init_jacobian)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -641,20 +538,9 @@ end
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, Klement(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false), Klement()) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true), Klement()) ≈ sqrt.(p)
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
@@ -666,21 +552,7 @@ end
 
 # --- LimitedMemoryBroyden tests ---
 
-@testset "LimitedMemoryBroyden" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; linesearch = nothing,
-            termination_condition = AbsNormTerminationMode())
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,
-            termination_condition)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0; linesearch = nothing,
-            termination_condition = AbsNormTerminationMode())
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, LimitedMemoryBroyden(; linesearch); abstol = 1e-9,
-            termination_condition)
-    end
-
+@testcase "LimitedMemoryBroyden" begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
@@ -690,7 +562,8 @@ end
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; linesearch)
+            solver = LimitedMemoryBroyden(; linesearch)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -701,7 +574,8 @@ end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; linesearch)
+            solver = LimitedMemoryBroyden(; linesearch)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
@@ -712,20 +586,11 @@ end
     end
 
     # Iterator interface
-    function nlprob_iterator_interface(f, p_range, ::Val{iip}) where {iip}
-        probN = NonlinearProblem{iip}(f, iip ? [0.5] : 0.5, p_range[begin])
-        cache = init(probN, LimitedMemoryBroyden(); maxiters = 100, abstol = 1e-10)
-        sols = zeros(length(p_range))
-        for (i, p) in enumerate(p_range)
-            reinit!(cache, iip ? [cache.u[1]] : cache.u; p = p)
-            sol = solve!(cache)
-            sols[i] = iip ? sol.u[1] : sol.u
-        end
-        return sols
-    end
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false))≈sqrt.(p) atol=1e-2
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true))≈sqrt.(p) atol=1e-2
+    @test nlprob_iterator_interface(quadratic_f, p, Val(false),
+        LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
+    @test nlprob_iterator_interface(quadratic_f!, p, Val(true),
+        LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
@@ -737,7 +602,7 @@ end
 end
 
 # Miscellaneous Tests
-@testset "Custom JVP" begin
+@testcase "Custom JVP" begin
     function F(u::Vector{Float64}, p::Vector{Float64})
         Δ = Tridiagonal(-ones(99), 2 * ones(100), -ones(99))
         return u + 0.1 * u .* Δ * u - p

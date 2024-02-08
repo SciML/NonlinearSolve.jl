@@ -1,5 +1,5 @@
 using NonlinearSolve,
-    LinearAlgebra, Test, StableRNGs, StaticArrays, Random, ForwardDiff, Zygote
+    LinearAlgebra, XUnit, StableRNGs, StaticArrays, Random, ForwardDiff, Zygote
 import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
@@ -32,10 +32,12 @@ nlls_problems = [prob_oop, prob_iip]
 solvers = [LeastSquaresOptimJL(alg; autodiff) for alg in (:lm, :dogleg),
 autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff(), :central, :forward)]
 
-for prob in nlls_problems, solver in solvers
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test SciMLBase.successful_retcode(sol)
-    @test norm(sol.resid, Inf) < 1e-6
+@testcase "LeastSquaresOptim.jl" begin
+    for prob in nlls_problems, solver in solvers
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        @test SciMLBase.successful_retcode(sol)
+        @test norm(sol.resid, Inf) < 1e-6
+    end
 end
 
 function jac!(J, θ, p)
@@ -57,9 +59,11 @@ probs = [
 solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
 push!(solvers, CMINPACK())
 
-for solver in solvers, prob in probs
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test maximum(abs, sol.resid) < 1e-6
+@testcase "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" begin
+    for solver in solvers, prob in probs
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        @test maximum(abs, sol.resid) < 1e-6
+    end
 end
 
 probs = [
@@ -75,9 +79,11 @@ solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)
 autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
 append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
 
-for solver in solvers, prob in probs
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-6
+@testcase "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" begin
+    for solver in solvers, prob in probs
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        @test norm(sol.resid, Inf) < 1e-6
+    end
 end
 
 # Static Arrays -- Fast Levenberg-Marquardt
@@ -93,5 +99,7 @@ end
 θ_init_sa = SVector{4}(θ_init)
 prob_sa = NonlinearLeastSquaresProblem{false}(loss_function_sa, θ_init_sa, x)
 
-@time sol = solve(prob_sa, FastLevenbergMarquardtJL())
-@test norm(sol.resid, Inf) < 1e-6
+@testcase "FastLevenbergMarquardt.jl + StaticArrays" begin
+    sol = solve(prob_sa, FastLevenbergMarquardtJL())
+    @test norm(sol.resid, Inf) < 1e-6
+end

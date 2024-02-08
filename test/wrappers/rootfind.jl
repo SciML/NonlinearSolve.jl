@@ -1,7 +1,7 @@
-using NonlinearSolve, LinearAlgebra, SciMLBase, Test
+using NonlinearSolve, LinearAlgebra, SciMLBase, XUnit
 import NLsolve, SIAMFANLEquations, MINPACK
 
-@testset "Steady State Problems" begin
+@testcase "Steady State Problems" begin
     # IIP Tests
     function f_iip(du, u, p, t)
         du[1] = 2 - 2u[1]
@@ -28,7 +28,7 @@ import NLsolve, SIAMFANLEquations, MINPACK
     end
 end
 
-@testset "Nonlinear Root Finding Problems" begin
+@testcase "Nonlinear Root Finding Problems" begin
     # IIP Tests
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]
@@ -91,17 +91,14 @@ end
     @test maximum(abs, sol.resid) < 1e-6
 
     # Custom Jacobian
-    problem(x, A) = x .^ 2 - A
-    problemJacobian(x, A) = diagm(2 .* x)
-
-    f!(F, u, p) = (F[1:152] = problem(u, p))
-    j!(J, u, p) = (J[1:152, 1:152] = problemJacobian(u, p))
+    f_custom_jac!(F, u, p) = (F[1:152] = u .^ 2 .- p)
+    j_custom_jac!(J, u, p) = (J[1:152, 1:152] = diagm(2 .* u))
 
     init = ones(152)
     A = ones(152)
     A[6] = 0.8
 
-    f = NonlinearFunction(f!; jac = j!)
+    f = NonlinearFunction(f_custom_jac!; jac = j_custom_jac!)
     p = A
 
     ProbN = NonlinearProblem(f, init, p)

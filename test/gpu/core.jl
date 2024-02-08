@@ -1,4 +1,4 @@
-using CUDA, NonlinearSolve, LinearSolve, StableRNGs, Test
+using CUDA, NonlinearSolve, LinearSolve, StableRNGs, XUnit
 
 CUDA.allowscalar(false)
 
@@ -18,7 +18,7 @@ SOLVERS = (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
     TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
     nothing)
 
-@testset "[IIP] GPU Solvers" begin
+@testcase "[IIP] GPU Solvers" begin
     for alg in SOLVERS
         @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
     end
@@ -28,7 +28,7 @@ linear_f(u, p) = A * u .+ b
 
 prob = NonlinearProblem{false}(linear_f, u0)
 
-@testset "[OOP] GPU Solvers" begin
+@testcase "[OOP] GPU Solvers" begin
     for alg in SOLVERS
         @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
     end

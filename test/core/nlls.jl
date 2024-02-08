@@ -1,5 +1,5 @@
 using NonlinearSolve,
-    LinearSolve, LinearAlgebra, Test, StableRNGs, Random, ForwardDiff, Zygote
+    LinearSolve, LinearAlgebra, XUnit, StableRNGs, Random, ForwardDiff, Zygote
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -52,10 +52,12 @@ for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Noc
     push!(solvers, TrustRegion(; radius_update_scheme))
 end
 
-for prob in nlls_problems, solver in solvers
-    @time sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test SciMLBase.successful_retcode(sol)
-    @test maximum(abs, sol.resid) < 1e-6
+@testcase "General NLLS Solvers" begin
+    for prob in nlls_problems, solver in solvers
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        @test SciMLBase.successful_retcode(sol)
+        @test maximum(abs, sol.resid) < 1e-6
+    end
 end
 
 # This is just for testing that we can use vjp provided by the user
@@ -79,7 +81,9 @@ probs = [
             resid_prototype = zero(y_target), vjp = vjp), θ_init, x),
 ]
 
-for prob in probs, solver in solvers
-    sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-    @test maximum(abs, sol.resid) < 1e-6
+@testcase "Custom VJP" begin
+    for prob in probs, solver in solvers
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        @test maximum(abs, sol.resid) < 1e-6
+    end
 end

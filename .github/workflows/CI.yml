@@ -18,13 +18,9 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - RootFinding
-          - NLLSSolvers
-          - 23TestProblems
-          - Wrappers
-          - Miscellaneous
+          - Core
         version:
-          - '1.10'
+          - '1'
         os:
           - ubuntu-latest
           - macos-latest
@@ -48,7 +44,7 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         env:
           GROUP: ${{ matrix.group }}
-          JULIA_NUM_THREADS: 11
+          JULIA_NUM_THREADS: 8
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,ext
