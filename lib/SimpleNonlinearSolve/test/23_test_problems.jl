@@ -49,11 +49,13 @@ end
     end
 
     @testcase "SimpleTrustRegion 23 Test Problems" begin
-        alg_ops = (SimpleTrustRegion(),)
+        alg_ops = (SimpleTrustRegion(),
+            SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
 
         # dictionary with indices of test problems where method does not converge to small residual
         broken_tests = Dict(alg => Int[] for alg in alg_ops)
-        broken_tests[alg_ops[1]] = [3, 6, 15, 16, 21]
+        broken_tests[alg_ops[1]] = [3, 15, 16, 21]
+        broken_tests[alg_ops[2]] = [15, 16]
 
         test_on_library(problems, dicts, alg_ops, broken_tests)
     end

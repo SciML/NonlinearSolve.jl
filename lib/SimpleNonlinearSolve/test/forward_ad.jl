@@ -36,7 +36,8 @@ __compatible(::AbstractSimpleNonlinearSolveAlgorithm, ::Val{:oop}) = true
 __compatible(::SimpleHalley, ::Val{:iip}) = false
 
 @testcase "ForwardDiff.jl Integration: $(alg)" for alg in (SimpleNewtonRaphson(),
-    SimpleTrustRegion(), SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
+    SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+    SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
     us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
     @testset "Scalar AD" begin
