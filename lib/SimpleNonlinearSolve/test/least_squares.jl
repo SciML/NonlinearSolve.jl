@@ -1,4 +1,4 @@
-using SimpleNonlinearSolve, LinearAlgebra, Test
+using SimpleNonlinearSolve, LinearAlgebra, XUnit
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 
@@ -14,7 +14,8 @@ end
 θ_init = θ_true .+ 0.1
 prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 
-for solver in [SimpleNewtonRaphson(AutoForwardDiff()), SimpleGaussNewton(AutoForwardDiff()),
+@testcase "Solver: $(solver)" for solver in [SimpleNewtonRaphson(AutoForwardDiff()),
+    SimpleGaussNewton(AutoForwardDiff()),
     SimpleNewtonRaphson(AutoFiniteDiff()), SimpleGaussNewton(AutoFiniteDiff())]
     sol = solve(prob_oop, solver)
     @test norm(sol.resid) < 1e-12

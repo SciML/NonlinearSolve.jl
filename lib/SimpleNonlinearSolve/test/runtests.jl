@@ -1,4 +1,4 @@
-using Pkg, SafeTestsets, Test
+using Pkg, SafeTestsets, XUnit
 
 const GROUP = get(ENV, "GROUP", "All")
 
@@ -8,18 +8,18 @@ function activate_env(env)
     Pkg.instantiate()
 end
 
-@time @testset "SimpleNonlinearSolve.jl" begin
+@testset runner=ParallelTestRunner() "SimpleNonlinearSolve.jl" begin
     if GROUP == "All" || GROUP == "Core"
-        @time @safetestset "Basic Tests" include("basictests.jl")
-        @time @safetestset "Forward AD" include("forward_ad.jl")
-        @time @safetestset "Matrix Resizing Tests" include("matrix_resizing_tests.jl")
-        @time @safetestset "Least Squares Tests" include("least_squares.jl")
-        @time @safetestset "23 Test Problems" include("23_test_problems.jl")
-        @time @safetestset "Simple Adjoint Tests" include("adjoint.jl")
+        @safetestset "Basic Tests" include("basictests.jl")
+        @safetestset "Forward AD" include("forward_ad.jl")
+        @safetestset "Matrix Resizing Tests" include("matrix_resizing_tests.jl")
+        @safetestset "Least Squares Tests" include("least_squares.jl")
+        @safetestset "23 Test Problems" include("23_test_problems.jl")
+        @safetestset "Simple Adjoint Tests" include("adjoint.jl")
     end
 
     if GROUP == "CUDA"
         activate_env("cuda")
-        @time @safetestset "CUDA Tests" include("cuda.jl")
+        @safetestset "CUDA Tests" include("cuda.jl")
     end
 end

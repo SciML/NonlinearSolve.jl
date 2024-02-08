@@ -1,5 +1,5 @@
 using AllocCheck, LinearSolve, SimpleNonlinearSolve, StaticArrays, Random,
-    LinearAlgebra, Test, ForwardDiff, DiffEqBase
+    LinearAlgebra, XUnit, ForwardDiff, DiffEqBase
 import PolyesterForwardDiff
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
@@ -25,33 +25,29 @@ const TERMINATION_CONDITIONS = [
     AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
 ]
 
+function benchmark_nlsolve_oop(f::F, u0, p = 2.0; solver) where {F}
+    prob = NonlinearProblem{false}(f, u0, p)
+    return solve(prob, solver; abstol = 1e-9)
+end
+function benchmark_nlsolve_iip(f!::F, u0, p = 2.0; solver) where {F}
+    prob = NonlinearProblem{true}(f!, u0, p)
+    return solve(prob, solver; abstol = 1e-9)
+end
+
 # --- SimpleNewtonRaphson tests ---
 
-@testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion)
-    # Eval else the alg is type unstable
-    @eval begin
-        function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = nothing)
-            prob = NonlinearProblem{false}(f, u0, p)
-            return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
-        end
-
-        function benchmark_nlsolve_iip(f, u0, p = 2.0; autodiff = nothing)
-            prob = NonlinearProblem{true}(f, u0, p)
-            return solve(prob, $(alg)(; autodiff), abstol = 1e-9)
-        end
-    end
-
+@testcase "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion)
     @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
         AutoForwardDiff(), AutoPolyesterForwardDiff())
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
             u0 isa SVector && autodiff isa AutoPolyesterForwardDiff && continue
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; autodiff)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff))
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
 
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; autodiff)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = alg(; autodiff))
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
@@ -67,16 +63,11 @@ end
 
 # --- SimpleHalley tests ---
 
-@testset "SimpleHalley" begin
-    function benchmark_nlsolve_oop(f, u0, p = 2.0; autodiff = nothing)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, SimpleHalley(; autodiff), abstol = 1e-9)
-    end
-
+@testcase "SimpleHalley" begin
     @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
         AutoForwardDiff())
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; autodiff)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = SimpleHalley(; autodiff))
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
@@ -92,27 +83,17 @@ end
 
 # --- SimpleBroyden / SimpleKlement / SimpleLimitedMemoryBroyden tests ---
 
-@testset "$(_nameof(alg))" for alg in [SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
+@testcase "$(_nameof(alg))" for alg in [SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
     SimpleLimitedMemoryBroyden(), SimpleBroyden(; linesearch = Val(true)),
     SimpleLimitedMemoryBroyden(; linesearch = Val(true))]
-    function benchmark_nlsolve_oop(f, u0, p = 2.0)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, alg, abstol = 1e-9)
-    end
-
-    function benchmark_nlsolve_iip(f, u0, p = 2.0)
-        prob = NonlinearProblem{true}(f, u0, p)
-        return solve(prob, alg, abstol = 1e-9)
-    end
-
     @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-        sol = benchmark_nlsolve_oop(quadratic_f, u0)
+        sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
     end
 
     @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0)
+        sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
     end
@@ -126,16 +107,11 @@ end
 end
 
 @testset "Newton Fails" begin
-    function benchmark_nlsolve_oop(f, u0, p, alg)
-        prob = NonlinearProblem{false}(f, u0, p)
-        return solve(prob, alg; abstol = 1e-9)
-    end
-
     u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
     p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    for alg in (SimpleDFSane(), SimpleTrustRegion(), SimpleHalley())
-        sol = benchmark_nlsolve_oop(newton_fails, u0, p, alg)
+    @testcase "$(alg)" for alg in (SimpleDFSane(), SimpleTrustRegion(), SimpleHalley())
+        sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
     end
@@ -144,7 +120,7 @@ end
 # --- Allocation Checks ---
 
 ## SimpleDFSane needs to allocate a history vector
-@testset "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
+@testcase "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
     SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
     SimpleTrustRegion(), SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
     SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
@@ -173,7 +149,7 @@ end
 
 # --- Interval Nonlinear Problems ---
 
-@testset "Interval Nonlinear Problem: $(alg)" for alg in (Bisection(), Falsi(), Ridder(),
+@testcase "Interval Nonlinear Problem: $(alg)" for alg in (Bisection(), Falsi(), Ridder(),
     Brent(), ITP(), Alefeld())
     tspan = (1.0, 20.0)
 
@@ -215,7 +191,8 @@ end
     end
 end
 
-@testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Bisection(), Falsi(), ITP())
+@testcase "Tolerance Tests Interval Methods: $(alg)" for alg in (Bisection(), Falsi(),
+    ITP())
     tspan = (1.0, 20.0)
     probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
     tols = [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
@@ -228,7 +205,7 @@ end
     end
 end
 
-@testset "Tolerance Tests Interval Methods: $(alg)" for alg in (Ridder(), Brent())
+@testcase "Tolerance Tests Interval Methods: $(alg)" for alg in (Ridder(), Brent())
     tspan = (1.0, 20.0)
     probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
     tols = [0.1] # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it converges with max precision to the solution
@@ -241,7 +218,7 @@ end
     end
 end
 
-@testset "Flipped Signs and Reversed Tspan: $(alg)" for alg in (Alefeld(), Bisection(),
+@testcase "Flipped Signs and Reversed Tspan: $(alg)" for alg in (Alefeld(), Bisection(),
     Falsi(), Brent(), ITP(), Ridder())
     f1(u, p) = u * u - p
     f2(u, p) = p - u * u

@@ -1,4 +1,4 @@
-using ForwardDiff, SimpleNonlinearSolve, StaticArrays, Test, LinearAlgebra
+using ForwardDiff, SimpleNonlinearSolve, StaticArrays, XUnit, LinearAlgebra
 import SimpleNonlinearSolve: AbstractSimpleNonlinearSolveAlgorithm
 
 test_f!(du, u, p) = (@. du = u^2 - p)
@@ -35,7 +35,7 @@ __compatible(::AbstractSimpleNonlinearSolveAlgorithm, ::Val{:iip}) = true
 __compatible(::AbstractSimpleNonlinearSolveAlgorithm, ::Val{:oop}) = true
 __compatible(::SimpleHalley, ::Val{:iip}) = false
 
-@testset "ForwardDiff.jl Integration: $(alg)" for alg in (SimpleNewtonRaphson(),
+@testcase "ForwardDiff.jl Integration: $(alg)" for alg in (SimpleNewtonRaphson(),
     SimpleTrustRegion(), SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
     us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
