@@ -214,12 +214,12 @@ function compute_jacobian_and_hessian(ad::AutoFiniteDiff, prob, fx, x)
     end
 end
 
-__init_identity_jacobian(u::Number, _) = one(u)
+__init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
 __init_identity_jacobian!!(J::Number) = one(J)
-function __init_identity_jacobian(u, fu)
+function __init_identity_jacobian(u, fu, α = true)
     J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= one(eltype(J))
+    J[diagind(J)] .= eltype(J)(α)
     return J
 end
 function __init_identity_jacobian!!(J)
@@ -231,9 +231,9 @@ function __init_identity_jacobian!!(J::AbstractVector)
     fill!(J, one(eltype(J)))
     return J
 end
-function __init_identity_jacobian(u::StaticArray, fu)
+function __init_identity_jacobian(u::StaticArray, fu, α = true)
     S1, S2 = length(fu), length(u)
-    J = SMatrix{S1, S2, eltype(u)}(I)
+    J = SMatrix{S1, S2, eltype(u)}(I * α)
     return J
 end
 function __init_identity_jacobian!!(J::SMatrix{S1, S2}) where {S1, S2}
@@ -241,20 +241,6 @@ function __init_identity_jacobian!!(J::SMatrix{S1, S2}) where {S1, S2}
 end
 function __init_identity_jacobian!!(J::SVector{S1}) where {S1}
     return ones(SVector{S1, eltype(J)})
-end
-
-function __init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
-        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
-    T = promote_type(T1, T2)
-    fuSize, uSize = Size(fu), Size(u)
-    Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
-    U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
-    return U, Vᵀ
-end
-function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
-    Vᵀ = similar(u, threshold, length(u))
-    U = similar(u, length(fu), threshold)
-    return U, Vᵀ
 end
 
 @inline _vec(v) = vec(v)
@@ -296,8 +282,8 @@ function init_termination_cache(abstol, reltol, du, u, ::Nothing)
 end
 function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
-    abstol !== nothing && (abstol = T(abstol))
-    reltol !== nothing && (reltol = T(reltol))
+    abstol = __get_tolerance(u, abstol, T)
+    reltol = __get_tolerance(u, reltol, T)
     tc_cache = init(du, u, tc; abstol, reltol)
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
@@ -380,4 +366,14 @@ end
     else
         return AutoFiniteDiff()
     end
+end
+
+@inline __reshape(x::Number, args...) = x
+@inline __reshape(x::AbstractArray, args...) = reshape(x, args...)
+
+# Override cases which might be used in a kernel launch
+__get_tolerance(x, η, ::Type{T}) where {T} = DiffEqBase._get_tolerance(η, T)
+function __get_tolerance(x::Union{SArray, Number}, ::Nothing, ::Type{T}) where {T}
+    η = real(oneunit(T)) * (eps(real(one(T))))^(real(T)(0.8))
+    return T(η)
 end

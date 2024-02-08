@@ -3,17 +3,16 @@ module SimpleNonlinearSolve
 import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
 
 @recompile_invalidations begin
-    using ADTypes,
-        ArrayInterface, ConcreteStructs, DiffEqBase, Reexport, LinearAlgebra, SciMLBase
+    using ADTypes, ArrayInterface, ConcreteStructs, DiffEqBase, FastClosures, FiniteDiff,
+        ForwardDiff, Reexport, LinearAlgebra, SciMLBase
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
         AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
         NonlinearSafeTerminationReturnCode, get_termination_mode,
-        NONLINEARSOLVE_DEFAULT_NORM, _get_tolerance
-    using FiniteDiff, ForwardDiff
+        NONLINEARSOLVE_DEFAULT_NORM
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
-    import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace
+    import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val
     import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, MMatrix, Size
 end
 
@@ -26,6 +25,7 @@ abstract type AbstractNewtonAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm e
 @inline __is_extension_loaded(::Val) = false
 
 include("utils.jl")
+include("linesearch.jl")
 
 ## Nonlinear Solvers
 include("nlsolve/raphson.jl")
@@ -50,13 +50,27 @@ include("ad.jl")
 ## Default algorithm
 
 # Set the default bracketing method to ITP
-function SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...)
-    return solve(prob, ITP(); kwargs...)
+SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...) = solve(prob, ITP(); kwargs...)
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing, args...; kwargs...)
+    return solve(prob, ITP(), args...; kwargs...)
 end
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing,
-        args...; kwargs...)
-    return solve(prob, ITP(), args...; kwargs...)
+# By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
+function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+    if sensealg === nothing && haskey(prob.kwargs, :sensealg)
+        sensealg = prob.kwargs[:sensealg]
+    end
+    new_u0 = u0 !== nothing ? u0 : prob.u0
+    new_p = p !== nothing ? p : prob.p
+    return __internal_solve_up(prob, sensealg, new_u0, u0 === nothing, new_p, p === nothing,
+        alg, args...; kwargs...)
+end
+
+function __internal_solve_up(_prob::NonlinearProblem, sensealg, u0, u0_changed, p,
+        p_changed, alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...)
+    prob = u0_changed || p_changed ? remake(_prob; u0, p) : _prob
+    return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
 @setup_workload begin

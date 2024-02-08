@@ -1,13 +1,14 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "1.1.0"
+version = "1.3.2"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
+FastClosures = "9aa1b823-49e4-5ca5-8b0f-3971ec8bab6a"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -17,23 +18,30 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
-[extensions]
-SimpleNonlinearSolvePolyesterForwardDiffExt = "PolyesterForwardDiff"
-
 [weakdeps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[extensions]
+SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
+SimpleNonlinearSolvePolyesterForwardDiffExt = "PolyesterForwardDiff"
+SimpleNonlinearSolveStaticArraysExt = "StaticArrays"
 
 [compat]
 ADTypes = "0.2.6"
 ArrayInterface = "7.7"
+ChainRulesCore = "1"
 ConcreteStructs = "0.2.2"
 DiffEqBase = "6.144"
+FastClosures = "0.3"
 FiniteDiff = "2.21"
 ForwardDiff = "0.10.36"
 LinearAlgebra = "1.9"
 MaybeInplace = "0.1.1"
 PrecompileTools = "1.2"
 Reexport = "1.2"
-SciMLBase = "2.11"
+SciMLBase = "2.23"
+StaticArrays = "1"
 StaticArraysCore = "1.4.2"
-julia = "1.9"
+julia = "1.10"
