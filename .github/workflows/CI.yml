@@ -20,7 +20,7 @@ jobs:
         group:
           - Core
         version:
-          - '1'
+          - "1"
         os:
           - ubuntu-latest
           - macos-latest
@@ -53,3 +53,6 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: true
