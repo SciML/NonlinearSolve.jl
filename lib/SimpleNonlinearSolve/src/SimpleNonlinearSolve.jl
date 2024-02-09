@@ -53,7 +53,7 @@ include("ad.jl")
 # Set the default bracketing method to ITP
 SciMLBase.solve(prob::IntervalNonlinearProblem; kwargs...) = solve(prob, ITP(); kwargs...)
 function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing, args...; kwargs...)
-    return solve(prob, ITP(), args...; kwargs...)
+    return solve(prob, ITP(), args...; prob.kwargs..., kwargs...)
 end
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
@@ -67,7 +67,7 @@ function SciMLBase.solve(
     new_p = p !== nothing ? p : prob.p
     return __internal_solve_up(
         prob, sensealg, new_u0, u0 === nothing, new_p, p === nothing,
-        alg, args...; kwargs...)
+        alg, args...; prob.kwargs..., kwargs...)
 end
 
 function __internal_solve_up(_prob::NonlinearProblem, sensealg, u0, u0_changed, p,
