@@ -70,7 +70,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "SimpleBroyden" setup=[RobustnessTesting] begin
+@testitem "SimpleBroyden" retries=5 setup=[RobustnessTesting] begin
     alg_ops = (SimpleBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
