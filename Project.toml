@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.5.3"
+version = "3.5.4"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -84,6 +84,7 @@ PrecompileTools = "1.2"
 Preferences = "1.4"
 Printf = "1.10"
 Random = "1.91"
+ReTestItems = "1"
 RecursiveArrayTools = "3.4"
 Reexport = "1.2"
 SIAMFANLEquations = "1.0.1"
@@ -101,7 +102,6 @@ Symbolics = "5.13"
 Test = "1.10"
 TimerOutputs = "0.5.23"
 Zygote = "0.6.67"
-XUnit = "1.1"
 julia = "1.10"
 
 [extras]
@@ -123,6 +123,8 @@ NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
@@ -132,8 +134,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-XUnit = "3e3c03f2-1a94-11e9-2981-050a4ca824ab"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim", "FastLevenbergMarquardt", "NaNMath", "BandedMatrices", "DiffEqBase", "StableRNGs", "MINPACK", "NLsolve", "OrdinaryDiffEq", "SpeedMapping", "FixedPointAcceleration", "SIAMFANLEquations", "Sundials", "XUnit"]
+test = ["Aqua", "Enzyme", "BenchmarkTools", "SafeTestsets", "Pkg", "Test", "ForwardDiff", "StaticArrays", "Symbolics", "LinearSolve", "Random", "LinearAlgebra", "Zygote", "SparseDiffTools", "NonlinearProblemLibrary", "LeastSquaresOptim", "FastLevenbergMarquardt", "NaNMath", "BandedMatrices", "DiffEqBase", "StableRNGs", "MINPACK", "NLsolve", "OrdinaryDiffEq", "SpeedMapping", "FixedPointAcceleration", "SIAMFANLEquations", "Sundials", "ReTestItems", "Reexport"]

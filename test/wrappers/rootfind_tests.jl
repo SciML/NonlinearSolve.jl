@@ -1,7 +1,9 @@
-using NonlinearSolve, LinearAlgebra, SciMLBase, XUnit
-import NLsolve, SIAMFANLEquations, MINPACK
+@testsetup module WrapperRootfindImports
+using Reexport
+@reexport using LinearAlgebra, NLsolve, SIAMFANLEquations, MINPACK
+end
 
-@testcase "Steady State Problems" begin
+@testitem "Steady State Problems" setup=[WrapperRootfindImports] begin
     # IIP Tests
     function f_iip(du, u, p, t)
         du[1] = 2 - 2u[1]
@@ -28,7 +30,7 @@ import NLsolve, SIAMFANLEquations, MINPACK
     end
 end
 
-@testcase "Nonlinear Root Finding Problems" begin
+@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] begin
     # IIP Tests
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]

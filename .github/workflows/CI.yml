@@ -44,7 +44,9 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         env:
           GROUP: ${{ matrix.group }}
-          JULIA_NUM_THREADS: 8
+          JULIA_NUM_THREADS: 11
+          RETESTITEMS_NWORKERS: 4
+          RETESTITEMS_NWORKER_THREADS: 2
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,ext

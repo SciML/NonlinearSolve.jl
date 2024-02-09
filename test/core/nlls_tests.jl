@@ -1,5 +1,7 @@
-using NonlinearSolve,
-    LinearSolve, LinearAlgebra, XUnit, StableRNGs, Random, ForwardDiff, Zygote
+@testsetup module CoreNLLSTesting
+using Reexport
+@reexport using NonlinearSolve,
+    LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff, Zygote
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -22,11 +24,6 @@ function loss_function(resid, θ, p)
 end
 
 θ_init = θ_true .+ randn!(StableRNG(0), similar(θ_true)) * 0.1
-prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
-prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
-        resid_prototype = zero(y_target)), θ_init, x)
-
-nlls_problems = [prob_oop, prob_iip]
 
 solvers = []
 for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
@@ -52,7 +49,16 @@ for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.Noc
     push!(solvers, TrustRegion(; radius_update_scheme))
 end
 
-@testcase "General NLLS Solvers" begin
+export solvers, θ_init, x, y_target, true_function, θ_true, loss_function
+end
+
+@testitem "General NLLS Solvers" setup=[CoreNLLSTesting] begin
+    prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
+    prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
+            resid_prototype = zero(y_target)), θ_init, x)
+
+    nlls_problems = [prob_oop, prob_iip]
+
     for prob in nlls_problems, solver in solvers
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
         @test SciMLBase.successful_retcode(sol)
@@ -60,28 +66,28 @@ end
     end
 end
 
-# This is just for testing that we can use vjp provided by the user
-function vjp(v, θ, p)
-    resid = zeros(length(p))
-    J = ForwardDiff.jacobian((resid, θ) -> loss_function(resid, θ, p), resid, θ)
-    return vec(v' * J)
-end
+@testitem "Custom VJP" setup=[CoreNLLSTesting] begin
+    # This is just for testing that we can use vjp provided by the user
+    function vjp(v, θ, p)
+        resid = zeros(length(p))
+        J = ForwardDiff.jacobian((resid, θ) -> loss_function(resid, θ, p), resid, θ)
+        return vec(v' * J)
+    end
 
-function vjp!(Jv, v, θ, p)
-    resid = zeros(length(p))
-    J = ForwardDiff.jacobian((resid, θ) -> loss_function(resid, θ, p), resid, θ)
-    mul!(vec(Jv), transpose(J), v)
-    return nothing
-end
+    function vjp!(Jv, v, θ, p)
+        resid = zeros(length(p))
+        J = ForwardDiff.jacobian((resid, θ) -> loss_function(resid, θ, p), resid, θ)
+        mul!(vec(Jv), transpose(J), v)
+        return nothing
+    end
 
-probs = [
-    NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-            resid_prototype = zero(y_target), vjp = vjp!), θ_init, x),
-    NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-            resid_prototype = zero(y_target), vjp = vjp), θ_init, x),
-]
+    probs = [
+        NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
+                resid_prototype = zero(y_target), vjp = vjp!), θ_init, x),
+        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
+                resid_prototype = zero(y_target), vjp = vjp), θ_init, x),
+    ]
 
-@testcase "Custom VJP" begin
     for prob in probs, solver in solvers
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
         @test maximum(abs, sol.resid) < 1e-6

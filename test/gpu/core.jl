@@ -1,35 +1,38 @@
-using CUDA, NonlinearSolve, LinearSolve, StableRNGs, XUnit
+@testitem "CUDA Tests" begin
+    using CUDA, NonlinearSolve, LinearSolve, StableRNGs
 
-CUDA.allowscalar(false)
+    CUDA.allowscalar(false)
 
-A = cu(rand(StableRNG(0), 4, 4))
-u0 = cu(rand(StableRNG(0), 4))
-b = cu(rand(StableRNG(0), 4))
+    A = cu(rand(StableRNG(0), 4, 4))
+    u0 = cu(rand(StableRNG(0), 4))
+    b = cu(rand(StableRNG(0), 4))
 
-linear_f(du, u, p) = (du .= A * u .+ b)
+    linear_f(du, u, p) = (du .= A * u .+ b)
 
-prob = NonlinearProblem(linear_f, u0)
+    prob = NonlinearProblem(linear_f, u0)
 
-SOLVERS = (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-    LevenbergMarquardt(; linsolve = KrylovJL_GMRES()), PseudoTransient(), Klement(),
-    Broyden(; linesearch = LiFukushimaLineSearch()),
-    LimitedMemoryBroyden(; threshold = 2, linesearch = LiFukushimaLineSearch()),
-    DFSane(), TrustRegion(; linsolve = QRFactorization()),
-    TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
-    nothing)
+    SOLVERS = (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
+        LevenbergMarquardt(; linsolve = KrylovJL_GMRES()), PseudoTransient(), Klement(),
+        Broyden(; linesearch = LiFukushimaLineSearch()),
+        LimitedMemoryBroyden(; threshold = 2, linesearch = LiFukushimaLineSearch()),
+        DFSane(), TrustRegion(; linsolve = QRFactorization()),
+        TrustRegion(; linsolve = KrylovJL_GMRES(),
+            concrete_jac = true),  # Needed if Zygote not loaded
+        nothing)
 
-@testcase "[IIP] GPU Solvers" begin
-    for alg in SOLVERS
-        @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+    @testset "[IIP] GPU Solvers" begin
+        for alg in SOLVERS
+            @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+        end
     end
-end
 
-linear_f(u, p) = A * u .+ b
+    linear_f(u, p) = A * u .+ b
 
-prob = NonlinearProblem{false}(linear_f, u0)
+    prob = NonlinearProblem{false}(linear_f, u0)
 
-@testcase "[OOP] GPU Solvers" begin
-    for alg in SOLVERS
-        @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+    @testset "[OOP] GPU Solvers" begin
+        for alg in SOLVERS
+            @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+        end
     end
 end

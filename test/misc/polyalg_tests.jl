@@ -1,6 +1,4 @@
-using NonlinearSolve, XUnit, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebra
-
-@testcase "Basic PolyAlgorithms" begin
+@testitem "Basic PolyAlgorithms" begin
     f(u, p) = u .* u .- 2
     u0 = [1.0, 1.0]
     probN = NonlinearProblem{false}(f, u0)
@@ -32,7 +30,7 @@ using NonlinearSolve, XUnit, NaNMath, OrdinaryDiffEq, StaticArrays, LinearAlgebr
     @test SciMLBase.successful_retcode(solver)
 end
 
-@testcase "Testing #153 Singular Exception" begin
+@testitem "Testing #153 Singular Exception" begin
     # https://github.com/SciML/NonlinearSolve.jl/issues/153
     function f(du, u, p)
         s1, s1s2, s2 = u
@@ -48,7 +46,9 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testcase "Simple Scalar Problem #187" begin
+@testitem "Simple Scalar Problem #187" begin
+    using NaNMath
+
     # https://github.com/SciML/NonlinearSolve.jl/issues/187
     # If we use a General Nonlinear Solver the solution might go out of the domain!
     ff_interval(u, p) = 0.5 / 1.5 * NaNMath.log.(u ./ (1.0 .- u)) .- 2.0 * u .+ 1.0
@@ -68,7 +68,9 @@ end
 # Shooting Problem: Taken from BoundaryValueDiffEq.jl
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
-@testcase "Complex Valued Problems: Single-Shooting" begin
+@testitem "Complex Valued Problems: Single-Shooting" begin
+    using OrdinaryDiffEq
+
     function ode_func!(du, u, p, t)
         du[1] = u[2]
         du[2] = -u[1]
@@ -93,30 +95,36 @@ end
         maxiters = 10)
 end
 
-no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
-no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
-no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
-@testcase "[IIP] no AD" begin
-    f_iip = Base.Experimental.@opaque (du, u, p) -> du .= u .* u .- p
-    u0 = [0.5]
-    prob = NonlinearProblem(f_iip, u0, 1.0)
-    for alg in no_ad_algs
-        sol = solve(prob, alg)
-        @test isapprox(only(sol.u), 1.0)
-        @test SciMLBase.successful_retcode(sol.retcode)
+@testitem "No AD" begin
+    no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
+    no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
+    no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
+
+    @testset "Inplace" begin
+        f_iip = Base.Experimental.@opaque (du, u, p) -> du .= u .* u .- p
+        u0 = [0.5]
+        prob = NonlinearProblem(f_iip, u0, 1.0)
+        for alg in no_ad_algs
+            sol = solve(prob, alg)
+            @test isapprox(only(sol.u), 1.0)
+            @test SciMLBase.successful_retcode(sol.retcode)
+        end
+    end
+
+    @testset "Out of Place" begin
+        f_oop = Base.Experimental.@opaque (u, p) -> u .* u .- p
+        u0 = [0.5]
+        prob = NonlinearProblem{false}(f_oop, u0, 1.0)
+        for alg in no_ad_algs
+            sol = solve(prob, alg)
+            @test isapprox(only(sol.u), 1.0)
+            @test SciMLBase.successful_retcode(sol.retcode)
+        end
     end
 end
 
-@testcase "[OOP] no AD" begin
-    f_oop = Base.Experimental.@opaque (u, p) -> u .* u .- p
-    u0 = [0.5]
-    prob = NonlinearProblem{false}(f_oop, u0, 1.0)
-    for alg in no_ad_algs
-        sol = solve(prob, alg)
-        @test isapprox(only(sol.u), 1.0)
-        @test SciMLBase.successful_retcode(sol.retcode)
-    end
-end
+@testsetup module InfeasibleFunction
+using LinearAlgebra, StaticArrays
 
 # this is infeasible
 function f1_infeasible!(out, u, p)
@@ -157,7 +165,10 @@ function f1_infeasible(u, p)
     return [a - 42.0e6, e - 1e-5, i - 1e-5]
 end
 
-@testcase "[IIP] Infeasible" begin
+export f1_infeasible!, f1_infeasible
+end
+
+@testitem "[IIP] Infeasible" setup=[InfeasibleFunction] begin
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible!, u0)
     sol = solve(prob)
@@ -166,7 +177,9 @@ end
     @test !SciMLBase.successful_retcode(sol.retcode)
 end
 
-@testcase "[OOP] Infeasible" begin
+@testitem "[OOP] Infeasible" setup=[InfeasibleFunction] begin
+    using StaticArrays
+
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
     sol = solve(prob)

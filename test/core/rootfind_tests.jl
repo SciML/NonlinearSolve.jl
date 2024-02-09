@@ -1,5 +1,7 @@
-using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random, LinearAlgebra,
-    XUnit, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
+@testsetup module CoreRootfindTesting
+using Reexport
+@reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
+    LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
 function __autosparseenzyme()
     @static if Sys.iswindows()
@@ -57,9 +59,14 @@ function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
     return sols
 end
 
+export nlprob_iterator_interface, benchmark_nlsolve_oop, benchmark_nlsolve_iip,
+    TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!,
+    __autosparseenzyme
+end
+
 # --- NewtonRaphson tests ---
 
-@testcase "NewtonRaphson" begin
+@testitem "NewtonRaphson" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
@@ -121,7 +128,7 @@ end
 
 # --- TrustRegion tests ---
 
-@testcase "TrustRegion" begin
+@testitem "TrustRegion" setup=[CoreRootfindTesting] begin
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
         RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
@@ -233,7 +240,7 @@ end
 
 # --- LevenbergMarquardt tests ---
 
-@testcase "LevenbergMarquardt" begin
+@testitem "LevenbergMarquardt" setup=[CoreRootfindTesting] begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
         sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = LevenbergMarquardt())
@@ -315,7 +322,7 @@ end
 
 # --- DFSane tests ---
 
-@testcase "DFSane" begin
+@testitem "DFSane" setup=[CoreRootfindTesting] begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -391,7 +398,7 @@ end
 
 # --- PseudoTransient tests ---
 
-@testcase "PseudoTransient" begin
+@testitem "PseudoTransient" setup=[CoreRootfindTesting] begin
     # These are tests for NewtonRaphson so we should set alpha_initial to be high so that we
     # converge quickly
     @testset "PT: alpha_initial = 10.0 PT AD: $(ad)" for ad in (AutoFiniteDiff(),
@@ -453,7 +460,7 @@ end
 
 # --- Broyden tests ---
 
-@testcase "Broyden" begin
+@testitem "Broyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
@@ -503,7 +510,7 @@ end
 
 # --- Klement tests ---
 
-@testcase "Klement" begin
+@testitem "Klement" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote()),
@@ -552,7 +559,7 @@ end
 
 # --- LimitedMemoryBroyden tests ---
 
-@testcase "LimitedMemoryBroyden" begin
+@testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
@@ -602,7 +609,7 @@ end
 end
 
 # Miscellaneous Tests
-@testcase "Custom JVP" begin
+@testitem "Custom JVP" setup=[CoreRootfindTesting] begin
     function F(u::Vector{Float64}, p::Vector{Float64})
         Δ = Tridiagonal(-ones(99), 2 * ones(100), -ones(99))
         return u + 0.1 * u .* Δ * u - p

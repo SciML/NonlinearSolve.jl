@@ -1,8 +1,11 @@
-using NonlinearSolve, LinearAlgebra, XUnit
+@testsetup module WrapperFixedPointImports
+using Reexport
+@reexport using LinearAlgebra
 import SIAMFANLEquations, FixedPointAcceleration, SpeedMapping, NLsolve
+end
 
 # Simple Scalar Problem
-@testcase "Simple Scalar Problem" begin
+@testitem "Simple Scalar Problem" setup=[WrapperFixedPointImports] begin
     f1(x, p) = cos(x) - x
     prob = NonlinearProblem(f1, 1.1)
 
@@ -19,7 +22,7 @@ import SIAMFANLEquations, FixedPointAcceleration, SpeedMapping, NLsolve
 end
 
 # Simple Vector Problem
-@testcase "Simple Vector Problem" begin
+@testitem "Simple Vector Problem" setup=[WrapperFixedPointImports] begin
     f2(x, p) = cos.(x) .- x
     prob = NonlinearProblem(f2, [1.1, 1.1])
 
@@ -38,7 +41,7 @@ end
 
 # Fixed Point for Power Method
 # Taken from https://github.com/NicolasL-S/SpeedMapping.jl/blob/95951db8f8a4457093090e18802ad382db1c76da/test/runtests.jl
-@testcase "Power Method" begin
+@testitem "Power Method" setup=[WrapperFixedPointImports] begin
     C = [1 2 3; 4 5 6; 7 8 9]
     A = C + C'
     B = Hermitian(ones(10) * ones(10)' .* im + Diagonal(1:10))

@@ -1,4 +1,5 @@
-using NonlinearSolve, LinearAlgebra, LinearSolve, NonlinearProblemLibrary, XUnit
+@testsetup module RobustnessTesting
+using NonlinearSolve, LinearAlgebra, LinearSolve, NonlinearProblemLibrary, Test
 
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
@@ -36,7 +37,10 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
     end
 end
 
-@testcase "NewtonRaphson 23 Test Problems" begin
+export test_on_library, problems, dicts
+end
+
+@testitem "NewtonRaphson" setup=[RobustnessTesting] begin
     alg_ops = (NewtonRaphson(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -45,7 +49,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "TrustRegion 23 Test Problems" begin
+@testitem "TrustRegion" setup=[RobustnessTesting] begin
     alg_ops = (TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Simple),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Hei),
@@ -64,7 +68,9 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "LevenbergMarquardt 23 Test Problems" begin
+@testitem "LevenbergMarquardt" setup=[RobustnessTesting] begin
+    using LinearSolve
+
     alg_ops = (LevenbergMarquardt(),
         LevenbergMarquardt(; α_geodesic = 0.1),
         LevenbergMarquardt(; linsolve = CholeskyFactorization()))
@@ -77,7 +83,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "DFSane 23 Test Problems" begin
+@testitem "DFSane" setup=[RobustnessTesting] begin
     alg_ops = (DFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -86,7 +92,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "Broyden 23 Test Problems" begin
+@testitem "Broyden" setup=[RobustnessTesting] begin
     alg_ops = (Broyden(),
         Broyden(; init_jacobian = Val(:true_jacobian)),
         Broyden(; update_rule = Val(:bad_broyden)),
@@ -101,7 +107,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "Klement 23 Test Problems" begin
+@testitem "Klement" setup=[RobustnessTesting] begin
     alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -111,7 +117,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testcase "PseudoTransient 23 Test Problems" begin
+@testitem "PseudoTransient" setup=[RobustnessTesting] begin
     # PT relies on the root being a stable equilibrium for convergence, so it won't work on
     # most problems
     alg_ops = (PseudoTransient(),)
