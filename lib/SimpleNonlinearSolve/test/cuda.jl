@@ -7,7 +7,8 @@ f!(du, u, p) = du .= u .* u .- 2
 
 @testset "Solving on GPUs" begin
     @testcase "$(alg)" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
+        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
         SimpleHalley(), SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         # Static Arrays
@@ -44,8 +45,8 @@ end
     prob = NonlinearProblem{false}(f, @SVector[1.0f0, 1.0f0])
 
     @testcase "$(alg)" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleBroyden(),
-        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
+        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
         SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         @test begin

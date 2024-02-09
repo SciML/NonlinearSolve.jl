@@ -1,8 +1,9 @@
 """
-    SimpleTrustRegion(; autodiff = AutoForwardDiff(), max_trust_radius::Real = 0.0,
-        initial_trust_radius::Real = 0.0, step_threshold::Real = 0.1,
-        shrink_threshold::Real = 0.25, expand_threshold::Real = 0.75,
-        shrink_factor::Real = 0.25, expand_factor::Real = 2.0, max_shrink_times::Int = 32)
+    SimpleTrustRegion(; autodiff = AutoForwardDiff(), max_trust_radius = 0.0,
+        initial_trust_radius = 0.0, step_threshold = nothing,
+        shrink_threshold = nothing, expand_threshold = nothing,
+        shrink_factor = 0.25, expand_factor = 2.0, max_shrink_times::Int = 32,
+        nlsolve_update_rule = Val(false))
 
 A low-overhead implementation of a trust-region solver. This method is non-allocating on
 scalar and static array problems.
@@ -36,17 +37,22 @@ scalar and static array problems.
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
   - `max_shrink_times`: the maximum number of times to shrink the trust region radius in a
     row, `max_shrink_times` is exceeded, the algorithm returns. Defaults to `32`.
+  - `nlsolve_update_rule`: If set to `Val(true)`, updates the trust region radius using the
+    update rule from NLSolve.jl. Defaults to `Val(false)`. If set to `Val(true)`, few of the
+    radius update parameters -- `step_threshold = 0.05`, `expand_threshold = 0.9`, and
+    `shrink_factor = 0.5` -- have different defaults.
 """
 @kwdef @concrete struct SimpleTrustRegion <: AbstractNewtonAlgorithm
     autodiff = nothing
     max_trust_radius = 0.0
     initial_trust_radius = 0.0
     step_threshold = 0.0001
-    shrink_threshold = 0.25
-    expand_threshold = 0.75
-    shrink_factor = 0.25
+    shrink_threshold = nothing
+    expand_threshold = nothing
+    shrink_factor = nothing
     expand_factor = 2.0
     max_shrink_times::Int = 32
+    nlsolve_update_rule = Val(false)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args...;
@@ -57,14 +63,27 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     Δₘₐₓ = T(alg.max_trust_radius)
     Δ = T(alg.initial_trust_radius)
     η₁ = T(alg.step_threshold)
-    η₂ = T(alg.shrink_threshold)
-    η₃ = T(alg.expand_threshold)
-    t₁ = T(alg.shrink_factor)
+    if alg.shrink_threshold === nothing
+        η₂ = _unwrap_val(alg.nlsolve_update_rule) ? T(0.05) : T(0.25)
+    else
+        η₂ = T(alg.shrink_threshold)
+    end
+    if alg.expand_threshold === nothing
+        η₃ = _unwrap_val(alg.nlsolve_update_rule) ? T(0.9) : T(0.75)
+    else
+        η₃ = T(alg.expand_threshold)
+    end
+    if alg.shrink_factor === nothing
+        t₁ = _unwrap_val(alg.nlsolve_update_rule) ? T(0.5) : T(0.25)
+    else
+        t₁ = T(alg.shrink_factor)
+    end
     t₂ = T(alg.expand_factor)
     max_shrink_times = alg.max_shrink_times
     autodiff = __get_concrete_autodiff(prob, alg.autodiff)
 
     fx = _get_fx(prob, x)
+    norm_fx = norm(fx)
     @bb xo = copy(x)
     J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
     fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
@@ -73,10 +92,17 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         termination_condition)
 
     # Set default trust region radius if not specified by user.
-    Δₘₐₓ == 0 && (Δₘₐₓ = max(norm(fx), maximum(x) - minimum(x)))
-    Δ == 0 && (Δ = Δₘₐₓ / 11)
+    Δₘₐₓ == 0 && (Δₘₐₓ = max(norm_fx, maximum(x) - minimum(x)))
+    if Δ == 0
+        if _unwrap_val(alg.nlsolve_update_rule)
+            norm_x = norm(x)
+            Δ = T(ifelse(norm_x > 0, norm_x, 1))
+        else
+            Δ = T(Δₘₐₓ / 11)
+        end
+    end
 
-    fₖ = 0.5 * norm(fx)^2
+    fₖ = 0.5 * norm_fx^2
     H = ∇f' * ∇f
     g = _restructure(x, ∇f' * _vec(fx))
     shrink_counter = 0
@@ -87,7 +113,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     @bb Hδ = copy(x)
     dogleg_cache = (; δsd, δN_δsd, δN)
 
-    for k in 1:maxiters
+    for _ in 1:maxiters
         # Solve the trust region subproblem.
         δ = dogleg_method!!(dogleg_cache, ∇f, fx, g, Δ)
         @bb @. x = xo + δ
@@ -107,7 +133,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
-                retcode = ReturnCode.ConvergenceFailure)
+                retcode = ReturnCode.ShrinkThresholdExceeded)
         end
 
         if r ≥ η₁
@@ -121,11 +147,21 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
             # Update the trust region radius.
-            (r > η₃) && (norm(δ) ≈ Δ) && (Δ = min(t₂ * Δ, Δₘₐₓ))
+            if !_unwrap_val(alg.nlsolve_update_rule) && r > η₃
+                Δ = min(t₂ * Δ, Δₘₐₓ)
+            end
             fₖ = fₖ₊₁
 
             @bb H = transpose(∇f) × ∇f
             @bb g = transpose(∇f) × vec(fx)
+        end
+
+        if _unwrap_val(alg.nlsolve_update_rule)
+            if r > η₃
+                Δ = t₂ * norm(δ)
+            elseif r > 0.5
+                Δ = max(Δ, t₂ * norm(δ))
+            end
         end
     end
 

@@ -36,7 +36,9 @@ end
 
 # --- SimpleNewtonRaphson tests ---
 
-@testcase "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion)
+@testcase "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion,
+    (args...; kwargs...) -> SimpleTrustRegion(args...; nlsolve_update_rule = Val(true),
+        kwargs...))
     @testset "AutoDiff: $(_nameof(autodiff))" for autodiff in (AutoFiniteDiff(),
         AutoForwardDiff(), AutoPolyesterForwardDiff())
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
@@ -110,7 +112,8 @@ end
     u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
     p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    @testcase "$(alg)" for alg in (SimpleDFSane(), SimpleTrustRegion(), SimpleHalley())
+    @testcase "$(alg)" for alg in (SimpleDFSane(), SimpleTrustRegion(), SimpleHalley(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
         sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
@@ -122,7 +125,8 @@ end
 ## SimpleDFSane needs to allocate a history vector
 @testcase "Allocation Checks: $(_nameof(alg))" for alg in (SimpleNewtonRaphson(),
     SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-    SimpleTrustRegion(), SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
+    SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+    SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
     SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
     @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
 
