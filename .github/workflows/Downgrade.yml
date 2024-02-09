@@ -4,26 +4,29 @@ on:
     branches:
       - master
     paths-ignore:
-      - 'docs/**'
+      - "docs/**"
   push:
     branches:
       - master
     paths-ignore:
-      - 'docs/**'
+      - "docs/**"
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: ['1']
+        version: ["1"]
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
       - uses: cjdoris/julia-downgrade-compat-action@v1
-#        if: ${{ matrix.version == '1.6' }}
         with:
           skip: Pkg,TOML
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        env:
+          JULIA_NUM_THREADS: 11
+          RETESTITEMS_NWORKERS: 4
+          RETESTITEMS_NWORKER_THREADS: 2

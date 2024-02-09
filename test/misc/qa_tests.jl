@@ -1,6 +1,6 @@
-using NonlinearSolve, Aqua
+@testitem "Aqua" begin
+    using NonlinearSolve, Aqua
 
-@testset "Aqua" begin
     Aqua.find_persistent_tasks_deps(NonlinearSolve)
     Aqua.test_ambiguities(NonlinearSolve; recursive = false)
     Aqua.test_deps_compat(NonlinearSolve)

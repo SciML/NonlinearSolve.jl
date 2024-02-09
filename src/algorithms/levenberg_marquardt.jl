@@ -69,10 +69,11 @@ end
     J_diag_cache
     J_damped
     damping_f
+    initial_damping
 end
 
 function reinit_cache!(cache::LevenbergMarquardtDampingCache, args...; kwargs...)
-    cache.λ = cache.damping_f.initial_damping
+    cache.λ = cache.initial_damping
     cache.λ_factor = cache.damping_f.increase_factor
     if !(cache.DᵀD isa Number)
         if can_setindex(cache.DᵀD.diag)
@@ -110,7 +111,7 @@ function __internal_init(prob::AbstractNonlinearProblem,
     J_damped = T(initial_damping) .* DᵀD
     return LevenbergMarquardtDampingCache(T(f.increase_factor), T(f.decrease_factor),
         T(f.min_damping), T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache,
-        J_damped, f)
+        J_damped, f, T(initial_damping))
 end
 
 (damping::LevenbergMarquardtDampingCache)(::Nothing) = damping.J_damped
