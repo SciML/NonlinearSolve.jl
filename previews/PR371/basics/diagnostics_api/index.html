@@ -33,7 +33,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">Broyden(</span></span>
 ----     -------------        -----------          -------
 Iter     f(u) inf-norm        Step 2-norm          cond(J)
 ----     -------------        -----------          -------
-0        2.60000000e+01       1.19602066e-309      Inf
+0        2.60000000e+01       9.81850348e-310      Inf
 1        3.11334008e+01       5.00000000e-01       1.00000000e+00
 11       3.56364608e-09       1.87220799e-08       9.23959279e+01
 Final    1.12829060e-15
@@ -42,7 +42,7 @@ Final    1.12829060e-15
 sol.trace</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">----     -------------        -----------          -------             
 Iter     f(u) inf-norm        Step 2-norm          cond(J)             
 ----     -------------        -----------          -------             
-0        2.60000000e+01       9.76551529e-310      Inf                 
+0        2.60000000e+01       9.81843007e-310      Inf                 
 1        3.11334008e+01       5.00000000e-01       1.00000000e+00      
 2        1.70049757e+01       2.47663402e+00       4.01371531e+00      
 3        1.25070298e+01       4.55718519e-01       3.44264376e+00      
@@ -62,30 +62,30 @@ solve!(cache)
 cache.timer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1"> ───────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">                              </span>         Time                    Allocations      
                               ───────────────────────   ────────────────────────
-       Tot / % measured:           9.52s /   7.3%            196MiB /  21.0%    
+       Tot / % measured:           9.64s /   7.3%            195MiB /  21.0%    
 
  Section              ncalls     time    %tot     avg     alloc    %tot      avg
  ───────────────────────────────────────────────────────────────────────────────
- cache construction        1    692ms  100.0%   692ms   41.0MiB   99.8%  41.0MiB
- solve                     1    193μs    0.0%   193μs   69.5KiB    0.2%  69.5KiB
-   descent                 1   13.6μs    0.0%  13.6μs      864B    0.0%     864B
-     linear solve          1   12.4μs    0.0%  12.4μs      112B    0.0%     112B
-   jacobian                1   2.77μs    0.0%  2.77μs     0.00B    0.0%    0.00B
-   step                    1   1.01μs    0.0%  1.01μs     0.00B    0.0%    0.00B
-   linesearch              1    210ns    0.0%   210ns     0.00B    0.0%    0.00B
+ cache construction        1    707ms  100.0%   707ms   41.0MiB   99.8%  41.0MiB
+ solve                     1    197μs    0.0%   197μs   69.5KiB    0.2%  69.5KiB
+   descent                 1   14.8μs    0.0%  14.8μs      864B    0.0%     864B
+     linear solve          1   13.5μs    0.0%  13.5μs      112B    0.0%     112B
+   jacobian                1   2.18μs    0.0%  2.18μs     0.00B    0.0%    0.00B
+   step                    1    892ns    0.0%   892ns     0.00B    0.0%    0.00B
+   linesearch              1    170ns    0.0%   170ns     0.00B    0.0%    0.00B
 <span class="sgr1"> ───────────────────────────────────────────────────────────────────────────────</span></code></pre><p>Let&#39;s try for some other solver:</p><pre><code class="language-julia hljs">cache = init(prob, DFSane(); show_trace = Val(true), trace_level = TraceMinimal(50));
 solve!(cache)
 cache.timer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1"> ────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">                               </span>         Time                    Allocations      
                                ───────────────────────   ────────────────────────
-       Tot / % measured:            627ms /  26.4%           25.9MiB /  50.9%    
+       Tot / % measured:            641ms /  26.6%           25.9MiB /  50.9%    
 
  Section               ncalls     time    %tot     avg     alloc    %tot      avg
  ────────────────────────────────────────────────────────────────────────────────
- cache construction         1    154ms   93.0%   154ms   12.6MiB   95.5%  12.6MiB
- solve                    192   11.6ms    7.0%  60.3μs    604KiB    4.5%  3.14KiB
-   linesearch             192   11.3ms    6.8%  58.8μs    193KiB    1.4%  1.00KiB
-   update spectral ...    192   16.4μs    0.0%  85.2ns     0.00B    0.0%    0.00B
-   step                   192   15.4μs    0.0%  80.2ns     0.00B    0.0%    0.00B
-   descent                192   12.1μs    0.0%  62.9ns     0.00B    0.0%    0.00B
-<span class="sgr1"> ────────────────────────────────────────────────────────────────────────────────</span></code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>For <code>iteration == 0</code> only the <code>norm(fu, Inf)</code> is guaranteed to be meaningful. The other values being meaningful are solver dependent.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../termination_condition/">« Termination Conditions</a><a class="docs-footer-nextpage" href="../sparsity_detection/">(Semi-)Automatic Sparsity Detection »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 9 February 2024 00:35">Friday 9 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ cache construction         1    158ms   93.0%   158ms   12.6MiB   95.5%  12.6MiB
+ solve                    192   12.0ms    7.0%  62.4μs    604KiB    4.5%  3.14KiB
+   linesearch             192   11.7ms    6.9%  60.9μs    193KiB    1.4%  1.00KiB
+   update spectral ...    192   16.4μs    0.0%  85.3ns     0.00B    0.0%    0.00B
+   step                   192   15.5μs    0.0%  80.8ns     0.00B    0.0%    0.00B
+   descent                192   12.2μs    0.0%  63.8ns     0.00B    0.0%    0.00B
+<span class="sgr1"> ────────────────────────────────────────────────────────────────────────────────</span></code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>For <code>iteration == 0</code> only the <code>norm(fu, Inf)</code> is guaranteed to be meaningful. The other values being meaningful are solver dependent.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../termination_condition/">« Termination Conditions</a><a class="docs-footer-nextpage" href="../sparsity_detection/">(Semi-)Automatic Sparsity Detection »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 9 February 2024 00:36">Friday 9 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
