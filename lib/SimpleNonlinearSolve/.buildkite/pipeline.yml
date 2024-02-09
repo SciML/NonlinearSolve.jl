@@ -4,6 +4,12 @@ steps:
       - JuliaCI/julia#v1:
           version: "1"
       - JuliaCI/julia-test#v1:
+          coverage: true
+      - JuliaCI/julia-coverage#v1:
+          codecov: true
+          dirs:
+            - src
+            - ext
     agents:
       queue: "juliagpu"
       cuda: "*"
@@ -14,3 +20,6 @@ steps:
 env:
   GROUP: CUDA
   JULIA_PKG_SERVER: ""
+  RETESTITEMS_NWORKERS: 4
+  RETESTITEMS_NWORKER_THREADS: 2
+  SECRET_CODECOV_TOKEN: "HsC3X/h3CrsRhMR199BUbw9xmASfTTEtdT2JMJlbkW6nsMtZXDIWxKzBNOpn0123zn3K+VE30i7+aLpcqZjlux0BQDMVLx5O5KudjrJmBE2G8KMMv1pra+UHEOFdFP3TzjHXGcHzpUrjpG8if8cHbsWdyQCV0Hdx2qAPnhX5haGPyMuIlRfoaWQfdxJPl5fDLXs1xe0LnMcYMx8uUsvvJZ/hhFtMYWJU0WFtqnAkCR8h/pQd6yZOaGP2SXJkOR8+1xbx+M8m6agH9idp2BjDPpXMOo27V3O2Gkoy3R4b5ouLdqOMaZSIOemoYCv6oh+EkbKaFvZydvm0xCW5YBFPPw==;U2FsdGVkX19FT0yFV6EMY/NVSQslXE6byckN0qa/HVU5dd3d4swmOCWBkBPtemRPGvCMP669iXSPfDTlw7ZSvw=="
