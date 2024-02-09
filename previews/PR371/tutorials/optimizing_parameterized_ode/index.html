@@ -22,7 +22,7 @@ sol = solve(prob, Tsit5(); saveat = tsteps)
 
 # Plot the solution
 using Plots
-plot(sol; linewidth = 3)</code></pre><img src="fdbb3f30.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
+plot(sol; linewidth = 3)</code></pre><img src="87f05fd0.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
     sol = solve(prob, Tsit5(); p = ode_param, saveat = tsteps)
     return vec(reduce(hcat, sol.u)) .- data
 end
@@ -44,7 +44,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">LevenbergMarquardt(</span></sp
 ----     -------------        -----------          -------
 Iter     f(u) inf-norm        Step 2-norm          cond(J)
 ----     -------------        -----------          -------
-0        5.89103198e+00       1.20299474e-309      Inf
+0        5.89103198e+00       1.38346906e-309      Inf
 1        5.89103198e+00       0.00000000e+00       2.99618417e+16
 26       2.37347919e-11       3.22720084e-10       4.01915942e+01
 51       6.90114632e-13       0.00000000e+00       4.01915942e+01
@@ -67,7 +67,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 ----     -------------        -----------          -------
 Iter     f(u) inf-norm        Step 2-norm          cond(J)
 ----     -------------        -----------          -------
-0        5.89103198e+00       1.20300383e-309      Inf
+0        5.89103198e+00       1.38345673e-309      Inf
 1        5.89103198e+00       0.00000000e+00       2.99618417e+16
 Final    2.48689958e-14
 ----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
@@ -79,4 +79,4 @@ u: 4-element Vector{Float64}:
 sol_fit = solve(prob2, Tsit5(); p = res.u)
 sol_true = solve(prob2, Tsit5(); p = p)
 plot(sol_true; linewidth = 3)
-plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="d1f6501c.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 9 February 2024 03:18">Friday 9 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="42317ce9.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 9 February 2024 04:00">Friday 9 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
