@@ -1,6 +1,6 @@
-using ForwardDiff, SciMLSensitivity, SimpleNonlinearSolve, XUnit, Zygote
+@testitem "Simple Adjoint Test" begin
+    using ForwardDiff, SciMLSensitivity, Zygote
 
-@testcase "Simple Adjoint Test" begin
     ff(u, p) = u .^ 2 .- p
 
     function solve_nlprob(p)
