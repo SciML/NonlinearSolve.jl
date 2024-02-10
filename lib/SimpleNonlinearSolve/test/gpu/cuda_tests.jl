@@ -1,13 +1,14 @@
-using SimpleNonlinearSolve, StaticArrays, CUDA, XUnit
+@testitem "Solving on GPUs" begin
+    using StaticArrays, CUDA
 
-CUDA.allowscalar(false)
+    CUDA.allowscalar(false)
 
-f(u, p) = u .* u .- 2
-f!(du, u, p) = du .= u .* u .- 2
+    f(u, p) = u .* u .- 2
+    f!(du, u, p) = du .= u .* u .- 2
 
-@testset "Solving on GPUs" begin
-    @testcase "$(alg)" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
+    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
+        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
         SimpleHalley(), SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         # Static Arrays
@@ -35,17 +36,24 @@ f!(du, u, p) = du .= u .* u .- 2
     end
 end
 
-function kernel_function(prob, alg)
-    solve(prob, alg)
-    return nothing
-end
+@testitem "CUDA Kernel Launch Test" begin
+    using StaticArrays, CUDA
 
-@testset "CUDA Kernel Launch Test" begin
+    CUDA.allowscalar(false)
+
+    f(u, p) = u .* u .- 2
+    f!(du, u, p) = du .= u .* u .- 2
+
+    function kernel_function(prob, alg)
+        solve(prob, alg)
+        return nothing
+    end
+
     prob = NonlinearProblem{false}(f, @SVector[1.0f0, 1.0f0])
 
-    @testcase "$(alg)" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleBroyden(),
-        SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
+    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
+        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
         SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         @test begin
