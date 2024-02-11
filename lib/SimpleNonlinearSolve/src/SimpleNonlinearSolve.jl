@@ -4,12 +4,13 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
 
 @recompile_invalidations begin
     using ADTypes, ArrayInterface, ConcreteStructs, DiffEqBase, FastClosures, FiniteDiff,
-        ForwardDiff, Reexport, LinearAlgebra, SciMLBase
+          ForwardDiff, Reexport, LinearAlgebra, SciMLBase
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
-        AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-        NonlinearSafeTerminationReturnCode, get_termination_mode,
-        NONLINEARSOLVE_DEFAULT_NORM
+                       AbstractSafeNonlinearTerminationMode,
+                       AbstractSafeBestNonlinearTerminationMode,
+                       NonlinearSafeTerminationReturnCode, get_termination_mode,
+                       NONLINEARSOLVE_DEFAULT_NORM
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val
@@ -56,14 +57,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing, args...; 
 end
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
-function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+function SciMLBase.solve(
+        prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
     new_u0 = u0 !== nothing ? u0 : prob.u0
     new_p = p !== nothing ? p : prob.p
-    return __internal_solve_up(prob, sensealg, new_u0, u0 === nothing, new_p, p === nothing,
+    return __internal_solve_up(
+        prob, sensealg, new_u0, u0 === nothing, new_p, p === nothing,
         alg, args...; kwargs...)
 end
 
@@ -111,7 +114,7 @@ end
 end
 
 export SimpleBroyden, SimpleDFSane, SimpleGaussNewton, SimpleHalley, SimpleKlement,
-    SimpleLimitedMemoryBroyden, SimpleNewtonRaphson, SimpleTrustRegion
+       SimpleLimitedMemoryBroyden, SimpleNewtonRaphson, SimpleTrustRegion
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module

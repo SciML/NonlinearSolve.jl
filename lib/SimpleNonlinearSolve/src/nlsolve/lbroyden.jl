@@ -137,7 +137,8 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
         init_α = inv(alg.alpha)
     end
 
-    converged, res = __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U, Vᵀ,
+    converged, res = __unrolled_lbroyden_initial_iterations(
+        prob, xo, fo, δx, abstol, U, Vᵀ,
         threshold, ls_cache, init_α)
 
     converged &&
