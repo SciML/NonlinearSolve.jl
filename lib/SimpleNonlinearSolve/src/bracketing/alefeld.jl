@@ -38,7 +38,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         ē, fc = d, f(c)
         (a == c || b == c) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(
+                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = a, right = b)
         iszero(fc) &&
             return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
@@ -57,7 +58,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         fc = f(c)
         (ā == c || b̄ == c) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(
+                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = ā, right = b̄)
         iszero(fc) &&
             return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
@@ -76,7 +78,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         fc = f(c)
         (ā == c || b̄ == c) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(
+                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = ā, right = b̄)
         iszero(fc) &&
             return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,

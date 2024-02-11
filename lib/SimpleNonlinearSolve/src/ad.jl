@@ -1,15 +1,18 @@
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
+function SciMLBase.solve(
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
             iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
         alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...) where {T, V, P, iip}
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
-    return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
         sol.original)
 end
 
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     @eval begin
-        function SciMLBase.solve(prob::IntervalNonlinearProblem{uType, iip,
+        function SciMLBase.solve(
+                prob::IntervalNonlinearProblem{uType, iip,
                     <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
                 alg::$(algType), args...; kwargs...) where {uType, T, V, P, iip}
             sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)

@@ -1,7 +1,7 @@
 @testsetup module RootfindingTesting
 using Reexport
 @reexport using AllocCheck,
-    LinearSolve, StaticArrays, Random, LinearAlgebra, ForwardDiff, DiffEqBase
+                LinearSolve, StaticArrays, Random, LinearAlgebra, ForwardDiff, DiffEqBase
 import PolyesterForwardDiff
 
 quadratic_f(u, p) = u .* u .- p
@@ -22,7 +22,7 @@ end
 const TERMINATION_CONDITIONS = [
     NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
     AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()
 ]
 
 function benchmark_nlsolve_oop(f::F, u0, p = 2.0; solver) where {F}
@@ -35,7 +35,7 @@ function benchmark_nlsolve_iip(f!::F, u0, p = 2.0; solver) where {F}
 end
 
 export quadratic_f, quadratic_f!, quadratic_f2, newton_fails, TERMINATION_CONDITIONS,
-    benchmark_nlsolve_oop, benchmark_nlsolve_iip
+       benchmark_nlsolve_oop, benchmark_nlsolve_iip
 
 end
 
@@ -43,7 +43,8 @@ end
     @testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion,
         (args...; kwargs...) -> SimpleTrustRegion(args...; nlsolve_update_rule = Val(true),
             kwargs...))
-        @testset "AutoDiff: $(nameof(typeof(autodiff))))" for autodiff in (AutoFiniteDiff(),
+        @testset "AutoDiff: $(nameof(typeof(autodiff))))" for autodiff in (
+            AutoFiniteDiff(),
             AutoForwardDiff(), AutoPolyesterForwardDiff())
             @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],
                 @SVector[1.0, 1.0], 1.0)
