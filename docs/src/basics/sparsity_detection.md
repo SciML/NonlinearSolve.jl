@@ -34,7 +34,7 @@ prob = NonlinearProblem(
 If the `colorvec` is not provided, then it is computed on demand.
 
 !!! note
-
+    
     One thing to be careful about in this case is that `colorvec` is dependent on the
     autodiff backend used. Forward Mode and Finite Differencing will assume that the
     colorvec is the column colorvec, while Reverse Mode will assume that the colorvec is the
@@ -76,7 +76,7 @@ loaded, we default to using `SymbolicsSparsityDetection()`, else we default to u
 options if those are provided.
 
 !!! warning
-
+    
     If you provide a non-sparse AD, and provide a `sparsity` or `jac_prototype` then
     we will use dense AD. This is because, if you provide a specific AD type, we assume
     that you know what you are doing and want to override the default choice of `nothing`.

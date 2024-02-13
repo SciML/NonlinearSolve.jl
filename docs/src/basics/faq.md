@@ -72,7 +72,7 @@ differentiate the function based on the input types. However, this function has
 `xx = [1.0, 2.0, 3.0, 4.0]` followed by a `xx[1] = var[1] - v_true[1]` where `var` might
 be a Dual number. This causes the error. To fix it:
 
-1.  Specify the `autodiff` to be `AutoFiniteDiff`
+ 1. Specify the `autodiff` to be `AutoFiniteDiff`
 
 ```@example dual_error_faq
 sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiters = 10000,
@@ -81,7 +81,7 @@ sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiter
 
 This worked but, Finite Differencing is not the recommended approach in any scenario.
 
-2.  Rewrite the function to use
+ 2. Rewrite the function to use
     [PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
 
 ```@example dual_error_faq

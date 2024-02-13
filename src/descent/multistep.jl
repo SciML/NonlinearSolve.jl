@@ -21,23 +21,24 @@ struct __PotraPtak3 <: AbstractMultiStepScheme end
 const PotraPtak3 = __PotraPtak3()
 
 alg_steps(::__PotraPtak3) = 2
+nintermediates(::__PotraPtak3) = 1
 
 @kwdef @concrete struct __SinghSharma4 <: AbstractMultiStepScheme
-    vjp_autodiff = nothing
+    jvp_autodiff = nothing
 end
 const SinghSharma4 = __SinghSharma4()
 
 alg_steps(::__SinghSharma4) = 3
 
 @kwdef @concrete struct __SinghSharma5 <: AbstractMultiStepScheme
-    vjp_autodiff = nothing
+    jvp_autodiff = nothing
 end
 const SinghSharma5 = __SinghSharma5()
 
 alg_steps(::__SinghSharma5) = 3
 
 @kwdef @concrete struct __SinghSharma7 <: AbstractMultiStepScheme
-    vjp_autodiff = nothing
+    jvp_autodiff = nothing
 end
 const SinghSharma7 = __SinghSharma7()
 
@@ -60,93 +61,110 @@ end
 
 Base.show(io::IO, alg::GenericMultiStepDescent) = print(io, "$(alg.scheme)()")
 
-supports_line_search(::GenericMultiStepDescent) = false
+supports_line_search(::GenericMultiStepDescent) = true
 supports_trust_region(::GenericMultiStepDescent) = false
 
-@concrete mutable struct GenericMultiStepDescentCache{S, INV} <: AbstractDescentCache
+@concrete mutable struct GenericMultiStepDescentCache{S} <: AbstractDescentCache
     f
     p
     δu
     δus
-    extras
+    u
+    us
+    fu
+    fus
+    internal_cache
+    internal_caches
     scheme::S
-    lincache
     timer
     nf::Int
 end
 
-@internal_caches GenericMultiStepDescentCache :lincache
+# FIXME: @internal_caches needs to be updated to support tuples and namedtuples
+# @internal_caches GenericMultiStepDescentCache :internal_caches
 
 function __reinit_internal!(cache::GenericMultiStepDescentCache, args...; p = cache.p,
         kwargs...)
     cache.nf = 0
     cache.p = p
+    reset_timer!(cache.timer)
 end
 
-function __δu_caches(scheme::MSS.__PotraPtak3, fu, u, ::Val{N}) where {N}
-    caches = ntuple(N) do i
-        @bb δu = similar(u)
-        @bb y = similar(u)
-        @bb fy = similar(fu)
-        @bb δy = similar(u)
-        @bb u_new = similar(u)
-        (δu, δy, fy, y, u_new)
+function __internal_multistep_caches(
+        scheme::MSS.__PotraPtak3, alg::GenericMultiStepDescent,
+        prob, args...; shared::Val{N} = Val(1), kwargs...) where {N}
+    internal_descent = NewtonDescent(; alg.linsolve, alg.precs)
+    internal_cache = __internal_init(
+        prob, internal_descent, args...; kwargs..., shared = Val(2))
+    internal_caches = N ≤ 1 ? nothing :
+                      map(2:N) do i
+        __internal_init(prob, internal_descent, args...; kwargs..., shared = Val(2))
     end
-    return first(caches), (N ≤ 1 ? nothing : caches[2:end])
+    return internal_cache, internal_caches
 end
 
-function __internal_init(prob::NonlinearProblem, alg::GenericMultiStepDescent, J, fu, u;
-        shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+function __internal_init(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::GenericMultiStepDescent, J, fu, u; shared::Val{N} = Val(1),
+        pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
-    δu, δus = __δu_caches(alg.scheme, fu, u, shared)
-    INV && return GenericMultiStepDescentCache{true}(prob.f, prob.p, δu, δus,
-        alg.scheme, nothing, timer, 0)
-    lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
-        linsolve_kwargs...)
-    return GenericMultiStepDescentCache{false}(prob.f, prob.p, δu, δus, alg.scheme,
-        lincache, timer, 0)
-end
-
-function __internal_init(prob::NonlinearLeastSquaresProblem, alg::GenericMultiStepDescent,
-        J, fu, u; kwargs...)
-    error("Multi-Step Descent Algorithms for NLLS are not implemented yet.")
+    @bb δu = similar(u)
+    δus = N ≤ 1 ? nothing : map(2:N) do i
+        @bb δu_ = similar(u)
+    end
+    fu_cache = ntuple(MSS.nintermediates(alg.scheme)) do i
+        @bb xx = similar(fu)
+    end
+    fus_cache = N ≤ 1 ? nothing : map(2:N) do i
+        ntuple(MSS.nintermediates(alg.scheme)) do j
+            @bb xx = similar(fu)
+        end
+    end
+    u_cache = ntuple(MSS.nintermediates(alg.scheme)) do i
+        @bb xx = similar(u)
+    end
+    us_cache = N ≤ 1 ? nothing : map(2:N) do i
+        ntuple(MSS.nintermediates(alg.scheme)) do j
+            @bb xx = similar(u)
+        end
+    end
+    internal_cache, internal_caches = __internal_multistep_caches(
+        alg.scheme, alg, prob, J, fu, u; shared, pre_inverted, linsolve_kwargs,
+        abstol, reltol, timer, kwargs...)
+    return GenericMultiStepDescentCache(
+        prob.f, prob.p, δu, δus, u_cache, us_cache, fu_cache, fus_cache,
+        internal_cache, internal_caches, alg.scheme, timer, 0)
 end
 
 function __internal_solve!(cache::GenericMultiStepDescentCache{MSS.__PotraPtak3, INV}, J,
         fu, u, idx::Val = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
         kwargs...) where {INV}
-    (u_new, δy, fy, y, δu) = get_du(cache, idx)
-    skip_solve && return DescentResult(; u = u_new)
+    δu = get_du(cache, idx)
+    skip_solve && return DescentResult(; δu)
 
-    @static_timeit cache.timer "linear solve" begin
-        @static_timeit cache.timer "solve and step 1" begin
-            if INV
-                J !== nothing && @bb(δu=J × _vec(fu))
-            else
-                δu = cache.lincache(; A = J, b = _vec(fu), kwargs..., linu = _vec(δu),
-                    du = _vec(δu),
-                    reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
-                δu = _restructure(u, δu)
-            end
-            @bb @. y = u - δu
-        end
+    (y,) = get_internal_cache(cache, Val(:u), idx)
+    (fy,) = get_internal_cache(cache, Val(:fu), idx)
+    internal_cache = get_internal_cache(cache, Val(:internal_cache), idx)
 
+    @static_timeit cache.timer "descent step" begin
+        result_1 = __internal_solve!(
+            internal_cache, J, fu, u, Val(1); new_jacobian, kwargs...)
+        δx = result_1.δu
+
+        @bb @. y = u + δx
         fy = evaluate_f!!(cache.f, fy, y, cache.p)
         cache.nf += 1
 
-        @static_timeit cache.timer "solve and step 2" begin
-            if INV
-                J !== nothing && @bb(δy=J × _vec(fy))
-            else
-                δy = cache.lincache(; A = J, b = _vec(fy), kwargs..., linu = _vec(δy),
-                    du = _vec(δy), reuse_A_if_factorization = true)
-                δy = _restructure(u, δy)
-            end
-            @bb @. u_new = y - δy
-        end
+        result_2 = __internal_solve!(
+            internal_cache, J, fy, y, Val(2); kwargs...)
+        δy = result_2.δu
+
+        @bb @. δu = δx + δy
     end
 
-    set_du!(cache, (u_new, δy, fy, y, δu), idx)
-    return DescentResult(; u = u_new)
+    set_du!(cache, δu, idx)
+    set_internal_cache!(cache, (y,), Val(:u), idx)
+    set_internal_cache!(cache, (fy,), Val(:fu), idx)
+    set_internal_cache!(cache, internal_cache, Val(:internal_cache), idx)
+    return DescentResult(; δu)
 end

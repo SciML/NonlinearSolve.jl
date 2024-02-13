@@ -10,7 +10,7 @@ equation (BRUSS) using NonlinearSolve.jl.
 ## Definition of the Brusselator Equation
 
 !!! note
-
+    
     Feel free to skip this section: it simply defines the example problem.
 
 The Brusselator PDE is defined as follows:
@@ -118,11 +118,11 @@ However, if you know the sparsity of your problem, then you can pass a different
 type. For example, a `SparseMatrixCSC` will give a sparse matrix. Other sparse matrix types
 include:
 
-- Bidiagonal
-- Tridiagonal
-- SymTridiagonal
-- BandedMatrix ([BandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BandedMatrices.jl))
-- BlockBandedMatrix ([BlockBandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BlockBandedMatrices.jl))
+  - Bidiagonal
+  - Tridiagonal
+  - SymTridiagonal
+  - BandedMatrix ([BandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BandedMatrices.jl))
+  - BlockBandedMatrix ([BlockBandedMatrices.jl](https://github.com/JuliaLinearAlgebra/BlockBandedMatrices.jl))
 
 ## Approximate Sparsity Detection & Sparse Jacobians
 
@@ -213,7 +213,7 @@ choices, see the
 `linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
 
 !!! note
-
+    
     Switching to a Krylov linear solver will automatically change the nonlinear problem
     solver into Jacobian-free mode, dramatically reducing the memory required. This can be
     overridden by adding `concrete_jac=true` to the algorithm.

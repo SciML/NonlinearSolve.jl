@@ -56,7 +56,7 @@ NonlinearSolveZygoteExt = "Zygote"
 
 [compat]
 ADTypes = "0.2.6"
-Accessors = "0.1"
+Accessors = "0.1.32"
 Aqua = "0.8"
 ArrayInterface = "7.7"
 BandedMatrices = "1.4"

@@ -87,6 +87,11 @@ Returns a result of type [`DescentResult`](@ref).
   - `get_du(cache, ::Val{N})`: get the `N`th descent direction.
   - `set_du!(cache, δu)`: set the descent direction.
   - `set_du!(cache, δu, ::Val{N})`: set the `N`th descent direction.
+  - `get_internal_cache(cache, ::Val{field})`: get the internal cache field.
+  - `get_internal_cache(cache, field::Val, ::Val{N})`: get the `N`th internal cache field.
+  - `set_internal_cache!(cache, value, ::Val{field})`: set the internal cache field.
+  - `set_internal_cache!(cache, value, field::Val, ::Val{N})`: set the `N`th internal cache
+    field.
   - `last_step_accepted(cache)`: whether or not the last step was accepted. Checks if the
     cache has a `last_step_accepted` field and returns it if it does, else returns `true`.
 """
@@ -98,6 +103,29 @@ SciMLBase.get_du(cache::AbstractDescentCache, ::Val{N}) where {N} = cache.δus[N
 set_du!(cache::AbstractDescentCache, δu) = (cache.δu = δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{1}) = set_du!(cache, δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
+function get_internal_cache(cache::AbstractDescentCache, ::Val{field}) where {field}
+    return getproperty(cache, field)
+end
+function get_internal_cache(cache::AbstractDescentCache, field::Val, ::Val{1})
+    return get_internal_cache(cache, field)
+end
+function get_internal_cache(
+        cache::AbstractDescentCache, ::Val{field}, ::Val{N}) where {field, N}
+    true_field = Symbol(string(field), "s")  # Julia 1.10 compiles this away
+    return getproperty(cache, true_field)[N]
+end
+function set_internal_cache!(cache::AbstractDescentCache, value, ::Val{field}) where {field}
+    return setproperty!(cache, field, value)
+end
+function set_internal_cache!(
+        cache::AbstractDescentCache, value, field::Val, ::Val{1})
+    return set_internal_cache!(cache, value, field)
+end
+function set_internal_cache!(
+        cache::AbstractDescentCache, value, ::Val{field}, ::Val{N}) where {field, N}
+    true_field = Symbol(string(field), "s")  # Julia 1.10 compiles this away
+    return setproperty!(cache, true_field, value, N)
+end
 
 function last_step_accepted(cache::AbstractDescentCache)
     hasfield(typeof(cache), :last_step_accepted) && return cache.last_step_accepted
