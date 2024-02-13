@@ -61,8 +61,10 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
     @eval begin
         function SciMLBase.__init(prob::$probType, alg::$algType{N}, args...;
                 kwargs...) where {N}
-            return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N}(map(solver -> SciMLBase.__init(prob,
-                        solver, args...; kwargs...), alg.algs), alg, 1)
+            return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N}(
+                map(solver -> SciMLBase.__init(prob,
+                        solver, args...; kwargs...), alg.algs),
+                alg, 1)
         end
     end
 end
@@ -71,9 +73,9 @@ end
         N}) where {iip, N}
     calls = [
         quote
-            1 ≤ cache.current ≤ length(cache.caches) ||
-                error("Current choices shouldn't get here!")
-        end,
+        1 ≤ cache.current ≤ length(cache.caches) ||
+            error("Current choices shouldn't get here!")
+    end
     ]
 
     cache_syms = [gensym("cache") for i in 1:N]

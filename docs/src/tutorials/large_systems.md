@@ -308,10 +308,14 @@ for the exact sparsity detection case, we left out the time it takes to perform 
 sparsity detection. Let's compare the two by setting the sparsity detection algorithms.
 
 ```@example ill_conditioned_nlprob
-prob_brusselator_2d_exact = NonlinearProblem(NonlinearFunction(brusselator_2d_loop;
-        sparsity = SymbolicsSparsityDetection()), u0, p; abstol = 1e-10, reltol = 1e-10)
-prob_brusselator_2d_approx = NonlinearProblem(NonlinearFunction(brusselator_2d_loop;
-        sparsity = ApproximateJacobianSparsity()), u0, p; abstol = 1e-10, reltol = 1e-10)
+prob_brusselator_2d_exact = NonlinearProblem(
+    NonlinearFunction(brusselator_2d_loop;
+        sparsity = SymbolicsSparsityDetection()),
+    u0, p; abstol = 1e-10, reltol = 1e-10)
+prob_brusselator_2d_approx = NonlinearProblem(
+    NonlinearFunction(brusselator_2d_loop;
+        sparsity = ApproximateJacobianSparsity()),
+    u0, p; abstol = 1e-10, reltol = 1e-10)
 
 @btime solve(prob_brusselator_2d_exact, NewtonRaphson());
 @btime solve(prob_brusselator_2d_approx, NewtonRaphson());

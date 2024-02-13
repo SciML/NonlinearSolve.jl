@@ -155,19 +155,21 @@ function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :a
     end
 
     if show_trace !== missing
-        Base.depwarn("`show_trace` for CMINPACK has been deprecated and will be removed \
-                      in v4. Use the `show_trace` keyword argument via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.", :CMINPACK)
+        Base.depwarn(
+            "`show_trace` for CMINPACK has been deprecated and will be removed \
+             in v4. Use the `show_trace` keyword argument via the logging API \
+             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
+             instead.", :CMINPACK)
     else
         show_trace = false
     end
 
     if tracing !== missing
-        Base.depwarn("`tracing` for CMINPACK has been deprecated and will be removed \
-                      in v4. Use the `store_trace` keyword argument via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.", :CMINPACK)
+        Base.depwarn(
+            "`tracing` for CMINPACK has been deprecated and will be removed \
+             in v4. Use the `store_trace` keyword argument via the logging API \
+             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
+             instead.", :CMINPACK)
     else
         tracing = false
     end
@@ -243,25 +245,29 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         Base.depwarn("`show_trace` for NLsolveJL has been deprecated and will be removed \
                       in v4. Use the `show_trace` keyword argument via the logging API \
                       https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.", :NLsolveJL)
+                      instead.",
+            :NLsolveJL)
     else
         show_trace = false
     end
 
     if store_trace !== missing
-        Base.depwarn("`store_trace` for NLsolveJL has been deprecated and will be removed \
-                      in v4. Use the `store_trace` keyword argument via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.", :NLsolveJL)
+        Base.depwarn(
+            "`store_trace` for NLsolveJL has been deprecated and will be removed \
+             in v4. Use the `store_trace` keyword argument via the logging API \
+             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
+             instead.",
+            :NLsolveJL)
     else
         store_trace = false
     end
 
     if extended_trace !== missing
-        Base.depwarn("`extended_trace` for NLsolveJL has been deprecated and will be \
-                      removed in v4. Use the `trace_level = TraceAll()` keyword argument \
-                      via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
+        Base.depwarn(
+            "`extended_trace` for NLsolveJL has been deprecated and will be \
+             removed in v4. Use the `trace_level = TraceAll()` keyword argument \
+             via the logging API \
+             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
             :NLsolveJL)
     else
         extended_trace = false
@@ -317,7 +323,8 @@ function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool
     if time_limit !== missing
         Base.depwarn("`time_limit` keyword argument to `SpeedMappingJL` has been \
                       deprecated and will be removed in v4. Pass `maxtime = <value>` to \
-                      `SciMLBase.solve`.", :SpeedMappingJL)
+                      `SciMLBase.solve`.",
+            :SpeedMappingJL)
     else
         time_limit = 1000
     end

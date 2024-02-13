@@ -1,14 +1,16 @@
 # Not part of public API but helps reduce code duplication
 import SimpleNonlinearSolve: __nlsolve_ad,
-    __nlsolve_dual_soln, __nlsolve_∂f_∂p, __nlsolve_∂f_∂u
+                             __nlsolve_dual_soln, __nlsolve_∂f_∂p, __nlsolve_∂f_∂u
 
-function SciMLBase.solve(prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
+function SciMLBase.solve(
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
             iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
         alg::Union{Nothing, AbstractNonlinearAlgorithm}, args...;
         kwargs...) where {T, V, P, iip}
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
-    return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
         sol.original)
 end
 
@@ -34,7 +36,8 @@ function reinit_cache!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
     return cache
 end
 
-function SciMLBase.init(prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
+function SciMLBase.init(
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
             iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
         alg::Union{Nothing, AbstractNonlinearAlgorithm}, args...;
         kwargs...) where {T, V, P, iip}

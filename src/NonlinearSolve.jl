@@ -9,13 +9,14 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
 @recompile_invalidations begin
     using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
-        LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
-        SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
+          LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
+          SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import DiffEqBase: AbstractNonlinearTerminationMode,
-        AbstractSafeNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-        NonlinearSafeTerminationReturnCode, get_termination_mode
+                       AbstractSafeNonlinearTerminationMode,
+                       AbstractSafeBestNonlinearTerminationMode,
+                       NonlinearSafeTerminationReturnCode, get_termination_mode
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
@@ -23,7 +24,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import RecursiveArrayTools: recursivecopy!, recursivefill!
 
     import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-        AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
+                      AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
     import SparseDiffTools: AbstractSparsityDetection, AutoSparseEnzyme
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
 end
@@ -95,20 +96,28 @@ include("default.jl")
     probs_nlls = NonlinearLeastSquaresProblem[]
     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
-        (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(1)), [0.1, 0.0]),
-        (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(4)), [0.1, 0.1]))
+        (
+            NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
+                resid_prototype = zeros(1)),
+            [0.1, 0.0]),
+        (
+            NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+                resid_prototype = zeros(4)),
+            [0.1, 0.1]))
     for (fn, u0) in nlfuncs
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), Float32[0.1, 0.0]),
         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
             Float32[0.1, 0.1]),
-        (NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(Float32, 1)), Float32[0.1, 0.0]),
-        (NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(Float32, 4)), Float32[0.1, 0.1]))
+        (
+            NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
+                resid_prototype = zeros(Float32, 1)),
+            Float32[0.1, 0.0]),
+        (
+            NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+                resid_prototype = zeros(Float32, 4)),
+            Float32[0.1, 0.1]))
     for (fn, u0) in nlfuncs
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
     end
@@ -132,18 +141,18 @@ end
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm,
-    RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+       RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
-    FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
 
 # Descent Algorithms
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
-    GeodesicAcceleration
+       GeodesicAcceleration
 
 # Globalization
 ## Line Search Algorithms
@@ -153,9 +162,9 @@ export RadiusUpdateSchemes
 
 # Export the termination conditions from DiffEqBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
-    NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
-    AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
-    RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+       NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+       AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+       RelSafeBestTerminationMode, AbsSafeBestTerminationMode
 
 # Tracing Functionality
 export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber

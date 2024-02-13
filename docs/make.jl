@@ -1,6 +1,6 @@
 using Documenter, DocumenterCitations
 using NonlinearSolve,
-    SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase, DiffEqBase
+      SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase, DiffEqBase
 
 cp(joinpath(@__DIR__, "Manifest.toml"), joinpath(@__DIR__, "src/assets/Manifest.toml"),
     force = true)

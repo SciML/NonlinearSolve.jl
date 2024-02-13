@@ -15,15 +15,19 @@ myfun(x, lv) = x * sin(x) - lv
 
 function f(out, levels, u0)
     for i in 1:N
-        out[i] = solve(IntervalNonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
-                u0, levels[i]), Falsi()).u
+        out[i] = solve(
+            IntervalNonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
+                u0, levels[i]),
+            Falsi()).u
     end
 end
 
 function f2(out, levels, u0)
     for i in 1:N
-        out[i] = solve(NonlinearProblem{false}(NonlinearFunction{false}(myfun),
-                u0, levels[i]), SimpleNewtonRaphson()).u
+        out[i] = solve(
+            NonlinearProblem{false}(NonlinearFunction{false}(myfun),
+                u0, levels[i]),
+            SimpleNewtonRaphson()).u
     end
 end
 

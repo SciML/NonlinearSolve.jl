@@ -56,7 +56,8 @@ function LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α
     if method isa AbstractNonlinearSolveLineSearchAlgorithm
         Base.depwarn("Passing a native NonlinearSolve line search algorithm to \
                       `LineSearchesJL` or `LineSearch` is deprecated. Pass the method \
-                      directly instead.", :LineSearchesJL)
+                      directly instead.",
+            :LineSearchesJL)
         return method
     end
     return LineSearchesJL(method, α, autodiff)
@@ -141,7 +142,8 @@ function __internal_solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
     dϕ = @closure α -> cache.dϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
         cache.grad_op)
-    ϕdϕ = @closure α -> cache.ϕdϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
+    ϕdϕ = @closure α -> cache.ϕdϕ(
+        cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
         cache.grad_op)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))

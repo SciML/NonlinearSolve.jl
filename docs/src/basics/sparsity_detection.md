@@ -22,10 +22,12 @@ NonlinearSolve will automatically perform matrix coloring and use sparse differe
 Now you can help the solver further by providing the color vector. This can be done by
 
 ```julia
-prob = NonlinearProblem(NonlinearFunction(nlfunc; sparsity = jac_prototype,
+prob = NonlinearProblem(
+    NonlinearFunction(nlfunc; sparsity = jac_prototype,
         colorvec = colorvec), x0)
 # OR
-prob = NonlinearProblem(NonlinearFunction(nlfunc; jac_prototype = jac_prototype,
+prob = NonlinearProblem(
+    NonlinearFunction(nlfunc; jac_prototype = jac_prototype,
         colorvec = colorvec), x0)
 ```
 
@@ -47,7 +49,8 @@ algorithm you want to use, then you can create your problem as follows:
 prob = NonlinearProblem(NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetection()),
     x0)  # Remember to have Symbolics.jl loaded
 # OR
-prob = NonlinearProblem(NonlinearFunction(nlfunc; sparsity = ApproximateJacobianSparsity()),
+prob = NonlinearProblem(
+    NonlinearFunction(nlfunc; sparsity = ApproximateJacobianSparsity()),
     x0)
 ```
 

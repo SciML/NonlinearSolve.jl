@@ -58,7 +58,8 @@ function __internal_init(prob::AbstractNonlinearProblem,
         internalnorm)
 end
 
-function (cache::InitializedApproximateJacobianCache)(alg::BroydenLowRankInitialization, fu,
+function (cache::InitializedApproximateJacobianCache)(
+        alg::BroydenLowRankInitialization, fu,
         u)
     α = __initial_alpha(alg.alpha, u, fu, cache.internalnorm)
     cache.J.idx = 0

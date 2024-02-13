@@ -37,8 +37,10 @@ function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}
     return true
 end
 
-function get_concrete_forward_ad(autodiff::Union{ADTypes.AbstractForwardMode,
-            ADTypes.AbstractFiniteDifferencesMode}, prob, sp::Val{test_sparse} = True,
+function get_concrete_forward_ad(
+        autodiff::Union{ADTypes.AbstractForwardMode,
+            ADTypes.AbstractFiniteDifferencesMode},
+        prob, sp::Val{test_sparse} = True,
         args...; kwargs...) where {test_sparse}
     return autodiff
 end
@@ -68,8 +70,10 @@ function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
     return ad
 end
 
-function get_concrete_reverse_ad(autodiff::Union{ADTypes.AbstractReverseMode,
-            ADTypes.AbstractFiniteDifferencesMode}, prob, sp::Val{test_sparse} = True,
+function get_concrete_reverse_ad(
+        autodiff::Union{ADTypes.AbstractReverseMode,
+            ADTypes.AbstractFiniteDifferencesMode},
+        prob, sp::Val{test_sparse} = True,
         args...; kwargs...) where {test_sparse}
     return autodiff
 end
@@ -232,13 +236,18 @@ end
 function __internal_caches(__source__, __module__, cType, internal_cache_names::Tuple)
     fields = map(name -> :($(__query_stat)(getproperty(cache, $(name)), ST)),
         internal_cache_names)
-    callback_caches = map(name -> :($(callback_into_cache!)(cache,
+    callback_caches = map(
+        name -> :($(callback_into_cache!)(cache,
             getproperty(internalcache, $(name)), internalcache, args...)),
         internal_cache_names)
-    callbacks_self = map(name -> :($(callback_into_cache!)(internalcache,
-            getproperty(internalcache, $(name)))), internal_cache_names)
-    reinit_caches = map(name -> :($(reinit_cache!)(getproperty(cache, $(name)),
-            args...; kwargs...)), internal_cache_names)
+    callbacks_self = map(
+        name -> :($(callback_into_cache!)(internalcache,
+            getproperty(internalcache, $(name)))),
+        internal_cache_names)
+    reinit_caches = map(
+        name -> :($(reinit_cache!)(getproperty(cache, $(name)),
+            args...; kwargs...)),
+        internal_cache_names)
     return esc(quote
         function __query_stat(cache::$(cType), ST::Val{stat}) where {stat}
             val = $(__direct_query_stat)(cache, ST)

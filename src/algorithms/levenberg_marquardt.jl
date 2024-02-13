@@ -39,7 +39,8 @@ function LevenbergMarquardt(; concrete_jac = missing, linsolve = nothing,
         Base.depwarn("The `concrete_jac` keyword argument is deprecated and will be \
                       removed in v0.4. This kwarg doesn't make sense (and is currently \
                       ignored) for LM since it needs to materialize the Jacobian to \
-                      compute the Damping Term", :LevenbergMarquardt)
+                      compute the Damping Term",
+            :LevenbergMarquardt)
     end
 
     descent = DampedNewtonDescent(; linsolve, precs, initial_damping = damping_initial,
@@ -49,7 +50,8 @@ function LevenbergMarquardt(; concrete_jac = missing, linsolve = nothing,
         descent = GeodesicAcceleration(descent, finite_diff_step_geodesic, α_geodesic)
     end
     trustregion = LevenbergMarquardtTrustRegion(b_uphill)
-    return GeneralizedFirstOrderAlgorithm(; concrete_jac = true, name = :LevenbergMarquardt,
+    return GeneralizedFirstOrderAlgorithm(;
+        concrete_jac = true, name = :LevenbergMarquardt,
         trustregion, descent, jacobian_ad = autodiff)
 end
 
