@@ -66,8 +66,8 @@ Abstract Type for all Descent Caches.
 ### `__internal_solve!` specification
 
 ```julia
-δu, success, intermediates = __internal_solve!(cache::AbstractDescentCache, J, fu, u,
-    idx::Val; skip_solve::Bool = false, kwargs...)
+descent_result = __internal_solve!(cache::AbstractDescentCache, J, fu, u, idx::Val;
+    skip_solve::Bool = false, kwargs...)
 ```
 
   - `J`: Jacobian or Inverse Jacobian (if `pre_inverted = Val(true)`).
@@ -79,14 +79,7 @@ Abstract Type for all Descent Caches.
     direction was rejected and we want to try with a modified trust region.
   - `kwargs`: keyword arguments to pass to the linear solver if there is one.
 
-#### Returned values
-
-  - `δu`: the descent direction.
-  - `success`: Certain Descent Algorithms can reject a descent direction for example
-    `GeodesicAcceleration`.
-  - `intermediates`: A named tuple containing intermediates computed during the solve.
-    For example, `GeodesicAcceleration` returns `NamedTuple{(:v, :a)}` containing the
-    "velocity" and "acceleration" terms.
+Returns a result of type [`DescentResult`](@ref).
 
 ### Interface Functions
 

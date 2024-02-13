@@ -163,8 +163,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         linsolve = get_linear_solver(alg.descent)
         initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
-            linsolve,
-            maxiters, internalnorm)
+            linsolve, maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
             termination_condition)
@@ -222,9 +221,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
         if get_nsteps(cache) == 0  # First Step is special ignore kwargs
-            J_init = __internal_solve!(cache.initialization_cache,
-                cache.fu,
-                cache.u,
+            J_init = __internal_solve!(cache.initialization_cache, cache.fu, cache.u,
                 Val(false))
             if INV
                 if jacobian_initialized_preinverted(cache.initialization_cache.alg)
@@ -283,54 +280,65 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
-            δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian,
-                trust_region = cache.trustregion_cache.trust_region)
+            descent_result = __internal_solve!(cache.descent_cache, J, cache.fu, cache.u;
+                new_jacobian, trust_region = cache.trustregion_cache.trust_region)
         else
-            δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian)
+            descent_result = __internal_solve!(cache.descent_cache, J, cache.fu, cache.u;
+                new_jacobian)
         end
     end
 
-    if descent_success
-        if GB === :LineSearch
-            @static_timeit cache.timer "linesearch" begin
-                needs_reset, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)
-            end
-            if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
-                cache.force_reinit = true
-            else
-                @static_timeit cache.timer "step" begin
-                    @bb axpy!(α, δu, cache.u)
-                    evaluate_f!(cache, cache.u, cache.p)
-                end
-            end
-        elseif GB === :TrustRegion
-            @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu, cache.u, δu, descent_intermediates)
-                if tr_accepted
-                    @bb copyto!(cache.u, u_new)
-                    @bb copyto!(cache.fu, fu_new)
-                end
-                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
-                    cache.force_stop = true
-                end
-            end
-            α = true
-        elseif GB === :None
+    if descent_result.success
+        if GB === :None
             @static_timeit cache.timer "step" begin
-                @bb axpy!(1, δu, cache.u)
+                if descent_result.u !== missing
+                    @bb copyto!(cache.u, descent_result.u)
+                elseif descent_result.δu !== missing
+                    @bb axpy!(1, descent_result.δu, cache.u)
+                else
+                    error("This shouldn't occur. `$(cache.alg.descent)` is incorrectly \
+                           specified.")
+                end
                 evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
         else
-            error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
-                :TrustRegion, :None)")
+            δu = descent_result.δu
+            @assert δu!==missing "Descent Supporting LineSearch or TrustRegion must return a `δu`."
+
+            if GB === :LineSearch
+                @static_timeit cache.timer "linesearch" begin
+                    needs_reset, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)
+                end
+                if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
+                    cache.force_reinit = true
+                else
+                    @static_timeit cache.timer "step" begin
+                        @bb axpy!(α, δu, cache.u)
+                        evaluate_f!(cache, cache.u, cache.p)
+                    end
+                end
+            elseif GB === :TrustRegion
+                @static_timeit cache.timer "trustregion" begin
+                    tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache,
+                        J, cache.fu, cache.u, δu, descent_result.extras)
+                    if tr_accepted
+                        @bb copyto!(cache.u, u_new)
+                        @bb copyto!(cache.fu, fu_new)
+                        α = true
+                    else
+                        α = false
+                    end
+                    if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                       cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                        cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                        cache.force_stop = true
+                    end
+                end
+            else
+                error("Unknown Globalization Strategy: $(GB). Allowed values are \
+                       (:LineSearch, :TrustRegion, :None)")
+            end
         end
         check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else

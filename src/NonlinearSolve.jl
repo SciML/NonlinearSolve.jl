@@ -45,11 +45,13 @@ include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
+include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
+include("descent/multistep.jl")
 
 include("internal/operators.jl")
 include("internal/jacobian.jl")
