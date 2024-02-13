@@ -7,31 +7,46 @@ typically the last names of the authors of the paper that introduced the method.
 """
 module MultiStepSchemes
 
+using ConcreteStructs
+
 abstract type AbstractMultiStepScheme end
 
 function Base.show(io::IO, mss::AbstractMultiStepScheme)
     print(io, "MultiStepSchemes.$(string(nameof(typeof(mss)))[3:end])")
 end
 
+alg_steps(::Type{T}) where {T <: AbstractMultiStepScheme} = alg_steps(T())
+
 struct __PotraPtak3 <: AbstractMultiStepScheme end
 const PotraPtak3 = __PotraPtak3()
 
-alg_steps(::__PotraPtak3) = 1
+alg_steps(::__PotraPtak3) = 2
 
-struct __SinghSharma4 <: AbstractMultiStepScheme end
+@kwdef @concrete struct __SinghSharma4 <: AbstractMultiStepScheme
+    vjp_autodiff = nothing
+end
 const SinghSharma4 = __SinghSharma4()
 
 alg_steps(::__SinghSharma4) = 3
 
-struct __SinghSharma5 <: AbstractMultiStepScheme end
+@kwdef @concrete struct __SinghSharma5 <: AbstractMultiStepScheme
+    vjp_autodiff = nothing
+end
 const SinghSharma5 = __SinghSharma5()
 
 alg_steps(::__SinghSharma5) = 3
 
-struct __SinghSharma7 <: AbstractMultiStepScheme end
+@kwdef @concrete struct __SinghSharma7 <: AbstractMultiStepScheme
+    vjp_autodiff = nothing
+end
 const SinghSharma7 = __SinghSharma7()
 
 alg_steps(::__SinghSharma7) = 4
+
+@generated function display_name(alg::T) where {T <: AbstractMultiStepScheme}
+    res = Symbol(first(split(last(split(string(T), ".")), "{"; limit = 2))[3:end])
+    return :($(Meta.quot(res)))
+end
 
 end
 
@@ -43,6 +58,8 @@ const MSS = MultiStepSchemes
     precs = DEFAULT_PRECS
 end
 
+Base.show(io::IO, alg::GenericMultiStepDescent) = print(io, "$(alg.scheme)()")
+
 supports_line_search(::GenericMultiStepDescent) = false
 supports_trust_region(::GenericMultiStepDescent) = false
 
@@ -51,6 +68,7 @@ supports_trust_region(::GenericMultiStepDescent) = false
     p
     δu
     δus
+    extras
     scheme::S
     lincache
     timer

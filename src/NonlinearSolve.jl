@@ -8,9 +8,9 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
-          LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
-          SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
+    using Accessors, ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures,
+          LazyArrays, LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences,
+          Printf, SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import DiffEqBase: AbstractNonlinearTerminationMode,
@@ -142,7 +142,7 @@ end
 
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane,
-    MultiStepNonlinearSolver
+       MultiStepNonlinearSolver
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm,
        RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
@@ -156,7 +156,7 @@ export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, Genera
 
 # Descent Algorithms
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
-    GeodesicAcceleration, GenericMultiStepDescent
+       GeodesicAcceleration, GenericMultiStepDescent
 ## Multistep Algorithms
 export MultiStepSchemes
 
