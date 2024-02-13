@@ -1,7 +1,7 @@
 @testsetup module CoreNLLSTesting
 using Reexport
 @reexport using NonlinearSolve,
-    LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff, Zygote
+                LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff, Zygote
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -41,7 +41,7 @@ append!(solvers,
         LevenbergMarquardt(; linsolve = LUFactorization()),
         LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
         LevenbergMarquardt(; linsolve = KrylovJL_LSMR()),
-        nothing,
+        nothing
     ])
 for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
     RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
@@ -54,7 +54,8 @@ end
 
 @testitem "General NLLS Solvers" setup=[CoreNLLSTesting] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
-    prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
+    prob_iip = NonlinearLeastSquaresProblem(
+        NonlinearFunction(loss_function;
             resid_prototype = zero(y_target)), θ_init, x)
 
     nlls_problems = [prob_oop, prob_iip]
@@ -82,10 +83,16 @@ end
     end
 
     probs = [
-        NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target), vjp = vjp!), θ_init, x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target), vjp = vjp), θ_init, x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{true}(loss_function;
+                resid_prototype = zero(y_target), vjp = vjp!),
+            θ_init,
+            x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{false}(loss_function;
+                resid_prototype = zero(y_target), vjp = vjp),
+            θ_init,
+            x)
     ]
 
     for prob in probs, solver in solvers

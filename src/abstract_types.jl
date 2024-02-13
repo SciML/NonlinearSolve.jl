@@ -16,7 +16,8 @@ squares solver.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
+__internal_init(
+    prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
     pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
     reltol = nothing, alias_J::Bool = true, shared::Val{N} = Val(1),
     kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
@@ -232,7 +233,8 @@ Abstract Type for Damping Functions in DampedNewton.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
+__internal_init(
+    prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
     J, fu, u, args...; internal_norm = DEFAULT_NORM,
     kwargs...) --> AbstractDampingFunctionCache
 ```

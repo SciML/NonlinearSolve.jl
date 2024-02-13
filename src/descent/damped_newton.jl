@@ -51,7 +51,8 @@ end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
         timer = get_timer_output(), reltol = nothing, alias_J = true,
         shared::Val{N} = Val(1), kwargs...) where {INV, N}
@@ -101,7 +102,8 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
         J_cache = _vcat(J, D)
         A, b = J_cache, rhs_cache
     elseif mode === :simple
-        damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping, J, fu,
+        damping_fn_cache = __internal_init(
+            prob, alg.damping_fn, alg.initial_damping, J, fu,
             u, False; kwargs...)
         J_cache = __maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)

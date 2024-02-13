@@ -4,7 +4,8 @@ using MINPACK, NonlinearSolve, SciMLBase
 import FastClosures: @closure
 
 function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem,
-            NonlinearProblem}, alg::CMINPACK, args...; abstol = nothing, maxiters = 1000,
+            NonlinearProblem},
+        alg::CMINPACK, args...; abstol = nothing, maxiters = 1000,
         alias_u0::Bool = false, show_trace::Val{ShT} = Val(false),
         store_trace::Val{StT} = Val(false), termination_condition = nothing,
         kwargs...) where {ShT, StT}

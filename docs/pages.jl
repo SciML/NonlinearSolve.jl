@@ -43,5 +43,5 @@ pages = [
         "devdocs/operators.md",
         "devdocs/algorithm_helpers.md"],
     "Release Notes" => "release_notes.md",
-    "References" => "references.md",
+    "References" => "references.md"
 ]

@@ -22,8 +22,8 @@ u0 = [x => 1.0,
     z => 0.0]
 
 ps = [σ => 10.0
-    ρ => 26.0
-    β => 8 / 3]
+      ρ => 26.0
+      β => 8 / 3]
 
 prob = NonlinearProblem(ns, u0, ps)
 sol = solve(prob, NewtonRaphson())
@@ -65,7 +65,7 @@ eqs = [
     0 ~ u2 - cos(u1),
     0 ~ u3 - hypot(u1, u2),
     0 ~ u4 - hypot(u2, u3),
-    0 ~ u5 - hypot(u4, u1),
+    0 ~ u5 - hypot(u4, u1)
 ]
 @named sys = NonlinearSystem(eqs, [u1, u2, u3, u4, u5], [])
 ```

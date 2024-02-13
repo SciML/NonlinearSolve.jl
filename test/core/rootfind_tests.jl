@@ -1,7 +1,7 @@
 @testsetup module CoreRootfindTesting
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
-    LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
+                LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
 function __autosparseenzyme()
     @static if Sys.iswindows()
@@ -34,7 +34,7 @@ const TERMINATION_CONDITIONS = [
     SteadyStateDiffEqTerminationMode(), SimpleNonlinearSolveTerminationMode(),
     NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
     AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode(),
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()
 ]
 
 function benchmark_nlsolve_oop(f, u0, p = 2.0; solver, kwargs...)
@@ -60,14 +60,15 @@ function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
 end
 
 export nlprob_iterator_interface, benchmark_nlsolve_oop, benchmark_nlsolve_iip,
-    TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!,
-    __autosparseenzyme
+       TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!,
+       __autosparseenzyme
 end
 
 # --- NewtonRaphson tests ---
 
 @testitem "NewtonRaphson" setup=[CoreRootfindTesting] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
+            Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
@@ -87,7 +88,7 @@ end
 
         precs = [
             (u0) -> NonlinearSolve.DEFAULT_PRECS,
-            u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing)),
+            u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))
         ]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
@@ -112,8 +113,11 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), NewtonRaphson()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), NewtonRaphson()) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
+            AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+        u0 in (1.0, [1.0, 1.0])
+
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
@@ -151,7 +155,9 @@ end
     end
 
     @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in ([
-            1.0, 1.0],), radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
+            1.0, 1.0],), radius_update_scheme in radius_update_schemes,
+        linsolve in linear_solvers
+
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
         solver = TrustRegion(; radius_update_scheme, linsolve)
         sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver, abstol)
@@ -168,8 +174,10 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), TrustRegion()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), TrustRegion()) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0]),
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (
+            AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+        u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -262,8 +270,11 @@ end
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
+            AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+        u0 in (1.0, [1.0, 1.0])
+
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, LevenbergMarquardt(; autodiff); abstol = 1e-9,
             reltol = 1e-9).u .≈ sqrt(2.0))
@@ -371,7 +382,7 @@ end
         η_strategy = [
             (f_1, k, x, F) -> f_1 / k^2,
             (f_1, k, x, F) -> f_1 / k^3,
-            (f_1, k, x, F) -> f_1 / k^4,
+            (f_1, k, x, F) -> f_1 / k^4
         ]
 
         list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
@@ -442,8 +453,11 @@ end
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true),
         PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()), u0 in (1.0, [1.0, 1.0])
+    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
+            AutoSparseForwardDiff(),
+            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+        u0 in (1.0, [1.0, 1.0])
+
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0, autodiff)).u .≈
                   sqrt(2.0))
@@ -461,7 +475,8 @@ end
 # --- Broyden tests ---
 
 @testitem "Broyden" setup=[CoreRootfindTesting] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
+            Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote()),
@@ -511,7 +526,8 @@ end
 # --- Klement tests ---
 
 @testitem "Klement" setup=[CoreRootfindTesting] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (
+            Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote()),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
@@ -560,7 +576,8 @@ end
 # --- LimitedMemoryBroyden tests ---
 
 @testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (Static(),
+    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
+            Static(),
             StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
             LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote())

@@ -90,7 +90,8 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
         end
     end
 
-    return JacobianCache{iip}(J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff,
+    return JacobianCache{iip}(
+        J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff,
         jvp_autodiff)
 end
 

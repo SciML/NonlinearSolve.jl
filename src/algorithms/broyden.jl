@@ -28,7 +28,8 @@ search.
         useful for specific problems, but whether it will work may depend strongly on the
         problem
 """
-function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
+function Broyden(;
+        max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
         init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing, alpha = nothing,
         update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
     if IJ === :identity

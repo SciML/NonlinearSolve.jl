@@ -147,7 +147,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
             σ_n = T(alg.σ_1)
         end
 
-        return GeneralizedDFSaneCache{isinplace(prob), maxtime !== nothing}(fu, fu_cache, u,
+        return GeneralizedDFSaneCache{isinplace(prob), maxtime !== nothing}(
+            fu, fu_cache, u,
             u_cache, prob.p, du, alg, prob, σ_n, T(alg.σ_min), T(alg.σ_max),
             linesearch_cache, 0, 0, maxiters, maxtime, timer, 0.0, tc_cache, trace,
             ReturnCode.Default, false)

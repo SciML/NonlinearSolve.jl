@@ -30,12 +30,14 @@ end
 
 @testitem "LeastSquaresOptim.jl" setup=[WrapperNLLSSetup] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
-    prob_iip = NonlinearLeastSquaresProblem(NonlinearFunction(loss_function;
+    prob_iip = NonlinearLeastSquaresProblem(
+        NonlinearFunction(loss_function;
             resid_prototype = zero(y_target)), θ_init, x)
 
     nlls_problems = [prob_oop, prob_iip]
 
-    solvers = [LeastSquaresOptimJL(alg; autodiff) for alg in (:lm, :dogleg),
+    solvers = [LeastSquaresOptimJL(alg; autodiff)
+               for alg in (:lm, :dogleg),
     autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff(), :central, :forward)]
 
     for prob in nlls_problems, solver in solvers
@@ -56,12 +58,18 @@ end
     jac(θ, p) = ForwardDiff.jacobian(θ -> loss_function(θ, p), θ)
 
     probs = [
-        NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target), jac = jac!), θ_init, x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target), jac = jac), θ_init, x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{true}(loss_function;
+                resid_prototype = zero(y_target), jac = jac!),
+            θ_init,
+            x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{false}(loss_function;
+                resid_prototype = zero(y_target), jac = jac),
+            θ_init,
+            x),
         NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function; jac),
-            θ_init, x),
+            θ_init, x)
     ]
 
     solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
@@ -75,11 +83,15 @@ end
 @testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[
     WrapperNLLSSetup] begin
     probs = [
-        NonlinearLeastSquaresProblem(NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target)), θ_init, x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target)), θ_init, x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{true}(loss_function;
+                resid_prototype = zero(y_target)),
+            θ_init, x),
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{false}(loss_function;
+                resid_prototype = zero(y_target)),
+            θ_init, x),
+        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x)
     ]
 
     solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)

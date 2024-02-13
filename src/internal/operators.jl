@@ -104,10 +104,10 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
             if iip
                 # FIXME: Technically we should propagate the tag but ignoring that for now
                 cache1 = Dual{
-                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(u))), eltype(u), 1,
+                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(u))), eltype(u), 1
                 }.(similar(u), ForwardDiff.Partials.(tuple.(u)))
                 cache2 = Dual{
-                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(fu))), eltype(fu), 1,
+                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(fu))), eltype(fu), 1
                 }.(similar(fu), ForwardDiff.Partials.(tuple.(fu)))
                 @closure (Jv, v, u, p) -> auto_jacvec!(Jv, uf, u, v, cache1, cache2)
             else
@@ -127,7 +127,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
         end
     end
 
-    return JacobianOperator{false, iip, promote_type(eltype(fu), eltype(u))}(jvp_op, vjp_op,
+    return JacobianOperator{false, iip, promote_type(eltype(fu), eltype(u))}(
+        jvp_op, vjp_op,
         u, fu)
 end
 

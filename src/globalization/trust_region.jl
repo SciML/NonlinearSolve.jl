@@ -56,7 +56,8 @@ function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...; p = c
     cache.nf = 0
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
         f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
