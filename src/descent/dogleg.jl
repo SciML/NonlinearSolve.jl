@@ -56,10 +56,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     cauchy_cache = __internal_init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     @bb δu_cache_1 = similar(u)
     @bb δu_cache_2 = similar(u)
     @bb δu_cache_mul = similar(u)

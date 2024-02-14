@@ -158,22 +158,3 @@ Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the i
 """
 @inline pickchunksize(x) = pickchunksize(length(x))
 @inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
-
-"""
-    apply_patch(scheme, patch::NamedTuple{names})
-
-Applies the patch to the scheme, returning the new scheme. If some of the `names` are not,
-present in the scheme, they are ignored.
-"""
-@generated function apply_patch(scheme, patch::NamedTuple{names}) where {names}
-    exprs = []
-    for name in names
-        hasfield(scheme, name) || continue
-        push!(exprs, quote
-            lens = PropertyLens{$(Meta.quot(name))}()
-            return set(scheme, lens, getfield(patch, $(Meta.quot(name))))
-        end)
-    end
-    push!(exprs, :(return scheme))
-    return Expr(:block, exprs...)
-end

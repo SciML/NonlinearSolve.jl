@@ -89,10 +89,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAccelerati
         abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
         kwargs...) where {INV, N, F}
     T = promote_type(eltype(u), eltype(fu))
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     descent_cache = __internal_init(prob, alg.descent, J, fu, u; shared = Val(N * 2),
         pre_inverted, linsolve_kwargs, abstol, reltol, kwargs...)
     @bb Jv = similar(fu)

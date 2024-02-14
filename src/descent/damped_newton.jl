@@ -58,11 +58,7 @@ function __internal_init(
         shared::Val{N} = Val(1), kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
-
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
     normal_form_linsolve = __needs_square_A(alg.linsolve, u)
     if u isa Number

@@ -36,10 +36,7 @@ function __internal_init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u;
         shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing, timer)
     lincache = LinearSolverCache(alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol,
         linsolve_kwargs...)
@@ -64,10 +61,7 @@ function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent,
     end
     lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
         linsolve_kwargs...)
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     return NewtonDescentCache{false, normal_form}(δu, δus, lincache, JᵀJ, Jᵀfu, timer)
 end
 

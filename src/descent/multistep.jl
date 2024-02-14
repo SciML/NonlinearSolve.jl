@@ -15,12 +15,12 @@ function Base.show(io::IO, mss::AbstractMultiStepScheme)
     print(io, "MultiStepSchemes.$(string(nameof(typeof(mss)))[3:end])")
 end
 
-alg_steps(::Type{T}) where {T <: AbstractMultiStepScheme} = alg_steps(T())
+newton_steps(::Type{T}) where {T <: AbstractMultiStepScheme} = newton_steps(T())
 
 struct __PotraPtak3 <: AbstractMultiStepScheme end
 const PotraPtak3 = __PotraPtak3()
 
-alg_steps(::__PotraPtak3) = 2
+newton_steps(::__PotraPtak3) = 2
 nintermediates(::__PotraPtak3) = 1
 
 @kwdef @concrete struct __SinghSharma4 <: AbstractMultiStepScheme
@@ -28,21 +28,23 @@ nintermediates(::__PotraPtak3) = 1
 end
 const SinghSharma4 = __SinghSharma4()
 
-alg_steps(::__SinghSharma4) = 3
+newton_steps(::__SinghSharma4) = 4
+nintermediates(::__SinghSharma4) = 2
 
 @kwdef @concrete struct __SinghSharma5 <: AbstractMultiStepScheme
     jvp_autodiff = nothing
 end
 const SinghSharma5 = __SinghSharma5()
 
-alg_steps(::__SinghSharma5) = 3
+newton_steps(::__SinghSharma5) = 4
+nintermediates(::__SinghSharma5) = 2
 
 @kwdef @concrete struct __SinghSharma7 <: AbstractMultiStepScheme
     jvp_autodiff = nothing
 end
 const SinghSharma7 = __SinghSharma7()
 
-alg_steps(::__SinghSharma7) = 4
+newton_steps(::__SinghSharma7) = 6
 
 @generated function display_name(alg::T) where {T <: AbstractMultiStepScheme}
     res = Symbol(first(split(last(split(string(T), ".")), "{"; limit = 2))[3:end])
@@ -75,6 +77,8 @@ supports_trust_region(::GenericMultiStepDescent) = false
     fus
     internal_cache
     internal_caches
+    extra
+    extras
     scheme::S
     timer
     nf::Int
@@ -91,49 +95,37 @@ function __reinit_internal!(cache::GenericMultiStepDescentCache, args...; p = ca
 end
 
 function __internal_multistep_caches(
-        scheme::MSS.__PotraPtak3, alg::GenericMultiStepDescent,
-        prob, args...; shared::Val{N} = Val(1), kwargs...) where {N}
+        scheme::Union{MSS.__PotraPtak3, MSS.__SinghSharma4, MSS.__SinghSharma5},
+        alg::GenericMultiStepDescent, prob, args...;
+        shared::Val{N} = Val(1), kwargs...) where {N}
     internal_descent = NewtonDescent(; alg.linsolve, alg.precs)
-    internal_cache = __internal_init(
+    return @shared_caches N __internal_init(
         prob, internal_descent, args...; kwargs..., shared = Val(2))
-    internal_caches = N ≤ 1 ? nothing :
-                      map(2:N) do i
-        __internal_init(prob, internal_descent, args...; kwargs..., shared = Val(2))
-    end
-    return internal_cache, internal_caches
 end
+
+__extras_cache(::MSS.AbstractMultiStepScheme, args...; kwargs...) = nothing, nothing
 
 function __internal_init(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         alg::GenericMultiStepDescent, J, fu, u; shared::Val{N} = Val(1),
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, timer = get_timer_output(),
         kwargs...) where {INV, N}
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
-    fu_cache = ntuple(MSS.nintermediates(alg.scheme)) do i
+    δu, δus = @shared_caches N (@bb δu = similar(u))
+    fu_cache, fus_cache = @shared_caches N (ntuple(MSS.nintermediates(alg.scheme)) do i
         @bb xx = similar(fu)
-    end
-    fus_cache = N ≤ 1 ? nothing : map(2:N) do i
-        ntuple(MSS.nintermediates(alg.scheme)) do j
-            @bb xx = similar(fu)
-        end
-    end
-    u_cache = ntuple(MSS.nintermediates(alg.scheme)) do i
+    end)
+    u_cache, us_cache = @shared_caches N (ntuple(MSS.nintermediates(alg.scheme)) do i
         @bb xx = similar(u)
-    end
-    us_cache = N ≤ 1 ? nothing : map(2:N) do i
-        ntuple(MSS.nintermediates(alg.scheme)) do j
-            @bb xx = similar(u)
-        end
-    end
+    end)
     internal_cache, internal_caches = __internal_multistep_caches(
+        alg.scheme, alg, prob, J, fu, u; shared, pre_inverted, linsolve_kwargs,
+        abstol, reltol, timer, kwargs...)
+    extra, extras = __extras_cache(
         alg.scheme, alg, prob, J, fu, u; shared, pre_inverted, linsolve_kwargs,
         abstol, reltol, timer, kwargs...)
     return GenericMultiStepDescentCache(
         prob.f, prob.p, δu, δus, u_cache, us_cache, fu_cache, fus_cache,
-        internal_cache, internal_caches, alg.scheme, timer, 0)
+        internal_cache, internal_caches, extra, extras, alg.scheme, timer, 0)
 end
 
 function __internal_solve!(cache::GenericMultiStepDescentCache{MSS.__PotraPtak3, INV}, J,
