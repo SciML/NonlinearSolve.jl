@@ -215,59 +215,67 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
-            δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian,
-                trust_region = cache.trustregion_cache.trust_region)
+            descent_result = __internal_solve!(cache.descent_cache, J, cache.fu, cache.u;
+                new_jacobian, trust_region = cache.trustregion_cache.trust_region)
         else
-            δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian)
+            descent_result = __internal_solve!(cache.descent_cache, J, cache.fu, cache.u;
+                new_jacobian)
         end
     end
 
-    if descent_success
+    if descent_result.success
         cache.make_new_jacobian = true
-        if GB === :LineSearch
-            @static_timeit cache.timer "linesearch" begin
-                linesearch_failed, α = __internal_solve!(cache.linesearch_cache,
-                    cache.u, δu)
-            end
-            if linesearch_failed
-                cache.retcode = ReturnCode.InternalLineSearchFailed
-                cache.force_stop = true
-            end
+        if GB === :None
             @static_timeit cache.timer "step" begin
-                @bb axpy!(α, δu, cache.u)
-                evaluate_f!(cache, cache.u, cache.p)
-            end
-        elseif GB === :TrustRegion
-            @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu, cache.u, δu, descent_intermediates)
-                if tr_accepted
-                    @bb copyto!(cache.u, u_new)
-                    @bb copyto!(cache.fu, fu_new)
-                    α = true
+                if descent_result.u !== missing
+                    @bb copyto!(cache.u, descent_result.u)
+                elseif descent_result.δu !== missing
+                    @bb axpy!(1, descent_result.δu, cache.u)
                 else
-                    α = false
-                    cache.make_new_jacobian = false
+                    error("This shouldn't occur. `$(cache.alg.descent)` is incorrectly \
+                           specified.")
                 end
-                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
-                    cache.force_stop = true
-                end
-            end
-        elseif GB === :None
-            @static_timeit cache.timer "step" begin
-                @bb axpy!(1, δu, cache.u)
                 evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
         else
-            error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
-                  :TrustRegion, :None)")
+            δu = descent_result.δu
+            @assert δu!==missing "Descent Supporting LineSearch or TrustRegion must return a `δu`."
+
+            if GB === :LineSearch
+                @static_timeit cache.timer "linesearch" begin
+                    failed, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)
+                end
+                if failed
+                    cache.retcode = ReturnCode.InternalLineSearchFailed
+                    cache.force_stop = true
+                else
+                    @static_timeit cache.timer "step" begin
+                        @bb axpy!(α, δu, cache.u)
+                        evaluate_f!(cache, cache.u, cache.p)
+                    end
+                end
+            elseif GB === :TrustRegion
+                @static_timeit cache.timer "trustregion" begin
+                    tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache,
+                        J, cache.fu, cache.u, δu, descent_result.extras)
+                    if tr_accepted
+                        @bb copyto!(cache.u, u_new)
+                        @bb copyto!(cache.fu, fu_new)
+                        α = true
+                    else
+                        α = false
+                    end
+                    if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                       cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                        cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                        cache.force_stop = true
+                    end
+                end
+            else
+                error("Unknown Globalization Strategy: $(GB). Allowed values are \
+                       (:LineSearch, :TrustRegion, :None)")
+            end
         end
         check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else

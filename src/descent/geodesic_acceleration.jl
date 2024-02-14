@@ -89,10 +89,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAccelerati
         abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
         kwargs...) where {INV, N, F}
     T = promote_type(eltype(u), eltype(fu))
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     descent_cache = __internal_init(prob, alg.descent, J, fu, u; shared = Val(N * 2),
         pre_inverted, linsolve_kwargs, abstol, reltol, kwargs...)
     @bb Jv = similar(fu)
@@ -106,9 +103,11 @@ function __internal_solve!(
         cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
-    skip_solve && return δu, true, (; a, v)
-    v, _, _ = __internal_solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve,
+    skip_solve && return DescentResult(; δu, extras = (; a, v))
+
+    res_v = __internal_solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve,
         kwargs...)
+    v = res_v.δu
 
     @bb @. cache.u_cache = u + cache.h * v
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
@@ -117,8 +116,9 @@ function __internal_solve!(
     Jv = _restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
 
-    a, _, _ = __internal_solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N);
+    res_a = __internal_solve!(cache.descent_cache, J, cache.fu_cache, u, Val(2N);
         skip_solve, kwargs..., reuse_A_if_factorization = true)
+    a = res_a.δu
 
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
@@ -131,5 +131,5 @@ function __internal_solve!(
         cache.last_step_accepted = false
     end
 
-    return δu, cache.last_step_accepted, (; a, v)
+    return DescentResult(; δu, success = cache.last_step_accepted, extras = (; a, v))
 end

@@ -40,7 +40,7 @@ end
     newton_cache
     cauchy_cache
     internalnorm
-    JᵀJ_cache
+    Jᵀδu_cache
     δu_cache_1
     δu_cache_2
     δu_cache_mul
@@ -56,10 +56,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     cauchy_cache = __internal_init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     @bb δu_cache_1 = similar(u)
     @bb δu_cache_2 = similar(u)
     @bb δu_cache_mul = similar(u)
@@ -68,10 +65,10 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
 
     normal_form = prob isa NonlinearLeastSquaresProblem &&
                   __needs_square_A(alg.newton_descent.linsolve, u)
-    JᵀJ_cache = !normal_form ? J * _vec(δu) : nothing  # TODO: Rename
+    Jᵀδu_cache = !normal_form ? J * _vec(δu) : nothing
 
     return DoglegCache{INV, normal_form}(δu, δus, newton_cache, cauchy_cache, internalnorm,
-        JᵀJ_cache, δu_cache_1, δu_cache_2, δu_cache_mul)
+        Jᵀδu_cache, δu_cache_1, δu_cache_2, δu_cache_mul)
 end
 
 # If TrustRegion is not specified, then use a Gauss-Newton step
@@ -82,14 +79,16 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton, _, _ = __internal_solve!(cache.newton_cache, J, fu, u, idx; skip_solve,
+
+    res_newton = __internal_solve!(cache.newton_cache, J, fu, u, idx; skip_solve,
         kwargs...)
+    δu_newton = res_newton.δu
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
         @bb copyto!(δu, δu_newton)
         set_du!(cache, δu, idx)
-        return δu, true, (; δuJᵀJδu = T(NaN))
+        return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
     end
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies
@@ -103,12 +102,13 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
         δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
-        δu_cauchy, _, _ = __internal_solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve,
+        res_cauchy = __internal_solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve,
             kwargs...)
+        δu_cauchy = res_cauchy.δu
         J_ = INV ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
-        @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename
-        δuJᵀJδu = __dot(cache.JᵀJ_cache, cache.JᵀJ_cache)
+        @bb cache.Jᵀδu_cache = J × vec(δu_cauchy)
+        δuJᵀJδu = __dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
     end
     d_cauchy = (l_grad^3) / δuJᵀJδu
 
@@ -116,7 +116,7 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         λ = trust_region / l_grad
         @bb @. δu = λ * δu_cauchy
         set_du!(cache, δu, idx)
-        return δu, true, (; δuJᵀJδu = λ^2 * δuJᵀJδu)
+        return DescentResult(; δu, extras = (; δuJᵀJδu = λ^2 * δuJᵀJδu))
     end
 
     # FIXME: For anything other than 2-norm a quadratic root will give incorrect results
@@ -134,5 +134,5 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
 
     @bb @. δu = cache.δu_cache_1 + τ * cache.δu_cache_2
     set_du!(cache, δu, idx)
-    return δu, true, (; δuJᵀJδu = T(NaN))
+    return DescentResult(; δu, extras = (; δuJᵀJδu = τ^2 * δuJᵀJδu))
 end

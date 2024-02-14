@@ -2,8 +2,8 @@
 
 This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving
 ill-conditioned nonlinear systems requires specializing the linear solver on properties of
-the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` linear solve and the
-``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of
+the Jacobian in order to cut down on the `\mathcal{O}(n^3)` linear solve and the
+`\mathcal{O}(n^2)` back-solves. This tutorial is designed to explain the advanced usage of
 NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential
 equation (BRUSS) using NonlinearSolve.jl.
 

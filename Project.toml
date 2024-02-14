@@ -1,10 +1,11 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.5.4"
+version = "3.6.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
@@ -55,12 +56,13 @@ NonlinearSolveZygoteExt = "Zygote"
 
 [compat]
 ADTypes = "0.2.6"
+Accessors = "0.1.32"
 Aqua = "0.8"
 ArrayInterface = "7.7"
 BandedMatrices = "1.4"
 BenchmarkTools = "1.4"
-ConcreteStructs = "0.2.3"
 CUDA = "5.1"
+ConcreteStructs = "0.2.3"
 DiffEqBase = "6.146.0"
 Enzyme = "0.11.11"
 FastBroadcast = "0.2.8"

@@ -8,9 +8,9 @@ import Reexport: @reexport
 import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
-          LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
-          SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
+    using Accessors, ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures,
+          LazyArrays, LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences,
+          Printf, SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import DiffEqBase: AbstractNonlinearTerminationMode,
@@ -45,11 +45,13 @@ include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
+include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
+include("descent/multistep.jl")
 
 include("internal/operators.jl")
 include("internal/jacobian.jl")
@@ -69,6 +71,7 @@ include("core/spectral_methods.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")
+include("algorithms/multistep.jl")
 include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
 include("algorithms/lbroyden.jl")
@@ -138,7 +141,8 @@ include("default.jl")
 end
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane,
+       MultiStepNonlinearSolver
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm,
        RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
@@ -152,7 +156,9 @@ export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, Genera
 
 # Descent Algorithms
 export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
-       GeodesicAcceleration
+       GeodesicAcceleration, GenericMultiStepDescent
+## Multistep Algorithms
+export MultiStepSchemes
 
 # Globalization
 ## Line Search Algorithms

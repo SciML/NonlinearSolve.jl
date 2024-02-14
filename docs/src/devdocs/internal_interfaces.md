@@ -13,6 +13,7 @@ NonlinearSolve.AbstractNonlinearSolveCache
 ```@docs
 NonlinearSolve.AbstractDescentAlgorithm
 NonlinearSolve.AbstractDescentCache
+NonlinearSolve.DescentResult
 ```
 
 ## Approximate Jacobian

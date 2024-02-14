@@ -34,10 +34,7 @@ end
         linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...) where {INV, N}
     INV && @assert length(fu)==length(u) "Non-Square Jacobian Inverse doesn't make sense."
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     if INV
         lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu), _vec(u);
             abstol, reltol, linsolve_kwargs...)
@@ -63,5 +60,5 @@ function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val 
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end

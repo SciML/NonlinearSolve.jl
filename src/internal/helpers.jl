@@ -268,3 +268,41 @@ function __internal_caches(__source__, __module__, cType, internal_cache_names::
         end
     end)
 end
+
+"""
+    apply_patch(scheme, patch::NamedTuple{names})
+
+Applies the patch to the scheme, returning the new scheme. If some of the `names` are not,
+present in the scheme, they are ignored.
+"""
+@generated function apply_patch(scheme, patch::NamedTuple{names}) where {names}
+    exprs = []
+    for name in names
+        hasfield(scheme, name) || continue
+        push!(exprs, quote
+            lens = PropertyLens{$(Meta.quot(name))}()
+            return set(scheme, lens, getfield(patch, $(Meta.quot(name))))
+        end)
+    end
+    push!(exprs, :(return scheme))
+    return Expr(:block, exprs...)
+end
+
+"""
+    @shared_caches N expr
+
+Create a shared cache and a vector of caches. If `N` is 1, then the vector of caches is
+`nothing`.
+"""
+macro shared_caches(N, expr)
+    @gensym cache caches
+    return esc(quote
+        begin
+            $(cache) = $(expr)
+            $(caches) = $(N) ≤ 1 ? nothing : map(2:($(N))) do i
+                $(expr)
+            end
+            ($cache, $caches)
+        end
+    end)
+end

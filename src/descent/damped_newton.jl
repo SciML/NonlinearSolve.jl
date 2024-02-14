@@ -58,11 +58,7 @@ function __internal_init(
         shared::Val{N} = Val(1), kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
-    @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
-    end
-
+    δu, δus = @shared_caches N (@bb δu = similar(u))
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
     normal_form_linsolve = __needs_square_A(alg.linsolve, u)
     if u isa Number
@@ -138,7 +134,7 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
         idx::Val{N} = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
         kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
 
     recompute_A = idx === Val(1)
 
@@ -203,15 +199,14 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
     end
 
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(; A, b,
-            reuse_A_if_factorization = !new_jacobian && !recompute_A,
-            kwargs..., linu = _vec(δu))
+        δu = cache.lincache(; A, b, linu = _vec(δu),
+            reuse_A_if_factorization = !new_jacobian && !recompute_A, kwargs...)
         δu = _restructure(get_du(cache, idx), δu)
     end
 
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end
 
 # Define special concatenation for certain Array combinations
