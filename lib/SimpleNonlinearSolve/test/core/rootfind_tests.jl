@@ -120,12 +120,17 @@ end
     p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     @testset "$(nameof(typeof(alg)))" for alg in (SimpleDFSane(), SimpleTrustRegion(),
-        SimpleHalley(),
-        SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
+        SimpleHalley(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
         sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
     end
+end
+
+@testitem "Kwargs Propagation" setup=[RootfindingTesting] begin
+    prob = NonlinearProblem(quadratic_f, ones(4), 2.0; maxiters = 2)
+    sol = solve(prob, SimpleNewtonRaphson())
+    @test sol.retcode === ReturnCode.MaxIters
 end
 
 @testitem "Allocation Checks" setup=[RootfindingTesting] begin
