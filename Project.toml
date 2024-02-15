@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.5.5"
+version = "3.5.6"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -62,7 +62,7 @@ BenchmarkTools = "1.4"
 ConcreteStructs = "0.2.3"
 CUDA = "5.1"
 DiffEqBase = "6.146.0"
-Enzyme = "0.11.11"
+Enzyme = "0.11.15"
 FastBroadcast = "0.2.8"
 FastClosures = "0.3"
 FastLevenbergMarquardt = "0.1"
