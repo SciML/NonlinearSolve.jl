@@ -8,17 +8,17 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[e30172f5] </span>Documenter v1.2.1
   <span class="sgr90">[daee34ce] </span>DocumenterCitations v1.3.2
   <span class="sgr90">[40713840] </span>IncompleteLU v0.2.1
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.23.3
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.23.4
   <span class="sgr90">[961ee093] </span>ModelingToolkit v8.75.0
-  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.5.5 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.70.1
+  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.5.6 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.71.0
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.1
   <span class="sgr90">[0bca4576] </span>SciMLBase v2.26.0
   <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v1.4.1
   <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.16.0
   <span class="sgr90">[90137ffa] </span>StaticArrays v1.9.2
   <span class="sgr90">[9672c7b4] </span>SteadyStateDiffEq v2.0.1
-  <span class="sgr90">[c3572dad] </span>Sundials v4.23.2
+  <span class="sgr90">[c3572dad] </span>Sundials v4.24.0
   <span class="sgr90">[0c5d862f] </span>Symbolics v5.18.0
   <span class="sgr90">[b77e0a4c] </span>InteractiveUtils
   <span class="sgr90">[9a3f8284] </span>Random</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.10.1
@@ -141,7 +141,7 @@ Environment:
   <span class="sgr90">[50d2b5c4] </span>Lazy v0.15.1
   <span class="sgr90">[5078a376] </span>LazyArrays v1.8.3
   <span class="sgr90">[d3d80556] </span>LineSearches v7.2.0
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.23.3
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.23.4
   <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.26
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.0.3
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.166
@@ -161,11 +161,11 @@ Environment:
   <span class="sgr90">[d41bc354] </span>NLSolversBase v7.8.3
   <span class="sgr90">[2774e3e8] </span>NLsolve v4.5.1
   <span class="sgr90">[77ba4419] </span>NaNMath v1.0.2
-  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.5.5 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
+  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.5.6 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.13.0
   <span class="sgr90">[4d8831e6] </span>OpenSSL v1.4.1
   <span class="sgr90">[bac558e1] </span>OrderedCollections v1.6.3
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.70.1
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.71.0
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.31
   <span class="sgr90">[65ce6f38] </span>PackageExtensionCompat v1.0.2
   <span class="sgr90">[d96e819e] </span>Parameters v0.12.3
@@ -218,7 +218,7 @@ Environment:
   <span class="sgr90">[7792a7ef] </span>StrideArraysCore v0.5.2
   <span class="sgr90">[69024149] </span>StringEncodings v0.3.7
   <span class="sgr90">[856f2bd8] </span>StructTypes v1.10.0
-  <span class="sgr90">[c3572dad] </span>Sundials v4.23.2
+  <span class="sgr90">[c3572dad] </span>Sundials v4.24.0
   <span class="sgr90">[2efcf032] </span>SymbolicIndexingInterface v0.3.6
   <span class="sgr90">[d1185830] </span>SymbolicUtils v1.5.0
   <span class="sgr90">[0c5d862f] </span>Symbolics v5.18.0
@@ -374,4 +374,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.8.0+1
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.52.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+2
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.5/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.5/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 15 February 2024 17:51">Thursday 15 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 15 February 2024 19:54">Thursday 15 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
