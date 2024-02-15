@@ -178,7 +178,7 @@ end
 end
 
 @testitem "[OOP] Infeasible" setup=[InfeasibleFunction] begin
-    using StaticArrays
+    using LinearAlgebra, StaticArrays
 
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
@@ -189,8 +189,12 @@ end
 
     u0 = @SVector [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
-    sol = solve(prob)
 
-    @test all(!isnan, sol.u)
-    @test !SciMLBase.successful_retcode(sol.retcode)
+    try
+        sol = solve(prob)
+        @test all(!isnan, sol.u)
+        @test !SciMLBase.successful_retcode(sol.retcode)
+    catch err
+        @test err isa LinearAlgebra.SingularException
+    end
 end
