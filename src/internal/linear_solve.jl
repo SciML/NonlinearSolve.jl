@@ -49,15 +49,32 @@ function reinit_cache!(cache::LinearSolverCache, args...; kwargs...)
     cache.nfactors = 0
 end
 
+@inline __fix_strange_type_combination(A, b, u) = u
+@inline function __fix_strange_type_combination(A, b, u::SArray)
+    A isa SArray && b isa SArray && return u
+    @warn "Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
+           properly supported. Converting `x` to a mutable array. Check the return type \
+           of the nonlinear function provided for optimal performance." maxlog=1
+    return MArray(u)
+end
+
+@inline __set_lincache_u!(cache, u) = (cache.lincache.u = u)
+@inline function __set_lincache_u!(cache, u::SArray)
+    cache.lincache.u isa MArray && return __set_lincache_u!(cache, MArray(u))
+    cache.lincache.u = u
+end
+
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
+    u_fixed = __fix_strange_type_combination(A, b, u)
+
     if (A isa Number && b isa Number) || (linsolve === nothing && A isa SMatrix) ||
        (A isa Diagonal) || (linsolve isa typeof(\))
         return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
     end
-    @bb u_ = copy(u)
+    @bb u_ = copy(u_fixed)
     linprob = LinearProblem(A, b; u0 = u_, kwargs...)
 
-    weight = __init_ones(u)
+    weight = __init_ones(u_fixed)
     if __hasfield(alg, Val(:precs))
         precs = alg.precs
         Pl_, Pr_ = precs(A, nothing, u, nothing, nothing, nothing, nothing, nothing,
@@ -97,7 +114,7 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
 
     __update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && (cache.lincache.b = b)
-    linu !== nothing && (cache.lincache.u = linu)
+    linu !== nothing && __set_lincache_u!(cache, linu)
 
     Plprev = cache.lincache.Pl isa ComposePreconditioner ? cache.lincache.Pl.outer :
              cache.lincache.Pl
