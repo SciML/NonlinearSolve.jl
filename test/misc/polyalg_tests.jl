@@ -28,6 +28,31 @@
     cache = init(probN, custom_polyalg; abstol = 1e-9)
     solver = solve!(cache)
     @test SciMLBase.successful_retcode(solver)
+
+    # Test the step interface
+    cache = init(probN; abstol = 1e-9)
+    for i in 1:10000
+        step!(cache)
+        cache.force_stop && break
+    end
+    @test SciMLBase.successful_retcode(cache.retcode)
+    cache = init(probN, RobustMultiNewton(); abstol = 1e-9)
+    for i in 1:10000
+        step!(cache)
+        cache.force_stop && break
+    end
+    @test SciMLBase.successful_retcode(cache.retcode)
+    cache = init(probN, FastShortcutNonlinearPolyalg(); abstol = 1e-9)
+    for i in 1:10000
+        step!(cache)
+        cache.force_stop && break
+    end
+    @test SciMLBase.successful_retcode(cache.retcode)
+    cache = init(probN, custom_polyalg; abstol = 1e-9)
+    for i in 1:10000
+        step!(cache)
+        cache.force_stop && break
+    end
 end
 
 @testitem "Testing #153 Singular Exception" begin

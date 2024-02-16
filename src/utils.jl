@@ -94,6 +94,9 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
 
+function __findmin_caches(f, caches)
+    return __findmin(f ∘ get_fu, caches)
+end
 function __findmin(f, x)
     return findmin(x) do xᵢ
         fx = f(xᵢ)

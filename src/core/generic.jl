@@ -51,7 +51,8 @@ function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit},
     res = @static_timeit cache.timer "solve" begin
         __step!(cache, args...; kwargs...)
     end
-    cache.nsteps += 1
+
+    hasfield(typeof(cache), :nsteps) && (cache.nsteps += 1)
 
     if timeit
         cache.total_time += time() - time_start
