@@ -40,15 +40,26 @@ function __pick_forwarddiff_chunk(x::StaticArray)
     end
 end
 
-function __get_jacobian_config(ad::AutoForwardDiff{CS}, f, x) where {CS}
+function __get_jacobian_config(ad::AutoForwardDiff{CS}, f::F, x) where {F, CS}
     ck = (CS === nothing || CS ≤ 0) ? __pick_forwarddiff_chunk(x) : ForwardDiff.Chunk{CS}()
     tag = __standard_tag(ad.tag, x)
-    return ForwardDiff.JacobianConfig(f, x, ck, tag)
+    return __forwarddiff_jacobian_config(f, x, ck, tag)
 end
-function __get_jacobian_config(ad::AutoForwardDiff{CS}, f!, y, x) where {CS}
+function __get_jacobian_config(ad::AutoForwardDiff{CS}, f!::F, y, x) where {F, CS}
     ck = (CS === nothing || CS ≤ 0) ? __pick_forwarddiff_chunk(x) : ForwardDiff.Chunk{CS}()
     tag = __standard_tag(ad.tag, x)
     return ForwardDiff.JacobianConfig(f!, y, x, ck, tag)
+end
+
+function __forwarddiff_jacobian_config(f::F, x, ck::ForwardDiff.Chunk, tag) where {F}
+    return ForwardDiff.JacobianConfig(f, x, ck, tag)
+end
+function __forwarddiff_jacobian_config(
+        f::F, x::SArray, ck::ForwardDiff.Chunk{N}, tag) where {F, N}
+    seeds = ForwardDiff.construct_seeds(ForwardDiff.Partials{N, eltype(x)})
+    duals = ForwardDiff.Dual{typeof(tag), eltype(x), N}.(x)
+    return ForwardDiff.JacobianConfig{typeof(tag), eltype(x), N, typeof(duals)}(seeds,
+        duals)
 end
 
 function __get_jacobian_config(ad::AutoPolyesterForwardDiff{CS}, args...) where {CS}
