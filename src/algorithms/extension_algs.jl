@@ -281,6 +281,22 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         factor, autoscale, m, beta, show_trace)
 end
 
+@concrete struct NLSolversJL <: AbstractNonlinearSolveExtensionAlgorithm
+    method
+    autodiff
+
+    function NLSolversJL(method, autodiff)
+        if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolversExt) === nothing
+            error("NLSolversJL requires NLSolvers.jl to be loaded")
+        end
+
+        return new{typeof(method), typeof(autodiff)}(method, autodiff)
+    end
+end
+
+NLSolversJL(method; autodiff = nothing) = NLSolversJL(method, autodiff)
+NLSolversJL(; method, autodiff = nothing) = NLSolversJL(method, autodiff)
+
 """
     SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
         orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
