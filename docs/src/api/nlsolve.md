@@ -7,7 +7,7 @@ using these solvers:
 ```julia
 using Pkg
 Pkg.add("NLsolve")
-using NLSolve, NonlinearSolve
+using NLsolve, NonlinearSolve
 ```
 
 ## Solver API
