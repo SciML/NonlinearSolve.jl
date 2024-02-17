@@ -45,8 +45,9 @@ Performs one step of the nonlinear solver.
     respectively. For algorithms that don't use jacobian information, this keyword is
     ignored with a one-time warning.
 """
-function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit},
-        args...; kwargs...) where {iip, timeit}
+function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit}, args...;
+        kwargs...) where {iip, timeit}
+    not_terminated(cache) || return
     timeit && (time_start = time())
     res = @static_timeit cache.timer "solve" begin
         __step!(cache, args...; kwargs...)
