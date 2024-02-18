@@ -280,6 +280,38 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
 end
 
 """
+    NLSolversJL(method; autodiff = nothing)
+    NLSolversJL(; method, autodiff = nothing)
+
+Wrapper over NLSolvers.jl Nonlinear Equation Solvers. We automatically construct the
+jacobian function and supply it to the solver.
+
+### Arguments
+
+  - `method`: the choice of method for solving the nonlinear system. See the documentation
+    for NLSolvers.jl for more information.
+  - `autodiff`: the choice of method for generating the Jacobian. Defaults to `nothing`
+    which means that a default is selected according to the problem specification. Can be
+    any valid ADTypes.jl autodiff type (conditional on that backend being supported in
+    NonlinearSolve.jl).
+"""
+struct NLSolversJL{M, AD} <: AbstractNonlinearSolveExtensionAlgorithm
+    method::M
+    autodiff::AD
+
+    function NLSolversJL(method, autodiff)
+        if Base.get_extension(@__MODULE__, :NonlinearSolveNLSolversExt) === nothing
+            error("NLSolversJL requires NLSolvers.jl to be loaded")
+        end
+
+        return new{typeof(method), typeof(autodiff)}(method, autodiff)
+    end
+end
+
+NLSolversJL(method; autodiff = nothing) = NLSolversJL(method, autodiff)
+NLSolversJL(; method, autodiff = nothing) = NLSolversJL(method, autodiff)
+
+"""
     SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
         orders::Vector{Int} = [3, 3, 2], time_limit::Real = 1000)
 

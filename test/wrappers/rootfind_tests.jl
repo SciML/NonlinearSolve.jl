@@ -1,6 +1,9 @@
 @testsetup module WrapperRootfindImports
 using Reexport
-@reexport using LinearAlgebra, NLsolve, SIAMFANLEquations, MINPACK
+@reexport using LinearAlgebra
+import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK
+
+export NLSolvers
 end
 
 @testitem "Steady State Problems" setup=[WrapperRootfindImports] begin
@@ -12,7 +15,8 @@ end
     u0 = zeros(2)
     prob_iip = SteadyStateProblem(f_iip, u0)
 
-    for alg in [NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+    for alg in [
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -23,7 +27,8 @@ end
     u0 = zeros(2)
     prob_oop = SteadyStateProblem(f_oop, u0)
 
-    for alg in [NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+    for alg in [
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -39,7 +44,8 @@ end
     u0 = zeros(2)
     prob_iip = NonlinearProblem{true}(f_iip, u0)
 
-    for alg in [NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+    for alg in [
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -50,7 +56,8 @@ end
     f_oop(u, p) = [2 - 2u[1], u[1] - 4u[2]]
     u0 = zeros(2)
     prob_oop = NonlinearProblem{false}(f_oop, u0)
-    for alg in [NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+    for alg in [
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -61,7 +68,10 @@ end
     f_tol(u, p) = u^2 - 2
     prob_tol = NonlinearProblem(f_tol, 1.0)
     for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-15],
-        alg in [NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
+        alg in [
+            NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
+            NLsolveJL(),
+            CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
             SIAMFANLEquationsJL(; method = :pseudotransient),
             SIAMFANLEquationsJL(; method = :secant)]
 
@@ -106,6 +116,10 @@ end
     ProbN = NonlinearProblem(f, init, p)
 
     sol = solve(ProbN, NLsolveJL(); abstol = 1e-8)
+    @test maximum(abs, sol.resid) < 1e-6
+    sol = solve(ProbN,
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking()));
+        abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :newton); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
