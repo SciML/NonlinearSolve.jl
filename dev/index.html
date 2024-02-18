@@ -13,9 +13,9 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.5.6 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
   <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.71.0
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.1
-  <span class="sgr90">[0bca4576] </span>SciMLBase v2.26.0
-  <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v1.4.1
-  <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.16.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v2.26.1
+  <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v1.5.0
+  <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.17.0
   <span class="sgr90">[90137ffa] </span>StaticArrays v1.9.2
   <span class="sgr90">[9672c7b4] </span>SteadyStateDiffEq v2.0.1
   <span class="sgr90">[c3572dad] </span>Sundials v4.24.0
@@ -113,7 +113,7 @@ Environment:
   <span class="sgr90">[c27321d9] </span>Glob v1.3.1
   <span class="sgr90">[86223c79] </span>Graphs v1.9.0
   <span class="sgr90">[42e2da0e] </span>Grisu v1.0.2
-  <span class="sgr90">[cd3eb016] </span>HTTP v1.10.1
+  <span class="sgr90">[cd3eb016] </span>HTTP v1.10.2
   <span class="sgr90">[3e5b6fbb] </span>HostCPUFeatures v0.1.16
   <span class="sgr90">[34004b35] </span>HypergeometricFunctions v0.3.23
   <span class="sgr90">[b5f81e59] </span>IOCapture v0.2.4
@@ -142,7 +142,7 @@ Environment:
   <span class="sgr90">[5078a376] </span>LazyArrays v1.8.3
   <span class="sgr90">[d3d80556] </span>LineSearches v7.2.0
   <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.23.4
-  <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.26
+  <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.27
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.0.3
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.166
   <span class="sgr90">[d8e11817] </span>MLStyle v0.4.17
@@ -194,17 +194,17 @@ Environment:
   <span class="sgr90">[7e49a35a] </span>RuntimeGeneratedFunctions v0.5.12
   <span class="sgr90">[94e857df] </span>SIMDTypes v0.1.0
   <span class="sgr90">[476501e8] </span>SLEEFPirates v0.6.42
-  <span class="sgr90">[0bca4576] </span>SciMLBase v2.26.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v2.26.1
   <span class="sgr90">[c0aeaf25] </span>SciMLOperators v0.3.7
   <span class="sgr90">[6c6a2e73] </span>Scratch v1.2.1
   <span class="sgr90">[efcf1570] </span>Setfield v1.1.1
   <span class="sgr90">[992d4aef] </span>Showoff v1.0.3
   <span class="sgr90">[777ac1f9] </span>SimpleBufferStream v1.1.0
-  <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v1.4.1
+  <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v1.5.0
   <span class="sgr90">[699a6c99] </span>SimpleTraits v0.9.4
   <span class="sgr90">[ce78b400] </span>SimpleUnPack v1.1.0
   <span class="sgr90">[a2af1166] </span>SortingAlgorithms v1.2.1
-  <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.16.0
+  <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.17.0
   <span class="sgr90">[e56a9233] </span>Sparspak v0.3.9
   <span class="sgr90">[276daf66] </span>SpecialFunctions v2.3.1
   <span class="sgr90">[aedffcd0] </span>Static v0.8.10
@@ -246,7 +246,7 @@ Environment:
   <span class="sgr90">[83423d85] </span>Cairo_jll v1.16.1+1
   <span class="sgr90">[2702e6a9] </span>EpollShim_jll v0.0.20230411+0
   <span class="sgr90">[2e619515] </span>Expat_jll v2.5.0+0
-  <span class="sgr90">[b22a6f82] </span>FFMPEG_jll v4.4.4+1
+<span class="sgr33">⌅</span> <span class="sgr90">[b22a6f82] </span>FFMPEG_jll v4.4.4+1
   <span class="sgr90">[a3f928ae] </span>Fontconfig_jll v2.13.93+0
   <span class="sgr90">[d7e528f0] </span>FreeType2_jll v2.13.1+0
   <span class="sgr90">[559328eb] </span>FriBidi_jll v1.0.10+0
@@ -285,7 +285,7 @@ Environment:
   <span class="sgr90">[2381bf8a] </span>Wayland_protocols_jll v1.31.0+0
   <span class="sgr90">[02c8fc9c] </span>XML2_jll v2.12.2+0
   <span class="sgr90">[aed1982a] </span>XSLT_jll v1.1.34+0
-  <span class="sgr90">[ffd25f8a] </span>XZ_jll v5.4.5+0
+  <span class="sgr90">[ffd25f8a] </span>XZ_jll v5.4.6+0
   <span class="sgr90">[f67eecfb] </span>Xorg_libICE_jll v1.0.10+1
   <span class="sgr90">[c834827a] </span>Xorg_libSM_jll v1.2.3+0
   <span class="sgr90">[4f6342f7] </span>Xorg_libX11_jll v1.8.6+0
@@ -374,4 +374,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.8.0+1
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.52.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+2
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 15 February 2024 19:54">Thursday 15 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v3.5.6/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Sunday 18 February 2024 11:09">Sunday 18 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
