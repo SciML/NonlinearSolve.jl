@@ -23,12 +23,10 @@ Now you can help the solver further by providing the color vector. This can be d
 
 ```julia
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = jac_prototype,
-        colorvec = colorvec), x0)
+    NonlinearFunction(nlfunc; sparsity = jac_prototype, colorvec = colorvec), x0)
 # OR
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; jac_prototype = jac_prototype,
-        colorvec = colorvec), x0)
+    NonlinearFunction(nlfunc; jac_prototype = jac_prototype, colorvec = colorvec), x0)
 ```
 
 If the `colorvec` is not provided, then it is computed on demand.
@@ -46,12 +44,11 @@ If you don't have a Sparse Jacobian Prototype, but you know the which sparsity d
 algorithm you want to use, then you can create your problem as follows:
 
 ```julia
-prob = NonlinearProblem(NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetection()),
-    x0)  # Remember to have Symbolics.jl loaded
+prob = NonlinearProblem(
+    NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetection()), x0)  # Remember to have Symbolics.jl loaded
 # OR
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = ApproximateJacobianSparsity()),
-    x0)
+    NonlinearFunction(nlfunc; sparsity = ApproximateJacobianSparsity()), x0)
 ```
 
 These Detection Algorithms are from [SparseDiffTools.jl](https://github.com/JuliaDiff/SparseDiffTools.jl),

@@ -91,8 +91,8 @@ end
     # This test is not meant to return success but test that all the default solvers can handle
     # complex valued problems
     @test_nowarn solve(prob; abstol = 1e-19, maxiters = 10)
-    @test_nowarn solve(prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1e-19,
-        maxiters = 10)
+    @test_nowarn solve(
+        prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1e-19, maxiters = 10)
 end
 
 @testitem "No AD" begin

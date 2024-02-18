@@ -4,8 +4,8 @@ using NonlinearSolve, LinearAlgebra, LinearSolve, NonlinearProblemLibrary, Test
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
 
-function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
-        skip_tests = nothing)
+function test_on_library(
+        problems, dicts, alg_ops, broken_tests, ϵ = 1e-4; skip_tests = nothing)
     for (idx, (problem, dict)) in enumerate(zip(problems, dicts))
         x = dict["start"]
         res = similar(x)
@@ -71,8 +71,7 @@ end
 @testitem "LevenbergMarquardt" setup=[RobustnessTesting] begin
     using LinearSolve
 
-    alg_ops = (LevenbergMarquardt(),
-        LevenbergMarquardt(; α_geodesic = 0.1),
+    alg_ops = (LevenbergMarquardt(), LevenbergMarquardt(; α_geodesic = 0.1),
         LevenbergMarquardt(; linsolve = CholeskyFactorization()))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -93,8 +92,7 @@ end
 end
 
 @testitem "Broyden" retries=5 setup=[RobustnessTesting] begin
-    alg_ops = (Broyden(),
-        Broyden(; init_jacobian = Val(:true_jacobian)),
+    alg_ops = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
         Broyden(; update_rule = Val(:bad_broyden)),
         Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden)))
 

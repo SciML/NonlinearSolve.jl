@@ -63,17 +63,16 @@ structure as specified by `structure`.
     structure
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
-        solver,
-        f::F, fu, u::Number, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver, f::F,
+        fu, u::Number, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
-    return InitializedApproximateJacobianCache(α, alg.structure, alg, nothing, true,
-        internalnorm)
+    return InitializedApproximateJacobianCache(
+        α, alg.structure, alg, nothing, true, internalnorm)
 end
 function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
-        solver,
-        f::F, fu::StaticArray, u::StaticArray, p; internalnorm::IN = DEFAULT_NORM,
-        kwargs...) where {IN, F}
+        solver, f::F, fu::StaticArray, u::StaticArray, p;
+        internalnorm::IN = DEFAULT_NORM, kwargs...) where {IN, F}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
@@ -87,11 +86,12 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitializa
         end
         J = alg.structure(J_; alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true,
-        internalnorm)
+    return InitializedApproximateJacobianCache(
+        J, alg.structure, alg, nothing, true, internalnorm)
 end
-function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
-        solver, f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
+        f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
@@ -100,8 +100,8 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitializa
         J_ = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
         J = alg.structure(__make_identity!!(J_, α); alias = true)
     end
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, nothing, true,
-        internalnorm)
+    return InitializedApproximateJacobianCache(
+        J, alg.structure, alg, nothing, true, internalnorm)
 end
 
 @inline function __initial_alpha(α, u, fu, internalnorm::F) where {F}
@@ -145,15 +145,15 @@ make a selection automatically.
     autodiff
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
-        solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
-        kwargs...) where {F, IN}
-    autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_reverse_mode = false,
-        kwargs...)
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization, solver, f::F, fu,
+        u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+    autodiff = get_concrete_forward_ad(
+        alg.autodiff, prob; check_reverse_mode = false, kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
     J = alg.structure(jac_cache(nothing))
-    return InitializedApproximateJacobianCache(J, alg.structure, alg, jac_cache, false,
-        internalnorm)
+    return InitializedApproximateJacobianCache(
+        J, alg.structure, alg, jac_cache, false, internalnorm)
 end
 
 """
@@ -205,8 +205,8 @@ function (cache::InitializedApproximateJacobianCache)(::Nothing)
     return get_full_jacobian(cache, cache.structure, cache.J)
 end
 
-function __internal_solve!(cache::InitializedApproximateJacobianCache, fu, u,
-        ::Val{reinit}) where {reinit}
+function __internal_solve!(
+        cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit}) where {reinit}
     if reinit || !cache.initialized
         cache(cache.alg, fu, u)
         cache.initialized = true
@@ -225,8 +225,8 @@ function (cache::InitializedApproximateJacobianCache)(alg::IdentityInitializatio
     return
 end
 
-function (cache::InitializedApproximateJacobianCache)(alg::TrueJacobianInitialization, fu,
-        u)
+function (cache::InitializedApproximateJacobianCache)(
+        alg::TrueJacobianInitialization, fu, u)
     J_new = cache.cache(u)
     cache.J = cache.structure(cache.J, J_new)
     return

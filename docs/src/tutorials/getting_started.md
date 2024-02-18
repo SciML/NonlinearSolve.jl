@@ -180,8 +180,8 @@ be skipped for out of place problems):
 
 ```@example 1
 u0 = [0.0, 0.0]
-prob = NonlinearLeastSquaresProblem(NonlinearFunction(nlls!, resid_prototype = zeros(3)),
-    u0)
+prob = NonlinearLeastSquaresProblem(
+    NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0)
 
 solve(prob)
 ```

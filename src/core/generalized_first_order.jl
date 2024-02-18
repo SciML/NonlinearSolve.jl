@@ -46,14 +46,14 @@ function __show_algorithm(io::IO, alg::GeneralizedFirstOrderAlgorithm, name, ind
     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
 end
 
-function GeneralizedFirstOrderAlgorithm(; concrete_jac = nothing,
-        name::Symbol = :unknown, kwargs...)
+function GeneralizedFirstOrderAlgorithm(;
+        concrete_jac = nothing, name::Symbol = :unknown, kwargs...)
     return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; kwargs...)
 end
 
-function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent,
-        linesearch = missing, trustregion = missing, jacobian_ad = nothing,
-        forward_ad = nothing, reverse_ad = nothing,
+function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
+        descent, linesearch = missing, trustregion = missing,
+        jacobian_ad = nothing, forward_ad = nothing, reverse_ad = nothing,
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     forward_ad = ifelse(forward_ad !== nothing, forward_ad,
         ifelse(jacobian_ad isa ADTypes.AbstractForwardMode, jacobian_ad, nothing))
@@ -67,8 +67,9 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent,
         linesearch = LineSearchesJL(; method = linesearch)
     end
 
-    return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(linesearch,
-        trustregion, descent, max_shrink_times, jacobian_ad, forward_ad, reverse_ad)
+    return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(
+        linesearch, trustregion, descent, max_shrink_times,
+        jacobian_ad, forward_ad, reverse_ad)
 end
 
 concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
@@ -112,9 +113,9 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     force_stop::Bool
 end
 
-function __reinit_internal!(cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...;
-        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000,
-        maxtime = nothing, kwargs...) where {iip}
+function __reinit_internal!(
+        cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...; p = cache.p, u0 = cache.u,
+        alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
         cache.prob.f(cache.fu, cache.u, p)
@@ -140,11 +141,11 @@ end
 
 @internal_caches GeneralizedFirstOrderAlgorithmCache :jac_cache :descent_cache :linesearch_cache :trustregion_cache
 
-function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
-        alg::GeneralizedFirstOrderAlgorithm, args...; alias_u0 = false, maxiters = 1000,
-        abstol = nothing, reltol = nothing, maxtime = nothing,
-        termination_condition = nothing, internalnorm = DEFAULT_NORM, linsolve_kwargs = (;),
-        kwargs...) where {uType, iip}
+function SciMLBase.__init(
+        prob::AbstractNonlinearProblem{uType, iip}, alg::GeneralizedFirstOrderAlgorithm,
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing,
+        reltol = nothing, maxtime = nothing, termination_condition = nothing,
+        internalnorm = DEFAULT_NORM, linsolve_kwargs = (;), kwargs...) where {uType, iip}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
@@ -154,12 +155,13 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
 
         linsolve = get_linear_solver(alg.descent)
 
-        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
-            termination_condition)
+        abstol, reltol, termination_cache = init_termination_cache(
+            abstol, reltol, fu, u, termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
-        jac_cache = JacobianCache(prob, alg, f, fu, u, p; autodiff = alg.jacobian_ad,
-            linsolve, jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
+        jac_cache = JacobianCache(
+            prob, alg, f, fu, u, p; autodiff = alg.jacobian_ad, linsolve,
+            jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
         descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
             internalnorm, linsolve_kwargs, timer)
@@ -176,27 +178,25 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.trustregion !== missing
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
-            trustregion_cache = __internal_init(prob, alg.trustregion, f, fu, u, p;
-                internalnorm,
-                kwargs...)
+            trustregion_cache = __internal_init(
+                prob, alg.trustregion, f, fu, u, p; internalnorm, kwargs...)
             GB = :TrustRegion
         end
 
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = __internal_init(prob, alg.linesearch, f, fu, u, p;
-                internalnorm,
-                kwargs...)
+            linesearch_cache = __internal_init(
+                prob, alg.linesearch, f, fu, u, p; internalnorm, kwargs...)
             GB = :LineSearch
         end
 
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
-        return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(fu, u,
-            u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times, timer, 0.0,
-            true, termination_cache, trace, ReturnCode.Default, false)
+        return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
+            fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
+            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times,
+            timer, 0.0, true, termination_cache, trace, ReturnCode.Default, false)
     end
 end
 
@@ -216,13 +216,11 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian,
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
             δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian)
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian)
         end
     end
 
@@ -230,8 +228,8 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         cache.make_new_jacobian = true
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
-                linesearch_failed, α = __internal_solve!(cache.linesearch_cache,
-                    cache.u, δu)
+                linesearch_failed, α = __internal_solve!(
+                    cache.linesearch_cache, cache.u, δu)
             end
             if linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
@@ -243,8 +241,9 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
             end
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu, cache.u, δu, descent_intermediates)
+                tr_accepted, u_new, fu_new = __internal_solve!(
+                    cache.trustregion_cache, J, cache.fu,
+                    cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)

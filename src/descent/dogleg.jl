@@ -33,8 +33,7 @@ function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
         SteepestDescent(; linsolve, precs))
 end
 
-@concrete mutable struct DoglegCache{pre_inverted, normalform} <:
-                         AbstractDescentCache
+@concrete mutable struct DoglegCache{pre_inverted, normalform} <: AbstractDescentCache
     δu
     δus
     newton_cache
@@ -49,9 +48,9 @@ end
 @internal_caches DoglegCache :newton_cache :cauchy_cache
 
 function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, internalnorm::F = DEFAULT_NORM, shared::Val{N} = Val(1),
-        kwargs...) where {F, INV, N}
+        pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+        abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
+        shared::Val{N} = Val(1), kwargs...) where {F, INV, N}
     newton_cache = __internal_init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)
     cauchy_cache = __internal_init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
@@ -82,8 +81,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton, _, _ = __internal_solve!(cache.newton_cache, J, fu, u, idx; skip_solve,
-        kwargs...)
+    δu_newton, _, _ = __internal_solve!(
+        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
@@ -103,8 +102,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
         δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
-        δu_cauchy, _, _ = __internal_solve!(cache.cauchy_cache, J, fu, u, idx; skip_solve,
-            kwargs...)
+        δu_cauchy, _, _ = __internal_solve!(
+            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
         J_ = INV ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename

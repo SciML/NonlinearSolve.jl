@@ -1,17 +1,17 @@
 # Not part of public API but helps reduce code duplication
-import SimpleNonlinearSolve: __nlsolve_ad,
-                             __nlsolve_dual_soln, __nlsolve_∂f_∂p, __nlsolve_∂f_∂u
+import SimpleNonlinearSolve: __nlsolve_ad, __nlsolve_dual_soln, __nlsolve_∂f_∂p,
+                             __nlsolve_∂f_∂u
 
 function SciMLBase.solve(
-        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
-            iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-        alg::Union{Nothing, AbstractNonlinearAlgorithm}, args...;
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+        alg::Union{Nothing, AbstractNonlinearAlgorithm},
+        args...;
         kwargs...) where {T, V, P, iip}
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
-        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
-        sol.original)
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
 
 @concrete mutable struct NonlinearSolveForwardDiffCache
@@ -25,10 +25,9 @@ end
 
 @internal_caches NonlinearSolveForwardDiffCache :cache
 
-function reinit_cache!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
-        u0 = get_u(cache.cache), kwargs...)
-    inner_cache = reinit_cache!(cache.cache; p = __value(p), u0 = __value(u0),
-        kwargs...)
+function reinit_cache!(cache::NonlinearSolveForwardDiffCache;
+        p = cache.p, u0 = get_u(cache.cache), kwargs...)
+    inner_cache = reinit_cache!(cache.cache; p = __value(p), u0 = __value(u0), kwargs...)
     cache.cache = inner_cache
     cache.p = p
     cache.values_p = __value(p)
@@ -37,15 +36,16 @@ function reinit_cache!(cache::NonlinearSolveForwardDiffCache; p = cache.p,
 end
 
 function SciMLBase.init(
-        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
-            iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-        alg::Union{Nothing, AbstractNonlinearAlgorithm}, args...;
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+        alg::Union{Nothing, AbstractNonlinearAlgorithm},
+        args...;
         kwargs...) where {T, V, P, iip}
     p = __value(prob.p)
     newprob = NonlinearProblem(prob.f, __value(prob.u0), p; prob.kwargs...)
     cache = init(newprob, alg, args...; kwargs...)
-    return NonlinearSolveForwardDiffCache(cache, newprob, alg, prob.p, p,
-        ForwardDiff.partials(prob.p))
+    return NonlinearSolveForwardDiffCache(
+        cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p))
 end
 
 function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
@@ -66,8 +66,8 @@ function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
     end
 
     dual_soln = __nlsolve_dual_soln(sol.u, partials, cache.p)
-    return SciMLBase.build_solution(prob, cache.alg, dual_soln, sol.resid; sol.retcode,
-        sol.stats, sol.original)
+    return SciMLBase.build_solution(
+        prob, cache.alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
 
 @inline __value(x) = x

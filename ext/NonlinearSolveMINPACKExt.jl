@@ -3,12 +3,11 @@ module NonlinearSolveMINPACKExt
 using MINPACK, NonlinearSolve, SciMLBase
 import FastClosures: @closure
 
-function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem,
-            NonlinearProblem},
-        alg::CMINPACK, args...; abstol = nothing, maxiters = 1000,
-        alias_u0::Bool = false, show_trace::Val{ShT} = Val(false),
-        store_trace::Val{StT} = Val(false), termination_condition = nothing,
-        kwargs...) where {ShT, StT}
+function SciMLBase.__solve(
+        prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem}, alg::CMINPACK,
+        args...; abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        show_trace::Val{ShT} = Val(false), store_trace::Val{StT} = Val(false),
+        termination_condition = nothing, kwargs...) where {ShT, StT}
     NonlinearSolve.__test_termination_condition(termination_condition, :CMINPACK)
 
     _f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
@@ -23,13 +22,13 @@ function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem,
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     if alg.autodiff === missing && prob.f.jac === nothing
-        original = MINPACK.fsolve(f!, u0, m; tol, show_trace, tracing, method,
-            iterations = maxiters)
+        original = MINPACK.fsolve(
+            f!, u0, m; tol, show_trace, tracing, method, iterations = maxiters)
     else
         _jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
         jac! = @closure (J, u) -> (_jac!(J, u); Cint(0))
-        original = MINPACK.fsolve(f!, jac!, u0, m; tol, show_trace, tracing, method,
-            iterations = maxiters)
+        original = MINPACK.fsolve(
+            f!, jac!, u0, m; tol, show_trace, tracing, method, iterations = maxiters)
     end
 
     u = original.x

@@ -1,7 +1,7 @@
 @testsetup module CoreNLLSTesting
 using Reexport
-@reexport using NonlinearSolve,
-                LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff, Zygote
+@reexport using NonlinearSolve, LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff,
+                Zygote
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -36,16 +36,12 @@ for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
     end
 end
 append!(solvers,
-    [
-        LevenbergMarquardt(),
-        LevenbergMarquardt(; linsolve = LUFactorization()),
+    [LevenbergMarquardt(), LevenbergMarquardt(; linsolve = LUFactorization()),
         LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
-        LevenbergMarquardt(; linsolve = KrylovJL_LSMR()),
-        nothing
-    ])
+        LevenbergMarquardt(; linsolve = KrylovJL_LSMR()), nothing])
 for radius_update_scheme in [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
-    RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
-    RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+    RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei,
+    RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
     push!(solvers, TrustRegion(; radius_update_scheme))
 end
 
@@ -55,8 +51,7 @@ end
 @testitem "General NLLS Solvers" setup=[CoreNLLSTesting] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
     prob_iip = NonlinearLeastSquaresProblem(
-        NonlinearFunction(loss_function;
-            resid_prototype = zero(y_target)), θ_init, x)
+        NonlinearFunction(loss_function; resid_prototype = zero(y_target)), θ_init, x)
 
     nlls_problems = [prob_oop, prob_iip]
 
@@ -84,16 +79,15 @@ end
 
     probs = [
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target), vjp = vjp!),
+            NonlinearFunction{true}(
+                loss_function; resid_prototype = zero(y_target), vjp = vjp!),
             θ_init,
             x),
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target), vjp = vjp),
+            NonlinearFunction{false}(
+                loss_function; resid_prototype = zero(y_target), vjp = vjp),
             θ_init,
-            x)
-    ]
+            x)]
 
     for prob in probs, solver in solvers
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)

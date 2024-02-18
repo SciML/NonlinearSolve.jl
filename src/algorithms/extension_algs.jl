@@ -80,10 +80,10 @@ see the documentation for `FastLevenbergMarquardt.jl`.
     maxfactor
 end
 
-function FastLevenbergMarquardtJL(linsolve::Symbol = :cholesky; factor = 1e-6,
-        factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
-        autodiff = nothing)
+function FastLevenbergMarquardtJL(
+        linsolve::Symbol = :cholesky; factor = 1e-6, factoraccept = 13.0,
+        factorreject = 3.0, factorupdate = :marquardt, minscale = 1e-12,
+        maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32, autodiff = nothing)
     @assert linsolve in (:qr, :cholesky)
     @assert factorupdate in (:marquardt, :nielson)
 
@@ -148,8 +148,8 @@ NonlinearLeastSquaresProblem.
     autodiff
 end
 
-function CMINPACK(; show_trace = missing, tracing = missing, method::Symbol = :auto,
-        autodiff = missing)
+function CMINPACK(; show_trace = missing, tracing = missing,
+        method::Symbol = :auto, autodiff = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveMINPACKExt) === nothing
         error("CMINPACK requires MINPACK.jl to be loaded")
     end
@@ -235,8 +235,8 @@ end
 
 function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = missing,
         extended_trace = missing, linesearch = LineSearches.Static(),
-        linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0, autoscale = true, m = 10,
-        beta = one(Float64), show_trace = missing)
+        linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0,
+        autoscale = true, m = 10, beta = one(Float64), show_trace = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing
         error("NLsolveJL requires NLsolve.jl to be loaded")
     end
@@ -252,22 +252,20 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
     end
 
     if store_trace !== missing
-        Base.depwarn(
-            "`store_trace` for NLsolveJL has been deprecated and will be removed \
-             in v4. Use the `store_trace` keyword argument via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-             instead.",
+        Base.depwarn("`store_trace` for NLsolveJL has been deprecated and will be removed \
+                      in v4. Use the `store_trace` keyword argument via the logging API \
+                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
+                      instead.",
             :NLsolveJL)
     else
         store_trace = false
     end
 
     if extended_trace !== missing
-        Base.depwarn(
-            "`extended_trace` for NLsolveJL has been deprecated and will be \
-             removed in v4. Use the `trace_level = TraceAll()` keyword argument \
-             via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
+        Base.depwarn("`extended_trace` for NLsolveJL has been deprecated and will be \
+                      removed in v4. Use the `trace_level = TraceAll()` keyword argument \
+                      via the logging API \
+                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
             :NLsolveJL)
     else
         extended_trace = false
@@ -277,8 +275,8 @@ function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = 
         error("`autodiff` must be `:central` or `:forward`.")
     end
 
-    return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch, linsolve,
-        factor, autoscale, m, beta, show_trace)
+    return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch,
+        linsolve, factor, autoscale, m, beta, show_trace)
 end
 
 """
@@ -368,9 +366,9 @@ problems as well.
     condition_number_threshold
 end
 
-function FixedPointAccelerationJL(; algorithm = :Anderson, m = missing,
-        condition_number_threshold = missing, extrapolation_period = missing,
-        replace_invalids = :NoAction, dampening = 1.0)
+function FixedPointAccelerationJL(;
+        algorithm = :Anderson, m = missing, condition_number_threshold = missing,
+        extrapolation_period = missing, replace_invalids = :NoAction, dampening = 1.0)
     if Base.get_extension(@__MODULE__, :NonlinearSolveFixedPointAccelerationExt) === nothing
         error("FixedPointAccelerationJL requires FixedPointAcceleration.jl to be loaded")
     end
@@ -447,8 +445,8 @@ end
     autodiff
 end
 
-function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing, m = 0,
-        beta = 1.0, autodiff = missing)
+function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothing,
+        m = 0, beta = 1.0, autodiff = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("SIAMFANLEquationsJL requires SIAMFANLEquations.jl to be loaded")
     end

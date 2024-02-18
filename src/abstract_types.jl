@@ -16,15 +16,15 @@ squares solver.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(
-    prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J, fu, u;
-    pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;), abstol = nothing,
-    reltol = nothing, alias_J::Bool = true, shared::Val{N} = Val(1),
-    kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
+__internal_init(prob::NonlinearProblem{uType, iip}, alg::AbstractDescentAlgorithm, J,
+    fu, u; pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;),
+    abstol = nothing, reltol = nothing, alias_J::Bool = true,
+    shared::Val{N} = Val(1), kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
 
-__internal_init(prob::NonlinearLeastSquaresProblem{uType, iip},
-    alg::AbstractDescentAlgorithm, J, fu, u; pre_inverted::Val{INV} = Val(false),
-    linsolve_kwargs = (;), abstol = nothing, reltol = nothing, alias_J::Bool = true,
+__internal_init(
+    prob::NonlinearLeastSquaresProblem{uType, iip}, alg::AbstractDescentAlgorithm,
+    J, fu, u; pre_inverted::Val{INV} = Val(false), linsolve_kwargs = (;),
+    abstol = nothing, reltol = nothing, alias_J::Bool = true,
     shared::Val{N} = Val(1), kwargs...) where {INV, N, uType, iip} --> AbstractDescentCache
 ```
 
@@ -66,8 +66,8 @@ Abstract Type for all Descent Caches.
 ### `__internal_solve!` specification
 
 ```julia
-δu, success, intermediates = __internal_solve!(cache::AbstractDescentCache, J, fu, u,
-    idx::Val; skip_solve::Bool = false, kwargs...)
+δu, success, intermediates = __internal_solve!(
+    cache::AbstractDescentCache, J, fu, u, idx::Val; skip_solve::Bool = false, kwargs...)
 ```
 
   - `J`: Jacobian or Inverse Jacobian (if `pre_inverted = Val(true)`).
@@ -119,10 +119,10 @@ Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem,
-    alg::AbstractNonlinearSolveLineSearchAlgorithm, f::F, fu, u, p, args...;
-    internalnorm::IN = DEFAULT_NORM,
-    kwargs...) where {F, IN} --> AbstractNonlinearSolveLineSearchCache
+__internal_init(
+    prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveLineSearchAlgorithm, f::F,
+    fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN} -->
+AbstractNonlinearSolveLineSearchCache
 ```
 """
 abstract type AbstractNonlinearSolveLineSearchAlgorithm end
@@ -145,8 +145,8 @@ Returns 2 values:
 """
 abstract type AbstractNonlinearSolveLineSearchCache end
 
-function reinit_cache!(cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p,
-        kwargs...)
+function reinit_cache!(
+        cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p, kwargs...)
     cache.nf[] = 0
     cache.p = p
 end
@@ -233,10 +233,9 @@ Abstract Type for Damping Functions in DampedNewton.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(
-    prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
-    J, fu, u, args...; internal_norm = DEFAULT_NORM,
-    kwargs...) --> AbstractDampingFunctionCache
+__internal_init(prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
+    J, fu, u, args...; internal_norm = DEFAULT_NORM, kwargs...) -->
+AbstractDampingFunctionCache
 ```
 
 Returns a [`AbstractDampingFunctionCache`](@ref).
@@ -318,9 +317,8 @@ Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolve.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization,
-    solver, f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM,
-    kwargs...)
+__internal_init(prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization, solver,
+    f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...)
 ```
 
 Returns a [`NonlinearSolve.InitializedApproximateJacobianCache`](@ref).
@@ -353,10 +351,10 @@ Abstract Type for all Approximate Jacobian Update Rules used in NonlinearSolve.j
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem,
-    alg::AbstractApproximateJacobianUpdateRule, J, fu, u, du, args...;
-    internalnorm::F = DEFAULT_NORM,
-    kwargs...) where {F} --> AbstractApproximateJacobianUpdateRuleCache{INV}
+__internal_init(
+    prob::AbstractNonlinearProblem, alg::AbstractApproximateJacobianUpdateRule, J,
+    fu, u, du, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F} -->
+AbstractApproximateJacobianUpdateRuleCache{INV}
 ```
 """
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
@@ -375,8 +373,8 @@ Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearS
 ### `__internal_solve!` specification
 
 ```julia
-__internal_solve!(cache::AbstractApproximateJacobianUpdateRuleCache, J, fu, u, du;
-    kwargs...) --> J / J⁻¹
+__internal_solve!(
+    cache::AbstractApproximateJacobianUpdateRuleCache, J, fu, u, du; kwargs...) --> J / J⁻¹
 ```
 """
 abstract type AbstractApproximateJacobianUpdateRuleCache{INV} end
@@ -391,8 +389,8 @@ Condition for resetting the Jacobian in Quasi-Newton's methods.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(alg::AbstractResetCondition, J, fu, u, du, args...;
-    kwargs...) --> ResetCache
+__internal_init(alg::AbstractResetCondition, J, fu, u, du, args...; kwargs...) -->
+ResetCache
 ```
 
 ### `__internal_solve!` specification
@@ -411,9 +409,9 @@ Abstract Type for all Trust Region Methods used in NonlinearSolve.jl.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod,
-    f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM,
-    kwargs...) where {F, IF} --> AbstractTrustRegionMethodCache
+__internal_init(prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f::F, fu, u,
+    p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF} -->
+AbstractTrustRegionMethodCache
 ```
 """
 abstract type AbstractTrustRegionMethod end
@@ -468,8 +466,8 @@ abstract type AbstractNonlinearSolveTraceLevel end
 
 # Default Printing
 for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,
-    AbstractResetCondition, AbstractApproximateJacobianUpdateRule, AbstractDampingFunction,
-    AbstractNonlinearSolveExtensionAlgorithm)
+    AbstractResetCondition, AbstractApproximateJacobianUpdateRule,
+    AbstractDampingFunction, AbstractNonlinearSolveExtensionAlgorithm)
     @eval function Base.show(io::IO, alg::$(aType))
         print(io, "$(nameof(typeof(alg)))()")
     end

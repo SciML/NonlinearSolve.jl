@@ -28,10 +28,9 @@ search.
         useful for specific problems, but whether it will work may depend strongly on the
         problem
 """
-function Broyden(;
-        max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
-        init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
+function Broyden(; max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
+        init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing,
+        alpha = nothing, update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
     if IJ === :identity
         if UR === :diagonal
             initialization = IdentityInitialization(alpha, DiagonalStructure())
@@ -56,9 +55,9 @@ function Broyden(;
                              or `:diagonal`"))
     end
 
-    return ApproximateJacobianSolveAlgorithm{IJ === :true_jacobian, :Broyden}(; linesearch,
-        descent = NewtonDescent(), update_rule, max_resets, initialization,
-        reinit_rule = NoChangeInStateReset(; reset_tolerance))
+    return ApproximateJacobianSolveAlgorithm{IJ === :true_jacobian, :Broyden}(;
+        linesearch, descent = NewtonDescent(), update_rule, max_resets,
+        initialization, reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 # Checks for no significant change for `nsteps`
@@ -107,8 +106,8 @@ function __internal_init(alg::NoChangeInStateReset, J, fu, u, du, args...; kwarg
     end
     T = real(eltype(u))
     tol = alg.reset_tolerance === nothing ? eps(T)^(3 // 4) : T(alg.reset_tolerance)
-    return NoChangeInStateResetCache(dfu, tol, alg.check_du, alg.check_dfu, alg.nsteps, 0,
-        0)
+    return NoChangeInStateResetCache(
+        dfu, tol, alg.check_du, alg.check_dfu, alg.nsteps, 0, 0)
 end
 
 function __internal_solve!(cache::NoChangeInStateResetCache, J, fu, u, du)
@@ -170,8 +169,8 @@ Broyden Update Rule corresponding to "good broyden's method" [broyden1965class](
 end
 
 function __internal_init(prob::AbstractNonlinearProblem,
-        alg::Union{GoodBroydenUpdateRule, BadBroydenUpdateRule}, J, fu, u, du, args...;
-        internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
+        alg::Union{GoodBroydenUpdateRule, BadBroydenUpdateRule}, J, fu, u,
+        du, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
     @bb J⁻¹dfu = similar(u)
     @bb dfu = copy(fu)
     if alg isa GoodBroydenUpdateRule || J isa Diagonal
@@ -206,8 +205,8 @@ function __internal_solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹, fu, u, d
     return J⁻¹
 end
 
-function __internal_solve!(cache::BroydenUpdateRuleCache{mode}, J⁻¹::Diagonal, fu, u,
-        du) where {mode}
+function __internal_solve!(
+        cache::BroydenUpdateRuleCache{mode}, J⁻¹::Diagonal, fu, u, du) where {mode}
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu
     J⁻¹_diag = _restructure(cache.dfu, diag(J⁻¹))

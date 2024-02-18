@@ -51,11 +51,10 @@ end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
-function __internal_init(
-        prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u;
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        timer = get_timer_output(), reltol = nothing, alias_J = true,
-        shared::Val{N} = Val(1), kwargs...) where {INV, N}
+function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J,
+        fu, u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+        abstol = nothing, timer = get_timer_output(), reltol = nothing,
+        alias_J = true, shared::Val{N} = Val(1), kwargs...) where {INV, N}
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
     @bb δu = similar(u)
@@ -103,8 +102,7 @@ function __internal_init(
         A, b = J_cache, rhs_cache
     elseif mode === :simple
         damping_fn_cache = __internal_init(
-            prob, alg.damping_fn, alg.initial_damping, J, fu,
-            u, False; kwargs...)
+            prob, alg.damping_fn, alg.initial_damping, J, fu, u, False; kwargs...)
         J_cache = __maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
         J_damped = __dampen_jacobian!!(J_cache, J, D)
@@ -117,8 +115,7 @@ function __internal_init(
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
         damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
-            jac_damp,
-            rhs_damp, u, True; kwargs...)
+            jac_damp, rhs_damp, u, True; kwargs...)
         D = damping_fn_cache(nothing)
         @bb J_cache = similar(JᵀJ)
         @bb @. J_cache = 0
@@ -127,16 +124,16 @@ function __internal_init(
         rhs_cache = nothing
     end
 
-    lincache = LinearSolverCache(alg, alg.linsolve, A, b, _vec(u); abstol, reltol,
-        linsolve_kwargs...)
+    lincache = LinearSolverCache(
+        alg, alg.linsolve, A, b, _vec(u); abstol, reltol, linsolve_kwargs...)
 
-    return DampedNewtonDescentCache{INV, mode}(J_cache, δu, δus, lincache, JᵀJ, Jᵀfu,
-        rhs_cache, damping_fn_cache, timer)
+    return DampedNewtonDescentCache{INV, mode}(
+        J_cache, δu, δus, lincache, JᵀJ, Jᵀfu, rhs_cache, damping_fn_cache, timer)
 end
 
-function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
-        idx::Val{N} = Val(1); skip_solve::Bool = false, new_jacobian::Bool = true,
-        kwargs...) where {INV, N, mode}
+function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
+        u, idx::Val{N} = Val(1); skip_solve::Bool = false,
+        new_jacobian::Bool = true, kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
     skip_solve && return δu, true, (;)
 
@@ -186,8 +183,8 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
                 INV && (J = inv(J))
                 @bb cache.JᵀJ_cache = transpose(J) × J
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
-                D = __internal_solve!(cache.damping_fn_cache, cache.JᵀJ_cache,
-                    cache.Jᵀfu_cache, True)
+                D = __internal_solve!(
+                    cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, True)
                 cache.J = __dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
                 A = __maybe_symmetric(cache.J)
             elseif !recompute_A
@@ -203,8 +200,8 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu, u,
     end
 
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(; A, b,
-            reuse_A_if_factorization = !new_jacobian && !recompute_A,
+        δu = cache.lincache(;
+            A, b, reuse_A_if_factorization = !new_jacobian && !recompute_A,
             kwargs..., linu = _vec(δu))
         δu = _restructure(get_du(cache, idx), δu)
     end

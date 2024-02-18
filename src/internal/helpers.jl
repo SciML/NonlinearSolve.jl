@@ -32,29 +32,27 @@ end
 # AutoDiff Selection Functions
 struct NonlinearSolveTag end
 
-function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}}, f::F,
-        x::AbstractArray{T}) where {T, F}
+function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}},
+        f::F, x::AbstractArray{T}) where {T, F}
     return true
 end
 
 function get_concrete_forward_ad(
-        autodiff::Union{ADTypes.AbstractForwardMode,
-            ADTypes.AbstractFiniteDifferencesMode},
-        prob, sp::Val{test_sparse} = True,
-        args...; kwargs...) where {test_sparse}
+        autodiff::Union{ADTypes.AbstractForwardMode, ADTypes.AbstractFiniteDifferencesMode},
+        prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     return autodiff
 end
-function get_concrete_forward_ad(autodiff::ADTypes.AbstractADType, prob,
-        sp::Val{test_sparse} = True, args...;
-        check_reverse_mode = true, kwargs...) where {test_sparse}
+function get_concrete_forward_ad(
+        autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
+        args...; check_reverse_mode = true, kwargs...) where {test_sparse}
     if check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a \
                `Abstract(Forward/FiniteDifferences)Mode`. Use with caution." maxlog=1
     end
     return autodiff
 end
-function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, args...;
-        kwargs...) where {test_sparse}
+function get_concrete_forward_ad(
+        autodiff, prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     if test_sparse
         (; sparsity, jac_prototype) = prob.f
         use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
@@ -71,10 +69,8 @@ function get_concrete_forward_ad(autodiff, prob, sp::Val{test_sparse} = True, ar
 end
 
 function get_concrete_reverse_ad(
-        autodiff::Union{ADTypes.AbstractReverseMode,
-            ADTypes.AbstractFiniteDifferencesMode},
-        prob, sp::Val{test_sparse} = True,
-        args...; kwargs...) where {test_sparse}
+        autodiff::Union{ADTypes.AbstractReverseMode, ADTypes.AbstractFiniteDifferencesMode},
+        prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     return autodiff
 end
 function get_concrete_reverse_ad(autodiff::Union{AutoZygote, AutoSparseZygote}, prob,
@@ -88,17 +84,17 @@ function get_concrete_reverse_ad(autodiff::Union{AutoZygote, AutoSparseZygote}, 
     end
     return autodiff
 end
-function get_concrete_reverse_ad(autodiff::ADTypes.AbstractADType, prob,
-        sp::Val{test_sparse} = True, args...; check_reverse_mode = true,
-        kwargs...) where {test_sparse}
+function get_concrete_reverse_ad(
+        autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
+        args...; check_reverse_mode = true, kwargs...) where {test_sparse}
     if check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a \
                `Abstract(Forward/FiniteDifferences)Mode`. Use with caution." maxlog=1
     end
     return autodiff
 end
-function get_concrete_reverse_ad(autodiff, prob, sp::Val{test_sparse} = True, args...;
-        kwargs...) where {test_sparse}
+function get_concrete_reverse_ad(
+        autodiff, prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
     if test_sparse
         (; sparsity, jac_prototype) = prob.f
         use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
@@ -234,19 +230,18 @@ macro internal_caches(cType, internal_cache_names...)
 end
 
 function __internal_caches(__source__, __module__, cType, internal_cache_names::Tuple)
-    fields = map(name -> :($(__query_stat)(getproperty(cache, $(name)), ST)),
-        internal_cache_names)
+    fields = map(
+        name -> :($(__query_stat)(getproperty(cache, $(name)), ST)), internal_cache_names)
     callback_caches = map(
-        name -> :($(callback_into_cache!)(cache,
-            getproperty(internalcache, $(name)), internalcache, args...)),
+        name -> :($(callback_into_cache!)(
+            cache, getproperty(internalcache, $(name)), internalcache, args...)),
         internal_cache_names)
     callbacks_self = map(
-        name -> :($(callback_into_cache!)(internalcache,
-            getproperty(internalcache, $(name)))),
+        name -> :($(callback_into_cache!)(
+            internalcache, getproperty(internalcache, $(name)))),
         internal_cache_names)
     reinit_caches = map(
-        name -> :($(reinit_cache!)(getproperty(cache, $(name)),
-            args...; kwargs...)),
+        name -> :($(reinit_cache!)(getproperty(cache, $(name)), args...; kwargs...)),
         internal_cache_names)
     return esc(quote
         function __query_stat(cache::$(cType), ST::Val{stat}) where {stat}

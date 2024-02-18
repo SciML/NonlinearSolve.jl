@@ -9,8 +9,8 @@ struct NoLineSearch <: AbstractNonlinearSolveLineSearchAlgorithm end
     α
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::NoLineSearch, f::F, fu, u,
-        p, args...; kwargs...) where {F}
+function __internal_init(prob::AbstractNonlinearProblem, alg::NoLineSearch,
+        f::F, fu, u, p, args...; kwargs...) where {F}
     return NoLineSearchCache(promote_type(eltype(fu), eltype(u))(true))
 end
 
@@ -80,8 +80,9 @@ Base.@deprecate_binding LineSearch LineSearchesJL true
     nf::Base.RefValue{Int}
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u,
-        p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u, p,
+        args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
         grad_op = @closure (u, fu, p) -> last(__value_derivative(Base.Fix2(f, p), u)) * fu
@@ -94,8 +95,8 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f:
                 grad_op = @closure (u, fu, p) -> f.vjp(fu, u, p)
             end
         else
-            autodiff = get_concrete_reverse_ad(alg.autodiff, prob;
-                check_forward_mode = true)
+            autodiff = get_concrete_reverse_ad(
+                alg.autodiff, prob; check_forward_mode = true)
             vjp_op = VecJacOperator(prob, fu, u; autodiff)
             if isinplace(prob)
                 g_cache = similar(u)
@@ -134,17 +135,16 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::LineSearchesJL, f:
         return obj, dot(g₀, du)
     end
 
-    return LineSearchesJLCache(f, p, ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op,
-        u_cache, fu_cache, nf)
+    return LineSearchesJLCache(
+        f, p, ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op, u_cache, fu_cache, nf)
 end
 
 function __internal_solve!(cache::LineSearchesJLCache, u, du; kwargs...)
     ϕ = @closure α -> cache.ϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache)
-    dϕ = @closure α -> cache.dϕ(cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
-        cache.grad_op)
+    dϕ = @closure α -> cache.dϕ(
+        cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
     ϕdϕ = @closure α -> cache.ϕdϕ(
-        cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache,
-        cache.grad_op)
+        cache.f, cache.p, u, du, α, cache.u_cache, cache.fu_cache, cache.grad_op)
 
     ϕ₀, dϕ₀ = ϕdϕ(zero(eltype(u)))
 
@@ -225,8 +225,9 @@ end
     nf::Base.RefValue{Int}
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch,
-        f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch, f::F, fu,
+        u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
@@ -242,9 +243,10 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::RobustNonMonotoneL
     fn₁ = internalnorm(fu)^alg.n_exp
     η_strategy = @closure (n, xₙ, fₙ) -> alg.η_strategy(fn₁, n, xₙ, fₙ)
 
-    return RobustNonMonotoneLineSearchCache(f, p, ϕ, u_cache, fu_cache, internalnorm,
-        alg.maxiters, fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M, T(alg.tau_min),
-        T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
+    return RobustNonMonotoneLineSearchCache(
+        f, p, ϕ, u_cache, fu_cache, internalnorm, alg.maxiters,
+        fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M,
+        T(alg.tau_min), T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
 end
 
 function __internal_solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
@@ -316,8 +318,9 @@ end
     nf::Base.RefValue{Int}
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch,
-        f::F, fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch, f::F, fu, u,
+        p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
@@ -330,8 +333,9 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::LiFukushimaLineSea
         return internalnorm(fu_cache)
     end
 
-    return LiFukushimaLineSearchCache(ϕ, f, p, internalnorm, u_cache, fu_cache,
-        T(alg.lambda_0), T(alg.beta), T(alg.sigma_1), T(alg.sigma_2), T(alg.eta),
+    return LiFukushimaLineSearchCache(
+        ϕ, f, p, internalnorm, u_cache, fu_cache, T(alg.lambda_0),
+        T(alg.beta), T(alg.sigma_1), T(alg.sigma_2), T(alg.eta),
         T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf)
 end
 

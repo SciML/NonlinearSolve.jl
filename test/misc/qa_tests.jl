@@ -4,8 +4,8 @@
     Aqua.find_persistent_tasks_deps(NonlinearSolve)
     Aqua.test_ambiguities(NonlinearSolve; recursive = false)
     Aqua.test_deps_compat(NonlinearSolve)
-    Aqua.test_piracies(NonlinearSolve,
-        treat_as_own = [NonlinearProblem, NonlinearLeastSquaresProblem])
+    Aqua.test_piracies(
+        NonlinearSolve, treat_as_own = [NonlinearProblem, NonlinearLeastSquaresProblem])
     Aqua.test_project_extras(NonlinearSolve)
     # Timer Outputs needs to be enabled via Preferences
     Aqua.test_stale_deps(NonlinearSolve; ignore = [:TimerOutputs])

@@ -76,9 +76,9 @@ concrete_jac(::GeneralizedDFSane) = nothing
     force_stop::Bool
 end
 
-function __reinit_internal!(cache::GeneralizedDFSaneCache{iip}, args...; p = cache.p,
-        u0 = cache.u, alias_u0::Bool = false, maxiters = 1000, maxtime = nothing,
-        kwargs...) where {iip}
+function __reinit_internal!(
+        cache::GeneralizedDFSaneCache{iip}, args...; p = cache.p, u0 = cache.u,
+        alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...) where {iip}
     if iip
         recursivecopy!(cache.u, u0)
         cache.prob.f(cache.fu, cache.u, p)
@@ -115,10 +115,10 @@ end
 
 @internal_caches GeneralizedDFSaneCache :linesearch_cache
 
-function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
-        alias_u0 = false, maxiters = 1000, abstol = nothing, reltol = nothing,
-        termination_condition = nothing, internalnorm::F = DEFAULT_NORM, maxtime = nothing,
-        kwargs...) where {F}
+function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane,
+        args...; alias_u0 = false, maxiters = 1000, abstol = nothing,
+        reltol = nothing, termination_condition = nothing,
+        internalnorm::F = DEFAULT_NORM, maxtime = nothing, kwargs...) where {F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = __maybe_unaliased(prob.u0, alias_u0)
@@ -129,11 +129,11 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         fu = evaluate_f(prob, u)
         @bb fu_cache = copy(fu)
 
-        linesearch_cache = __internal_init(prob, alg.linesearch, prob.f, fu, u, prob.p;
-            maxiters, internalnorm, kwargs...)
+        linesearch_cache = __internal_init(
+            prob, alg.linesearch, prob.f, fu, u, prob.p; maxiters, internalnorm, kwargs...)
 
-        abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fu, u_cache,
-            termination_condition)
+        abstol, reltol, tc_cache = init_termination_cache(
+            abstol, reltol, fu, u_cache, termination_condition)
         trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
 
         if alg.σ_1 === nothing
@@ -148,10 +148,9 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         end
 
         return GeneralizedDFSaneCache{isinplace(prob), maxtime !== nothing}(
-            fu, fu_cache, u,
-            u_cache, prob.p, du, alg, prob, σ_n, T(alg.σ_min), T(alg.σ_max),
-            linesearch_cache, 0, 0, maxiters, maxtime, timer, 0.0, tc_cache, trace,
-            ReturnCode.Default, false)
+            fu, fu_cache, u, u_cache, prob.p, du, alg, prob, σ_n, T(alg.σ_min),
+            T(alg.σ_max), linesearch_cache, 0, 0, maxiters, maxtime,
+            timer, 0.0, tc_cache, trace, ReturnCode.Default, false)
     end
 end
 

@@ -50,14 +50,14 @@ function __show_algorithm(io::IO, alg::ApproximateJacobianSolveAlgorithm, name, 
     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
 end
 
-function ApproximateJacobianSolveAlgorithm(; concrete_jac = nothing,
-        name::Symbol = :unknown, kwargs...)
+function ApproximateJacobianSolveAlgorithm(;
+        concrete_jac = nothing, name::Symbol = :unknown, kwargs...)
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; kwargs...)
 end
 
-function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = missing,
-        trustregion = missing, descent, update_rule, reinit_rule, initialization,
-        max_resets::Int = typemax(Int),
+function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(;
+        linesearch = missing, trustregion = missing, descent, update_rule,
+        reinit_rule, initialization, max_resets::Int = typemax(Int),
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
@@ -65,8 +65,9 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(; linesearch = mi
             :GeneralizedFirstOrderAlgorithm)
         linesearch = LineSearchesJL(; method = linesearch)
     end
-    return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(linesearch, trustregion,
-        descent, update_rule, reinit_rule, max_resets, max_shrink_times, initialization)
+    return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(
+        linesearch, trustregion, descent, update_rule, reinit_rule,
+        max_resets, max_shrink_times, initialization)
 end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
@@ -117,9 +118,9 @@ end
 
 store_inverse_jacobian(::ApproximateJacobianSolveCache{INV}) where {INV} = INV
 
-function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip}, args...;
-        p = cache.p, u0 = cache.u, alias_u0::Bool = false, maxiters = 1000,
-        maxtime = nothing, kwargs...) where {INV, GB, iip}
+function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip},
+        args...; p = cache.p, u0 = cache.u, alias_u0::Bool = false,
+        maxiters = 1000, maxtime = nothing, kwargs...) where {INV, GB, iip}
     if iip
         recursivecopy!(cache.u, u0)
         cache.prob.f(cache.fu, cache.u, p)
@@ -147,10 +148,10 @@ end
 
 @internal_caches ApproximateJacobianSolveCache :initialization_cache :descent_cache :linesearch_cache :trustregion_cache :update_rule_cache :reinit_rule_cache
 
-function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
-        alg::ApproximateJacobianSolveAlgorithm, args...; alias_u0 = false,
-        maxtime = nothing, maxiters = 1000, abstol = nothing, reltol = nothing,
-        linsolve_kwargs = (;), termination_condition = nothing,
+function SciMLBase.__init(
+        prob::AbstractNonlinearProblem{uType, iip}, alg::ApproximateJacobianSolveAlgorithm,
+        args...; alias_u0 = false, maxtime = nothing, maxiters = 1000, abstol = nothing,
+        reltol = nothing, linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = DEFAULT_NORM, kwargs...) where {uType, iip, F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
@@ -162,18 +163,18 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         INV = store_inverse_jacobian(alg.update_rule)
 
         linsolve = get_linear_solver(alg.descent)
-        initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
-            linsolve,
-            maxiters, internalnorm)
+        initialization_cache = __internal_init(
+            prob, alg.initialization, alg, f, fu, u, p; linsolve, maxiters, internalnorm)
 
-        abstol, reltol, termination_cache = init_termination_cache(abstol, reltol, fu, u,
-            termination_condition)
+        abstol, reltol, termination_cache = init_termination_cache(
+            abstol, reltol, fu, u, termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
         inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
-        descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
-            internalnorm, linsolve_kwargs, pre_inverted = Val(INV), timer)
+        descent_cache = __internal_init(
+            prob, alg.descent, J, fu, u; abstol, reltol, internalnorm,
+            linsolve_kwargs, pre_inverted = Val(INV), timer)
         du = get_du(descent_cache)
 
         reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)
@@ -189,31 +190,31 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem{uType, iip},
         if alg.trustregion !== missing
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
-            trustregion_cache = __internal_init(prob, alg.trustregion, f, fu, u, p;
-                internalnorm, kwargs...)
+            trustregion_cache = __internal_init(
+                prob, alg.trustregion, f, fu, u, p; internalnorm, kwargs...)
             GB = :TrustRegion
         end
 
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = __internal_init(prob, alg.linesearch, f, fu, u, p;
-                internalnorm,
-                kwargs...)
+            linesearch_cache = __internal_init(
+                prob, alg.linesearch, f, fu, u, p; internalnorm, kwargs...)
             GB = :LineSearch
         end
 
-        update_rule_cache = __internal_init(prob, alg.update_rule, J, fu, u, du;
-            internalnorm)
+        update_rule_cache = __internal_init(
+            prob, alg.update_rule, J, fu, u, du; internalnorm)
 
         trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
             uses_jacobian_inverse = Val(INV), kwargs...)
 
-        return ApproximateJacobianSolveCache{INV, GB, iip, maxtime !== nothing}(fu, u,
-            u_cache, p, du, J, alg, prob, initialization_cache, descent_cache,
-            linesearch_cache, trustregion_cache, update_rule_cache, reinit_rule_cache,
-            inv_workspace, 0, 0, 0, alg.max_resets, maxiters, maxtime, alg.max_shrink_times,
-            0, timer, 0.0, termination_cache, trace, ReturnCode.Default, false, false)
+        return ApproximateJacobianSolveCache{INV, GB, iip, maxtime !== nothing}(
+            fu, u, u_cache, p, du, J, alg, prob, initialization_cache,
+            descent_cache, linesearch_cache, trustregion_cache,
+            update_rule_cache, reinit_rule_cache, inv_workspace, 0, 0, 0,
+            alg.max_resets, maxiters, maxtime, alg.max_shrink_times, 0, timer,
+            0.0, termination_cache, trace, ReturnCode.Default, false, false)
     end
 end
 
@@ -222,10 +223,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
         if get_nsteps(cache) == 0  # First Step is special ignore kwargs
-            J_init = __internal_solve!(cache.initialization_cache,
-                cache.fu,
-                cache.u,
-                Val(false))
+            J_init = __internal_solve!(
+                cache.initialization_cache, cache.fu, cache.u, Val(false))
             if INV
                 if jacobian_initialized_preinverted(cache.initialization_cache.alg)
                     cache.J = J_init
@@ -248,8 +247,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 cache.force_reinit = false
             elseif recompute_jacobian === nothing
                 # Standard Step
-                reinit = __internal_solve!(cache.reinit_rule_cache, cache.J, cache.fu,
-                    cache.u, cache.du)
+                reinit = __internal_solve!(
+                    cache.reinit_rule_cache, cache.J, cache.fu, cache.u, cache.du)
                 reinit && (countable_reinit = true)
             elseif recompute_jacobian
                 reinit = true  # Force ReInitialization: Don't count towards resetting
@@ -268,8 +267,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
 
             if reinit
-                J_init = __internal_solve!(cache.initialization_cache, cache.fu, cache.u,
-                    Val(true))
+                J_init = __internal_solve!(
+                    cache.initialization_cache, cache.fu, cache.u, Val(true))
                 cache.J = INV ? __safe_inv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
                 cache.steps_since_last_reset = 0
@@ -284,13 +283,11 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian,
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
             δu, descent_success, descent_intermediates = __internal_solve!(
-                cache.descent_cache,
-                J, cache.fu, cache.u; new_jacobian)
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian)
         end
     end
 
@@ -309,8 +306,9 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             end
         elseif GB === :TrustRegion
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = __internal_solve!(cache.trustregion_cache, J,
-                    cache.fu, cache.u, δu, descent_intermediates)
+                tr_accepted, u_new, fu_new = __internal_solve!(
+                    cache.trustregion_cache, J, cache.fu,
+                    cache.u, δu, descent_intermediates)
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)
@@ -341,7 +339,8 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     update_trace!(cache, α)
     @bb copyto!(cache.u_cache, cache.u)
 
-    if (cache.force_stop || cache.force_reinit ||
+    if (cache.force_stop ||
+        cache.force_reinit ||
         (recompute_jacobian !== nothing && !recompute_jacobian))
         callback_into_cache!(cache)
         return nothing

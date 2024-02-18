@@ -29,8 +29,9 @@ end
 
 @internal_caches SteepestDescentCache :lincache
 
-@inline function __internal_init(prob::AbstractNonlinearProblem, alg::SteepestDescent, J,
-        fu, u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
+@inline function __internal_init(
+        prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
+        u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
         linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...) where {INV, N}
     INV && @assert length(fu)==length(u) "Non-Square Jacobian Inverse doesn't make sense."
@@ -39,8 +40,8 @@ end
         @bb δu_ = similar(u)
     end
     if INV
-        lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu), _vec(u);
-            abstol, reltol, linsolve_kwargs...)
+        lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu),
+            _vec(u); abstol, reltol, linsolve_kwargs...)
     else
         lincache = nothing
     end
@@ -53,8 +54,9 @@ function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val 
     if INV
         A = J === nothing ? nothing : transpose(J)
         @static_timeit cache.timer "linear solve" begin
-            δu = cache.lincache(; A, b = _vec(fu), kwargs..., linu = _vec(δu),
-                du = _vec(δu), reuse_A_if_factorization = !new_jacobian || idx !== Val(1))
+            δu = cache.lincache(;
+                A, b = _vec(fu), kwargs..., linu = _vec(δu), du = _vec(δu),
+                reuse_A_if_factorization = !new_jacobian || idx !== Val(1))
             δu = _restructure(get_du(cache, idx), δu)
         end
     else

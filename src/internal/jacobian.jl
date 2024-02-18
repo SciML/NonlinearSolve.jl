@@ -42,24 +42,25 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
     jvp_autodiff
 end
 
-function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p, u0 = cache.u,
-        kwargs...) where {iip}
+function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p,
+        u0 = cache.u, kwargs...) where {iip}
     cache.njacs = 0
     cache.u = u0
     cache.p = p
     cache.uf = JacobianWrapper{iip}(cache.f, p)
 end
 
-function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
-        vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
+function JacobianCache(
+        prob, alg, f::F, fu_, u, p; autodiff = nothing, vjp_autodiff = nothing,
+        jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
     autodiff = get_concrete_forward_ad(autodiff, prob; check_reverse_mode = false)
-    jvp_autodiff = get_concrete_forward_ad(jvp_autodiff, prob, Val(false);
-        check_reverse_mode = true)
-    vjp_autodiff = get_concrete_reverse_ad(vjp_autodiff, prob, Val(false);
-        check_forward_mode = false)
+    jvp_autodiff = get_concrete_forward_ad(
+        jvp_autodiff, prob, Val(false); check_reverse_mode = true)
+    vjp_autodiff = get_concrete_reverse_ad(
+        vjp_autodiff, prob, Val(false); check_forward_mode = false)
 
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
@@ -72,8 +73,8 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
     if !has_analytic_jac && needs_jac
         sd = __sparsity_detection_alg(f, autodiff)
         jac_cache = iip ? sparse_jacobian_cache(autodiff, sd, uf, fu, u) :
-                    sparse_jacobian_cache(autodiff, sd, uf, __maybe_mutable(u, autodiff);
-            fx = fu)
+                    sparse_jacobian_cache(
+            autodiff, sd, uf, __maybe_mutable(u, autodiff); fx = fu)
     else
         jac_cache = nothing
     end
@@ -91,14 +92,13 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; autodiff = nothing,
     end
 
     return JacobianCache{iip}(
-        J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff,
-        jvp_autodiff)
+        J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    return JacobianCache{false}(u, f, uf, u, u, p, nothing, alg, 0, nothing, nothing,
-        nothing)
+    return JacobianCache{false}(
+        u, f, uf, u, u, p, nothing, alg, 0, nothing, nothing, nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
@@ -117,8 +117,8 @@ function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
     return J
 end
 # Compute the Jacobian
-function (cache::JacobianCache{iip})(J::Union{AbstractMatrix, Nothing}, u,
-        p = cache.p) where {iip}
+function (cache::JacobianCache{iip})(
+        J::Union{AbstractMatrix, Nothing}, u, p = cache.p) where {iip}
     cache.njacs += 1
     if iip
         if has_jac(cache.f)

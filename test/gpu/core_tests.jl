@@ -12,12 +12,11 @@
     prob = NonlinearProblem(linear_f, u0)
 
     SOLVERS = (NewtonRaphson(), LevenbergMarquardt(; linsolve = QRFactorization()),
-        LevenbergMarquardt(; linsolve = KrylovJL_GMRES()), PseudoTransient(), Klement(),
-        Broyden(; linesearch = LiFukushimaLineSearch()),
+        LevenbergMarquardt(; linsolve = KrylovJL_GMRES()), PseudoTransient(),
+        Klement(), Broyden(; linesearch = LiFukushimaLineSearch()),
         LimitedMemoryBroyden(; threshold = 2, linesearch = LiFukushimaLineSearch()),
         DFSane(), TrustRegion(; linsolve = QRFactorization()),
-        TrustRegion(; linsolve = KrylovJL_GMRES(),
-            concrete_jac = true),  # Needed if Zygote not loaded
+        TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
         nothing)
 
     @testset "[IIP] GPU Solvers" begin

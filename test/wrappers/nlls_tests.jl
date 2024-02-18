@@ -31,8 +31,7 @@ end
 @testitem "LeastSquaresOptim.jl" setup=[WrapperNLLSSetup] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
     prob_iip = NonlinearLeastSquaresProblem(
-        NonlinearFunction(loss_function;
-            resid_prototype = zero(y_target)), θ_init, x)
+        NonlinearFunction(loss_function; resid_prototype = zero(y_target)), θ_init, x)
 
     nlls_problems = [prob_oop, prob_iip]
 
@@ -47,8 +46,7 @@ end
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[
-    WrapperNLLSSetup] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[WrapperNLLSSetup] begin
     function jac!(J, θ, p)
         resid = zeros(length(p))
         ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
@@ -59,18 +57,17 @@ end
 
     probs = [
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target), jac = jac!),
+            NonlinearFunction{true}(
+                loss_function; resid_prototype = zero(y_target), jac = jac!),
             θ_init,
             x),
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target), jac = jac),
+            NonlinearFunction{false}(
+                loss_function; resid_prototype = zero(y_target), jac = jac),
             θ_init,
             x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function; jac),
-            θ_init, x)
-    ]
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{false}(loss_function; jac), θ_init, x)]
 
     solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
     push!(solvers, CMINPACK())
@@ -80,19 +77,15 @@ end
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[
-    WrapperNLLSSetup] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[WrapperNLLSSetup] begin
     probs = [
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{true}(loss_function;
-                resid_prototype = zero(y_target)),
+            NonlinearFunction{true}(loss_function; resid_prototype = zero(y_target)),
             θ_init, x),
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{false}(loss_function;
-                resid_prototype = zero(y_target)),
+            NonlinearFunction{false}(loss_function; resid_prototype = zero(y_target)),
             θ_init, x),
-        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x)
-    ]
+        NonlinearLeastSquaresProblem(NonlinearFunction{false}(loss_function), θ_init, x)]
 
     solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)
                       for linsolve in (:cholesky, :qr),
