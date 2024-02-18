@@ -17,7 +17,7 @@ pages = ["index.md",
         "native/globalization.md", "native/diagnostics.md"],
     "Wrapped Solver APIs" => Any[
         "api/fastlevenbergmarquardt.md", "api/fixedpointacceleration.md",
-        "api/leastsquaresoptim.md", "api/minpack.md", "api/nlsolve.md",
+        "api/leastsquaresoptim.md", "api/minpack.md", "api/nlsolve.md", "api/nlsolvers.md",
         "api/siamfanlequations.md", "api/speedmapping.md", "api/sundials.md"],
     "Development Documentation" => [
         "devdocs/internal_interfaces.md", "devdocs/linear_solve.md",
