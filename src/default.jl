@@ -58,8 +58,8 @@ end
     maxiters::Int
 end
 
-function Base.show(io::IO,
-        cache::NonlinearSolvePolyAlgorithmCache{pType, N}) where {pType, N}
+function Base.show(
+        io::IO, cache::NonlinearSolvePolyAlgorithmCache{pType, N}) where {pType, N}
     problem_kind = ifelse(pType == :NLS, "NonlinearProblem", "NonlinearLeastSquaresProblem")
     println(io, "NonlinearSolvePolyAlgorithmCache for $(problem_kind) with $(N) algorithms")
     best_alg = ifelse(cache.best == -1, "nothing", cache.best)
@@ -84,8 +84,16 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                 maxtime = nothing, maxiters = 1000, kwargs...) where {N}
             return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N, maxtime !== nothing}(
                 map(solver -> SciMLBase.__init(prob, solver, args...; maxtime, kwargs...),
-                    alg.algs), alg, -1, 1, 0, 0.0, maxtime,
-                ReturnCode.Default, false, maxiters)
+                    alg.algs),
+                alg,
+                -1,
+                1,
+                0,
+                0.0,
+                maxtime,
+                ReturnCode.Default,
+                false,
+                maxiters)
         end
     end
 end
@@ -109,8 +117,9 @@ end
                         stats = $(sol_syms[i]).stats
                         u = $(sol_syms[i]).u
                         fu = get_fu($(cache_syms[i]))
-                        return SciMLBase.build_solution($(sol_syms[i]).prob, cache.alg, u,
-                            fu; retcode = $(sol_syms[i]).retcode, stats,
+                        return SciMLBase.build_solution(
+                            $(sol_syms[i]).prob, cache.alg, u, fu;
+                            retcode = $(sol_syms[i]).retcode, stats,
                             original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
                     end
                     cache.current = $(i + 1)
@@ -137,8 +146,8 @@ end
     return Expr(:block, calls...)
 end
 
-@generated function __step!(cache::NonlinearSolvePolyAlgorithmCache{iip, N}, args...;
-        kwargs...) where {iip, N}
+@generated function __step!(
+        cache::NonlinearSolvePolyAlgorithmCache{iip, N}, args...; kwargs...) where {iip, N}
     calls = []
     cache_syms = [gensym("cache") for i in 1:N]
     for i in 1:N

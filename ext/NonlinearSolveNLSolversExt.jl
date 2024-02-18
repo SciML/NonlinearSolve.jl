@@ -4,8 +4,8 @@ using ADTypes, FastClosures, NonlinearSolve, NLSolvers, SciMLBase, LinearAlgebra
 using FiniteDiff, ForwardDiff
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0::Bool = false,
-        termination_condition = nothing, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0::Bool = false, termination_condition = nothing, kwargs...)
     NonlinearSolve.__test_termination_condition(termination_condition, :NLSolversJL)
 
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(prob.u0))
@@ -50,12 +50,13 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
         prob_nlsolver = NEqProblem(prob_obj; inplace = false)
         res = NLSolvers.solve(prob_nlsolver, prob.u0, alg.method, options)
 
-        retcode = ifelse(norm(res.info.best_residual, Inf) ≤ abstol, ReturnCode.Success,
-            ReturnCode.MaxIters)
+        retcode = ifelse(norm(res.info.best_residual, Inf) ≤ abstol,
+            ReturnCode.Success, ReturnCode.MaxIters)
         stats = SciMLBase.NLStats(-1, -1, -1, -1, res.info.iter)
 
-        return SciMLBase.build_solution(prob, alg, res.info.solution,
-            res.info.best_residual; retcode, original = res, stats)
+        return SciMLBase.build_solution(
+            prob, alg, res.info.solution, res.info.best_residual;
+            retcode, original = res, stats)
     end
 
     f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
@@ -73,12 +74,12 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
 
     res = NLSolvers.solve(prob_nlsolver, u0, alg.method, options)
 
-    retcode = ifelse(norm(res.info.best_residual, Inf) ≤ abstol, ReturnCode.Success,
-        ReturnCode.MaxIters)
+    retcode = ifelse(
+        norm(res.info.best_residual, Inf) ≤ abstol, ReturnCode.Success, ReturnCode.MaxIters)
     stats = SciMLBase.NLStats(-1, -1, -1, -1, res.info.iter)
 
-    return SciMLBase.build_solution(prob, alg, res.info.solution,
-        res.info.best_residual; retcode, original = res, stats)
+    return SciMLBase.build_solution(prob, alg, res.info.solution, res.info.best_residual;
+        retcode, original = res, stats)
 end
 
 end

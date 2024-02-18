@@ -214,8 +214,7 @@ end
 function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
     println(io, "$(nameof(typeof(cache)))(")
     __show_algorithm(io, cache.alg,
-        (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent +
-                                                                     4)
+        (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
     println(io, ",")
     println(io, (" "^(indent + 4)) * "u = ", get_u(cache), ",")
     println(io, (" "^(indent + 4)) * "residual = ", get_fu(cache), ",")
