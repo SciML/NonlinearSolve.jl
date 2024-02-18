@@ -25,17 +25,15 @@ function newton_fails(u, p)
             (0.21640425613334457 .+
              216.40425613334457 ./ (1 .+
               (0.21640425613334457 .+
-               216.40425613334457 ./
-               (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-           0.0011552453009332421u .- p
+               216.40425613334457 ./ (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^
+            2.0) .- 0.0011552453009332421u .- p
 end
 
 const TERMINATION_CONDITIONS = [
     SteadyStateDiffEqTerminationMode(), SimpleNonlinearSolveTerminationMode(),
     NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
     AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()
-]
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()]
 
 function benchmark_nlsolve_oop(f, u0, p = 2.0; solver, kwargs...)
     prob = NonlinearProblem{false}(f, u0, p)
@@ -68,8 +66,7 @@ end
 
 @testitem "NewtonRaphson" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
-            Static(),
-            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
+            Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
@@ -81,18 +78,19 @@ end
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-            cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), NewtonRaphson(),
-                abstol = 1e-9)
+            cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
+                NewtonRaphson(), abstol = 1e-9)
             @test (@ballocated solve!($cache)) < 200
         end
 
-        precs = [
-            (u0) -> NonlinearSolve.DEFAULT_PRECS,
-            u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))
-        ]
+        precs = [(u0) -> NonlinearSolve.DEFAULT_PRECS,
+            u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
-                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES(), \)
+                1.0, 1.0],),
+            prec in precs,
+            linsolve in (nothing, KrylovJL_GMRES(), \)
+
             ad isa AutoZygote && continue
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
@@ -114,8 +112,8 @@ end
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), NewtonRaphson()) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+            AutoSparseForwardDiff(), AutoSparseFiniteDiff(),
+            AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -134,13 +132,14 @@ end
 
 @testitem "TrustRegion" setup=[CoreRootfindTesting] begin
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
-        RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei, RadiusUpdateSchemes.Yuan,
-        RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
+        RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei,
+        RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
     linear_solvers = [nothing, LUFactorization(), KrylovJL_GMRES(), \]
 
     @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in u0s,
-        radius_update_scheme in radius_update_schemes, linsolve in linear_solvers
+        radius_update_scheme in radius_update_schemes,
+        linsolve in linear_solvers
 
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
 
@@ -155,7 +154,8 @@ end
     end
 
     @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in ([
-            1.0, 1.0],), radius_update_scheme in radius_update_schemes,
+            1.0, 1.0],),
+        radius_update_scheme in radius_update_schemes,
         linsolve in linear_solvers
 
         abstol = ifelse(linsolve isa KrylovJL, 1e-6, 1e-9)
@@ -175,8 +175,8 @@ end
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), TrustRegion()) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (
-            AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+            AutoSparseForwardDiff(), AutoSparseFiniteDiff(),
+            AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
         u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
@@ -207,16 +207,16 @@ end
         expand_factor = [1.5, 2.0, 3.0]
         max_shrink_times = [10, 20, 30]
 
-        list_of_options = zip(max_trust_radius, initial_trust_radius, step_threshold,
-            shrink_threshold, expand_threshold, shrink_factor,
-            expand_factor, max_shrink_times)
+        list_of_options = zip(
+            max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
+            expand_threshold, shrink_factor, expand_factor, max_shrink_times)
         for options in list_of_options
             local probN, sol, alg
-            alg = TrustRegion(max_trust_radius = options[1],
-                initial_trust_radius = options[2], step_threshold = options[3],
-                shrink_threshold = options[4], expand_threshold = options[5],
-                shrink_factor = options[6], expand_factor = options[7],
-                max_shrink_times = options[8])
+            alg = TrustRegion(
+                max_trust_radius = options[1], initial_trust_radius = options[2],
+                step_threshold = options[3], shrink_threshold = options[4],
+                expand_threshold = options[5], shrink_factor = options[6],
+                expand_factor = options[7], max_shrink_times = options[8])
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-10)
@@ -255,8 +255,8 @@ end
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), LevenbergMarquardt(),
-            abstol = 1e-9)
+        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0),
+            LevenbergMarquardt(), abstol = 1e-9)
         @test (@ballocated solve!($cache)) < 200
     end
 
@@ -265,19 +265,20 @@ end
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), LevenbergMarquardt(),
-            abstol = 1e-9)
+        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0),
+            LevenbergMarquardt(), abstol = 1e-9)
         @test (@ballocated solve!($cache)) ≤ 64
     end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+            AutoSparseForwardDiff(), AutoSparseFiniteDiff(),
+            AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, LevenbergMarquardt(; autodiff); abstol = 1e-9,
-            reltol = 1e-9).u .≈ sqrt(2.0))
+        @test all(solve(
+            probN, LevenbergMarquardt(; autodiff); abstol = 1e-9, reltol = 1e-9).u .≈
+                  sqrt(2.0))
     end
 
     # Test that `LevenbergMarquardt` passes a test that `NewtonRaphson` fails on.
@@ -291,10 +292,10 @@ end
 
     # Iterator interface
     p = range(0.01, 2, length = 200)
-    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false),
-        LevenbergMarquardt())) ≈ sqrt.(p)
-    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true),
-        LevenbergMarquardt())) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(
+        quadratic_f, p, Val(false), LevenbergMarquardt())) ≈ sqrt.(p)
+    @test abs.(nlprob_iterator_interface(
+        quadratic_f!, p, Val(true), LevenbergMarquardt())) ≈ sqrt.(p)
 
     # Test kwargs in `LevenbergMarquardt`
     @testset "Keyword Arguments" begin
@@ -306,13 +307,13 @@ end
         b_uphill = Float64[0, 1, 2]
         min_damping_D = [1e-12, 1e-9, 1e-4]
 
-        list_of_options = zip(damping_initial, damping_increase_factor,
-            damping_decrease_factor, finite_diff_step_geodesic, α_geodesic, b_uphill,
-            min_damping_D)
+        list_of_options = zip(
+            damping_initial, damping_increase_factor, damping_decrease_factor,
+            finite_diff_step_geodesic, α_geodesic, b_uphill, min_damping_D)
         for options in list_of_options
             local probN, sol, alg
-            alg = LevenbergMarquardt(; damping_initial = options[1],
-                damping_increase_factor = options[2],
+            alg = LevenbergMarquardt(;
+                damping_initial = options[1], damping_increase_factor = options[2],
                 damping_decrease_factor = options[3],
                 finite_diff_step_geodesic = options[4], α_geodesic = options[5],
                 b_uphill = options[6], min_damping_D = options[7])
@@ -341,8 +342,7 @@ end
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), DFSane(),
-            abstol = 1e-9)
+        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), DFSane(), abstol = 1e-9)
         @test (@ballocated solve!($cache)) < 200
     end
 
@@ -379,19 +379,15 @@ end
         τ_min = [0.1, 0.2, 0.3]
         τ_max = [0.5, 0.8, 0.9]
         nexp = [2, 1, 2]
-        η_strategy = [
-            (f_1, k, x, F) -> f_1 / k^2,
-            (f_1, k, x, F) -> f_1 / k^3,
-            (f_1, k, x, F) -> f_1 / k^4
-        ]
+        η_strategy = [(f_1, k, x, F) -> f_1 / k^2, (f_1, k, x, F) -> f_1 / k^3,
+            (f_1, k, x, F) -> f_1 / k^4]
 
-        list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp,
-            η_strategy)
+        list_of_options = zip(σ_min, σ_max, σ_1, M, γ, τ_min, τ_max, nexp, η_strategy)
         for options in list_of_options
             local probN, sol, alg
             alg = DFSane(σ_min = options[1], σ_max = options[2], σ_1 = options[3],
-                M = options[4], γ = options[5], τ_min = options[6], τ_max = options[7],
-                n_exp = options[8], η_strategy = options[9])
+                M = options[4], γ = options[5], τ_min = options[6],
+                τ_max = options[7], n_exp = options[8], η_strategy = options[9])
 
             probN = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
             sol = solve(probN, alg, abstol = 1e-11)
@@ -412,8 +408,8 @@ end
 @testitem "PseudoTransient" setup=[CoreRootfindTesting] begin
     # These are tests for NewtonRaphson so we should set alpha_initial to be high so that we
     # converge quickly
-    @testset "PT: alpha_initial = 10.0 PT AD: $(ad)" for ad in (AutoFiniteDiff(),
-        AutoZygote())
+    @testset "PT: alpha_initial = 10.0 PT AD: $(ad)" for ad in (
+        AutoFiniteDiff(), AutoZygote())
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -431,7 +427,10 @@ end
         precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
-                1.0, 1.0],), prec in precs, linsolve in (nothing, KrylovJL_GMRES(), \)
+                1.0, 1.0],),
+            prec in precs,
+            linsolve in (nothing, KrylovJL_GMRES(), \)
+
             ad isa AutoZygote && continue
             if prec === :Random
                 prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
@@ -441,21 +440,21 @@ end
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
 
-            cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), solver;
-                abstol = 1e-9)
+            cache = init(
+                NonlinearProblem{true}(quadratic_f!, u0, 2.0), solver; abstol = 1e-9)
             @test (@ballocated solve!($cache)) ≤ 64
         end
     end
 
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false),
-        PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true),
-        PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(
+        quadratic_f, p, Val(false), PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
+    @test nlprob_iterator_interface(
+        quadratic_f!, p, Val(true), PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparseForwardDiff(),
-            AutoSparseFiniteDiff(), AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
+            AutoSparseForwardDiff(), AutoSparseFiniteDiff(),
+            AutoZygote(), AutoSparseZygote(), __autosparseenzyme()),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -467,8 +466,9 @@ end
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0);
-            termination_condition).u .≈ sqrt(2.0))
+        @test all(solve(
+            probN, PseudoTransient(; alpha_initial = 10.0); termination_condition).u .≈
+                  sqrt(2.0))
     end
 end
 
@@ -476,9 +476,8 @@ end
 
 @testitem "Broyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
-            Static(),
-            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
-            LiFukushimaLineSearch()),
+            Static(), StrongWolfe(), BackTracking(), HagerZhang(),
+            MoreThuente(), LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote()),
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
@@ -527,8 +526,7 @@ end
 
 @testitem "Klement" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (
-            Static(),
-            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
+            Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote()),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
@@ -577,9 +575,8 @@ end
 
 @testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
-            Static(),
-            StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente(),
-            LiFukushimaLineSearch()),
+            Static(), StrongWolfe(), BackTracking(), HagerZhang(),
+            MoreThuente(), LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
@@ -611,17 +608,17 @@ end
 
     # Iterator interface
     p = range(0.01, 2, length = 200)
-    @test nlprob_iterator_interface(quadratic_f, p, Val(false),
-        LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
-    @test nlprob_iterator_interface(quadratic_f!, p, Val(true),
-        LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
+    @test nlprob_iterator_interface(
+        quadratic_f, p, Val(false), LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
+    @test nlprob_iterator_interface(
+        quadratic_f!, p, Val(true), LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
 
     @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, LimitedMemoryBroyden();
-            termination_condition).u .≈ sqrt(2.0))
+        @test all(solve(probN, LimitedMemoryBroyden(); termination_condition).u .≈
+                  sqrt(2.0))
     end
 end
 
@@ -643,8 +640,8 @@ end
         return v + 0.1 * (u .* Δ * v + v .* Δ * u)
     end
 
-    function JVP!(du::Vector{Float64}, v::Vector{Float64}, u::Vector{Float64},
-            p::Vector{Float64})
+    function JVP!(
+            du::Vector{Float64}, v::Vector{Float64}, u::Vector{Float64}, p::Vector{Float64})
         Δ = Tridiagonal(-ones(99), 2 * ones(100), -ones(99))
         du .= v + 0.1 * (u .* Δ * v + v .* Δ * u)
         return nothing
@@ -655,16 +652,16 @@ end
     prob = NonlinearProblem(NonlinearFunction{false}(F; jvp = JVP), u0, u0)
     sol = solve(prob, NewtonRaphson(; linsolve = KrylovJL_GMRES()); abstol = 1e-13)
     @test norm(sol.resid, Inf) ≤ 1e-6
-    sol = solve(prob,
-        TrustRegion(; linsolve = KrylovJL_GMRES(), vjp_autodiff = AutoFiniteDiff());
+    sol = solve(
+        prob, TrustRegion(; linsolve = KrylovJL_GMRES(), vjp_autodiff = AutoFiniteDiff());
         abstol = 1e-13)
     @test norm(sol.resid, Inf) ≤ 1e-6
 
     prob = NonlinearProblem(NonlinearFunction{true}(F!; jvp = JVP!), u0, u0)
     sol = solve(prob, NewtonRaphson(; linsolve = KrylovJL_GMRES()); abstol = 1e-13)
     @test norm(sol.resid, Inf) ≤ 1e-6
-    sol = solve(prob,
-        TrustRegion(; linsolve = KrylovJL_GMRES(), vjp_autodiff = AutoFiniteDiff());
+    sol = solve(
+        prob, TrustRegion(; linsolve = KrylovJL_GMRES(), vjp_autodiff = AutoFiniteDiff());
         abstol = 1e-13)
     @test norm(sol.resid, Inf) ≤ 1e-6
 end

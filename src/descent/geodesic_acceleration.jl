@@ -31,8 +31,7 @@ for other methods are not theorectically or experimentally verified.
 end
 
 function Base.show(io::IO, alg::GeodesicAcceleration)
-    print(
-        io, "GeodesicAcceleration(descent = $(alg.descent), finite_diff_step_geodesic = ",
+    print(io, "GeodesicAcceleration(descent = $(alg.descent), finite_diff_step_geodesic = ",
         "$(alg.finite_diff_step_geodesic), α = $(alg.α))")
 end
 
@@ -55,8 +54,8 @@ get_linear_solver(alg::GeodesicAcceleration) = get_linear_solver(alg.descent)
     last_step_accepted::Bool
 end
 
-function __reinit_internal!(cache::GeodesicAccelerationCache, args...; p = cache.p,
-        kwargs...)
+function __reinit_internal!(
+        cache::GeodesicAccelerationCache, args...; p = cache.p, kwargs...)
     cache.p = p
     cache.last_step_accepted = false
 end
@@ -84,10 +83,10 @@ function set_acceleration!(cache::GeodesicAccelerationCache, δa, ::Val{N}) wher
     set_du!(cache.descent_cache, δa, Val(2N))
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J, fu,
-        u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
-        kwargs...) where {INV, N, F}
+function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J,
+        fu, u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
+        linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
+        internalnorm::F = DEFAULT_NORM, kwargs...) where {INV, N, F}
     T = promote_type(eltype(u), eltype(fu))
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
@@ -98,17 +97,17 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAccelerati
     @bb Jv = similar(fu)
     @bb fu_cache = copy(fu)
     @bb u_cache = similar(u)
-    return GeodesicAccelerationCache(δu, δus, descent_cache, prob.f, prob.p, T(alg.α),
-        internalnorm, T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false)
+    return GeodesicAccelerationCache(
+        δu, δus, descent_cache, prob.f, prob.p, T(alg.α), internalnorm,
+        T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false)
 end
 
-function __internal_solve!(
-        cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
+function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return δu, true, (; a, v)
-    v, _, _ = __internal_solve!(cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve,
-        kwargs...)
+    v, _, _ = __internal_solve!(
+        cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve, kwargs...)
 
     @bb @. cache.u_cache = u + cache.h * v
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)

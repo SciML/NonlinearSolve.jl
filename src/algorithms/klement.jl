@@ -47,8 +47,9 @@ function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
 
     CJ = IJ === :true_jacobian || IJ === :true_jacobian_diagonal
 
-    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(; linesearch,
-        descent = NewtonDescent(; linsolve, precs), update_rule = KlementUpdateRule(),
+    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(;
+        linesearch, descent = NewtonDescent(; linsolve, precs),
+        update_rule = KlementUpdateRule(),
         reinit_rule = IllConditionedJacobianReset(), max_resets, initialization)
 end
 
@@ -99,8 +100,8 @@ Update rule for [`Klement`](@ref).
     fu_cache
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule, J, fu, u,
-        du, args...; kwargs...)
+function __internal_init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule,
+        J, fu, u, du, args...; kwargs...)
     @bb Jdu = similar(fu)
     if J isa Diagonal || J isa Number
         J_cache, J_cache_2, Jdu_cache = nothing, nothing, nothing
@@ -125,7 +126,9 @@ function __internal_solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, d
     J = _restructure(u, diag(J_))
     @bb @. cache.Jdu = (J^2) * (du^2)
     @bb @. J += ((fu - cache.fu_cache - J * du) /
-                 ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * du * (J^2)
+                 ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) *
+                du *
+                (J^2)
     @bb copyto!(cache.fu_cache, fu)
     return Diagonal(vec(J))
 end

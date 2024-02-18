@@ -35,10 +35,10 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
     if isnothing(vjp_autodiff) && autodiff isa ADTypes.AbstractFiniteDifferencesMode
         vjp_autodiff = autodiff
     end
-    trustregion = GenericTrustRegionScheme(; method = radius_update_scheme, step_threshold,
-        shrink_threshold, expand_threshold, shrink_factor, expand_factor,
-        reverse_ad = vjp_autodiff, forward_ad)
-    return GeneralizedFirstOrderAlgorithm(; concrete_jac, name = :TrustRegion,
-        trustregion, descent, jacobian_ad = autodiff, reverse_ad = vjp_autodiff,
-        max_shrink_times)
+    trustregion = GenericTrustRegionScheme(;
+        method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
+        shrink_factor, expand_factor, reverse_ad = vjp_autodiff, forward_ad)
+    return GeneralizedFirstOrderAlgorithm(;
+        concrete_jac, name = :TrustRegion, trustregion, descent,
+        jacobian_ad = autodiff, reverse_ad = vjp_autodiff, max_shrink_times)
 end

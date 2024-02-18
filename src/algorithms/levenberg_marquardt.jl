@@ -30,11 +30,12 @@ nonlinear systems.
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolve.LevenbergMarquardtTrustRegion`](@ref) documentations.
 """
-function LevenbergMarquardt(; concrete_jac = missing, linsolve = nothing,
-        precs = DEFAULT_PRECS, damping_initial::Real = 1.0, α_geodesic::Real = 0.75,
+function LevenbergMarquardt(;
+        concrete_jac = missing, linsolve = nothing, precs = DEFAULT_PRECS,
+        damping_initial::Real = 1.0, α_geodesic::Real = 0.75,
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
-        finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, autodiff = nothing,
-        min_damping_D::Real = 1e-8, disable_geodesic = False)
+        finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0,
+        autodiff = nothing, min_damping_D::Real = 1e-8, disable_geodesic = False)
     if concrete_jac !== missing
         Base.depwarn("The `concrete_jac` keyword argument is deprecated and will be \
                       removed in v0.4. This kwarg doesn't make sense (and is currently \
@@ -43,15 +44,16 @@ function LevenbergMarquardt(; concrete_jac = missing, linsolve = nothing,
             :LevenbergMarquardt)
     end
 
-    descent = DampedNewtonDescent(; linsolve, precs, initial_damping = damping_initial,
-        damping_fn = LevenbergMarquardtDampingFunction(damping_increase_factor,
-            damping_decrease_factor, min_damping_D))
+    descent = DampedNewtonDescent(; linsolve,
+        precs,
+        initial_damping = damping_initial,
+        damping_fn = LevenbergMarquardtDampingFunction(
+            damping_increase_factor, damping_decrease_factor, min_damping_D))
     if disable_geodesic === False
         descent = GeodesicAcceleration(descent, finite_diff_step_geodesic, α_geodesic)
     end
     trustregion = LevenbergMarquardtTrustRegion(b_uphill)
-    return GeneralizedFirstOrderAlgorithm(;
-        concrete_jac = true, name = :LevenbergMarquardt,
+    return GeneralizedFirstOrderAlgorithm(; concrete_jac = true, name = :LevenbergMarquardt,
         trustregion, descent, jacobian_ad = autodiff)
 end
 
@@ -87,21 +89,22 @@ function reinit_cache!(cache::LevenbergMarquardtDampingCache, args...; kwargs...
     cache.J_damped = cache.λ .* cache.DᵀD
 end
 
-function requires_normal_form_jacobian(::Union{LevenbergMarquardtDampingFunction,
-        LevenbergMarquardtDampingCache})
+function requires_normal_form_jacobian(::Union{
+        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
     return false
 end
-function requires_normal_form_rhs(::Union{LevenbergMarquardtDampingFunction,
-        LevenbergMarquardtDampingCache})
+function requires_normal_form_rhs(::Union{
+        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
     return false
 end
-function returns_norm_form_damping(::Union{LevenbergMarquardtDampingFunction,
-        LevenbergMarquardtDampingCache})
+function returns_norm_form_damping(::Union{
+        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
     return true
 end
 
-function __internal_init(prob::AbstractNonlinearProblem,
-        f::LevenbergMarquardtDampingFunction, initial_damping, J, fu, u, ::Val{NF};
+function __internal_init(
+        prob::AbstractNonlinearProblem, f::LevenbergMarquardtDampingFunction,
+        initial_damping, J, fu, u, ::Val{NF};
         internalnorm::F = DEFAULT_NORM, kwargs...) where {F, NF}
     T = promote_type(eltype(u), eltype(fu))
     DᵀD = __init_diagonal(u, T(f.min_damping))
@@ -111,15 +114,15 @@ function __internal_init(prob::AbstractNonlinearProblem,
         @bb J_diag_cache = similar(u)
     end
     J_damped = T(initial_damping) .* DᵀD
-    return LevenbergMarquardtDampingCache(T(f.increase_factor), T(f.decrease_factor),
-        T(f.min_damping), T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache,
-        J_damped, f, T(initial_damping))
+    return LevenbergMarquardtDampingCache(
+        T(f.increase_factor), T(f.decrease_factor), T(f.min_damping), T(f.increase_factor),
+        T(initial_damping), DᵀD, J_diag_cache, J_damped, f, T(initial_damping))
 end
 
 (damping::LevenbergMarquardtDampingCache)(::Nothing) = damping.J_damped
 
-function __internal_solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false};
-        kwargs...)
+function __internal_solve!(
+        damping::LevenbergMarquardtDampingCache, J, fu, ::Val{false}; kwargs...)
     if __can_setindex(damping.J_diag_cache)
         sum!(abs2, _vec(damping.J_diag_cache), J')
     elseif damping.J_diag_cache isa Number
@@ -132,8 +135,8 @@ function __internal_solve!(damping::LevenbergMarquardtDampingCache, J, fu, ::Val
     return damping.J_damped
 end
 
-function __internal_solve!(damping::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true};
-        kwargs...)
+function __internal_solve!(
+        damping::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true}; kwargs...)
     damping.DᵀD = __update_LM_diagonal!!(damping.DᵀD, JᵀJ)
     @bb @. damping.J_damped = damping.λ * damping.DᵀD
     return damping.J_damped

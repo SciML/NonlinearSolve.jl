@@ -59,24 +59,21 @@ end
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        function SciMLBase.__init(prob::$probType, alg::$algType{N}, args...;
-                kwargs...) where {N}
+        function SciMLBase.__init(
+                prob::$probType, alg::$algType{N}, args...; kwargs...) where {N}
             return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N}(
-                map(solver -> SciMLBase.__init(prob,
-                        solver, args...; kwargs...), alg.algs),
+                map(solver -> SciMLBase.__init(prob, solver, args...; kwargs...), alg.algs),
                 alg, 1)
         end
     end
 end
 
-@generated function SciMLBase.solve!(cache::NonlinearSolvePolyAlgorithmCache{iip,
-        N}) where {iip, N}
-    calls = [
-        quote
+@generated function SciMLBase.solve!(cache::NonlinearSolvePolyAlgorithmCache{
+        iip, N}) where {iip, N}
+    calls = [quote
         1 ≤ cache.current ≤ length(cache.caches) ||
             error("Current choices shouldn't get here!")
-    end
-    ]
+    end]
 
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
@@ -90,8 +87,9 @@ end
                         stats = $(sol_syms[i]).stats
                         u = $(sol_syms[i]).u
                         fu = get_fu($(cache_syms[i]))
-                        return SciMLBase.build_solution($(sol_syms[i]).prob, cache.alg, u,
-                            fu; retcode = ReturnCode.Success, stats,
+                        return SciMLBase.build_solution(
+                            $(sol_syms[i]).prob, cache.alg, u, fu;
+                            retcode = ReturnCode.Success, stats,
                             original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
                     end
                     cache.current = $(i + 1)
@@ -112,8 +110,8 @@ end
             stats = cache.caches[idx].stats
             u = cache.caches[idx].u
 
-            return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u,
-                fus[idx]; retcode, stats, cache.caches[idx].trace)
+            return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u, fus[idx];
+                retcode, stats, cache.caches[idx].trace)
         end)
 
     return Expr(:block, calls...)
@@ -122,19 +120,19 @@ end
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        @generated function SciMLBase.__solve(prob::$probType, alg::$algType{N}, args...;
-                kwargs...) where {N}
+        @generated function SciMLBase.__solve(
+                prob::$probType, alg::$algType{N}, args...; kwargs...) where {N}
             calls = []
             sol_syms = [gensym("sol") for _ in 1:N]
             for i in 1:N
                 cur_sol = sol_syms[i]
                 push!(calls,
                     quote
-                        $(cur_sol) = SciMLBase.__solve(prob, alg.algs[$(i)], args...;
-                            kwargs...)
+                        $(cur_sol) = SciMLBase.__solve(prob, alg.algs[$(i)], args...; kwargs...)
                         if SciMLBase.successful_retcode($(cur_sol))
-                            return SciMLBase.build_solution(prob, alg, $(cur_sol).u,
-                                $(cur_sol).resid; $(cur_sol).retcode, $(cur_sol).stats,
+                            return SciMLBase.build_solution(
+                                prob, alg, $(cur_sol).u, $(cur_sol).resid;
+                                $(cur_sol).retcode, $(cur_sol).stats,
                                 original = $(cur_sol), trace = $(cur_sol).trace)
                         end
                     end)
@@ -145,11 +143,10 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                 push!(calls, :($(resid) = $(sym).resid))
             end
 
-            push!(calls,
-                quote
-                    resids = tuple($(Tuple(resids)...))
-                    minfu, idx = __findmin(DEFAULT_NORM, resids)
-                end)
+            push!(calls, quote
+                resids = tuple($(Tuple(resids)...))
+                minfu, idx = __findmin(DEFAULT_NORM, resids)
+            end)
 
             for i in 1:N
                 push!(calls,
@@ -217,8 +214,9 @@ for more performance and then tries more robust techniques if the faster ones fa
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
 """
-function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothing,
-        linsolve = nothing, precs = DEFAULT_PRECS, must_use_jacobian::Val{JAC} = Val(false),
+function FastShortcutNonlinearPolyalg(
+        ::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, must_use_jacobian::Val{JAC} = Val(false),
         prefer_simplenonlinearsolve::Val{SA} = Val(false),
         autodiff = nothing) where {T, JAC, SA}
     if JAC
@@ -237,8 +235,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
         # and thus are not included in the polyalgorithm
         if SA
             if __is_complex(T)
-                algs = (SimpleBroyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian)),
+                algs = (SimpleBroyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff))
             else
@@ -253,8 +250,7 @@ function FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothin
             end
         else
             if __is_complex(T)
-                algs = (Broyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian)),
+                algs = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
                     Klement(; linsolve, precs),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff))
             else
@@ -317,8 +313,8 @@ end
 ## can use that!
 function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
     must_use_jacobian = Val(prob.f.jac !== nothing)
-    return SciMLBase.__init(prob,
-        FastShortcutNonlinearPolyalg(eltype(prob.u0); must_use_jacobian),
+    return SciMLBase.__init(
+        prob, FastShortcutNonlinearPolyalg(eltype(prob.u0); must_use_jacobian),
         args...; kwargs...)
 end
 
@@ -326,17 +322,19 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     must_use_jacobian = Val(prob.f.jac !== nothing)
     prefer_simplenonlinearsolve = Val(prob.u0 isa SArray)
     return SciMLBase.__solve(prob,
-        FastShortcutNonlinearPolyalg(eltype(prob.u0); must_use_jacobian,
-            prefer_simplenonlinearsolve), args...; kwargs...)
+        FastShortcutNonlinearPolyalg(
+            eltype(prob.u0); must_use_jacobian, prefer_simplenonlinearsolve),
+        args...;
+        kwargs...)
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
-    return SciMLBase.__init(prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...;
-        kwargs...)
+    return SciMLBase.__init(
+        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...)
 end
 
-function SciMLBase.__solve(prob::NonlinearLeastSquaresProblem, ::Nothing, args...;
-        kwargs...)
-    return SciMLBase.__solve(prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...;
-        kwargs...)
+function SciMLBase.__solve(
+        prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
+    return SciMLBase.__solve(
+        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...)
 end

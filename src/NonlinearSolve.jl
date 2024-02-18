@@ -90,15 +90,15 @@ include("default.jl")
         push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
     end
 
-    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(), PseudoTransient(),
-        Broyden(), Klement(), DFSane(), nothing)
+    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
+        PseudoTransient(), Broyden(), Klement(), DFSane(), nothing)
 
     probs_nlls = NonlinearLeastSquaresProblem[]
     nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
         (
-            NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(1)),
+            NonlinearFunction{true}(
+                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)),
             [0.1, 0.0]),
         (
             NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
@@ -111,8 +111,8 @@ include("default.jl")
         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
             Float32[0.1, 0.1]),
         (
-            NonlinearFunction{true}((du, u, p) -> du[1] = u[1] * u[1] - p,
-                resid_prototype = zeros(Float32, 1)),
+            NonlinearFunction{true}(
+                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(Float32, 1)),
             Float32[0.1, 0.0]),
         (
             NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
@@ -140,8 +140,8 @@ end
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
 export GaussNewton, LevenbergMarquardt, TrustRegion
-export NonlinearSolvePolyAlgorithm,
-       RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPolyalg,
+       FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
@@ -151,8 +151,7 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL,
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
 
 # Descent Algorithms
-export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent,
-       GeodesicAcceleration
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcceleration
 
 # Globalization
 ## Line Search Algorithms

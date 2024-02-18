@@ -16,8 +16,8 @@ myfun(x, lv) = x * sin(x) - lv
 function f(out, levels, u0)
     for i in 1:N
         out[i] = solve(
-            IntervalNonlinearProblem{false}(IntervalNonlinearFunction{false}(myfun),
-                u0, levels[i]),
+            IntervalNonlinearProblem{false}(
+                IntervalNonlinearFunction{false}(myfun), u0, levels[i]),
             Falsi()).u
     end
 end
@@ -25,8 +25,7 @@ end
 function f2(out, levels, u0)
     for i in 1:N
         out[i] = solve(
-            NonlinearProblem{false}(NonlinearFunction{false}(myfun),
-                u0, levels[i]),
+            NonlinearProblem{false}(NonlinearFunction{false}(myfun), u0, levels[i]),
             SimpleNewtonRaphson()).u
     end
 end
@@ -75,8 +74,8 @@ be a Dual number. This causes the error. To fix it:
  1. Specify the `autodiff` to be `AutoFiniteDiff`
 
 ```@example dual_error_faq
-sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff()); maxiters = 10000,
-    abstol = 1e-8)
+sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff());
+    maxiters = 10000, abstol = 1e-8)
 ```
 
 This worked but, Finite Differencing is not the recommended approach in any scenario.

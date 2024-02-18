@@ -3,13 +3,13 @@ module NonlinearSolveSpeedMappingExt
 using NonlinearSolve, SciMLBase, SpeedMapping
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false, maxtime = nothing,
-        store_trace::Val{store_info} = Val(false), termination_condition = nothing,
-        kwargs...) where {store_info}
+        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        maxtime = nothing, store_trace::Val{store_info} = Val(false),
+        termination_condition = nothing, kwargs...) where {store_info}
     NonlinearSolve.__test_termination_condition(termination_condition, :SpeedMappingJL)
 
-    m!, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0,
-        make_fixed_point = Val(true))
+    m!, u, resid = NonlinearSolve.__construct_extension_f(
+        prob; alias_u0, make_fixed_point = Val(true))
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
 
     time_limit = ifelse(maxtime === nothing, alg.time_limit, maxtime)

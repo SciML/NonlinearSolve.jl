@@ -20,11 +20,11 @@ end
 function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem},
         alg::FastLevenbergMarquardtJL, args...; alias_u0 = false, abstol = nothing,
         reltol = nothing, maxiters = 1000, termination_condition = nothing, kwargs...)
-    NonlinearSolve.__test_termination_condition(termination_condition,
-        :FastLevenbergMarquardt)
+    NonlinearSolve.__test_termination_condition(
+        termination_condition, :FastLevenbergMarquardt)
 
-    fn, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0,
-        can_handle_oop = Val(prob.u0 isa SArray))
+    fn, u, resid = NonlinearSolve.__construct_extension_f(
+        prob; alias_u0, can_handle_oop = Val(prob.u0 isa SArray))
     f = if prob.u0 isa SArray
         @closure (u, p) -> fn(u)
     else
@@ -33,8 +33,8 @@ function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearPr
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
     reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
 
-    _jac_fn = NonlinearSolve.__construct_extension_jac(prob, alg, u, resid; alg.autodiff,
-        can_handle_oop = Val(prob.u0 isa SArray))
+    _jac_fn = NonlinearSolve.__construct_extension_jac(
+        prob, alg, u, resid; alg.autodiff, can_handle_oop = Val(prob.u0 isa SArray))
     jac_fn = if prob.u0 isa SArray
         @closure (u, p) -> _jac_fn(u)
     else
@@ -42,12 +42,12 @@ function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearPr
     end
 
     solver_kwargs = (; xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters,
-        alg.factor, alg.factoraccept, alg.factorreject, alg.minscale, alg.maxscale,
-        alg.factorupdate, alg.minfactor, alg.maxfactor)
+        alg.factor, alg.factoraccept, alg.factorreject, alg.minscale,
+        alg.maxscale, alg.factorupdate, alg.minfactor, alg.maxfactor)
 
     if prob.u0 isa SArray
-        res, fx, info, iter, nfev, njev = FastLM.lmsolve(f, jac_fn, prob.u0;
-            solver_kwargs...)
+        res, fx, info, iter, nfev, njev = FastLM.lmsolve(
+            f, jac_fn, prob.u0; solver_kwargs...)
         LM, solver = nothing, nothing
     else
         J = prob.f.jac_prototype === nothing ? similar(u, length(resid), length(u)) :
@@ -55,8 +55,8 @@ function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearPr
         solver = _fast_lm_solver(alg, u)
         LM = FastLM.LMWorkspace(u, resid, J)
 
-        res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(f, jac_fn, LM;
-            solver, solver_kwargs...)
+        res, fx, info, iter, nfev, njev, LM, solver = FastLM.lmsolve!(
+            f, jac_fn, LM; solver, solver_kwargs...)
     end
 
     stats = SciMLBase.NLStats(nfev, njev, -1, -1, iter)

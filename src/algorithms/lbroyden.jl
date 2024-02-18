@@ -19,9 +19,12 @@ function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch()
         threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing, alpha = nothing)
     threshold isa Int && (threshold = Val(threshold))
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
-        descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(), max_resets,
-        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(alpha,
-            threshold), reinit_rule = NoChangeInStateReset(; reset_tolerance))
+        descent = NewtonDescent(),
+        update_rule = GoodBroydenUpdateRule(),
+        max_resets,
+        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(
+            alpha, threshold),
+        reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 """
@@ -38,13 +41,13 @@ end
 
 jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
 
-function __internal_init(prob::AbstractNonlinearProblem,
-        alg::BroydenLowRankInitialization{T}, solver, f::F, fu, u, p; maxiters = 1000,
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization{T},
+        solver, f::F, fu, u, p; maxiters = 1000,
         internalnorm::IN = DEFAULT_NORM, kwargs...) where {T, F, IN}
     if u isa Number # Use the standard broyden
-        return __internal_init(prob, IdentityInitialization(true, FullStructure()), solver,
-            f, fu, u,
-            p; maxiters, kwargs...)
+        return __internal_init(prob, IdentityInitialization(true, FullStructure()),
+            solver, f, fu, u, p; maxiters, kwargs...)
     end
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
     α = inv(__initial_alpha(alg.alpha, u, fu, internalnorm))
@@ -54,13 +57,12 @@ function __internal_init(prob::AbstractNonlinearProblem,
         threshold = min(_unwrap_val(alg.threshold), maxiters)
         J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end
-    return InitializedApproximateJacobianCache(J, FullStructure(), alg, nothing, true,
-        internalnorm)
+    return InitializedApproximateJacobianCache(
+        J, FullStructure(), alg, nothing, true, internalnorm)
 end
 
 function (cache::InitializedApproximateJacobianCache)(
-        alg::BroydenLowRankInitialization, fu,
-        u)
+        alg::BroydenLowRankInitialization, fu, u)
     α = __initial_alpha(alg.alpha, u, fu, cache.internalnorm)
     cache.J.idx = 0
     cache.J.alpha = inv(α)
@@ -97,14 +99,15 @@ end
 for op in (:adjoint, :transpose)
     # FIXME: adjoint might be a problem here. Fix if a complex number issue shows up
     @eval function Base.$(op)(operator::BroydenLowRankJacobian{T}) where {T}
-        return BroydenLowRankJacobian{T}(operator.Vᵀ, operator.U,
-            operator.idx, operator.cache, operator.alpha)
+        return BroydenLowRankJacobian{T}(
+            operator.Vᵀ, operator.U, operator.idx, operator.cache, operator.alpha)
     end
 end
 
 # Storing the transpose to ensure contiguous memory on splicing
-function BroydenLowRankJacobian(fu::StaticArray{S2, T2}, u::StaticArray{S1, T1};
-        alpha = true, threshold::Val{Th} = Val(10)) where {S1, S2, T1, T2, Th}
+function BroydenLowRankJacobian(
+        fu::StaticArray{S2, T2}, u::StaticArray{S1, T1}; alpha = true,
+        threshold::Val{Th} = Val(10)) where {S1, S2, T1, T2, Th}
     T = promote_type(T1, T2)
     fuSize, uSize = Size(fu), Size(u)
     U = MArray{Tuple{prod(fuSize), Th}, T}(undef)
@@ -156,8 +159,8 @@ function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowR
     return y
 end
 
-function LinearAlgebra.mul!(J::BroydenLowRankJacobian, u,
-        vᵀ::LinearAlgebra.AdjOrTransAbsVec, α::Bool, β::Bool)
+function LinearAlgebra.mul!(
+        J::BroydenLowRankJacobian, u, vᵀ::LinearAlgebra.AdjOrTransAbsVec, α::Bool, β::Bool)
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))
     copyto!(@view(J.U[:, idx_update]), _vec(u))

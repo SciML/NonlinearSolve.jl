@@ -46,8 +46,8 @@ end
     nf::Int
 end
 
-function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...; p = cache.p,
-        u0 = cache.v_cache, kwargs...)
+function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...;
+        p = cache.p, u0 = cache.v_cache, kwargs...)
     cache.p = p
     @bb copyto!(cache.v_cache, u0)
     cache.loss_old = oftype(cache.loss_old, Inf)
@@ -57,18 +57,18 @@ function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...; p = c
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
-        f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion, f::F,
+        fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
-    return LevenbergMarquardtTrustRegionCache(f, p, T(Inf), v, T(Inf), internalnorm,
-        alg.β_uphill, false, u_cache, fu_cache, 0)
+    return LevenbergMarquardtTrustRegionCache(
+        f, p, T(Inf), v, T(Inf), internalnorm, alg.β_uphill, false, u_cache, fu_cache, 0)
 end
 
-function __internal_solve!(cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu,
-        descent_stats)
+function __internal_solve!(
+        cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu, descent_stats)
     # This should be true if Geodesic Acceleration is being used
     v = hasfield(typeof(descent_stats), :v) ? descent_stats.v : δu
     norm_v = cache.internalnorm(v)
@@ -236,8 +236,8 @@ the value used in the respective paper.
   - `expand_factor`: the factor to expand the trust region radius with if
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
 """
-@kwdef @concrete struct GenericTrustRegionScheme{
-    M <: RadiusUpdateSchemes.AbstractRadiusUpdateScheme}
+@kwdef @concrete struct GenericTrustRegionScheme{M <:
+                                                 RadiusUpdateSchemes.AbstractRadiusUpdateScheme}
     method::M = RadiusUpdateSchemes.Simple
     step_threshold = nothing
     shrink_threshold = nothing
@@ -286,14 +286,15 @@ end
     alg
 end
 
-function reinit_cache!(cache::GenericTrustRegionSchemeCache, args...; u0 = nothing,
-        p = cache.p, kwargs...)
+function reinit_cache!(
+        cache::GenericTrustRegionSchemeCache, args...; u0 = nothing, p = cache.p, kwargs...)
     T = eltype(cache.u_cache)
     cache.p = p
     if u0 !== nothing
         u0_norm = cache.internalnorm(u0)
-        cache.trust_region = __initial_trust_radius(cache.alg.initial_trust_radius, T,
-            cache.alg.method, cache.max_trust_radius, u0_norm, u0_norm)  # FIXME: scheme specific
+        cache.trust_region = __initial_trust_radius(
+            cache.alg.initial_trust_radius, T, cache.alg.method,
+            cache.max_trust_radius, u0_norm, u0_norm)  # FIXME: scheme specific
     end
     cache.last_step_accepted = false
     cache.shrink_counter = 0
@@ -313,14 +314,15 @@ for func in (:__max_trust_radius, :__initial_trust_radius, :__step_threshold,
 end
 
 @inline __max_trust_radius(::Nothing, ::Type{T}, method, u, fu_norm) where {T} = T(Inf)
-@inline function __max_trust_radius(::Nothing, ::Type{T},
-        ::Union{RUS.__Simple, RUS.__NocedalWright}, u, fu_norm) where {T}
+@inline function __max_trust_radius(
+        ::Nothing, ::Type{T}, ::Union{RUS.__Simple, RUS.__NocedalWright},
+        u, fu_norm) where {T}
     u_min, u_max = extrema(u)
     return max(T(fu_norm), u_max - u_min)
 end
 
-@inline function __initial_trust_radius(::Nothing, ::Type{T}, method, max_tr,
-        u0_norm, fu_norm) where {T}
+@inline function __initial_trust_radius(
+        ::Nothing, ::Type{T}, method, max_tr, u0_norm, fu_norm) where {T}
     method isa RUS.__NLsolve && return T(ifelse(u0_norm > 0, u0_norm, 1))
     (method isa RUS.__Hei || method isa RUS.__Bastin) && return T(1)
     method isa RUS.__Fan && return T((fu_norm^0.99) / 10)
@@ -365,16 +367,17 @@ end
 
 @inline __expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme,
-        f::F, fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+function __internal_init(
+        prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu,
+        u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)
 
     # Common Setup
     max_trust_radius = __max_trust_radius(alg.max_trust_radius, T, alg.method, u, fu_norm)
-    initial_trust_radius = __initial_trust_radius(alg.initial_trust_radius, T, alg.method,
-        max_trust_radius, u0_norm, fu_norm)
+    initial_trust_radius = __initial_trust_radius(
+        alg.initial_trust_radius, T, alg.method, max_trust_radius, u0_norm, fu_norm)
     step_threshold = __step_threshold(alg.step_threshold, T, alg.method)
     shrink_threshold = __shrink_threshold(alg.shrink_threshold, T, alg.method)
     expand_threshold = __expand_threshold(alg.expand_threshold, T, alg.method)
@@ -412,15 +415,15 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GenericTrustRegion
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
 
-    return GenericTrustRegionSchemeCache(alg.method, f, p, max_trust_radius,
-        initial_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
-        expand_threshold, shrink_factor, expand_factor, p1, p2, p3, p4, ϵ, T(0),
-        vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache, δu_cache, internalnorm,
-        u_cache, fu_cache, false, 0, 0, alg)
+    return GenericTrustRegionSchemeCache(
+        alg.method, f, p, max_trust_radius, initial_trust_radius, initial_trust_radius,
+        step_threshold, shrink_threshold, expand_threshold, shrink_factor,
+        expand_factor, p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache,
+        Jδu_cache, δu_cache, internalnorm, u_cache, fu_cache, false, 0, 0, alg)
 end
 
-function __internal_solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
-        descent_stats)
+function __internal_solve!(
+        cache::GenericTrustRegionSchemeCache, J, fu, u, δu, descent_stats)
     T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
@@ -462,8 +465,8 @@ function __internal_solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
             if cache.ρ ≥ cache.expand_threshold
                 cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
             elseif cache.ρ ≥ cache.p1
-                cache.trust_region = max(cache.trust_region,
-                    cache.expand_factor * cache.internalnorm(δu))
+                cache.trust_region = max(
+                    cache.trust_region, cache.expand_factor * cache.internalnorm(δu))
             end
         end
     elseif cache.method isa RUS.__NocedalWright
@@ -473,14 +476,14 @@ function __internal_solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
         else
             cache.shrink_counter = 0
             if cache.ρ > cache.expand_threshold &&
-               abs(cache.internalnorm(δu) - cache.trust_region) <
-               1e-6 * cache.trust_region
+               abs(cache.internalnorm(δu) - cache.trust_region) < 1e-6 * cache.trust_region
                 cache.trust_region = cache.expand_factor * cache.trust_region
             end
         end
     elseif cache.method isa RUS.__Hei
-        tr_new = __rfunc(cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4,
-            cache.p2) * cache.internalnorm(δu)
+        tr_new = __rfunc(
+            cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4, cache.p2) *
+                 cache.internalnorm(δu)
         if tr_new < cache.trust_region
             cache.shrink_counter += 1
         else
@@ -507,16 +510,14 @@ function __internal_solve!(cache::GenericTrustRegionSchemeCache, J, fu, u, δu,
             cache.shrink_counter += 1
         else
             cache.shrink_counter = 0
-            cache.ρ > cache.expand_threshold && (cache.p1 = min(cache.p1 * cache.p3,
-                cache.p4))
+            cache.ρ > cache.expand_threshold &&
+                (cache.p1 = min(cache.p1 * cache.p3, cache.p4))
         end
         cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^T(0.99))
     elseif cache.method isa RUS.__Bastin
         if cache.ρ > cache.step_threshold
-            jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache,
-                cache.p)
-            vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache,
-                cache.p)
+            jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache, cache.p)
+            vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
             @bb cache.Jδu_cache = jvp_op × vec(δu)
             @bb cache.Jᵀfu_cache = vjp_op × vec(cache.fu_cache)
             denom_1 = dot(_vec(δu), cache.Jᵀfu_cache)
@@ -541,7 +542,6 @@ end
 
 # R-function for adaptive trust region method
 function __rfunc(r::R, c2::R, M::R, γ1::R, γ2::R, β::R) where {R <: Real}
-    return ifelse(r ≥ c2,
-        (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / R(π),
+    return ifelse(r ≥ c2, (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / R(π),
         (1 - γ1 - β) * (exp(r - c2) + β / (1 - γ1 - β)))
 end

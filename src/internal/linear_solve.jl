@@ -16,9 +16,9 @@ handled:
 ### Solving the System
 
 ```julia
-(cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
-    du = nothing, p = nothing, weight = nothing, cachedata = nothing,
-    reuse_A_if_factorization = false, kwargs...)
+(cache::LinearSolverCache)(;
+    A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
+    weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
 ```
 
 Returns the solution of the system `u` and stores the updated cache in `cache.lincache`.
@@ -67,8 +67,10 @@ end
 function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     u_fixed = __fix_strange_type_combination(A, b, u)
 
-    if (A isa Number && b isa Number) || (linsolve === nothing && A isa SMatrix) ||
-       (A isa Diagonal) || (linsolve isa typeof(\))
+    if (A isa Number && b isa Number) ||
+       (linsolve === nothing && A isa SMatrix) ||
+       (A isa Diagonal) ||
+       (linsolve isa typeof(\))
         return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
     end
     @bb u_ = copy(u_fixed)
@@ -77,8 +79,8 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     weight = __init_ones(u_fixed)
     if __hasfield(alg, Val(:precs))
         precs = alg.precs
-        Pl_, Pr_ = precs(A, nothing, u, nothing, nothing, nothing, nothing, nothing,
-            nothing)
+        Pl_, Pr_ = precs(
+            A, nothing, u, nothing, nothing, nothing, nothing, nothing, nothing)
     else
         precs, Pl_, Pr_ = nothing, nothing, nothing
     end
@@ -91,8 +93,8 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 end
 
 # Direct Linear Solve Case without Caching
-function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = nothing,
-        kwargs...)
+function (cache::LinearSolverCache{Nothing})(;
+        A = nothing, b = nothing, linu = nothing, kwargs...)
     cache.nsolve += 1
     cache.nfactors += 1
     A === nothing || (cache.A = A)
@@ -107,9 +109,9 @@ function (cache::LinearSolverCache{Nothing})(; A = nothing, b = nothing, linu = 
     return res
 end
 # Use LinearSolve.jl
-function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
-        du = nothing, p = nothing, weight = nothing, cachedata = nothing,
-        reuse_A_if_factorization = false, kwargs...)
+function (cache::LinearSolverCache)(;
+        A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
+        weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
@@ -124,8 +126,8 @@ function (cache::LinearSolverCache)(; A = nothing, b = nothing, linu = nothing,
     if cache.precs === nothing
         _Pl, _Pr = nothing, nothing
     else
-        _Pl, _Pr = cache.precs(cache.lincache.A, du, linu, p, nothing, A !== nothing,
-            Plprev, Prprev, cachedata)
+        _Pl, _Pr = cache.precs(cache.lincache.A, du, linu, p, nothing,
+            A !== nothing, Plprev, Prprev, cachedata)
     end
 
     if (_Pl !== nothing || _Pr !== nothing)

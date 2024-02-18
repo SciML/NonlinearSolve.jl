@@ -20,8 +20,8 @@ function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         precs = DEFAULT_PRECS, autodiff = nothing, alpha_initial = 1e-3)
     descent = DampedNewtonDescent(; linsolve, precs, initial_damping = alpha_initial,
         damping_fn = SwitchedEvolutionRelaxation())
-    return GeneralizedFirstOrderAlgorithm(; concrete_jac,
-        name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)
+    return GeneralizedFirstOrderAlgorithm(;
+        concrete_jac, name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)
 end
 
 """
@@ -43,27 +43,27 @@ Cache for the [`SwitchedEvolutionRelaxation`](@ref) method.
     internalnorm
 end
 
-function requires_normal_form_jacobian(cache::Union{SwitchedEvolutionRelaxation,
-        SwitchedEvolutionRelaxationCache})
+function requires_normal_form_jacobian(cache::Union{
+        SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache})
     return false
 end
-function requires_normal_form_rhs(cache::Union{SwitchedEvolutionRelaxation,
-        SwitchedEvolutionRelaxationCache})
+function requires_normal_form_rhs(cache::Union{
+        SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache})
     return false
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
-        initial_damping, J, fu, u, args...; internalnorm::F = DEFAULT_NORM,
-        kwargs...) where {F}
+function __internal_init(
+        prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation, initial_damping,
+        J, fu, u, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
     T = promote_type(eltype(u), eltype(fu))
-    return SwitchedEvolutionRelaxationCache(internalnorm(fu), T(1 / initial_damping),
-        internalnorm)
+    return SwitchedEvolutionRelaxationCache(
+        internalnorm(fu), T(1 / initial_damping), internalnorm)
 end
 
 (damping::SwitchedEvolutionRelaxationCache)(::Nothing) = damping.α⁻¹
 
-function __internal_solve!(damping::SwitchedEvolutionRelaxationCache, J, fu, args...;
-        kwargs...)
+function __internal_solve!(
+        damping::SwitchedEvolutionRelaxationCache, J, fu, args...; kwargs...)
     res_norm = damping.internalnorm(fu)
     damping.α⁻¹ *= res_norm / damping.res_norm
     damping.res_norm = res_norm

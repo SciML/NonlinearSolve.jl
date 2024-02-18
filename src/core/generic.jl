@@ -15,20 +15,20 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 
     # The solver might have set a different `retcode`
     if cache.retcode == ReturnCode.Default
-        cache.retcode = ifelse(get_nsteps(cache) ≥ cache.maxiters, ReturnCode.MaxIters,
-            ReturnCode.Success)
+        cache.retcode = ifelse(
+            get_nsteps(cache) ≥ cache.maxiters, ReturnCode.MaxIters, ReturnCode.Success)
     end
 
     update_from_termination_cache!(cache.termination_cache, cache)
 
-    update_trace!(cache.trace, get_nsteps(cache), get_u(cache), get_fu(cache), nothing,
-        nothing, nothing; last = True)
+    update_trace!(cache.trace, get_nsteps(cache), get_u(cache),
+        get_fu(cache), nothing, nothing, nothing; last = True)
 
     stats = ImmutableNLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
         get_nsolve(cache), get_nsteps(cache))
 
-    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
-        cache.retcode, stats, cache.trace)
+    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache),
+        get_fu(cache); cache.retcode, stats, cache.trace)
 end
 
 """
@@ -45,8 +45,8 @@ Performs one step of the nonlinear solver.
     respectively. For algorithms that don't use jacobian information, this keyword is
     ignored with a one-time warning.
 """
-function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit}, args...;
-        kwargs...) where {iip, timeit}
+function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit},
+        args...; kwargs...) where {iip, timeit}
     timeit && (time_start = time())
     res = @static_timeit cache.timer "solve" begin
         __step!(cache, args...; kwargs...)
@@ -55,7 +55,8 @@ function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit}, args..
 
     if timeit
         cache.total_time += time() - time_start
-        if !cache.force_stop && cache.retcode == ReturnCode.Default &&
+        if !cache.force_stop &&
+           cache.retcode == ReturnCode.Default &&
            cache.total_time ≥ cache.maxtime
             cache.retcode = ReturnCode.MaxTime
             cache.force_stop = true

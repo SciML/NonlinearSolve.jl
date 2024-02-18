@@ -18,12 +18,12 @@
             du[i, j, 1] = alpha *
                           (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
                            4u[i, j, 1]) +
-                          B + u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
+                          B +
+                          u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
                           brusselator_f(x, y)
             du[i, j, 2] = alpha *
                           (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
-                           4u[i, j, 2]) +
-                          A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
+                           4u[i, j, 2]) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
         end
     end
 
@@ -46,17 +46,17 @@
     sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseForwardDiff());
-        abstol = 1e-8)
+    sol = solve(prob_brusselator_2d,
+        NewtonRaphson(autodiff = AutoSparseForwardDiff()); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
-        abstol = 1e-8)
+    sol = solve(prob_brusselator_2d,
+        NewtonRaphson(autodiff = AutoSparseFiniteDiff()); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
     du0 = copy(u0)
-    jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p),
-        du0, u0)
+    jac_sparsity = Symbolics.jacobian_sparsity(
+        (du, u) -> brusselator_2d_loop(du, u, p), du0, u0)
     jac_prototype = float.(jac_sparsity)
     fill!(jac_prototype, 0)
     @test all(iszero, jac_prototype)
@@ -68,8 +68,8 @@
     @test norm(sol.resid, Inf) < 1e-8
     @test !all(iszero, jac_prototype)
 
-    sol = solve(prob_brusselator_2d, NewtonRaphson(autodiff = AutoSparseFiniteDiff());
-        abstol = 1e-8)
+    sol = solve(prob_brusselator_2d,
+        NewtonRaphson(autodiff = AutoSparseFiniteDiff()); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
     cache = init(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()))

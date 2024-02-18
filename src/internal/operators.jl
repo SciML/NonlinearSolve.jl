@@ -16,9 +16,9 @@ transposed, and `T = false` means that the Jacobian is not transposed.
 ### Constructor
 
 ```julia
-JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
-    vjp_autodiff = nothing, skip_vjp::Val{NoVJP} = False,
-    skip_jvp::Val{NoJVP} = False) where {NoVJP, NoJVP}
+JacobianOperator(
+    prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing, vjp_autodiff = nothing,
+    skip_vjp::Val{NoVJP} = False, skip_jvp::Val{NoJVP} = False) where {NoVJP, NoJVP}
 ```
 
 See also [`NonlinearSolve.VecJacOperator`](@ref) and
@@ -45,8 +45,8 @@ end
 
 for op in (:adjoint, :transpose)
     @eval function Base.$(op)(operator::JacobianOperator{vjp, iip, T}) where {vjp, iip, T}
-        return JacobianOperator{!vjp, iip, T}(operator.jvp_op, operator.vjp_op,
-            operator.output_cache, operator.input_cache)
+        return JacobianOperator{!vjp, iip, T}(
+            operator.jvp_op, operator.vjp_op, operator.output_cache, operator.input_cache)
     end
 end
 
@@ -68,8 +68,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
             @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
         end
     else
-        vjp_autodiff = __get_nonsparse_ad(get_concrete_reverse_ad(vjp_autodiff,
-            prob, False))
+        vjp_autodiff = __get_nonsparse_ad(get_concrete_reverse_ad(
+            vjp_autodiff, prob, False))
         if vjp_autodiff isa AutoZygote
             iip && error("`AutoZygote` cannot handle inplace problems.")
             @closure (v, u, p) -> auto_vecjac(uf, u, v)
@@ -98,17 +98,15 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
             @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
         end
     else
-        jvp_autodiff = __get_nonsparse_ad(get_concrete_forward_ad(jvp_autodiff,
-            prob, False))
+        jvp_autodiff = __get_nonsparse_ad(get_concrete_forward_ad(
+            jvp_autodiff, prob, False))
         if jvp_autodiff isa AutoForwardDiff || jvp_autodiff isa AutoPolyesterForwardDiff
             if iip
                 # FIXME: Technically we should propagate the tag but ignoring that for now
-                cache1 = Dual{
-                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(u))), eltype(u), 1
-                }.(similar(u), ForwardDiff.Partials.(tuple.(u)))
-                cache2 = Dual{
-                    typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(fu))), eltype(fu), 1
-                }.(similar(fu), ForwardDiff.Partials.(tuple.(fu)))
+                cache1 = Dual{typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(u))),
+                    eltype(u), 1}.(similar(u), ForwardDiff.Partials.(tuple.(u)))
+                cache2 = Dual{typeof(ForwardDiff.Tag(NonlinearSolveTag(), eltype(fu))),
+                    eltype(fu), 1}.(similar(fu), ForwardDiff.Partials.(tuple.(fu)))
                 @closure (Jv, v, u, p) -> auto_jacvec!(Jv, uf, u, v, cache1, cache2)
             else
                 @closure (v, u, p) -> auto_jacvec(uf, u, v)
@@ -128,8 +126,7 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     end
 
     return JacobianOperator{false, iip, promote_type(eltype(fu), eltype(u))}(
-        jvp_op, vjp_op,
-        u, fu)
+        jvp_op, vjp_op, u, fu)
 end
 
 """
@@ -208,8 +205,8 @@ end
 Wrapper over a [`JacobianOperator`](@ref) which stores the input `u` and `p` and defines
 `mul!` and `*` for computing VJPs and JVPs.
 """
-@concrete struct StatefulJacobianOperator{vjp, iip, T,
-    J <: JacobianOperator{vjp, iip, T}} <: AbstractNonlinearSolveOperator{T}
+@concrete struct StatefulJacobianOperator{
+    vjp, iip, T, J <: JacobianOperator{vjp, iip, T}} <: AbstractNonlinearSolveOperator{T}
     jac_op::J
     u
     p
@@ -230,8 +227,8 @@ function Base.:*(J_op::StatefulJacobianOperator{vjp, iip, T, J, <:Number},
     return J_op.jac_op(v, J_op.u, J_op.p)
 end
 
-function LinearAlgebra.mul!(Jv::AbstractArray, J::StatefulJacobianOperator,
-        v::AbstractArray)
+function LinearAlgebra.mul!(
+        Jv::AbstractArray, J::StatefulJacobianOperator, v::AbstractArray)
     J.jac_op(Jv, v, J.u, J.p)
     return Jv
 end
@@ -271,8 +268,8 @@ function Base.:*(JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
     return JᵀJ.vjp_operator * (JᵀJ.jvp_operator * x)
 end
 
-function LinearAlgebra.mul!(JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator,
-        x::AbstractArray)
+function LinearAlgebra.mul!(
+        JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
     mul!(JᵀJ.cache, JᵀJ.jvp_operator, x)
     mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
     return JᵀJx

@@ -78,11 +78,10 @@ function brusselator_2d_loop(du, u, p)
         limit(j - 1, N)
         du[i, j, 1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
                        4u[i, j, 1]) +
-                      B + u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
-                      brusselator_f(x, y)
+                      B +
+                      u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] + brusselator_f(x, y)
         du[i, j, 2] = alpha * (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
-                       4u[i, j, 2]) +
-                      A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
+                       4u[i, j, 2]) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
     end
 end
 p = (3.4, 1.0, 10.0, step(xyd_brusselator))
@@ -100,8 +99,8 @@ function init_brusselator_2d(xyd)
 end
 
 u0 = init_brusselator_2d(xyd_brusselator)
-prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p; abstol = 1e-10,
-    reltol = 1e-10)
+prob_brusselator_2d = NonlinearProblem(
+    brusselator_2d_loop, u0, p; abstol = 1e-10, reltol = 1e-10)
 ```
 
 ## Choosing Jacobian Types
@@ -140,11 +139,11 @@ using BenchmarkTools # for @btime
 @btime solve(prob_brusselator_2d,
     NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32)));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32),
-        linsolve = KLUFactorization()));
+    NewtonRaphson(;
+        autodiff = AutoSparseForwardDiff(; chunksize = 32), linsolve = KLUFactorization()));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32),
-        linsolve = KrylovJL_GMRES()));
+    NewtonRaphson(;
+        autodiff = AutoSparseForwardDiff(; chunksize = 32), linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
 
@@ -164,8 +163,8 @@ kick out a sparse matrix with our pattern, that we can turn into our `jac_protot
 ```@example ill_conditioned_nlprob
 using Symbolics
 du0 = copy(u0)
-jac_sparsity = Symbolics.jacobian_sparsity((du, u) -> brusselator_2d_loop(du, u, p),
-    du0, u0)
+jac_sparsity = Symbolics.jacobian_sparsity(
+    (du, u) -> brusselator_2d_loop(du, u, p), du0, u0)
 ```
 
 Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
@@ -275,8 +274,8 @@ function algebraicmultigrid(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
 end
 
 @btime solve(prob_brusselator_2d_sparse,
-    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid,
-        concrete_jac = true));
+    NewtonRaphson(
+        linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid, concrete_jac = true));
 nothing # hide
 ```
 
@@ -286,8 +285,8 @@ or with a Jacobi smoother:
 function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
     if newW === nothing || newW
         A = convert(AbstractMatrix, W)
-        Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(A,
-            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
+        Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(
+            A, presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
             postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))))
     else
         Pl = Plprev
@@ -296,8 +295,8 @@ function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
 end
 
 @btime solve(prob_brusselator_2d_sparse,
-    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid2,
-        concrete_jac = true));
+    NewtonRaphson(
+        linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid2, concrete_jac = true));
 nothing # hide
 ```
 
@@ -309,12 +308,10 @@ sparsity detection. Let's compare the two by setting the sparsity detection algo
 
 ```@example ill_conditioned_nlprob
 prob_brusselator_2d_exact = NonlinearProblem(
-    NonlinearFunction(brusselator_2d_loop;
-        sparsity = SymbolicsSparsityDetection()),
+    NonlinearFunction(brusselator_2d_loop; sparsity = SymbolicsSparsityDetection()),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 prob_brusselator_2d_approx = NonlinearProblem(
-    NonlinearFunction(brusselator_2d_loop;
-        sparsity = ApproximateJacobianSparsity()),
+    NonlinearFunction(brusselator_2d_loop; sparsity = ApproximateJacobianSparsity()),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 
 @btime solve(prob_brusselator_2d_exact, NewtonRaphson());

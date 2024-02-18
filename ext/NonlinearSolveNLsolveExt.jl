@@ -2,11 +2,11 @@ module NonlinearSolveNLsolveExt
 
 using NonlinearSolve, NLsolve, SciMLBase
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
-        termination_condition = nothing, store_trace::Val{StT} = Val(false),
-        show_trace::Val{ShT} = Val(false), trace_level = TraceMinimal(),
-        kwargs...) where {StT, ShT}
+function SciMLBase.__solve(
+        prob::NonlinearProblem, alg::NLsolveJL, args...; abstol = nothing,
+        maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing,
+        store_trace::Val{StT} = Val(false), show_trace::Val{ShT} = Val(false),
+        trace_level = TraceMinimal(), kwargs...) where {StT, ShT}
     NonlinearSolve.__test_termination_condition(termination_condition, :NLsolveJL)
 
     f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
@@ -16,8 +16,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     else
         jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
         if prob.f.jac_prototype === nothing
-            J = similar(u0, promote_type(eltype(u0), eltype(resid)), length(u0),
-                length(resid))
+            J = similar(
+                u0, promote_type(eltype(u0), eltype(resid)), length(u0), length(resid))
         else
             J = zero(prob.f.jac_prototype)
         end
@@ -30,8 +30,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLsolveJL, args...;
     extended_trace = !(trace_level isa TraceMinimal) || alg.extended_trace
 
     original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, alg.method,
-        store_trace, extended_trace, alg.linesearch, alg.linsolve, alg.factor,
-        alg.autoscale, alg.m, alg.beta, show_trace)
+        store_trace, extended_trace, alg.linesearch, alg.linsolve,
+        alg.factor, alg.autoscale, alg.m, alg.beta, show_trace)
 
     f!(vec(resid), original.zero)
     u = prob.u0 isa Number ? original.zero[1] : reshape(original.zero, size(prob.u0))
