@@ -214,6 +214,9 @@ get_u(cache::AbstractNonlinearSolveCache) = cache.u
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; kwargs...)
+    return reinit_cache!(cache; kwargs...)
+end
 function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
     return reinit_cache!(cache; u0, kwargs...)
 end

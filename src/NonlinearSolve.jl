@@ -66,6 +66,7 @@ include("core/generic.jl")
 include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
 include("core/spectral_methods.jl")
+include("core/noinit.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")
