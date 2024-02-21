@@ -16,7 +16,8 @@ end
     prob_iip = SteadyStateProblem(f_iip, u0)
 
     for alg in [
-        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -28,7 +29,8 @@ end
     prob_oop = SteadyStateProblem(f_oop, u0)
 
     for alg in [
-        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -45,7 +47,8 @@ end
     prob_iip = NonlinearProblem{true}(f_iip, u0)
 
     for alg in [
-        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -57,7 +60,8 @@ end
     u0 = zeros(2)
     prob_oop = NonlinearProblem{false}(f_oop, u0)
     for alg in [
-        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())), NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -70,8 +74,7 @@ end
     for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-15],
         alg in [
             NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-            NLsolveJL(),
-            CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
+            NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
             SIAMFANLEquationsJL(; method = :pseudotransient),
             SIAMFANLEquationsJL(; method = :secant)]
 
