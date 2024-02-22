@@ -83,13 +83,13 @@ AutoSparseForwardDiff
 Uses [`PolyesterForwardDiff.jl`](https://github.com/JuliaDiff/PolyesterForwardDiff.jl)
 to compute the jacobian. This is essentially parallelized `ForwardDiff.jl`.
 
-    - Supports both inplace and out-of-place functions
+  - Supports both inplace and out-of-place functions
 
 ### Keyword Arguments
 
-    - `chunksize`: Count of dual numbers that can be propagated simultaneously. Setting
-      this number to a high value will lead to slowdowns. Use
-      [`NonlinearSolve.pickchunksize`](@ref) to get a proper value.
+  - `chunksize`: Count of dual numbers that can be propagated simultaneously. Setting
+    this number to a high value will lead to slowdowns. Use
+    [`NonlinearSolve.pickchunksize`](@ref) to get a proper value.
 """
 AutoPolyesterForwardDiff
 

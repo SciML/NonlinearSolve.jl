@@ -173,8 +173,8 @@ not applicable. Else a boolean value is returned.
 """
 concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
 
-function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm{name}) where {name}
-    __show_algorithm(io, alg, name, 0)
+function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
+    __show_algorithm(io, alg, get_name(alg), 0)
 end
 
 get_name(::AbstractNonlinearSolveAlgorithm{name}) where {name} = name
@@ -206,6 +206,23 @@ Abstract Type for all NonlinearSolve.jl Caches.
   - `isinplace(cache)`: whether or not the solver is inplace.
 """
 abstract type AbstractNonlinearSolveCache{iip, timeit} end
+
+function Base.show(io::IO, cache::AbstractNonlinearSolveCache)
+    __show_cache(io, cache, 0)
+end
+
+function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
+    println(io, "$(nameof(typeof(cache)))(")
+    __show_algorithm(io, cache.alg,
+        (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
+    println(io, ",")
+    println(io, (" "^(indent + 4)) * "u = ", get_u(cache), ",")
+    println(io, (" "^(indent + 4)) * "residual = ", get_fu(cache), ",")
+    println(io, (" "^(indent + 4)) * "inf-norm(residual) = ", norm(get_fu(cache), Inf), ",")
+    println(io, " "^(indent + 4) * "nsteps = ", get_nsteps(cache), ",")
+    println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
+    print(io, " "^(indent) * ")")
+end
 
 SciMLBase.isinplace(::AbstractNonlinearSolveCache{iip}) where {iip} = iip
 

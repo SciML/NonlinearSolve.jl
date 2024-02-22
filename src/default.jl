@@ -44,26 +44,56 @@ function Base.show(io::IO, alg::NonlinearSolvePolyAlgorithm{pType, N}) where {pT
     end
 end
 
-@concrete mutable struct NonlinearSolvePolyAlgorithmCache{iip, N} <:
-                         AbstractNonlinearSolveCache{iip, false}
+@concrete mutable struct NonlinearSolvePolyAlgorithmCache{iip, N, timeit} <:
+                         AbstractNonlinearSolveCache{iip, timeit}
     caches
     alg
+    best::Int
     current::Int
+    nsteps::Int
+    total_time::Float64
+    maxtime
+    retcode::ReturnCode.T
+    force_stop::Bool
+    maxiters::Int
+end
+
+function Base.show(
+        io::IO, cache::NonlinearSolvePolyAlgorithmCache{pType, N}) where {pType, N}
+    problem_kind = ifelse(pType == :NLS, "NonlinearProblem", "NonlinearLeastSquaresProblem")
+    println(io, "NonlinearSolvePolyAlgorithmCache for $(problem_kind) with $(N) algorithms")
+    best_alg = ifelse(cache.best == -1, "nothing", cache.best)
+    println(io, "Best algorithm: $(best_alg)")
+    println(io, "Current algorithm: $(cache.current)")
+    println(io, "nsteps: $(cache.nsteps)")
+    println(io, "retcode: $(cache.retcode)")
+    __show_cache(io, cache.caches[cache.current], 0)
 end
 
 function reinit_cache!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
     foreach(c -> reinit_cache!(c, args...; kwargs...), cache.caches)
     cache.current = 1
+    cache.nsteps = 0
+    cache.total_time = 0.0
 end
 
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        function SciMLBase.__init(
-                prob::$probType, alg::$algType{N}, args...; kwargs...) where {N}
-            return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N}(
-                map(solver -> SciMLBase.__init(prob, solver, args...; kwargs...), alg.algs),
-                alg, 1)
+        function SciMLBase.__init(prob::$probType, alg::$algType{N}, args...;
+                maxtime = nothing, maxiters = 1000, kwargs...) where {N}
+            return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N, maxtime !== nothing}(
+                map(solver -> SciMLBase.__init(prob, solver, args...; maxtime, kwargs...),
+                    alg.algs),
+                alg,
+                -1,
+                1,
+                0,
+                0.0,
+                maxtime,
+                ReturnCode.Default,
+                false,
+                maxiters)
         end
     end
 end
@@ -89,7 +119,7 @@ end
                         fu = get_fu($(cache_syms[i]))
                         return SciMLBase.build_solution(
                             $(sol_syms[i]).prob, cache.alg, u, fu;
-                            retcode = ReturnCode.Success, stats,
+                            retcode = $(sol_syms[i]).retcode, stats,
                             original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
                     end
                     cache.current = $(i + 1)
@@ -103,15 +133,53 @@ end
     end
     push!(calls,
         quote
-            retcode = ReturnCode.MaxIters
-
             fus = tuple($(Tuple(resids)...))
             minfu, idx = __findmin(cache.caches[1].internalnorm, fus)
             stats = cache.caches[idx].stats
-            u = cache.caches[idx].u
+            u = get_u(cache.caches[idx])
+            retcode = cache.caches[idx].retcode
 
             return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u, fus[idx];
                 retcode, stats, cache.caches[idx].trace)
+        end)
+
+    return Expr(:block, calls...)
+end
+
+@generated function __step!(
+        cache::NonlinearSolvePolyAlgorithmCache{iip, N}, args...; kwargs...) where {iip, N}
+    calls = []
+    cache_syms = [gensym("cache") for i in 1:N]
+    for i in 1:N
+        push!(calls,
+            quote
+                $(cache_syms[i]) = cache.caches[$(i)]
+                if $(i) == cache.current
+                    __step!($(cache_syms[i]), args...; kwargs...)
+                    $(cache_syms[i]).nsteps += 1
+                    if !not_terminated($(cache_syms[i]))
+                        if SciMLBase.successful_retcode($(cache_syms[i]).retcode)
+                            cache.best = $(i)
+                            cache.force_stop = true
+                            cache.retcode = $(cache_syms[i]).retcode
+                        else
+                            cache.current = $(i + 1)
+                        end
+                    end
+                    return
+                end
+            end)
+    end
+
+    push!(calls,
+        quote
+            if !(1 ≤ cache.current ≤ length(cache.caches))
+                minfu, idx = __findmin(first(cache.caches).internalnorm, cache.caches)
+                cache.best = idx
+                cache.retcode = cache.caches[cache.best].retcode
+                cache.force_stop = true
+                return
+            end
         end)
 
     return Expr(:block, calls...)
