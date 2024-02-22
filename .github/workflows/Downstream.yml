@@ -25,6 +25,7 @@ jobs:
           - {user: SciML, repo: OrdinaryDiffEq.jl, group: Interface}
           - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression}
           - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All}
+          - {user: SciML, repo: DiffEqCallbacks.jl, group: All}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
