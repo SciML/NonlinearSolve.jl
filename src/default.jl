@@ -56,6 +56,7 @@ end
     retcode::ReturnCode.T
     force_stop::Bool
     maxiters::Int
+    internalnorm
 end
 
 function Base.show(
@@ -80,10 +81,13 @@ end
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        function SciMLBase.__init(prob::$probType, alg::$algType{N}, args...;
-                maxtime = nothing, maxiters = 1000, kwargs...) where {N}
+        function SciMLBase.__init(
+                prob::$probType, alg::$algType{N}, args...; maxtime = nothing,
+                maxiters = 1000, internalnorm = DEFAULT_NORM, kwargs...) where {N}
             return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N, maxtime !== nothing}(
-                map(solver -> SciMLBase.__init(prob, solver, args...; maxtime, kwargs...),
+                map(
+                    solver -> SciMLBase.__init(
+                        prob, solver, args...; maxtime, internalnorm, kwargs...),
                     alg.algs),
                 alg,
                 -1,
@@ -93,7 +97,8 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                 maxtime,
                 ReturnCode.Default,
                 false,
-                maxiters)
+                maxiters,
+                internalnorm)
         end
     end
 end
@@ -134,8 +139,8 @@ end
     push!(calls,
         quote
             fus = tuple($(Tuple(resids)...))
-            minfu, idx = __findmin(cache.caches[1].internalnorm, fus)
-            stats = cache.caches[idx].stats
+            minfu, idx = __findmin(cache.internalnorm, fus)
+            stats = __compile_stats(cache.caches[idx])
             u = get_u(cache.caches[idx])
             retcode = cache.caches[idx].retcode
 
@@ -171,16 +176,15 @@ end
             end)
     end
 
-    push!(calls,
-        quote
-            if !(1 ≤ cache.current ≤ length(cache.caches))
-                minfu, idx = __findmin(first(cache.caches).internalnorm, cache.caches)
-                cache.best = idx
-                cache.retcode = cache.caches[cache.best].retcode
-                cache.force_stop = true
-                return
-            end
-        end)
+    push!(calls, quote
+        if !(1 ≤ cache.current ≤ length(cache.caches))
+            minfu, idx = __findmin(cache.internalnorm, cache.caches)
+            cache.best = idx
+            cache.retcode = cache.caches[cache.best].retcode
+            cache.force_stop = true
+            return
+        end
+    end)
 
     return Expr(:block, calls...)
 end
@@ -353,9 +357,11 @@ function FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing,
         linsolve = nothing, precs = DEFAULT_PRECS, kwargs...) where {T}
     if __is_complex(T)
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
+            LevenbergMarquardt(; linsolve, precs, disable_geodesic = Val(true), kwargs...),
             LevenbergMarquardt(; linsolve, precs, kwargs...))
     else
         algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
+            LevenbergMarquardt(; linsolve, precs, disable_geodesic = Val(true), kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs, kwargs...),
             GaussNewton(; concrete_jac, linsolve, precs,
                 linesearch = LineSearchesJL(; method = BackTracking()), kwargs...),

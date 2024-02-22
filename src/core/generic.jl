@@ -24,11 +24,13 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
     update_trace!(cache.trace, get_nsteps(cache), get_u(cache),
         get_fu(cache), nothing, nothing, nothing; last = True)
 
-    stats = ImmutableNLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
-        get_nsolve(cache), get_nsteps(cache))
+    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache), get_fu(cache);
+        cache.retcode, stats = __compile_stats(cache), cache.trace)
+end
 
-    return SciMLBase.build_solution(cache.prob, cache.alg, get_u(cache),
-        get_fu(cache); cache.retcode, stats, cache.trace)
+function __compile_stats(cache::AbstractNonlinearSolveCache)
+    return ImmutableNLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
+        get_nsolve(cache), get_nsteps(cache))
 end
 
 """
