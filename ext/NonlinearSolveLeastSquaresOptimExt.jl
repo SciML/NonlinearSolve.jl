@@ -23,6 +23,10 @@ end
     kwargs
 end
 
+function Base.show(io::IO, cache::LeastSquaresOptimJLCache)
+    print(io, "LeastSquaresOptimJLCache()")
+end
+
 function SciMLBase.reinit!(cache::LeastSquaresOptimJLCache, args...; kwargs...)
     error("Reinitialization not supported for LeastSquaresOptimJL.")
 end
