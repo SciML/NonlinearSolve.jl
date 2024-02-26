@@ -388,3 +388,6 @@ function __get_tolerance(x::Union{SArray, Number}, ::Nothing, ::Type{T}) where {
     η = real(oneunit(T)) * (eps(real(one(T))))^(real(T)(0.8))
     return T(η)
 end
+
+# Extension
+function __zygote_compute_nlls_vjp end

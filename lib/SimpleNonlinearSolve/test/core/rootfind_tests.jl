@@ -134,31 +134,33 @@ end
 end
 
 @testitem "Allocation Checks" setup=[RootfindingTesting] begin
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
-        SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
-        SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
-        SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
-        @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
+    if Sys.islinux()  # Very slow on other OS
+        @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
+            SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
+            SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+            SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
+            SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
+            @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
 
-        nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
-        nlprob_sa = NonlinearProblem{false}(quadratic_f, @SVector[1.0, 1.0], 2.0)
+            nlprob_scalar = NonlinearProblem{false}(quadratic_f, 1.0, 2.0)
+            nlprob_sa = NonlinearProblem{false}(quadratic_f, @SVector[1.0, 1.0], 2.0)
 
-        try
-            nlsolve(nlprob_scalar, alg)
-            @test true
-        catch e
-            @error e
-            @test false
-        end
+            try
+                nlsolve(nlprob_scalar, alg)
+                @test true
+            catch e
+                @error e
+                @test false
+            end
 
-        # ForwardDiff allocates for hessian since we don't propagate the chunksize
-        try
-            nlsolve(nlprob_sa, alg)
-            @test true
-        catch e
-            @error e
-            @test false broken=(alg isa SimpleHalley)
+            # ForwardDiff allocates for hessian since we don't propagate the chunksize
+            try
+                nlsolve(nlprob_sa, alg)
+                @test true
+            catch e
+                @error e
+                @test false broken=(alg isa SimpleHalley)
+            end
         end
     end
 end
