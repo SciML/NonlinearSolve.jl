@@ -74,7 +74,39 @@ function __nlsolve_ad(prob::NonlinearLeastSquaresProblem, alg, args...; kwargs..
 
     uu = sol.u
 
-    if !SciMLBase.has_jac(prob.f)
+    # First check for custom `vjp` then custom `Jacobian` and if nothing is provided use
+    # nested autodiff as the last resort
+    if SciMLBase.has_vjp(prob.f)
+        if isinplace(prob)
+            _F = @closure (du, u, p) -> begin
+                resid = similar(du, length(sol.resid))
+                prob.f(resid, u, p)
+                prob.f.vjp(du, resid, u, p)
+                du .*= 2
+                return nothing
+            end
+        else
+            _F = @closure (u, p) -> begin
+                resid = prob.f(u, p)
+                return reshape(2 .* prob.f.vjp(resid, u, p), size(u))
+            end
+        end
+    elseif SciMLBase.has_jac(prob.f)
+        if isinplace(prob)
+            _F = @closure (du, u, p) -> begin
+                J = similar(du, length(sol.resid), length(u))
+                prob.f.jac(J, u, p)
+                resid = similar(du, length(sol.resid))
+                prob.f(resid, u, p)
+                mul!(reshape(du, 1, :), vec(resid)', J, 2, false)
+                return nothing
+            end
+        else
+            _F = @closure (u, p) -> begin
+                return reshape(2 .* vec(prob.f(u, p))' * prob.f.jac(u, p), size(u))
+            end
+        end
+    else
         if isinplace(prob)
             _F = @closure (du, u, p) -> begin
                 resid = similar(du, length(sol.resid))
@@ -101,21 +133,6 @@ function __nlsolve_ad(prob::NonlinearLeastSquaresProblem, alg, args...; kwargs..
                         2 .* vec(DiffResults.value(res))' * DiffResults.jacobian(res),
                         size(u))
                 end
-            end
-        end
-    else
-        if isinplace(prob)
-            _F = @closure (du, u, p) -> begin
-                J = similar(du, length(sol.resid), length(u))
-                prob.jac(J, u, p)
-                resid = similar(du, length(sol.resid))
-                prob.f(resid, u, p)
-                mul!(reshape(du, 1, :), vec(resid)', J, 2, false)
-                return nothing
-            end
-        else
-            _F = @closure (u, p) -> begin
-                return reshape(2 .* vec(prob.f(u, p))' * prob.jac(u, p), size(u))
             end
         end
     end
