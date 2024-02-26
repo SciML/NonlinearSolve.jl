@@ -71,6 +71,32 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
+@testitem "PolyAlgorithms Autodiff" begin
+    cache = zeros(2)
+    function f(du, u, p)
+        cache .= u .* u
+        du .= cache .- 2
+    end
+    u0 = [1.0, 1.0]
+    probN = NonlinearProblem{true}(f, u0)
+
+    custom_polyalg = NonlinearSolvePolyAlgorithm((
+        Broyden(; autodiff = AutoFiniteDiff()), LimitedMemoryBroyden()))
+
+    # Uses the `__solve` function
+    solver = solve(probN; abstol = 1e-9)
+    @test SciMLBase.successful_retcode(solver)
+    @test_throws MethodError solve(probN, RobustMultiNewton(); abstol = 1e-9)
+    @test SciMLBase.successful_retcode(solver)
+    solver = solve(probN, RobustMultiNewton(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
+    @test SciMLBase.successful_retcode(solver)
+    solver = solve(
+        probN, FastShortcutNonlinearPolyalg(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
+    @test SciMLBase.successful_retcode(solver)
+    solver = solve(probN, custom_polyalg; abstol = 1e-9)
+    @test SciMLBase.successful_retcode(solver)
+end
+
 @testitem "Simple Scalar Problem #187" begin
     using NaNMath
 
