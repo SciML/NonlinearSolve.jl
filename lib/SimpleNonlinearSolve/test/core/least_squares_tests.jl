@@ -12,6 +12,12 @@
         return ŷ .- y_target
     end
 
+    function loss_function!(resid, θ, p)
+        ŷ = true_function(p, θ)
+        @. resid = ŷ - y_target
+        return
+    end
+
     θ_init = θ_true .+ 0.1
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
 
@@ -19,6 +25,16 @@
         SimpleNewtonRaphson(AutoForwardDiff()), SimpleGaussNewton(AutoForwardDiff()),
         SimpleNewtonRaphson(AutoFiniteDiff()), SimpleGaussNewton(AutoFiniteDiff())]
         sol = solve(prob_oop, solver)
+        @test norm(sol.resid, Inf) < 1e-12
+    end
+
+    prob_iip = NonlinearLeastSquaresProblem(
+        NonlinearFunction{true}(loss_function!, resid_prototype = zeros(length(y_target))), θ_init, x)
+
+    @testset "Solver: $(nameof(typeof(solver)))" for solver in [
+        SimpleNewtonRaphson(AutoForwardDiff()), SimpleGaussNewton(AutoForwardDiff()),
+        SimpleNewtonRaphson(AutoFiniteDiff()), SimpleGaussNewton(AutoFiniteDiff())]
+        sol = solve(prob_iip, solver)
         @test norm(sol.resid, Inf) < 1e-12
     end
 end

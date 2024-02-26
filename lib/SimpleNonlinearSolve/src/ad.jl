@@ -24,7 +24,8 @@ for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     end
 end
 
-function __nlsolve_ad(prob, alg, args...; kwargs...)
+function __nlsolve_ad(
+        prob::Union{IntervalNonlinearProblem, NonlinearProblem}, alg, args...; kwargs...)
     p = value(prob.p)
     if prob isa IntervalNonlinearProblem
         tspan = value.(prob.tspan)
