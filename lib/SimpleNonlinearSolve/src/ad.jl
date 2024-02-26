@@ -5,8 +5,17 @@ function SciMLBase.solve(
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
-        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
-        sol.original)
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+end
+
+function SciMLBase.solve(
+        prob::NonlinearLeastSquaresProblem{<:AbstractArray,
+            iip, <:Union{<:AbstractArray{<:Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...) where {T, V, P, iip}
+    sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
+    dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
 
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
@@ -40,6 +49,79 @@ function __nlsolve_ad(
     uu = sol.u
     f_p = __nlsolve_∂f_∂p(prob, prob.f, uu, p)
     f_x = __nlsolve_∂f_∂u(prob, prob.f, uu, p)
+
+    z_arr = -f_x \ f_p
+
+    pp = prob.p
+    sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
+    if uu isa Number
+        partials = sum(sumfun, zip(z_arr, pp))
+    elseif p isa Number
+        partials = sumfun((z_arr, pp))
+    else
+        partials = sum(sumfun, zip(eachcol(z_arr), pp))
+    end
+
+    return sol, partials
+end
+
+function __nlsolve_ad(prob::NonlinearLeastSquaresProblem, alg, args...; kwargs...)
+    p = value(prob.p)
+    u0 = value(prob.u0)
+    newprob = NonlinearLeastSquaresProblem(prob.f, u0, p; prob.kwargs...)
+
+    sol = solve(newprob, alg, args...; kwargs...)
+
+    uu = sol.u
+
+    if !SciMLBase.has_jac(prob.f)
+        if isinplace(prob)
+            _F = @closure (du, u, p) -> begin
+                resid = similar(du, length(sol.resid))
+                res = DiffResults.DiffResult(
+                    resid, similar(du, length(sol.resid), length(u)))
+                _f = @closure (du, u) -> prob.f(du, u, p)
+                ForwardDiff.jacobian!(res, _f, resid, u)
+                mul!(reshape(du, 1, :), vec(DiffResults.value(res))',
+                    DiffResults.jacobian(res), 2, false)
+                return nothing
+            end
+        else
+            # For small problems, nesting ForwardDiff is actually quite fast
+            if __is_extension_loaded(Val(:Zygote)) && (length(uu) + length(sol.resid) ≥ 50)
+                _F = @closure (u, p) -> __zygote_compute_nlls_vjp(prob.f, u, p)
+            else
+                _F = @closure (u, p) -> begin
+                    T = promote_type(eltype(u), eltype(p))
+                    res = DiffResults.DiffResult(
+                        similar(u, T, size(sol.resid)), similar(
+                            u, T, length(sol.resid), length(u)))
+                    ForwardDiff.jacobian!(res, Base.Fix2(prob.f, p), u)
+                    return reshape(
+                        2 .* vec(DiffResults.value(res))' * DiffResults.jacobian(res),
+                        size(u))
+                end
+            end
+        end
+    else
+        if isinplace(prob)
+            _F = @closure (du, u, p) -> begin
+                J = similar(du, length(sol.resid), length(u))
+                prob.jac(J, u, p)
+                resid = similar(du, length(sol.resid))
+                prob.f(resid, u, p)
+                mul!(reshape(du, 1, :), vec(resid)', J, 2, false)
+                return nothing
+            end
+        else
+            _F = @closure (u, p) -> begin
+                return reshape(2 .* vec(prob.f(u, p))' * prob.jac(u, p), size(u))
+            end
+        end
+    end
+
+    f_p = __nlsolve_∂f_∂p(prob, _F, uu, p)
+    f_x = __nlsolve_∂f_∂u(prob, _F, uu, p)
 
     z_arr = -f_x \ f_p
 

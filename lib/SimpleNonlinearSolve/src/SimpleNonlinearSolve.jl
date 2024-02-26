@@ -11,6 +11,7 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
                        AbstractSafeBestNonlinearTerminationMode,
                        NonlinearSafeTerminationReturnCode, get_termination_mode,
                        NONLINEARSOLVE_DEFAULT_NORM
+    import DiffResults
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val

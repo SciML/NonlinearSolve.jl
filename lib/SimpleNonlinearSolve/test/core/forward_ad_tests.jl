@@ -1,4 +1,4 @@
-@testsetup module ForwardADTesting
+@testsetup module ForwardADRootfindingTesting
 using Reexport
 @reexport using ForwardDiff, SimpleNonlinearSolve, StaticArrays, LinearAlgebra
 import SimpleNonlinearSolve: AbstractSimpleNonlinearSolveAlgorithm
@@ -40,7 +40,7 @@ __compatible(::SimpleHalley, ::Val{:iip}) = false
 export test_f, test_f!, jacobian_f, solve_with, __compatible
 end
 
-@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] begin
+@testitem "ForwardDiff.jl Integration: Rootfinding" setup=[ForwardADRootfindingTesting] begin
     @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
         SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
         SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
