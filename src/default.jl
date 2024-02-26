@@ -307,12 +307,13 @@ function FastShortcutNonlinearPolyalg(
         # and thus are not included in the polyalgorithm
         if SA
             if __is_complex(T)
-                algs = (SimpleBroyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
+                algs = (SimpleBroyden(),
+                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff))
             else
                 algs = (SimpleBroyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian)),
+                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
@@ -322,13 +323,13 @@ function FastShortcutNonlinearPolyalg(
             end
         else
             if __is_complex(T)
-                algs = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
-                    Klement(; linsolve, precs),
+                algs = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
+                    Klement(; linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff))
             else
-                algs = (Broyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian)),
-                    Klement(; linsolve, precs),
+                algs = (Broyden(; autodiff),
+                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
+                    Klement(; linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
                         linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
@@ -343,7 +344,7 @@ end
 
 """
     FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, kwargs...)
+        precs = DEFAULT_PRECS, autodiff = nothing, kwargs...)
 
 A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
 for more performance and then tries more robust techniques if the faster ones fail.
@@ -353,21 +354,25 @@ for more performance and then tries more robust techniques if the faster ones fa
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
 """
-function FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing,
-        linsolve = nothing, precs = DEFAULT_PRECS, kwargs...) where {T}
+function FastShortcutNLLSPolyalg(
+        ::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
+        precs = DEFAULT_PRECS, autodiff = nothing, kwargs...) where {T}
     if __is_complex(T)
-        algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
-            LevenbergMarquardt(; linsolve, precs, disable_geodesic = Val(true), kwargs...),
-            LevenbergMarquardt(; linsolve, precs, kwargs...))
+        algs = (GaussNewton(; concrete_jac, linsolve, precs, autodiff, kwargs...),
+            LevenbergMarquardt(;
+                linsolve, precs, autodiff, disable_geodesic = Val(true), kwargs...),
+            LevenbergMarquardt(; linsolve, precs, autodiff, kwargs...))
     else
-        algs = (GaussNewton(; concrete_jac, linsolve, precs, kwargs...),
-            LevenbergMarquardt(; linsolve, precs, disable_geodesic = Val(true), kwargs...),
-            TrustRegion(; concrete_jac, linsolve, precs, kwargs...),
+        algs = (GaussNewton(; concrete_jac, linsolve, precs, autodiff, kwargs...),
+            LevenbergMarquardt(;
+                linsolve, precs, disable_geodesic = Val(true), autodiff, kwargs...),
+            TrustRegion(; concrete_jac, linsolve, precs, autodiff, kwargs...),
             GaussNewton(; concrete_jac, linsolve, precs,
-                linesearch = LineSearchesJL(; method = BackTracking()), kwargs...),
+                linesearch = LineSearchesJL(; method = BackTracking()),
+                autodiff, kwargs...),
             TrustRegion(; concrete_jac, linsolve, precs,
-                radius_update_scheme = RadiusUpdateSchemes.Bastin, kwargs...),
-            LevenbergMarquardt(; linsolve, precs, kwargs...))
+                radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff, kwargs...),
+            LevenbergMarquardt(; linsolve, precs, autodiff, kwargs...))
     end
     return NonlinearSolvePolyAlgorithm(algs, Val(:NLLS))
 end
