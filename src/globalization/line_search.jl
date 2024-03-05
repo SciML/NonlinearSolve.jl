@@ -53,6 +53,10 @@ end
 
 LineSearchesJL(method; kwargs...) = LineSearchesJL(; method, kwargs...)
 function LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α = true)
+    if method isa LineSearchesJL  # Prevent breaking old code
+        return LineSearchesJL(method.method, α, autodiff)
+    end
+
     if method isa AbstractNonlinearSolveLineSearchAlgorithm
         Base.depwarn("Passing a native NonlinearSolve line search algorithm to \
                       `LineSearchesJL` or `LineSearch` is deprecated. Pass the method \
@@ -64,6 +68,18 @@ function LineSearchesJL(; method = LineSearches.Static(), autodiff = nothing, α
 end
 
 Base.@deprecate_binding LineSearch LineSearchesJL true
+
+Static(args...; kwargs...) = LineSearchesJL(LineSearches.Static(args...; kwargs...))
+HagerZhang(args...; kwargs...) = LineSearchesJL(LineSearches.HagerZhang(args...; kwargs...))
+function MoreThuente(args...; kwargs...)
+    return LineSearchesJL(LineSearches.MoreThuente(args...; kwargs...))
+end
+function BackTracking(args...; kwargs...)
+    return LineSearchesJL(LineSearches.BackTracking(args...; kwargs...))
+end
+function StrongWolfe(args...; kwargs...)
+    return LineSearchesJL(LineSearches.StrongWolfe(args...; kwargs...))
+end
 
 # Wrapper over LineSearches.jl algorithms
 @concrete mutable struct LineSearchesJLCache <: AbstractNonlinearSolveLineSearchCache

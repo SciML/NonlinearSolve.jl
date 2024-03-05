@@ -9,8 +9,8 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
 @recompile_invalidations begin
     using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
-          LineSearches, LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf,
-          SciMLBase, SimpleNonlinearSolve, SparseArrays, SparseDiffTools
+          LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf, SciMLBase,
+          SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
     import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing
     import DiffEqBase: AbstractNonlinearTerminationMode,
@@ -20,6 +20,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import FiniteDiff
     import ForwardDiff
     import ForwardDiff: Dual
+    import LineSearches
     import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
     import RecursiveArrayTools: recursivecopy!, recursivefill!
 
@@ -29,7 +30,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
 end
 
-@reexport using ADTypes, LineSearches, SciMLBase, SimpleNonlinearSolve
+@reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
 
 const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
     ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
@@ -157,6 +158,7 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcce
 # Globalization
 ## Line Search Algorithms
 export LineSearchesJL, NoLineSearch, RobustNonMonotoneLineSearch, LiFukushimaLineSearch
+export Static, HagerZhang, MoreThuente, StrongWolfe, BackTracking
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 
