@@ -66,8 +66,8 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(;
         linesearch = LineSearchesJL(; method = linesearch)
     end
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(
-        linesearch, trustregion, descent, update_rule, reinit_rule,
-        max_resets, max_shrink_times, initialization)
+        linesearch, trustregion, descent, update_rule,
+        reinit_rule, max_resets, max_shrink_times, initialization)
 end
 
 @inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ

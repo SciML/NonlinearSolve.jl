@@ -476,8 +476,8 @@ end
 
 @testitem "Broyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(), HagerZhang(),
-            MoreThuente(), LiFukushimaLineSearch()),
+            Static(), StrongWolfe(), BackTracking(),
+            HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote()),
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
@@ -575,8 +575,8 @@ end
 
 @testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(), HagerZhang(),
-            MoreThuente(), LiFukushimaLineSearch()),
+            Static(), StrongWolfe(), BackTracking(),
+            HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
         ad in (AutoFiniteDiff(), AutoZygote())
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
