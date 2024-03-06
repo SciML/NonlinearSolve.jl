@@ -142,13 +142,12 @@ end
 
     resids = map(x -> Symbol("$(x)_resid"), cache_syms)
     for (sym, resid) in zip(cache_syms, resids)
-        push!(calls, :($(resid) = get_fu($(sym))))
+        push!(calls, :($(resid) = @isdefined($(sym)) ? get_fu($(sym)) : nothing))
     end
     push!(calls,
         quote
             fus = tuple($(Tuple(resids)...))
             minfu, idx = __findmin(cache.internalnorm, fus)
-            idx += cache.alg.start_index - 1
             stats = __compile_stats(cache.caches[idx])
             u = get_u(cache.caches[idx])
             retcode = cache.caches[idx].retcode
@@ -225,13 +224,12 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
 
             resids = map(x -> Symbol("$(x)_resid"), sol_syms)
             for (sym, resid) in zip(sol_syms, resids)
-                push!(calls, :($(resid) = $(sym).resid))
+                push!(calls, :($(resid) = @isdefined($(sym)) ? $(sym).resid : nothing))
             end
 
             push!(calls, quote
                 resids = tuple($(Tuple(resids)...))
                 minfu, idx = __findmin(DEFAULT_NORM, resids)
-                idx += alg.start_index - 1
             end)
 
             for i in 1:N

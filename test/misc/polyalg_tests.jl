@@ -84,10 +84,8 @@ end
         Broyden(; autodiff = AutoFiniteDiff()), LimitedMemoryBroyden()))
 
     # Uses the `__solve` function
-    solver = solve(probN; abstol = 1e-9)
-    @test SciMLBase.successful_retcode(solver)
+    @test_throws MethodError solve(probN; abstol = 1e-9)
     @test_throws MethodError solve(probN, RobustMultiNewton(); abstol = 1e-9)
-    @test SciMLBase.successful_retcode(solver)
     solver = solve(probN, RobustMultiNewton(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
     @test SciMLBase.successful_retcode(solver)
     solver = solve(
