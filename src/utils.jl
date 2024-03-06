@@ -99,6 +99,7 @@ function __findmin_caches(f, caches)
 end
 function __findmin(f, x)
     return findmin(x) do xᵢ
+        xᵢ === nothing && return Inf
         fx = f(xᵢ)
         return isnan(fx) ? Inf : fx
     end

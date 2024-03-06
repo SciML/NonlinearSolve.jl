@@ -40,6 +40,16 @@ end
 export test_on_library, problems, dicts
 end
 
+@testitem "PolyAlgorithms" setup=[RobustnessTesting] begin
+    alg_ops = (RobustMultiNewton(), FastShortcutNonlinearPolyalg())
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = []
+    broken_tests[alg_ops[2]] = []
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
+
 @testitem "NewtonRaphson" setup=[RobustnessTesting] begin
     alg_ops = (NewtonRaphson(),)
 
@@ -91,7 +101,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "Broyden" retries=5 setup=[RobustnessTesting] begin
+@testitem "Broyden" setup=[RobustnessTesting] begin
     alg_ops = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
         Broyden(; update_rule = Val(:bad_broyden)),
         Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden)))

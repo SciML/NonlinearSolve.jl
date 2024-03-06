@@ -25,8 +25,8 @@ over this.
         differentiable problems.
 """
 function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
-        linesearch = NoLineSearch(), precs = DEFAULT_PRECS, autodiff = nothing,
-        init_jacobian::Val{IJ} = Val(:identity)) where {IJ}
+        linesearch = NoLineSearch(), precs = DEFAULT_PRECS,
+        autodiff = nothing, init_jacobian::Val{IJ} = Val(:identity)) where {IJ}
     if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn(
             "Passing in a `LineSearches.jl` algorithm directly is deprecated. \

@@ -83,7 +83,9 @@ function JacobianCache(
         JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
         if has_analytic_jac
-            f.jac_prototype === nothing ? undefmatrix(u) : f.jac_prototype
+            f.jac_prototype === nothing ?
+            similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)) :
+            copy(f.jac_prototype)
         elseif f.jac_prototype === nothing
             init_jacobian(jac_cache; preserve_immutable = Val(true))
         else

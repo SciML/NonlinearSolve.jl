@@ -64,8 +64,8 @@ end
 
 @testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] begin
     for alg in (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-        PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(), DFSane(), nothing,
-        NLsolveJL(), CMINPACK(), KINSOL(; globalization_strategy = :LineSearch))
+        PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(), DFSane(),
+        nothing, NLsolveJL(), CMINPACK(), KINSOL(; globalization_strategy = :LineSearch))
         us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
         @testset "Scalar AD" begin

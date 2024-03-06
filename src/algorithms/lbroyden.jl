@@ -159,8 +159,8 @@ function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowR
     return y
 end
 
-function LinearAlgebra.mul!(
-        J::BroydenLowRankJacobian, u, vᵀ::LinearAlgebra.AdjOrTransAbsVec, α::Bool, β::Bool)
+function LinearAlgebra.mul!(J::BroydenLowRankJacobian, u::AbstractArray,
+        vᵀ::LinearAlgebra.AdjOrTransAbsVec, α::Bool, β::Bool)
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))
     copyto!(@view(J.U[:, idx_update]), _vec(u))
