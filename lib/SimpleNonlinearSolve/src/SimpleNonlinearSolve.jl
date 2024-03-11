@@ -71,8 +71,8 @@ function SciMLBase.solve(
         alg, args...; prob.kwargs..., kwargs...)
 end
 
-function __internal_solve_up(_prob::NonlinearProblem, sensealg, u0, u0_changed, p,
-        p_changed, alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...)
+function __internal_solve_up(_prob::NonlinearProblem, sensealg, u0, u0_changed,
+        p, p_changed, alg, args...; kwargs...)
     prob = u0_changed || p_changed ? remake(_prob; u0, p) : _prob
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
