@@ -365,18 +365,9 @@ end
 
 # Decide which AD backend to use
 @inline __get_concrete_autodiff(prob, ad::ADTypes.AbstractADType; kwargs...) = ad
-@inline function __get_concrete_autodiff(prob, ::Nothing; polyester::Val{P} = Val(true),
-        kwargs...) where {P}
-    if ForwardDiff.can_dual(eltype(prob.u0))
-        if P && __is_extension_loaded(Val(:PolyesterForwardDiff)) &&
-           !(prob.u0 isa Number) && ArrayInterface.can_setindex(prob.u0)
-            return AutoPolyesterForwardDiff()
-        else
-            return AutoForwardDiff()
-        end
-    else
-        return AutoFiniteDiff()
-    end
+@inline function __get_concrete_autodiff(prob, ::Nothing; kwargs...)
+    return ifelse(
+        ForwardDiff.can_dual(eltype(prob.u0)), AutoForwardDiff(), AutoFiniteDiff())
 end
 
 @inline __reshape(x::Number, args...) = x

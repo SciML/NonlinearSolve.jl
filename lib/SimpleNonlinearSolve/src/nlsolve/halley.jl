@@ -33,7 +33,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
     fx = _get_fx(prob, x)
     T = eltype(x)
 
-    autodiff = __get_concrete_autodiff(prob, alg.autodiff; polyester = Val(false))
+    autodiff = __get_concrete_autodiff(prob, alg.autodiff)
     abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
         termination_condition)
 
