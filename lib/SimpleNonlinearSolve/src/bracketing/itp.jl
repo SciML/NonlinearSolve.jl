@@ -14,13 +14,13 @@ I. F. D. Oliveira and R. H. C. Takahashi.
 
 The following keyword parameters are accepted.
 
-  - `n₀::Int = 1`, the 'slack'. Must not be negative. When n₀ = 0 the worst-case is
+  - `n₀::Int = 10`, the 'slack'. Must not be negative. When n₀ = 0 the worst-case is
     identical to that of bisection, but increacing n₀ provides greater oppotunity for
     superlinearity.
-  - `κ₁::Float64 = 0.1`. Must not be negative. The recomended value is `0.2/(x₂ - x₁)`.
+  - `κ₁::Float64 = 0.007`. Must not be negative. The recomended value is `0.2/(x₂ - x₁)`.
     Lower values produce tighter asymptotic behaviour, while higher values improve the
     steady-state behaviour when truncation is not helpful.
-  - `κ₂::Real = 2`. Must lie in [1, 1+ϕ ≈ 2.62). Higher values allow for a greater
+  - `κ₂::Real = 1.5`. Must lie in [1, 1+ϕ ≈ 2.62). Higher values allow for a greater
     convergence rate, but also make the method more succeptable to worst-case performance.
     In practice, κ=1,2 seems to work well due to the computational simplicity, as κ₂ is used
     as an exponent in the method.
