@@ -35,6 +35,7 @@ LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
+TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 
 [extensions]
 NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
@@ -44,6 +45,7 @@ NonlinearSolveBaseLineSearchExt = "LineSearch"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
+NonlinearSolveBaseTaylorDiffExt = "TaylorDiff"
 
 [compat]
 ADTypes = "1.9"
@@ -77,6 +79,7 @@ SparseArrays = "1.10"
 SparseMatrixColorings = "0.4.5"
 StaticArraysCore = "1.4"
 SymbolicIndexingInterface = "0.3.31"
+TaylorDiff = "0.3"
 Test = "1.10"
 TimerOutputs = "0.5.23"
 julia = "1.10"

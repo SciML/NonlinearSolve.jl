@@ -20,8 +20,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractTrustRegionMethodCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM,
-                          NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-                          Dogleg
+                          NewtonDescent, DampedNewtonDescent, HalleyDescent,
+                          GeodesicAcceleration, Dogleg
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearFunction,
                  NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
@@ -31,6 +31,7 @@ using FiniteDiff: FiniteDiff    # Default Finite Difference Method
 using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 
 include("raphson.jl")
+include("halley.jl")
 include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
 include("trust_region.jl")
@@ -93,7 +94,7 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export NewtonRaphson, PseudoTransient
+export NewtonRaphson, Halley, PseudoTransient
 export GaussNewton, LevenbergMarquardt, TrustRegion
 
 export RadiusUpdateSchemes
