@@ -71,6 +71,7 @@ include("internal/helpers.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
+include("descent/halley.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
@@ -103,6 +104,7 @@ include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
 include("algorithms/extension_algs.jl")
+include("algorithms/halley.jl")
 
 include("utils.jl")
 include("default.jl")
@@ -157,7 +159,7 @@ include("default.jl")
 end
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane, Halley
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPolyalg,
        FastShortcutNLLSPolyalg
@@ -170,7 +172,7 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSol
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
 
 # Descent Algorithms
-export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcceleration
+export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcceleration, HalleyDescent
 
 # Globalization
 ## Line Search Algorithms
