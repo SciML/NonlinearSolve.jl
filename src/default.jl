@@ -65,6 +65,9 @@ end
     force_stop::Bool
     maxiters::Int
     internalnorm
+    u0
+    u0_aliased
+    alias_u0::Bool
 end
 
 function Base.show(
@@ -91,11 +94,24 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
     @eval begin
         function SciMLBase.__init(
                 prob::$probType, alg::$algType{N}, args...; maxtime = nothing,
-                maxiters = 1000, internalnorm = DEFAULT_NORM, kwargs...) where {N}
+                maxiters = 1000, internalnorm = DEFAULT_NORM,
+                alias_u0 = false, verbose = true, kwargs...) where {N}
+            if (alias_u0 && !ismutable(prob.u0))
+                verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
+                                  immutable (checked using `ArrayInterface.ismutable`)."
+                alias_u0 = false  # If immutable don't care about aliasing
+            end
+            u0 = prob.u0
+            if alias_u0
+                u0_aliased = copy(u0)
+            else
+                u0_aliased = u0  # Irrelevant
+            end
+            alias_u0 && (prob = remake(prob; u0 = u0_aliased))
             return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N, maxtime !== nothing}(
                 map(
-                    solver -> SciMLBase.__init(
-                        prob, solver, args...; maxtime, internalnorm, kwargs...),
+                    solver -> SciMLBase.__init(prob, solver, args...; maxtime,
+                        internalnorm, alias_u0, verbose, kwargs...),
                     alg.algs),
                 alg,
                 -1,
@@ -106,7 +122,10 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                 ReturnCode.Default,
                 false,
                 maxiters,
-                internalnorm)
+                internalnorm,
+                u0,
+                u0_aliased,
+                alias_u0)
         end
     end
 end
@@ -120,20 +139,30 @@ end
 
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
+    u_result_syms = [gensym("u_result") for i in 1:N]
     for i in 1:N
         push!(calls,
             quote
                 $(cache_syms[i]) = cache.caches[$(i)]
                 if $(i) == cache.current
+                    cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
                     $(sol_syms[i]) = SciMLBase.solve!($(cache_syms[i]))
                     if SciMLBase.successful_retcode($(sol_syms[i]))
                         stats = $(sol_syms[i]).stats
-                        u = $(sol_syms[i]).u
+                        if cache.alias_u0
+                            copyto!(cache.u0, $(sol_syms[i]).u)
+                            $(u_result_syms[i]) = cache.u0
+                        else
+                            $(u_result_syms[i]) = $(sol_syms[i]).u
+                        end
                         fu = get_fu($(cache_syms[i]))
                         return SciMLBase.build_solution(
-                            $(sol_syms[i]).prob, cache.alg, u, fu;
-                            retcode = $(sol_syms[i]).retcode, stats,
+                            $(sol_syms[i]).prob, cache.alg, $(u_result_syms[i]),
+                            fu; retcode = $(sol_syms[i]).retcode, stats,
                             original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
+                    elseif cache.alias_u0
+                        # For safety we need to maintain a copy of the solution
+                        $(u_result_syms[i]) = copy($(sol_syms[i]).u)
                     end
                     cache.current = $(i + 1)
                 end
@@ -144,14 +173,29 @@ end
     for (sym, resid) in zip(cache_syms, resids)
         push!(calls, :($(resid) = @isdefined($(sym)) ? get_fu($(sym)) : nothing))
     end
+    push!(calls, quote
+        fus = tuple($(Tuple(resids)...))
+        minfu, idx = __findmin(cache.internalnorm, fus)
+        stats = __compile_stats(cache.caches[idx])
+    end)
+    for i in 1:N
+        push!(calls, quote
+            if idx == $(i)
+                if cache.alias_u0
+                    u = $(u_result_syms[i])
+                else
+                    u = get_u(cache.caches[$i])
+                end
+            end
+        end)
+    end
     push!(calls,
         quote
-            fus = tuple($(Tuple(resids)...))
-            minfu, idx = __findmin(cache.internalnorm, fus)
-            stats = __compile_stats(cache.caches[idx])
-            u = get_u(cache.caches[idx])
             retcode = cache.caches[idx].retcode
-
+            if cache.alias_u0
+                copyto!(cache.u0, u)
+                u = cache.u0
+            end
             return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u, fus[idx];
                 retcode, stats, cache.caches[idx].trace)
         end)
@@ -200,22 +244,52 @@ end
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        @generated function SciMLBase.__solve(
-                prob::$probType, alg::$algType{N}, args...; kwargs...) where {N}
-            calls = [:(current = alg.start_index)]
+        @generated function SciMLBase.__solve(prob::$probType, alg::$algType{N}, args...;
+                alias_u0 = false, verbose = true, kwargs...) where {N}
             sol_syms = [gensym("sol") for _ in 1:N]
+            prob_syms = [gensym("prob") for _ in 1:N]
+            u_result_syms = [gensym("u_result") for _ in 1:N]
+            calls = [quote
+                current = alg.start_index
+                if (alias_u0 && !ismutable(prob.u0))
+                    verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
+                                      immutable (checked using `ArrayInterface.ismutable`)."
+                    alias_u0 = false  # If immutable don't care about aliasing
+                end
+                u0 = prob.u0
+                if alias_u0
+                    u0_aliased = similar(u0)
+                else
+                    u0_aliased = u0  # Irrelevant
+                end
+            end]
             for i in 1:N
                 cur_sol = sol_syms[i]
                 push!(calls,
                     quote
                         if current == $i
-                            $(cur_sol) = SciMLBase.__solve(
-                                prob, alg.algs[$(i)], args...; kwargs...)
+                            if alias_u0
+                                copyto!(u0_aliased, u0)
+                                $(prob_syms[i]) = remake(prob; u0 = u0_aliased)
+                            else
+                                $(prob_syms[i]) = prob
+                            end
+                            $(cur_sol) = SciMLBase.__solve($(prob_syms[i]), alg.algs[$(i)],
+                                args...; alias_u0, verbose, kwargs...)
                             if SciMLBase.successful_retcode($(cur_sol))
+                                if alias_u0
+                                    copyto!(u0, $(cur_sol).u)
+                                    $(u_result_syms[i]) = u0
+                                else
+                                    $(u_result_syms[i]) = $(cur_sol).u
+                                end
                                 return SciMLBase.build_solution(
-                                    prob, alg, $(cur_sol).u, $(cur_sol).resid;
+                                    prob, alg, $(u_result_syms[i]), $(cur_sol).resid;
                                     $(cur_sol).retcode, $(cur_sol).stats,
                                     original = $(cur_sol), trace = $(cur_sol).trace)
+                            elseif alias_u0
+                                # For safety we need to maintain a copy of the solution
+                                $(u_result_syms[i]) = copy($(cur_sol).u)
                             end
                             current = $(i + 1)
                         end
@@ -236,9 +310,16 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                 push!(calls,
                     quote
                         if idx == $i
-                            return SciMLBase.build_solution(prob, alg, $(sol_syms[i]).u,
-                                $(sol_syms[i]).resid; $(sol_syms[i]).retcode,
-                                $(sol_syms[i]).stats, $(sol_syms[i]).trace)
+                            if alias_u0
+                                copyto!(u0, $(u_result_syms[i]))
+                                $(u_result_syms[i]) = u0
+                            else
+                                $(u_result_syms[i]) = $(sol_syms[i]).u
+                            end
+                            return SciMLBase.build_solution(
+                                prob, alg, $(u_result_syms[i]), $(sol_syms[i]).resid;
+                                $(sol_syms[i]).retcode, $(sol_syms[i]).stats,
+                                $(sol_syms[i]).trace, original = $(sol_syms[i]))
                         end
                     end)
             end
