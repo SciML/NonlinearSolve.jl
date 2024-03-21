@@ -94,15 +94,16 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
 
-function __findmin_caches(f, caches)
-    return __findmin(f ∘ get_fu, caches)
-end
-function __findmin(f, x)
-    return findmin(x) do xᵢ
+@inline __findmin_caches(f, caches) = __findmin(f ∘ get_fu, caches)
+# FIXME: DEFAULT_NORM makes an Array of NaNs not a NaN (atleast according to `isnan`)
+@inline __findmin(::typeof(DEFAULT_NORM), x) = __findmin(Base.Fix1(maximum, abs), x)
+@inline function __findmin(f, x)
+    fmin = @closure xᵢ -> begin
         xᵢ === nothing && return Inf
         fx = f(xᵢ)
-        return isnan(fx) ? Inf : fx
+        return ifelse(isnan(fx), Inf, fx)
     end
+    return findmin(fmin, x)
 end
 
 @inline __can_setindex(x) = can_setindex(x)
