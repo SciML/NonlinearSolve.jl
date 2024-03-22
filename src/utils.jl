@@ -94,16 +94,29 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __is_complex(::Type{Complex}) = true
 @inline __is_complex(::Type{T}) where {T} = false
 
-@inline __findmin_caches(f, caches) = __findmin(f ∘ get_fu, caches)
+@inline __findmin_caches(f::F, caches) where {F} = __findmin(f ∘ get_fu, caches)
 # FIXME: DEFAULT_NORM makes an Array of NaNs not a NaN (atleast according to `isnan`)
-@inline __findmin(::typeof(DEFAULT_NORM), x) = __findmin(Base.Fix1(maximum, abs), x)
-@inline function __findmin(f, x)
-    fmin = @closure xᵢ -> begin
-        xᵢ === nothing && return Inf
-        fx = f(xᵢ)
-        return ifelse(isnan(fx), Inf, fx)
+@generated function __findmin(f::F, x) where {F}
+    # JET shows dynamic dispatch if this is not written as a generated function
+    if F === typeof(DEFAULT_NORM)
+        return :(return __findmin_impl(Base.Fix1(maximum, abs), x))
     end
-    return findmin(fmin, x)
+    return :(return __findmin_impl(f, x))
+end
+@inline @views function __findmin_impl(f::F, x) where {F}
+    idx = findfirst(Base.Fix2(!==, nothing), x)
+    # This is an internal function so we assume that inputs are consistent and there is
+    # atleast one non-`nothing` value
+    fx_idx = f(x[idx])
+    idx == length(x) && return fx_idx, idx
+    fmin = @closure xᵢ -> begin
+        xᵢ === nothing && return oftype(fx_idx, Inf)
+        fx = f(xᵢ)
+        return ifelse(isnan(fx), oftype(fx, Inf), fx)
+    end
+    x_min, x_min_idx = findmin(fmin, x[(idx + 1):length(x)])
+    x_min < fx_idx && return x_min, x_min_idx + idx
+    return fx_idx, idx
 end
 
 @inline __can_setindex(x) = can_setindex(x)
@@ -130,7 +143,7 @@ Statistics from the nonlinear equation solver about the solution process.
   - nf: Number of function evaluations.
   - njacs: Number of Jacobians created during the solve.
   - nfactors: Number of factorzations of the jacobian required for the solve.
-  - nsolve: Number of linear solves `W\b` required for the solve.
+  - nsolve: Number of linear solves `W \\ b` required for the solve.
   - nsteps: Total number of iterations for the nonlinear solver.
 """
 struct ImmutableNLStats
