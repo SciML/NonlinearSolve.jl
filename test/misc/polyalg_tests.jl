@@ -224,6 +224,7 @@ end
 
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
+    @inferred solve(prob)
 end
 
 @testitem "[OOP] Infeasible" setup=[InfeasibleFunction] begin
@@ -235,6 +236,7 @@ end
 
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
+    @inferred solve(prob)
 
     u0 = @SVector [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
@@ -243,6 +245,7 @@ end
         sol = solve(prob)
         @test all(!isnan, sol.u)
         @test !SciMLBase.successful_retcode(sol.retcode)
+        @inferred solve(prob)
     catch err
         @test err isa LinearAlgebra.SingularException
     end

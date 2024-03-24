@@ -176,3 +176,16 @@ Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the i
 """
 @inline pickchunksize(x) = pickchunksize(length(x))
 @inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
+
+# Original is often determined on runtime information especially for PolyAlgorithms so it
+# is best to never specialize on that
+function __build_solution_less_specialize(prob::AbstractNonlinearProblem, alg, u, resid;
+        retcode = ReturnCode.Default, original = nothing, left = nothing,
+        right = nothing, stats = nothing, trace = nothing, kwargs...)
+    T = eltype(eltype(u))
+    N = ndims(u)
+
+    return SciMLBase.NonlinearSolution{T, N, typeof(u), typeof(resid), typeof(prob),
+        typeof(alg), Any, typeof(left), Any, typeof(trace)}(
+        u, resid, prob, alg, retcode, original, left, right, stats, trace)
+end
