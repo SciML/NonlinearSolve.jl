@@ -156,7 +156,7 @@ end
                             $(u_result_syms[i]) = $(sol_syms[i]).u
                         end
                         fu = get_fu($(cache_syms[i]))
-                        return SciMLBase.build_solution(
+                        return __build_solution_less_specialize(
                             $(sol_syms[i]).prob, cache.alg, $(u_result_syms[i]),
                             fu; retcode = $(sol_syms[i]).retcode, stats,
                             original = $(sol_syms[i]), trace = $(sol_syms[i]).trace)
@@ -196,7 +196,8 @@ end
                 copyto!(cache.u0, u)
                 u = cache.u0
             end
-            return SciMLBase.build_solution(cache.caches[idx].prob, cache.alg, u, fus[idx];
+            return __build_solution_less_specialize(
+                cache.caches[idx].prob, cache.alg, u, fus[idx];
                 retcode, stats, cache.caches[idx].trace)
         end)
 
@@ -283,7 +284,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                                 else
                                     $(u_result_syms[i]) = $(cur_sol).u
                                 end
-                                return SciMLBase.build_solution(
+                                return __build_solution_less_specialize(
                                     prob, alg, $(u_result_syms[i]), $(cur_sol).resid;
                                     $(cur_sol).retcode, $(cur_sol).stats,
                                     original = $(cur_sol), trace = $(cur_sol).trace)
@@ -316,7 +317,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                             else
                                 $(u_result_syms[i]) = $(sol_syms[i]).u
                             end
-                            return SciMLBase.build_solution(
+                            return __build_solution_less_specialize(
                                 prob, alg, $(u_result_syms[i]), $(sol_syms[i]).resid;
                                 $(sol_syms[i]).retcode, $(sol_syms[i]).stats,
                                 $(sol_syms[i]).trace, original = $(sol_syms[i]))
