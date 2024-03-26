@@ -46,6 +46,24 @@ end
     end
 end
 
+@testitem "Optimization.jl" setup=[WrapperNLLSSetup] begin
+    import Optimization, OptimizationMOI, Ipopt
+
+    prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
+    prob_iip = NonlinearLeastSquaresProblem(
+        NonlinearFunction(loss_function; resid_prototype = zero(y_target)), θ_init, x)
+
+    nlls_problems = [prob_oop, prob_iip]
+
+    solver = OptimizationJL(Ipopt.Optimizer(), AutoForwardDiff())
+
+    for prob in nlls_problems
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        # Ipopt fails currently
+        @test sol isa SciMLBase.NonlinearSolution
+    end
+end
+
 @testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[WrapperNLLSSetup] begin
     function jac!(J, θ, p)
         resid = zeros(length(p))

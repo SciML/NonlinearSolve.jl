@@ -148,7 +148,7 @@ export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPoly
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
-       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL, OptimizationJL
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
