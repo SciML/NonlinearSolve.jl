@@ -484,3 +484,40 @@ function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothin
     end
     return SIAMFANLEquationsJL(method, delta, linsolve, m, beta, autodiff)
 end
+
+"""
+    OptimizationJL(solver, autodiff)
+
+Wrapper over [Optimization.jl](https://docs.sciml.ai/Optimization/stable/) to solve
+Nonlinear Equations and Nonlinear Least Squares Problems.
+
+!!! danger "Using OptimizationJL for Nonlinear Systems"
+
+    This is a absolutely terrible idea. We construct the objective function as the L2-norm
+    of the residual function and impose an equality constraint. This is very inefficient
+    and exists to convince people from HackerNews that this is a horrible idea.
+
+### Arguments
+
+  - `solver`: The solver to use from Optimization.jl. In general for NLLS, all of the
+    solvers will work. However, for nonlinear systems, only the solvers that support
+    equality constraints will work.
+  - `autodiff`: Automatic Differentiation Backend that Optimization.jl should use. See
+    https://docs.sciml.ai/Optimization/stable/API/ad/ for more details. Defaults to
+    `SciMLBase.NoAD()`.
+
+!!! note
+
+    This algorithm is only available if `Optimization.jl` is installed.
+"""
+struct OptimizationJL{S, AD} <: AbstractNonlinearSolveExtensionAlgorithm
+    solver::S
+    autodiff::AD
+
+    function OptimizationJL(solver, autodiff = SciMLBase.NoAD())
+        if Base.get_extension(@__MODULE__, :NonlinearSolveOptimizationExt) === nothing
+            error("OptimizationJL requires Optimization.jl to be loaded")
+        end
+        return new{typeof(solver), typeof(autodiff)}(solver, autodiff)
+    end
+end

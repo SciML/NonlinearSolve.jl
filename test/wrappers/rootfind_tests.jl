@@ -2,8 +2,9 @@
 using Reexport
 @reexport using LinearAlgebra
 import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK
+import Optimization, OptimizationMOI, Ipopt
 
-export NLSolvers
+export NLSolvers, Ipopt
 end
 
 @testitem "Steady State Problems" setup=[WrapperRootfindImports] begin
@@ -48,7 +49,8 @@ end
 
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(),
+        OptimizationJL(Ipopt.Optimizer(), AutoForwardDiff())]
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -61,7 +63,8 @@ end
     prob_oop = NonlinearProblem{false}(f_oop, u0)
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(),
+        OptimizationJL(Ipopt.Optimizer(), AutoForwardDiff())]
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -127,5 +130,9 @@ end
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :newton); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :pseudotransient); abstol = 1e-8)
+    @test maximum(abs, sol.resid) < 1e-6
+    sol = solve(ProbN, OptimizationJL(Ipopt.Optimizer(), AutoForwardDiff()); abstol = 1e-8)
+    @test maximum(abs, sol.resid) < 1e-6
+    sol = solve(ProbN, OptimizationJL(Ipopt.Optimizer(), AutoFiniteDiff()); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
 end

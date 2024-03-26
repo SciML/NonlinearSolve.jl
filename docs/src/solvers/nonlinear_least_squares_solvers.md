@@ -29,7 +29,7 @@ fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
 ### SimpleNonlinearSolve.jl
 
 These methods are included with NonlinearSolve.jl by default, though SimpleNonlinearSolve.jl
-can be used  directly to reduce dependencies and improve load times.
+can be used directly to reduce dependencies and improve load times.
 SimpleNonlinearSolve.jl's methods excel at small problems and problems defined with static
 arrays.
 
@@ -81,5 +81,8 @@ Submethod choices for this algorithm include:
 
 ### Optimization.jl
 
-`NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem`  and used
+`NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem` and used
 with any solver of [Optimization.jl](https://github.com/SciML/Optimization.jl).
+
+Alternatively, [`OptimizationJL`](@ref) can be used directly. The only benefit of this is
+that the solver returns [`NonlinearSolution`](@ref) instead of `OptimizationSolution`.

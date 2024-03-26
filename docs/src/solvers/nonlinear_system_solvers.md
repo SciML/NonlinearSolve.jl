@@ -4,7 +4,7 @@
 solve(prob::NonlinearProblem, alg; kwargs...)
 ```
 
-Solves for ``f(u) = 0`` in the problem defined by `prob` using the algorithm `alg`. If no
+Solves for `f(u) = 0` in the problem defined by `prob` using the algorithm `alg`. If no
 algorithm is given, a default algorithm will be chosen.
 
 ## Recommended Methods
@@ -22,7 +22,7 @@ fail to converge. Additionally, [`DynamicSS`](@ref) can be a good choice for hig
 if the root corresponds to a stable equilibrium.
 
 As a balance, [`NewtonRaphson`](@ref) is a good choice for most problems that aren't too
-difficult yet need high performance, and  [`TrustRegion`](@ref) is a bit less performant but
+difficult yet need high performance, and [`TrustRegion`](@ref) is a bit less performant but
 more stable. If the problem is well-conditioned, [`Klement`](@ref) or [`Broyden`](@ref) may
 be faster, but highly dependent on the eigenvalues of the Jacobian being sufficiently small.
 
@@ -177,3 +177,12 @@ This is a wrapper package for importing solvers from NLSolvers.jl into the SciML
     [NLSolvers.jl](https://github.com/JuliaNLSolvers/NLSolvers.jl)
 
 For a list of possible solvers see the [NLSolvers.jl documentation](https://julianlsolvers.github.io/NLSolvers.jl/)
+
+### Optimization.jl
+
+This is a wrapper package for importing solvers from Optimization.jl into the SciML
+Nonlinear Problem interface. These exist mostly for benchmarking purposes and shouldn't
+be used by most users.
+
+  - [`OptimizationJL()`](@ref): A wrapper for
+    [Optimization.jl](https://github.com/SciML/Optimization.jl)
