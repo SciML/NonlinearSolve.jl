@@ -100,7 +100,7 @@ function __internal_solve!(
     if idx === Val(1)
         @bb cache.JᵀJ_cache = transpose(J) × J
     end
-    @bb cache.Jᵀfu_cache = transpose(J) × fu
+    @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     @static_timeit cache.timer "linear solve" begin
         δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
             kwargs..., linu = _vec(δu), du = _vec(δu),
