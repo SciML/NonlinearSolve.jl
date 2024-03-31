@@ -70,7 +70,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...
     τ_min = T(alg.τ_min)
     τ_max = T(alg.τ_max)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
         termination_condition)
 
     fx_norm = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp

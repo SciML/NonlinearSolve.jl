@@ -88,7 +88,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
     fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
         termination_condition)
 
     # Set default trust region radius if not specified by user.

@@ -48,7 +48,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
     @bb δJ⁻¹n = copy(x)
     @bb δJ⁻¹ = copy(J⁻¹)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
         termination_condition)
 
     ls_cache = __get_linesearch(alg) === Val(true) ?

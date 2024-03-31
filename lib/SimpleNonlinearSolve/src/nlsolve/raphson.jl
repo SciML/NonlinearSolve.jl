@@ -32,7 +32,7 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
     @bb xo = copy(x)
     J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
         termination_condition)
 
     for i in 1:maxiters

@@ -61,7 +61,7 @@ end
 
     U, Vᵀ = __init_low_rank_jacobian(x, fx, x isa StaticArray ? threshold : Val(η))
 
-    abstol, reltol, tc_cache = init_termination_cache(abstol, reltol, fx, x,
+    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
         termination_condition)
 
     @bb xo = copy(x)
