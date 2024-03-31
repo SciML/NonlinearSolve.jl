@@ -107,8 +107,8 @@ end
 function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu, δu, J)
     nType = ifelse(prob isa NonlinearLeastSquaresProblem, :L2, :Inf)
     fnorm = prob isa NonlinearLeastSquaresProblem ? norm(fu, 2) : norm(fu, Inf)
-    return NonlinearSolveTraceEntry{nType}(iteration, fnorm, norm(δu, 2),
-        __cond(J), nothing, nothing, nothing, nothing)
+    return NonlinearSolveTraceEntry{nType}(
+        iteration, fnorm, norm(δu, 2), __cond(J), nothing, nothing, nothing, nothing)
 end
 
 function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu, δu, J, u)
