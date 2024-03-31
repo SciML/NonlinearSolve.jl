@@ -79,7 +79,6 @@ end
                     gs = abs.(ForwardDiff.derivative(solve_with(Val{mode}(), u0, alg), p))
                     gs_true = abs.(jacobian_f(u0, p))
                     if !(isapprox(gs, gs_true, atol = 1e-5))
-                        @show sol.retcode, sol.u
                         @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_gradient=gs true_gradient=gs_true
                     else
                         @test abs.(gs)≈abs.(gs_true) atol=1e-5

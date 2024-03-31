@@ -120,7 +120,7 @@ end
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -238,7 +238,7 @@ end
         end
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -324,7 +324,7 @@ end
         end
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -395,7 +395,7 @@ end
         end
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -462,7 +462,7 @@ end
                   sqrt(2.0))
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -514,7 +514,7 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), Broyden()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), Broyden()) ≈ sqrt.(p)
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -563,7 +563,7 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), Klement()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), Klement()) ≈ sqrt.(p)
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -613,7 +613,7 @@ end
     @test nlprob_iterator_interface(
         quadratic_f!, p, Val(true), LimitedMemoryBroyden())≈sqrt.(p) atol=1e-2
 
-    @testset "Termination condition: $(termination_condition) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(_nameof(termination_condition)) u0: $(_nameof(u0))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)

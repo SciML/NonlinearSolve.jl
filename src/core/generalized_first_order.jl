@@ -191,7 +191,7 @@ function SciMLBase.__init(
             GB = :LineSearch
         end
 
-        trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
+        trace = init_nonlinearsolve_trace(prob, alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
 
         return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
             fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
