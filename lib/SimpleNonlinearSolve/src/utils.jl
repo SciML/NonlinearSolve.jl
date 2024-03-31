@@ -288,14 +288,30 @@ end
 # different. NonlinearSolve is more for robust / cached solvers while SimpleNonlinearSolve
 # is meant for low overhead solvers, users can opt into the other termination modes but the
 # default is to use the least overhead version.
-function init_termination_cache(abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(abstol, reltol, du, u, AbsNormTerminationMode())
+function init_termination_cache(prob::NonlinearProblem, abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(prob, abstol, reltol, du, u,
+        AbsNormTerminationMode(Base.Fix1(maximum, abs)))
 end
-function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
+function init_termination_cache(
+        prob::NonlinearLeastSquaresProblem, abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(prob, abstol, reltol, du, u,
+        AbsNormTerminationMode(Base.Fix2(norm, 2)))
+end
+
+function init_termination_cache(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
     abstol = __get_tolerance(u, abstol, T)
     reltol = __get_tolerance(u, reltol, T)
-    tc_cache = init(du, u, tc; abstol, reltol)
+    tc_ = if hasfield(typeof(tc), :internalnorm) && tc.internalnorm === nothing
+        internalnorm = ifelse(
+            prob isa NonlinearProblem, Base.Fix1(maximum, abs), Base.Fix2(norm, 2))
+        DiffEqBase.set_termination_mode_internalnorm(tc, internalnorm)
+    else
+        tc
+    end
+    tc_cache = init(du, u, tc_; abstol, reltol, use_deprecated_retcodes = Val(false))
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
 
@@ -305,45 +321,25 @@ function check_termination(tc_cache, fx, x, xo, prob, alg)
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractNonlinearTerminationMode)
-    if Bool(tc_cache(fx, x, xo))
+    tc_cache(fx, x, xo) &&
         return build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
-    end
     return nothing
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractSafeNonlinearTerminationMode)
-    if Bool(tc_cache(fx, x, xo))
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
-            retcode = ReturnCode.Success
-        elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
-            retcode = ReturnCode.ConvergenceFailure
-        elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
-            retcode = ReturnCode.Unstable
-        else
-            error("Unknown termination code: $(tc_cache.retcode)")
-        end
-        return build_solution(prob, alg, x, fx; retcode)
-    end
+    tc_cache(fx, x, xo) &&
+        return build_solution(prob, alg, x, fx; retcode = tc_cache.retcode)
     return nothing
 end
 function check_termination(tc_cache, fx, x, xo, prob, alg,
         ::AbstractSafeBestNonlinearTerminationMode)
-    if Bool(tc_cache(fx, x, xo))
-        if tc_cache.retcode == NonlinearSafeTerminationReturnCode.Success
-            retcode = ReturnCode.Success
-        elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.PatienceTermination
-            retcode = ReturnCode.ConvergenceFailure
-        elseif tc_cache.retcode == NonlinearSafeTerminationReturnCode.ProtectiveTermination
-            retcode = ReturnCode.Unstable
-        else
-            error("Unknown termination code: $(tc_cache.retcode)")
-        end
+    if tc_cache(fx, x, xo)
         if isinplace(prob)
             prob.f(fx, x, prob.p)
         else
             fx = prob.f(x, prob.p)
         end
-        return build_solution(prob, alg, tc_cache.u, fx; retcode)
+        return build_solution(prob, alg, tc_cache.u, fx; retcode = tc_cache.retcode)
     end
     return nothing
 end

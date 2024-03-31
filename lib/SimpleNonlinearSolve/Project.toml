@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "1.6.0"
+version = "1.7.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -43,7 +43,7 @@ ArrayInterface = "7.7"
 CUDA = "5.2"
 ChainRulesCore = "1.22"
 ConcreteStructs = "0.2.3"
-DiffEqBase = "6.146"
+DiffEqBase = "6.149"
 DiffResults = "1.1"
 FastClosures = "0.3"
 FiniteDiff = "2.22"
