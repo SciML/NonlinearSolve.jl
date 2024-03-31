@@ -156,7 +156,7 @@ function SciMLBase.__init(
         linsolve = get_linear_solver(alg.descent)
 
         abstol, reltol, termination_cache = init_termination_cache(
-            abstol, reltol, fu, u, termination_condition)
+            prob, abstol, reltol, fu, u, termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         jac_cache = JacobianCache(
