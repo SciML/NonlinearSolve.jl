@@ -1,9 +1,23 @@
-function init_termination_cache(abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(
-        abstol, reltol, du, u, AbsSafeBestTerminationMode(; max_stalled_steps = 32))
+function init_termination_cache(prob::NonlinearProblem, abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(prob, abstol, reltol, du, u,
+        AbsSafeBestTerminationMode(Base.Fix1(maximum, abs); max_stalled_steps = 32))
 end
-function init_termination_cache(abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
-    tc_cache = init(du, u, tc; abstol, reltol, use_deprecated_retcodes = Val(false))
+function init_termination_cache(
+        prob::NonlinearLeastSquaresProblem, abstol, reltol, du, u, ::Nothing)
+    return init_termination_cache(prob, abstol, reltol, du, u,
+        AbsSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32))
+end
+
+function init_termination_cache(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
+    tc_ = if hasfield(typeof(tc), :internalnorm) && tc.internalnorm === nothing
+        internalnorm = ifelse(
+            prob isa NonlinearProblem, Base.Fix1(maximum, abs), Base.Fix2(norm, 2))
+        DiffEqBase.set_termination_mode_internalnorm(tc, internalnorm)
+    else
+        tc
+    end
+    tc_cache = init(du, u, tc_; abstol, reltol, use_deprecated_retcodes = Val(false))
     return DiffEqBase.get_abstol(tc_cache), DiffEqBase.get_reltol(tc_cache), tc_cache
 end
 

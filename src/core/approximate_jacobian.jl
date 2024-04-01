@@ -167,7 +167,7 @@ function SciMLBase.__init(
             prob, alg.initialization, alg, f, fu, u, p; linsolve, maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(
-            abstol, reltol, fu, u, termination_condition)
+            prob, abstol, reltol, fu, u, termination_condition)
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
@@ -206,7 +206,7 @@ function SciMLBase.__init(
         update_rule_cache = __internal_init(
             prob, alg.update_rule, J, fu, u, du; internalnorm)
 
-        trace = init_nonlinearsolve_trace(alg, u, fu, ApplyArray(__zero, J), du;
+        trace = init_nonlinearsolve_trace(prob, alg, u, fu, ApplyArray(__zero, J), du;
             uses_jacobian_inverse = Val(INV), kwargs...)
 
         return ApproximateJacobianSolveCache{INV, GB, iip, maxtime !== nothing}(

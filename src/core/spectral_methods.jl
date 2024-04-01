@@ -133,8 +133,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
             prob, alg.linesearch, prob.f, fu, u, prob.p; maxiters, internalnorm, kwargs...)
 
         abstol, reltol, tc_cache = init_termination_cache(
-            abstol, reltol, fu, u_cache, termination_condition)
-        trace = init_nonlinearsolve_trace(alg, u, fu, nothing, du; kwargs...)
+            prob, abstol, reltol, fu, u_cache, termination_condition)
+        trace = init_nonlinearsolve_trace(prob, alg, u, fu, nothing, du; kwargs...)
 
         if alg.σ_1 === nothing
             σ_n = dot(u, u) / dot(u, fu)

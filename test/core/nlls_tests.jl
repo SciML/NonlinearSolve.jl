@@ -6,11 +6,11 @@ using Reexport
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
 
-θ_true = [1.0, 0.1, 2.0, 0.5]
+const θ_true = [1.0, 0.1, 2.0, 0.5]
 
-x = [-1.0, -0.5, 0.0, 0.5, 1.0]
+const x = [-1.0, -0.5, 0.0, 0.5, 1.0]
 
-y_target = true_function(x, θ_true)
+const y_target = true_function(x, θ_true)
 
 function loss_function(θ, p)
     ŷ = true_function(p, θ)
@@ -23,7 +23,7 @@ function loss_function(resid, θ, p)
     return resid
 end
 
-θ_init = θ_true .+ randn!(StableRNG(0), similar(θ_true)) * 0.1
+const θ_init = θ_true .+ randn!(StableRNG(0), similar(θ_true)) * 0.1
 
 solvers = []
 for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
@@ -56,9 +56,9 @@ end
     nlls_problems = [prob_oop, prob_iip]
 
     for prob in nlls_problems, solver in solvers
-        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-6)
         @test SciMLBase.successful_retcode(sol)
-        @test maximum(abs, sol.resid) < 1e-6
+        @test norm(sol.resid, 2) < 1e-6
     end
 end
 
@@ -90,8 +90,9 @@ end
             x)]
 
     for prob in probs, solver in solvers
-        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
-        @test maximum(abs, sol.resid) < 1e-6
+        sol = solve(prob, solver; maxiters = 10000, abstol = 1e-6)
+        @test SciMLBase.successful_retcode(sol)
+        @test norm(sol.resid, 2) < 1e-6
     end
 end
 
