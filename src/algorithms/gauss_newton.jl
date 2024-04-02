@@ -10,5 +10,5 @@ function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
         linesearch = NoLineSearch(), vjp_autodiff = nothing, autodiff = nothing)
     descent = NewtonDescent(; linsolve, precs)
     return GeneralizedFirstOrderAlgorithm(; concrete_jac, name = :GaussNewton, descent,
-        jacobian_ad = autodiff, reverse_ad = vjp_autodiff)
+        jacobian_ad = autodiff, reverse_ad = vjp_autodiff, linesearch)
 end
