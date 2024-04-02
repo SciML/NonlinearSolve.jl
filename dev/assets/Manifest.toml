@@ -306,9 +306,9 @@ weakdeps = ["IntervalSets", "StaticArrays"]
     ConstructionBaseStaticArraysExt = "StaticArrays"
 
 [[deps.Contour]]
-git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
+git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
-version = "0.6.2"
+version = "0.6.3"
 
 [[deps.CpuId]]
 deps = ["Markdown"]
@@ -379,9 +379,9 @@ version = "6.149.0"
 
 [[deps.DiffEqCallbacks]]
 deps = ["DataStructures", "DiffEqBase", "ForwardDiff", "Functors", "LinearAlgebra", "Markdown", "NonlinearSolve", "Parameters", "RecipesBase", "RecursiveArrayTools", "SciMLBase", "StaticArraysCore"]
-git-tree-sha1 = "e73f4d7e780cf78eea9f13dd6eaccb0ef3c6a241"
+git-tree-sha1 = "2df0433103c89ee2dad56f4ef9c7755521464a39"
 uuid = "459566f4-90b8-5000-8ac3-15dfb0a30def"
-version = "3.4.1"
+version = "3.5.0"
 weakdeps = ["OrdinaryDiffEq", "Sundials"]
 
 [[deps.DiffResults]]
@@ -641,9 +641,9 @@ version = "0.1.3"
 
 [[deps.Functors]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "8ae30e786837ce0a24f5e2186938bf3251ab94b2"
+git-tree-sha1 = "fa8d8fcfa6c38a9a7aa07233e35b3d9a39ec751a"
 uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
-version = "0.4.8"
+version = "0.4.9"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -949,9 +949,9 @@ version = "1.2.2"
 
 [[deps.LazyArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays"]
-git-tree-sha1 = "9cfca23ab83b0dfac93cb1a1ef3331ab9fe596a5"
+git-tree-sha1 = "af45931c321aafdb96a6e0b26e81124e1b390e4e"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "1.8.3"
+version = "1.9.0"
 weakdeps = ["StaticArrays"]
 
     [deps.LazyArrays.extensions]
@@ -1108,9 +1108,9 @@ version = "1.0.3"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "CPUSummary", "CloseOpenIntervals", "DocStringExtensions", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "PrecompileTools", "SIMDTypes", "SLEEFPirates", "Static", "StaticArrayInterface", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "0f5648fbae0d015e3abe5867bca2b362f67a5894"
+git-tree-sha1 = "a13f3be5d84b9c95465d743c82af0b094ef9c2e2"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.166"
+version = "0.12.169"
 weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
 
     [deps.LoopVectorization.extensions]
@@ -1241,7 +1241,7 @@ version = "1.2.0"
 deps = ["ADTypes", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "LazyArrays", "LineSearches", "LinearAlgebra", "LinearSolve", "MaybeInplace", "PrecompileTools", "Preferences", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "TimerOutputs"]
 path = "/home/runner/work/NonlinearSolve.jl/NonlinearSolve.jl"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "3.9.0"
+version = "3.9.1"
 
     [deps.NonlinearSolve.extensions]
     NonlinearSolveBandedMatricesExt = "BandedMatrices"
@@ -1414,9 +1414,9 @@ version = "0.4.4"
 
 [[deps.Polyester]]
 deps = ["ArrayInterface", "BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "ManualMemory", "PolyesterWeave", "Requires", "Static", "StaticArrayInterface", "StrideArraysCore", "ThreadingUtilities"]
-git-tree-sha1 = "5d8a46101b622927a87fe3553ea697e606d9a3c5"
+git-tree-sha1 = "09f59c6dda37c7f73efddc5bdf6f92bc940eb484"
 uuid = "f517fe37-dbe3-4b94-8317-1923a5111588"
-version = "0.7.11"
+version = "0.7.12"
 
 [[deps.PolyesterWeave]]
 deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "ThreadingUtilities"]
@@ -1648,9 +1648,9 @@ version = "1.1.0"
 
 [[deps.SimpleNonlinearSolve]]
 deps = ["ADTypes", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "DiffResults", "FastClosures", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "MaybeInplace", "PrecompileTools", "Reexport", "SciMLBase", "StaticArraysCore"]
-git-tree-sha1 = "a535ae5083708f59e75d5bb3042c36d1be9bc778"
+git-tree-sha1 = "d4c17fc60bf5f8f2be02777c4836878f27ac7b9b"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
-version = "1.6.0"
+version = "1.7.0"
 
     [deps.SimpleNonlinearSolve.extensions]
     SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
