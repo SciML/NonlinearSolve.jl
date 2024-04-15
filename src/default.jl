@@ -70,6 +70,11 @@ end
     alias_u0::Bool
 end
 
+function SymbolicIndexingInterface.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
+    cache.caches[cache.current]
+end
+SymbolicIndexingInterface.state_values(cache::NonlinearSolvePolyAlgorithmCache) = cache.u0
+
 function Base.show(
         io::IO, cache::NonlinearSolvePolyAlgorithmCache{pType, N}) where {pType, N}
     problem_kind = ifelse(pType == :NLS, "NonlinearProblem", "NonlinearLeastSquaresProblem")

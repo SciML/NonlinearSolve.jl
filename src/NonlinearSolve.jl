@@ -29,6 +29,9 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
                       AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
     import SparseDiffTools: AbstractSparsityDetection, AutoSparseEnzyme
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
+    import SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
+                                      symbolic_container, parameter_values, state_values,
+                                      getu
 end
 
 @reexport using ADTypes, SciMLBase, SimpleNonlinearSolve

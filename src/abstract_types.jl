@@ -207,6 +207,27 @@ Abstract Type for all NonlinearSolve.jl Caches.
 """
 abstract type AbstractNonlinearSolveCache{iip, timeit} end
 
+function SymbolicIndexingInterface.symbolic_container(cache::AbstractNonlinearSolveCache)
+    cache.prob
+end
+function SymbolicIndexingInterface.parameter_values(cache::AbstractNonlinearSolveCache)
+    parameter_values(symbolic_container(cache))
+end
+function SymbolicIndexingInterface.state_values(cache::AbstractNonlinearSolveCache)
+    state_values(symbolic_container(cache))
+end
+
+function Base.getproperty(cache::AbstractNonlinearSolveCache, sym::Symbol)
+    if sym == :ps
+        return ParameterIndexingProxy(cache)
+    end
+    return getfield(cache, sym)
+end
+
+function Base.getindex(cache::AbstractNonlinearSolveCache, sym)
+    return getu(cache, sym)(cache)
+end
+
 function Base.show(io::IO, cache::AbstractNonlinearSolveCache)
     __show_cache(io, cache, 0)
 end
