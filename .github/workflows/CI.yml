@@ -19,6 +19,7 @@ jobs:
       matrix:
         group:
           - Core
+          - Downstream
         version:
           - "1"
         os:

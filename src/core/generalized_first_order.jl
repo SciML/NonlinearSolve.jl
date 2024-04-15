@@ -113,6 +113,11 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     force_stop::Bool
 end
 
+SymbolicIndexingInterface.state_values(cache::GeneralizedFirstOrderAlgorithmCache) = cache.u
+function SymbolicIndexingInterface.parameter_values(cache::GeneralizedFirstOrderAlgorithmCache)
+    cache.p
+end
+
 function __reinit_internal!(
         cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...) where {iip}
