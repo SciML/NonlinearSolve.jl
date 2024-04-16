@@ -97,10 +97,20 @@ function JacobianCache(
         J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff, jvp_autodiff)
 end
 
-function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; kwargs...) where {F}
+function JacobianCache(
+        prob, alg, f::F, ::Number, u::Number, p; autodiff = nothing, kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_reverse_mode = false)
+    if !(autodiff isa AutoForwardDiff ||
+         autodiff isa AutoPolyesterForwardDiff ||
+         autodiff isa AutoFiniteDiff)
+        autodiff = AutoFiniteDiff()
+        # Other cases are not properly supported so we fallback to finite differencing
+        @warn "Scalar AD is supported only for AutoForwardDiff and AutoFiniteDiff. \
+               Detected $(autodiff). Falling back to AutoFiniteDiff."
+    end
     return JacobianCache{false}(
-        u, f, uf, u, u, p, nothing, alg, 0, nothing, nothing, nothing)
+        u, f, uf, u, u, p, nothing, alg, 0, autodiff, nothing, nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
@@ -115,7 +125,7 @@ function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
 end
 function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
     cache.njacs += 1
-    J = last(__value_derivative(cache.uf, u))
+    J = last(__value_derivative(cache.autodiff, cache.uf, u))
     return J
 end
 # Compute the Jacobian
@@ -181,10 +191,15 @@ end
     end
 end
 
-@inline function __value_derivative(f::F, x::R) where {F, R}
+@inline function __value_derivative(
+        ::Union{AutoForwardDiff, AutoPolyesterForwardDiff}, f::F, x::R) where {F, R}
     T = typeof(ForwardDiff.Tag(f, R))
     out = f(ForwardDiff.Dual{T}(x, one(x)))
     return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
+end
+
+@inline function __value_derivative(ad::AutoFiniteDiff, f::F, x::R) where {F, R}
+    return f(x), FiniteDiff.finite_difference_derivative(f, x, ad.fdtype)
 end
 
 @inline function __scalar_jacvec(f::F, x::R, v::V) where {F, R, V}

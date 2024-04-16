@@ -62,8 +62,11 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     elseif SciMLBase.has_vjp(f)
         f.vjp
     elseif u isa Number  # Ignore vjp directives
-        if ForwardDiff.can_dual(typeof(u))
-            @closure (v, u, p) -> last(__value_derivative(uf, u)) * v
+        if ForwardDiff.can_dual(typeof(u)) && (vjp_autodiff === nothing ||
+            vjp_autodiff isa AutoForwardDiff ||
+            vjp_autodiff isa AutoPolyesterForwardDiff)
+            # VJP is same as VJP for scalars
+            @closure (v, u, p) -> last(__scalar_jacvec(uf, u, v))
         else
             @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
         end
@@ -92,8 +95,11 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     elseif SciMLBase.has_jvp(f)
         f.jvp
     elseif u isa Number  # Ignore jvp directives
-        if ForwardDiff.can_dual(typeof(u))
-            @closure (v, u, p) -> last(__scalar_jacvec(uf, u, v)) * v
+        # Only ForwardDiff if user didn't override
+        if ForwardDiff.can_dual(typeof(u)) && (jvp_autodiff === nothing ||
+            jvp_autodiff isa AutoForwardDiff ||
+            jvp_autodiff isa AutoPolyesterForwardDiff)
+            @closure (v, u, p) -> last(__scalar_jacvec(uf, u, v))
         else
             @closure (v, u, p) -> FiniteDiff.finite_difference_derivative(uf, u) * v
         end

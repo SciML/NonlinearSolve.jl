@@ -101,7 +101,17 @@ function __internal_init(
         args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
-        grad_op = @closure (u, fu, p) -> last(__value_derivative(Base.Fix2(f, p), u)) * fu
+        autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_forward_mode = true)
+        if !(autodiff isa AutoForwardDiff ||
+             autodiff isa AutoPolyesterForwardDiff ||
+             autodiff isa AutoFiniteDiff)
+            autodiff = AutoFiniteDiff()
+            # Other cases are not properly supported so we fallback to finite differencing
+            @warn "Scalar AD is supported only for AutoForwardDiff and AutoFiniteDiff. \
+                   Detected $(autodiff). Falling back to AutoFiniteDiff."
+        end
+        grad_op = @closure (u, fu, p) -> last(__value_derivative(
+            autodiff, Base.Fix2(f, p), u)) * fu
     else
         if SciMLBase.has_jvp(f)
             if isinplace(prob)
