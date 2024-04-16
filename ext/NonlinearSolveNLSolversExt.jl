@@ -34,7 +34,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
 
         if autodiff_concrete === :forwarddiff
             fj_scalar = @closure (Jx, x) -> begin
-                T = typeof(NonlinearSolve.NonlinearSolveTag())
+                T = typeof(ForwardDiff.Tag(prob.f, eltype(x)))
                 x_dual = ForwardDiff.Dual{T}(x, one(x))
                 y = prob.f(x_dual, prob.p)
                 return ForwardDiff.value(y), ForwardDiff.extract_derivative(T, y)
