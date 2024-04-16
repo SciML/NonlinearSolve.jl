@@ -1,10 +1,11 @@
 """
     HalleyDescent(; linsolve = nothing, precs = DEFAULT_PRECS)
 
-Compute the descent direction as ``J δu = -fu``. For non-square Jacobian problems, this is
-commonly referred to as the Gauss-Newton Descent.
+Improve the NewtonDescent with higher-order terms. First compute the descent direction as ``J a = -fu``.
+Then compute the hessian-vector-vector product and solve for the second-order correction term as ``J b = H a a``.
+Finally, compute the descent direction as ``δu = a * a / (b / 2 - a)``.
 
-See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@ref).
+See also [`NewtonDescent`](@ref).
 """
 @kwdef @concrete struct HalleyDescent <: AbstractDescentAlgorithm
     linsolve = nothing
@@ -22,8 +23,7 @@ end
 
 supports_line_search(::HalleyDescent) = true
 
-@concrete mutable struct HalleyDescentCache{pre_inverted} <:
-                         AbstractDescentCache
+@concrete mutable struct HalleyDescentCache{pre_inverted} <: AbstractDescentCache
     f
     p
     δu
@@ -50,8 +50,7 @@ function __internal_init(
     return HalleyDescentCache{false}(prob.f, prob.p, δu, δus, b, lincache, timer)
 end
 
-function __internal_solve!(
-        cache::HalleyDescentCache{INV}, J, fu, u, idx::Val = Val(1);
+function __internal_solve!(cache::HalleyDescentCache{INV}, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...) where {INV}
     δu = get_du(cache, idx)
     skip_solve && return δu, true, (;)
@@ -68,15 +67,14 @@ function __internal_solve!(
     end
     b = cache.b
     # compute the hessian-vector-vector product
-    hvvp = derivative(x -> cache.f(x, cache.p), u, δu, 2)
+    hvvp = derivative(Base.Fix2(cache.f, cache.p), u, δu, 2)
     # second linear solve, reuse factorization if possible
     if INV
         @bb b = J × vec(hvvp)
     else
         @static_timeit cache.timer "linear solve 2" begin
-            b = cache.lincache(;
-                A = J, b = _vec(hvvp), kwargs..., linu = _vec(b), du = _vec(b),
-                reuse_A_if_factorization = true)
+            b = cache.lincache(; A = J, b = _vec(hvvp), kwargs..., linu = _vec(b),
+                du = _vec(b), reuse_A_if_factorization = true)
             b = _restructure(cache.b, b)
         end
     end
