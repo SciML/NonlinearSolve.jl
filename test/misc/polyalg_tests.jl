@@ -86,13 +86,22 @@ end
     # Uses the `__solve` function
     @test_throws MethodError solve(probN; abstol = 1e-9)
     @test_throws MethodError solve(probN, RobustMultiNewton(); abstol = 1e-9)
-    solver = solve(probN, RobustMultiNewton(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
-    @test SciMLBase.successful_retcode(solver)
-    solver = solve(
+    sol = solve(probN, RobustMultiNewton(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
+    @test SciMLBase.successful_retcode(sol)
+    sol = solve(
         probN, FastShortcutNonlinearPolyalg(; autodiff = AutoFiniteDiff()); abstol = 1e-9)
-    @test SciMLBase.successful_retcode(solver)
-    solver = solve(probN, custom_polyalg; abstol = 1e-9)
-    @test SciMLBase.successful_retcode(solver)
+    @test SciMLBase.successful_retcode(sol)
+    sol = solve(probN, custom_polyalg; abstol = 1e-9)
+    @test SciMLBase.successful_retcode(sol)
+
+    quadratic_f(u::Float64, p) = u^2 - p
+
+    prob = NonlinearProblem(quadratic_f, 2.0, 4.0)
+
+    @test_throws MethodError solve(prob)
+    @test_throws MethodError solve(prob, RobustMultiNewton())
+    sol = solve(prob, RobustMultiNewton(; autodiff = AutoFiniteDiff()))
+    @test SciMLBase.successful_retcode(sol)
 end
 
 @testitem "Simple Scalar Problem #187" begin
