@@ -30,13 +30,6 @@ function evaluate_f!!(f::NonlinearFunction{iip}, fu, u, p) where {iip}
 end
 
 # AutoDiff Selection Functions
-struct NonlinearSolveTag end
-
-function ForwardDiff.checktag(::Type{<:ForwardDiff.Tag{<:NonlinearSolveTag, <:T}},
-        f::F, x::AbstractArray{T}) where {T, F}
-    return true
-end
-
 function get_concrete_forward_ad(
         autodiff::Union{ADTypes.AbstractForwardMode, ADTypes.AbstractFiniteDifferencesMode},
         prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
@@ -62,8 +55,7 @@ function get_concrete_forward_ad(
     ad = if !ForwardDiff.can_dual(eltype(prob.u0)) # Use Finite Differencing
         use_sparse_ad ? AutoSparseFiniteDiff() : AutoFiniteDiff()
     else
-        tag = ForwardDiff.Tag(NonlinearSolveTag(), eltype(prob.u0))
-        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)(; tag)
+        (use_sparse_ad ? AutoSparseForwardDiff : AutoForwardDiff)()
     end
     return ad
 end
