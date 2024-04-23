@@ -1,5 +1,8 @@
 import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinearSolver
 
+const LinearSolveFailureCode = isdefined(ReturnCode, :InternalLinearSolveFailure) ?
+                               ReturnCode.InternalLinearSolveFailure : ReturnCode.Failure
+
 """
     LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
 
@@ -23,6 +26,15 @@ handled:
 
 Returns the solution of the system `u` and stores the updated cache in `cache.lincache`.
 
+#### Special Handling for Rank-deficient Matrix `A`
+
+If we detect a failure in the linear solve (mostly due to using an algorithm that doesn't
+support rank-deficient matrices), we emit a warning and attempt to solve the problem using
+Pivoted QR factorization. This is quite efficient if there are only a few rank-deficient
+that originate in the problem. However, if these are quite frequent for the main nonlinear
+system, then it is recommended to use a different linear solver that supports rank-deficient
+matrices.
+
 #### Keyword Arguments
 
   - `reuse_A_if_factorization`: If `true`, then the factorization of `A` is reused if
@@ -36,6 +48,7 @@ not mutated, we do this by copying over `A` to a preconstructed cache.
 @concrete mutable struct LinearSolverCache <: AbstractLinearSolverCache
     lincache
     linsolve
+    additional_lincache::Any
     A
     b
     precs
@@ -71,7 +84,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
        (linsolve === nothing && A isa SMatrix) ||
        (A isa Diagonal) ||
        (linsolve isa typeof(\))
-        return LinearSolverCache(nothing, nothing, A, b, nothing, 0, 0)
+        return LinearSolverCache(nothing, nothing, nothing, A, b, nothing, 0, 0)
     end
     @bb u_ = copy(u_fixed)
     linprob = LinearProblem(A, b; u0 = u_, kwargs...)
@@ -89,7 +102,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     # Unalias here, we will later use these as caches
     lincache = init(linprob, linsolve; alias_A = false, alias_b = false, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, precs, 0, 0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, precs, 0, 0)
 end
 
 # Direct Linear Solve Case without Caching
@@ -108,6 +121,7 @@ function (cache::LinearSolverCache{Nothing})(;
     end
     return res
 end
+
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(;
         A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
@@ -139,8 +153,38 @@ function (cache::LinearSolverCache)(;
         cache.lincache.Pr = Pr
     end
 
+    # display(A)
+
     linres = solve!(cache.lincache)
+    # @show cache.lincache.cacheval
+    # @show LinearAlgebra.issuccess(cache.lincache.cacheval)
     cache.lincache = linres.cache
+    # Unfortunately LinearSolve.jl doesn't have the most uniform ReturnCode handling
+    if linres.retcode === ReturnCode.Failure
+        # TODO: We need to guard this somehow because this will surely fail if A is on GPU
+        # TODO: or some fancy Matrix type
+        if !(cache.linsolve isa QRFactorization{ColumnNorm})
+            @warn "Potential Rank Deficient Matrix Detected. Attempting to solve using \
+                   Pivoted QR Factorization."
+            @assert (A !== nothing)&&(b !== nothing) "This case is not yet supported. \
+                                                      Please open an issue at \
+                                                      https://github.com/SciML/NonlinearSolve.jl"
+            if cache.additional_lincache === nothing # First time
+                linprob = LinearProblem(A, b; u0 = linres.u)
+                cache.additional_lincache = init(
+                    linprob, QRFactorization(ColumnNorm()); alias_u0 = false,
+                    alias_A = false, alias_b = false, cache.lincache.Pl, cache.lincache.Pr)
+            else
+                cache.additional_lincache.A = A
+                cache.additional_lincache.b = b
+                cache.additional_lincache.Pl = cache.lincache.Pl
+                cache.additional_lincache.Pr = cache.lincache.Pr
+            end
+            linres = solve!(cache.additional_lincache)
+            cache.additional_lincache = linres.cache
+            return linres.u
+        end
+    end
 
     return linres.u
 end

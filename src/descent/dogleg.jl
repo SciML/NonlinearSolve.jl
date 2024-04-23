@@ -81,8 +81,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton, _, _ = __internal_solve!(
-        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
+    δu_newton = __internal_solve!(
+        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...).δu
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
@@ -102,8 +102,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
         δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
-        δu_cauchy, _, _ = __internal_solve!(
-            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
+        δu_cauchy = __internal_solve!(
+            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...).δu
         J_ = INV ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename
