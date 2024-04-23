@@ -65,5 +65,5 @@ function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val 
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end

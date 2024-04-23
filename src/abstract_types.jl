@@ -66,7 +66,7 @@ Abstract Type for all Descent Caches.
 ### `__internal_solve!` specification
 
 ```julia
-δu, success, intermediates = __internal_solve!(
+descent_result = __internal_solve!(
     cache::AbstractDescentCache, J, fu, u, idx::Val; skip_solve::Bool = false, kwargs...)
 ```
 
@@ -81,12 +81,7 @@ Abstract Type for all Descent Caches.
 
 #### Returned values
 
-  - `δu`: the descent direction.
-  - `success`: Certain Descent Algorithms can reject a descent direction for example
-    `GeodesicAcceleration`.
-  - `intermediates`: A named tuple containing intermediates computed during the solve.
-    For example, `GeodesicAcceleration` returns `NamedTuple{(:v, :a)}` containing the
-    "velocity" and "acceleration" terms.
+  - `descent_result`: Result in a [`DescentResult`](@ref).
 
 ### Interface Functions
 

@@ -75,7 +75,7 @@ function __internal_solve!(
         cache::NewtonDescentCache{INV, false}, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...) where {INV}
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb δu = J × vec(fu)
@@ -89,14 +89,14 @@ function __internal_solve!(
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end
 
 function __internal_solve!(
         cache::NewtonDescentCache{false, true}, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...)
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
     if idx === Val(1)
         @bb cache.JᵀJ_cache = transpose(J) × J
     end
@@ -109,5 +109,5 @@ function __internal_solve!(
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end

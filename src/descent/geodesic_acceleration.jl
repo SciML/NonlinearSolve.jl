@@ -105,7 +105,7 @@ end
 function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
-    skip_solve && return δu, true, (; a, v)
+    skip_solve && return DescentResult(; δu, extras = (; a, v))
     v, _, _ = __internal_solve!(
         cache.descent_cache, J, fu, u, Val(2N - 1); skip_solve, kwargs...)
 
@@ -130,5 +130,5 @@ function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{
         cache.last_step_accepted = false
     end
 
-    return δu, cache.last_step_accepted, (; a, v)
+    return DescentResult(; δu, success = cache.last_step_accepted, extras = (; a, v))
 end

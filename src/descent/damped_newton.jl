@@ -135,7 +135,7 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
         u, idx::Val{N} = Val(1); skip_solve::Bool = false,
         new_jacobian::Bool = true, kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
 
     recompute_A = idx === Val(1)
 
@@ -208,7 +208,7 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
 
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end
 
 # Define special concatenation for certain Array combinations

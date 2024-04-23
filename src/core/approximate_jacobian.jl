@@ -282,16 +282,17 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
            hasfield(typeof(cache.trustregion_cache), :trust_region)
-            δu, descent_success, descent_intermediates = __internal_solve!(
+            descent_result = __internal_solve!(
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
                 trust_region = cache.trustregion_cache.trust_region)
         else
-            δu, descent_success, descent_intermediates = __internal_solve!(
+            descent_result = __internal_solve!(
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian)
         end
     end
+    δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-    if descent_success
+    if descent_result.success
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
                 needs_reset, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)

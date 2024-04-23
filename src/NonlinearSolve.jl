@@ -50,6 +50,7 @@ include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
+include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")

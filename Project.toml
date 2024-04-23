@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.10.1"
+version = "3.11.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -76,7 +76,7 @@ LazyArrays = "1.8.2"
 LeastSquaresOptim = "0.8.5"
 LineSearches = "7.2"
 LinearAlgebra = "1.10"
-LinearSolve = "2.21"
+LinearSolve = "2.29"
 MINPACK = "1.2"
 MaybeInplace = "0.1.1"
 NLSolvers = "0.5"
