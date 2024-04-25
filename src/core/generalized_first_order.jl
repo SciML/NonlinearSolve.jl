@@ -202,8 +202,8 @@ function SciMLBase.__init(
 
         return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
             fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times,
-            timer, 0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs)
+            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times, timer,
+            0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs)
     end
 end
 

@@ -124,9 +124,9 @@ end
 
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(;
-        A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-        weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, 
-        verbose = true, kwargs...)
+        A = nothing, b = nothing, linu = nothing, du = nothing,
+        p = nothing, weight = nothing, cachedata = nothing,
+        reuse_A_if_factorization = false, verbose = true, kwargs...)
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
