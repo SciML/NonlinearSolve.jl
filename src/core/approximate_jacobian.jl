@@ -114,6 +114,7 @@ end
     retcode::ReturnCode.T
     force_stop::Bool
     force_reinit::Bool
+    kwargs
 end
 
 store_inverse_jacobian(::ApproximateJacobianSolveCache{INV}) where {INV} = INV
@@ -214,7 +215,7 @@ function SciMLBase.__init(
             descent_cache, linesearch_cache, trustregion_cache,
             update_rule_cache, reinit_rule_cache, inv_workspace, 0, 0, 0,
             alg.max_resets, maxiters, maxtime, alg.max_shrink_times, 0, timer,
-            0.0, termination_cache, trace, ReturnCode.Default, false, false)
+            0.0, termination_cache, trace, ReturnCode.Default, false, false, kwargs)
     end
 end
 
@@ -284,10 +285,10 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             descent_result = __internal_solve!(
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
-                trust_region = cache.trustregion_cache.trust_region)
+                trust_region = cache.trustregion_cache.trust_region, cache.kwargs...)
         else
             descent_result = __internal_solve!(
-                cache.descent_cache, J, cache.fu, cache.u; new_jacobian)
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...)
         end
     end
     δu, descent_intermediates = descent_result.δu, descent_result.extras

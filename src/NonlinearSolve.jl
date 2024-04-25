@@ -136,10 +136,10 @@ include("default.jl")
 
     @compile_workload begin
         for prob in probs_nls, alg in nls_algs
-            solve(prob, alg; abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2, verbose = false)
         end
         for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg; abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end
 end

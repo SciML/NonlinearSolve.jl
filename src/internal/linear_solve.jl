@@ -125,7 +125,8 @@ end
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(;
         A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-        weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
+        weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, 
+        verbose = true, kwargs...)
     cache.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
@@ -164,8 +165,10 @@ function (cache::LinearSolverCache)(;
         # TODO: We need to guard this somehow because this will surely fail if A is on GPU
         # TODO: or some fancy Matrix type
         if !(cache.linsolve isa QRFactorization{ColumnNorm})
-            @warn "Potential Rank Deficient Matrix Detected. Attempting to solve using \
-                   Pivoted QR Factorization."
+            if verbose
+                @warn "Potential Rank Deficient Matrix Detected. Attempting to solve using \
+                       Pivoted QR Factorization."
+            end
             @assert (A !== nothing)&&(b !== nothing) "This case is not yet supported. \
                                                       Please open an issue at \
                                                       https://github.com/SciML/NonlinearSolve.jl"

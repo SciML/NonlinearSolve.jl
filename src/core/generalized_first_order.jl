@@ -111,6 +111,7 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     trace
     retcode::ReturnCode.T
     force_stop::Bool
+    kwargs
 end
 
 SymbolicIndexingInterface.state_values(cache::GeneralizedFirstOrderAlgorithmCache) = cache.u
@@ -202,7 +203,7 @@ function SciMLBase.__init(
         return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
             fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
             trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times,
-            timer, 0.0, true, termination_cache, trace, ReturnCode.Default, false)
+            timer, 0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs)
     end
 end
 
@@ -223,10 +224,10 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
            hasfield(typeof(cache.trustregion_cache), :trust_region)
             descent_result = __internal_solve!(
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
-                trust_region = cache.trustregion_cache.trust_region)
+                trust_region = cache.trustregion_cache.trust_region, cache.kwargs...)
         else
             descent_result = __internal_solve!(
-                cache.descent_cache, J, cache.fu, cache.u; new_jacobian)
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...)
         end
     end
     δu, descent_intermediates = descent_result.δu, descent_result.extras
