@@ -200,10 +200,14 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
     end
 
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(;
+        linres = cache.lincache(;
             A, b, reuse_A_if_factorization = !new_jacobian && !recompute_A,
             kwargs..., linu = _vec(δu))
-        δu = _restructure(get_du(cache, idx), δu)
+        δu = _restructure(get_du(cache, idx), linres.u)
+        if !linres.success
+            set_du!(cache, δu, idx)
+            return DescentResult(; δu, success = false, linsolve_success = false)
+        end
     end
 
     @bb @. δu *= -1

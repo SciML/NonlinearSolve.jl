@@ -291,6 +291,27 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...)
         end
     end
+
+    if !descent_result.linsolve_success
+        if new_jacobian && cache.steps_since_last_reset == 0
+            # Extremely pathological case. Jacobian was just reset and linear solve
+            # failed. Should ideally never happen in practice unless true jacobian init
+            # is used.
+            cache.retcode = LinearSolveFailureCode
+            cache.force_stop = true
+            return
+        else
+            # Force a reinit because the problem is currently un-solvable
+            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
+                @warn "Linear Solve Failed but Jacobian Information is not current. \
+                       Retrying with reinitialized Approximate Jacobian."
+            end
+            cache.force_reinit = true
+            __step!(cache; recompute_jacobian = true)
+            return
+        end
+    end
+
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
     if descent_result.success

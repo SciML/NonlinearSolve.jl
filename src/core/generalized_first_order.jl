@@ -230,6 +230,27 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...)
         end
     end
+
+    if !descent_result.linsolve_success
+        if new_jacobian
+            # Jacobian Information is current and linear solve failed terminate the solve
+            cache.retcode = LinearSolveFailureCode
+            cache.force_stop = true
+            return
+        else
+            # Jacobian Information is not current and linear solve failed, recompute
+            # Jacobian
+            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
+                @warn "Linear Solve Failed but Jacobian Information is not current. \
+                       Retrying with updated Jacobian."
+            end
+            # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
+            cache.make_new_jacobian = true
+            __step!(cache; recompute_jacobian = true, kwargs...)
+            return
+        end
+    end
+
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
     if descent_result.success

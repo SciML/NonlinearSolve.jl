@@ -81,10 +81,14 @@ function __internal_solve!(
         @bb δu = J × vec(fu)
     else
         @static_timeit cache.timer "linear solve" begin
-            δu = cache.lincache(;
+            linres = cache.lincache(;
                 A = J, b = _vec(fu), kwargs..., linu = _vec(δu), du = _vec(δu),
                 reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
-            δu = _restructure(get_du(cache, idx), δu)
+            δu = _restructure(get_du(cache, idx), linres.u)
+            if !linres.success
+                set_du!(cache, δu, idx)
+                return DescentResult(; δu, success = false, linsolve_success = false)
+            end
         end
     end
     @bb @. δu *= -1
@@ -102,10 +106,15 @@ function __internal_solve!(
     end
     @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
+        linres = cache.lincache(;
+            A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
             kwargs..., linu = _vec(δu), du = _vec(δu),
             reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
-        δu = _restructure(get_du(cache, idx), δu)
+        δu = _restructure(get_du(cache, idx), linres.u)
+        if !linres.success
+            set_du!(cache, δu, idx)
+            return DescentResult(; δu, success = false, linsolve_success = false)
+        end
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)

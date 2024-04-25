@@ -105,6 +105,11 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, precs, 0, 0)
 end
 
+@kwdef @concrete struct LinearSolveResult
+    u
+    success::Bool = true
+end
+
 # Direct Linear Solve Case without Caching
 function (cache::LinearSolverCache{Nothing})(;
         A = nothing, b = nothing, linu = nothing, kwargs...)
@@ -119,7 +124,7 @@ function (cache::LinearSolverCache{Nothing})(;
     else
         res = cache.A \ cache.b
     end
-    return res
+    return LinearSolveResult(; u = res)
 end
 
 # Use LinearSolve.jl
@@ -154,11 +159,7 @@ function (cache::LinearSolverCache)(;
         cache.lincache.Pr = Pr
     end
 
-    # display(A)
-
     linres = solve!(cache.lincache)
-    # @show cache.lincache.cacheval
-    # @show LinearAlgebra.issuccess(cache.lincache.cacheval)
     cache.lincache = linres.cache
     # Unfortunately LinearSolve.jl doesn't have the most uniform ReturnCode handling
     if linres.retcode === ReturnCode.Failure
@@ -185,11 +186,14 @@ function (cache::LinearSolverCache)(;
             end
             linres = solve!(cache.additional_lincache)
             cache.additional_lincache = linres.cache
-            return linres.u
+            linres.retcode === ReturnCode.Failure &&
+                return LinearSolveResult(; u = linres.u, success = false)
+            return LinearSolveResult(; u = linres.u)
         end
+        return LinearSolveResult(; u = linres.u, success = false)
     end
 
-    return linres.u
+    return LinearSolveResult(; u = linres.u)
 end
 
 @inline __update_A!(cache::LinearSolverCache, ::Nothing, reuse) = cache
