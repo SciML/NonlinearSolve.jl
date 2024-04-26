@@ -163,9 +163,11 @@ function (cache::LinearSolverCache)(;
     cache.lincache = linres.cache
     # Unfortunately LinearSolve.jl doesn't have the most uniform ReturnCode handling
     if linres.retcode === ReturnCode.Failure
-        # TODO: We need to guard this somehow because this will surely fail if A is on GPU
-        # TODO: or some fancy Matrix type
-        if !(cache.linsolve isa QRFactorization{ColumnNorm})
+        structured_mat = ArrayInterface.isstructured(cache.lincache.A)
+        is_gpuarray = ArrayInterface.device(cache.lincache.A) isa ArrayInterface.GPU
+        if !(cache.linsolve isa QRFactorization{ColumnNorm}) &&
+           !is_gpuarray &&
+           !structured_mat
             if verbose
                 @warn "Potential Rank Deficient Matrix Detected. Attempting to solve using \
                        Pivoted QR Factorization."
@@ -189,6 +191,20 @@ function (cache::LinearSolverCache)(;
             linres.retcode === ReturnCode.Failure &&
                 return LinearSolveResult(; u = linres.u, success = false)
             return LinearSolveResult(; u = linres.u)
+        elseif !(cache.linsolve isa QRFactorization{ColumnNorm})
+            if verbose
+                if structured_mat
+                    @warn "Potential Rank Deficient Matrix Detected. But Matrix is \
+                           Structured. Currently, we don't attempt to solve Rank Deficient \
+                           Structured Matrices. Please open an issue at \
+                           https://github.com/SciML/NonlinearSolve.jl"
+                elseif is_gpuarray
+                    @warn "Potential Rank Deficient Matrix Detected. But Matrix is on GPU. \
+                           Currently, we don't attempt to solve Rank Deficient GPU \
+                           Matrices. Please open an issue at \
+                           https://github.com/SciML/NonlinearSolve.jl"
+                end
+            end
         end
         return LinearSolveResult(; u = linres.u, success = false)
     end

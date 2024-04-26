@@ -12,8 +12,8 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
           LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf, SciMLBase,
           SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
-    import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing,
-                           ismutable
+    import ArrayInterface: ArrayInterface, undefmatrix, can_setindex, restructure,
+                           fast_scalar_indexing, ismutable
     import DiffEqBase: AbstractNonlinearTerminationMode,
                        AbstractSafeNonlinearTerminationMode,
                        AbstractSafeBestNonlinearTerminationMode,
