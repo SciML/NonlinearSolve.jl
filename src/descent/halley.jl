@@ -29,6 +29,7 @@ supports_line_search(::HalleyDescent) = true
     δu
     δus
     b
+    fu
     lincache
     timer
 end
@@ -41,13 +42,14 @@ function __internal_init(
         reltol = nothing, timer = get_timer_output(), kwargs...) where {INV, N}
     @bb δu = similar(u)
     @bb b = similar(u)
+    @bb fu = similar(fu)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
     INV && return HalleyDescentCache{true}(prob.f, prob.p, δu, δus, b, nothing, timer)
     lincache = LinearSolverCache(
         alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol, linsolve_kwargs...)
-    return HalleyDescentCache{false}(prob.f, prob.p, δu, δus, b, lincache, timer)
+    return HalleyDescentCache{false}(prob.f, prob.p, δu, δus, b, fu, lincache, timer)
 end
 
 function __internal_solve!(cache::HalleyDescentCache{INV}, J, fu, u, idx::Val = Val(1);
@@ -67,7 +69,7 @@ function __internal_solve!(cache::HalleyDescentCache{INV}, J, fu, u, idx::Val = 
     end
     b = cache.b
     # compute the hessian-vector-vector product
-    hvvp = derivative(Base.Fix2(cache.f, cache.p), u, δu, 2)
+    hvvp = evaluate_hvvp(cache, cache.f, cache.p, u, δu)
     # second linear solve, reuse factorization if possible
     if INV
         @bb b = J × vec(hvvp)
@@ -82,4 +84,15 @@ function __internal_solve!(cache::HalleyDescentCache{INV}, J, fu, u, idx::Val = 
     set_du!(cache, δu, idx)
     cache.b = b
     return δu, true, (;)
+end
+
+function evaluate_hvvp(
+        cache::HalleyDescentCache, f::NonlinearFunction{iip}, p, u, δu) where {iip}
+    if iip
+        binary_f = (y, x) -> f(y, x, p)
+        derivative(binary_f, cache.fu, u, δu, Val{3}())
+    else
+        unary_f = Base.Fix2(f, p)
+        derivative(unary_f, u, δu, Val{3}())
+    end
 end
