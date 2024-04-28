@@ -36,7 +36,7 @@ SimpleNonlinearSolveTrackerExt = "Tracker"
 SimpleNonlinearSolveZygoteExt = "Zygote"
 
 [compat]
-ADTypes = "0.2.6"
+ADTypes = "0.2.6, 1"
 AllocCheck = "0.1.1"
 Aqua = "0.8"
 ArrayInterface = "7.8"
