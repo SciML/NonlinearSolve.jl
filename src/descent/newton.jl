@@ -75,39 +75,48 @@ function __internal_solve!(
         cache::NewtonDescentCache{INV, false}, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...) where {INV}
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
     if INV
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(true)`."
         @bb δu = J × vec(fu)
     else
         @static_timeit cache.timer "linear solve" begin
-            δu = cache.lincache(;
+            linres = cache.lincache(;
                 A = J, b = _vec(fu), kwargs..., linu = _vec(δu), du = _vec(δu),
                 reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
-            δu = _restructure(get_du(cache, idx), δu)
+            δu = _restructure(get_du(cache, idx), linres.u)
+            if !linres.success
+                set_du!(cache, δu, idx)
+                return DescentResult(; δu, success = false, linsolve_success = false)
+            end
         end
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end
 
 function __internal_solve!(
         cache::NewtonDescentCache{false, true}, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...)
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
     if idx === Val(1)
         @bb cache.JᵀJ_cache = transpose(J) × J
     end
     @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(; A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
+        linres = cache.lincache(;
+            A = __maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
             kwargs..., linu = _vec(δu), du = _vec(δu),
             reuse_A_if_factorization = !new_jacobian || (idx !== Val(1)))
-        δu = _restructure(get_du(cache, idx), δu)
+        δu = _restructure(get_du(cache, idx), linres.u)
+        if !linres.success
+            set_du!(cache, δu, idx)
+            return DescentResult(; δu, success = false, linsolve_success = false)
+        end
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end

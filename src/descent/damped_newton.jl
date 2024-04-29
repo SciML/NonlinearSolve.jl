@@ -135,7 +135,7 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
         u, idx::Val{N} = Val(1); skip_solve::Bool = false,
         new_jacobian::Bool = true, kwargs...) where {INV, N, mode}
     δu = get_du(cache, idx)
-    skip_solve && return δu, true, (;)
+    skip_solve && return DescentResult(; δu)
 
     recompute_A = idx === Val(1)
 
@@ -200,15 +200,19 @@ function __internal_solve!(cache::DampedNewtonDescentCache{INV, mode}, J, fu,
     end
 
     @static_timeit cache.timer "linear solve" begin
-        δu = cache.lincache(;
+        linres = cache.lincache(;
             A, b, reuse_A_if_factorization = !new_jacobian && !recompute_A,
             kwargs..., linu = _vec(δu))
-        δu = _restructure(get_du(cache, idx), δu)
+        δu = _restructure(get_du(cache, idx), linres.u)
+        if !linres.success
+            set_du!(cache, δu, idx)
+            return DescentResult(; δu, success = false, linsolve_success = false)
+        end
     end
 
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end
 
 # Define special concatenation for certain Array combinations

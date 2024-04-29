@@ -81,14 +81,14 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
                                     want to use a Trust Region."
     δu = get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton, _, _ = __internal_solve!(
-        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...)
+    δu_newton = __internal_solve!(
+        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...).δu
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
         @bb copyto!(δu, δu_newton)
         set_du!(cache, δu, idx)
-        return δu, true, (; δuJᵀJδu = T(NaN))
+        return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
     end
 
     # Take intersection of steepest descent direction and trust region if Cauchy point lies
@@ -102,8 +102,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
         δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
     else
-        δu_cauchy, _, _ = __internal_solve!(
-            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...)
+        δu_cauchy = __internal_solve!(
+            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...).δu
         J_ = INV ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename
@@ -115,7 +115,7 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         λ = trust_region / l_grad
         @bb @. δu = λ * δu_cauchy
         set_du!(cache, δu, idx)
-        return δu, true, (; δuJᵀJδu = λ^2 * δuJᵀJδu)
+        return DescentResult(; δu, extras = (; δuJᵀJδu = λ^2 * δuJᵀJδu))
     end
 
     # FIXME: For anything other than 2-norm a quadratic root will give incorrect results
@@ -133,5 +133,5 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
 
     @bb @. δu = cache.δu_cache_1 + τ * cache.δu_cache_2
     set_du!(cache, δu, idx)
-    return δu, true, (; δuJᵀJδu = T(NaN))
+    return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
 end

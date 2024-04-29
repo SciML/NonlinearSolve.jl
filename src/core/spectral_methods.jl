@@ -74,6 +74,7 @@ concrete_jac(::GeneralizedDFSane) = nothing
     trace
     retcode::ReturnCode.T
     force_stop::Bool
+    kwargs
 end
 
 function __reinit_internal!(
@@ -150,7 +151,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         return GeneralizedDFSaneCache{isinplace(prob), maxtime !== nothing}(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob, σ_n, T(alg.σ_min),
             T(alg.σ_max), linesearch_cache, 0, 0, maxiters, maxtime,
-            timer, 0.0, tc_cache, trace, ReturnCode.Default, false)
+            timer, 0.0, tc_cache, trace, ReturnCode.Default, false, kwargs)
     end
 end
 

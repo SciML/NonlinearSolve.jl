@@ -54,10 +54,14 @@ function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val 
     if INV
         A = J === nothing ? nothing : transpose(J)
         @static_timeit cache.timer "linear solve" begin
-            δu = cache.lincache(;
+            linres = cache.lincache(;
                 A, b = _vec(fu), kwargs..., linu = _vec(δu), du = _vec(δu),
                 reuse_A_if_factorization = !new_jacobian || idx !== Val(1))
-            δu = _restructure(get_du(cache, idx), δu)
+            δu = _restructure(get_du(cache, idx), linres.u)
+            if !linres.success
+                set_du!(cache, δu, idx)
+                return DescentResult(; δu, success = false, linsolve_success = false)
+            end
         end
     else
         @assert J!==nothing "`J` must be provided when `pre_inverted = Val(false)`."
@@ -65,5 +69,5 @@ function __internal_solve!(cache::SteepestDescentCache{INV}, J, fu, u, idx::Val 
     end
     @bb @. δu *= -1
     set_du!(cache, δu, idx)
-    return δu, true, (;)
+    return DescentResult(; δu)
 end

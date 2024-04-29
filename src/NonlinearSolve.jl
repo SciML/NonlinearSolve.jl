@@ -12,8 +12,8 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
           LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf, SciMLBase,
           SimpleNonlinearSolve, SparseArrays, SparseDiffTools
 
-    import ArrayInterface: undefmatrix, can_setindex, restructure, fast_scalar_indexing,
-                           ismutable
+    import ArrayInterface: ArrayInterface, undefmatrix, can_setindex, restructure,
+                           fast_scalar_indexing, ismutable
     import DiffEqBase: AbstractNonlinearTerminationMode,
                        AbstractSafeNonlinearTerminationMode,
                        AbstractSafeBestNonlinearTerminationMode,
@@ -50,6 +50,7 @@ include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
+include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/dogleg.jl")
@@ -135,10 +136,10 @@ include("default.jl")
 
     @compile_workload begin
         for prob in probs_nls, alg in nls_algs
-            solve(prob, alg; abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2, verbose = false)
         end
         for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg; abstol = 1e-2)
+            solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end
 end
