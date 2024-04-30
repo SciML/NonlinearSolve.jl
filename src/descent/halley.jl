@@ -89,7 +89,7 @@ end
 function evaluate_hvvp(
         cache::HalleyDescentCache, f::NonlinearFunction{iip}, p, u, δu) where {iip}
     if iip
-        binary_f = (y, x) -> f(y, x, p)
+        binary_f = @closure (y, x) -> f(y, x, p)
         derivative(binary_f, cache.fu, u, δu, Val{3}())
     else
         unary_f = Base.Fix2(f, p)
