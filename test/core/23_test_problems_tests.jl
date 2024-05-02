@@ -59,6 +59,15 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
+@testitem "Halley" setup=[RobustnessTesting] begin
+    alg_ops = (Halley(),)
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    broken_tests[alg_ops[1]] = [1, 5, 8, 15, 16]
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
+
 @testitem "TrustRegion" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Simple),
         TrustRegion(; radius_update_scheme = RadiusUpdateSchemes.Fan),
