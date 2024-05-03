@@ -14,7 +14,7 @@ Ensure the following packages are installed:
 ## Writing the Kernel
 Define a kernel using <b>'@kernel'</b> from <b>'KernelAbstractions.jl'</b> to solve a single initial condition.
 
-```@example kenel
+```@example kernel
 using NonlinearSolve, StaticArrays
 using KernelAbstractions, CUDA, AMDGPU
 
