@@ -1,10 +1,10 @@
-# Using SimpleNonlinearSolve with KernelAbstractions.jl
+# Using Nonlinear Solvers inside GPU Kernels
 
 We'll demonstrate how to leverage [SimpleNonlinearSolve.jl](https://github.com/SciML/SimpleNonlinearSolve.jl) inside kernels using [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). This allows for efficient solving of very small nonlinear systems on GPUs by avoiding allocations and dynamic dispatch overhead. We'll use the generalized Rosenbrock problem as an example and solve it for multiple initial conditions on various GPU architectures.
 
 ### Prerequisites
 Ensure the following packages are installed:
-- Julia (v1.6 or later)
+- Julia (v1.10 or later)
 - NonlinearSolve.jl
 - StaticArrays.jl
 - KernelAbstractions.jl
@@ -70,13 +70,13 @@ Solve the problem using **SimpleNonlinearSolve.jl** on different GPU architectur
 
 ```@example kernel
 # Threaded CPU
-vectorized_solve(prob, SimpleNewtonRaphson(); backend = CPU())
+# vectorized_solve(prob, SimpleNewtonRaphson(); backend = CPU())
 
 # AMD ROCM GPU
-vectorized_solve(prob, SimpleNewtonRaphson(); backend = ROCBackend())
+# vectorized_solve(prob, SimpleNewtonRaphson(); backend = ROCBackend())
 
 # NVIDIA CUDA GPU
-vectorized_solve(prob, SimpleNewtonRaphson(); backend = CUDABackend())
+# vectorized_solve(prob, SimpleNewtonRaphson(); backend = CUDABackend())
 ```
 
 ## Conclusion
