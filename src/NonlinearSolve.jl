@@ -90,11 +90,10 @@ include("default.jl")
 
 @setup_workload begin
     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
         (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
     probs_nls = NonlinearProblem[]
-    for T in (Float32, Float64), (fn, u0) in nlfuncs
-        push!(probs_nls, NonlinearProblem(fn, T.(u0), T(2)))
+    for (fn, u0) in nlfuncs
+        push!(probs_nls, NonlinearProblem(fn, u0, 2.0))
     end
 
     nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
@@ -113,20 +112,6 @@ include("default.jl")
             [0.1, 0.1]))
     for (fn, u0) in nlfuncs
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-    end
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), Float32[0.1, 0.0]),
-        (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
-            Float32[0.1, 0.1]),
-        (
-            NonlinearFunction{true}(
-                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(Float32, 1)),
-            Float32[0.1, 0.0]),
-        (
-            NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(Float32, 4)),
-            Float32[0.1, 0.1]))
-    for (fn, u0) in nlfuncs
-        push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0f0))
     end
 
     nlls_algs = (LevenbergMarquardt(), GaussNewton(), TrustRegion(),
