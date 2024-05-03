@@ -12,7 +12,7 @@ Ensure the following packages are installed:
 - AMDGPU.jl (for AMD GPUs)
 
 ## Writing the Kernel
-Define a kernel using <b>'@kernel'</b> from <b>'KernelAbstractions.jl'</b> to solve a single initial condition.
+Define a kernel using **'@kernel'** from **'KernelAbstractions.jl'** to solve a single initial condition.
 
 ```@example kernel
 using NonlinearSolve, StaticArrays
@@ -66,7 +66,7 @@ prob = NonlinearProblem(generalized_rosenbrock, u0)
 ```
 
 ## Solve the Problem
-Solve the problem using <b>SimpleNonlinearSolve.jl</b> on different GPU architectures.
+Solve the problem using **SimpleNonlinearSolve.jl** on different GPU architectures.
 
 ```@example kernel
 # Threaded CPU
@@ -80,4 +80,4 @@ vectorized_solve(prob, SimpleNewtonRaphson(); backend = CUDABackend())
 ```
 
 ## Conclusion
-This tutorial illustrated how to utilize <b>SimpleNonlinearSolve.jl</b> inside kernels using <b>KernelAbstractions.jl</b>, enabling efficient solving of small nonlinear systems on GPUs for applications requiring parallel processing and high performance.
+This tutorial illustrated how to utilize **SimpleNonlinearSolve.jl** inside kernels using **KernelAbstractions.jl**, enabling efficient solving of small nonlinear systems on GPUs for applications requiring parallel processing and high performance.
