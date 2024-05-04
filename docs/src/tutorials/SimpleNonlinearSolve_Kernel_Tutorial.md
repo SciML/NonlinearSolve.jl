@@ -70,7 +70,7 @@ Solve the problem using **SimpleNonlinearSolve.jl** on different GPU architectur
 
 ```@example kernel
 # Threaded CPU
-# vectorized_solve(prob, SimpleNewtonRaphson(); backend = CPU())
+vectorized_solve(prob, SimpleNewtonRaphson(); backend = CPU())
 
 # AMD ROCM GPU
 # vectorized_solve(prob, SimpleNewtonRaphson(); backend = ROCBackend())
