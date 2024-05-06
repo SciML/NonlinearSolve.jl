@@ -36,7 +36,7 @@ end
 
 @reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
 
-const AbstractSparseADType = Union{ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
+const AbstractSparseADType = ADTypes.AutoSparse
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
