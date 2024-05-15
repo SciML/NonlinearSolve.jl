@@ -61,7 +61,7 @@ function get_concrete_reverse_ad(
     if !isa(ADTypes.mode(autodiff), ADTypes.ReverseMode) && check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a `ReverseMode`. Use with caution." maxlog=1
     end
-    if autodiff <: Union{AutoZygote, AutoSparse{<:AutoZygote}} && isinplace(prob)
+    if autodiff isa Union{AutoZygote, AutoSparse{<:AutoZygote}} && isinplace(prob)
         @warn "Attempting to use Zygote.jl for inplace problems. Switching to FiniteDiff. \
                Sparsity even if present will be ignored for correctness purposes. Set \
                the reverse ad option to `nothing` to automatically select the best option \
