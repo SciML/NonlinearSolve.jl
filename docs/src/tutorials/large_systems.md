@@ -128,7 +128,7 @@ include:
 In the next section, we will discuss how to declare a sparse Jacobian and how to use
 [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl), to compute exact sparse
 jacobians. This is triggered if you pass in a sparse autodiff type such as
-`AutoSparseForwardDiff()`. If `Symbolics.jl` is loaded, then the default changes to
+`AutoSparse(AutoForwardDiff())`. If `Symbolics.jl` is loaded, then the default changes to
 Symbolic Sparsity Detection. See the manual entry on
 [Sparsity Detection](@ref sparsity-detection) for more details on the default.
 
@@ -137,13 +137,13 @@ using BenchmarkTools # for @btime
 
 @btime solve(prob_brusselator_2d, NewtonRaphson());
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(; autodiff = AutoSparseForwardDiff(; chunksize = 32)));
+    NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32))));
 @btime solve(prob_brusselator_2d,
     NewtonRaphson(;
-        autodiff = AutoSparseForwardDiff(; chunksize = 32), linsolve = KLUFactorization()));
+        autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)), linsolve = KLUFactorization()));
 @btime solve(prob_brusselator_2d,
     NewtonRaphson(;
-        autodiff = AutoSparseForwardDiff(; chunksize = 32), linsolve = KrylovJL_GMRES()));
+        autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)), linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
 

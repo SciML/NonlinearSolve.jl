@@ -57,7 +57,7 @@ NonlinearSolveSymbolicsExt = "Symbolics"
 NonlinearSolveZygoteExt = "Zygote"
 
 [compat]
-ADTypes = "0.2.6"
+ADTypes = "1.1.0"
 Aqua = "0.8"
 ArrayInterface = "7.9"
 BandedMatrices = "1.5"

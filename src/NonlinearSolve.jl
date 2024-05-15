@@ -27,7 +27,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
     import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                       AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
-    import SparseDiffTools: AbstractSparsityDetection, AutoSparseEnzyme
+    import SparseDiffTools: AbstractSparsityDetection
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
     import SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                       symbolic_container, parameter_values, state_values,
@@ -35,9 +35,6 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 end
 
 @reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
-
-const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
-    ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false

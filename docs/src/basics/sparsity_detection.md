@@ -59,9 +59,9 @@ refer to the documentation there for more details.
 If you constructed a Nonlinear Solver with a sparse AD type, for example
 
 ```julia
-NewtonRaphson(; autodiff = AutoSparseForwardDiff())
+NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff()))
 # OR
-TrustRegion(; autodiff = AutoSparseZygote())
+TrustRegion(; autodiff = AutoSparse(AutoZygote()))
 ```
 
 then NonlinearSolve will automatically perform matrix coloring and use sparse

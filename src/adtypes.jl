@@ -23,17 +23,6 @@ error into the derivative estimates.
 AutoFiniteDiff
 
 """
-    AutoSparseFiniteDiff()
-
-Sparse Version of [`AutoFiniteDiff`](@ref) that uses
-[FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) and the column color vector of
-the Jacobian Matrix to efficiently compute the Sparse Jacobian.
-
-  - Supports both inplace and out-of-place functions
-"""
-AutoSparseFiniteDiff
-
-"""
     AutoForwardDiff(; chunksize = nothing, tag = nothing)
     AutoForwardDiff{chunksize, tagType}(tag::tagType)
 
@@ -55,27 +44,6 @@ For type-stability of internal operations, a positive `chunksize` must be provid
   - `tag`: Used to avoid perturbation confusion. If set to `nothing`, we use a custom tag.
 """
 AutoForwardDiff
-
-"""
-    AutoSparseForwardDiff(; chunksize = nothing, tag = nothing)
-    AutoSparseForwardDiff{chunksize, tagType}(tag::tagType)
-
-Sparse Version of [`AutoForwardDiff`](@ref) that uses
-[ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and the column color vector of
-the Jacobian Matrix to efficiently compute the Sparse Jacobian.
-
-  - Supports both inplace and out-of-place functions
-
-For type-stability of internal operations, a positive `chunksize` must be provided.
-
-### Keyword Arguments
-
-  - `chunksize`: Count of dual numbers that can be propagated simultaneously. Setting this
-    number to a high value will lead to slowdowns. Use
-    [`NonlinearSolve.pickchunksize`](@ref) to get a proper value.
-  - `tag`: Used to avoid perturbation confusion. If set to `nothing`, we use a custom tag.
-"""
-AutoSparseForwardDiff
 
 """
     AutoPolyesterForwardDiff(; chunksize = nothing)
@@ -109,20 +77,6 @@ jacobians.
 AutoZygote
 
 """
-    AutoSparseZygote()
-
-Sparse version of [`AutoZygote`](@ref) that uses
-[`Zygote.jl`](https://github.com/FluxML/Zygote.jl) and the row color vector of
-the Jacobian Matrix to efficiently compute the Sparse Jacobian.
-
-  - Supports only out-of-place functions
-
-This is efficient only for long jacobians or if the maximum value of the row color vector is
-significantly lower than the maximum value of the column color vector.
-"""
-AutoSparseZygote
-
-"""
     AutoEnzyme()
 
 Uses reverse mode [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl). This is currently
@@ -134,7 +88,7 @@ and VJP support is currently not implemented.
 AutoEnzyme
 
 """
-    AutoSparseEnzyme()
+    AutoSparse(AutoEnzyme())
 
 Sparse version of [`AutoEnzyme`](@ref) that uses
 [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) and the row color vector of
@@ -144,5 +98,42 @@ the Jacobian Matrix to efficiently compute the Sparse Jacobian.
 
 This is efficient only for long jacobians or if the maximum value of the row color vector is
 significantly lower than the maximum value of the column color vector.
+
+    AutoSparse(AutoFiniteDiff())
+
+Sparse Version of [`AutoFiniteDiff`](@ref) that uses
+[FiniteDiff.jl](https://github.com/JuliaDiff/FiniteDiff.jl) and the column color vector of
+the Jacobian Matrix to efficiently compute the Sparse Jacobian.
+
+  - Supports both inplace and out-of-place functions
+
+    AutoSparse(AutoForwardDiff(; chunksize = nothing, tag = nothing))
+    AutoSparse(AutoForwardDiff{chunksize, tagType}(tag::tagType))
+
+Sparse Version of [`AutoForwardDiff`](@ref) that uses
+[ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and the column color vector of
+the Jacobian Matrix to efficiently compute the Sparse Jacobian.
+
+- Supports both inplace and out-of-place functions
+
+For type-stability of internal operations, a positive `chunksize` must be provided.
+
+### Keyword Arguments
+
+- `chunksize`: Count of dual numbers that can be propagated simultaneously. Setting this
+number to a high value will lead to slowdowns. Use
+[`NonlinearSolve.pickchunksize`](@ref) to get a proper value.
+- `tag`: Used to avoid perturbation confusion. If set to `nothing`, we use a custom tag.
+
+    AutoSparse(AutoZygote())
+
+Sparse version of [`AutoZygote`](@ref) that uses
+[`Zygote.jl`](https://github.com/FluxML/Zygote.jl) and the row color vector of
+the Jacobian Matrix to efficiently compute the Sparse Jacobian.
+
+  - Supports only out-of-place functions
+
+This is efficient only for long jacobians or if the maximum value of the row color vector is
+significantly lower than the maximum value of the column color vector.
 """
-AutoSparseEnzyme
+AutoSparse

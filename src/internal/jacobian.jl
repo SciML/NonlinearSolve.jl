@@ -154,7 +154,7 @@ end
 
 # Sparsity Detection Choices
 @inline __sparsity_detection_alg(_, _) = NoSparsityDetection()
-@inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AbstractSparseADType)
+@inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             if is_extension_loaded(Val(:Symbolics))
@@ -185,7 +185,7 @@ end
 
     if SciMLBase.has_colorvec(f)
         return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
-            partition_by_rows = ad isa ADTypes.AbstractSparseReverseMode)
+            partition_by_rows = (ad isa AutoSparse && ADTypes.mode(ad) isa ADTypes.ReverseMode))
     else
         return JacPrototypeSparsityDetection(; jac_prototype)
     end
