@@ -184,8 +184,10 @@ end
     end
 
     if SciMLBase.has_colorvec(f)
-        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
-            partition_by_rows = (ad isa AutoSparse && ADTypes.mode(ad) isa ADTypes.ReverseMode))
+        return PrecomputedJacobianColorvec(; jac_prototype,
+            f.colorvec,
+            partition_by_rows = (ad isa AutoSparse &&
+                                 ADTypes.mode(ad) isa ADTypes.ReverseMode))
     else
         return JacPrototypeSparsityDetection(; jac_prototype)
     end

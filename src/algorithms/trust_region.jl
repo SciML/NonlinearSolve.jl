@@ -33,7 +33,7 @@ function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAU
     end
     if isnothing(vjp_autodiff) &&
        autodiff isa Union{ADTypes.AutoFiniteDiff, ADTypes.AutoFiniteDifferences}
-       # TODO: why not just ForwardMode?
+        # TODO: why not just ForwardMode?
         vjp_autodiff = autodiff
     end
     trustregion = GenericTrustRegionScheme(;

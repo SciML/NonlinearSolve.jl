@@ -139,11 +139,11 @@ using BenchmarkTools # for @btime
 @btime solve(prob_brusselator_2d,
     NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32))));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(;
-        autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)), linsolve = KLUFactorization()));
+    NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)),
+        linsolve = KLUFactorization()));
 @btime solve(prob_brusselator_2d,
-    NewtonRaphson(;
-        autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)), linsolve = KrylovJL_GMRES()));
+    NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff(; chunksize = 32)),
+        linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
 
