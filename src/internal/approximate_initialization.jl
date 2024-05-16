@@ -149,7 +149,7 @@ function __internal_init(
         prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization, solver, f::F, fu,
         u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(
-        alg.autodiff, prob; check_reverse_mode = false, kwargs...)
+        alg.autodiff, prob; check_forward_mode = false, kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
     J = alg.structure(jac_cache(nothing))
     return InitializedApproximateJacobianCache(

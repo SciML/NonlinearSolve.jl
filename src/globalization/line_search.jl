@@ -122,7 +122,7 @@ function __internal_init(
             end
         else
             autodiff = get_concrete_reverse_ad(
-                alg.autodiff, prob; check_forward_mode = true)
+                alg.autodiff, prob; check_reverse_mode = true)
             vjp_op = VecJacOperator(prob, fu, u; autodiff)
             if isinplace(prob)
                 g_cache = similar(u)
