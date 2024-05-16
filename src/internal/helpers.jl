@@ -32,9 +32,8 @@ end
 # AutoDiff Selection Functions
 function get_concrete_forward_ad(
         autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
-        args...; check_reverse_mode = true, kwargs...) where {test_sparse}
-    # TODO: shouldn't this be `check_forward_mode`?
-    if !isa(ADTypes.mode(autodiff), ADTypes.ForwardMode) && check_reverse_mode
+        args...; check_forward_mode = true, kwargs...) where {test_sparse}
+    if !isa(ADTypes.mode(autodiff), ADTypes.ForwardMode) && check_forward_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a `ForwardMode`. Use with caution." maxlog=1
     end
     return autodiff
