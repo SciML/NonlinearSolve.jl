@@ -21,7 +21,7 @@ end
 @inline __needs_concrete_A(::typeof(\)) = true
 @inline __needs_concrete_A(linsolve) = needs_concrete_A(linsolve)
 
-@inline __maybe_mutable(x, ::AutoSparseEnzyme) = __mutable(x)
+@inline __maybe_mutable(x, ::AutoSparse{<:AutoEnzyme}) = __mutable(x)  # TODO: remove?
 @inline __maybe_mutable(x, _) = x
 
 @inline @generated function _vec(v)
@@ -77,10 +77,7 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
 
 # SparseAD --> NonSparseAD
-@inline __get_nonsparse_ad(::AutoSparseForwardDiff) = AutoForwardDiff()
-@inline __get_nonsparse_ad(::AutoSparsePolyesterForwardDiff) = AutoPolyesterForwardDiff()
-@inline __get_nonsparse_ad(::AutoSparseFiniteDiff) = AutoFiniteDiff()
-@inline __get_nonsparse_ad(::AutoSparseZygote) = AutoZygote()
+@inline __get_nonsparse_ad(backend::AutoSparse) = ADTypes.dense_ad(backend)
 @inline __get_nonsparse_ad(ad) = ad
 
 # Simple Checks

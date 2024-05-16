@@ -47,11 +47,11 @@
     @test norm(sol.resid, Inf) < 1e-8
 
     sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparseForwardDiff()); abstol = 1e-8)
+        NewtonRaphson(autodiff = AutoSparse(AutoForwardDiff())); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
     sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparseFiniteDiff()); abstol = 1e-8)
+        NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
     du0 = copy(u0)
@@ -69,10 +69,11 @@
     @test !all(iszero, jac_prototype)
 
     sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparseFiniteDiff()); abstol = 1e-8)
+        NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    cache = init(prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparseForwardDiff()))
+    cache = init(
+        prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff())))
     @test maximum(cache.jac_cache.jac_cache.coloring.colorvec) == 12
-    @test cache.jac_cache.autodiff isa AutoSparseForwardDiff
+    @test cache.jac_cache.autodiff isa AutoSparse{<:AutoForwardDiff}
 end

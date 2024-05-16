@@ -56,11 +56,11 @@ function JacobianCache(
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_reverse_mode = false)
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
     jvp_autodiff = get_concrete_forward_ad(
-        jvp_autodiff, prob, Val(false); check_reverse_mode = true)
+        jvp_autodiff, prob, Val(false); check_forward_mode = true)
     vjp_autodiff = get_concrete_reverse_ad(
-        vjp_autodiff, prob, Val(false); check_forward_mode = false)
+        vjp_autodiff, prob, Val(false); check_reverse_mode = false)
 
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
@@ -100,7 +100,7 @@ end
 function JacobianCache(
         prob, alg, f::F, ::Number, u::Number, p; autodiff = nothing, kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_reverse_mode = false)
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
     if !(autodiff isa AutoForwardDiff ||
          autodiff isa AutoPolyesterForwardDiff ||
          autodiff isa AutoFiniteDiff)
@@ -154,7 +154,7 @@ end
 
 # Sparsity Detection Choices
 @inline __sparsity_detection_alg(_, _) = NoSparsityDetection()
-@inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AbstractSparseADType)
+@inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             if is_extension_loaded(Val(:Symbolics))
@@ -184,8 +184,10 @@ end
     end
 
     if SciMLBase.has_colorvec(f)
-        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
-            partition_by_rows = ad isa ADTypes.AbstractSparseReverseMode)
+        return PrecomputedJacobianColorvec(; jac_prototype,
+            f.colorvec,
+            partition_by_rows = (ad isa AutoSparse &&
+                                 ADTypes.mode(ad) isa ADTypes.ReverseMode))
     else
         return JacPrototypeSparsityDetection(; jac_prototype)
     end

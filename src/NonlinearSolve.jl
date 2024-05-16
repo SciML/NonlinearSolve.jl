@@ -27,7 +27,7 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 
     import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                       AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
-    import SparseDiffTools: AbstractSparsityDetection, AutoSparseEnzyme
+    import SparseDiffTools: AbstractSparsityDetection
     import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
     import SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                       symbolic_container, parameter_values, state_values,
@@ -35,9 +35,6 @@ import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_work
 end
 
 @reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
-
-const AbstractSparseADType = Union{ADTypes.AbstractSparseFiniteDifferences,
-    ADTypes.AbstractSparseForwardMode, ADTypes.AbstractSparseReverseMode}
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
@@ -121,18 +118,18 @@ include("default.jl")
 
     @compile_workload begin
         @sync begin
-        for T in (Float32, Float64), (fn, u0) in nlfuncs
-            Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
-        end
-        for (fn, u0) in nlfuncs
-            Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
-        end
-        for prob in probs_nls, alg in nls_algs
-            Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-        end
-        for prob in probs_nlls, alg in nlls_algs
-            Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-        end
+            for T in (Float32, Float64), (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
+            end
+            for (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
+            end
+            for prob in probs_nls, alg in nls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
+            for prob in probs_nlls, alg in nlls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
         end
     end
 end
