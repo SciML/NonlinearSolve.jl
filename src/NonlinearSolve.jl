@@ -118,18 +118,18 @@ include("default.jl")
 
     @compile_workload begin
         @sync begin
-        for T in (Float32, Float64), (fn, u0) in nlfuncs
-            Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
-        end
-        for (fn, u0) in nlfuncs
-            Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
-        end
-        for prob in probs_nls, alg in nls_algs
-            Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-        end
-        for prob in probs_nlls, alg in nlls_algs
-            Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-        end
+            for T in (Float32, Float64), (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
+            end
+            for (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
+            end
+            for prob in probs_nls, alg in nls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
+            for prob in probs_nlls, alg in nlls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
         end
     end
 end
