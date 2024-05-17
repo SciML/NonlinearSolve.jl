@@ -1,4 +1,4 @@
-@testitem "Aqua" begin
+@testitem "Aqua" tags=[:core] begin
     using Aqua
 
     Aqua.test_all(SimpleNonlinearSolve; piracies = false, ambiguities = false)

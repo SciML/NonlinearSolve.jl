@@ -1,4 +1,4 @@
-@testitem "Solving on GPUs" begin
+@testitem "Solving on GPUs" tags=[:cuda] begin
     using StaticArrays, CUDA
 
     CUDA.allowscalar(false)
@@ -36,7 +36,7 @@
     end
 end
 
-@testitem "CUDA Kernel Launch Test" begin
+@testitem "CUDA Kernel Launch Test" tags=[:cuda] begin
     using StaticArrays, CUDA
 
     CUDA.allowscalar(false)
