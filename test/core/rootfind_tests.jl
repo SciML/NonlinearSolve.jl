@@ -3,16 +3,6 @@ using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
                 LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
 
-function __autosparseenzyme()
-    @static if Sys.iswindows()
-        @warn "Enzyme on Windows stalls. Using AutoSparse(AutoFiniteDiff()) instead till \
-               https://github.com/EnzymeAD/Enzyme.jl/issues/1236 is resolved."
-        return AutoSparse(AutoFiniteDiff())
-    else
-        return AutoSparse(AutoEnzyme())
-    end
-end
-
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
 quadratic_f(u, p) = u .* u .- p
@@ -58,8 +48,7 @@ function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
 end
 
 export nlprob_iterator_interface, benchmark_nlsolve_oop, benchmark_nlsolve_iip,
-       TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!,
-       __autosparseenzyme
+       TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!
 end
 
 # --- NewtonRaphson tests ---
@@ -113,7 +102,7 @@ end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
             AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), __autosparseenzyme()),
+            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -176,7 +165,7 @@ end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (
             AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), __autosparseenzyme()),
+            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
         u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
@@ -272,7 +261,7 @@ end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
             AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), __autosparseenzyme()),
+            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -454,7 +443,7 @@ end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
             AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), __autosparseenzyme()),
+            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
         u0 in (1.0, [1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
