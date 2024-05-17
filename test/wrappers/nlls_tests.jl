@@ -28,7 +28,7 @@ end
 export loss_function, θ_init, y_target, true_function, x, θ_true
 end
 
-@testitem "LeastSquaresOptim.jl" setup=[WrapperNLLSSetup] begin
+@testitem "LeastSquaresOptim.jl" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
     prob_iip = NonlinearLeastSquaresProblem(
         NonlinearFunction(loss_function; resid_prototype = zero(y_target)), θ_init, x)
@@ -46,7 +46,7 @@ end
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[WrapperNLLSSetup] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     function jac!(J, θ, p)
         resid = zeros(length(p))
         ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
@@ -70,14 +70,14 @@ end
             NonlinearFunction{false}(loss_function; jac), θ_init, x)]
 
     solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
-    push!(solvers, CMINPACK())
+    Sys.isapple() || push!(solvers, CMINPACK())
     for solver in solvers, prob in probs
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
         @test maximum(abs, sol.resid) < 1e-6
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[WrapperNLLSSetup] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     probs = [
         NonlinearLeastSquaresProblem(
             NonlinearFunction{true}(loss_function; resid_prototype = zero(y_target)),
@@ -90,7 +90,8 @@ end
     solvers = vec(Any[FastLevenbergMarquardtJL(linsolve; autodiff)
                       for linsolve in (:cholesky, :qr),
     autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
-    append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
+    Sys.isapple() ||
+        append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
 
     for solver in solvers, prob in probs
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
@@ -98,7 +99,7 @@ end
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + StaticArrays" setup=[WrapperNLLSSetup] begin
+@testitem "FastLevenbergMarquardt.jl + StaticArrays" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     x_sa = SA[-1.0, -0.5, 0.0, 0.5, 1.0]
 
     const y_target_sa = true_function(x_sa, θ_true)

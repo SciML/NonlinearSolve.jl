@@ -1,4 +1,4 @@
-@testitem "Singular Systems -- Auto Linear Solve Switching" begin
+@testitem "Singular Systems -- Auto Linear Solve Switching" tags=[:misc] begin
     using LinearSolve, NonlinearSolve
 
     function f!(du, u, p)

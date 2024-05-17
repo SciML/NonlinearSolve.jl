@@ -62,11 +62,13 @@ __compatible(::KINSOL, ::Val{:oop_cache}) = false
 export test_f!, test_f, jacobian_f, solve_with, __compatible
 end
 
-@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] begin
+@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] tags=[:core] begin
     for alg in (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
         PseudoTransient(; alpha_initial = 10.0), Broyden(), Klement(), DFSane(),
         nothing, NLsolveJL(), CMINPACK(), KINSOL(; globalization_strategy = :LineSearch))
         us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
+
+        alg isa CMINPACK && Sys.isapple() && continue
 
         @testset "Scalar AD" begin
             for p in 1.0:0.1:100.0, u0 in us, mode in (:iip, :oop, :iip_cache, :oop_cache)

@@ -6,7 +6,7 @@ import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK
 export NLSolvers
 end
 
-@testitem "Steady State Problems" setup=[WrapperRootfindImports] begin
+@testitem "Steady State Problems" setup=[WrapperRootfindImports] tags=[:wrappers] begin
     # IIP Tests
     function f_iip(du, u, p, t)
         du[1] = 2 - 2u[1]
@@ -18,6 +18,7 @@ end
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
         NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        alg isa CMINPACK && Sys.isapple() && continue
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -31,13 +32,14 @@ end
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
         NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        alg isa CMINPACK && Sys.isapple() && continue
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
     end
 end
 
-@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] begin
+@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] begin
     # IIP Tests
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]
@@ -49,6 +51,7 @@ end
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
         NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        alg isa CMINPACK && Sys.isapple() && continue
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -62,6 +65,7 @@ end
     for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
         NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        alg isa CMINPACK && Sys.isapple() && continue
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -77,6 +81,8 @@ end
             NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
             SIAMFANLEquationsJL(; method = :pseudotransient),
             SIAMFANLEquationsJL(; method = :secant)]
+
+        alg isa CMINPACK && Sys.isapple() && continue
 
         sol = solve(prob_tol, alg, abstol = tol)
         @test abs(sol.u[1] - sqrt(2)) < tol

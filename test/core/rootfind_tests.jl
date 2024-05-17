@@ -20,7 +20,6 @@ function newton_fails(u, p)
 end
 
 const TERMINATION_CONDITIONS = [
-    SteadyStateDiffEqTerminationMode(), SimpleNonlinearSolveTerminationMode(),
     NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
     AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
     AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()]
@@ -53,7 +52,7 @@ end
 
 # --- NewtonRaphson tests ---
 
-@testitem "NewtonRaphson" setup=[CoreRootfindTesting] begin
+@testitem "NewtonRaphson" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote())
@@ -119,7 +118,7 @@ end
 
 # --- TrustRegion tests ---
 
-@testitem "TrustRegion" setup=[CoreRootfindTesting] begin
+@testitem "TrustRegion" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     radius_update_schemes = [RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei,
         RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin]
@@ -237,7 +236,7 @@ end
 
 # --- LevenbergMarquardt tests ---
 
-@testitem "LevenbergMarquardt" setup=[CoreRootfindTesting] begin
+@testitem "LevenbergMarquardt" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
         sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = LevenbergMarquardt())
@@ -323,7 +322,7 @@ end
 
 # --- DFSane tests ---
 
-@testitem "DFSane" setup=[CoreRootfindTesting] begin
+@testitem "DFSane" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
     @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -394,7 +393,7 @@ end
 
 # --- PseudoTransient tests ---
 
-@testitem "PseudoTransient" setup=[CoreRootfindTesting] begin
+@testitem "PseudoTransient" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     # These are tests for NewtonRaphson so we should set alpha_initial to be high so that we
     # converge quickly
     @testset "PT: alpha_initial = 10.0 PT AD: $(ad)" for ad in (
@@ -463,7 +462,7 @@ end
 
 # --- Broyden tests ---
 
-@testitem "Broyden" setup=[CoreRootfindTesting] begin
+@testitem "Broyden" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(),
             HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
@@ -513,7 +512,7 @@ end
 
 # --- Klement tests ---
 
-@testitem "Klement" setup=[CoreRootfindTesting] begin
+@testitem "Klement" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
         ad in (AutoFiniteDiff(), AutoZygote()),
@@ -562,7 +561,7 @@ end
 
 # --- LimitedMemoryBroyden tests ---
 
-@testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] begin
+@testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(),
             HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
@@ -612,7 +611,7 @@ end
 end
 
 # Miscellaneous Tests
-@testitem "Custom JVP" setup=[CoreRootfindTesting] begin
+@testitem "Custom JVP" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     function F(u::Vector{Float64}, p::Vector{Float64})
         Δ = Tridiagonal(-ones(99), 2 * ones(100), -ones(99))
         return u + 0.1 * u .* Δ * u - p

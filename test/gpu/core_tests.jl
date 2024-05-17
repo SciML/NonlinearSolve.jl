@@ -1,4 +1,4 @@
-@testitem "CUDA Tests" begin
+@testitem "CUDA Tests" tags=[:cuda] skip=:(using CUDA; !CUDA.functional()) begin
     using CUDA, NonlinearSolve, LinearSolve, StableRNGs
 
     CUDA.allowscalar(false)

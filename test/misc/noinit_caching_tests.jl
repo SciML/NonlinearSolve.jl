@@ -1,4 +1,4 @@
-@testitem "NoInit Caching" begin
+@testitem "NoInit Caching" tags=[:misc] begin
     using LinearAlgebra
     import NLsolve, NLSolvers
 

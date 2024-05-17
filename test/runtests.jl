@@ -1,16 +1,10 @@
-using ReTestItems
+using ReTestItems, CUDA
 
-const GROUP = get(ENV, "GROUP", "All")
+const GROUP = get(ENV, "GROUP", CUDA.functional() ? "All" : "All")
 
-if GROUP == "All" || GROUP == "Core"
-    ReTestItems.runtests(joinpath(@__DIR__, "core/"), joinpath(@__DIR__, "misc/"),
-        joinpath(@__DIR__, "wrappers/"))
-end
-
-if GROUP == "Downstream"
-    include("downstream/downstream_tests.jl")
-end
-
-if GROUP == "GPU"
-    ReTestItems.runtests(joinpath(@__DIR__, "gpu/"))
+if GROUP == "All"
+    ReTestItems.runtests(@__DIR__)
+else
+    tags = [Symbol(lowercase(GROUP))]
+    ReTestItems.runtests(@__DIR__; tags)
 end
