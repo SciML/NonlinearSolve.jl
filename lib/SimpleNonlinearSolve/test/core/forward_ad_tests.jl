@@ -40,7 +40,7 @@ __compatible(::SimpleHalley, ::Val{:iip}) = false
 export test_f, test_f!, jacobian_f, solve_with, __compatible
 end
 
-@testitem "ForwardDiff.jl Integration: Rootfinding" setup=[ForwardADRootfindingTesting] begin
+@testitem "ForwardDiff.jl Integration: Rootfinding" setup=[ForwardADRootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
         SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
         SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
@@ -133,7 +133,7 @@ export loss_function, loss_function!, loss_function_jac, loss_function_vjp,
        loss_function_jac!, loss_function_vjp!, θ_init, x, y_target
 end
 
-@testitem "ForwardDiff.jl Integration: NLLS" setup=[ForwardADNLLSTesting] begin
+@testitem "ForwardDiff.jl Integration: NLLS" setup=[ForwardADNLLSTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (
         SimpleNewtonRaphson(), SimpleGaussNewton(),
         SimpleNewtonRaphson(AutoFiniteDiff()), SimpleGaussNewton(AutoFiniteDiff()))

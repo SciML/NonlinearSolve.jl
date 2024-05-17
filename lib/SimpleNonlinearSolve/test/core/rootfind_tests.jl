@@ -39,7 +39,7 @@ export quadratic_f, quadratic_f!, quadratic_f2, newton_fails, TERMINATION_CONDIT
 
 end
 
-@testitem "First Order Methods" setup=[RootfindingTesting] begin
+@testitem "First Order Methods" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion,
         (args...; kwargs...) -> SimpleTrustRegion(args...; nlsolve_update_rule = Val(true),
             kwargs...))
@@ -70,7 +70,7 @@ end
     end
 end
 
-@testitem "SimpleHalley" setup=[RootfindingTesting] begin
+@testitem "SimpleHalley" setup=[RootfindingTesting] tags=[:core] begin
     @testset "AutoDiff: $(nameof(typeof(autodiff)))" for autodiff in (AutoFiniteDiff(),
         AutoForwardDiff())
         @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0, 1.0],
@@ -89,7 +89,7 @@ end
     end
 end
 
-@testitem "Derivative Free Metods" setup=[RootfindingTesting] begin
+@testitem "Derivative Free Metods" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in [SimpleBroyden(), SimpleKlement(),
         SimpleDFSane(), SimpleLimitedMemoryBroyden(),
         SimpleBroyden(; linesearch = Val(true)),
@@ -115,7 +115,7 @@ end
     end
 end
 
-@testitem "Newton Fails" setup=[RootfindingTesting] begin
+@testitem "Newton Fails" setup=[RootfindingTesting] tags=[:core] begin
     u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
     p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
@@ -127,13 +127,13 @@ end
     end
 end
 
-@testitem "Kwargs Propagation" setup=[RootfindingTesting] begin
+@testitem "Kwargs Propagation" setup=[RootfindingTesting] tags=[:core] begin
     prob = NonlinearProblem(quadratic_f, ones(4), 2.0; maxiters = 2)
     sol = solve(prob, SimpleNewtonRaphson())
     @test sol.retcode === ReturnCode.MaxIters
 end
 
-@testitem "Allocation Checks" setup=[RootfindingTesting] begin
+@testitem "Allocation Checks" setup=[RootfindingTesting] tags=[:core] begin
     if Sys.islinux()  # Very slow on other OS
         @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
             SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
@@ -165,7 +165,7 @@ end
     end
 end
 
-@testitem "Interval Nonlinear Problems" setup=[RootfindingTesting] begin
+@testitem "Interval Nonlinear Problems" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (Bisection(), Falsi(), Ridder(), Brent(),
         ITP(), Alefeld())
         tspan = (1.0, 20.0)
@@ -209,7 +209,7 @@ end
     end
 end
 
-@testitem "Tolerance Tests Interval Methods" setup=[RootfindingTesting] begin
+@testitem "Tolerance Tests Interval Methods" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (Bisection(), Falsi(), ITP())
         tspan = (1.0, 20.0)
         probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
@@ -224,7 +224,7 @@ end
     end
 end
 
-@testitem "Tolerance Tests Interval Methods 2" setup=[RootfindingTesting] begin
+@testitem "Tolerance Tests Interval Methods 2" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (Ridder(), Brent())
         tspan = (1.0, 20.0)
         probB = IntervalNonlinearProblem(quadratic_f, tspan, 2.0)
@@ -239,7 +239,7 @@ end
     end
 end
 
-@testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTesting] begin
+@testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (Alefeld(), Bisection(), Falsi(), Brent(),
         ITP(), Ridder())
         f1(u, p) = u * u - p
@@ -257,31 +257,3 @@ end
         end
     end
 end
-
-# The following tests were included in the previos versions but these kwargs never did
-# anything!
-# # Garuntee Tests for Bisection
-# f = function (u, p)
-#     if u < 2.0
-#         return u - 2.0
-#     elseif u > 3.0
-#         return u - 3.0
-#     else
-#         return 0.0
-#     end
-# end
-# probB = IntervalNonlinearProblem(f, (0.0, 4.0))
-
-# sol = solve(probB, Bisection(; exact_left = true))
-# @test f(sol.left, nothing) < 0.0
-# @test f(nextfloat(sol.left), nothing) >= 0.0
-
-# sol = solve(probB, Bisection(; exact_right = true))
-# @test f(sol.right, nothing) >= 0.0
-# @test f(prevfloat(sol.right), nothing) <= 0.0
-
-# sol = solve(probB, Bisection(; exact_left = true, exact_right = true); immutable = false)
-# @test f(sol.left, nothing) < 0.0
-# @test f(nextfloat(sol.left), nothing) >= 0.0
-# @test f(sol.right, nothing) >= 0.0
-# @test f(prevfloat(sol.right), nothing) <= 0.0

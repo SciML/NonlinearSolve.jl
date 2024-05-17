@@ -1,4 +1,4 @@
-@testitem "Matrix Resizing" begin
+@testitem "Matrix Resizing" tags=[:core] begin
     ff(u, p) = u .* u .- p
     u0 = ones(2, 3)
     p = 2.0

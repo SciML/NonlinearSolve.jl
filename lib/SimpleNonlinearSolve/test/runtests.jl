@@ -1,11 +1,10 @@
-using ReTestItems
+using ReTestItems, CUDA
 
-const GROUP = get(ENV, "GROUP", "All")
+const GROUP = get(ENV, "GROUP", CUDA.functional() ? "All" : "Core")
 
-if GROUP == "All" || GROUP == "Core"
-    ReTestItems.runtests(joinpath(@__DIR__, "core/"))
-end
-
-if GROUP == "GPU"
-    ReTestItems.runtests(joinpath(@__DIR__, "gpu/"))
+if GROUP == "All"
+    ReTestItems.runtests(@__DIR__)
+else
+    tags = [Symbol(lowercase(GROUP))]
+    ReTestItems.runtests(@__DIR__; tags)
 end
