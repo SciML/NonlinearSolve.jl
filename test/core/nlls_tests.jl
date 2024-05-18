@@ -48,7 +48,7 @@ end
 export solvers, θ_init, x, y_target, true_function, θ_true, loss_function
 end
 
-@testitem "General NLLS Solvers" setup=[CoreNLLSTesting] begin
+@testitem "General NLLS Solvers" setup=[CoreNLLSTesting] tags=[:core] begin
     prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, x)
     prob_iip = NonlinearLeastSquaresProblem(
         NonlinearFunction(loss_function; resid_prototype = zero(y_target)), θ_init, x)
@@ -62,7 +62,7 @@ end
     end
 end
 
-@testitem "Custom VJP" setup=[CoreNLLSTesting] begin
+@testitem "Custom VJP" setup=[CoreNLLSTesting] tags=[:core] begin
     # This is just for testing that we can use vjp provided by the user
     function vjp(v, θ, p)
         resid = zeros(length(p))
@@ -96,7 +96,7 @@ end
     end
 end
 
-@testitem "NLLS Analytic Jacobian" begin
+@testitem "NLLS Analytic Jacobian" tags=[:core] begin
     dataIn = 1:10
     f(x, p) = x[1] * dataIn .^ 2 .+ x[2] * dataIn .+ x[3]
     dataOut = f([1, 2, 3], nothing) + 0.1 * randn(10, 1)

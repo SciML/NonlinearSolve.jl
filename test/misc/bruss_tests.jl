@@ -1,4 +1,4 @@
-@testitem "Brusselator 2D" begin
+@testitem "Brusselator 2D" tags=[:misc] begin
     using LinearAlgebra, SparseArrays, Symbolics
 
     const N = 32

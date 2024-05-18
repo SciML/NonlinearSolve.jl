@@ -1,4 +1,4 @@
-@testitem "Out-of-place Matrix Resizing" begin
+@testitem "Out-of-place Matrix Resizing" tags=[:misc] begin
     using StableRNGs
 
     ff(u, p) = u .* u .- p
@@ -14,7 +14,7 @@
     end
 end
 
-@testitem "Inplace Matrix Resizing" begin
+@testitem "Inplace Matrix Resizing" tags=[:misc] begin
     using StableRNGs
 
     fiip(du, u, p) = (du .= u .* u .- p)

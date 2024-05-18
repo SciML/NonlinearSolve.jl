@@ -1,4 +1,4 @@
-@testitem "Aqua" begin
+@testitem "Aqua" tags=[:misc] begin
     using NonlinearSolve, SimpleNonlinearSolve, Aqua
 
     Aqua.find_persistent_tasks_deps(NonlinearSolve)

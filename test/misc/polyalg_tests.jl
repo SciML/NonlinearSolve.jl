@@ -1,4 +1,4 @@
-@testitem "Basic PolyAlgorithms" begin
+@testitem "Basic PolyAlgorithms" tags=[:misc] begin
     f(u, p) = u .* u .- 2
     u0 = [1.0, 1.0]
     probN = NonlinearProblem{false}(f, u0)
@@ -55,7 +55,7 @@
     end
 end
 
-@testitem "Testing #153 Singular Exception" begin
+@testitem "Testing #153 Singular Exception" tags=[:misc] begin
     # https://github.com/SciML/NonlinearSolve.jl/issues/153
     function f(du, u, p)
         s1, s1s2, s2 = u
@@ -71,7 +71,7 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testitem "PolyAlgorithms Autodiff" begin
+@testitem "PolyAlgorithms Autodiff" tags=[:misc] begin
     cache = zeros(2)
     function f(du, u, p)
         cache .= u .* u
@@ -104,7 +104,7 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testitem "Simple Scalar Problem #187" begin
+@testitem "Simple Scalar Problem #187" tags=[:misc] begin
     using NaNMath
 
     # https://github.com/SciML/NonlinearSolve.jl/issues/187
@@ -126,7 +126,7 @@ end
 # Shooting Problem: Taken from BoundaryValueDiffEq.jl
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
-@testitem "Complex Valued Problems: Single-Shooting" begin
+@testitem "Complex Valued Problems: Single-Shooting" tags=[:misc] begin
     using OrdinaryDiffEq
 
     function ode_func!(du, u, p, t)
@@ -153,7 +153,7 @@ end
         prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1e-19, maxiters = 10)
 end
 
-@testitem "No AD" begin
+@testitem "No AD" tags=[:misc] begin
     no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
     no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
     no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
@@ -226,7 +226,7 @@ end
 export f1_infeasible!, f1_infeasible
 end
 
-@testitem "[IIP] Infeasible" setup=[InfeasibleFunction] begin
+@testitem "[IIP] Infeasible" setup=[InfeasibleFunction] tags=[:misc] begin
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible!, u0)
     sol = solve(prob)
@@ -236,7 +236,7 @@ end
     @inferred solve(prob)
 end
 
-@testitem "[OOP] Infeasible" setup=[InfeasibleFunction] begin
+@testitem "[OOP] Infeasible" setup=[InfeasibleFunction] tags=[:misc] begin
     using LinearAlgebra, StaticArrays
 
     u0 = [0.0, 0.0, 0.0]

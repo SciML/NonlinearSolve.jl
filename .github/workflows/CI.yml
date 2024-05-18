@@ -20,6 +20,8 @@ jobs:
         group:
           - Core
           - Downstream
+          - Misc
+          - Wrappers
         version:
           - "1"
         os:

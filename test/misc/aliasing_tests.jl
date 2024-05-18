@@ -1,4 +1,4 @@
-@testitem "PolyAlgorithm Aliasing" begin
+@testitem "PolyAlgorithm Aliasing" tags=[:misc] begin
     using NonlinearProblemLibrary
 
     # Use a problem that the initial solvers cannot solve and cause the initial value to
