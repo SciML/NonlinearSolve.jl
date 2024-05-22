@@ -63,7 +63,7 @@ end
     alg_ops = (Halley(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 5, 8, 15, 16]
+    broken_tests[alg_ops[1]] = [1, 5, 15, 16]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
