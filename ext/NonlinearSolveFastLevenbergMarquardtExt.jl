@@ -1,10 +1,13 @@
 module NonlinearSolveFastLevenbergMarquardtExt
 
-using ArrayInterface, NonlinearSolve, SciMLBase
-import ConcreteStructs: @concrete
-import FastClosures: @closure
-import FastLevenbergMarquardt as FastLM
-import StaticArraysCore: SArray
+using ArrayInterface: ArrayInterface
+using FastClosures: @closure
+using FastLevenbergMarquardt: FastLevenbergMarquardt
+using NonlinearSolve: NonlinearSolve, FastLevenbergMarquardtJL
+using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
+using StaticArraysCore: SArray
+
+const FastLM = FastLevenbergMarquardt
 
 @inline function _fast_lm_solver(::FastLevenbergMarquardtJL{linsolve}, x) where {linsolve}
     if linsolve === :cholesky

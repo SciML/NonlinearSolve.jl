@@ -169,4 +169,4 @@ function LinearAlgebra.mul!(J::BroydenLowRankJacobian, u::AbstractArray,
     return J
 end
 
-restructure(::BroydenLowRankJacobian, J::BroydenLowRankJacobian) = J
+ArrayInterface.restructure(::BroydenLowRankJacobian, J::BroydenLowRankJacobian) = J

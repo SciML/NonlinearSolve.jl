@@ -1,8 +1,11 @@
 module NonlinearSolveLeastSquaresOptimExt
 
-using NonlinearSolve, SciMLBase
-import ConcreteStructs: @concrete
-import LeastSquaresOptim as LSO
+using ConcreteStructs: @concrete
+using LeastSquaresOptim: LeastSquaresOptim
+using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL, TraceMinimal
+using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
+
+const LSO = LeastSquaresOptim
 
 @inline function _lso_solver(::LeastSquaresOptimJL{alg, ls}) where {alg, ls}
     linsolve = ls === :qr ? LSO.QR() :

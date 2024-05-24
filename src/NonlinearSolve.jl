@@ -4,37 +4,58 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
     @eval Base.Experimental.@max_methods 1
 end
 
-import Reexport: @reexport
-import PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
+using Reexport: @reexport
+using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes, ConcreteStructs, DiffEqBase, FastBroadcast, FastClosures, LazyArrays,
-          LinearAlgebra, LinearSolve, MaybeInplace, Preferences, Printf, SciMLBase,
-          SimpleNonlinearSolve, SparseArrays, SparseDiffTools
+    using ADTypes: AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote,
+                   AutoEnzyme, AutoSparse
+    # FIXME: deprecated, remove in future
+    using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff,
+                   AutoSparsePolyesterForwardDiff, AutoSparseZygote
 
-    import ArrayInterface: ArrayInterface, undefmatrix, can_setindex, restructure,
-                           fast_scalar_indexing, ismutable
-    import DiffEqBase: AbstractNonlinearTerminationMode,
-                       AbstractSafeNonlinearTerminationMode,
-                       AbstractSafeBestNonlinearTerminationMode,
-                       NonlinearSafeTerminationReturnCode, get_termination_mode
-    import FiniteDiff
-    import ForwardDiff
-    import ForwardDiff: Dual
-    import LineSearches
-    import LinearSolve: ComposePreconditioner, InvPreconditioner, needs_concrete_A
-    import RecursiveArrayTools: recursivecopy!, recursivefill!
-
-    import SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                      AbstractSciMLOperator, NLStats, _unwrap_val, has_jac, isinplace
-    import SparseDiffTools: AbstractSparsityDetection
-    import StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix, MMatrix
-    import SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
-                                      symbolic_container, parameter_values, state_values,
-                                      getu
+    using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
+                          ismutable
+    using ConcreteStructs: @concrete
+    using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
+                      AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
+                      AbsSafeBestTerminationMode, AbsSafeTerminationMode,
+                      AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
+                      RelSafeBestTerminationMode, RelSafeTerminationMode,
+                      RelTerminationMode, SimpleNonlinearSolveTerminationMode,
+                      SteadyStateDiffEqTerminationMode
+    using FastBroadcast: @..
+    using FastClosures: @closure
+    using FiniteDiff: FiniteDiff
+    using ForwardDiff: ForwardDiff, Dual
+    using LazyArrays: LazyArrays, ApplyArray, cache
+    using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
+                         UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess,
+                         istril, istriu, lu, mul!, norm, pinv, tril!, triu!
+    using LineSearches: LineSearches
+    using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
+                       InvPreconditioner, needs_concrete_A
+    using MaybeInplace: @bb
+    using Printf: @printf
+    using Preferences: Preferences, @load_preference, @set_preferences!
+    using RecursiveArrayTools: recursivecopy!, recursivefill!
+    using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
+                     AbstractSciMLOperator, _unwrap_val, has_jac, isinplace
+    using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
+    using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
+                           ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
+                           NoSparsityDetection, PrecomputedJacobianColorvec,
+                           SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!,
+                           auto_vecjac, init_jacobian, num_jacvec, num_jacvec!, num_vecjac,
+                           num_vecjac!, sparse_jacobian, sparse_jacobian!,
+                           sparse_jacobian_cache
+    using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
+    using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
+                                     symbolic_container, parameter_values, state_values,
+                                     getu
 end
 
-@reexport using ADTypes, SciMLBase, SimpleNonlinearSolve
+@reexport using SciMLBase, SimpleNonlinearSolve
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
@@ -165,5 +186,12 @@ export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
 
 # Tracing Functionality
 export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
+
+# Reexport ADTypes
+export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme,
+       AutoSparse
+# FIXME: deprecated, remove in future
+export AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
+       AutoSparseZygote
 
 end # module

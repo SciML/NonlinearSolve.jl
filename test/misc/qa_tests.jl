@@ -13,3 +13,17 @@
     Aqua.test_unbound_args(NonlinearSolve)
     Aqua.test_undefined_exports(NonlinearSolve)
 end
+
+@testitem "Explicit Imports" tags=[:misc] begin
+    using NonlinearSolve, ADTypes, SimpleNonlinearSolve, SciMLBase
+    import BandedMatrices, FastLevenbergMarquardt, FixedPointAcceleration,
+           LeastSquaresOptim, MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping,
+           Symbolics, Zygote
+
+    using ExplicitImports
+
+    @test check_no_implicit_imports(NonlinearSolve;
+        skip = (NonlinearSolve, Base, Core, SimpleNonlinearSolve, SciMLBase)) === nothing
+
+    @test check_no_stale_explicit_imports(NonlinearSolve) === nothing
+end

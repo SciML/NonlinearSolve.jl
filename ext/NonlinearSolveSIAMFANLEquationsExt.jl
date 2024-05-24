@@ -1,7 +1,10 @@
 module NonlinearSolveSIAMFANLEquationsExt
 
-using NonlinearSolve, SIAMFANLEquations, SciMLBase
-import FastClosures: @closure
+using FastClosures: @closure
+using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, ptcsoli,
+                         ptcsolsc, secant
 
 @inline function __siam_fanl_equations_retcode_mapping(sol)
     if sol.errcode == 0

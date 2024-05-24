@@ -1,7 +1,9 @@
 module NonlinearSolveMINPACKExt
 
-using MINPACK, NonlinearSolve, SciMLBase
-import FastClosures: @closure
+using MINPACK: MINPACK
+using NonlinearSolve: NonlinearSolve, CMINPACK
+using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
+using FastClosures: @closure
 
 function SciMLBase.__solve(
         prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem}, alg::CMINPACK,
