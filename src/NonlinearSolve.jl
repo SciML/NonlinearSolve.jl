@@ -8,8 +8,8 @@ using Reexport: @reexport
 using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
 
 @recompile_invalidations begin
-    using ADTypes: AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote,
-                   AutoEnzyme, AutoSparse
+    using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
+		   AutoZygote, AutoEnzyme, AutoSparse
     # FIXME: deprecated, remove in future
     using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff,
                    AutoSparsePolyesterForwardDiff, AutoSparseZygote
