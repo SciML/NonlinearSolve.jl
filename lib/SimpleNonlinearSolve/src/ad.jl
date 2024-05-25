@@ -1,7 +1,9 @@
 function SciMLBase.solve(
-        prob::NonlinearProblem{<:Union{Number, <:AbstractArray},
-            iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...) where {T, V, P, iip}
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...;
+        kwargs...) where {T, V, P, iip}
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
@@ -9,9 +11,11 @@ function SciMLBase.solve(
 end
 
 function SciMLBase.solve(
-        prob::NonlinearLeastSquaresProblem{<:AbstractArray,
-            iip, <:Union{<:AbstractArray{<:Dual{T, V, P}}}},
-        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...) where {T, V, P, iip}
+        prob::NonlinearLeastSquaresProblem{
+            <:AbstractArray, iip, <:Union{<:AbstractArray{<:Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...;
+        kwargs...) where {T, V, P, iip}
     sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
     dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
@@ -21,13 +25,16 @@ end
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     @eval begin
         function SciMLBase.solve(
-                prob::IntervalNonlinearProblem{uType, iip,
-                    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-                alg::$(algType), args...; kwargs...) where {uType, T, V, P, iip}
+                prob::IntervalNonlinearProblem{
+                    uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+                alg::$(algType),
+                args...;
+                kwargs...) where {uType, T, V, P, iip}
             sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
             dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
-            return SciMLBase.build_solution(prob, alg, dual_soln, sol.resid; sol.retcode,
-                sol.stats, sol.original, left = Dual{T, V, P}(sol.left, partials),
+            return SciMLBase.build_solution(
+                prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats,
+                sol.original, left = Dual{T, V, P}(sol.left, partials),
                 right = Dual{T, V, P}(sol.right, partials))
         end
     end
@@ -125,9 +132,8 @@ function __nlsolve_ad(prob::NonlinearLeastSquaresProblem, alg, args...; kwargs..
             else
                 _F = @closure (u, p) -> begin
                     T = promote_type(eltype(u), eltype(p))
-                    res = DiffResults.DiffResult(
-                        similar(u, T, size(sol.resid)), similar(
-                            u, T, length(sol.resid), length(u)))
+                    res = DiffResults.DiffResult(similar(u, T, size(sol.resid)),
+                        similar(u, T, length(sol.resid), length(u)))
                     ForwardDiff.jacobian!(res, Base.Fix2(prob.f, p), u)
                     return reshape(
                         2 .* vec(DiffResults.value(res))' * DiffResults.jacobian(res),

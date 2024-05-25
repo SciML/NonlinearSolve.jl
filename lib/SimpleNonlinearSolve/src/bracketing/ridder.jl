@@ -12,18 +12,17 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
-    abstol = __get_tolerance(nothing, abstol,
-        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+    abstol = __get_tolerance(
+        nothing, abstol, promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)
-        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
-            left, right)
+        return build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right)
     end
 
     if iszero(fr)
         return build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
-            left, right)
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
     end
 
     xo = oftype(left, Inf)
@@ -37,15 +36,15 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
             fm = f(mid)
             s = sqrt(fm^2 - fl * fr)
             if iszero(s)
-                return build_solution(prob, alg, left, fl; left, right,
-                    retcode = ReturnCode.Failure)
+                return build_solution(
+                    prob, alg, left, fl; left, right, retcode = ReturnCode.Failure)
             end
             x = mid + (mid - left) * sign(fl - fr) * fm / s
             fx = f(x)
             xo = x
             if abs((right - left) / 2) < abstol
-                return build_solution(prob, alg, mid, fm; retcode = ReturnCode.Success,
-                    left, right)
+                return build_solution(
+                    prob, alg, mid, fm; retcode = ReturnCode.Success, left, right)
             end
             if iszero(fx)
                 right = x
@@ -69,10 +68,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Ridder, args...;
         end
     end
 
-    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
-        maxiters = maxiters - i, prob, alg)
+    sol, i, left, right, fl, fr = __bisection(
+        left, right, fl, fr, f; abstol, maxiters = maxiters - i, prob, alg)
     sol !== nothing && return sol
 
-    return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left, right)
+    return SciMLBase.build_solution(
+        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
 end

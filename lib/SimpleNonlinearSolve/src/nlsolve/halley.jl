@@ -24,8 +24,8 @@ A low-overhead implementation of Halley's Method.
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...)
     isinplace(prob) &&
         error("SimpleHalley currently only supports out-of-place nonlinear problems")
 
@@ -34,8 +34,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
     T = eltype(x)
 
     autodiff = __get_concrete_autodiff(prob, alg.autodiff)
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
     @bb xo = copy(x)
 
@@ -59,8 +59,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
             dfx
         else
             fact = lu(dfx; check = false)
-            !issuccess(fact) && return build_solution(prob, alg, x, fx;
-                retcode = ReturnCode.Unstable)
+            !issuccess(fact) &&
+                return build_solution(prob, alg, x, fx; retcode = ReturnCode.Unstable)
             fact
         end
 

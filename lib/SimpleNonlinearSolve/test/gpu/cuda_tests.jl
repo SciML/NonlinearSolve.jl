@@ -6,8 +6,9 @@
     f(u, p) = u .* u .- 2
     f!(du, u, p) = du .= u .* u .- 2
 
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
         SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
         SimpleHalley(), SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
@@ -51,10 +52,11 @@ end
 
     prob = NonlinearProblem{false}(f, @SVector[1.0f0, 1.0f0])
 
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
-        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(), SimpleHalley(),
-        SimpleBroyden(; linesearch = Val(true)),
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleBroyden(), SimpleLimitedMemoryBroyden(), SimpleKlement(),
+        SimpleHalley(), SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
         @test begin
             try

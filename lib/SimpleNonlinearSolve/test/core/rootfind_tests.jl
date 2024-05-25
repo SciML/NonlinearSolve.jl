@@ -1,7 +1,7 @@
 @testsetup module RootfindingTesting
 using Reexport
-@reexport using AllocCheck,
-                LinearSolve, StaticArrays, Random, LinearAlgebra, ForwardDiff, DiffEqBase
+@reexport using AllocCheck, LinearSolve, StaticArrays, Random, LinearAlgebra, ForwardDiff,
+                DiffEqBase
 import PolyesterForwardDiff
 
 quadratic_f(u, p) = u .* u .- p
@@ -14,16 +14,14 @@ function newton_fails(u, p)
             (0.21640425613334457 .+
              216.40425613334457 ./ (1 .+
               (0.21640425613334457 .+
-               216.40425613334457 ./
-               (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^ 2.0) .-
-           0.0011552453009332421u .- p
+               216.40425613334457 ./ (1 .+ 0.0006250000000000001(u .^ 2.0))) .^ 2.0)) .^
+            2.0) .- 0.0011552453009332421u .- p
 end
 
 const TERMINATION_CONDITIONS = [
     NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
     AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()
-]
+    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()]
 
 function benchmark_nlsolve_oop(f::F, u0, p = 2.0; solver) where {F}
     prob = NonlinearProblem{false}(f, u0, p)
@@ -40,14 +38,14 @@ export quadratic_f, quadratic_f!, quadratic_f2, newton_fails, TERMINATION_CONDIT
 end
 
 @testitem "First Order Methods" setup=[RootfindingTesting] tags=[:core] begin
-    @testset "$(alg)" for alg in (SimpleNewtonRaphson, SimpleTrustRegion,
-        (args...; kwargs...) -> SimpleTrustRegion(args...; nlsolve_update_rule = Val(true),
-            kwargs...))
+    @testset "$(alg)" for alg in (SimpleNewtonRaphson,
+        SimpleTrustRegion,
+        (args...; kwargs...) -> SimpleTrustRegion(
+            args...; nlsolve_update_rule = Val(true), kwargs...))
         @testset "AutoDiff: $(nameof(typeof(autodiff))))" for autodiff in (
-            AutoFiniteDiff(),
-            AutoForwardDiff(), AutoPolyesterForwardDiff())
-            @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],
-                @SVector[1.0, 1.0], 1.0)
+            AutoFiniteDiff(), AutoForwardDiff(), AutoPolyesterForwardDiff())
+            @testset "[OOP] u0: $(typeof(u0))" for u0 in (
+                [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
                 u0 isa SVector && autodiff isa AutoPolyesterForwardDiff && continue
                 sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff))
                 @test SciMLBase.successful_retcode(sol)
@@ -71,10 +69,10 @@ end
 end
 
 @testitem "SimpleHalley" setup=[RootfindingTesting] tags=[:core] begin
-    @testset "AutoDiff: $(nameof(typeof(autodiff)))" for autodiff in (AutoFiniteDiff(),
-        AutoForwardDiff())
-        @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0, 1.0],
-            @SVector[1.0, 1.0], 1.0)
+    @testset "AutoDiff: $(nameof(typeof(autodiff)))" for autodiff in (
+        AutoFiniteDiff(), AutoForwardDiff())
+        @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in (
+            [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
             sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = SimpleHalley(; autodiff))
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
@@ -90,9 +88,9 @@ end
 end
 
 @testitem "Derivative Free Metods" setup=[RootfindingTesting] tags=[:core] begin
-    @testset "$(nameof(typeof(alg)))" for alg in [SimpleBroyden(), SimpleKlement(),
-        SimpleDFSane(), SimpleLimitedMemoryBroyden(),
-        SimpleBroyden(; linesearch = Val(true)),
+    @testset "$(nameof(typeof(alg)))" for alg in [
+        SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
+        SimpleLimitedMemoryBroyden(), SimpleBroyden(; linesearch = Val(true)),
         SimpleLimitedMemoryBroyden(; linesearch = Val(true))]
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
             sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = alg)
@@ -119,8 +117,9 @@ end
     u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
     p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleDFSane(), SimpleTrustRegion(),
-        SimpleHalley(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        SimpleDFSane(), SimpleTrustRegion(), SimpleHalley(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
         sol = benchmark_nlsolve_oop(newton_fails, u0, p; solver = alg)
         @test SciMLBase.successful_retcode(sol)
         @test all(abs.(newton_fails(sol.u, p)) .< 1e-9)
@@ -135,9 +134,10 @@ end
 
 @testitem "Allocation Checks" setup=[RootfindingTesting] tags=[:core] begin
     if Sys.islinux()  # Very slow on other OS
-        @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
-            SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleLimitedMemoryBroyden(),
-            SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        @testset "$(nameof(typeof(alg)))" for alg in (
+            SimpleNewtonRaphson(), SimpleHalley(), SimpleBroyden(),
+            SimpleKlement(), SimpleLimitedMemoryBroyden(), SimpleTrustRegion(),
+            SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
             SimpleDFSane(), SimpleBroyden(; linesearch = Val(true)),
             SimpleLimitedMemoryBroyden(; linesearch = Val(true)))
             @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1e-9)
@@ -166,8 +166,8 @@ end
 end
 
 @testitem "Interval Nonlinear Problems" setup=[RootfindingTesting] tags=[:core] begin
-    @testset "$(nameof(typeof(alg)))" for alg in (Bisection(), Falsi(), Ridder(), Brent(),
-        ITP(), Alefeld())
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        Bisection(), Falsi(), Ridder(), Brent(), ITP(), Alefeld())
         tspan = (1.0, 20.0)
 
         function g(p)
@@ -240,8 +240,8 @@ end
 end
 
 @testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTesting] tags=[:core] begin
-    @testset "$(nameof(typeof(alg)))" for alg in (Alefeld(), Bisection(), Falsi(), Brent(),
-        ITP(), Ridder())
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder())
         f1(u, p) = u * u - p
         f2(u, p) = p - u * u
 

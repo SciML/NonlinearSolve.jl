@@ -15,12 +15,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
     c = a - (b - a) / (f(b) - f(a)) * f(a)
 
     fc = f(c)
-    (a == c || b == c) &&
-        return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
-            left = a, right = b)
-    iszero(fc) &&
-        return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success, left = a,
-            right = b)
+    (a == c || b == c) && return build_solution(
+        prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit, left = a, right = b)
+    iszero(fc) && return build_solution(
+        prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b)
     a, b, d = _bracket(f, a, b, c)
     e = zero(a)   # Set e as 0 before iteration to avoid a non-value f(e)
 
@@ -38,12 +36,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         ē, fc = d, f(c)
         (a == c || b == c) &&
-            return build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = a, right = b)
-        iszero(fc) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
-                left = a, right = b)
+        iszero(fc) && return build_solution(
+            prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b)
         ā, b̄, d̄ = _bracket(f, a, b, c)
 
         # The second bracketing block
@@ -58,12 +54,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         fc = f(c)
         (ā == c || b̄ == c) &&
-            return build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = ā, right = b̄)
-        iszero(fc) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
-                left = ā, right = b̄)
+        iszero(fc) && return build_solution(
+            prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
         ā, b̄, d̄ = _bracket(f, ā, b̄, c)
 
         # The third bracketing block
@@ -78,12 +72,10 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         end
         fc = f(c)
         (ā == c || b̄ == c) &&
-            return build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+            return build_solution(prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
                 left = ā, right = b̄)
-        iszero(fc) &&
-            return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
-                left = ā, right = b̄)
+        iszero(fc) && return build_solution(
+            prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
         ā, b̄, d = _bracket(f, ā, b̄, c)
 
         # The last bracketing block
@@ -93,12 +85,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
             e = d
             c = 0.5 * (ā + b̄)
             fc = f(c)
-            (ā == c || b̄ == c) &&
-                return build_solution(prob, alg, c, fc;
-                    retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄)
-            iszero(fc) &&
-                return build_solution(prob, alg, c, fc; retcode = ReturnCode.Success,
-                    left = ā, right = b̄)
+            (ā == c || b̄ == c) && return build_solution(
+                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
+                left = ā, right = b̄)
+            iszero(fc) && return build_solution(
+                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
             a, b, d = _bracket(f, ā, b̄, c)
         end
     end
@@ -112,8 +103,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
     fc = f(c)
 
     # Reuturn solution when run out of max interation
-    return build_solution(prob, alg, c, fc; retcode = ReturnCode.MaxIters,
-        left = a, right = b)
+    return build_solution(
+        prob, alg, c, fc; retcode = ReturnCode.MaxIters, left = a, right = b)
 end
 
 # Define subrotine function bracket, check fc before bracket to return solution

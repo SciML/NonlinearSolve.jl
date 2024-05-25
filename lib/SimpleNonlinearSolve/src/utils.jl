@@ -58,8 +58,8 @@ function __forwarddiff_jacobian_config(
         f::F, x::SArray, ck::ForwardDiff.Chunk{N}, tag) where {F, N}
     seeds = ForwardDiff.construct_seeds(ForwardDiff.Partials{N, eltype(x)})
     duals = ForwardDiff.Dual{typeof(tag), eltype(x), N}.(x)
-    return ForwardDiff.JacobianConfig{typeof(tag), eltype(x), N, typeof(duals)}(seeds,
-        duals)
+    return ForwardDiff.JacobianConfig{typeof(tag), eltype(x), N, typeof(duals)}(
+        seeds, duals)
 end
 
 function __get_jacobian_config(ad::AutoPolyesterForwardDiff{CS}, args...) where {CS}
@@ -205,8 +205,8 @@ end
 
 function compute_jacobian_and_hessian(ad::AutoFiniteDiff, prob, _, x::Number)
     fx = prob.f(x, prob.p)
-    J_fn = x -> FiniteDiff.finite_difference_derivative(Base.Fix2(prob.f, prob.p), x,
-        ad.fdtype)
+    J_fn = x -> FiniteDiff.finite_difference_derivative(
+        Base.Fix2(prob.f, prob.p), x, ad.fdtype)
     dfx = J_fn(x)
     d2fx = FiniteDiff.finite_difference_derivative(J_fn, x, ad.fdtype)
     return fx, dfx, d2fx
@@ -262,7 +262,8 @@ end
 @inline _restructure(y, x) = ArrayInterface.restructure(y, x)
 
 @inline function _get_fx(prob::NonlinearLeastSquaresProblem, x)
-    isinplace(prob) && prob.f.resid_prototype === nothing &&
+    isinplace(prob) &&
+        prob.f.resid_prototype === nothing &&
         error("Inplace NonlinearLeastSquaresProblem requires a `resid_prototype`")
     return _get_fx(prob.f, x, prob.p)
 end
@@ -289,17 +290,16 @@ end
 # is meant for low overhead solvers, users can opt into the other termination modes but the
 # default is to use the least overhead version.
 function init_termination_cache(prob::NonlinearProblem, abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(prob, abstol, reltol, du, u,
-        AbsNormTerminationMode(Base.Fix1(maximum, abs)))
+    return init_termination_cache(
+        prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix1(maximum, abs)))
 end
 function init_termination_cache(
         prob::NonlinearLeastSquaresProblem, abstol, reltol, du, u, ::Nothing)
-    return init_termination_cache(prob, abstol, reltol, du, u,
-        AbsNormTerminationMode(Base.Fix2(norm, 2)))
+    return init_termination_cache(
+        prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix2(norm, 2)))
 end
 
-function init_termination_cache(
-        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+function init_termination_cache(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
     abstol = __get_tolerance(u, abstol, T)
@@ -316,23 +316,23 @@ function init_termination_cache(
 end
 
 function check_termination(tc_cache, fx, x, xo, prob, alg)
-    return check_termination(tc_cache, fx, x, xo, prob, alg,
-        DiffEqBase.get_termination_mode(tc_cache))
+    return check_termination(
+        tc_cache, fx, x, xo, prob, alg, DiffEqBase.get_termination_mode(tc_cache))
 end
-function check_termination(tc_cache, fx, x, xo, prob, alg,
-        ::AbstractNonlinearTerminationMode)
+function check_termination(
+        tc_cache, fx, x, xo, prob, alg, ::AbstractNonlinearTerminationMode)
     tc_cache(fx, x, xo) &&
         return build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
     return nothing
 end
-function check_termination(tc_cache, fx, x, xo, prob, alg,
-        ::AbstractSafeNonlinearTerminationMode)
+function check_termination(
+        tc_cache, fx, x, xo, prob, alg, ::AbstractSafeNonlinearTerminationMode)
     tc_cache(fx, x, xo) &&
         return build_solution(prob, alg, x, fx; retcode = tc_cache.retcode)
     return nothing
 end
-function check_termination(tc_cache, fx, x, xo, prob, alg,
-        ::AbstractSafeBestNonlinearTerminationMode)
+function check_termination(
+        tc_cache, fx, x, xo, prob, alg, ::AbstractSafeBestNonlinearTerminationMode)
     if tc_cache(fx, x, xo)
         if isinplace(prob)
             prob.f(fx, x, prob.p)

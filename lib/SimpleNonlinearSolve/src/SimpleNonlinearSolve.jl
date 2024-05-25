@@ -56,17 +56,15 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Nothing, args...; 
 end
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
-function SciMLBase.solve(
-        prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
     new_u0 = u0 !== nothing ? u0 : prob.u0
     new_p = p !== nothing ? p : prob.p
-    return __internal_solve_up(
-        prob, sensealg, new_u0, u0 === nothing, new_p, p === nothing,
-        alg, args...; prob.kwargs..., kwargs...)
+    return __internal_solve_up(prob, sensealg, new_u0, u0 === nothing, new_p,
+        p === nothing, alg, args...; prob.kwargs..., kwargs...)
 end
 
 function __internal_solve_up(_prob::NonlinearProblem, sensealg, u0, u0_changed,
@@ -78,10 +76,10 @@ end
 @setup_workload begin
     for T in (Float32, Float64)
         prob_no_brack_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
-        prob_no_brack_iip = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p,
-            T.([1.0, 1.0, 1.0]), T(2))
-        prob_no_brack_oop = NonlinearProblem{false}((u, p) -> u .* u .- p,
-            T.([1.0, 1.0, 1.0]), T(2))
+        prob_no_brack_iip = NonlinearProblem{true}(
+            (du, u, p) -> du .= u .* u .- p, T.([1.0, 1.0, 1.0]), T(2))
+        prob_no_brack_oop = NonlinearProblem{false}(
+            (u, p) -> u .* u .- p, T.([1.0, 1.0, 1.0]), T(2))
 
         algs = [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
             SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2)]
@@ -101,8 +99,8 @@ end
             end
         end
 
-        prob_brack = IntervalNonlinearProblem{false}((u, p) -> u * u - p,
-            T.((0.0, 2.0)), T(2))
+        prob_brack = IntervalNonlinearProblem{false}(
+            (u, p) -> u * u - p, T.((0.0, 2.0)), T(2))
         algs = [Bisection(), Falsi(), Ridder(), Brent(), Alefeld(), ITP()]
         @compile_workload begin
             for alg in algs

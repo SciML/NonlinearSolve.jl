@@ -56,8 +56,8 @@ scalar and static array problems.
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(real(x))
     Δₘₐₓ = T(alg.max_trust_radius)
@@ -88,8 +88,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
     fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
 
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
     # Set default trust region radius if not specified by user.
     Δₘₐₓ == 0 && (Δₘₐₓ = max(norm_fx, maximum(x) - minimum(x)))
@@ -132,8 +132,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
         else
             Δ = t₁ * Δ
             shrink_counter += 1
-            shrink_counter > max_shrink_times && return build_solution(prob, alg, x, fx;
-                retcode = ReturnCode.ShrinkThresholdExceeded)
+            shrink_counter > max_shrink_times && return build_solution(
+                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded)
         end
 
         if r ≥ η₁

@@ -19,25 +19,24 @@ A common bisection method.
     exact_right::Bool = false
 end
 
-function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...;
-        maxiters = 1000, abstol = nothing, kwargs...)
+function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection,
+        args...; maxiters = 1000, abstol = nothing, kwargs...)
     @assert !isinplace(prob) "`Bisection` only supports OOP problems."
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
-    abstol = __get_tolerance(nothing, abstol,
-        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+    abstol = __get_tolerance(
+        nothing, abstol, promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)
-        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
-            left, right)
+        return build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right)
     end
 
     if iszero(fr)
         return build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
-            left, right)
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
     end
 
     i = 1
@@ -49,8 +48,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
                     retcode = ReturnCode.FloatingPointLimit)
             fm = f(mid)
             if abs((right - left) / 2) < abstol
-                return build_solution(prob, alg, mid, fm; retcode = ReturnCode.Success,
-                    left, right)
+                return build_solution(
+                    prob, alg, mid, fm; retcode = ReturnCode.Success, left, right)
             end
             if iszero(fm)
                 right = mid
@@ -67,8 +66,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection, args...
         end
     end
 
-    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
-        maxiters = maxiters - i, prob, alg)
+    sol, i, left, right, fl, fr = __bisection(
+        left, right, fl, fr, f; abstol, maxiters = maxiters - i, prob, alg)
 
     sol !== nothing && return sol
 
@@ -81,15 +80,15 @@ function __bisection(left, right, fl, fr, f::F; abstol, maxiters, prob, alg) whe
     while i < maxiters
         mid = (left + right) / 2
         if (mid == left || mid == right)
-            sol = build_solution(prob, alg, left, fl; left, right,
-                retcode = ReturnCode.FloatingPointLimit)
+            sol = build_solution(
+                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit)
             break
         end
 
         fm = f(mid)
         if abs((right - left) / 2) < abstol
-            sol = build_solution(prob, alg, mid, fm; left, right,
-                retcode = ReturnCode.Success)
+            sol = build_solution(
+                prob, alg, mid, fm; left, right, retcode = ReturnCode.Success)
             break
         end
 

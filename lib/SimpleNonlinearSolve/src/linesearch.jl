@@ -37,8 +37,8 @@ end
 end
 
 (alg::LiFukushimaLineSearch)(prob, fu, u) = __generic_init(alg, prob, fu, u)
-function (alg::LiFukushimaLineSearch)(prob, fu::Union{Number, SArray},
-        u::Union{Number, SArray})
+function (alg::LiFukushimaLineSearch)(
+        prob, fu::Union{Number, SArray}, u::Union{Number, SArray})
     (alg.nan_maxiters === missing || alg.nan_maxiters === nothing) &&
         return __static_init(alg, prob, fu, u)
     @warn "`LiFukushimaLineSearch` with NaN checking is not non-allocating" maxlog=1
@@ -57,14 +57,16 @@ function __generic_init(alg::LiFukushimaLineSearch, prob, fu, u)
 
     nan_maxiters = ifelse(alg.nan_maxiters === missing, 5, alg.nan_maxiters)
 
-    return LiFukushimaLineSearchCache(ϕ, T(alg.lambda_0), T(alg.beta), T(alg.sigma_1),
-        T(alg.sigma_2), T(alg.eta), T(alg.rho), T(true), nan_maxiters, alg.maxiters)
+    return LiFukushimaLineSearchCache(
+        ϕ, T(alg.lambda_0), T(alg.beta), T(alg.sigma_1), T(alg.sigma_2),
+        T(alg.eta), T(alg.rho), T(true), nan_maxiters, alg.maxiters)
 end
 
 function __static_init(alg::LiFukushimaLineSearch, prob, fu, u)
     T = promote_type(eltype(fu), eltype(u))
-    return StaticLiFukushimaLineSearchCache(prob.f, prob.p, T(alg.lambda_0), T(alg.beta),
-        T(alg.sigma_1), T(alg.sigma_2), T(alg.eta), T(alg.rho), alg.maxiters)
+    return StaticLiFukushimaLineSearchCache(
+        prob.f, prob.p, T(alg.lambda_0), T(alg.beta), T(alg.sigma_1),
+        T(alg.sigma_2), T(alg.eta), T(alg.rho), alg.maxiters)
 end
 
 function (cache::LiFukushimaLineSearchCache)(u, δu)
