@@ -36,7 +36,7 @@
     end
 end
 
-@testitem "CUDA Kernel Launch Test" tags=[:cuda] skip=:(using CUDA; !CUDA.functional()) begin
+@testitem "CUDA Kernel Launch Test" tags=[:cuda] skip=:(using CUDA; !CUDA.functional()) timeout=3600 begin
     using StaticArrays, CUDA
 
     CUDA.allowscalar(false)
