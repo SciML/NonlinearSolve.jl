@@ -9,7 +9,7 @@ using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workl
 
 @recompile_invalidations begin
     using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
-		   AutoZygote, AutoEnzyme, AutoSparse
+                   AutoZygote, AutoEnzyme, AutoSparse
     # FIXME: deprecated, remove in future
     using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff,
                    AutoSparsePolyesterForwardDiff, AutoSparseZygote
