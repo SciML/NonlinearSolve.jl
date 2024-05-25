@@ -36,7 +36,7 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
     p
     jac_cache
     alg
-    njacs::Int
+    stats::NLStats
     autodiff
     vjp_autodiff
     jvp_autodiff
@@ -44,14 +44,13 @@ end
 
 function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p,
         u0 = cache.u, kwargs...) where {iip}
-    cache.njacs = 0
     cache.u = u0
     cache.p = p
     cache.uf = JacobianWrapper{iip}(cache.f, p)
 end
 
 function JacobianCache(
-        prob, alg, f::F, fu_, u, p; autodiff = nothing, vjp_autodiff = nothing,
+        prob, alg, f::F, fu_, u, p; stats, autodiff = nothing, vjp_autodiff = nothing,
         jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
@@ -94,11 +93,11 @@ function JacobianCache(
     end
 
     return JacobianCache{iip}(
-        J, f, uf, fu, u, p, jac_cache, alg, 0, autodiff, vjp_autodiff, jvp_autodiff)
+        J, f, uf, fu, u, p, jac_cache, alg, stats, autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 function JacobianCache(
-        prob, alg, f::F, ::Number, u::Number, p; autodiff = nothing, kwargs...) where {F}
+        prob, alg, f::F, ::Number, u::Number, p; stats, autodiff = nothing, kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
     autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
     if !(autodiff isa AutoForwardDiff ||
@@ -110,7 +109,7 @@ function JacobianCache(
                Detected $(autodiff). Falling back to AutoFiniteDiff."
     end
     return JacobianCache{false}(
-        u, f, uf, u, u, p, nothing, alg, 0, autodiff, nothing, nothing)
+        u, f, uf, u, u, p, nothing, alg, stats, autodiff, nothing, nothing)
 end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
@@ -124,14 +123,14 @@ function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
     return StatefulJacobianOperator(J, u, p)
 end
 function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
-    cache.njacs += 1
+    cache.stats.njacs += 1
     J = last(__value_derivative(cache.autodiff, cache.uf, u))
     return J
 end
 # Compute the Jacobian
 function (cache::JacobianCache{iip})(
         J::Union{AbstractMatrix, Nothing}, u, p = cache.p) where {iip}
-    cache.njacs += 1
+    cache.stats.njacs += 1
     if iip
         if has_jac(cache.f)
             cache.f.jac(J, u, p)
@@ -157,20 +156,14 @@ end
 @inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
-            if is_extension_loaded(Val(:Symbolics))
-                return SymbolicsSparsityDetection()
-            else
-                return ApproximateJacobianSparsity()
-            end
+            is_extension_loaded(Val(:Symbolics)) && return SymbolicsSparsityDetection()
+            return ApproximateJacobianSparsity()
         else
             jac_prototype = f.jac_prototype
         end
     elseif f.sparsity isa AbstractSparsityDetection
-        if f.jac_prototype === nothing
-            return f.sparsity
-        else
-            jac_prototype = f.jac_prototype
-        end
+        f.jac_prototype === nothing && return f.sparsity
+        jac_prototype = f.jac_prototype
     elseif f.sparsity isa AbstractMatrix
         jac_prototype = f.sparsity
     elseif f.jac_prototype isa AbstractMatrix

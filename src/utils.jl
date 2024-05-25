@@ -147,6 +147,15 @@ function __build_solution_less_specialize(prob::AbstractNonlinearProblem, alg, u
     N = ndims(u)
 
     return SciMLBase.NonlinearSolution{T, N, typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Any, typeof(left), Any, typeof(trace)}(
+        typeof(alg), Any, typeof(left), typeof(stats), typeof(trace)}(
         u, resid, prob, alg, retcode, original, left, right, stats, trace)
+end
+
+@inline empty_nlstats() = NLStats(0, 0, 0, 0, 0)
+function __reinit_internal!(stats::NLStats)
+    stats.nf = 0
+    stats.nsteps = 0
+    stats.nfactors = 0
+    stats.njacs = 0
+    stats.nsolve = 0
 end

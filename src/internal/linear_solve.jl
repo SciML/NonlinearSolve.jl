@@ -1,10 +1,8 @@
-import LinearSolve: AbstractFactorization, DefaultAlgorithmChoice, DefaultLinearSolver
-
 const LinearSolveFailureCode = isdefined(ReturnCode, :InternalLinearSolveFailure) ?
                                ReturnCode.InternalLinearSolveFailure : ReturnCode.Failure
 
 """
-    LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
+    LinearSolverCache(alg, linsolve, A, b, u; stats, kwargs...)
 
 Construct a cache for solving linear systems of the form `A * u = b`. Following cases are
 handled:
@@ -52,14 +50,7 @@ not mutated, we do this by copying over `A` to a preconstructed cache.
     A
     b
     precs
-    nsolve::Int
-    nfactors::Int
-end
-
-# FIXME: Do we need to reinit the precs?
-function reinit_cache!(cache::LinearSolverCache, args...; kwargs...)
-    cache.nsolve = 0
-    cache.nfactors = 0
+    stats::NLStats
 end
 
 @inline __fix_strange_type_combination(A, b, u) = u
@@ -77,14 +68,14 @@ end
     cache.lincache.u = u
 end
 
-function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
+function LinearSolverCache(alg, linsolve, A, b, u; stats, kwargs...)
     u_fixed = __fix_strange_type_combination(A, b, u)
 
     if (A isa Number && b isa Number) ||
        (linsolve === nothing && A isa SMatrix) ||
        (A isa Diagonal) ||
        (linsolve isa typeof(\))
-        return LinearSolverCache(nothing, nothing, nothing, A, b, nothing, 0, 0)
+        return LinearSolverCache(nothing, nothing, nothing, A, b, nothing, stats)
     end
     @bb u_ = copy(u_fixed)
     linprob = LinearProblem(A, b; u0 = u_, kwargs...)
@@ -92,8 +83,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     weight = __init_ones(u_fixed)
     if __hasfield(alg, Val(:precs))
         precs = alg.precs
-        Pl_, Pr_ = precs(
-            A, nothing, u, nothing, nothing, nothing, nothing, nothing, nothing)
+        Pl_, Pr_ = precs(A, nothing, u, ntuple(Returns(nothing), 6)...)
     else
         precs, Pl_, Pr_ = nothing, nothing, nothing
     end
@@ -102,7 +92,7 @@ function LinearSolverCache(alg, linsolve, A, b, u; kwargs...)
     # Unalias here, we will later use these as caches
     lincache = init(linprob, linsolve; alias_A = false, alias_b = false, Pl, Pr)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, precs, 0, 0)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, precs, stats)
 end
 
 @kwdef @concrete struct LinearSolveResult
@@ -113,8 +103,8 @@ end
 # Direct Linear Solve Case without Caching
 function (cache::LinearSolverCache{Nothing})(;
         A = nothing, b = nothing, linu = nothing, kwargs...)
-    cache.nsolve += 1
-    cache.nfactors += 1
+    cache.stats.nsolve += 1
+    cache.stats.nfactors += 1
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
     if A isa Diagonal
@@ -132,7 +122,7 @@ function (cache::LinearSolverCache)(;
         A = nothing, b = nothing, linu = nothing, du = nothing,
         p = nothing, weight = nothing, cachedata = nothing,
         reuse_A_if_factorization = false, verbose = true, kwargs...)
-    cache.nsolve += 1
+    cache.stats.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && (cache.lincache.b = b)
@@ -224,7 +214,7 @@ end
 @inline function __update_A!(cache, ::AbstractFactorization, A, reuse)
     reuse && return cache
     __set_lincache_A(cache.lincache, A)
-    cache.nfactors += 1
+    cache.stats.nfactors += 1
     return cache
 end
 @inline function __update_A!(cache, alg::DefaultLinearSolver, A, reuse)
@@ -235,7 +225,7 @@ end
     end
     reuse && return cache
     __set_lincache_A(cache.lincache, A)
-    cache.nfactors += 1
+    cache.stats.nfactors += 1
     return cache
 end
 
@@ -253,17 +243,12 @@ function __set_lincache_A(lincache, new_A)
 end
 
 @inline function __wrapprecs(_Pl, _Pr, weight)
-    if _Pl !== nothing
-        Pl = ComposePreconditioner(InvPreconditioner(Diagonal(_vec(weight))), _Pl)
-    else
-        Pl = InvPreconditioner(Diagonal(_vec(weight)))
-    end
+    Pl = _Pl !== nothing ?
+         ComposePreconditioner(InvPreconditioner(Diagonal(_vec(weight))), _Pl) :
+         InvPreconditioner(Diagonal(_vec(weight)))
 
-    if _Pr !== nothing
-        Pr = ComposePreconditioner(Diagonal(_vec(weight)), _Pr)
-    else
-        Pr = Diagonal(_vec(weight))
-    end
+    Pr = _Pr !== nothing ? ComposePreconditioner(Diagonal(_vec(weight)), _Pr) :
+         Diagonal(_vec(weight))
 
     return Pl, Pr
 end

@@ -207,12 +207,11 @@ function update_trace!(cache::AbstractNonlinearSolveCache, α = true)
     J = __getproperty(cache, Val(:J))
     if J === nothing
         update_trace!(
-            trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache), nothing, cache.du, α)
+            trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, cache.du, α)
     elseif cache isa ApproximateJacobianSolveCache && store_inverse_jacobian(cache)
-        update_trace!(trace, get_nsteps(cache) + 1, get_u(cache),
-            get_fu(cache), ApplyArray(__safe_inv, J), cache.du, α)
+        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache),
+            ApplyArray(__safe_inv, J), cache.du, α)
     else
-        update_trace!(
-            trace, get_nsteps(cache) + 1, get_u(cache), get_fu(cache), J, cache.du, α)
+        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, cache.du, α)
     end
 end

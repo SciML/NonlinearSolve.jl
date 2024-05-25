@@ -59,6 +59,7 @@ end
     best::Int
     current::Int
     nsteps::Int
+    stats::NLStats
     total_time::Float64
     maxtime
     retcode::ReturnCode.T
@@ -90,6 +91,7 @@ end
 function reinit_cache!(cache::NonlinearSolvePolyAlgorithmCache, args...; kwargs...)
     foreach(c -> reinit_cache!(c, args...; kwargs...), cache.caches)
     cache.current = cache.alg.start_index
+    __reinit_internal!(cache.stats)
     cache.nsteps = 0
     cache.total_time = 0.0
 end
@@ -98,8 +100,8 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
         function SciMLBase.__init(
-                prob::$probType, alg::$algType{N}, args...; maxtime = nothing,
-                maxiters = 1000, internalnorm = DEFAULT_NORM,
+                prob::$probType, alg::$algType{N}, args...; stats = empty_nlstats(),
+                maxtime = nothing, maxiters = 1000, internalnorm = DEFAULT_NORM,
                 alias_u0 = false, verbose = true, kwargs...) where {N}
             if (alias_u0 && !ismutable(prob.u0))
                 verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
@@ -115,13 +117,14 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
             alias_u0 && (prob = remake(prob; u0 = u0_aliased))
             return NonlinearSolvePolyAlgorithmCache{isinplace(prob), N, maxtime !== nothing}(
                 map(
-                    solver -> SciMLBase.__init(prob, solver, args...; maxtime,
+                    solver -> SciMLBase.__init(prob, solver, args...; stats, maxtime,
                         internalnorm, alias_u0, verbose, kwargs...),
                     alg.algs),
                 alg,
                 -1,
                 alg.start_index,
                 0,
+                stats,
                 0.0,
                 maxtime,
                 ReturnCode.Default,
@@ -181,7 +184,6 @@ end
     push!(calls, quote
         fus = tuple($(Tuple(resids)...))
         minfu, idx = __findmin(cache.internalnorm, fus)
-        stats = __compile_stats(cache.caches[idx])
     end)
     for i in 1:N
         push!(calls, quote
@@ -203,7 +205,7 @@ end
             end
             return __build_solution_less_specialize(
                 cache.caches[idx].prob, cache.alg, u, fus[idx];
-                retcode, stats, cache.caches[idx].trace)
+                retcode, stats = cache.stats, cache.caches[idx].trace)
         end)
 
     return Expr(:block, calls...)
@@ -250,7 +252,8 @@ end
 for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProblem, :NLLS))
     algType = NonlinearSolvePolyAlgorithm{pType}
     @eval begin
-        @generated function SciMLBase.__solve(prob::$probType, alg::$algType{N}, args...;
+        @generated function SciMLBase.__solve(
+                prob::$probType, alg::$algType{N}, args...; stats = empty_nlstats(),
                 alias_u0 = false, verbose = true, kwargs...) where {N}
             sol_syms = [gensym("sol") for _ in 1:N]
             prob_syms = [gensym("prob") for _ in 1:N]
@@ -280,8 +283,9 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                             else
                                 $(prob_syms[i]) = prob
                             end
-                            $(cur_sol) = SciMLBase.__solve($(prob_syms[i]), alg.algs[$(i)],
-                                args...; alias_u0, verbose, kwargs...)
+                            $(cur_sol) = SciMLBase.__solve(
+                                $(prob_syms[i]), alg.algs[$(i)], args...;
+                                stats, alias_u0, verbose, kwargs...)
                             if SciMLBase.successful_retcode($(cur_sol))
                                 if alias_u0
                                     copyto!(u0, $(cur_sol).u)

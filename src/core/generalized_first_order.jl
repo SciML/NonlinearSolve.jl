@@ -97,7 +97,7 @@ concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
     trustregion_cache
 
     # Counters
-    nf::Int
+    stats::NLStats
     nsteps::Int
     maxiters::Int
     maxtime
@@ -135,7 +135,7 @@ function __reinit_internal!(
     end
     cache.p = p
 
-    cache.nf = 1
+    __reinit_internal!(cache.stats)
     cache.nsteps = 0
     cache.maxiters = maxiters
     cache.maxtime = maxtime
@@ -153,7 +153,7 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem{uType, iip}, alg::GeneralizedFirstOrderAlgorithm,
-        args...; alias_u0 = false, maxiters = 1000, abstol = nothing,
+        args...; stats=empty_nlstats(), alias_u0 = false, maxiters = 1000, abstol = nothing,
         reltol = nothing, maxtime = nothing, termination_condition = nothing,
         internalnorm = DEFAULT_NORM, linsolve_kwargs = (;), kwargs...) where {uType, iip}
     timer = get_timer_output()
@@ -170,10 +170,10 @@ function SciMLBase.__init(
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         jac_cache = JacobianCache(
-            prob, alg, f, fu, u, p; autodiff = alg.jacobian_ad, linsolve,
+            prob, alg, f, fu, u, p; stats, autodiff = alg.jacobian_ad, linsolve,
             jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
-        descent_cache = __internal_init(prob, alg.descent, J, fu, u; abstol, reltol,
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol, reltol,
             internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)
 
@@ -189,7 +189,7 @@ function SciMLBase.__init(
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
             trustregion_cache = __internal_init(
-                prob, alg.trustregion, f, fu, u, p; internalnorm, kwargs...)
+                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...)
             GB = :TrustRegion
         end
 
@@ -197,7 +197,7 @@ function SciMLBase.__init(
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
             linesearch_cache = __internal_init(
-                prob, alg.linesearch, f, fu, u, p; internalnorm, kwargs...)
+                prob, alg.linesearch, f, fu, u, p; stats, internalnorm, kwargs...)
             GB = :LineSearch
         end
 
@@ -206,7 +206,7 @@ function SciMLBase.__init(
 
         return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
             fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-            trustregion_cache, 0, 0, maxiters, maxtime, alg.max_shrink_times, timer,
+            trustregion_cache, stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs)
     end
 end

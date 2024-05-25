@@ -43,7 +43,7 @@ end
     last_step_accepted::Bool
     u_cache
     fu_cache
-    nf::Int
+    stats::NLStats
 end
 
 function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...;
@@ -53,18 +53,17 @@ function reinit_cache!(cache::LevenbergMarquardtTrustRegionCache, args...;
     cache.loss_old = oftype(cache.loss_old, Inf)
     cache.norm_v_old = oftype(cache.norm_v_old, Inf)
     cache.last_step_accepted = false
-    cache.nf = 0
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion, f::F,
-        fu, u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion, f::F, fu,
+        u, p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
-    return LevenbergMarquardtTrustRegionCache(
-        f, p, T(Inf), v, T(Inf), internalnorm, alg.β_uphill, false, u_cache, fu_cache, 0)
+    return LevenbergMarquardtTrustRegionCache(f, p, T(Inf), v, T(Inf), internalnorm,
+        alg.β_uphill, false, u_cache, fu_cache, stats)
 end
 
 function __internal_solve!(
@@ -76,7 +75,7 @@ function __internal_solve!(
 
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    cache.nf += 1
+    cache.stats.nf += 1
 
     loss = cache.internalnorm(cache.fu_cache)
 
@@ -282,7 +281,7 @@ end
     fu_cache
     last_step_accepted::Bool
     shrink_counter::Int
-    nf::Int
+    stats::NLStats
     alg
 end
 
@@ -298,7 +297,6 @@ function reinit_cache!(
     end
     cache.last_step_accepted = false
     cache.shrink_counter = 0
-    cache.nf = 0
 end
 
 # Defaults
@@ -369,7 +367,7 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu,
-        u, p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        u, p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)
@@ -419,7 +417,7 @@ function __internal_init(
         alg.method, f, p, max_trust_radius, initial_trust_radius, initial_trust_radius,
         step_threshold, shrink_threshold, expand_threshold, shrink_factor,
         expand_factor, p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache,
-        Jδu_cache, δu_cache, internalnorm, u_cache, fu_cache, false, 0, 0, alg)
+        Jδu_cache, δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg)
 end
 
 function __internal_solve!(
@@ -427,7 +425,7 @@ function __internal_solve!(
     T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    cache.nf += 1
+    cache.stats.nf += 1
 
     if hasfield(typeof(descent_stats), :δuJᵀJδu) && !isnan(descent_stats.δuJᵀJδu)
         δuJᵀJδu = descent_stats.δuJᵀJδu

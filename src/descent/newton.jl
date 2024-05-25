@@ -32,22 +32,22 @@ end
 
 @internal_caches NewtonDescentCache :lincache
 
-function __internal_init(
-        prob::NonlinearProblem, alg::NewtonDescent, J, fu, u; shared::Val{N} = Val(1),
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;), abstol = nothing,
-        reltol = nothing, timer = get_timer_output(), kwargs...) where {INV, N}
+function __internal_init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u; stats,
+        shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
+        linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
+        timer = get_timer_output(), kwargs...) where {INV, N}
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
     INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing, timer)
     lincache = LinearSolverCache(
-        alg, alg.linsolve, J, _vec(fu), _vec(u); abstol, reltol, linsolve_kwargs...)
+        alg, alg.linsolve, J, _vec(fu), _vec(u); stats, abstol, reltol, linsolve_kwargs...)
     return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing, timer)
 end
 
-function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J,
-        fu, u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent, J, fu,
+        u; stats, pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         shared::Val{N} = Val(1), abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...) where {INV, N}
     length(fu) != length(u) &&
@@ -63,7 +63,7 @@ function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent,
         A, b = J, _vec(fu)
     end
     lincache = LinearSolverCache(
-        alg, alg.linsolve, A, b, _vec(u); abstol, reltol, linsolve_kwargs...)
+        alg, alg.linsolve, A, b, _vec(u); stats, abstol, reltol, linsolve_kwargs...)
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)

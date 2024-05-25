@@ -51,8 +51,8 @@ end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J,
-        fu, u; pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu,
+        u; stats, pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
         abstol = nothing, timer = get_timer_output(), reltol = nothing,
         alias_J = true, shared::Val{N} = Val(1), kwargs...) where {INV, N}
     length(fu) != length(u) &&
@@ -94,7 +94,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
             rhs_damp = fu
         end
         damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
-            jac_damp, rhs_damp, u, False; kwargs...)
+            jac_damp, rhs_damp, u, False; stats, kwargs...)
         D = damping_fn_cache(nothing)
         D isa Number && (D = D * I)
         rhs_cache = vcat(_vec(fu), _vec(u))
@@ -115,7 +115,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
         damping_fn_cache = __internal_init(prob, alg.damping_fn, alg.initial_damping,
-            jac_damp, rhs_damp, u, True; kwargs...)
+            jac_damp, rhs_damp, u, True; stats, kwargs...)
         D = damping_fn_cache(nothing)
         @bb J_cache = similar(JᵀJ)
         @bb @. J_cache = 0
@@ -125,7 +125,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
     end
 
     lincache = LinearSolverCache(
-        alg, alg.linsolve, A, b, _vec(u); abstol, reltol, linsolve_kwargs...)
+        alg, alg.linsolve, A, b, _vec(u); stats, abstol, reltol, linsolve_kwargs...)
 
     return DampedNewtonDescentCache{INV, mode}(
         J_cache, δu, δus, lincache, JᵀJ, Jᵀfu, rhs_cache, damping_fn_cache, timer)
