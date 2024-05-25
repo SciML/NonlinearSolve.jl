@@ -82,10 +82,11 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
     else
         if has_analytic_jac
             f.jac_prototype === nothing ?
-            similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)) :
+            __similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)) :
             copy(f.jac_prototype)
         elseif f.jac_prototype === nothing
-            init_jacobian(jac_cache; preserve_immutable = Val(true))
+            __init_bigfloat_array!!(init_jacobian(
+                jac_cache; preserve_immutable = Val(true)))
         else
             f.jac_prototype
         end

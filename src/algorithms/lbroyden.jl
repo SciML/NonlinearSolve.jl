@@ -117,9 +117,9 @@ end
 
 function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
     T = promote_type(eltype(u), eltype(fu))
-    U = similar(fu, T, length(fu), threshold)
-    Vᵀ = similar(u, T, length(u), threshold)
-    cache = similar(u, T, threshold)
+    U = __similar(fu, T, length(fu), threshold)
+    Vᵀ = __similar(u, T, length(u), threshold)
+    cache = __similar(u, T, threshold)
     return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache, T(alpha))
 end
 

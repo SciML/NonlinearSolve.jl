@@ -2,7 +2,7 @@
 function evaluate_f(prob::AbstractNonlinearProblem{uType, iip}, u) where {uType, iip}
     (; f, u0, p) = prob
     if iip
-        fu = f.resid_prototype === nothing ? similar(u) :
+        fu = f.resid_prototype === nothing ? __similar(u) :
              promote_type(eltype(u), eltype(f.resid_prototype)).(f.resid_prototype)
         f(fu, u, p)
     else
@@ -154,7 +154,7 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
 
     𝐅 = if force_oop === True && applicable(𝐟, u0, u0)
         _resid = resid isa Number ? [resid] : _vec(resid)
-        du = _vec(similar(_resid))
+        du = _vec(__similar(_resid))
         @closure u -> begin
             𝐟(du, u)
             return du

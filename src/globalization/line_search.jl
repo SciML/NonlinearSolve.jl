@@ -115,7 +115,7 @@ function __internal_init(
     else
         if SciMLBase.has_jvp(f)
             if isinplace(prob)
-                g_cache = similar(u)
+                g_cache = __similar(u)
                 grad_op = @closure (u, fu, p) -> f.vjp(g_cache, fu, u, p)
             else
                 grad_op = @closure (u, fu, p) -> f.vjp(fu, u, p)
@@ -125,7 +125,7 @@ function __internal_init(
                 alg.autodiff, prob; check_reverse_mode = true)
             vjp_op = VecJacOperator(prob, fu, u; autodiff)
             if isinplace(prob)
-                g_cache = similar(u)
+                g_cache = __similar(u)
                 grad_op = @closure (u, fu, p) -> vjp_op(g_cache, fu, u, p)
             else
                 grad_op = @closure (u, fu, p) -> vjp_op(fu, u, p)

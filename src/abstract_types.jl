@@ -229,13 +229,14 @@ function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
     __show_algorithm(io, cache.alg,
         (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
 
-    ustr = sprint(show, get_u(cache); context=(:compact=>true, :limit=>true))
+    ustr = sprint(show, get_u(cache); context = (:compact => true, :limit => true))
     println(io, ",\n" * (" "^(indent + 4)) * "u = $(ustr),")
 
-    residstr = sprint(show, get_fu(cache); context=(:compact=>true, :limit=>true))
+    residstr = sprint(show, get_fu(cache); context = (:compact => true, :limit => true))
     println(io, (" "^(indent + 4)) * "residual = $(residstr),")
 
-    normstr = sprint(show, norm(get_fu(cache), Inf); context=(:compact=>true, :limit=>true))
+    normstr = sprint(
+        show, norm(get_fu(cache), Inf); context = (:compact => true, :limit => true))
     println(io, (" "^(indent + 4)) * "inf-norm(residual) = $(normstr),")
 
     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
