@@ -16,8 +16,7 @@ end
     using SimpleNonlinearSolve, LinearAlgebra
 
     for alg in [SimpleNewtonRaphson(), SimpleBroyden(), SimpleKlement(), SimpleDFSane(),
-        SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2),
-        SimpleHalley()]
+        SimpleTrustRegion(), SimpleLimitedMemoryBroyden(; threshold = 2), SimpleHalley()]
         sol = solve(prob_oop_bf, alg)
         @test norm(sol.resid, Inf) < 1e-6
         @test SciMLBase.successful_retcode(sol.retcode)
