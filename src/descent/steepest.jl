@@ -30,8 +30,8 @@ end
 @internal_caches SteepestDescentCache :lincache
 
 @inline function __internal_init(
-        prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu,
-        u; stats, shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
+        prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu, u;
+        stats, shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
         linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...) where {INV, N}
     INV && @assert length(fu)==length(u) "Non-Square Jacobian Inverse doesn't make sense."
@@ -40,8 +40,8 @@ end
         @bb δu_ = similar(u)
     end
     if INV
-        lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu),
-            _vec(u); stats, abstol, reltol, linsolve_kwargs...)
+        lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu), _vec(u);
+            stats, abstol, reltol, linsolve_kwargs...)
     else
         lincache = nothing
     end

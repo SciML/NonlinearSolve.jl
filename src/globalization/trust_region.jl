@@ -366,8 +366,8 @@ end
 @inline __expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu,
-        u, p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu, u,
+        p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)

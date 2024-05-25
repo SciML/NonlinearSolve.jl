@@ -1,5 +1,5 @@
 function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
-        alg::AbstractNonlinearSolveAlgorithm, args...; stats=empty_nlstats(), kwargs...)
+        alg::AbstractNonlinearSolveAlgorithm, args...; stats = empty_nlstats(), kwargs...)
     cache = SciMLBase.__init(prob, alg, args...; stats, kwargs...)
     return solve!(cache)
 end

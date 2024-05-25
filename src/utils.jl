@@ -146,8 +146,9 @@ function __build_solution_less_specialize(prob::AbstractNonlinearProblem, alg, u
     T = eltype(eltype(u))
     N = ndims(u)
 
-    return SciMLBase.NonlinearSolution{T, N, typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Any, typeof(left), typeof(stats), typeof(trace)}(
+    return SciMLBase.NonlinearSolution{
+        T, N, typeof(u), typeof(resid), typeof(prob), typeof(alg),
+        Any, typeof(left), typeof(stats), typeof(trace)}(
         u, resid, prob, alg, retcode, original, left, right, stats, trace)
 end
 

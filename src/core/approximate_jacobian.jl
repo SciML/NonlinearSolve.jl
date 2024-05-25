@@ -165,8 +165,8 @@ function SciMLBase.__init(
         INV = store_inverse_jacobian(alg.update_rule)
 
         linsolve = get_linear_solver(alg.descent)
-        initialization_cache = __internal_init(
-            prob, alg.initialization, alg, f, fu, u, p; stats, linsolve, maxiters, internalnorm)
+        initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
+            stats, linsolve, maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition)
@@ -174,9 +174,8 @@ function SciMLBase.__init(
 
         J = initialization_cache(nothing)
         inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
-        descent_cache = __internal_init(
-            prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
-            linsolve_kwargs, pre_inverted = Val(INV), timer)
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol, reltol,
+            internalnorm, linsolve_kwargs, pre_inverted = Val(INV), timer)
         du = get_du(descent_cache)
 
         reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)

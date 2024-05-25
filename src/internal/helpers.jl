@@ -168,7 +168,8 @@ end
 
 function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = False,
         can_handle_scalar::Val = False, kwargs...)
-    Jₚ = JacobianCache(prob, alg, prob.f, fu, u0, prob.p; kwargs...)
+    Jₚ = JacobianCache(
+        prob, alg, prob.f, fu, u0, prob.p; stats = empty_nlstats(), kwargs...)
 
     𝓙 = (can_handle_scalar === False && prob.u0 isa Number) ? @closure(u->[Jₚ(u[1])]) : Jₚ
 

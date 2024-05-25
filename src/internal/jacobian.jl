@@ -49,9 +49,8 @@ function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p,
     cache.uf = JacobianWrapper{iip}(cache.f, p)
 end
 
-function JacobianCache(
-        prob, alg, f::F, fu_, u, p; stats, autodiff = nothing, vjp_autodiff = nothing,
-        jvp_autodiff = nothing, linsolve = missing) where {F}
+function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
     uf = JacobianWrapper{iip}(f, p)
 
@@ -96,8 +95,8 @@ function JacobianCache(
         J, f, uf, fu, u, p, jac_cache, alg, stats, autodiff, vjp_autodiff, jvp_autodiff)
 end
 
-function JacobianCache(
-        prob, alg, f::F, ::Number, u::Number, p; stats, autodiff = nothing, kwargs...) where {F}
+function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
+        autodiff = nothing, kwargs...) where {F}
     uf = JacobianWrapper{false}(f, p)
     autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
     if !(autodiff isa AutoForwardDiff ||

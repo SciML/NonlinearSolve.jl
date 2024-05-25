@@ -251,8 +251,8 @@ end
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch, f::F, fu,
-        u, p, args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch, f::F, fu, u,
+        p, args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
@@ -343,8 +343,8 @@ end
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch, f::F, fu, u,
-        p, args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch, f::F, fu, u, p,
+        args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))

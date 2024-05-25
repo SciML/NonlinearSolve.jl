@@ -153,9 +153,10 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem{uType, iip}, alg::GeneralizedFirstOrderAlgorithm,
-        args...; stats=empty_nlstats(), alias_u0 = false, maxiters = 1000, abstol = nothing,
-        reltol = nothing, maxtime = nothing, termination_condition = nothing,
-        internalnorm = DEFAULT_NORM, linsolve_kwargs = (;), kwargs...) where {uType, iip}
+        args...; stats = empty_nlstats(), alias_u0 = false, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxtime = nothing,
+        termination_condition = nothing, internalnorm = DEFAULT_NORM,
+        linsolve_kwargs = (;), kwargs...) where {uType, iip}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
@@ -173,8 +174,8 @@ function SciMLBase.__init(
             prob, alg, f, fu, u, p; stats, autodiff = alg.jacobian_ad, linsolve,
             jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
         J = jac_cache(nothing)
-        descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol, reltol,
-            internalnorm, linsolve_kwargs, timer)
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol,
+            reltol, internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)
 
         if alg.trustregion !== missing && alg.linesearch !== missing
