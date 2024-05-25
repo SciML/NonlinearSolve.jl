@@ -73,8 +73,8 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __maybe_symmetric(x::Number) = x
 ## LinearSolve with `nothing` doesn't dispatch correctly here
 @inline __maybe_symmetric(x::StaticArray) = x
-@inline __maybe_symmetric(x::SparseArrays.AbstractSparseMatrix) = x
-@inline __maybe_symmetric(x::SciMLOperators.AbstractSciMLOperator) = x
+@inline __maybe_symmetric(x::AbstractSparseMatrix) = x
+@inline __maybe_symmetric(x::AbstractSciMLOperator) = x
 
 # SparseAD --> NonSparseAD
 @inline __get_nonsparse_ad(backend::AutoSparse) = ADTypes.dense_ad(backend)

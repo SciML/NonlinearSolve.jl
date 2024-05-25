@@ -1,7 +1,13 @@
 module NonlinearSolveNLSolversExt
 
-using ADTypes, FastClosures, NonlinearSolve, NLSolvers, SciMLBase, LinearAlgebra
-using FiniteDiff, ForwardDiff
+using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+using FastClosures: @closure
+using FiniteDiff: FiniteDiff
+using ForwardDiff: ForwardDiff
+using LinearAlgebra: norm
+using NLSolvers: NLSolvers, NEqOptions, NEqProblem
+using NonlinearSolve: NonlinearSolve, NLSolversJL
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,

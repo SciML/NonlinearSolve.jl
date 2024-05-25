@@ -1,6 +1,6 @@
 module NonlinearSolveZygoteExt
 
-import NonlinearSolve, Zygote
+using NonlinearSolve: NonlinearSolve
 
 NonlinearSolve.is_extension_loaded(::Val{:Zygote}) = true
 

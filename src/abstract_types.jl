@@ -311,12 +311,12 @@ function returns_norm_form_damping(f::F) where {F}
 end
 
 """
-    AbstractNonlinearSolveOperator <: SciMLBase.AbstractSciMLOperator
+    AbstractNonlinearSolveOperator <: AbstractSciMLOperator
 
 NonlinearSolve.jl houses a few custom operators. These will eventually be moved out but till
 then this serves as the abstract type for them.
 """
-abstract type AbstractNonlinearSolveOperator{T} <: SciMLBase.AbstractSciMLOperator{T} end
+abstract type AbstractNonlinearSolveOperator{T} <: AbstractSciMLOperator{T} end
 
 # Approximate Jacobian Algorithms
 """

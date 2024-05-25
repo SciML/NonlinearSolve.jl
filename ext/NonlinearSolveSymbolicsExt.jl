@@ -1,6 +1,6 @@
 module NonlinearSolveSymbolicsExt
 
-import NonlinearSolve, Symbolics
+using NonlinearSolve: NonlinearSolve
 
 NonlinearSolve.is_extension_loaded(::Val{:Symbolics}) = true
 

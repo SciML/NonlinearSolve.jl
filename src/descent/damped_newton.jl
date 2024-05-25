@@ -220,7 +220,7 @@ end
 
 # J_cache is allowed to alias J
 ## Compute ``J + D``
-@inline __dampen_jacobian!!(J_cache, J::SciMLBase.AbstractSciMLOperator, D) = J + D
+@inline __dampen_jacobian!!(J_cache, J::AbstractSciMLOperator, D) = J + D
 @inline __dampen_jacobian!!(J_cache, J::Number, D) = J + D
 @inline function __dampen_jacobian!!(J_cache, J::AbstractMatrix, D::AbstractMatrix)
     if __can_setindex(J_cache)
