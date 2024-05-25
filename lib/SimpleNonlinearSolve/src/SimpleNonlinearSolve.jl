@@ -1,22 +1,31 @@
 module SimpleNonlinearSolve
 
-import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
+using PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
 
 @recompile_invalidations begin
-    using ADTypes, ArrayInterface, ConcreteStructs, DiffEqBase, FastClosures, FiniteDiff,
-          ForwardDiff, Reexport, LinearAlgebra, SciMLBase
-
-    import DiffEqBase: AbstractNonlinearTerminationMode,
-                       AbstractSafeNonlinearTerminationMode,
-                       AbstractSafeBestNonlinearTerminationMode, NONLINEARSOLVE_DEFAULT_NORM
-    import DiffResults
-    import ForwardDiff: Dual
-    import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
-    import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val
-    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
+    using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+    using ArrayInterface: ArrayInterface
+    using ConcreteStructs: @concrete
+    using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
+                      AbstractSafeNonlinearTerminationMode,
+                      AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
+                      NONLINEARSOLVE_DEFAULT_NORM
+    using DiffResults: DiffResults
+    using FastClosures: @closure
+    using FiniteDiff: FiniteDiff
+    using ForwardDiff: ForwardDiff, Dual
+    using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess, lu,
+                         mul!, norm, transpose
+    using MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
+    using Reexport: @reexport
+    using SciMLBase: SciMLBase, IntervalNonlinearProblem, NonlinearFunction,
+                     NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode, init,
+                     remake, solve, AbstractNonlinearAlgorithm, build_solution, isinplace,
+                     _unwrap_val
+    using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 end
 
-@reexport using ADTypes, SciMLBase
+@reexport using SciMLBase
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 abstract type AbstractBracketingAlgorithm <: AbstractSimpleNonlinearSolveAlgorithm end
@@ -110,6 +119,7 @@ end
     end
 end
 
+export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 export SimpleBroyden, SimpleDFSane, SimpleGaussNewton, SimpleHalley, SimpleKlement,
        SimpleLimitedMemoryBroyden, SimpleNewtonRaphson, SimpleTrustRegion
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
