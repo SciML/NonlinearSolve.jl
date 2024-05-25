@@ -8,14 +8,12 @@ import PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidat
 
     import DiffEqBase: AbstractNonlinearTerminationMode,
                        AbstractSafeNonlinearTerminationMode,
-                       AbstractSafeBestNonlinearTerminationMode,
-                       NonlinearSafeTerminationReturnCode, get_termination_mode,
-                       NONLINEARSOLVE_DEFAULT_NORM
+                       AbstractSafeBestNonlinearTerminationMode, NONLINEARSOLVE_DEFAULT_NORM
     import DiffResults
     import ForwardDiff: Dual
     import MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
     import SciMLBase: AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val
-    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, MMatrix, Size
+    import StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 end
 
 @reexport using ADTypes, SciMLBase

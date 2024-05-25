@@ -1,6 +1,7 @@
 module SimpleNonlinearSolvePolyesterForwardDiffExt
 
-using SimpleNonlinearSolve, PolyesterForwardDiff
+using PolyesterForwardDiff: PolyesterForwardDiff
+using SimpleNonlinearSolve: SimpleNonlinearSolve
 
 @inline SimpleNonlinearSolve.__is_extension_loaded(::Val{:PolyesterForwardDiff}) = true
 

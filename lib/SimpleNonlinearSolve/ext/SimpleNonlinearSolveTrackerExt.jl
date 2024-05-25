@@ -1,8 +1,12 @@
 module SimpleNonlinearSolveTrackerExt
 
-using DiffEqBase, SciMLBase, SimpleNonlinearSolve, Tracker
+using DiffEqBase: DiffEqBase
+using SciMLBase: TrackerOriginator, NonlinearProblem, NonlinearLeastSquaresProblem
+using SimpleNonlinearSolve: SimpleNonlinearSolve
+using Tracker: Tracker, TrackedArray
 
-function SimpleNonlinearSolve.__internal_solve_up(prob::NonlinearProblem,
+function SimpleNonlinearSolve.__internal_solve_up(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         sensealg, u0::TrackedArray, u0_changed, p, p_changed, alg, args...; kwargs...)
     return Tracker.track(
         SimpleNonlinearSolve.__internal_solve_up, prob, sensealg, u0, u0_changed,
@@ -10,21 +14,23 @@ function SimpleNonlinearSolve.__internal_solve_up(prob::NonlinearProblem,
 end
 
 function SimpleNonlinearSolve.__internal_solve_up(
-        prob::NonlinearProblem, sensealg, u0::TrackedArray, u0_changed,
-        p::TrackedArray, p_changed, alg, args...; kwargs...)
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}, sensealg,
+        u0::TrackedArray, u0_changed, p::TrackedArray, p_changed, alg, args...; kwargs...)
     return Tracker.track(
         SimpleNonlinearSolve.__internal_solve_up, prob, sensealg, u0, u0_changed,
         p, p_changed, alg, args...; kwargs...)
 end
 
-function SimpleNonlinearSolve.__internal_solve_up(prob::NonlinearProblem,
+function SimpleNonlinearSolve.__internal_solve_up(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         sensealg, u0, u0_changed, p::TrackedArray, p_changed, alg, args...; kwargs...)
     return Tracker.track(
         SimpleNonlinearSolve.__internal_solve_up, prob, sensealg, u0, u0_changed,
         p, p_changed, alg, args...; kwargs...)
 end
 
-Tracker.@grad function SimpleNonlinearSolve.__internal_solve_up(_prob::NonlinearProblem,
+Tracker.@grad function SimpleNonlinearSolve.__internal_solve_up(
+        _prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         sensealg, u0_, u0_changed, p_, p_changed, alg, args...; kwargs...)
     u0, p = Tracker.data(u0_), Tracker.data(p_)
     prob = remake(_prob; u0, p)

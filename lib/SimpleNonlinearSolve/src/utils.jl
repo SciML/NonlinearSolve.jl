@@ -77,7 +77,7 @@ except `cache` (& `J` if not nothing) are mutated.
 function value_and_jacobian(ad, f::F, y, x::X, p, cache; J = nothing) where {F, X}
     if isinplace(f)
         _f = (du, u) -> f(du, u, p)
-        if DiffEqBase.has_jac(f)
+        if SciMLBase.has_jac(f)
             f.jac(J, x, p)
             _f(y, x)
             return y, J
@@ -97,7 +97,7 @@ function value_and_jacobian(ad, f::F, y, x::X, p, cache; J = nothing) where {F, 
         end
     else
         _f = Base.Fix2(f, p)
-        if DiffEqBase.has_jac(f)
+        if SciMLBase.has_jac(f)
             return _f(x), f.jac(x, p)
         elseif ad isa AutoForwardDiff
             if ArrayInterface.can_setindex(x)
@@ -124,7 +124,7 @@ end
 function __polyester_forwarddiff_jacobian! end
 
 function value_and_jacobian(ad, f::F, y, x::Number, p, cache; J = nothing) where {F}
-    if DiffEqBase.has_jac(f)
+    if SciMLBase.has_jac(f)
         return f(x, p), f.jac(x, p)
     elseif ad isa AutoForwardDiff
         T = typeof(__standard_tag(ad.tag, x))
@@ -152,7 +152,7 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
     if isinplace(f)
         _f = (du, u) -> f(du, u, p)
         J = similar(y, length(y), length(x))
-        if DiffEqBase.has_jac(f)
+        if SciMLBase.has_jac(f)
             return J, nothing
         elseif ad isa AutoForwardDiff || ad isa AutoPolyesterForwardDiff
             return J, __get_jacobian_config(ad, _f, y, x)
@@ -163,7 +163,7 @@ function jacobian_cache(ad, f::F, y, x::X, p) where {F, X <: AbstractArray}
         end
     else
         _f = Base.Fix2(f, p)
-        if DiffEqBase.has_jac(f)
+        if SciMLBase.has_jac(f)
             return nothing, nothing
         elseif ad isa AutoForwardDiff
             J = ArrayInterface.can_setindex(x) ? similar(y, length(y), length(x)) : nothing
