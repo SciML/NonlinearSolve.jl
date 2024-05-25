@@ -34,13 +34,14 @@ using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workl
                          istril, istriu, lu, mul!, norm, pinv, tril!, triu!
     using LineSearches: LineSearches
     using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
-                       InvPreconditioner, needs_concrete_A
+                       InvPreconditioner, needs_concrete_A, AbstractFactorization,
+                       DefaultAlgorithmChoice, DefaultLinearSolver
     using MaybeInplace: @bb
     using Printf: @printf
     using Preferences: Preferences, @load_preference, @set_preferences!
     using RecursiveArrayTools: recursivecopy!, recursivefill!
     using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                     AbstractSciMLOperator, _unwrap_val, has_jac, isinplace
+                     AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
     using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
     using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                            ApproximateJacobianSparsity, JacPrototypeSparsityDetection,

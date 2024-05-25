@@ -93,12 +93,12 @@ end
     grad_op
     u_cache
     fu_cache
-    nf::Base.RefValue{Int}
+    stats::NLStats
 end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::LineSearchesJL, f::F, fu, u, p,
-        args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
         autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_forward_mode = true)
@@ -135,19 +135,18 @@ function __internal_init(
 
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
-    nf = Base.RefValue(0)
 
     ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
-        nf[] += 1
+        stats.nf += 1
         return @fastmath internalnorm(fu_cache)^2 / 2
     end
 
     dϕ = @closure (f, p, u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
-        nf[] += 1
+        stats.nf += 1
         g₀ = grad_op(u_cache, fu_cache, p)
         return dot(g₀, du)
     end
@@ -155,14 +154,14 @@ function __internal_init(
     ϕdϕ = @closure (f, p, u, du, α, u_cache, fu_cache, grad_op) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
-        nf[] += 1
+        stats.nf += 1
         g₀ = grad_op(u_cache, fu_cache, p)
         obj = @fastmath internalnorm(fu_cache)^2 / 2
         return obj, dot(g₀, du)
     end
 
-    return LineSearchesJLCache(
-        f, p, ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha), grad_op, u_cache, fu_cache, nf)
+    return LineSearchesJLCache(f, p, ϕ, dϕ, ϕdϕ, alg.method, T(alg.initial_alpha),
+        grad_op, u_cache, fu_cache, stats)
 end
 
 function __internal_solve!(cache::LineSearchesJLCache, u, du; kwargs...)
@@ -248,21 +247,20 @@ end
     nsteps::Int
     η_strategy
     n_exp::Int
-    nf::Base.RefValue{Int}
+    stats::NLStats
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch, f::F, fu,
-        u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        prob::AbstractNonlinearProblem, alg::RobustNonMonotoneLineSearch, f::F, fu, u,
+        p, args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
 
-    nf = Base.RefValue(0)
     ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
-        nf[] += 1
+        stats.nf += 1
         return internalnorm(fu_cache)^alg.n_exp
     end
 
@@ -272,7 +270,7 @@ function __internal_init(
     return RobustNonMonotoneLineSearchCache(
         f, p, ϕ, u_cache, fu_cache, internalnorm, alg.maxiters,
         fill(fn₁, alg.M), T(alg.gamma), T(alg.sigma_1), alg.M,
-        T(alg.tau_min), T(alg.tau_max), 0, η_strategy, alg.n_exp, nf)
+        T(alg.tau_min), T(alg.tau_max), 0, η_strategy, alg.n_exp, stats)
 end
 
 function __internal_solve!(cache::RobustNonMonotoneLineSearchCache, u, du; kwargs...)
@@ -341,28 +339,27 @@ end
     α
     nan_maxiters::Int
     maxiters::Int
-    nf::Base.RefValue{Int}
+    stats::NLStats
 end
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch, f::F, fu, u,
-        p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        prob::AbstractNonlinearProblem, alg::LiFukushimaLineSearch, f::F, fu, u, p,
+        args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     T = promote_type(eltype(fu), eltype(u))
 
-    nf = Base.RefValue(0)
     ϕ = @closure (f, p, u, du, α, u_cache, fu_cache) -> begin
         @bb @. u_cache = u + α * du
         fu_cache = evaluate_f!!(f, fu_cache, u_cache, p)
-        nf[] += 1
+        stats.nf += 1
         return internalnorm(fu_cache)
     end
 
     return LiFukushimaLineSearchCache(
         ϕ, f, p, internalnorm, u_cache, fu_cache, T(alg.lambda_0),
         T(alg.beta), T(alg.sigma_1), T(alg.sigma_2), T(alg.eta),
-        T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, nf)
+        T(alg.rho), T(true), alg.nan_max_iter, alg.maxiters, stats)
 end
 
 function __internal_solve!(cache::LiFukushimaLineSearchCache, u, du; kwargs...)

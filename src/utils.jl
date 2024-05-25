@@ -129,42 +129,6 @@ end
 
 @inline __dot(x, y) = dot(_vec(x), _vec(y))
 
-# Return an ImmutableNLStats object when we know that NLStats won't be updated
-"""
-    ImmutableNLStats(nf, njacs, nfactors, nsolve, nsteps)
-
-Statistics from the nonlinear equation solver about the solution process.
-
-## Fields
-
-  - nf: Number of function evaluations.
-  - njacs: Number of Jacobians created during the solve.
-  - nfactors: Number of factorzations of the jacobian required for the solve.
-  - nsolve: Number of linear solves `W \\ b` required for the solve.
-  - nsteps: Total number of iterations for the nonlinear solver.
-"""
-struct ImmutableNLStats
-    nf::Int
-    njacs::Int
-    nfactors::Int
-    nsolve::Int
-    nsteps::Int
-end
-
-function Base.show(io::IO, ::MIME"text/plain", s::ImmutableNLStats)
-    println(io, summary(s))
-    @printf io "%-50s %-d\n" "Number of function evaluations:" s.nf
-    @printf io "%-50s %-d\n" "Number of Jacobians created:" s.njacs
-    @printf io "%-50s %-d\n" "Number of factorizations:" s.nfactors
-    @printf io "%-50s %-d\n" "Number of linear solves:" s.nsolve
-    @printf io "%-50s %-d" "Number of nonlinear solver iterations:" s.nsteps
-end
-
-function Base.merge(s1::ImmutableNLStats, s2::ImmutableNLStats)
-    return ImmutableNLStats(s1.nf + s2.nf, s1.njacs + s2.njacs, s1.nfactors + s2.nfactors,
-        s1.nsolve + s2.nsolve, s1.nsteps + s2.nsteps)
-end
-
 """
     pickchunksize(x) = pickchunksize(length(x))
     pickchunksize(x::Int)
@@ -182,7 +146,17 @@ function __build_solution_less_specialize(prob::AbstractNonlinearProblem, alg, u
     T = eltype(eltype(u))
     N = ndims(u)
 
-    return SciMLBase.NonlinearSolution{T, N, typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Any, typeof(left), Any, typeof(trace)}(
+    return SciMLBase.NonlinearSolution{
+        T, N, typeof(u), typeof(resid), typeof(prob), typeof(alg),
+        Any, typeof(left), typeof(stats), typeof(trace)}(
         u, resid, prob, alg, retcode, original, left, right, stats, trace)
+end
+
+@inline empty_nlstats() = NLStats(0, 0, 0, 0, 0)
+function __reinit_internal!(stats::NLStats)
+    stats.nf = 0
+    stats.nsteps = 0
+    stats.nfactors = 0
+    stats.njacs = 0
+    stats.nsolve = 0
 end

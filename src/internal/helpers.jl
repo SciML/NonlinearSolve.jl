@@ -12,7 +12,7 @@ function evaluate_f(prob::AbstractNonlinearProblem{uType, iip}, u) where {uType,
 end
 
 function evaluate_f!(cache, u, p)
-    cache.nf += 1
+    cache.stats.nf += 1
     if isinplace(cache)
         cache.prob.f(get_fu(cache), u, p)
     else
@@ -168,7 +168,8 @@ end
 
 function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = False,
         can_handle_scalar::Val = False, kwargs...)
-    Jₚ = JacobianCache(prob, alg, prob.f, fu, u0, prob.p; kwargs...)
+    Jₚ = JacobianCache(
+        prob, alg, prob.f, fu, u0, prob.p; stats = empty_nlstats(), kwargs...)
 
     𝓙 = (can_handle_scalar === False && prob.u0 isa Number) ? @closure(u->[Jₚ(u[1])]) : Jₚ
 
@@ -177,21 +178,6 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
 
     return 𝐉
 end
-
-# Query Statistics
-for stat in (:nsolve, :nfactors, :nsteps, :njacs, :nf)
-    fname = Symbol("get_$(stat)")
-    @eval @inline $(fname)(cache) = __query_stat(cache, $(Val(stat)))
-end
-
-@inline __query_stat(cache, stat::Val) = __direct_query_stat(cache, stat)
-@inline @generated function __direct_query_stat(cache::T, ::Val{stat}) where {T, stat}
-    hasfield(T, stat) || return :(0)
-    return :(__get_data(cache.$(stat)))
-end
-
-@inline __get_data(x::Number) = x
-@inline __get_data(x::Base.RefValue{Int}) = x[]
 
 function reinit_cache! end
 reinit_cache!(cache::Nothing, args...; kwargs...) = nothing
@@ -203,12 +189,10 @@ __reinit_internal!(cache, args...; kwargs...) = nothing
 
 # Auto-generate some of the helper functions
 macro internal_caches(cType, internal_cache_names...)
-    return __internal_caches(__source__, __module__, cType, internal_cache_names)
+    return __internal_caches(cType, internal_cache_names)
 end
 
-function __internal_caches(__source__, __module__, cType, internal_cache_names::Tuple)
-    fields = map(
-        name -> :($(__query_stat)(getproperty(cache, $(name)), ST)), internal_cache_names)
+function __internal_caches(cType, internal_cache_names::Tuple)
     callback_caches = map(
         name -> :($(callback_into_cache!)(
             cache, getproperty(internalcache, $(name)), internalcache, args...)),
@@ -221,13 +205,6 @@ function __internal_caches(__source__, __module__, cType, internal_cache_names::
         name -> :($(reinit_cache!)(getproperty(cache, $(name)), args...; kwargs...)),
         internal_cache_names)
     return esc(quote
-        function __query_stat(cache::$(cType), ST::Val{stat}) where {stat}
-            val = $(__direct_query_stat)(cache, ST)
-            return +($(fields...)) + val
-        end
-        function __query_stat(cache::$(cType), ST::Val{:nsteps})
-            return $(__direct_query_stat)(cache, ST)
-        end
         function callback_into_cache!(cache, internalcache::$(cType), args...)
             $(callback_caches...)
         end

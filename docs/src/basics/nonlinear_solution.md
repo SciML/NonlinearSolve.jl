@@ -9,7 +9,6 @@ SciMLBase.NonlinearSolution
 
 ```@docs
 SciMLBase.NLStats
-NonlinearSolve.ImmutableNLStats
 ```
 
 ## Return Code

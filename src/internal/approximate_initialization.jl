@@ -145,12 +145,12 @@ make a selection automatically.
     autodiff
 end
 
-function __internal_init(
-        prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization, solver, f::F, fu,
-        u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+function __internal_init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
+        solver, f::F, fu, u, p; stats, linsolve = missing,
+        internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(
         alg.autodiff, prob; check_forward_mode = false, kwargs...)
-    jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; autodiff, linsolve)
+    jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve)
     J = alg.structure(jac_cache(nothing))
     return InitializedApproximateJacobianCache(
         J, alg.structure, alg, jac_cache, false, internalnorm)

@@ -95,7 +95,7 @@ end
     inv_workspace
 
     # Counters
-    nf::Int
+    stats::NLStats
     nsteps::Int
     nresets::Int
     max_resets::Int
@@ -131,7 +131,7 @@ function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip},
     end
     cache.p = p
 
-    cache.nf = 1
+    __reinit_internal!(cache.stats)
     cache.nsteps = 0
     cache.nresets = 0
     cache.steps_since_last_reset = 0
@@ -151,8 +151,9 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem{uType, iip}, alg::ApproximateJacobianSolveAlgorithm,
-        args...; alias_u0 = false, maxtime = nothing, maxiters = 1000, abstol = nothing,
-        reltol = nothing, linsolve_kwargs = (;), termination_condition = nothing,
+        args...; stats = empty_nlstats(), alias_u0 = false, maxtime = nothing,
+        maxiters = 1000, abstol = nothing, reltol = nothing,
+        linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = DEFAULT_NORM, kwargs...) where {uType, iip, F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
@@ -164,8 +165,8 @@ function SciMLBase.__init(
         INV = store_inverse_jacobian(alg.update_rule)
 
         linsolve = get_linear_solver(alg.descent)
-        initialization_cache = __internal_init(
-            prob, alg.initialization, alg, f, fu, u, p; linsolve, maxiters, internalnorm)
+        initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
+            stats, linsolve, maxiters, internalnorm)
 
         abstol, reltol, termination_cache = init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition)
@@ -173,9 +174,8 @@ function SciMLBase.__init(
 
         J = initialization_cache(nothing)
         inv_workspace, J = INV ? __safe_inv_workspace(J) : (nothing, J)
-        descent_cache = __internal_init(
-            prob, alg.descent, J, fu, u; abstol, reltol, internalnorm,
-            linsolve_kwargs, pre_inverted = Val(INV), timer)
+        descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol, reltol,
+            internalnorm, linsolve_kwargs, pre_inverted = Val(INV), timer)
         du = get_du(descent_cache)
 
         reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)
@@ -192,7 +192,7 @@ function SciMLBase.__init(
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
             trustregion_cache = __internal_init(
-                prob, alg.trustregion, f, fu, u, p; internalnorm, kwargs...)
+                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...)
             GB = :TrustRegion
         end
 
@@ -200,12 +200,12 @@ function SciMLBase.__init(
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
             linesearch_cache = __internal_init(
-                prob, alg.linesearch, f, fu, u, p; internalnorm, kwargs...)
+                prob, alg.linesearch, f, fu, u, p; stats, internalnorm, kwargs...)
             GB = :LineSearch
         end
 
         update_rule_cache = __internal_init(
-            prob, alg.update_rule, J, fu, u, du; internalnorm)
+            prob, alg.update_rule, J, fu, u, du; stats, internalnorm)
 
         trace = init_nonlinearsolve_trace(prob, alg, u, fu, ApplyArray(__zero, J), du;
             uses_jacobian_inverse = Val(INV), kwargs...)
@@ -213,7 +213,7 @@ function SciMLBase.__init(
         return ApproximateJacobianSolveCache{INV, GB, iip, maxtime !== nothing}(
             fu, u, u_cache, p, du, J, alg, prob, initialization_cache,
             descent_cache, linesearch_cache, trustregion_cache, update_rule_cache,
-            reinit_rule_cache, inv_workspace, 0, 0, 0, alg.max_resets,
+            reinit_rule_cache, inv_workspace, stats, 0, 0, alg.max_resets,
             maxiters, maxtime, alg.max_shrink_times, 0, timer, 0.0,
             termination_cache, trace, ReturnCode.Default, false, false, kwargs)
     end
@@ -223,7 +223,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
         recompute_jacobian::Union{Nothing, Bool} = nothing) where {INV, GB, iip}
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
-        if get_nsteps(cache) == 0  # First Step is special ignore kwargs
+        if cache.nsteps == 0  # First Step is special ignore kwargs
             J_init = __internal_solve!(
                 cache.initialization_cache, cache.fu, cache.u, Val(false))
             if INV

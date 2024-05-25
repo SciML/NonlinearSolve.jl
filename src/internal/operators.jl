@@ -34,13 +34,9 @@ end
 
 Base.size(J::JacobianOperator) = prod(size(J.output_cache)), prod(size(J.input_cache))
 function Base.size(J::JacobianOperator, d::Integer)
-    if d == 1
-        return prod(size(J.output_cache))
-    elseif d == 2
-        return prod(size(J.input_cache))
-    else
-        error("Invalid dimension $d for JacobianOperator")
-    end
+    d == 1 && return prod(size(J.output_cache))
+    d == 2 && return prod(size(J.input_cache))
+    error("Invalid dimension $d for JacobianOperator")
 end
 
 for op in (:adjoint, :transpose)

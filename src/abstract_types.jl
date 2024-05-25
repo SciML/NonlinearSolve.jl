@@ -142,7 +142,6 @@ abstract type AbstractNonlinearSolveLineSearchCache end
 
 function reinit_cache!(
         cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p, kwargs...)
-    cache.nf[] = 0
     cache.p = p
 end
 
@@ -235,7 +234,7 @@ function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
     println(io, (" "^(indent + 4)) * "u = ", get_u(cache), ",")
     println(io, (" "^(indent + 4)) * "residual = ", get_fu(cache), ",")
     println(io, (" "^(indent + 4)) * "inf-norm(residual) = ", norm(get_fu(cache), Inf), ",")
-    println(io, " "^(indent + 4) * "nsteps = ", get_nsteps(cache), ",")
+    println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
     print(io, " "^(indent) * ")")
 end
