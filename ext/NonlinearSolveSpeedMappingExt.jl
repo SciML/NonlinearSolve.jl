@@ -1,6 +1,8 @@
 module NonlinearSolveSpeedMappingExt
 
-using NonlinearSolve, SciMLBase, SpeedMapping
+using NonlinearSolve: NonlinearSolve, SpeedMappingJL
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SpeedMapping: speedmapping
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,

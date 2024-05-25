@@ -1,6 +1,8 @@
 module NonlinearSolveNLsolveExt
 
-using NonlinearSolve, NLsolve, SciMLBase
+using NonlinearSolve: NonlinearSolve, NLsolveJL, TraceMinimal
+using NLsolve: NLsolve, OnceDifferentiable, nlsolve
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLsolveJL, args...; abstol = nothing,

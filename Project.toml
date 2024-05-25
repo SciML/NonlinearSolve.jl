@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.12.0"
+version = "3.12.1"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -32,6 +32,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
+Enlsip = "d5306a6b-d590-428d-a53a-eb3bb2d36f2d"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
@@ -45,6 +46,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
 NonlinearSolveBandedMatricesExt = "BandedMatrices"
+NonlinearSolveEnlsipExt = "Enlsip"
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
@@ -65,7 +67,9 @@ BenchmarkTools = "1.4"
 CUDA = "5.2"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.149.0"
+Enlsip = "0.9"
 Enzyme = "0.12"
+ExplicitImports = "1.4.4"
 FastBroadcast = "0.2.8, 0.3"
 FastClosures = "0.3.2"
 FastLevenbergMarquardt = "0.1"
@@ -115,7 +119,9 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Enlsip = "d5306a6b-d590-428d-a53a-eb3bb2d36f2d"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
@@ -139,4 +145,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "FastLevenbergMarquardt", "FixedPointAcceleration", "LeastSquaresOptim", "MINPACK", "ModelingToolkit", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEq", "Pkg", "Random", "ReTestItems", "SIAMFANLEquations", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Symbolics", "Test", "Zygote"]
+test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enlsip", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "LeastSquaresOptim", "MINPACK", "ModelingToolkit", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEq", "Pkg", "Random", "ReTestItems", "SIAMFANLEquations", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Symbolics", "Test", "Zygote"]

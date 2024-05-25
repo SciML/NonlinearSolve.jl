@@ -1,6 +1,8 @@
 module NonlinearSolveFixedPointAccelerationExt
 
-using NonlinearSolve, FixedPointAcceleration, SciMLBase
+using NonlinearSolve: NonlinearSolve, FixedPointAccelerationJL
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using FixedPointAcceleration: FixedPointAcceleration, fixed_point
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::FixedPointAccelerationJL, args...;
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
