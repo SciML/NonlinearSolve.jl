@@ -29,7 +29,7 @@ function SciMLBase.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 function __compile_stats(cache::AbstractNonlinearSolveCache)
-    return ImmutableNLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
+    return SciMLBase.NLStats(get_nf(cache), get_njacs(cache), get_nfactors(cache),
         get_nsolve(cache), get_nsteps(cache))
 end
 
