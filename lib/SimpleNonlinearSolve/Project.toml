@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "1.8.1"
+version = "1.9.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -9,6 +9,7 @@ ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 FastClosures = "9aa1b823-49e4-5ca5-8b0f-3971ec8bab6a"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -21,7 +22,6 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
@@ -29,7 +29,6 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
 SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
-SimpleNonlinearSolvePolyesterForwardDiffExt = "PolyesterForwardDiff"
 SimpleNonlinearSolveReverseDiffExt = "ReverseDiff"
 SimpleNonlinearSolveStaticArraysExt = "StaticArrays"
 SimpleNonlinearSolveTrackerExt = "Tracker"
@@ -45,6 +44,7 @@ ChainRulesCore = "1.22"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.149"
 DiffResults = "1.1"
+DifferentiationInterface = "0.4"
 ExplicitImports = "1.5.0"
 FastClosures = "0.3.2"
 FiniteDiff = "2.22"

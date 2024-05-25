@@ -3,13 +3,15 @@ module SimpleNonlinearSolve
 using PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
 
 @recompile_invalidations begin
-    using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+    using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
+                   AutoPolyesterForwardDiff
     using ArrayInterface: ArrayInterface
     using ConcreteStructs: @concrete
     using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
                       AbstractSafeNonlinearTerminationMode,
                       AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
                       NONLINEARSOLVE_DEFAULT_NORM
+    using DifferentiationInterface: DifferentiationInterface
     using DiffResults: DiffResults
     using FastClosures: @closure
     using FiniteDiff: FiniteDiff
@@ -24,6 +26,8 @@ using PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidati
                      _unwrap_val
     using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 end
+
+const DI = DifferentiationInterface
 
 @reexport using SciMLBase
 
