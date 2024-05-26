@@ -13,9 +13,9 @@ and static array problems.
 
 ### Keyword Arguments
 
-  - `autodiff`: determines the backend used for the Jacobian. Defaults to
-    `nothing`. Valid choices are `AutoPolyesterForwardDiff()`, `AutoForwardDiff()` or
-    `AutoFiniteDiff()`.
+  - `autodiff`: determines the backend used for the Jacobian. Defaults to  `nothing` (i.e.
+    automatic backend selection). Valid choices include jacobian backends from
+    `DifferentiationInterface.jl`.
 """
 @kwdef @concrete struct SimpleNewtonRaphson <: AbstractNewtonAlgorithm
     autodiff = nothing
@@ -30,13 +30,14 @@ function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresPr
     fx = _get_fx(prob, x)
     autodiff = __get_concrete_autodiff(prob, alg.autodiff)
     @bb xo = copy(x)
-    J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
+    f = __fixed_parameter_function(prob)
+    J, jac_cache = jacobian_cache(autodiff, prob, f, fx, x)
 
     abstol, reltol, tc_cache = init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition)
 
     for i in 1:maxiters
-        fx, dfx = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+        fx, dfx = value_and_jacobian(autodiff, prob, f, fx, x, jac_cache; J)
 
         if i == 1
             iszero(fx) && build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)

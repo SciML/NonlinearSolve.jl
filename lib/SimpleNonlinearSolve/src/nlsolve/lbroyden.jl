@@ -272,7 +272,7 @@ end
     return :(return SVector{$N, $T}(($(getcalls...))))
 end
 
-__lbroyden_threshold_cache(x, ::Val{threshold}) where {threshold} = similar(x, threshold)
+__lbroyden_threshold_cache(x, ::Val{threshold}) where {threshold} = __similar(x, threshold)
 function __lbroyden_threshold_cache(x::StaticArray, ::Val{threshold}) where {threshold}
     return zeros(MArray{Tuple{threshold}, eltype(x)})
 end
@@ -298,7 +298,7 @@ end
     end
 end
 function __init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
-    Vᵀ = similar(u, threshold, length(u))
-    U = similar(u, length(fu), threshold)
+    Vᵀ = __similar(u, threshold, length(u))
+    U = __similar(u, length(fu), threshold)
     return U, Vᵀ
 end

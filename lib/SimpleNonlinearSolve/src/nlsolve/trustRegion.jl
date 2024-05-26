@@ -10,9 +10,9 @@ scalar and static array problems.
 
 ### Keyword Arguments
 
-  - `autodiff`: determines the backend used for the Jacobian. Defaults to
-    `nothing`. Valid choices are `AutoPolyesterForwardDiff()`, `AutoForwardDiff()` or
-    `AutoFiniteDiff()`.
+  - `autodiff`: determines the backend used for the Jacobian. Defaults to `nothing` (i.e.
+    automatic backend selection). Valid choices include jacobian backends from
+    `DifferentiationInterface.jl`.
   - `max_trust_radius`: the maximum radius of the trust region. Defaults to
     `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
@@ -85,8 +85,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
     fx = _get_fx(prob, x)
     norm_fx = norm(fx)
     @bb xo = copy(x)
-    J, jac_cache = jacobian_cache(autodiff, prob.f, fx, x, prob.p)
-    fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+    f = __fixed_parameter_function(prob)
+    J, jac_cache = jacobian_cache(autodiff, prob, f, fx, x)
+    fx, ∇f = value_and_jacobian(autodiff, prob, f, fx, x, jac_cache; J)
 
     abstol, reltol, tc_cache = init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition)
@@ -144,7 +145,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleTrustRegion, args.
             # Take the step.
             @bb @. xo = x
 
-            fx, ∇f = value_and_jacobian(autodiff, prob.f, fx, x, prob.p, jac_cache; J)
+            fx, ∇f = value_and_jacobian(autodiff, prob, f, fx, x, jac_cache; J)
 
             # Update the trust region radius.
             if !_unwrap_val(alg.nlsolve_update_rule) && r > η₃
