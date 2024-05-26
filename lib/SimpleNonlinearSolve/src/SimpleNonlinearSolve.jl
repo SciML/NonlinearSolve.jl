@@ -24,6 +24,7 @@ using PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidati
                      NonlinearFunction, NonlinearLeastSquaresProblem, NonlinearProblem,
                      ReturnCode, init, remake, solve, AbstractNonlinearAlgorithm,
                      build_solution, isinplace, _unwrap_val
+    using Setfield: @set!
     using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 end
 

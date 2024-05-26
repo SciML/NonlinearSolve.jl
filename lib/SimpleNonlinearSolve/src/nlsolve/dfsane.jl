@@ -77,12 +77,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...
     α_1 = one(T)
     f_1 = fx_norm
 
-    history_f_k = if x isa SArray ||
-                     (x isa Number && __is_extension_loaded(Val(:StaticArrays)))
-        ones(SVector{M, T}) * fx_norm
-    else
-        fill(fx_norm, M)
-    end
+    history_f_k = x isa SArray ? ones(SVector{M, T}) * fx_norm :
+                  __history_vec(fx_norm, Val(M))
 
     # Generate the cache
     @bb x_cache = similar(x)
@@ -150,6 +146,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...
         # Store function value
         if history_f_k isa SVector
             history_f_k = Base.setindex(history_f_k, fx_norm_new, mod1(k, M))
+        elseif history_f_k isa NTuple
+            @set! history_f_k[mod1(k, M)] = fx_norm_new
         else
             history_f_k[mod1(k, M)] = fx_norm_new
         end
@@ -157,4 +155,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...
     end
 
     return build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+end
+
+@inline @generated function __history_vec(fx_norm, ::Val{M}) where {M}
+    M ≥ 11 && return :(fill(fx_norm, M)) # Julia can't specialize here
+    return :(ntuple(Returns(fx_norm), $(M)))
 end

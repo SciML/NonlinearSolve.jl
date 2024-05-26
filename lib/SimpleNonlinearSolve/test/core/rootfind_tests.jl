@@ -34,7 +34,6 @@ end
 
 export quadratic_f, quadratic_f!, quadratic_f2, newton_fails, TERMINATION_CONDITIONS,
        benchmark_nlsolve_oop, benchmark_nlsolve_iip
-
 end
 
 @testitem "First Order Methods" setup=[RootfindingTesting] tags=[:core] begin
@@ -42,7 +41,7 @@ end
         SimpleTrustRegion,
         (args...; kwargs...) -> SimpleTrustRegion(
             args...; nlsolve_update_rule = Val(true), kwargs...))
-        @testset "AutoDiff: $(nameof(typeof(autodiff))))" for autodiff in (
+        @testset "AutoDiff: $(nameof(typeof(autodiff)))" for autodiff in (
             AutoFiniteDiff(), AutoForwardDiff(), AutoPolyesterForwardDiff())
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (
                 [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
@@ -59,7 +58,7 @@ end
             end
         end
 
-        @testset "Termination condition: $(termination_condition) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+        @testset "Termination condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
             u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -79,7 +78,7 @@ end
         end
     end
 
-    @testset "Termination condition: $(termination_condition) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+    @testset "Termination condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
         u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -104,7 +103,7 @@ end
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
 
-        @testset "Termination condition: $(termination_condition) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+        @testset "Termination condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
             u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
             probN = NonlinearProblem(quadratic_f, u0, 2.0)

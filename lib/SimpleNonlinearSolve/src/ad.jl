@@ -109,10 +109,12 @@ function __nlsolve_ad(prob::NonlinearLeastSquaresProblem, alg, args...; kwargs..
             end
         else
             # For small problems, nesting ForwardDiff is actually quite fast
-            _f = Base.Fix2(prob.f, newprob.p)
             if __is_extension_loaded(Val(:Zygote)) && (length(uu) + length(sol.resid) ≥ 50)
                 # TODO: Remove once DI has the value_and_pullback_split defined
-                _F = @closure (u, p) -> __zygote_compute_nlls_vjp(_f, u, p)
+                _F = @closure (u, p) -> begin
+                    _f = Base.Fix2(prob.f, p)
+                    return __zygote_compute_nlls_vjp(_f, u, p)
+                end
             else
                 _F = @closure (u, p) -> begin
                     _f = Base.Fix2(prob.f, p)
