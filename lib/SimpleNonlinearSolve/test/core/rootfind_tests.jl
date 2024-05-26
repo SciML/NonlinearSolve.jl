@@ -76,6 +76,12 @@ end
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
+
+        @testset "[IIP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0, 1.0],)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = SimpleHalley(; autodiff))
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
     end
 
     @testset "Termination condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,

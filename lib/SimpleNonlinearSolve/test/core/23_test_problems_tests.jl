@@ -41,7 +41,7 @@ end
 export problems, dicts, test_on_library
 end
 
-@testitem "SimpleNewtonRaphson" setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: SimpleNewtonRaphson" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (SimpleNewtonRaphson(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -50,7 +50,20 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "SimpleTrustRegion" setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: SimpleHalley" setup=[RobustnessTesting] tags=[:core] begin
+    alg_ops = (SimpleHalley(),)
+
+    broken_tests = Dict(alg => Int[] for alg in alg_ops)
+    if Sys.isapple()
+        broken_tests[alg_ops[1]] = [1, 5, 11, 15, 16, 18]
+    else
+        broken_tests[alg_ops[1]] = [1, 5, 15, 16, 18]
+    end
+
+    test_on_library(problems, dicts, alg_ops, broken_tests)
+end
+
+@testitem "23 Test Problems: SimpleTrustRegion" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -60,7 +73,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "SimpleDFSane" setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: SimpleDFSane" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (SimpleDFSane(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -73,7 +86,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "SimpleBroyden" retries=5 setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: SimpleBroyden" retries=5 setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (SimpleBroyden(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
@@ -82,7 +95,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "SimpleKlement" setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: SimpleKlement" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (SimpleKlement(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
