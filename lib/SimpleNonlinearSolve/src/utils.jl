@@ -21,13 +21,13 @@ Return the maximum of `a` and `b` if `x1 > x0`, otherwise return the minimum.
 """
 __max_tdir(a, b, x0, x1) = ifelse(x1 > x0, max(a, b), min(a, b))
 
-function __fixed_parameter_function(prob::NonlinearProblem)
+function __fixed_parameter_function(prob::AbstractNonlinearProblem)
     isinplace(prob) && return @closure (du, u) -> prob.f(du, u, prob.p)
     return Base.Fix2(prob.f, prob.p)
 end
 
 function value_and_jacobian(
-        ad, prob::NonlinearProblem, f::F, y, x, cache; J = nothing) where {F}
+        ad, prob::AbstractNonlinearProblem, f::F, y, x, cache; J = nothing) where {F}
     x isa Number && return DI.value_and_derivative(f, ad, x, cache)
 
     if isinplace(prob)
@@ -46,21 +46,22 @@ function value_and_jacobian(
     end
 end
 
-function jacobian_cache(ad, prob::NonlinearProblem, f::F, y, x) where {F}
+function jacobian_cache(ad, prob::AbstractNonlinearProblem, f::F, y, x) where {F}
     x isa Number && return (nothing, DI.prepare_derivative(f, ad, x))
 
     if isinplace(prob)
-        J = similar(y, length(y), length(x))
+        J = __similar(y, length(y), length(x))
         SciMLBase.has_jac(prob.f) && return J, HasAnalyticJacobian()
         return J, DI.prepare_jacobian(f, y, ad, x)
     else
         SciMLBase.has_jac(prob.f) && return nothing, HasAnalyticJacobian()
-        J = ArrayInterface.can_setindex(x) ? similar(y, length(y), length(x)) : nothing
+        J = ArrayInterface.can_setindex(x) ? __similar(y, length(y), length(x)) : nothing
         return J, DI.prepare_jacobian(f, ad, x)
     end
 end
 
-function compute_jacobian_and_hessian(ad, prob::NonlinearProblem, f::F, y, x) where {F}
+function compute_jacobian_and_hessian(
+        ad, prob::AbstractNonlinearProblem, f::F, y, x) where {F}
     if x isa Number
         df = @closure x -> DI.derivative(f, ad, x)
         return f(x), df(x), DI.derivative(df, ad, x)
@@ -68,7 +69,7 @@ function compute_jacobian_and_hessian(ad, prob::NonlinearProblem, f::F, y, x) wh
 
     if isinplace(prob)
         df = @closure x -> begin
-            res = similar(y, promote_type(eltype(y), eltype(x)))
+            res = __similar(y, promote_type(eltype(y), eltype(x)))
             return DI.jacobian(f, res, ad, x)
         end
         J, H = DI.value_and_jacobian(df, ad, x)
@@ -83,7 +84,7 @@ end
 __init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
 __init_identity_jacobian!!(J::Number) = one(J)
 function __init_identity_jacobian(u, fu, α = true)
-    J = similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    J = __similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
     J[diagind(J)] .= eltype(J)(α)
     return J
@@ -129,7 +130,7 @@ end
             T = eltype(x)
             return T.(f.resid_prototype)
         else
-            fx = similar(x)
+            fx = __similar(x)
             f(fx, x, p)
             return fx
         end
@@ -242,3 +243,16 @@ end
 
 # Extension
 function __zygote_compute_nlls_vjp end
+
+function __similar(x, args...; kwargs...)
+    y = similar(x, args...; kwargs...)
+    return __init_bigfloat_array!!(y)
+end
+
+function __init_bigfloat_array!!(x)
+    if ArrayInterface.can_setindex(x)
+        eltype(x) <: BigFloat && fill!(x, BigFloat(0))
+        return x
+    end
+    return x
+end

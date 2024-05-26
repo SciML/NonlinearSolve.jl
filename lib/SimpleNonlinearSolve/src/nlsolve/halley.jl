@@ -39,9 +39,9 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
     @bb xo = copy(x)
 
     if setindex_trait(x) === CanSetindex()
-        A = similar(x, length(x), length(x))
-        Aaᵢ = similar(x, length(x))
-        cᵢ = similar(x)
+        A = __similar(x, length(x), length(x))
+        Aaᵢ = __similar(x, length(x))
+        cᵢ = __similar(x)
     else
         A = x
         Aaᵢ = x
