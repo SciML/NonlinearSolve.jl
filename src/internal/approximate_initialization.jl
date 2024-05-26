@@ -97,7 +97,7 @@ function __internal_init(
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
         J = one.(_vec(fu)) .* α
     else
-        J_ = similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
+        J_ = __similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
         J = alg.structure(__make_identity!!(J_, α); alias = true)
     end
     return InitializedApproximateJacobianCache(

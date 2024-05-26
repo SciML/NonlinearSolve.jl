@@ -202,19 +202,17 @@ Abstract Type for all NonlinearSolve.jl Caches.
 abstract type AbstractNonlinearSolveCache{iip, timeit} end
 
 function SymbolicIndexingInterface.symbolic_container(cache::AbstractNonlinearSolveCache)
-    cache.prob
+    return cache.prob
 end
 function SymbolicIndexingInterface.parameter_values(cache::AbstractNonlinearSolveCache)
-    parameter_values(symbolic_container(cache))
+    return parameter_values(symbolic_container(cache))
 end
 function SymbolicIndexingInterface.state_values(cache::AbstractNonlinearSolveCache)
-    state_values(symbolic_container(cache))
+    return state_values(symbolic_container(cache))
 end
 
 function Base.getproperty(cache::AbstractNonlinearSolveCache, sym::Symbol)
-    if sym == :ps
-        return ParameterIndexingProxy(cache)
-    end
+    sym == :ps && return ParameterIndexingProxy(cache)
     return getfield(cache, sym)
 end
 
@@ -230,10 +228,17 @@ function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
     println(io, "$(nameof(typeof(cache)))(")
     __show_algorithm(io, cache.alg,
         (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
-    println(io, ",")
-    println(io, (" "^(indent + 4)) * "u = ", get_u(cache), ",")
-    println(io, (" "^(indent + 4)) * "residual = ", get_fu(cache), ",")
-    println(io, (" "^(indent + 4)) * "inf-norm(residual) = ", norm(get_fu(cache), Inf), ",")
+
+    ustr = sprint(show, get_u(cache); context = (:compact => true, :limit => true))
+    println(io, ",\n" * (" "^(indent + 4)) * "u = $(ustr),")
+
+    residstr = sprint(show, get_fu(cache); context = (:compact => true, :limit => true))
+    println(io, (" "^(indent + 4)) * "residual = $(residstr),")
+
+    normstr = sprint(
+        show, norm(get_fu(cache), Inf); context = (:compact => true, :limit => true))
+    println(io, (" "^(indent + 4)) * "inf-norm(residual) = $(normstr),")
+
     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
     print(io, " "^(indent) * ")")
