@@ -4,8 +4,8 @@ using LinearAlgebra, NonlinearProblemLibrary, DiffEqBase, Test
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
 
-function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
-        skip_tests = nothing)
+function test_on_library(
+        problems, dicts, alg_ops, broken_tests, ϵ = 1e-4; skip_tests = nothing)
     for (idx, (problem, dict)) in enumerate(zip(problems, dicts))
         x = dict["start"]
         res = similar(x)
@@ -13,8 +13,8 @@ function test_on_library(problems, dicts, alg_ops, broken_tests, ϵ = 1e-4;
         @testset "$idx: $(dict["title"])" begin
             for alg in alg_ops
                 try
-                    sol = solve(nlprob, alg;
-                        termination_condition = AbsNormTerminationMode())
+                    sol = solve(
+                        nlprob, alg; termination_condition = AbsNormTerminationMode())
                     problem(res, sol.u, nothing)
 
                     skip = skip_tests !== nothing && idx in skip_tests[alg]
@@ -51,8 +51,7 @@ end
 end
 
 @testitem "SimpleTrustRegion" setup=[RobustnessTesting] tags=[:core] begin
-    alg_ops = (SimpleTrustRegion(),
-        SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
+    alg_ops = (SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [3, 15, 16, 21]

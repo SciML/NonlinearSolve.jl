@@ -24,8 +24,8 @@ end
 __get_threshold(::SimpleLimitedMemoryBroyden{threshold}) where {threshold} = Val(threshold)
 __use_linesearch(::SimpleLimitedMemoryBroyden{Th, LS}) where {Th, LS} = Val(LS)
 
-function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
-        linesearch = Val(false), alpha = nothing)
+function SimpleLimitedMemoryBroyden(;
+        threshold::Union{Val, Int} = Val(27), linesearch = Val(false), alpha = nothing)
     return SimpleLimitedMemoryBroyden{_unwrap_val(threshold), _unwrap_val(linesearch)}(alpha)
 end
 
@@ -45,24 +45,25 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyd
 end
 
 @views function __generic_solve(prob::NonlinearProblem, alg::SimpleLimitedMemoryBroyden,
-        args...; abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     threshold = __get_threshold(alg)
     η = min(_unwrap_val(threshold), maxiters)
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
-        return SciMLBase.__solve(prob, SimpleBroyden(; linesearch = __use_linesearch(alg)),
-            args...; abstol, reltol, maxiters, termination_condition, kwargs...)
+        return SciMLBase.__solve(
+            prob, SimpleBroyden(; linesearch = __use_linesearch(alg)), args...;
+            abstol, reltol, maxiters, termination_condition, kwargs...)
     end
 
     fx = _get_fx(prob, x)
 
     U, Vᵀ = __init_low_rank_jacobian(x, fx, x isa StaticArray ? threshold : Val(η))
 
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
     @bb xo = copy(x)
     @bb δx = copy(fx)
@@ -74,8 +75,8 @@ end
     Tcache = __lbroyden_threshold_cache(x, x isa StaticArray ? threshold : Val(η))
     @bb mat_cache = copy(x)
 
-    ls_cache = __use_linesearch(alg) === Val(true) ?
-               LiFukushimaLineSearch()(prob, fx, x) : nothing
+    ls_cache = __use_linesearch(alg) === Val(true) ? LiFukushimaLineSearch()(prob, fx, x) :
+               nothing
 
     for i in 1:maxiters
         α = ls_cache === nothing ? true : ls_cache(x, δx)
@@ -125,8 +126,8 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
 
     xo, δx, fo, δf = x, -fx, fx, fx
 
-    ls_cache = __use_linesearch(alg) === Val(true) ?
-               LiFukushimaLineSearch()(prob, fx, x) : nothing
+    ls_cache = __use_linesearch(alg) === Val(true) ? LiFukushimaLineSearch()(prob, fx, x) :
+               nothing
 
     T = promote_type(eltype(x), eltype(fx))
     if alg.alpha === nothing
@@ -138,8 +139,7 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
     end
 
     converged, res = __unrolled_lbroyden_initial_iterations(
-        prob, xo, fo, δx, abstol, U, Vᵀ,
-        threshold, ls_cache, init_α)
+        prob, xo, fo, δx, abstol, U, Vᵀ, threshold, ls_cache, init_α)
 
     converged &&
         return build_solution(prob, alg, res.x, res.fx; retcode = ReturnCode.Success)
@@ -173,39 +173,39 @@ function __static_solve(prob::NonlinearProblem{<:SArray}, alg::SimpleLimitedMemo
     return build_solution(prob, alg, xo, fo; retcode = ReturnCode.MaxIters)
 end
 
-@generated function __unrolled_lbroyden_initial_iterations(prob, xo, fo, δx, abstol, U,
-        Vᵀ, ::Val{threshold}, ls_cache, init_α) where {threshold}
+@generated function __unrolled_lbroyden_initial_iterations(
+        prob, xo, fo, δx, abstol, U, Vᵀ, ::Val{threshold},
+        ls_cache, init_α) where {threshold}
     calls = []
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
-        push!(calls,
-            quote
-                α = ls_cache === nothing ? true : ls_cache(xo, δx)
-                x = xo .+ α .* δx
-                fx = prob.f(x, prob.p)
-                δf = fx - fo
+        push!(calls, quote
+            α = ls_cache === nothing ? true : ls_cache(xo, δx)
+            x = xo .+ α .* δx
+            fx = prob.f(x, prob.p)
+            δf = fx - fo
 
-                maximum(abs, fx) ≤ abstol && return true, (; x, fx, δx)
+            maximum(abs, fx) ≤ abstol && return true, (; x, fx, δx)
 
-                _U = __first_n_getindex(U, $(static_idx))
-                _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx))
+            _U = __first_n_getindex(U, $(static_idx))
+            _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx))
 
-                vᵀ = _restructure(x, _rmatvec!!(_U, _Vᵀ, vec(δx), init_α))
-                mvec = _restructure(x, _matvec!!(_U, _Vᵀ, vec(δf), init_α))
+            vᵀ = _restructure(x, _rmatvec!!(_U, _Vᵀ, vec(δx), init_α))
+            mvec = _restructure(x, _matvec!!(_U, _Vᵀ, vec(δf), init_α))
 
-                d = dot(vᵀ, δf)
-                δx = @. (δx - mvec) / d
+            d = dot(vᵀ, δf)
+            δx = @. (δx - mvec) / d
 
-                U = Base.setindex(U, vec(δx), $(i))
-                Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), $(i))
+            U = Base.setindex(U, vec(δx), $(i))
+            Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), $(i))
 
-                _U = __first_n_getindex(U, $(static_idx_p1))
-                _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx_p1))
-                δx = -_restructure(fx, _matvec!!(_U, _Vᵀ, vec(fx), init_α))
+            _U = __first_n_getindex(U, $(static_idx_p1))
+            _Vᵀ = __first_n_getindex(Vᵀ, $(static_idx_p1))
+            δx = -_restructure(fx, _matvec!!(_U, _Vᵀ, vec(fx), init_α))
 
-                xo = x
-                fo = fx
-            end)
+            xo = x
+            fo = fx
+        end)
     end
     push!(calls, quote
         # Termination Check

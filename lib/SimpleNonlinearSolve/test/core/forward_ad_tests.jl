@@ -41,8 +41,9 @@ export test_f, test_f!, jacobian_f, solve_with, __compatible
 end
 
 @testitem "ForwardDiff.jl Integration: Rootfinding" setup=[ForwardADRootfindingTesting] tags=[:core] begin
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleNewtonRaphson(),
-        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        SimpleNewtonRaphson(), SimpleTrustRegion(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
         SimpleHalley(), SimpleBroyden(), SimpleKlement(), SimpleDFSane())
         us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
@@ -171,25 +172,27 @@ end
         function obj_4(p)
             prob_iip = NonlinearLeastSquaresProblem(
                 NonlinearFunction{true}(
-                    loss_function!; resid_prototype = zeros(length(y_target))), θ_init, p)
+                    loss_function!; resid_prototype = zeros(length(y_target))),
+                θ_init,
+                p)
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
         end
 
         function obj_5(p)
             ff = NonlinearFunction{true}(
-                loss_function!; resid_prototype = zeros(length(y_target)), jac = loss_function_jac!)
-            prob_iip = NonlinearLeastSquaresProblem(
-                ff, θ_init, p)
+                loss_function!; resid_prototype = zeros(length(y_target)),
+                jac = loss_function_jac!)
+            prob_iip = NonlinearLeastSquaresProblem(ff, θ_init, p)
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
         end
 
         function obj_6(p)
             ff = NonlinearFunction{true}(
-                loss_function!; resid_prototype = zeros(length(y_target)), vjp = loss_function_vjp!)
-            prob_iip = NonlinearLeastSquaresProblem(
-                ff, θ_init, p)
+                loss_function!; resid_prototype = zeros(length(y_target)),
+                vjp = loss_function_vjp!)
+            prob_iip = NonlinearLeastSquaresProblem(ff, θ_init, p)
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
         end

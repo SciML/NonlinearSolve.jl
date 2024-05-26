@@ -23,8 +23,8 @@ end
 __get_linesearch(::SimpleBroyden{LS}) where {LS} = Val(LS)
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     fx = _get_fx(prob, x)
     T = promote_type(eltype(x), eltype(fx))
@@ -48,11 +48,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
     @bb δJ⁻¹n = copy(x)
     @bb δJ⁻¹ = copy(J⁻¹)
 
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
-    ls_cache = __get_linesearch(alg) === Val(true) ?
-               LiFukushimaLineSearch()(prob, fx, x) : nothing
+    ls_cache = __get_linesearch(alg) === Val(true) ? LiFukushimaLineSearch()(prob, fx, x) :
+               nothing
 
     for _ in 1:maxiters
         @bb δx = J⁻¹ × vec(fprev)

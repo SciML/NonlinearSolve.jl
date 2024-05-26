@@ -58,18 +58,17 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
     left, right = prob.tspan
     fl, fr = f(left), f(right)
 
-    abstol = __get_tolerance(nothing, abstol,
-        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+    abstol = __get_tolerance(
+        nothing, abstol, promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)
-        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
-            left, right)
+        return build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right)
     end
 
     if iszero(fr)
         return build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
-            left, right)
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
     end
     ϵ = abstol
     #defining variables/cache
@@ -110,8 +109,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
         end
 
         if abs((left - right) / 2) < ϵ
-            return build_solution(prob, alg, mid, f(mid); retcode = ReturnCode.Success,
-                left, right)
+            return build_solution(
+                prob, alg, mid, f(mid); retcode = ReturnCode.Success, left, right)
         end
 
         ## Update ##
@@ -127,16 +126,16 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
             left = xp
             fl = yp
         else
-            return build_solution(prob, alg, xp, yps; retcode = ReturnCode.Success,
-                left = xp, right = xp)
+            return build_solution(
+                prob, alg, xp, yps; retcode = ReturnCode.Success, left = xp, right = xp)
         end
         i += 1
         mid = (left + right) / 2
         ϵ_s /= 2
 
         if __nextfloat_tdir(left, prob.tspan...) == right
-            return build_solution(prob, alg, left, fl; left, right,
-                retcode = ReturnCode.FloatingPointLimit)
+            return build_solution(
+                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit)
         end
     end
 

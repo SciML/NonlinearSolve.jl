@@ -45,6 +45,7 @@ ChainRulesCore = "1.22"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.149"
 DiffResults = "1.1"
+ExplicitImports = "1.5.0"
 FastClosures = "0.3.2"
 FiniteDiff = "2.22"
 ForwardDiff = "0.10.36"
@@ -73,6 +74,7 @@ AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -91,4 +93,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "AllocCheck", "DiffEqBase", "ForwardDiff", "LinearAlgebra", "LinearSolve", "NonlinearProblemLibrary", "Pkg", "Random", "ReTestItems", "SciMLSensitivity", "StaticArrays", "Zygote", "CUDA", "PolyesterForwardDiff", "Reexport", "Test", "FiniteDiff", "ReverseDiff", "Tracker"]
+test = ["AllocCheck", "Aqua", "CUDA", "DiffEqBase", "ExplicitImports", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "Reexport", "ReverseDiff", "SciMLSensitivity", "StaticArrays", "Test", "Tracker", "Zygote"]

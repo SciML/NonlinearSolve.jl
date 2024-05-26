@@ -7,14 +7,14 @@ method is non-allocating on scalar and static array problems.
 struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
     fx = _get_fx(prob, x)
 
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
     @bb δx = copy(x)
     @bb fprev = copy(fx)

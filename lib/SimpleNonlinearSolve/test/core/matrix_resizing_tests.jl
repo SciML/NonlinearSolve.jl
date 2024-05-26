@@ -5,10 +5,10 @@
     vecprob = NonlinearProblem(ff, vec(u0), p)
     prob = NonlinearProblem(ff, u0, p)
 
-    @testset "$(nameof(typeof(alg)))" for alg in (SimpleKlement(), SimpleBroyden(),
-        SimpleNewtonRaphson(), SimpleDFSane(),
-        SimpleLimitedMemoryBroyden(; threshold = Val(2)),
-        SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
+    @testset "$(nameof(typeof(alg)))" for alg in (
+        SimpleKlement(), SimpleBroyden(), SimpleNewtonRaphson(), SimpleDFSane(),
+        SimpleLimitedMemoryBroyden(; threshold = Val(2)), SimpleTrustRegion(),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
         @test vec(solve(prob, alg).u) ≈ solve(vecprob, alg).u
     end
 end

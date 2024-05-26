@@ -13,18 +13,17 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     fl, fr = f(left), f(right)
     ϵ = eps(convert(typeof(fl), 1))
 
-    abstol = __get_tolerance(nothing, abstol,
-        promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
+    abstol = __get_tolerance(
+        nothing, abstol, promote_type(eltype(first(prob.tspan)), eltype(last(prob.tspan))))
 
     if iszero(fl)
-        return build_solution(prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft,
-            left, right)
+        return build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right)
     end
 
     if iszero(fr)
         return build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight,
-            left, right)
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
     end
 
     if abs(fl) < abs(fr)
@@ -60,18 +59,17 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
                (!cond && abs(c - d) ≤ ϵ)
                 # Bisection method
                 s = (left + right) / 2
-                (s == left || s == right) &&
-                    return SciMLBase.build_solution(prob, alg, left, fl;
-                        retcode = ReturnCode.FloatingPointLimit,
-                        left = left, right = right)
+                (s == left || s == right) && return SciMLBase.build_solution(
+                    prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit,
+                    left = left, right = right)
                 cond = true
             else
                 cond = false
             end
             fs = f(s)
             if abs((right - left) / 2) < abstol
-                return SciMLBase.build_solution(prob, alg, s, fs;
-                    retcode = ReturnCode.Success,
+                return SciMLBase.build_solution(
+                    prob, alg, s, fs; retcode = ReturnCode.Success,
                     left = left, right = right)
             end
             if iszero(fs)
@@ -105,8 +103,8 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
         end
     end
 
-    sol, i, left, right, fl, fr = __bisection(left, right, fl, fr, f; abstol,
-        maxiters = maxiters - i, prob, alg)
+    sol, i, left, right, fl, fr = __bisection(
+        left, right, fl, fr, f; abstol, maxiters = maxiters - i, prob, alg)
 
     sol !== nothing && return sol
 

@@ -50,8 +50,8 @@ end
 function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
         M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
         nexp::Int = 2, η_strategy::F = (f_1, k, x, F) -> f_1 ./ k^2) where {F}
-    return SimpleDFSane{_unwrap_val(M)}(σ_min, σ_max, σ_1, γ, τ_min, τ_max, nexp,
-        η_strategy)
+    return SimpleDFSane{_unwrap_val(M)}(
+        σ_min, σ_max, σ_1, γ, τ_min, τ_max, nexp, η_strategy)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...;
@@ -70,8 +70,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...
     τ_min = T(alg.τ_min)
     τ_max = T(alg.τ_max)
 
-    abstol, reltol, tc_cache = init_termination_cache(prob, abstol, reltol, fx, x,
-        termination_condition)
+    abstol, reltol, tc_cache = init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition)
 
     fx_norm = NONLINEARSOLVE_DEFAULT_NORM(fx)^nexp
     α_1 = one(T)

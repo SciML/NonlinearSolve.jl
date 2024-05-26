@@ -29,7 +29,8 @@
     end
 
     prob_iip = NonlinearLeastSquaresProblem(
-        NonlinearFunction{true}(loss_function!, resid_prototype = zeros(length(y_target))), θ_init, x)
+        NonlinearFunction{true}(loss_function!, resid_prototype = zeros(length(y_target))),
+        θ_init, x)
 
     @testset "Solver: $(nameof(typeof(solver)))" for solver in [
         SimpleNewtonRaphson(AutoForwardDiff()), SimpleGaussNewton(AutoForwardDiff()),

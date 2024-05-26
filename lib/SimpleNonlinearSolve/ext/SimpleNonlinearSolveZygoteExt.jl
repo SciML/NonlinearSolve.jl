@@ -1,6 +1,7 @@
 module SimpleNonlinearSolveZygoteExt
 
-import SimpleNonlinearSolve, Zygote
+using SimpleNonlinearSolve: SimpleNonlinearSolve
+using Zygote: Zygote
 
 SimpleNonlinearSolve.__is_extension_loaded(::Val{:Zygote}) = true
 
