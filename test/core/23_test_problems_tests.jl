@@ -59,7 +59,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "Halley" setup=[RobustnessTesting] begin
+@testitem "Halley" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (Halley(),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
