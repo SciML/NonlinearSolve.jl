@@ -55,7 +55,7 @@ end
 @testitem "NewtonRaphson" setup=[CoreRootfindTesting] tags=[:core] timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
-        ad in (AutoFiniteDiff(), AutoZygote())
+        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff())
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
@@ -466,7 +466,7 @@ end
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(),
             HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
-        ad in (AutoFiniteDiff(), AutoZygote()),
+        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()),
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
 
@@ -515,7 +515,7 @@ end
 @testitem "Klement" setup=[CoreRootfindTesting] tags=[:core] skip=:(Sys.isapple()) timeout=3600 begin
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
-        ad in (AutoFiniteDiff(), AutoZygote()),
+        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
@@ -565,7 +565,7 @@ end
     @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
             Static(), StrongWolfe(), BackTracking(),
             HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
-        ad in (AutoFiniteDiff(), AutoZygote())
+        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff())
 
         linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
