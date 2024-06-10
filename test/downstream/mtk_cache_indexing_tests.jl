@@ -10,39 +10,24 @@
     # Creates an integrator.
     nlprob = NonlinearProblem(nlsys, [X => 1.0], [p => 2.0, d => 3.0])
 
-    @testset "GeneralizedFirstOrderAlgorithmCache" begin
-        nint = init(nlprob, NewtonRaphson())
-        @test nint isa NonlinearSolve.GeneralizedFirstOrderAlgorithmCache
+    @testset "$integtype" for (alg, integtype) in [
+            (NewtonRaphson(), NonlinearSolve.GeneralizedFirstOrderAlgorithmCache),
+            (FastShortcutNonlinearPolyalg(), NonlinearSolve.NonlinearSolvePolyAlgorithmCache),
+            (SimpleNewtonRaphson(), NonlinearSolve.NonlinearSolveNoInitCache),
+        ]
+        nint = init(nlprob, alg)
+        @test nint isa integtype
 
-        @test nint[X] == 1.0
-        @test nint[nlsys.X] == 1.0
-        @test nint[:X] == 1.0
-        @test nint.ps[p] == 2.0
-        @test nint.ps[nlsys.p] == 2.0
-        @test nint.ps[:p] == 2.0
-    end
+        for (i, sym) in enumerate([X, nlsys.X, :X])
+            # test both getindex and setindex!
+            nint[sym] = 1.5i
+            @test nint[sym] == 1.5i
+        end
 
-    @testset "NonlinearSolvePolyAlgorithmCache" begin
-        nint = init(nlprob, FastShortcutNonlinearPolyalg())
-        @test nint isa NonlinearSolve.NonlinearSolvePolyAlgorithmCache
-
-        @test nint[X] == 1.0
-        @test nint[nlsys.X] == 1.0
-        @test nint[:X] == 1.0
-        @test nint.ps[p] == 2.0
-        @test nint.ps[nlsys.p] == 2.0
-        @test nint.ps[:p] == 2.0
-    end
-
-    @testset "NonlinearSolveNoInitCache" begin
-        nint = init(nlprob, SimpleNewtonRaphson())
-        @test nint isa NonlinearSolve.NonlinearSolveNoInitCache
-
-        @test nint[X] == 1.0
-        @test nint[nlsys.X] == 1.0
-        @test nint[:X] == 1.0
-        @test nint.ps[p] == 2.0
-        @test nint.ps[nlsys.p] == 2.0
-        @test nint.ps[:p] == 2.0
+        for (i, sym) in enumerate([p, nlsys.p, :p])
+            # test both getindex and setindex!
+            nint.ps[sym] = 2.5i
+            @test nint.ps[sym] == 2.5i
+        end
     end
 end

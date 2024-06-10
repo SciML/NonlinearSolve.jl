@@ -220,6 +220,10 @@ function Base.getindex(cache::AbstractNonlinearSolveCache, sym)
     return getu(cache, sym)(cache)
 end
 
+function Base.setindex!(cache::AbstractNonlinearSolveCache, val, sym)
+    return setu(cache, sym)(cache, val)
+end
+
 function Base.show(io::IO, cache::AbstractNonlinearSolveCache)
     __show_cache(io, cache, 0)
 end
