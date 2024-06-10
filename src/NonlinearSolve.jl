@@ -53,7 +53,7 @@ using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workl
     using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
     using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                      symbolic_container, parameter_values, state_values,
-                                     getu
+                                     getu, setu
 end
 
 @reexport using SciMLBase, SimpleNonlinearSolve
