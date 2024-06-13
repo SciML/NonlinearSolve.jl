@@ -57,7 +57,9 @@ end
 function get_concrete_reverse_ad(
         autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
         args...; check_reverse_mode = true, kwargs...) where {test_sparse}
-    if !isa(ADTypes.mode(autodiff), ADTypes.ReverseMode) && check_reverse_mode
+    if !isa(ADTypes.mode(autodiff), ADTypes.ReverseMode) &&
+       !isa(autodiff, ADTypes.AutoFiniteDiff) && # User specified finite differencing
+       check_reverse_mode
         @warn "$(autodiff)::$(typeof(autodiff)) is not a `ReverseMode`. Use with caution." maxlog=1
     end
     if autodiff isa Union{AutoZygote, AutoSparse{<:AutoZygote}} && isinplace(prob)
