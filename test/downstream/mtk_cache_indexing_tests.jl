@@ -11,10 +11,9 @@
     nlprob = NonlinearProblem(nlsys, [X => 1.0], [p => 2.0, d => 3.0])
 
     @testset "$integtype" for (alg, integtype) in [
-            (NewtonRaphson(), NonlinearSolve.GeneralizedFirstOrderAlgorithmCache),
-            (FastShortcutNonlinearPolyalg(), NonlinearSolve.NonlinearSolvePolyAlgorithmCache),
-            (SimpleNewtonRaphson(), NonlinearSolve.NonlinearSolveNoInitCache),
-        ]
+        (NewtonRaphson(), NonlinearSolve.GeneralizedFirstOrderAlgorithmCache),
+        (FastShortcutNonlinearPolyalg(), NonlinearSolve.NonlinearSolvePolyAlgorithmCache),
+        (SimpleNewtonRaphson(), NonlinearSolve.NonlinearSolveNoInitCache)]
         nint = init(nlprob, alg)
         @test nint isa integtype
 
