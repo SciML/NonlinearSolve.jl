@@ -44,10 +44,9 @@ using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
                        NoSparsityDetection, PrecomputedJacobianColorvec,
-                       SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!,
-                       auto_vecjac, init_jacobian, num_jacvec, num_jacvec!, num_vecjac,
-                       num_vecjac!, sparse_jacobian, sparse_jacobian!,
-                       sparse_jacobian_cache
+                       SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!, auto_vecjac,
+                       init_jacobian, num_jacvec, num_jacvec!, num_vecjac, num_vecjac!,
+                       sparse_jacobian, sparse_jacobian!, sparse_jacobian_cache
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values,
