@@ -10,8 +10,8 @@ using PrecompileTools: @compile_workload, @setup_workload
 using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
                AutoZygote, AutoEnzyme, AutoSparse
 # FIXME: deprecated, remove in future
-using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff,
-               AutoSparsePolyesterForwardDiff, AutoSparseZygote
+using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
+               AutoSparseZygote
 
 using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
                       ismutable
