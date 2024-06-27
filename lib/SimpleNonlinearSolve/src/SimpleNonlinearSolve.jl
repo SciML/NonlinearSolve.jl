@@ -1,32 +1,30 @@
 module SimpleNonlinearSolve
 
-using PrecompileTools: @compile_workload, @setup_workload, @recompile_invalidations
+using PrecompileTools: @compile_workload, @setup_workload
 
-@recompile_invalidations begin
-    using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-                   AutoPolyesterForwardDiff
-    using ArrayInterface: ArrayInterface
-    using ConcreteStructs: @concrete
-    using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
-                      AbstractSafeNonlinearTerminationMode,
-                      AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
-                      NONLINEARSOLVE_DEFAULT_NORM
-    using DifferentiationInterface: DifferentiationInterface
-    using DiffResults: DiffResults
-    using FastClosures: @closure
-    using FiniteDiff: FiniteDiff
-    using ForwardDiff: ForwardDiff, Dual
-    using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess, lu,
-                         mul!, norm, transpose
-    using MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
-    using Reexport: @reexport
-    using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
-                     NonlinearFunction, NonlinearLeastSquaresProblem, NonlinearProblem,
-                     ReturnCode, init, remake, solve, AbstractNonlinearAlgorithm,
-                     build_solution, isinplace, _unwrap_val
-    using Setfield: @set!
-    using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
-end
+using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
+               AutoPolyesterForwardDiff
+using ArrayInterface: ArrayInterface
+using ConcreteStructs: @concrete
+using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
+                  AbstractSafeNonlinearTerminationMode,
+                  AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
+                  NONLINEARSOLVE_DEFAULT_NORM
+using DifferentiationInterface: DifferentiationInterface
+using DiffResults: DiffResults
+using FastClosures: @closure
+using FiniteDiff: FiniteDiff
+using ForwardDiff: ForwardDiff, Dual
+using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess, lu,
+                     mul!, norm, transpose
+using MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
+using Reexport: @reexport
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
+                 NonlinearFunction, NonlinearLeastSquaresProblem, NonlinearProblem,
+                 ReturnCode, init, remake, solve, AbstractNonlinearAlgorithm,
+                 build_solution, isinplace, _unwrap_val
+using Setfield: @set!
+using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 
 const DI = DifferentiationInterface
 
