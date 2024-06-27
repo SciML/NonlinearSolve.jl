@@ -15,8 +15,8 @@ using DiffResults: DiffResults
 using FastClosures: @closure
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
-using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess, lu,
-                     mul!, norm, transpose
+using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess, lu, mul!,
+                     norm, transpose
 using MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
 using Reexport: @reexport
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
