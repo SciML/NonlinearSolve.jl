@@ -28,8 +28,8 @@ using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
 using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
-                     UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess,
-                     istril, istriu, lu, mul!, norm, pinv, tril!, triu!
+                     UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
+                     istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearches: LineSearches
 using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
                    InvPreconditioner, needs_concrete_A, AbstractFactorization,
