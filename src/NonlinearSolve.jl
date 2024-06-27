@@ -18,11 +18,10 @@ using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_ind
 using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
                   AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
-                  AbsSafeBestTerminationMode, AbsSafeTerminationMode,
-                  AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
-                  RelSafeBestTerminationMode, RelSafeTerminationMode,
-                  RelTerminationMode, SimpleNonlinearSolveTerminationMode,
-                  SteadyStateDiffEqTerminationMode
+                  AbsSafeBestTerminationMode, AbsSafeTerminationMode, AbsTerminationMode,
+                  NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
+                  RelSafeTerminationMode, RelTerminationMode,
+                  SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
 using FastBroadcast: @..
 using FastClosures: @closure
 using FiniteDiff: FiniteDiff
