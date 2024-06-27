@@ -5,56 +5,52 @@ if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_m
 end
 
 using Reexport: @reexport
-using PrecompileTools: @recompile_invalidations, @compile_workload, @setup_workload
+using PrecompileTools: @compile_workload, @setup_workload
 
-@recompile_invalidations begin
-    using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
-                   AutoZygote, AutoEnzyme, AutoSparse
-    # FIXME: deprecated, remove in future
-    using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff,
-                   AutoSparsePolyesterForwardDiff, AutoSparseZygote
+using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
+               AutoZygote, AutoEnzyme, AutoSparse
+# FIXME: deprecated, remove in future
+using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
+               AutoSparseZygote
 
-    using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
-                          ismutable
-    using ConcreteStructs: @concrete
-    using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
-                      AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
-                      AbsSafeBestTerminationMode, AbsSafeTerminationMode,
-                      AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
-                      RelSafeBestTerminationMode, RelSafeTerminationMode,
-                      RelTerminationMode, SimpleNonlinearSolveTerminationMode,
-                      SteadyStateDiffEqTerminationMode
-    using FastBroadcast: @..
-    using FastClosures: @closure
-    using FiniteDiff: FiniteDiff
-    using ForwardDiff: ForwardDiff, Dual
-    using LazyArrays: LazyArrays, ApplyArray, cache
-    using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
-                         UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess,
-                         istril, istriu, lu, mul!, norm, pinv, tril!, triu!
-    using LineSearches: LineSearches
-    using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
-                       InvPreconditioner, needs_concrete_A, AbstractFactorization,
-                       DefaultAlgorithmChoice, DefaultLinearSolver
-    using MaybeInplace: @bb
-    using Printf: @printf
-    using Preferences: Preferences, @load_preference, @set_preferences!
-    using RecursiveArrayTools: recursivecopy!, recursivefill!
-    using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                     AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
-    using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
-    using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
-                           ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
-                           NoSparsityDetection, PrecomputedJacobianColorvec,
-                           SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!,
-                           auto_vecjac, init_jacobian, num_jacvec, num_jacvec!, num_vecjac,
-                           num_vecjac!, sparse_jacobian, sparse_jacobian!,
-                           sparse_jacobian_cache
-    using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
-    using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
-                                     symbolic_container, parameter_values, state_values,
-                                     getu, setu
-end
+using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
+                      ismutable
+using ConcreteStructs: @concrete
+using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
+                  AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
+                  AbsSafeBestTerminationMode, AbsSafeTerminationMode, AbsTerminationMode,
+                  NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
+                  RelSafeTerminationMode, RelTerminationMode,
+                  SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
+using FastBroadcast: @..
+using FastClosures: @closure
+using FiniteDiff: FiniteDiff
+using ForwardDiff: ForwardDiff, Dual
+using LazyArrays: LazyArrays, ApplyArray, cache
+using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
+                     UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
+                     istriu, lu, mul!, norm, pinv, tril!, triu!
+using LineSearches: LineSearches
+using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
+                   InvPreconditioner, needs_concrete_A, AbstractFactorization,
+                   DefaultAlgorithmChoice, DefaultLinearSolver
+using MaybeInplace: @bb
+using Printf: @printf
+using Preferences: Preferences, @load_preference, @set_preferences!
+using RecursiveArrayTools: recursivecopy!, recursivefill!
+using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
+                 AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
+using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
+using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
+                       ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
+                       NoSparsityDetection, PrecomputedJacobianColorvec,
+                       SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!, auto_vecjac,
+                       init_jacobian, num_jacvec, num_jacvec!, num_vecjac, num_vecjac!,
+                       sparse_jacobian, sparse_jacobian!, sparse_jacobian_cache
+using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
+using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
+                                 symbolic_container, parameter_values, state_values, getu,
+                                 setu
 
 @reexport using SciMLBase, SimpleNonlinearSolve
 
