@@ -484,3 +484,36 @@ function SIAMFANLEquationsJL(; method = :newton, delta = 1e-3, linsolve = nothin
     end
     return SIAMFANLEquationsJL(method, delta, linsolve, m, beta, autodiff)
 end
+
+"""
+    EnlsipJL(; autodiff = nothing)
+
+Wrapper over [Enlsip.jl](https://github.com/UncertainLab/Enlsip.jl) for solving Nonlinear
+Least Squares Problems.
+
+### Keyword Arguments
+
+  - `autodiff`: determines the backend used for the Jacobian. Note that this argument is
+    ignored if an analytical Jacobian is passed, as that will be used instead. Defaults to
+    `nothing` which means that a default is selected according to the problem specification!
+
+!!! note
+
+    This algorithm is only available if `Enlsip.jl` is installed.
+
+!!! warning
+
+    Enlsip is designed for constrained NLLS problems. However, since we don't support
+    constraints in NonlinearSolve.jl currently, we add a dummy constraint to the problem
+    before calling Enlsip.
+"""
+@concrete struct EnlsipJL <: AbstractNonlinearSolveExtensionAlgorithm
+    autodiff
+end
+
+function EnlsipJL(; autodiff = nothing)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveEnlsipExt) === nothing
+        error("EnlsipJL requires Enlsip.jl to be loaded")
+    end
+    return EnlsipJL(autodiff)
+end
