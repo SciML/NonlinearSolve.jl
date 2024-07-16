@@ -54,7 +54,7 @@ function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 
         σ_min, σ_max, σ_1, γ, τ_min, τ_max, nexp, η_strategy)
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleDFSane{M}, args...;
+function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane{M}, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
         termination_condition = nothing, kwargs...) where {M}
     x = __maybe_unaliased(prob.u0, alias_u0)

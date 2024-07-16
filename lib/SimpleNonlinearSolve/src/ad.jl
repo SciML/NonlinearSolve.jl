@@ -1,4 +1,4 @@
-for pType in (NonlinearProblem, NonlinearLeastSquaresProblem)
+for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     @eval function SciMLBase.solve(
             prob::$(pType){<:Union{Number, <:AbstractArray}, iip,
                 <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
@@ -31,7 +31,7 @@ for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
 end
 
 function __nlsolve_ad(
-        prob::Union{IntervalNonlinearProblem, NonlinearProblem}, alg, args...; kwargs...)
+        prob::Union{IntervalNonlinearProblem, ImmutableNonlinearProblem}, alg, args...; kwargs...)
     p = value(prob.p)
     if prob isa IntervalNonlinearProblem
         tspan = value.(prob.tspan)

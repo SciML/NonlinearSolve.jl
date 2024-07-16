@@ -123,7 +123,7 @@ end
         error("Inplace NonlinearLeastSquaresProblem requires a `resid_prototype`")
     return _get_fx(prob.f, x, prob.p)
 end
-@inline _get_fx(prob::NonlinearProblem, x) = _get_fx(prob.f, x, prob.p)
+@inline _get_fx(prob::ImmutableNonlinearProblem, x) = _get_fx(prob.f, x, prob.p)
 @inline function _get_fx(f::NonlinearFunction, x, p)
     if isinplace(f)
         if f.resid_prototype !== nothing
@@ -145,7 +145,7 @@ end
 # different. NonlinearSolve is more for robust / cached solvers while SimpleNonlinearSolve
 # is meant for low overhead solvers, users can opt into the other termination modes but the
 # default is to use the least overhead version.
-function init_termination_cache(prob::NonlinearProblem, abstol, reltol, du, u, ::Nothing)
+function init_termination_cache(prob::ImmutableNonlinearProblem, abstol, reltol, du, u, ::Nothing)
     return init_termination_cache(
         prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix1(maximum, abs)))
 end
@@ -155,14 +155,14 @@ function init_termination_cache(
         prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix2(norm, 2)))
 end
 
-function init_termination_cache(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+function init_termination_cache(prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
     abstol = __get_tolerance(u, abstol, T)
     reltol = __get_tolerance(u, reltol, T)
     tc_ = if hasfield(typeof(tc), :internalnorm) && tc.internalnorm === nothing
         internalnorm = ifelse(
-            prob isa NonlinearProblem, Base.Fix1(maximum, abs), Base.Fix2(norm, 2))
+            prob isa ImmutableNonlinearProblem, Base.Fix1(maximum, abs), Base.Fix2(norm, 2))
         DiffEqBase.set_termination_mode_internalnorm(tc, internalnorm)
     else
         tc

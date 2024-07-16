@@ -24,7 +24,7 @@ A low-overhead implementation of Halley's Method.
     autodiff = nothing
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleHalley, args...;
+function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHalley, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)

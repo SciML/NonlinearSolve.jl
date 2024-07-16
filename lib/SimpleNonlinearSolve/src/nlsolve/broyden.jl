@@ -22,7 +22,7 @@ end
 
 __get_linesearch(::SimpleBroyden{LS}) where {LS} = Val(LS)
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleBroyden, args...;
+function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
