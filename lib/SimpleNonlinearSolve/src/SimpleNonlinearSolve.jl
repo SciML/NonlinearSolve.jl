@@ -20,10 +20,10 @@ using LinearAlgebra: LinearAlgebra, I, convert, copyto!, diagind, dot, issuccess
 using MaybeInplace: @bb, setindex_trait, CanSetindex, CannotSetindex
 using Reexport: @reexport
 using SciMLBase: @add_kwonly, SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
-                 AbstractNonlinearFunction, StandardNonlinearProblem,
-                 NonlinearFunction, NonlinearLeastSquaresProblem, NonlinearProblem,
-                 ReturnCode, init, remake, solve, AbstractNonlinearAlgorithm,
-                 build_solution, isinplace, _unwrap_val, warn_paramtype
+                 AbstractNonlinearFunction, StandardNonlinearProblem, NonlinearFunction,
+                 NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode, init, remake,
+                 solve, AbstractNonlinearAlgorithm, build_solution, isinplace, _unwrap_val,
+                 warn_paramtype
 using Setfield: @set!
 using StaticArraysCore: StaticArray, SVector, SMatrix, SArray, MArray, Size
 
@@ -81,8 +81,9 @@ function SciMLBase.solve(prob::NonlinearProblem, alg::AbstractSimpleNonlinearSol
         p === nothing, alg, args...; prob.kwargs..., kwargs...)
 end
 
-function SciMLBase.solve(prob::ImmutableNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
-    args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+function SciMLBase.solve(
+        prob::ImmutableNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
@@ -92,8 +93,8 @@ function SciMLBase.solve(prob::ImmutableNonlinearProblem, alg::AbstractSimpleNon
         p === nothing, alg, args...; prob.kwargs..., kwargs...)
 end
 
-function __internal_solve_up(_prob::ImmutableNonlinearProblem, sensealg, u0, u0_changed,
-        p, p_changed, alg, args...; kwargs...)
+function __internal_solve_up(_prob::ImmutableNonlinearProblem, sensealg, u0,
+        u0_changed, p, p_changed, alg, args...; kwargs...)
     prob = u0_changed || p_changed ? remake(_prob; u0, p) : _prob
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end

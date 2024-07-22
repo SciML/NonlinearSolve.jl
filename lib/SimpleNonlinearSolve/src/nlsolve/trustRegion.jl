@@ -55,8 +55,8 @@ scalar and static array problems.
     nlsolve_update_rule = Val(false)
 end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegion, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
+function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegion,
+        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
     T = eltype(real(x))

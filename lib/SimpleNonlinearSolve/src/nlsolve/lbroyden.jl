@@ -44,7 +44,8 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleLimitedMe
     return __generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
 
-@views function __generic_solve(prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
+@views function __generic_solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)
@@ -114,7 +115,8 @@ end
 # Non-allocating StaticArrays version of SimpleLimitedMemoryBroyden is actually quite
 # finicky, so we'll implement it separately from the generic version
 # Ignore termination_condition. Don't pass things into internal functions
-function __static_solve(prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden,
+function __static_solve(
+        prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, maxiters = 1000, kwargs...)
     x = prob.u0
     fx = _get_fx(prob, x)

@@ -145,7 +145,8 @@ end
 # different. NonlinearSolve is more for robust / cached solvers while SimpleNonlinearSolve
 # is meant for low overhead solvers, users can opt into the other termination modes but the
 # default is to use the least overhead version.
-function init_termination_cache(prob::ImmutableNonlinearProblem, abstol, reltol, du, u, ::Nothing)
+function init_termination_cache(
+        prob::ImmutableNonlinearProblem, abstol, reltol, du, u, ::Nothing)
     return init_termination_cache(
         prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix1(maximum, abs)))
 end
@@ -155,7 +156,8 @@ function init_termination_cache(
         prob, abstol, reltol, du, u, AbsNormTerminationMode(Base.Fix2(norm, 2)))
 end
 
-function init_termination_cache(prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
+function init_termination_cache(
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     T = promote_type(eltype(du), eltype(u))
     abstol = __get_tolerance(u, abstol, T)
