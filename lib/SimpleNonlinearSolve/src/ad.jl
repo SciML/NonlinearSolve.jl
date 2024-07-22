@@ -1,15 +1,26 @@
-for pType in (NonlinearProblem, NonlinearLeastSquaresProblem)
-    @eval function SciMLBase.solve(
-            prob::$(pType){<:Union{Number, <:AbstractArray}, iip,
-                <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-            alg::AbstractSimpleNonlinearSolveAlgorithm,
-            args...;
-            kwargs...) where {T, V, P, iip}
-        sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
-        dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
-        return SciMLBase.build_solution(
-            prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
-    end
+function SciMLBase.solve(
+        prob::NonlinearLeastSquaresProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...;
+        kwargs...) where {T, V, P, iip}
+    sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
+    dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+end
+
+function SciMLBase.solve(
+        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...;
+        kwargs...) where {T, V, P, iip}
+    prob = convert(ImmutableNonlinearProblem, prob)
+    sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
+    dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
 
 for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
@@ -31,7 +42,7 @@ for algType in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
 end
 
 function __nlsolve_ad(
-        prob::Union{IntervalNonlinearProblem, NonlinearProblem}, alg, args...; kwargs...)
+        prob::Union{IntervalNonlinearProblem, NonlinearProblem, ImmutableNonlinearProblem}, alg, args...; kwargs...)
     p = value(prob.p)
     if prob isa IntervalNonlinearProblem
         tspan = value.(prob.tspan)

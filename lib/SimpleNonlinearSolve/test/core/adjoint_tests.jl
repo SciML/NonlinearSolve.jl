@@ -16,6 +16,6 @@
     ∂p_forwarddiff = ForwardDiff.gradient(solve_nlprob, p)
     ∂p_tracker = Tracker.data(only(Tracker.gradient(solve_nlprob, p)))
     ∂p_reversediff = ReverseDiff.gradient(solve_nlprob, p)
-
+    @test ∂p_zygote ≈ ∂p_tracker ≈ ∂p_reversediff
     @test ∂p_zygote ≈ ∂p_forwarddiff ≈ ∂p_tracker ≈ ∂p_reversediff
 end

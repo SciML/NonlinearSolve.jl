@@ -1,11 +1,11 @@
 module SimpleNonlinearSolveTrackerExt
 
 using DiffEqBase: DiffEqBase
-using SciMLBase: TrackerOriginator, NonlinearProblem, NonlinearLeastSquaresProblem, remake
-using SimpleNonlinearSolve: SimpleNonlinearSolve
+using SciMLBase: TrackerOriginator, NonlinearLeastSquaresProblem, remake
+using SimpleNonlinearSolve: SimpleNonlinearSolve, ImmutableNonlinearProblem
 using Tracker: Tracker, TrackedArray
 
-for pType in (NonlinearProblem, NonlinearLeastSquaresProblem)
+for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     @eval begin
         function SimpleNonlinearSolve.__internal_solve_up(
                 prob::$(pType), sensealg, u0::TrackedArray,

@@ -3,11 +3,11 @@ module SimpleNonlinearSolveReverseDiffExt
 using ArrayInterface: ArrayInterface
 using DiffEqBase: DiffEqBase
 using ReverseDiff: ReverseDiff, TrackedArray, TrackedReal
-using SciMLBase: ReverseDiffOriginator, NonlinearProblem, NonlinearLeastSquaresProblem
-using SimpleNonlinearSolve: SimpleNonlinearSolve
+using SciMLBase: ReverseDiffOriginator, NonlinearLeastSquaresProblem
+using SimpleNonlinearSolve: SimpleNonlinearSolve, ImmutableNonlinearProblem
 import SimpleNonlinearSolve: __internal_solve_up
 
-for pType in (NonlinearProblem, NonlinearLeastSquaresProblem)
+for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     @eval begin
         function __internal_solve_up(prob::$(pType), sensealg, u0::TrackedArray, u0_changed,
                 p::TrackedArray, p_changed, alg, args...; kwargs...)
