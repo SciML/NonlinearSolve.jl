@@ -23,7 +23,8 @@ end
 
 const SimpleGaussNewton = SimpleNewtonRaphson
 
-function SciMLBase.__solve(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+function SciMLBase.__solve(
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...; abstol = nothing, reltol = nothing,
         maxiters = 1000, termination_condition = nothing, alias_u0 = false, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)

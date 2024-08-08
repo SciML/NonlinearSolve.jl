@@ -6,7 +6,7 @@ method is non-allocating on scalar and static array problems.
 """
 struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SimpleKlement, args...;
+function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = __maybe_unaliased(prob.u0, alias_u0)

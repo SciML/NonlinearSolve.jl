@@ -51,6 +51,7 @@ end
     end
 
     prob = NonlinearProblem{false}(f, @SVector[1.0f0, 1.0f0])
+    prob = convert(SimpleNonlinearSolve.ImmutableNonlinearProblem, prob)
 
     @testset "$(nameof(typeof(alg)))" for alg in (
         SimpleNewtonRaphson(), SimpleDFSane(), SimpleTrustRegion(),
