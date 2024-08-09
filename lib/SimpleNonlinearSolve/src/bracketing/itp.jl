@@ -124,10 +124,11 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
         xp <= tmin && (xp = nextfloat(tmin))
         yp = f(xp)
         yps = yp * sign(fr)
-        if yps > 0
+        T0 = zero(yps)
+        if yps > T0
             right = xp
             fr = yp
-        elseif yps < 0
+        elseif yps < T0
             left = xp
             fl = yp
         else
