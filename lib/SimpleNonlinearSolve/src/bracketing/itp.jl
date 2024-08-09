@@ -28,8 +28,7 @@ The following keyword parameters are accepted.
 ### Computation of κ₁
 
 In the current implementation, we compute κ₁ = scaled_κ₁·|Δx₀|^(1 - κ₂); this allows κ₁ to
-adapt to the dimension of the problem in order to keep the proposed initial step
-proportional to Δx₀.
+adapt to the length of the interval and keep the proposed steps proportional to Δx.
 
 ### Worst Case Performance
 
