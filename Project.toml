@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.13.1"
+version = "3.14.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -105,7 +105,7 @@ StaticArrays = "1.9"
 StaticArraysCore = "1.4"
 Sundials = "4.23.1"
 SymbolicIndexingInterface = "0.3.15"
-Symbolics = "5.26"
+Symbolics = "5.26, 6"
 Test = "1.10"
 TimerOutputs = "0.5.23"
 Zygote = "0.6.69"
