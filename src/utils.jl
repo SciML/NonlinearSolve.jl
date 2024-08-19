@@ -163,13 +163,5 @@ end
 
 function __similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
-    return __init_bigfloat_array!!(y)
-end
-
-function __init_bigfloat_array!!(x)
-    if ArrayInterface.can_setindex(x)
-        eltype(x) <: BigFloat && fill!(x, BigFloat(0))
-        return x
-    end
-    return x
+    return zero(y)
 end
