@@ -74,8 +74,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
             @closure (v, u, p) -> auto_vecjac(uf, u, v)
         elseif vjp_autodiff isa AutoFiniteDiff
             if iip
-                cache1 = __similar(fu)
-                cache2 = __similar(fu)
+                cache1 = zero(fu)
+                cache2 = zero(fu)
                 @closure (Jv, v, u, p) -> num_vecjac!(Jv, uf, u, v, cache1, cache2)
             else
                 @closure (v, u, p) -> num_vecjac(uf, __mutable(u), v)
@@ -106,17 +106,17 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
             if iip
                 # FIXME: Technically we should propagate the tag but ignoring that for now
                 cache1 = Dual{typeof(ForwardDiff.Tag(uf, eltype(u))), eltype(u),
-                    1}.(__similar(u), ForwardDiff.Partials.(tuple.(u)))
+                    1}.(zero(u), ForwardDiff.Partials.(tuple.(u)))
                 cache2 = Dual{typeof(ForwardDiff.Tag(uf, eltype(fu))), eltype(fu),
-                    1}.(__similar(fu), ForwardDiff.Partials.(tuple.(fu)))
+                    1}.(zero(fu), ForwardDiff.Partials.(tuple.(fu)))
                 @closure (Jv, v, u, p) -> auto_jacvec!(Jv, uf, u, v, cache1, cache2)
             else
                 @closure (v, u, p) -> auto_jacvec(uf, u, v)
             end
         elseif jvp_autodiff isa AutoFiniteDiff
             if iip
-                cache1 = __similar(fu)
-                cache2 = __similar(u)
+                cache1 = zero(fu)
+                cache2 = zero(u)
                 @closure (Jv, v, u, p) -> num_jacvec!(Jv, uf, u, v, cache1, cache2)
             else
                 @closure (v, u, p) -> num_jacvec(uf, u, v)
@@ -162,7 +162,7 @@ end
 function (op::JacobianOperator{vjp, iip})(v, u, p) where {vjp, iip}
     if vjp
         if iip
-            res = __similar(op.output_cache)
+            res = zero(op.output_cache)
             op.vjp_op(res, v, u, p)
             return res
         else
@@ -170,7 +170,7 @@ function (op::JacobianOperator{vjp, iip})(v, u, p) where {vjp, iip}
         end
     else
         if iip
-            res = __similar(op.output_cache)
+            res = zero(op.output_cache)
             op.jvp_op(res, v, u, p)
             return res
         else

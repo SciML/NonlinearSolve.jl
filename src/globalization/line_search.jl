@@ -125,7 +125,7 @@ function __internal_init(
             deriv_op = nothing
         elseif SciMLBase.has_jvp(f)
             if isinplace(prob)
-                jvp_cache = __similar(fu)
+                jvp_cache = zero(fu)
                 deriv_op = @closure (du, u, fu, p) -> begin
                     f.jvp(jvp_cache, du, u, p)
                     dot(fu, jvp_cache)
@@ -135,7 +135,7 @@ function __internal_init(
             end
         elseif SciMLBase.has_vjp(f)
             if isinplace(prob)
-                vjp_cache = __similar(u)
+                vjp_cache = zero(u)
                 deriv_op = @closure (du, u, fu, p) -> begin
                     f.vjp(vjp_cache, fu, u, p)
                     dot(du, vjp_cache)
@@ -149,7 +149,7 @@ function __internal_init(
                 alg.autodiff, prob; check_reverse_mode = true)
             vjp_op = VecJacOperator(prob, fu, u; autodiff)
             if isinplace(prob)
-                vjp_cache = __similar(u)
+                vjp_cache = zero(u)
                 deriv_op = @closure (du, u, fu, p) -> dot(du, vjp_op(vjp_cache, fu, u, p))
             else
                 deriv_op = @closure (du, u, fu, p) -> dot(du, vjp_op(fu, u, p))
@@ -159,7 +159,7 @@ function __internal_init(
                 alg.autodiff, prob; check_forward_mode = true)
             jvp_op = JacVecOperator(prob, fu, u; autodiff)
             if isinplace(prob)
-                jvp_cache = __similar(fu)
+                jvp_cache = zero(fu)
                 deriv_op = @closure (du, u, fu, p) -> dot(fu, jvp_op(jvp_cache, du, u, p))
             else
                 deriv_op = @closure (du, u, fu, p) -> dot(fu, jvp_op(du, u, p))

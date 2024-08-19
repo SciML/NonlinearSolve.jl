@@ -266,7 +266,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
                     alias_u0 = false  # If immutable don't care about aliasing
                 end
                 u0 = prob.u0
-                u0_aliased = alias_u0 ? __similar(u0) : u0
+                u0_aliased = alias_u0 ? zero(u0) : u0
             end]
             for i in 1:N
                 cur_sol = sol_syms[i]
