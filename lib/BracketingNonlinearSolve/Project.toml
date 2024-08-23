@@ -1,13 +1,19 @@
-name = "SimpleBracketingNonlinearSolve"
+name = "BracketingNonlinearSolve"
 uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.0.0"
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 
 [compat]
 CommonSolve = "0.2.4"
+ConcreteStructs = "0.2.3"
+NonlinearSolveBase = "1"
+PrecompileTools = "1.2.1"
 SciMLBase = "2.50"
 julia = "1.10"
