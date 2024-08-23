@@ -69,8 +69,8 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
 
         fs = f(s)
         if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(prob, alg, s, fs;
-                retcode = ReturnCode.Success, left, right)
+            return SciMLBase.build_solution(
+                prob, alg, s, fs; retcode = ReturnCode.Success, left, right)
         end
 
         if iszero(fs)

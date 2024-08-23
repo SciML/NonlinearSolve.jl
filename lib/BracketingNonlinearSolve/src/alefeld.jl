@@ -129,7 +129,7 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
     end
     fc = f(c)
 
-    # Reuturn solution when run out of max interation
+    # Return solution when run out of max iteration
     return SciMLBase.build_solution(
         prob, alg, c, fc; retcode = ReturnCode.MaxIters, left = a, right = b)
 end
