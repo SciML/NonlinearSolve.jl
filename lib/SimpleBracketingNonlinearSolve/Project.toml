@@ -1,0 +1,13 @@
+name = "SimpleBracketingNonlinearSolve"
+uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
+version = "1.0.0"
+
+[deps]
+CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+
+[compat]
+CommonSolve = "0.2.4"
+SciMLBase = "2.50"
+julia = "1.10"
