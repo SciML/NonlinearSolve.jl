@@ -16,10 +16,12 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 UnrolledUtilities = "0fe1646c-419e-43be-ac14-22321958931b"
 
 [weakdeps]
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [extensions]
+NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 
