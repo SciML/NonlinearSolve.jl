@@ -30,16 +30,83 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
     end
 end
 
-function SciMLBase.init(du::Union{AbstractArray{T}, T}, u::Union{AbstractArray{T}, T},
-        mode::AbstractNonlinearTerminationMode, saved_value_prototype...;
-        abstol = nothing, reltol = nothing, kwargs...) where {T <: Number}
-    error("Not yet implemented...")
+function SciMLBase.init(
+        du, u, mode::AbstractNonlinearTerminationMode, saved_value_prototype...;
+        abstol = nothing, reltol = nothing, kwargs...)
+    T = promote_type(eltype(du), eltype(u))
+    abstol = get_tolerance(abstol, T)
+    reltol = get_tolerance(reltol, T)
+    TT = typeof(abstol)
+
+    u_unaliased = mode isa AbstractSafeBestNonlinearTerminationMode ?
+                  (ArrayInterface.can_setindex(u) ? copy(u) : u) : nothing
+
+    if mode isa AbstractSafeNonlinearTerminationMode
+        if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
+            initial_objective = Linf_NORM(du)
+            u0_norm = nothing
+        else
+            initial_objective = Linf_NORM(du) /
+                                (Utils.nonallocating_maximum(+, du, u) + eps(TT))
+            u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
+        end
+        objectives_trace = Vector{TT}(undef, mode.patience_steps)
+        step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
+                          Vector{TT}(undef, mode.max_stalled_steps)
+        if step_norm_trace !== nothing &&
+           ArrayInterface.can_setindex(u_unaliased) &&
+           !(u_unaliased isa Number)
+            u_diff_cache = similar(u_unaliased)
+        else
+            u_diff_cache = u_unaliased
+        end
+    else
+        initial_objective = nothing
+        objectives_trace = nothing
+        u0_norm = nothing
+        step_norm_trace = nothing
+        best_value = Utils.convert_real(T, Inf)
+        max_stalled_steps = nothing
+        u_diff_cache = u_unaliased
+    end
+
+    length(saved_value_prototype) == 0 && (saved_value_prototype = nothing)
+
+    return NonlinearTerminationModeCache(
+        u_unaliased, ReturnCode.Default, abstol, reltol, best_value, mode,
+        initial_objective, objectives_trace, 0, saved_value_prototype,
+        u0_norm, step_norm_trace, max_stalled_steps, u_diff_cache)
 end
 
 function SciMLBase.reinit!(
         cache::NonlinearTerminationModeCache, du, u, saved_value_prototype...;
-        abstol = nothing, reltol = nothing, kwargs...)
-    error("Not yet implemented...")
+        abstol = cache.abstol, reltol = cache.reltol, kwargs...)
+    T = eltype(cache.abstol)
+    length(saved_value_prototype) != 0 && (cache.saved_values = saved_value_prototype)
+
+    mode = cache.mode
+    u_unaliased = mode isa AbstractSafeBestNonlinearTerminationMode ?
+                  (ArrayInterface.can_setindex(u) ? copy(u) : u) : nothing
+    cache.u = u_unaliased
+    cache.retcode = ReturnCode.Default
+
+    cache.abstol = get_tolerance(abstol, T)
+    cache.reltol = get_tolerance(reltol, T)
+    cache.nsteps = 0
+    TT = typeof(cache.abstol)
+
+    if mode isa AbstractSafeNonlinearTerminationMode
+        if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
+            cache.initial_objective = Linf_NORM(du)
+        else
+            cache.initial_objective = Linf_NORM(du) /
+                                      (Utils.nonallocating_maximum(+, du, u) + eps(TT))
+            cache.max_stalled_steps !== nothing && (cache.u0_norm = L2_NORM(u))
+        end
+        cache.best_objective_value = cache.initial_objective
+    else
+        cache.best_objective_value = Utils.convert_real(T, Inf)
+    end
 end
 
 ## This dispatch is needed based on how Terminating Callback works!
