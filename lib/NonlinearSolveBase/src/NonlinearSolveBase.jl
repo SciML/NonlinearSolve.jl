@@ -7,7 +7,9 @@ using FastClosures: @closure
 using LinearAlgebra: norm
 using Markdown: @doc_str
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
-using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator
+using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
+                 AbstractNonlinearFunction, @add_kwonly, StandardNonlinearProblem,
+                 NullParameters, NonlinearProblem, isinplace
 using StaticArraysCore: StaticArray
 
 include("public.jl")
@@ -24,5 +26,7 @@ include("immutable_problem.jl")
 export RelTerminationMode, AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
        AbsNormTerminationMode, RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
        RelNormSafeNormTerminationMode, AbsNormSafeNormTerminationMode
+
+export ImmutableNonlinearProblem
 
 end
