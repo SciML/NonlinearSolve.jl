@@ -4,11 +4,10 @@ using ArrayInterface: ArrayInterface
 using FastClosures: @closure
 using LinearAlgebra: norm
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
-using UnrolledUtilities: unrolled_all
 
 using ..NonlinearSolveBase: L2_NORM, Linf_NORM
 
-fast_scalar_indexing(xs...) = unrolled_all(ArrayInterface.fast_scalar_indexing, xs)
+fast_scalar_indexing(xs...) = all(ArrayInterface.fast_scalar_indexing, xs)
 
 function nonallocating_isapprox(x::Number, y::Number; atol = false,
         rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y)))))
