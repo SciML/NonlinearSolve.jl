@@ -2,7 +2,7 @@ module BracketingNonlinearSolve
 
 using ConcreteStructs: @concrete
 
-using CommonSolve: CommonSolve
+using CommonSolve: CommonSolve, solve
 using NonlinearSolveBase: NonlinearSolveBase
 using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, IntervalNonlinearProblem, ReturnCode
 
@@ -32,6 +32,9 @@ include("ridder.jl")
         end
     end
 end
+
+export IntervalNonlinearProblem
+export solve
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
