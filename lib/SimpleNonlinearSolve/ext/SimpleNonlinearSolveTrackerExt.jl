@@ -37,7 +37,7 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
                 prob, sensealg, u0, p, TrackerOriginator(), alg, args...; kwargs...)
 
             function ∇__internal_solve_up(Δ)
-                ∂prob, ∂sensealg, ∂u0, ∂p, ∂originator, ∂args... = ∇internal(Δ)
+                ∂prob, ∂sensealg, ∂u0, ∂p, ∂originator, ∂args... = ∇internal(Tracker.data(Δ))
                 return (∂prob, ∂sensealg, ∂u0, nothing, ∂p, nothing, nothing, ∂args...)
             end
 
