@@ -93,8 +93,10 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
 
         if abs(fl) < abs(fr)
             d = c
-            c, right, left = right, left, c
-            fc, fr, fl = fr, fl, fc
+            c, right = right, left
+            left = c
+            fc, fr = fr, fl
+            fl = fc
         end
         i += 1
     end
