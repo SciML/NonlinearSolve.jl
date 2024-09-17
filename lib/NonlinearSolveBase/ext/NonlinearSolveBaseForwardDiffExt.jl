@@ -10,6 +10,7 @@ using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils
 
 Utils.value(::Type{Dual{T, V, N}}) where {T, V, N} = V
 Utils.value(x::Dual) = Utils.value(ForwardDiff.value(x))
+Utils.value(x::AbstractArray{<:Dual}) = Utils.value.(x)
 
 function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
         prob::Union{IntervalNonlinearProblem, NonlinearProblem, ImmutableNonlinearProblem},
@@ -43,7 +44,7 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
 end
 
 function nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
-    if isinplace(prob)
+    if SciMLBase.isinplace(prob)
         f = @closure p -> begin
             du = Utils.safe_similar(u, promote_type(eltype(u), eltype(p)))
             f(du, u, p)
@@ -62,10 +63,11 @@ function nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
 end
 
 function nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
-    if isinplace(prob)
+    if SciMLBase.isinplace(prob)
         return ForwardDiff.jacobian(
             @closure((du, u)->f(du, u, p)), Utils.safe_similar(u), u)
     end
+    u isa Number && return ForwardDiff.derivative(Base.Fix2(f, p), u)
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
 end
 
