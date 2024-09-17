@@ -72,4 +72,22 @@ apply_norm(f::F, x, y) where {F} = norm_op(standardize_norm(f), +, x, y)
 convert_real(::Type{T}, ::Nothing) where {T} = nothing
 convert_real(::Type{T}, x) where {T} = real(T(x))
 
+restructure(::Number, x::Number) = x
+restructure(y, x) = ArrayInterface.restructure(y, x)
+
+function safe_similar(x, args...; kwargs...)
+    y = similar(x, args...; kwargs...)
+    return init_bigfloat_array!!(y)
+end
+
+init_bigfloat_array!!(x) = x
+
+function init_bigfloat_array!!(x::AbstractArray{<:BigFloat})
+    ArrayInterface.can_setindex(x) && fill!(x, BigFloat(0))
+    return x
+end
+
+safe_reshape(x::Number, args...) = x
+safe_reshape(x, args...) = reshape(x, args...)
+
 end

@@ -7,6 +7,8 @@
 end
 
 @testitem "Interval Nonlinear Problems" setup=[RootfindingTestSnippet] tags=[:core] begin
+    using ForwardDiff
+
     @testset for alg in (Bisection(), Falsi(), Ridder(), Brent(), ITP(), Alefeld())
         tspan = (1.0, 20.0)
 
@@ -17,7 +19,7 @@ end
 
         @testset for p in 1.1:0.1:100.0
             @test g(p)≈sqrt(p) atol=1e-3 rtol=1e-3
-            # @test ForwardDiff.derivative(g, p)≈1 / (2 * sqrt(p)) atol=1e-3 rtol=1e-3
+            @test ForwardDiff.derivative(g, p)≈1 / (2 * sqrt(p)) atol=1e-3 rtol=1e-3
         end
 
         t = (p) -> [sqrt(p[2] / p[1])]
@@ -30,7 +32,7 @@ end
         end
 
         @test g2(p)≈[sqrt(p[2] / p[1])] atol=1e-3 rtol=1e-3
-        # @test ForwardDiff.jacobian(g2, p)≈ForwardDiff.jacobian(t, p) atol=1e-3 rtol=1e-3
+        @test ForwardDiff.jacobian(g2, p)≈ForwardDiff.jacobian(t, p) atol=1e-3 rtol=1e-3
 
         probB = IntervalNonlinearProblem{false}(quadratic_f, (1.0, 2.0), 2.0)
         sol = solve(probB, alg; abstol = 1e-9)
