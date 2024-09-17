@@ -6,8 +6,8 @@ using DifferentiationInterface: DifferentiationInterface
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem
-using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem,
-                 NonlinearFunction
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearLeastSquaresProblem,
+                 NonlinearProblem, NonlinearFunction
 using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 
 const DI = DifferentiationInterface
