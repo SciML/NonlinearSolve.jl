@@ -1,15 +1,24 @@
 module SimpleNonlinearSolve
 
-using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff
 using CommonSolve: CommonSolve, solve
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 @reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
 using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
 
+# AD Dependencies
+using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
+               AutoPolyesterForwardDiff
+using DifferentiationInterface: DifferentiationInterface
+# TODO: move these to extensions in a breaking change. These are not even used in the
+#       package, but are used to trigger the extension loading in DI.jl
+using FiniteDiff: FiniteDiff
+using ForwardDiff: ForwardDiff
+
 using BracketingNonlinearSolve: Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 using NonlinearSolveBase: ImmutableNonlinearProblem
+
+const DI = DifferentiationInterface
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 
@@ -51,7 +60,23 @@ end
 function solve_adjoint_internal end
 
 @setup_workload begin
-    @compile_workload begin end
+    for T in (Float32, Float64)
+        prob_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
+        prob_iip = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p, ones(T, 3), T(2))
+        prob_oop = NonlinearProblem{false}((u, p) -> u .* u .- p, ones(T, 3), T(2))
+
+        algs = []
+        algs_no_iip = []
+
+        @compile_workload begin
+            for alg in algs, prob in (prob_scalar, prob_iip, prob_oop)
+                CommonSolve.solve(prob, alg)
+            end
+            for alg in algs_no_iip
+                CommonSolve.solve(prob_scalar, alg)
+            end
+        end
+    end
 end
 
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
