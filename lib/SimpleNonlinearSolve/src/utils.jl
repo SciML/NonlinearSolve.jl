@@ -28,8 +28,8 @@ end
 function get_concrete_autodiff(_, ad::AbstractADType)
     DI.check_available(ad) && return ad
     error("AD Backend $(ad) is not available. This could be because you haven't loaded the \
-           actual backend (See [Differentiation Inferface Docs](https://gdalle.github.io/DifferentiationInterface.jl/DifferentiationInterface/stable/) \
-           for more details) or the backend might not be supported by DifferentiationInferface.jl.")
+           actual backend (See [Differentiation Interface Docs](https://gdalle.github.io/DifferentiationInterface.jl/DifferentiationInterface/stable/) \
+           for more details) or the backend might not be supported by DifferentiationInterface.jl.")
 end
 function get_concrete_autodiff(
         prob, ad::Union{AutoForwardDiff{nothing}, AutoPolyesterForwardDiff{nothing}})
