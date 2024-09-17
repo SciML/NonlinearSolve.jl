@@ -14,7 +14,7 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
 [extensions]
-NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
+BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
 
 [compat]
 CommonSolve = "0.2.4"
