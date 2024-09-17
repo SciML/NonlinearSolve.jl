@@ -13,8 +13,8 @@ for pType in (InternalNonlinearProblem, NonlinearLeastSquaresProblem)
         @eval function SimpleNonlinearSolve.simplenonlinearsolve_solve_up(
                 prob::$(pType), sensealg, u0::$(uT), u0_changed,
                 p::$(pT), p_changed, alg, args...; kwargs...)
-            return Tracker.track(SimpleNonlinearSolve.simplenonlinearsolve_solve_up, prob,
-                sensealg, ArrayInterface.aos_to_soa(u0), true,
+            return Tracker.track(SimpleNonlinearSolve.simplenonlinearsolve_solve_up,
+                prob, sensealg, ArrayInterface.aos_to_soa(u0), true,
                 ArrayInterface.aos_to_soa(p), true, alg, args...; kwargs...)
         end
     end
