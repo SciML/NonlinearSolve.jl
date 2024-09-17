@@ -7,6 +7,9 @@ on:
     paths:
       - "lib/BracketingNonlinearSolve/**"
       - ".github/workflows/CI_BracketingNonlinearSolve.yml"
+      - "lib/NonlinearSolveBase/src/**"
+      - "lib/NonlinearSolveBase/ext/**"
+      - "lib/NonlinearSolveBase/Project.toml"
   push:
     branches:
       - master
