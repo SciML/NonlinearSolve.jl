@@ -5,6 +5,10 @@ function L2_NORM end
 function Linf_NORM end
 function get_tolerance end
 
+# Forward declarations of functions for forward mode AD
+function nonlinearsolve_forwarddiff_solve end
+function nonlinearsolve_dual_solution end
+
 # Nonlinear Solve Termination Conditions
 abstract type AbstractNonlinearTerminationMode end
 abstract type AbstractSafeNonlinearTerminationMode <: AbstractNonlinearTerminationMode end

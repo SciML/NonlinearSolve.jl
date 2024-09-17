@@ -17,11 +17,11 @@ include("utils.jl")
 
 include("common_defaults.jl")
 include("termination_conditions.jl")
-include("autodiff.jl")
 include("immutable_problem.jl")
 
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
+@compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
 
 export RelTerminationMode, AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
        AbsNormTerminationMode, RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
