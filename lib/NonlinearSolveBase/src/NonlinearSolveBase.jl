@@ -8,16 +8,17 @@ using LinearAlgebra: norm
 using Markdown: @doc_str
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
-                 AbstractNonlinearFunction, @add_kwonly, StandardNonlinearProblem,
-                 NullParameters, NonlinearProblem, isinplace
+                 NonlinearProblem, NonlinearLeastSquaresProblem, AbstractNonlinearFunction,
+                 @add_kwonly, StandardNonlinearProblem, NullParameters, NonlinearProblem,
+                 isinplace
 using StaticArraysCore: StaticArray
 
 include("public.jl")
 include("utils.jl")
 
+include("immutable_problem.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
-include("immutable_problem.jl")
 
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
