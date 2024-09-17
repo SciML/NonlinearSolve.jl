@@ -1,14 +1,16 @@
 module SimpleNonlinearSolve
 
 using CommonSolve: CommonSolve, solve
+using FastClosures: @closure
+using MaybeInplace: @bb
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 @reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
 using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
+using StaticArraysCore: StaticArray
 
 # AD Dependencies
-using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff
+using ADTypes: AbstractADType, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 using DifferentiationInterface: DifferentiationInterface
 # TODO: move these to extensions in a breaking change. These are not even used in the
 #       package, but are used to trigger the extension loading in DI.jl
@@ -16,13 +18,15 @@ using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 
 using BracketingNonlinearSolve: Alefeld, Bisection, Brent, Falsi, ITP, Ridder
-using NonlinearSolveBase: ImmutableNonlinearProblem
+using NonlinearSolveBase: ImmutableNonlinearProblem, get_tolerance
 
 const DI = DifferentiationInterface
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
 
 is_extension_loaded(::Val) = false
+
+include("utils.jl")
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
 function CommonSolve.solve(prob::NonlinearProblem,
