@@ -27,6 +27,4 @@ export RelTerminationMode, AbsTerminationMode, NormTerminationMode, RelNormTermi
        AbsNormTerminationMode, RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
        RelNormSafeNormTerminationMode, AbsNormSafeNormTerminationMode
 
-export ImmutableNonlinearProblem
-
 end
