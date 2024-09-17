@@ -21,7 +21,7 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 ForwardDiff = "0.10.36"
 NonlinearSolveBase = "1"
-PrecompileTools = "1.2.1"
+PrecompileTools = "1.2"
 SciMLBase = "2.50"
 julia = "1.10"
 
