@@ -19,6 +19,14 @@ include("falsi.jl")
 include("itp.jl")
 include("ridder.jl")
 
+# Default Algorithm
+function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
+    return CommonSolve.solve(prob, ITP(); kwargs...)
+end
+function CommonSolve.solve(prob::IntervalNonlinearProblem, nothing, args...; kwargs...)
+    return CommonSolve.solve(prob, ITP(), args...; kwargs...)
+end
+
 @setup_workload begin
     for T in (Float32, Float64)
         prob_brack = IntervalNonlinearProblem{false}(
