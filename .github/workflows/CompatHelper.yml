@@ -23,4 +23,10 @@ jobs:
       - name: CompatHelper.main()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: julia -e 'using CompatHelper; CompatHelper.main(;subdirs=["", "docs"])'
+        run: |
+          import CompatHelper
+          subdirs = ["", "docs"]
+          append!(subdirs, joinpath.(("lib",), filter(p -> isdir(joinpath("lib", p)), readdir("lib"))))
+          CompatHelper.main(; subdirs)
+        shell: julia --color=yes {0}
+        working-directory: "./"
