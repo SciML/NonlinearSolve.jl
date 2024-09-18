@@ -10,7 +10,7 @@ using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  NonlinearProblem, NonlinearLeastSquaresProblem, AbstractNonlinearFunction,
                  @add_kwonly, StandardNonlinearProblem, NullParameters, NonlinearProblem,
-                 isinplace
+                 isinplace, warn_paramtype
 using StaticArraysCore: StaticArray
 
 include("public.jl")

@@ -276,6 +276,6 @@ function init_termination_cache(::AbstractNonlinearProblem, abstol, reltol, du,
     T = promote_type(eltype(du), eltype(u))
     abstol = get_tolerance(abstol, T)
     reltol = get_tolerance(reltol, T)
-    cache = init(du, u, tc; abstol, reltol)
+    cache = SciMLBase.init(du, u, tc; abstol, reltol)
     return abstol, reltol, cache
 end

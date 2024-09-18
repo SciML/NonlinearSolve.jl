@@ -51,7 +51,7 @@ for name in (:Norm, :RelNorm, :AbsNorm)
 
     @eval begin
         """
-            $($struct_name) <: AbstractSafeNonlinearTerminationMode
+            $($struct_name) <: AbstractNonlinearTerminationMode
 
         Terminates if $($doctring).
 
@@ -63,7 +63,7 @@ for name in (:Norm, :RelNorm, :AbsNorm)
 
         $($TERM_INTERNALNORM_DOCS).
         """
-        struct $(struct_name){F} <: AbstractSafeNonlinearTerminationMode
+        struct $(struct_name){F} <: AbstractNonlinearTerminationMode
             internalnorm::F
 
             function $(struct_name)(internalnorm::F) where {F}
