@@ -118,7 +118,8 @@ end
 function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminationMode)
     return cache(fx, x, xo), cache.retcode, fx, x
 end
-function check_termination(cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode)
+function check_termination(
+        cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode)
     if cache(fx, x, xo)
         x = cache.u
         if SciMLBase.isinplace(prob)
