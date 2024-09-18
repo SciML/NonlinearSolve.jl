@@ -5,9 +5,12 @@ using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem
+using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
+                          AbstractNonlinearTerminationMode,
+                          AbstractSafeNonlinearTerminationMode,
+                          AbstractSafeBestNonlinearTerminationMode
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearLeastSquaresProblem,
-                 NonlinearProblem, NonlinearFunction
+                 NonlinearProblem, NonlinearFunction, ReturnCode
 using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 
 const DI = DifferentiationInterface
@@ -60,7 +63,7 @@ function get_fx(prob::Union{ImmutableNonlinearProblem, NonlinearProblem}, x)
 end
 function get_fx(f::NonlinearFunction, x, p)
     if SciMLBase.isinplace(f)
-        f.resid_prototype === nothing && return eltype(x).(f.resid_prototype)
+        f.resid_prototype === nothing || return eltype(x).(f.resid_prototype)
         return safe_similar(x)
     end
     return f(x, p)
@@ -77,18 +80,18 @@ function fixed_parameter_function(prob::AbstractNonlinearProblem)
     return Base.Fix2(prob.f, prob.p)
 end
 
-# __init_identity_jacobian(u::Number, fu, α = true) = oftype(u, α)
-# function __init_identity_jacobian(u, fu, α = true)
-#     J = __similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
-#     fill!(J, zero(eltype(J)))
-#     J[diagind(J)] .= eltype(J)(α)
-#     return J
-# end
-# function __init_identity_jacobian(u::StaticArray, fu, α = true)
-#     S1, S2 = length(fu), length(u)
-#     J = SMatrix{S1, S2, eltype(u)}(I * α)
-#     return J
-# end
+function identity_jacobian(u::Number, fu::Number, α = true)
+    return convert(promote_type(eltype(u), eltype(fu)), α)
+end
+function identity_jacobian(u, fu, α = true)
+    J = safe_similar(u, promote_type(eltype(u), eltype(fu)))
+    fill!(J, zero(eltype(J)))
+    J[diagind(J)] .= eltype(J)(α)
+    return J
+end
+function identity_jacobian(u::StaticArray, fu, α = true)
+    return SMatrix{length(fu), length(u), eltype(u)}(I * α)
+end
 
 identity_jacobian!!(J::Number) = one(J)
 function identity_jacobian!!(J::AbstractVector)
@@ -103,5 +106,29 @@ function identity_jacobian!!(J::AbstractMatrix)
 end
 identity_jacobian!!(::SMatrix{S1, S2, T}) where {S1, S2, T} = SMatrix{S1, S2, T}(I)
 identity_jacobian!!(::SVector{S1, T}) where {S1, T} = ones(SVector{S1, T})
+
+# Termination Conditions
+function check_termination(cache, fx, x, xo, prob)
+    return check_termination(cache, fx, x, xo, prob, cache.mode)
+end
+
+function check_termination(cache, fx, x, xo, _, ::AbstractNonlinearTerminationMode)
+    return cache(fx, x, xo), ReturnCode.Success, fx, x
+end
+function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminationMode)
+    return cache(fx, x, xo), cache.retcode, fx, x
+end
+function check_termination(cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode)
+    if cache(fx, x, xo)
+        x = cache.u
+        if SciMLBase.isinplace(prob)
+            prob.f(fx, x, prob.p)
+        else
+            fx = prob.f(x, prob.p)
+        end
+        return true, cache.retcode, fx, x
+    end
+    return false, ReturnCode.Default, fx, x
+end
 
 end
