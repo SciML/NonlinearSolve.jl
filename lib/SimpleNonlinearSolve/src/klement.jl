@@ -11,6 +11,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, 
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = Utils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
+    fx = Utils.get_fx(prob, x)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
@@ -32,8 +33,8 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, 
         fx = Utils.eval_f(prob, fx, x)
 
         # Termination Checks
-        # tc_sol = check_termination(tc_cache, fx, x, xo, prob, alg)
-        tc_sol !== nothing && return tc_sol
+        solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
+        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
 
         @bb δx .*= -1
         @bb @. δx² = δx^2 * J^2
