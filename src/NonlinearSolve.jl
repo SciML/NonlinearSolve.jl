@@ -40,6 +40,8 @@ using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!, recursivefill!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                  AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
+using SciMLJacobianOperators: JacobianOperator, VecJacOperator, JacVecOperator,
+                              StatefulJacobianOperator, StatefulJacobianNormalFormOperator
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
@@ -72,7 +74,6 @@ include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
 
-include("internal/operators.jl")
 include("internal/jacobian.jl")
 include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")

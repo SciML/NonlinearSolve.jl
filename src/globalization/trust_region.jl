@@ -386,11 +386,13 @@ function __internal_init(
     p1, p2, p3, p4 = __get_parameters(T, alg.method)
     ϵ = T(1e-8)
 
+    reverse_ad = get_concrete_reverse_ad(alg.reverse_ad, prob; check_reverse_mode = true)
     vjp_operator = alg.method isa RUS.__Yuan || alg.method isa RUS.__Bastin ?
-                   VecJacOperator(prob, fu, u; autodiff = alg.reverse_ad) : nothing
+                   VecJacOperator(prob, fu, u; autodiff = reverse_ad) : nothing
 
+    forward_ad = get_concrete_forward_ad(alg.forward_ad, prob; check_forward_mode = true)
     jvp_operator = alg.method isa RUS.__Bastin ?
-                   JacVecOperator(prob, fu, u; autodiff = alg.forward_ad) : nothing
+                   JacVecOperator(prob, fu, u; autodiff = forward_ad) : nothing
 
     if alg.method isa RUS.__Yuan
         Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * _vec(fu)
