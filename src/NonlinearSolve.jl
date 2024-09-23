@@ -40,8 +40,8 @@ using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!, recursivefill!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                  AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
-using SciMLJacobianOperators: JacobianOperator, VecJacOperator, JacVecOperator,
-                              StatefulJacobianOperator
+using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
+                              JacVecOperator, StatefulJacobianOperator
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,

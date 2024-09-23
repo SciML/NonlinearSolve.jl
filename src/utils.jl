@@ -48,6 +48,7 @@ end
     return deepcopy(x)
 end
 @inline __maybe_unaliased(x::AbstractNonlinearSolveOperator, alias::Bool) = x
+@inline __maybe_unaliased(x::AbstractJacobianOperator, alias::Bool) = x
 
 @inline __cond(J::AbstractMatrix) = cond(J)
 @inline __cond(J::SVector) = __cond(Diagonal(MVector(J)))
