@@ -25,7 +25,8 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
   - `jvp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
     the Jacobian-vector product.
   - `linsolve`: Linear Solver Algorithm used to determine if we need a concrete jacobian
-    or if possible we can just use a [`NonlinearSolve.JacobianOperator`](@ref) instead.
+    or if possible we can just use a [`SciMLJacobianOperators.JacobianOperator`](@ref)
+    instead.
 """
 @concrete mutable struct JacobianCache{iip} <: AbstractNonlinearSolveJacobianCache{iip}
     J
@@ -85,8 +86,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
             __similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)) :
             copy(f.jac_prototype)
         elseif f.jac_prototype === nothing
-            zero(init_jacobian(
-                jac_cache; preserve_immutable = Val(true)))
+            zero(init_jacobian(jac_cache; preserve_immutable = Val(true)))
         else
             f.jac_prototype
         end
@@ -114,9 +114,9 @@ end
 
 @inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
 @inline function (cache::JacobianCache)(::Nothing)
-    J = cache.J
-    J isa JacobianOperator && return StatefulJacobianOperator(J, cache.u, cache.p)
-    return J
+    cache.J isa JacobianOperator &&
+        return StatefulJacobianOperator(cache.J, cache.u, cache.p)
+    return cache.J
 end
 
 function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
