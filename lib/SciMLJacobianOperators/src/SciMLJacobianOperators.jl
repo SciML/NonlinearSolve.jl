@@ -150,18 +150,17 @@ function (op::JacobianOperator)(Jv, v, u, p)
     if op.mode isa VJP
         if SciMLBase.isinplace(op)
             op.vjp_op(Jv, v, u, p)
-            return
+        else
+            copyto!(Jv, op.vjp_op(v, u, p))
         end
-        copyto!(Jv, op.vjp_op(v, u, p))
-        return
     else
         if SciMLBase.isinplace(op)
             op.jvp_op(Jv, v, u, p)
-            return
+        else
+            copyto!(Jv, op.jvp_op(v, u, p))
         end
-        copyto!(Jv, op.jvp_op(v, u, p))
-        return
     end
+    return Jv
 end
 
 """
