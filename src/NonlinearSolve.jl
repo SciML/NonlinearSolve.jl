@@ -41,14 +41,13 @@ using RecursiveArrayTools: recursivecopy!, recursivefill!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                  AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
 using SciMLJacobianOperators: JacobianOperator, VecJacOperator, JacVecOperator,
-                              StatefulJacobianOperator, StatefulJacobianNormalFormOperator
+                              StatefulJacobianOperator
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
                        NoSparsityDetection, PrecomputedJacobianColorvec,
-                       SymbolicsSparsityDetection, auto_jacvec, auto_jacvec!, auto_vecjac,
-                       init_jacobian, num_jacvec, num_jacvec!, num_vecjac, num_vecjac!,
-                       sparse_jacobian, sparse_jacobian!, sparse_jacobian_cache
+                       SymbolicsSparsityDetection, init_jacobian, sparse_jacobian,
+                       sparse_jacobian!, sparse_jacobian_cache
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values, getu,
