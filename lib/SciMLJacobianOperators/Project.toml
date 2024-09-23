@@ -4,7 +4,6 @@ authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "0.1.0"
 
 [deps]
-ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
@@ -15,7 +14,6 @@ SciMLOperators = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 
 [compat]
-ADTypes = "1.8.1"
 ConcreteStructs = "0.2.3"
 ConstructionBase = "1.5"
 DifferentiationInterface = "0.5"

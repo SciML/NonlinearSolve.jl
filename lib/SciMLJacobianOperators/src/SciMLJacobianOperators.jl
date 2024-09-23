@@ -1,6 +1,5 @@
 module SciMLJacobianOperators
 
-using ADTypes: ADTypes
 using ConcreteStructs: @concrete
 using ConstructionBase: ConstructionBase
 using DifferentiationInterface: DifferentiationInterface
@@ -117,8 +116,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     vjp_op = prepare_vjp(skip_vjp, prob, f, u, fu; autodiff = vjp_autodiff)
     jvp_op = prepare_jvp(skip_jvp, prob, f, u, fu; autodiff = jvp_autodiff)
 
-    output_cache = similar(fu, T)
-    input_cache = similar(u, T)
+    output_cache = fu isa Number ? T(fu) : similar(fu, T)
+    input_cache = u isa Number ? T(u) : similar(u, T)
 
     return JacobianOperator{iip, T}(
         JVP(), jvp_op, vjp_op, (length(fu), length(u)), output_cache, input_cache)
@@ -290,12 +289,6 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
 
     @assert autodiff!==nothing "`vjp_autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jac`."
-
-    if ADTypes.mode(autodiff) isa ADTypes.ForwardMode
-        @warn "AD Backend: $(autodiff) is a Forward Mode backend. Computing VJPs using \
-               this will be slow!"
-    end
-
     # TODO: Once DI supports const params we can use `p`
     fₚ = SciMLBase.JacobianWrapper{SciMLBase.isinplace(f)}(f, prob.p)
     if SciMLBase.isinplace(f)
@@ -337,12 +330,6 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
 
     @assert autodiff!==nothing "`jvp_autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jac`."
-
-    if ADTypes.mode(autodiff) isa ADTypes.ReverseMode
-        @warn "AD Backend: $(autodiff) is a Reverse Mode backend. Computing JVPs using \
-               this will be slow!"
-    end
-
     # TODO: Once DI supports const params we can use `p`
     fₚ = SciMLBase.JacobianWrapper{SciMLBase.isinplace(f)}(f, prob.p)
     if SciMLBase.isinplace(f)
