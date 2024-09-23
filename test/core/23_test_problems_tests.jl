@@ -122,7 +122,7 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests, Sys.isapple() ? 1e-3 : 1e-4)
 end
 
-@testitem "Klement" retries=5 setup=[RobustnessTesting] tags=[:core] begin
+@testitem "Klement" setup=[RobustnessTesting] tags=[:core] begin
     alg_ops = (Klement(), Klement(; init_jacobian = Val(:true_jacobian_diagonal)))
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
