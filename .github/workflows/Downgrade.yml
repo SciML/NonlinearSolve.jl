@@ -26,7 +26,3 @@ jobs:
           skip: Pkg,TOML
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-        env:
-          JULIA_NUM_THREADS: 11
-          RETESTITEMS_NWORKERS: 4
-          RETESTITEMS_NWORKER_THREADS: 2

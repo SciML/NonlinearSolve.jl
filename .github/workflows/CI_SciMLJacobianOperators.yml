@@ -26,7 +26,6 @@ jobs:
         version:
           - "min"
           - "1"
-          - "pre"
         os:
           - ubuntu-latest
           - macos-latest
