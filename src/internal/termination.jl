@@ -45,7 +45,7 @@ function update_from_termination_cache!(tc_cache, cache, u = get_u(cache))
 end
 
 function update_from_termination_cache!(
-        tc_cache, cache, ::AbstractNonlinearTerminationMode, u = get_u(cache))
+        _, cache, ::AbstractNonlinearTerminationMode, u = get_u(cache))
     evaluate_f!(cache, u, cache.p)
 end
 
