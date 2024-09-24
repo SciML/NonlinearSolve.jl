@@ -125,7 +125,7 @@ end
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
     linear_solvers = [nothing, LUFactorization(), KrylovJL_GMRES(), \]
 
-    @testset "[OOP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in u0s,
+    @testset "[OOP] u0: $(typeof(u0)) $(radius_update_scheme) $(_nameof(linsolve))" for u0 in u0s,
         radius_update_scheme in radius_update_schemes,
         linsolve in linear_solvers
 
@@ -141,7 +141,7 @@ end
         @test (@ballocated solve!($cache)) < 200
     end
 
-    @testset "[IIP] u0: $(typeof(u0)) radius_update_scheme: $(radius_update_scheme) linear_solver: $(linsolve)" for u0 in ([
+    @testset "[IIP] u0: $(typeof(u0)) $(radius_update_scheme) $(_nameof(linsolve))" for u0 in ([
             1.0, 1.0],),
         radius_update_scheme in radius_update_schemes,
         linsolve in linear_solvers
@@ -162,7 +162,7 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), TrustRegion()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), TrustRegion()) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0)) radius_update_scheme: $(radius_update_scheme)" for autodiff in (
+    @testset "$(_nameof(autodiff)) u0: $(_nameof(u0)) $(radius_update_scheme)" for autodiff in (
             AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
             AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
         u0 in (1.0, [1.0, 1.0]),
