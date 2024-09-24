@@ -75,6 +75,13 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
         return build_solution(
             prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
     end
+
+    if sign(fl) == sign(fr)
+        @warn "The interval is not an enclosing interval, opposite signs at the boundaries are required."
+        return build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right)
+    end
+
     ϵ = abstol
     #defining variables/cache
     k2 = alg.k2
