@@ -103,10 +103,10 @@ function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
     if !(autodiff isa AutoForwardDiff ||
          autodiff isa AutoPolyesterForwardDiff ||
          autodiff isa AutoFiniteDiff)
-        autodiff = AutoFiniteDiff()
         # Other cases are not properly supported so we fallback to finite differencing
         @warn "Scalar AD is supported only for AutoForwardDiff and AutoFiniteDiff. \
                Detected $(autodiff). Falling back to AutoFiniteDiff."
+        autodiff = AutoFiniteDiff()
     end
     return JacobianCache{false}(
         u, f, uf, u, u, p, nothing, alg, stats, autodiff, nothing, nothing)

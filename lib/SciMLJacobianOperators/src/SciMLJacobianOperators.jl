@@ -1,5 +1,6 @@
 module SciMLJacobianOperators
 
+using ADTypes: ADTypes, AutoSparse
 using ConcreteStructs: @concrete
 using ConstructionBase: ConstructionBase
 using DifferentiationInterface: DifferentiationInterface
@@ -101,6 +102,7 @@ for op in (:adjoint, :transpose)
         (; output_cache, input_cache) = operator
         @set! operator.output_cache = input_cache
         @set! operator.input_cache = output_cache
+        @set! operator.size = reverse(operator.size)
         return operator
     end
 end
@@ -113,7 +115,10 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     iip = SciMLBase.isinplace(prob)
     T = promote_type(eltype(u), eltype(fu))
 
+    vjp_autodiff = get_dense_ad(vjp_autodiff)
     vjp_op = prepare_vjp(skip_vjp, prob, f, u, fu; autodiff = vjp_autodiff)
+
+    jvp_autodiff = get_dense_ad(jvp_autodiff)
     jvp_op = prepare_jvp(skip_jvp, prob, f, u, fu; autodiff = jvp_autodiff)
 
     output_cache = fu isa Number ? T(fu) : similar(fu, T)
@@ -212,6 +217,7 @@ for op in (:adjoint, :transpose)
 end
 
 Base.:*(J::StatefulJacobianOperator, v::AbstractArray) = J.jac_op(v, J.u, J.p)
+Base.:*(J::StatefulJacobianOperator, v::Number) = J.jac_op(v, J.u, J.p)
 
 function LinearAlgebra.mul!(
         Jv::AbstractArray, J::StatefulJacobianOperator, v::AbstractArray)
@@ -256,8 +262,8 @@ end
 
 function LinearAlgebra.mul!(
         JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
-    mul!(JᵀJ.cache, JᵀJ.jvp_operator, x)
-    mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
+    LinearAlgebra.mul!(JᵀJ.cache, JᵀJ.jvp_operator, x)
+    LinearAlgebra.mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
     return JᵀJx
 end
 
@@ -313,7 +319,7 @@ end
 
 function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         f::AbstractNonlinearFunction, u, fu; autodiff = nothing)
-    SciMLBase.has_vjp(f) && return f.vjp
+    SciMLBase.has_jvp(f) && return f.jvp
 
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
@@ -358,6 +364,15 @@ function prepare_scalar_op(::Val{false}, prob::AbstractNonlinearProblem,
     fₚ = Base.Fix2(f, prob.p)
     di_extras = DI.prepare_derivative(fₚ, autodiff, u)
     return @closure (v, u, p) -> DI.derivative(fₚ, autodiff, u, di_extras) * v
+end
+
+get_dense_ad(::Nothing) = nothing
+get_dense_ad(ad) = ad
+function get_dense_ad(ad::AutoSparse)
+    dense_ad = ADTypes.dense_ad(ad)
+    @warn "Sparse AD backend: $(ad) is being used for VJP/JVP computation. Using the dense \
+           backend: $(dense_ad) instead."
+    return dense_ad
 end
 
 export JacobianOperator, VecJacOperator, JacVecOperator
