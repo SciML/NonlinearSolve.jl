@@ -8,7 +8,8 @@ function init_termination_cache(
         AbsSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32))
 end
 
-function init_termination_cache(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+function init_termination_cache(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
         abstol, reltol, du, u, tc::AbstractNonlinearTerminationMode)
     tc_ = if hasfield(typeof(tc), :internalnorm) && tc.internalnorm === nothing
         internalnorm = ifelse(

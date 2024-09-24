@@ -432,7 +432,8 @@ function FastShortcutNonlinearPolyalg(
             end
         else
             if __is_complex(T)
-                algs = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
+                algs = (
+                    Broyden(), Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     Klement(; linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff))
             else

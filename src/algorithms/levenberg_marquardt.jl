@@ -53,7 +53,8 @@ function LevenbergMarquardt(;
         descent = GeodesicAcceleration(descent, finite_diff_step_geodesic, α_geodesic)
     end
     trustregion = LevenbergMarquardtTrustRegion(b_uphill)
-    return GeneralizedFirstOrderAlgorithm(; concrete_jac = true, name = :LevenbergMarquardt,
+    return GeneralizedFirstOrderAlgorithm(;
+        concrete_jac = true, name = :LevenbergMarquardt,
         trustregion, descent, jacobian_ad = autodiff)
 end
 

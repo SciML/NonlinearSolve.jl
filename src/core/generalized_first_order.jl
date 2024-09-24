@@ -57,11 +57,13 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     forward_ad = ifelse(forward_ad !== nothing,
         forward_ad,
-        ifelse(jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ForwardMode,
+        ifelse(
+            jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ForwardMode,
             jacobian_ad, nothing))
     reverse_ad = ifelse(reverse_ad !== nothing,
         reverse_ad,
-        ifelse(jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ReverseMode,
+        ifelse(
+            jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ReverseMode,
             jacobian_ad, nothing))
 
     if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)

@@ -277,7 +277,8 @@ Abstract Type for Damping Functions in DampedNewton.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
+__internal_init(
+    prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
     J, fu, u, args...; internal_norm = DEFAULT_NORM, kwargs...) -->
 AbstractDampingFunctionCache
 ```
@@ -361,7 +362,8 @@ Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolve.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization, solver,
+__internal_init(
+    prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization, solver,
     f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...)
 ```
 
@@ -453,7 +455,8 @@ Abstract Type for all Trust Region Methods used in NonlinearSolve.jl.
 ### `__internal_init` specification
 
 ```julia
-__internal_init(prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f::F, fu, u,
+__internal_init(
+    prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f::F, fu, u,
     p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF} -->
 AbstractTrustRegionMethodCache
 ```
