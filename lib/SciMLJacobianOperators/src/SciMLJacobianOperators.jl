@@ -308,11 +308,15 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         v_fake = copy(fu)
         di_extras = DI.prepare_pullback(fₚ, fu_cache, autodiff, u, v_fake)
         return @closure (vJ, v, u, p) -> begin
-            DI.pullback!(fₚ, fu_cache, reshape(vJ, size(u)), autodiff, u, v, di_extras)
+            DI.pullback!(fₚ, fu_cache, reshape(vJ, size(u)), autodiff,
+                u, reshape(v, size(fu_cache)), di_extras)
+            return
         end
     else
         di_extras = DI.prepare_pullback(fₚ, autodiff, u, fu)
-        return @closure (v, u, p) -> DI.pullback(fₚ, autodiff, u, v, di_extras)
+        return @closure (v, u, p) -> begin
+            return DI.pullback(fₚ, autodiff, u, reshape(v, size(fu)), di_extras)
+        end
     end
 end
 
@@ -351,12 +355,15 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         di_extras = DI.prepare_pushforward(fₚ, fu_cache, autodiff, u, u)
         return @closure (Jv, v, u, p) -> begin
             DI.pushforward!(
-                fₚ, fu_cache, reshape(Jv, size(fu_cache)), autodiff, u, v, di_extras)
+                fₚ, fu_cache, reshape(Jv, size(fu_cache)),
+                autodiff, u, reshape(v, size(u)), di_extras)
             return
         end
     else
         di_extras = DI.prepare_pushforward(fₚ, autodiff, u, u)
-        return @closure (v, u, p) -> DI.pushforward(fₚ, autodiff, u, v, di_extras)
+        return @closure (v, u, p) -> begin
+            return DI.pushforward(fₚ, autodiff, u, reshape(v, size(u)), di_extras)
+        end
     end
 end
 
