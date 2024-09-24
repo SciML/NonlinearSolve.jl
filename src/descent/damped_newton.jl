@@ -1,5 +1,5 @@
 """
-    DampedNewtonDescent(; linsolve = nothing, precs = DEFAULT_PRECS, initial_damping,
+    DampedNewtonDescent(; linsolve = nothing, initial_damping,
         damping_fn)
 
 A Newton descent algorithm with damping. The damping factor is computed using the
@@ -19,7 +19,6 @@ The damping factor returned must be a non-negative number.
 """
 @kwdef @concrete struct DampedNewtonDescent <: AbstractDescentAlgorithm
     linsolve = nothing
-    precs = DEFAULT_PRECS
     initial_damping
     damping_fn
 end
@@ -27,7 +26,6 @@ end
 function Base.show(io::IO, d::DampedNewtonDescent)
     modifiers = String[]
     d.linsolve !== nothing && push!(modifiers, "linsolve = $(d.linsolve)")
-    d.precs !== DEFAULT_PRECS && push!(modifiers, "precs = $(d.precs)")
     push!(modifiers, "initial_damping = $(d.initial_damping)")
     push!(modifiers, "damping_fn = $(d.damping_fn)")
     print(io, "DampedNewtonDescent($(join(modifiers, ", ")))")

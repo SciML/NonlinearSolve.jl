@@ -1,5 +1,5 @@
 """
-    NewtonDescent(; linsolve = nothing, precs = DEFAULT_PRECS)
+    NewtonDescent(; linsolve = nothing)
 
 Compute the descent direction as ``J δu = -fu``. For non-square Jacobian problems, this is
 commonly referred to as the Gauss-Newton Descent.
@@ -8,13 +8,10 @@ See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@r
 """
 @kwdef @concrete struct NewtonDescent <: AbstractDescentAlgorithm
     linsolve = nothing
-    precs = DEFAULT_PRECS
 end
 
 function Base.show(io::IO, d::NewtonDescent)
     modifiers = String[]
-    d.linsolve !== nothing && push!(modifiers, "linsolve = $(d.linsolve)")
-    d.precs !== DEFAULT_PRECS && push!(modifiers, "precs = $(d.precs)")
     print(io, "NewtonDescent($(join(modifiers, ", ")))")
 end
 

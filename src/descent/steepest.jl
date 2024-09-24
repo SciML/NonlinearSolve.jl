@@ -1,5 +1,5 @@
 """
-    SteepestDescent(; linsolve = nothing, precs = DEFAULT_PRECS)
+    SteepestDescent(; linsolve = nothing)
 
 Compute the descent direction as ``δu = -Jᵀfu``. The linear solver and preconditioner are
 only used if `J` is provided in the inverted form.
@@ -8,13 +8,11 @@ See also [`Dogleg`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDescent`](@ref
 """
 @kwdef @concrete struct SteepestDescent <: AbstractDescentAlgorithm
     linsolve = nothing
-    precs = DEFAULT_PRECS
 end
 
 function Base.show(io::IO, d::SteepestDescent)
     modifiers = String[]
     d.linsolve !== nothing && push!(modifiers, "linsolve = $(d.linsolve)")
-    d.precs !== DEFAULT_PRECS && push!(modifiers, "precs = $(d.precs)")
     print(io, "SteepestDescent($(join(modifiers, ", ")))")
 end
 

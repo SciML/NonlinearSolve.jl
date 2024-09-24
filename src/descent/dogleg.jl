@@ -1,5 +1,5 @@
 """
-    Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS)
+    Dogleg(; linsolve = nothing)
 
 Switch between Newton's method and the steepest descent method depending on the size of the
 trust region. The trust region is specified via keyword argument `trust_region` to
@@ -20,17 +20,17 @@ end
 supports_trust_region(::Dogleg) = true
 get_linear_solver(alg::Dogleg) = get_linear_solver(alg.newton_descent)
 
-function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
+function Dogleg(; linsolve = nothing, damping = False,
         damping_fn = missing, initial_damping = missing, kwargs...)
     if damping === False
-        return Dogleg(NewtonDescent(; linsolve, precs), SteepestDescent(; linsolve, precs))
+        return Dogleg(NewtonDescent(; linsolve), SteepestDescent(; linsolve))
     end
     if damping_fn === missing || initial_damping === missing
         throw(ArgumentError("`damping_fn` and `initial_damping` must be supplied if \
                              `damping = Val(true)`."))
     end
-    return Dogleg(DampedNewtonDescent(; linsolve, precs, damping_fn, initial_damping),
-        SteepestDescent(; linsolve, precs))
+    return Dogleg(DampedNewtonDescent(; linsolve, damping_fn, initial_damping),
+        SteepestDescent(; linsolve))
 end
 
 @concrete mutable struct DoglegCache{pre_inverted, normalform} <: AbstractDescentCache

@@ -221,35 +221,27 @@ choices, see the
 
 Any [LinearSolve.jl-compatible preconditioner](https://docs.sciml.ai/LinearSolve/stable/basics/Preconditioners/)
 can be used as a preconditioner in the linear solver interface. To define preconditioners,
-one must define a `precs` function in compatible with nonlinear solvers which returns the
+one must define a `precs` function in compatible with linear solver which returns the
 left and right preconditioners, matrices which approximate the inverse of `W = I - gamma*J`
 used in the solution of the ODE. An example of this with using
 [IncompleteLU.jl](https://github.com/haampie/IncompleteLU.jl) is as follows:
 
 ```julia
-# FIXME: On 1.10+ this is broken. Skipping this for now.
 using IncompleteLU
 
-function incompletelu(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
-    if newW === nothing || newW
-        Pl = ilu(W, τ = 50.0)
-    else
-        Pl = Plprev
-    end
+function incompletelu(W, p=nothing)
+    Pl = ilu(W, τ = 50.0)
     Pl, nothing
 end
 
 @btime solve(prob_brusselator_2d_sparse,
-    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu, concrete_jac = true));
-nothing # hide
+    NewtonRaphson(linsolve = KrylovJL_GMRES(precs = incompletelu), concrete_jac = true));
+nothing
 ```
 
 Notice a few things about this preconditioner. This preconditioner uses the sparse Jacobian,
 and thus we set `concrete_jac = true` to tell the algorithm to generate the Jacobian
-(otherwise, a Jacobian-free algorithm is used with GMRES by default). Then `newW = true`
-whenever a new `W` matrix is computed, and `newW = nothing` during the startup phase of the
-solver. Thus, we do a check `newW === nothing || newW` and when true, it's only at these
-points when we update the preconditioner, otherwise we just pass on the previous version.
+(otherwise, a Jacobian-free algorithm is used with GMRES by default).
 We use `convert(AbstractMatrix,W)` to get the concrete `W` matrix (matching `jac_prototype`,
 thus `SpraseMatrixCSC`) which we can use in the preconditioner's definition. Then we use
 `IncompleteLU.ilu` on that sparse matrix to generate the preconditioner. We return
@@ -265,39 +257,31 @@ which is more automatic. The setup is very similar to before:
 ```@example ill_conditioned_nlprob
 using AlgebraicMultigrid
 
-function algebraicmultigrid(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
-    if newW === nothing || newW
-        Pl = aspreconditioner(ruge_stuben(convert(AbstractMatrix, W)))
-    else
-        Pl = Plprev
-    end
+function algebraicmultigrid(W, p=nothing)
+	Pl = aspreconditioner(ruge_stuben(convert(AbstractMatrix, W)))
     Pl, nothing
 end
 
 @btime solve(prob_brusselator_2d_sparse,
     NewtonRaphson(
-        linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid, concrete_jac = true));
+        linsolve = KrylovJL_GMRES(precs = algebraicmultigrid), concrete_jac = true));
 nothing # hide
 ```
 
 or with a Jacobi smoother:
 
 ```@example ill_conditioned_nlprob
-function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
-    if newW === nothing || newW
-        A = convert(AbstractMatrix, W)
-        Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(
-            A, presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
-            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))))
-    else
-        Pl = Plprev
-    end
+function algebraicmultigrid2(W, p=nothing)
+	A = convert(AbstractMatrix, W)
+	Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(
+		A, presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
+		postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))))
     Pl, nothing
 end
 
 @btime solve(prob_brusselator_2d_sparse,
     NewtonRaphson(
-        linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid2, concrete_jac = true));
+        linsolve = KrylovJL_GMRES(precs = algebraicmultigrid2), concrete_jac = true));
 nothing # hide
 ```
 

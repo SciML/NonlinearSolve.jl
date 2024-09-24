@@ -1,5 +1,5 @@
 """
-    TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+    TrustRegion(; concrete_jac = nothing, linsolve = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
@@ -19,13 +19,13 @@ for large-scale and numerically-difficult nonlinear systems.
 For the remaining arguments, see [`NonlinearSolve.GenericTrustRegionScheme`](@ref)
 documentation.
 """
-function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+function TrustRegion(; concrete_jac = nothing, linsolve = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32, autodiff = nothing, vjp_autodiff = nothing)
-    descent = Dogleg(; linsolve, precs)
+    descent = Dogleg(; linsolve)
     if autodiff !== nothing && ADTypes.mode(autodiff) isa ADTypes.ForwardMode
         forward_ad = autodiff
     else
