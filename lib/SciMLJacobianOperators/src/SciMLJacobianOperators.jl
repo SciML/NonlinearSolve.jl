@@ -100,7 +100,7 @@ for op in (:adjoint, :transpose)
     @eval function Base.$(op)(operator::JacobianOperator{iip, T}) where {iip, T}
         return JacobianOperator{iip, T}(
             flip_mode(operator.mode), operator.jvp_op, operator.vjp_op,
-            reverse(operator.size), input_cache, output_cache)
+            reverse(operator.size), operator.input_cache, operator.output_cache)
     end
 end
 
