@@ -17,7 +17,17 @@ jobs:
         with:
           version: '1'
       - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: |
+          import Pkg
+          Pkg.Registry.update()
+          # Install packages present in subdirectories
+          dev_pks = Pkg.PackageSpec[]
+          for path in ("lib/SciMLJacobianOperators", ".")
+              push!(dev_pks, Pkg.PackageSpec(; path))
+          end
+          Pkg.develop(dev_pks)
+          Pkg.instantiate()
+        shell: julia --color=yes --project=docs/ {0}
       - name: Build and deploy
         env:
           JULIA_DEBUG: "Documenter"

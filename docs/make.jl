@@ -1,6 +1,7 @@
 using Documenter, DocumenterCitations
 using NonlinearSolve, SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase,
       DiffEqBase
+using SciMLJacobianOperators
 
 cp(joinpath(@__DIR__, "Manifest.toml"),
     joinpath(@__DIR__, "src/assets/Manifest.toml"), force = true)
@@ -13,8 +14,8 @@ bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 makedocs(; sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
-    modules = [NonlinearSolve, SimpleNonlinearSolve,
-        SteadyStateDiffEq, Sundials, DiffEqBase, SciMLBase],
+    modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq,
+        Sundials, DiffEqBase, SciMLBase, SciMLJacobianOperators],
     clean = true,
     doctest = false,
     linkcheck = true,
