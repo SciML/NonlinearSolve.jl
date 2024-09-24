@@ -1,9 +1,10 @@
 module SciMLJacobianOperators
 
-using ADTypes: ADTypes, AutoSparse
+using ADTypes: ADTypes, AutoSparse, AutoEnzyme
 using ConcreteStructs: @concrete
 using ConstructionBase: ConstructionBase
 using DifferentiationInterface: DifferentiationInterface
+using EnzymeCore: EnzymeCore
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, AbstractNonlinearFunction
@@ -115,10 +116,10 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     iip = SciMLBase.isinplace(prob)
     T = promote_type(eltype(u), eltype(fu))
 
-    vjp_autodiff = get_dense_ad(vjp_autodiff)
+    vjp_autodiff = set_function_as_const(get_dense_ad(vjp_autodiff))
     vjp_op = prepare_vjp(skip_vjp, prob, f, u, fu; autodiff = vjp_autodiff)
 
-    jvp_autodiff = get_dense_ad(jvp_autodiff)
+    jvp_autodiff = set_function_as_const(get_dense_ad(jvp_autodiff))
     jvp_op = prepare_jvp(skip_jvp, prob, f, u, fu; autodiff = jvp_autodiff)
 
     output_cache = fu isa Number ? T(fu) : similar(fu, T)
@@ -259,6 +260,9 @@ end
 function Base.:*(JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
     return JᵀJ.vjp_operator * (JᵀJ.jvp_operator * x)
 end
+function Base.:*(JᵀJ::StatefulJacobianNormalFormOperator, x::Number)
+    return JᵀJ.vjp_operator * (JᵀJ.jvp_operator * x)
+end
 
 function LinearAlgebra.mul!(
         JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
@@ -284,7 +288,7 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (vJ, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
-                mul!(vec(vJ), jac_cache', vec(v))
+                LinearAlgebra.mul!(vec(vJ), jac_cache', vec(v))
                 return
             end
             return vjp_op, vjp_extras
@@ -298,6 +302,8 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
     # TODO: Once DI supports const params we can use `p`
     fₚ = SciMLBase.JacobianWrapper{SciMLBase.isinplace(f)}(f, prob.p)
     if SciMLBase.isinplace(f)
+        @assert DI.check_twoarg(autodiff) "Backend: $(autodiff) doesn't support in-place \
+                                           problems."
         fu_cache = copy(fu)
         v_fake = copy(fu)
         di_extras = DI.prepare_pullback(fₚ, fu_cache, autodiff, u, v_fake)
@@ -326,11 +332,11 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (Jv, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
-                mul!(vec(Jv), jac_cache, vec(v))
+                LinearAlgebra.mul!(vec(Jv), jac_cache, vec(v))
                 return
             end
         else
-            return @closure (v, u, p, _) -> reshape(f.jac(u, p) * vec(v), size(u))
+            return @closure (v, u, p) -> reshape(f.jac(u, p) * vec(v), size(u))
         end
     end
 
@@ -339,6 +345,8 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
     # TODO: Once DI supports const params we can use `p`
     fₚ = SciMLBase.JacobianWrapper{SciMLBase.isinplace(f)}(f, prob.p)
     if SciMLBase.isinplace(f)
+        @assert DI.check_twoarg(autodiff) "Backend: $(autodiff) doesn't support in-place \
+                                           problems."
         fu_cache = copy(fu)
         di_extras = DI.prepare_pushforward(fₚ, fu_cache, autodiff, u, u)
         return @closure (Jv, v, u, p) -> begin
@@ -373,6 +381,12 @@ function get_dense_ad(ad::AutoSparse)
     @warn "Sparse AD backend: $(ad) is being used for VJP/JVP computation. Using the dense \
            backend: $(dense_ad) instead."
     return dense_ad
+end
+
+# In our case we know that it is safe to mark the function as const
+set_function_as_const(ad) = ad
+function set_function_as_const(ad::AutoEnzyme{M, Nothing}) where {M}
+    return AutoEnzyme(; ad.mode, function_annotation = EnzymeCore.Const)
 end
 
 export JacobianOperator, VecJacOperator, JacVecOperator
