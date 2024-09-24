@@ -31,7 +31,8 @@ for other methods are not theorectically or experimentally verified.
 end
 
 function Base.show(io::IO, alg::GeodesicAcceleration)
-    print(io, "GeodesicAcceleration(descent = $(alg.descent), finite_diff_step_geodesic = ",
+    print(
+        io, "GeodesicAcceleration(descent = $(alg.descent), finite_diff_step_geodesic = ",
         "$(alg.finite_diff_step_geodesic), α = $(alg.α))")
 end
 
@@ -102,7 +103,8 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAccelerati
         T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false)
 end
 
-function __internal_solve!(cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
+function __internal_solve!(
+        cache::GeodesicAccelerationCache, J, fu, u, idx::Val{N} = Val(1);
         skip_solve::Bool = false, kwargs...) where {N}
     a, v, δu = get_acceleration(cache, idx), get_velocity(cache, idx), get_du(cache, idx)
     skip_solve && return DescentResult(; δu, extras = (; a, v))
