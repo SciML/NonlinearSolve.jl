@@ -59,7 +59,7 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(;
         linesearch = missing, trustregion = missing, descent, update_rule,
         reinit_rule, initialization, max_resets::Int = typemax(Int),
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
-    if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
+    if linesearch !== missing && !(linesearch isa AbstractLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
                       Please use `LineSearchesJL` instead.",
             :GeneralizedFirstOrderAlgorithm)
@@ -199,8 +199,8 @@ function SciMLBase.__init(
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = __internal_init(
-                prob, alg.linesearch, f, fu, u, p; stats, internalnorm, kwargs...)
+            linesearch_cache = init(
+                prob, alg.linesearch, fu, u; stats, internalnorm, kwargs...)
             GB = :LineSearch
         end
 
@@ -317,7 +317,9 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
     if descent_result.success
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
-                needs_reset, α = __internal_solve!(cache.linesearch_cache, cache.u, δu)
+                linesearch_sol = solve!(cache.linesearch_cache, cache.u, δu)
+                needs_reset = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+                α = linesearch_sol.step_size
             end
             if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
                 cache.force_reinit = true

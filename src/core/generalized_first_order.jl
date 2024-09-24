@@ -66,7 +66,7 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
             jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ReverseMode,
             jacobian_ad, nothing))
 
-    if linesearch !== missing && !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
+    if linesearch !== missing && !(linesearch isa AbstractLineSearchAlgorithm)
         Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
                       Please use `LineSearchesJL` instead.",
             :GeneralizedFirstOrderAlgorithm)
@@ -199,8 +199,13 @@ function SciMLBase.__init(
         if alg.linesearch !== missing
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_cache = __internal_init(
-                prob, alg.linesearch, f, fu, u, p; stats, internalnorm, kwargs...)
+            linesearch_ad = alg.forward_ad === nothing ?
+                            (alg.reverse_ad === nothing ? alg.jacobian_ad :
+                             alg.reverse_ad) : alg.forward_ad
+            linesearch_ad = get_concrete_forward_ad(
+                linesearch_ad, prob, False; check_forward_mode = false)
+            linesearch_cache = init(
+                prob, alg.linesearch, fu, u; stats, autodiff = linesearch_ad, kwargs...)
             GB = :LineSearch
         end
 
@@ -264,8 +269,9 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
         cache.make_new_jacobian = true
         if GB === :LineSearch
             @static_timeit cache.timer "linesearch" begin
-                linesearch_failed, α = __internal_solve!(
-                    cache.linesearch_cache, cache.u, δu)
+                linesearch_sol = solve!(cache.linesearch_cache, cache.u, δu)
+                linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+                α = linesearch_sol.step_size
             end
             if linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed

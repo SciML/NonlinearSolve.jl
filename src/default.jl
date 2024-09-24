@@ -405,7 +405,8 @@ function FastShortcutNonlinearPolyalg(
         else
             algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                 NewtonRaphson(; concrete_jac, linsolve, precs,
-                    linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
+                    linesearch = LineSearchesJL(; method = LineSearches.BackTracking()),
+                    autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                 TrustRegion(; concrete_jac, linsolve, precs,
                     radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
@@ -426,7 +427,8 @@ function FastShortcutNonlinearPolyalg(
                     SimpleKlement(),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
+                        linesearch = LineSearchesJL(; method = LineSearches.BackTracking()),
+                        autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
             end
@@ -444,7 +446,8 @@ function FastShortcutNonlinearPolyalg(
                     Klement(; linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),
                     NewtonRaphson(; concrete_jac, linsolve, precs,
-                        linesearch = LineSearchesJL(; method = BackTracking()), autodiff),
+                        linesearch = LineSearchesJL(; method = LineSearches.BackTracking()),
+                        autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs, autodiff),
                     TrustRegion(; concrete_jac, linsolve, precs,
                         radius_update_scheme = RadiusUpdateSchemes.Bastin, autodiff))
