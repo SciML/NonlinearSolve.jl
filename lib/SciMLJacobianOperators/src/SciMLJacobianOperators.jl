@@ -9,7 +9,6 @@ using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, AbstractNonlinearFunction
 using SciMLOperators: AbstractSciMLOperator
-using Setfield: @set!
 
 const DI = DifferentiationInterface
 const True = Val(true)
@@ -98,13 +97,10 @@ Base.size(J::JacobianOperator) = J.size
 Base.size(J::JacobianOperator, d::Integer) = J.size[d]
 
 for op in (:adjoint, :transpose)
-    @eval function Base.$(op)(operator::JacobianOperator)
-        @set! operator.mode = flip_mode(operator.mode)
-        (; output_cache, input_cache) = operator
-        @set! operator.output_cache = input_cache
-        @set! operator.input_cache = output_cache
-        @set! operator.size = reverse(operator.size)
-        return operator
+    @eval function Base.$(op)(operator::JacobianOperator{iip, T}) where {iip, T}
+        return JacobianOperator{iip, T}(
+            flip_mode(operator.mode), operator.jvp_op, operator.vjp_op,
+            reverse(operator.size), input_cache, output_cache)
     end
 end
 
