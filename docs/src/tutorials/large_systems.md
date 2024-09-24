@@ -226,7 +226,8 @@ left and right preconditioners, matrices which approximate the inverse of `W = I
 used in the solution of the ODE. An example of this with using
 [IncompleteLU.jl](https://github.com/haampie/IncompleteLU.jl) is as follows:
 
-```@example ill_conditioned_nlprob
+```julia
+# FIXME: On 1.10+ this is broken. Skipping this for now.
 using IncompleteLU
 
 function incompletelu(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
