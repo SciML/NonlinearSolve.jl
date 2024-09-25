@@ -5,17 +5,10 @@ on:
     branches:
       - master
     paths:
-      - "lib/SimpleNonlinearSolve/src/**"
-      - "lib/SimpleNonlinearSolve/ext/**"
-      - "lib/SimpleNonlinearSolve/test/**"
-      - "lib/SimpleNonlinearSolve/Project.toml"
+      - "lib/SimpleNonlinearSolve/**"
+      - "lib/BracketingNonlinearSolve/**"
+      - "lib/NonlinearSolveBase/**"
       - ".github/workflows/CI_SimpleNonlinearSolve.yml"
-      - "lib/BracketingNonlinearSolve/src/**"
-      - "lib/BracketingNonlinearSolve/ext/**"
-      - "lib/BracketingNonlinearSolve/Project.toml"
-      - "lib/NonlinearSolveBase/src/**"
-      - "lib/NonlinearSolveBase/ext/**"
-      - "lib/NonlinearSolveBase/Project.toml"
   push:
     branches:
       - master

@@ -11,6 +11,9 @@ on:
       - "Project.toml"
       - ".github/workflows/CI_NonlinearSolve.yml"
       - "lib/SciMLNonlinearOperators/**"
+      - "lib/BracketingNonlinearSolve/**"
+      - "lib/NonlinearSolveBase/**"
+      - "lib/SimpleNonlinearSolve/**"
   push:
     branches:
       - master
