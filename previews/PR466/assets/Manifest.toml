@@ -1798,7 +1798,7 @@ version = "2.54.0"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [[deps.SciMLJacobianOperators]]
-deps = ["ADTypes", "ConcreteStructs", "ConstructionBase", "DifferentiationInterface", "EnzymeCore", "FastClosures", "LinearAlgebra", "SciMLBase", "SciMLOperators"]
+deps = ["ADTypes", "ConcreteStructs", "ConstructionBase", "DifferentiationInterface", "FastClosures", "LinearAlgebra", "SciMLBase", "SciMLOperators"]
 path = "../lib/SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 version = "0.1.0"
