@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "1.12.2"
+version = "1.12.3"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -34,7 +34,7 @@ SimpleNonlinearSolveTrackerExt = "Tracker"
 SimpleNonlinearSolveZygoteExt = "Zygote"
 
 [compat]
-ADTypes = "1.2"
+ADTypes = "1.9"
 AllocCheck = "0.1.1"
 Aqua = "0.8"
 ArrayInterface = "7.9"
@@ -43,7 +43,7 @@ ChainRulesCore = "1.23"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.149"
 DiffResults = "1.1"
-DifferentiationInterface = "0.5"
+DifferentiationInterface = "0.6"
 ExplicitImports = "1.5.0"
 FastClosures = "0.3.2"
 FiniteDiff = "2.23.1"
