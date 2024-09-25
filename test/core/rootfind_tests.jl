@@ -70,16 +70,13 @@ end
                 NewtonRaphson(), abstol = 1e-9)
             @test (@ballocated solve!($cache)) < 200
         end
-        
+
         precs =  (A, p=nothing) -> (Diagonal(randn!(similar(A, size(A,1)))), nothing)
         @testset "[IIP] u0: $(typeof(u0)) linsolve: $(_nameof(linsolve))" for u0 in ([
                 1.0, 1.0],),
             linsolve in (nothing, KrylovJL(), KrylovJL(;precs), \)
 
             ad isa AutoZygote && continue
-            if prec === :Random
-                prec = (args...) -> (Diagonal(randn!(similar(u0))), nothing)
-            end
             solver = NewtonRaphson(; linsolve, linesearch)
             sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver)
             @test SciMLBase.successful_retcode(sol)
