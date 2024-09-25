@@ -12,8 +12,6 @@ using StaticArraysCore: StaticArray
 # AD Dependencies
 using ADTypes: AbstractADType, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 using DifferentiationInterface: DifferentiationInterface
-# TODO: move these to extensions in a breaking change. These are not even used in the
-#       package, but are used to trigger the extension loading in DI.jl
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 
