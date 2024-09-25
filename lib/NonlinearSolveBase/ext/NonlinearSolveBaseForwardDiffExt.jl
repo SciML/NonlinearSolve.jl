@@ -1,12 +1,19 @@
 module NonlinearSolveBaseForwardDiffExt
 
+using ADTypes: ADTypes, AutoForwardDiff, AutoPolyesterForwardDiff
 using CommonSolve: solve
 using FastClosures: @closure
 using ForwardDiff: ForwardDiff, Dual
-using SciMLBase: SciMLBase, IntervalNonlinearProblem, NonlinearProblem,
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
+                 NonlinearProblem,
                  NonlinearLeastSquaresProblem, remake
 
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils
+
+function NonlinearSolveBase.additional_incompatible_backend_check(
+        prob::AbstractNonlinearProblem, ::Union{AutoForwardDiff, AutoPolyesterForwardDiff})
+    return !ForwardDiff.can_dual(eltype(prob.u0))
+end
 
 Utils.value(::Type{Dual{T, V, N}}) where {T, V, N} = V
 Utils.value(x::Dual) = Utils.value(ForwardDiff.value(x))
