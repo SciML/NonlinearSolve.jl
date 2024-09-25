@@ -4,7 +4,6 @@ using ADTypes: ADTypes, AutoSparse
 using ConcreteStructs: @concrete
 using ConstructionBase: ConstructionBase
 using DifferentiationInterface: DifferentiationInterface, Constant
-using EnzymeCore: EnzymeCore
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, AbstractNonlinearFunction
