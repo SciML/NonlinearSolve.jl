@@ -23,9 +23,9 @@ end
 function nonallocating_maximum(f::F, x, y) where {F}
     if fast_scalar_indexing(x, y)
         return maximum(@closure((xᵢyᵢ)->begin
-            xᵢ, yᵢ = xᵢyᵢ
-            return abs(f(xᵢ, yᵢ))
-        end), zip(x, y))
+                xᵢ, yᵢ = xᵢyᵢ
+                return abs(f(xᵢ, yᵢ))
+            end), zip(x, y))
     else
         return mapreduce(@closure((xᵢ, yᵢ)->abs(f(xᵢ, yᵢ))), max, x, y)
     end
@@ -55,9 +55,9 @@ norm_op(norm::N, op::OP, x, y) where {N, OP} = norm(op.(x, y))
 function norm_op(::typeof(L2_NORM), op::OP, x, y) where {OP}
     if fast_scalar_indexing(x, y)
         return sqrt(sum(@closure((xᵢ, yᵢ)->begin
-            xᵢ, yᵢ = xᵢyᵢ
-            return op(xᵢ, yᵢ)^2
-        end), zip(x, y)))
+                xᵢ, yᵢ = xᵢyᵢ
+                return op(xᵢ, yᵢ)^2
+            end), zip(x, y)))
     else
         return sqrt(mapreduce(@closure((xᵢ, yᵢ)->op(xᵢ, yᵢ)^2), +, x, y))
     end

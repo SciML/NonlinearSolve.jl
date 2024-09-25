@@ -219,9 +219,9 @@ end
 function check_convergence(::RelTerminationMode, duₙ, uₙ, __, ___, reltol)
     if Utils.fast_scalar_indexing(duₙ)
         return all(@closure(xy->begin
-            x, y = xy
-            return abs(y) ≤ reltol * abs(x + y)
-        end), zip(uₙ, duₙ))
+                x, y = xy
+                return abs(y) ≤ reltol * abs(x + y)
+            end), zip(uₙ, duₙ))
     else # using mapreduce here will almost certainly be faster on GPUs
         return mapreduce(
             @closure((xᵢ, yᵢ)->(abs(yᵢ) ≤ reltol * abs(xᵢ + yᵢ))), *, uₙ, duₙ; init = true)
