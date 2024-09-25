@@ -7,7 +7,7 @@
         AutoEnzyme(),
         AutoEnzyme(; mode = Enzyme.Reverse),
         AutoZygote(),
-        AutoReverseDiff(),
+        # AutoReverseDiff(), # FIXME: https://github.com/gdalle/DifferentiationInterface.jl/issues/503
         AutoTracker(),
         AutoFiniteDiff()
     ]
@@ -91,7 +91,7 @@ end
     reverse_ADs = [
         AutoEnzyme(),
         AutoEnzyme(; mode = Enzyme.Reverse),
-        AutoReverseDiff(),
+        # AutoReverseDiff(), # FIXME: https://github.com/gdalle/DifferentiationInterface.jl/issues/503
         AutoFiniteDiff()
     ]
 
@@ -182,7 +182,7 @@ end
         AutoEnzyme(; mode = Enzyme.Reverse),
         AutoZygote(),
         AutoTracker(),
-        AutoReverseDiff(),
+        # AutoReverseDiff(), # FIXME: https://github.com/gdalle/DifferentiationInterface.jl/issues/503
         AutoFiniteDiff()
     ]
 
