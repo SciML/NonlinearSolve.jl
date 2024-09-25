@@ -6,7 +6,7 @@ Left non-allocating Brent method.
 struct Brent <: AbstractBracketingAlgorithm end
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
-        maxiters = 1000, abstol = nothing, kwargs...)
+        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...)
     @assert !SciMLBase.isinplace(prob) "`Brent` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -25,6 +25,14 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     if iszero(fr)
         return SciMLBase.build_solution(
             prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
+    end
+
+    if sign(fl) == sign(fr)
+        verbose &&
+            @warn "The interval is not an enclosing interval, opposite signs at the \
+                   boundaries are required."
+        return SciMLBase.build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right)
     end
 
     if abs(fl) < abs(fr)

@@ -57,7 +57,7 @@ function ITP(; scaled_k1::Real = 0.2, k2::Real = 2, n0::Int = 10)
 end
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
-        maxiters = 1000, abstol = nothing, kwargs...)
+        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...)
     @assert !SciMLBase.isinplace(prob) "`ITP` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -75,6 +75,14 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::ITP, args...;
     if iszero(fr)
         return SciMLBase.build_solution(
             prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
+    end
+
+    if sign(fl) == sign(fr)
+        verbose &&
+            @warn "The interval is not an enclosing interval, opposite signs at the \
+                   boundaries are required."
+        return SciMLBase.build_solution(
+            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right)
     end
 
     ϵ = abstol
