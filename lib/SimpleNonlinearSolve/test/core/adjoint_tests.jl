@@ -1,4 +1,4 @@
-@testitem "Simple Adjoint Test" tags=[:core] begin
+@testitem "Simple Adjoint Test" tags=[:adjoint] begin
     using ForwardDiff, ReverseDiff, SciMLSensitivity, Tracker, Zygote
 
     ff(u, p) = u .^ 2 .- p
