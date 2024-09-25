@@ -242,14 +242,9 @@ function __set_lincache_A(lincache, new_A)
     end
 end
 
-@inline function __wrapprecs(_Pl, _Pr, weight)
-    Pl = _Pl !== nothing ?
-         ComposePreconditioner(InvPreconditioner(Diagonal(_vec(weight))), _Pl) :
-         InvPreconditioner(Diagonal(_vec(weight)))
-
-    Pr = _Pr !== nothing ? ComposePreconditioner(Diagonal(_vec(weight)), _Pr) :
-         Diagonal(_vec(weight))
-
+function __wrapprecs(_Pl, _Pr, weight)
+    Pl = _Pl !== nothing ?= _Pl : IdentityOperator(length(weight))
+    Pr = _Pr !== nothing ? _Pr : IdentityOperator(length(weight))
     return Pl, Pr
 end
 
