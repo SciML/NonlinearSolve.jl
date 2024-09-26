@@ -7,6 +7,7 @@ const ReverseADs = [
     ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
     ADTypes.AutoZygote(),
     ADTypes.AutoTracker(),
+    ADTypes.AutoReverseDiff(; compile = true),
     ADTypes.AutoReverseDiff(),
     ADTypes.AutoFiniteDiff()
 ]
@@ -103,6 +104,14 @@ function incompatible_backend_and_problem(
 end
 
 additional_incompatible_backend_check(::AbstractNonlinearProblem, ::AbstractADType) = false
+function additional_incompatible_backend_check(prob::AbstractNonlinearProblem,
+        ::ADTypes.AutoReverseDiff{true})
+    if SciMLBase.isinplace(prob)
+        fu = prob.f.resid_prototype === nothing ? zero(prob.u0) : prob.f.resid_prototype
+        return hasbranching(prob.f, fu, prob.u0, prob.p)
+    end
+    return hasbranching(prob.f, prob.u0, prob.p)
+end
 
 is_finite_differences_backend(ad::AbstractADType) = false
 is_finite_differences_backend(::ADTypes.AutoFiniteDiff) = true
