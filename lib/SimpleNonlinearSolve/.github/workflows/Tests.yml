@@ -29,7 +29,8 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - "Core"
+          - "core"
+          - "adjoint"
         os:
           - "ubuntu-latest"
           - "macos-latest"

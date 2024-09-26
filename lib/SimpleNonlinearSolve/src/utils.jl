@@ -28,7 +28,7 @@ end
 
 function value_and_jacobian(
         ad, prob::AbstractNonlinearProblem, f::F, y, x, cache; J = nothing) where {F}
-    x isa Number && return DI.value_and_derivative(f, ad, x, cache)
+    x isa Number && return DI.value_and_derivative(f, cache, ad, x)
 
     if isinplace(prob)
         if cache isa HasAnalyticJacobian
@@ -36,11 +36,11 @@ function value_and_jacobian(
             f(y, x)
             return y, J
         end
-        return DI.value_and_jacobian!(f, y, J, ad, x, cache)
+        return DI.value_and_jacobian!(f, y, J, cache, ad, x)
     else
         cache isa HasAnalyticJacobian && return f(x), prob.f.jac(x, prob.p)
-        J === nothing && return DI.value_and_jacobian(f, ad, x, cache)
-        y, J = DI.value_and_jacobian!(f, J, ad, x, cache)
+        J === nothing && return DI.value_and_jacobian(f, cache, ad, x)
+        y, J = DI.value_and_jacobian!(f, J, cache, ad, x)
         return y, J
     end
 end
