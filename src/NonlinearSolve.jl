@@ -7,8 +7,8 @@ end
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
-using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff,
-               AutoZygote, AutoEnzyme, AutoSparse
+using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
+               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
 # FIXME: deprecated, remove in future
 using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
                AutoSparseZygote
@@ -22,6 +22,7 @@ using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
                   NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
                   RelSafeTerminationMode, RelTerminationMode,
                   SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
+using DifferentiationInterface: DifferentiationInterface, Constant
 using FastBroadcast: @..
 using FastClosures: @closure
 using FiniteDiff: FiniteDiff
@@ -39,7 +40,7 @@ using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!, recursivefill!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                 AbstractSciMLOperator, _unwrap_val, has_jac, isinplace, NLStats
+                 AbstractSciMLOperator, _unwrap_val, isinplace, NLStats
 using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
                               JacVecOperator, StatefulJacobianOperator
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
@@ -54,6 +55,8 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingPro
                                  setu
 
 @reexport using SciMLBase, SimpleNonlinearSolve
+
+const DI = DifferentiationInterface
 
 # Type-Inference Friendly Check for Extension Loading
 is_extension_loaded(::Val) = false
