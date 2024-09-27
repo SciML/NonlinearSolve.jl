@@ -58,8 +58,9 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
 
     @bb fu = similar(fu_)
 
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
+
     if !has_analytic_jac && needs_jac
-        autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
         sd = sparsity_detection_alg(f, autodiff)
         sparse_jac = !(sd isa NoSparsityDetection)
         # Eventually we want to do everything via DI. But for now, we just do the dense via DI
