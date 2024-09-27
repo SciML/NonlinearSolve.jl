@@ -122,7 +122,7 @@ function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
         return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, nothing)
     end
     autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
-    di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
+    di_extras = DI.prepare_derivative(f, get_dense_ad(autodiff), u, Constant(prob.p))
     return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, di_extras, nothing)
 end
 
@@ -217,3 +217,6 @@ function sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
         return JacPrototypeSparsityDetection(; jac_prototype)
     end
 end
+
+get_dense_ad(ad) = ad
+get_dense_ad(ad::AutoSparse) = ADTypes.dense_ad(ad)
