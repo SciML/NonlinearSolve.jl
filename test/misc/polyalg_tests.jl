@@ -127,7 +127,7 @@ end
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
 @testitem "Complex Valued Problems: Single-Shooting" tags=[:misc] begin
-    using OrdinaryDiffEq
+    using OrdinaryDiffEqTsit5
 
     function ode_func!(du, u, p, t)
         du[1] = u[2]

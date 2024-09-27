@@ -4,7 +4,7 @@ Let us fit a parameterized ODE to some data. We will use the Lotka-Volterra mode
 example. We will use Single Shooting to fit the parameters.
 
 ```@example parameterized_ode
-using OrdinaryDiffEq, NonlinearSolve, Plots
+using OrdinaryDiffEqTsit5, NonlinearSolve, Plots
 ```
 
 Let us simulate some real data from the Lotka-Volterra model.
