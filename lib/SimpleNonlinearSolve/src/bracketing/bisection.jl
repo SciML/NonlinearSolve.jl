@@ -40,7 +40,7 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem, alg::Bisection,
     end
 
     if sign(fl) == sign(fr)
-        @warn "The interval is not an enclosing interval, opposite signs at the boundaries are required."
+        @warn "The interval is not an enclosing interval (does not contain a root). Returning boundary value."
         return build_solution(
             prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right)
     end
