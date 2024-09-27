@@ -99,10 +99,15 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 # While this is technically wasteful, it gives out the type of the Jacobian
                 # which is needed to create the linear solver cache
                 stats.njacs += 1
-                if iip
-                    DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
+                if has_analytic_jac
+                    __similar(
+                        fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
                 else
-                    DI.jacobian(f, autodiff, u, Constant(p))
+                    if iip
+                        DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
+                    else
+                        DI.jacobian(f, autodiff, u, Constant(p))
+                    end
                 end
             else
                 zero(init_jacobian(sdifft_extras; preserve_immutable = Val(true)))
@@ -120,9 +125,10 @@ function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
         autodiff = nothing, kwargs...) where {F}
     fu = f(u, p)
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, nothing)
+        return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, nothing, nothing)
     end
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
+    autodiff = get_dense_ad(get_concrete_forward_ad(
+        autodiff, prob; check_forward_mode = false))
     di_extras = DI.prepare_derivative(f, get_dense_ad(autodiff), u, Constant(prob.p))
     return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, di_extras, nothing)
 end
