@@ -95,7 +95,14 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
     else
         if f.jac_prototype === nothing
             if !sparse_jac
-                __similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
+                # While this is technically wasteful, it gives out the type of the Jacobian
+                # which is needed to create the linear solver cache
+                stats.njacs += 1
+                if iip
+                    DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
+                else
+                    DI.jacobian(f, autodiff, u, Constant(p))
+                end
             else
                 zero(init_jacobian(sdifft_extras; preserve_immutable = Val(true)))
             end
@@ -154,7 +161,7 @@ function (cache::JacobianCache{iip})(
                 cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p))
         else
             uf = JacobianWrapper{iip}(cache.f, p)
-            sparse_jacobian!(J, cache.autodiff, cache.jac_cache, uf, cache.fu, u)
+            sparse_jacobian!(J, cache.autodiff, cache.sdifft_extras, uf, cache.fu, u)
         end
         return J
     else

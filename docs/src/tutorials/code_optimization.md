@@ -33,9 +33,7 @@ Take for example a prototypical small nonlinear solver code in its out-of-place 
 ```@example small_opt
 using NonlinearSolve
 
-function f(u, p)
-    u .* u .- p
-end
+f(u, p) = u .* u .- p
 u0 = [1.0, 1.0]
 p = 2.0
 prob = NonlinearProblem(f, u0, p)
@@ -53,9 +51,7 @@ using BenchmarkTools
 Note that this way of writing the function is a shorthand for:
 
 ```@example small_opt
-function f(u, p)
-    [u[1] * u[1] - p, u[2] * u[2] - p]
-end
+f(u, p) = [u[1] * u[1] - p, u[2] * u[2] - p]
 ```
 
 where the function `f` returns an array. This is a common pattern from things like MATLAB's
@@ -71,7 +67,7 @@ by hand, this looks like:
 function f(du, u, p)
     du[1] = u[1] * u[1] - p
     du[2] = u[2] * u[2] - p
-    nothing
+    return nothing
 end
 
 prob = NonlinearProblem(f, u0, p)
@@ -84,6 +80,7 @@ the `.=` in-place broadcasting.
 ```@example small_opt
 function f(du, u, p)
     du .= u .* u .- p
+    return nothing
 end
 
 @benchmark sol = solve(prob, NewtonRaphson())
@@ -114,6 +111,7 @@ to normal array expressions, for example:
 
 ```@example small_opt
 using StaticArrays
+
 A = SA[2.0, 3.0, 5.0]
 typeof(A)
 ```
@@ -135,12 +133,12 @@ want to use the out-of-place allocating form, but this time we want to output a 
 array. Doing it with broadcasting looks like:
 
 ```@example small_opt
-function f_SA(u, p)
-    u .* u .- p
-end
+f_SA(u, p) = u .* u .- p
+
 u0 = SA[1.0, 1.0]
 p = 2.0
 prob = NonlinearProblem(f_SA, u0, p)
+
 @benchmark solve(prob, NewtonRaphson())
 ```
 
@@ -148,9 +146,7 @@ Note that only change here is that `u0` is made into a StaticArray! If we needed
 `f` out for a more complex nonlinear case, then we'd simply do the following:
 
 ```@example small_opt
-function f_SA(u, p)
-    SA[u[1] * u[1] - p, u[2] * u[2] - p]
-end
+f_SA(u, p) = SA[u[1] * u[1] - p, u[2] * u[2] - p]
 
 @benchmark solve(prob, NewtonRaphson())
 ```
