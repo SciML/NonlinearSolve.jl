@@ -237,7 +237,7 @@ function __set_lincache_A(lincache, new_A)
 end
 
 function __wrapprecs(_Pl, _Pr, u)
-    Pl = _Pl !== nothing ?= _Pl : IdentityOperator(length(u))
+    Pl = _Pl !== nothing ? _Pl : IdentityOperator(length(u))
     Pr = _Pr !== nothing ? _Pr : IdentityOperator(length(u))
     return Pl, Pr
 end
