@@ -73,6 +73,6 @@
 
     cache = init(
         prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff())))
-    @test maximum(cache.sdifft_extras.jac_cache.coloring.colorvec) == 12
-    @test cache.sdifft_extras.autodiff isa AutoSparse{<:AutoForwardDiff}
+    @test maximum(cache.jac_cache.sdifft_extras.coloring.colorvec) == 12
+    @test cache.jac_cache.autodiff isa AutoSparse{<:AutoForwardDiff}
 end

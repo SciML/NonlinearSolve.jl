@@ -101,7 +101,8 @@ function __internal_init(
         args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
-        autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_forward_mode = true)
+        autodiff = get_dense_ad(get_concrete_forward_ad(
+            alg.autodiff, prob; check_forward_mode = true))
         if !(autodiff isa AutoForwardDiff ||
              autodiff isa AutoPolyesterForwardDiff ||
              autodiff isa AutoFiniteDiff)
