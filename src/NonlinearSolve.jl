@@ -32,13 +32,13 @@ using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Sy
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearches: LineSearches
-using LinearSolve: LinearSolve, LUFactorization, QRFactorization, ComposePreconditioner,
-                   InvPreconditioner, needs_concrete_A, AbstractFactorization,
+using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
+                   needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
 using MaybeInplace: @bb
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
-using RecursiveArrayTools: recursivecopy!, recursivefill!
+using RecursiveArrayTools: recursivecopy!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                  AbstractSciMLOperator, _unwrap_val, isinplace, NLStats
 using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,

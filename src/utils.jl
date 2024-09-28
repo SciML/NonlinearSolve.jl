@@ -34,13 +34,6 @@ end
 @inline _restructure(y, x) = restructure(y, x)
 @inline _restructure(y::Number, x::Number) = x
 
-@inline function __init_ones(x)
-    w = similar(x)
-    recursivefill!(w, true)
-    return w
-end
-@inline __init_ones(x::StaticArray) = ones(typeof(x))
-
 @inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
 @inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
     # Spend time coping iff we will mutate the array
