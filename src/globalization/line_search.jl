@@ -101,7 +101,8 @@ function __internal_init(
         args...; stats, internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
     T = promote_type(eltype(fu), eltype(u))
     if u isa Number
-        autodiff = get_concrete_forward_ad(alg.autodiff, prob; check_forward_mode = true)
+        autodiff = get_dense_ad(get_concrete_forward_ad(
+            alg.autodiff, prob; check_forward_mode = true))
         if !(autodiff isa AutoForwardDiff ||
              autodiff isa AutoPolyesterForwardDiff ||
              autodiff isa AutoFiniteDiff)
@@ -110,10 +111,10 @@ function __internal_init(
             @warn "Scalar AD is supported only for AutoForwardDiff and AutoFiniteDiff. \
                    Detected $(autodiff). Falling back to AutoFiniteDiff."
         end
-        deriv_op = @closure (du, u, fu, p) -> last(__value_derivative(
-                                                  autodiff, Base.Fix2(f, p), u)) *
-                                              fu *
-                                              du
+        deriv_op = @closure (du, u, fu, p) -> begin
+            # Temporary solution, we are anyways moving to LineSearch.jl
+            return DI.derivative(f, autodiff, u, Constant(p)) * fu * du
+        end
     else
         # Both forward and reverse AD can be used for line-search.
         # We prefer forward AD for better performance, however, reverse AD is also supported if user explicitly requests it.

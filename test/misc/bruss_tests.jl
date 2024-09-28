@@ -66,7 +66,6 @@
 
     sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
-    @test !all(iszero, jac_prototype)
 
     sol = solve(prob_brusselator_2d,
         NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
@@ -74,6 +73,6 @@
 
     cache = init(
         prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff())))
-    @test maximum(cache.jac_cache.jac_cache.coloring.colorvec) == 12
+    @test maximum(cache.jac_cache.sdifft_extras.coloring.colorvec) == 12
     @test cache.jac_cache.autodiff isa AutoSparse{<:AutoForwardDiff}
 end

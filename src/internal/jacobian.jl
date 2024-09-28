@@ -31,35 +31,24 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
 @concrete mutable struct JacobianCache{iip} <: AbstractNonlinearSolveJacobianCache{iip}
     J
     f
-    uf
     fu
     u
     p
-    jac_cache
-    alg
     stats::NLStats
     autodiff
-    vjp_autodiff
-    jvp_autodiff
+    di_extras
+    sdifft_extras
 end
 
 function reinit_cache!(cache::JacobianCache{iip}, args...; p = cache.p,
         u0 = cache.u, kwargs...) where {iip}
     cache.u = u0
     cache.p = p
-    cache.uf = JacobianWrapper{iip}(cache.f, p)
 end
 
 function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
     iip = isinplace(prob)
-    uf = JacobianWrapper{iip}(f, p)
-
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
-    jvp_autodiff = get_concrete_forward_ad(
-        jvp_autodiff, prob, Val(false); check_forward_mode = true)
-    vjp_autodiff = get_concrete_reverse_ad(
-        vjp_autodiff, prob, Val(false); check_reverse_mode = false)
 
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = concrete_jac(alg) === nothing && (linsolve === missing ||
@@ -69,91 +58,143 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
 
     @bb fu = similar(fu_)
 
+    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
+
     if !has_analytic_jac && needs_jac
-        sd = __sparsity_detection_alg(f, autodiff)
-        jac_cache = iip ? sparse_jacobian_cache(autodiff, sd, uf, fu, u) :
-                    sparse_jacobian_cache(
-            autodiff, sd, uf, __maybe_mutable(u, autodiff); fx = fu)
+        sd = sparsity_detection_alg(f, autodiff)
+        sparse_jac = !(sd isa NoSparsityDetection)
+        # Eventually we want to do everything via DI. But for now, we just do the dense via DI
+        if sparse_jac
+            di_extras = nothing
+            uf = JacobianWrapper{iip}(f, p)
+            sdifft_extras = if iip
+                sparse_jacobian_cache(autodiff, sd, uf, fu, u)
+            else
+                sparse_jacobian_cache(
+                    autodiff, sd, uf, __maybe_mutable(u, autodiff); fx = fu)
+            end
+        else
+            sdifft_extras = nothing
+            di_extras = if iip
+                DI.prepare_jacobian(f, fu, autodiff, u, Constant(p))
+            else
+                DI.prepare_jacobian(f, autodiff, u, Constant(p))
+            end
+        end
     else
-        jac_cache = nothing
+        sparse_jac = false
+        di_extras = nothing
+        sdifft_extras = nothing
     end
 
     J = if !needs_jac
+        jvp_autodiff = get_concrete_forward_ad(
+            jvp_autodiff, prob, Val(false); check_forward_mode = true)
+        vjp_autodiff = get_concrete_reverse_ad(
+            vjp_autodiff, prob, Val(false); check_reverse_mode = false)
         JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
-        if has_analytic_jac
-            f.jac_prototype === nothing ?
-            __similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)) :
-            copy(f.jac_prototype)
-        elseif f.jac_prototype === nothing
-            zero(init_jacobian(jac_cache; preserve_immutable = Val(true)))
+        if f.jac_prototype === nothing
+            if !sparse_jac
+                # While this is technically wasteful, it gives out the type of the Jacobian
+                # which is needed to create the linear solver cache
+                stats.njacs += 1
+                if has_analytic_jac
+                    __similar(
+                        fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u))
+                else
+                    if iip
+                        DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
+                    else
+                        DI.jacobian(f, autodiff, u, Constant(p))
+                    end
+                end
+            else
+                zero(init_jacobian(sdifft_extras; preserve_immutable = Val(true)))
+            end
         else
-            f.jac_prototype
+            similar(f.jac_prototype)
         end
     end
 
     return JacobianCache{iip}(
-        J, f, uf, fu, u, p, jac_cache, alg, stats, autodiff, vjp_autodiff, jvp_autodiff)
+        J, f, fu, u, p, stats, autodiff, di_extras, sdifft_extras)
 end
 
 function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
         autodiff = nothing, kwargs...) where {F}
-    uf = JacobianWrapper{false}(f, p)
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
-    if !(autodiff isa AutoForwardDiff ||
-         autodiff isa AutoPolyesterForwardDiff ||
-         autodiff isa AutoFiniteDiff)
-        # Other cases are not properly supported so we fallback to finite differencing
-        @warn "Scalar AD is supported only for AutoForwardDiff and AutoFiniteDiff. \
-               Detected $(autodiff). Falling back to AutoFiniteDiff."
-        autodiff = AutoFiniteDiff()
+    fu = f(u, p)
+    if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
+        return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, nothing, nothing)
     end
-    return JacobianCache{false}(
-        u, f, uf, u, u, p, nothing, alg, stats, autodiff, nothing, nothing)
+    autodiff = get_dense_ad(get_concrete_forward_ad(
+        autodiff, prob; check_forward_mode = false))
+    di_extras = DI.prepare_derivative(f, get_dense_ad(autodiff), u, Constant(prob.p))
+    return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, di_extras, nothing)
 end
 
-@inline (cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
-@inline function (cache::JacobianCache)(::Nothing)
+(cache::JacobianCache)(u = cache.u) = cache(cache.J, u, cache.p)
+function (cache::JacobianCache)(::Nothing)
     cache.J isa JacobianOperator &&
         return StatefulJacobianOperator(cache.J, cache.u, cache.p)
     return cache.J
 end
 
+# Operator
 function (cache::JacobianCache)(J::JacobianOperator, u, p = cache.p)
     return StatefulJacobianOperator(J, u, p)
 end
+# Numbers
 function (cache::JacobianCache)(::Number, u, p = cache.p) # Scalar
     cache.stats.njacs += 1
-    J = last(__value_derivative(cache.autodiff, cache.uf, u))
-    return J
+    if SciMLBase.has_jac(cache.f)
+        return cache.f.jac(u, p)
+    elseif SciMLBase.has_vjp(cache.f)
+        return cache.f.vjp(one(u), u, p)
+    elseif SciMLBase.has_jvp(cache.f)
+        return cache.f.jvp(one(u), u, p)
+    end
+    return DI.derivative(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
 end
-# Compute the Jacobian
+# Actually Compute the Jacobian
 function (cache::JacobianCache{iip})(
         J::Union{AbstractMatrix, Nothing}, u, p = cache.p) where {iip}
     cache.stats.njacs += 1
     if iip
-        if has_jac(cache.f)
+        if SciMLBase.has_jac(cache.f)
             cache.f.jac(J, u, p)
+        elseif cache.di_extras !== nothing
+            DI.jacobian!(
+                cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p))
         else
-            sparse_jacobian!(J, cache.autodiff, cache.jac_cache, cache.uf, cache.fu, u)
+            uf = JacobianWrapper{iip}(cache.f, p)
+            sparse_jacobian!(J, cache.autodiff, cache.sdifft_extras, uf, cache.fu, u)
         end
-        J_ = J
+        return J
     else
-        J_ = if has_jac(cache.f)
-            cache.f.jac(u, p)
-        elseif __can_setindex(typeof(J))
-            sparse_jacobian!(J, cache.autodiff, cache.jac_cache, cache.uf, u)
-            J
+        if SciMLBase.has_jac(cache.f)
+            return cache.f.jac(u, p)
+        elseif cache.di_extras !== nothing
+            return DI.jacobian(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
         else
-            sparse_jacobian(cache.autodiff, cache.jac_cache, cache.uf, u)
+            uf = JacobianWrapper{iip}(cache.f, p)
+            if __can_setindex(typeof(J))
+                sparse_jacobian!(J, cache.autodiff, cache.sdifft_extras, uf, u)
+                return J
+            else
+                return sparse_jacobian(cache.autodiff, cache.sdifft_extras, uf, u)
+            end
         end
     end
-    return J_
 end
 
-# Sparsity Detection Choices
-@inline __sparsity_detection_alg(_, _) = NoSparsityDetection()
-@inline function __sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
+function sparsity_detection_alg(f::NonlinearFunction, ad::AbstractADType)
+    # TODO: Also handle case where colorvec is provided
+    f.sparsity === nothing && return NoSparsityDetection()
+    return sparsity_detection_alg(f, AutoSparse(ad; sparsity_detector = f.sparsity))
+end
+
+function sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             is_extension_loaded(Val(:Symbolics)) && return SymbolicsSparsityDetection()
@@ -177,28 +218,12 @@ end
     end
 
     if SciMLBase.has_colorvec(f)
-        return PrecomputedJacobianColorvec(; jac_prototype,
-            f.colorvec,
-            partition_by_rows = (ad isa AutoSparse &&
-                                 ADTypes.mode(ad) isa ADTypes.ReverseMode))
+        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
+            partition_by_rows = ADTypes.mode(ad) isa ADTypes.ReverseMode)
     else
         return JacPrototypeSparsityDetection(; jac_prototype)
     end
 end
 
-@inline function __value_derivative(
-        ::Union{AutoForwardDiff, AutoPolyesterForwardDiff}, f::F, x::R) where {F, R}
-    T = typeof(ForwardDiff.Tag(f, R))
-    out = f(ForwardDiff.Dual{T}(x, one(x)))
-    return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-end
-
-@inline function __value_derivative(ad::AutoFiniteDiff, f::F, x::R) where {F, R}
-    return f(x), FiniteDiff.finite_difference_derivative(f, x, ad.fdtype)
-end
-
-@inline function __scalar_jacvec(f::F, x::R, v::V) where {F, R, V}
-    T = typeof(ForwardDiff.Tag(f, R))
-    out = f(ForwardDiff.Dual{T}(x, v))
-    return ForwardDiff.value(out), ForwardDiff.extract_derivative(T, out)
-end
+get_dense_ad(ad) = ad
+get_dense_ad(ad::AutoSparse) = ADTypes.dense_ad(ad)
