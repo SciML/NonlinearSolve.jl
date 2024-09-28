@@ -38,7 +38,7 @@ using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
 using MaybeInplace: @bb
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
-using RecursiveArrayTools: recursivecopy!,
+using RecursiveArrayTools: recursivecopy!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
                  AbstractSciMLOperator, _unwrap_val, isinplace, NLStats
 using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
