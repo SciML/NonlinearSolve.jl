@@ -1,6 +1,6 @@
 """
     Klement(; max_resets = 100, linsolve = NoLineSearch(), linesearch = nothing,
-        precs = DEFAULT_PRECS, alpha = nothing, init_jacobian::Val = Val(:identity),
+        alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
 An implementation of `Klement` [klement2014using](@citep) with line search, preconditioning
@@ -25,7 +25,7 @@ over this.
         differentiable problems.
 """
 function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
-        linesearch = NoLineSearch(), precs = DEFAULT_PRECS,
+        linesearch = NoLineSearch(),
         autodiff = nothing, init_jacobian::Val{IJ} = Val(:identity)) where {IJ}
     if !(linesearch isa AbstractNonlinearSolveLineSearchAlgorithm)
         Base.depwarn(
@@ -48,7 +48,7 @@ function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
     CJ = IJ === :true_jacobian || IJ === :true_jacobian_diagonal
 
     return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(;
-        linesearch, descent = NewtonDescent(; linsolve, precs),
+        linesearch, descent = NewtonDescent(; linsolve),
         update_rule = KlementUpdateRule(),
         reinit_rule = IllConditionedJacobianReset(), max_resets, initialization)
 end

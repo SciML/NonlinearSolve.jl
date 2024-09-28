@@ -1,7 +1,7 @@
 """
     PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),
-        precs = DEFAULT_PRECS, autodiff = nothing)
+        autodiff = nothing)
 
 An implementation of PseudoTransient Method [coffey2003pseudotransient](@cite) that is used
 to solve steady state problems in an accelerated manner. It uses an adaptive time-stepping
@@ -17,8 +17,8 @@ This implementation specifically uses "switched evolution relaxation"
 """
 function PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
         linesearch::AbstractNonlinearSolveLineSearchAlgorithm = NoLineSearch(),
-        precs = DEFAULT_PRECS, autodiff = nothing, alpha_initial = 1e-3)
-    descent = DampedNewtonDescent(; linsolve, precs, initial_damping = alpha_initial,
+        autodiff = nothing, alpha_initial = 1e-3)
+    descent = DampedNewtonDescent(; linsolve, initial_damping = alpha_initial,
         damping_fn = SwitchedEvolutionRelaxation())
     return GeneralizedFirstOrderAlgorithm(;
         concrete_jac, name = :PseudoTransient, linesearch, descent, jacobian_ad = autodiff)

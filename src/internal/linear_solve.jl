@@ -19,7 +19,7 @@ handled:
 ```julia
 (cache::LinearSolverCache)(;
     A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-    weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
+    cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
 ```
 
 Returns the solution of the system `u` and stores the updated cache in `cache.lincache`.
@@ -49,7 +49,6 @@ not mutated, we do this by copying over `A` to a preconstructed cache.
     additional_lincache::Any
     A
     b
-    precs
     stats::NLStats
 end
 
@@ -75,23 +74,15 @@ function LinearSolverCache(alg, linsolve, A, b, u; stats, kwargs...)
        (linsolve === nothing && A isa SMatrix) ||
        (A isa Diagonal) ||
        (linsolve isa typeof(\))
-        return LinearSolverCache(nothing, nothing, nothing, A, b, nothing, stats)
+        return LinearSolverCache(nothing, nothing, nothing, A, b, stats)
     end
     @bb u_ = copy(u_fixed)
     linprob = LinearProblem(A, b; u0 = u_, kwargs...)
 
-    if __hasfield(alg, Val(:precs))
-        precs = alg.precs
-        Pl_, Pr_ = precs(A, nothing, u, ntuple(Returns(nothing), 6)...)
-    else
-        precs, Pl_, Pr_ = nothing, nothing, nothing
-    end
-    Pl, Pr = __wrapprecs(Pl_, Pr_, u)
-
     # Unalias here, we will later use these as caches
-    lincache = init(linprob, linsolve; alias_A = false, alias_b = false, Pl, Pr)
+    lincache = init(linprob, linsolve; alias_A = false, alias_b = false)
 
-    return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, precs, stats)
+    return LinearSolverCache(lincache, linsolve, nothing, nothing, nothing, stats)
 end
 
 @kwdef @concrete struct LinearSolveResult
@@ -119,30 +110,13 @@ end
 # Use LinearSolve.jl
 function (cache::LinearSolverCache)(;
         A = nothing, b = nothing, linu = nothing, du = nothing,
-        p = nothing, weight = nothing, cachedata = nothing,
+        p = nothing, cachedata = nothing,
         reuse_A_if_factorization = false, verbose = true, kwargs...)
     cache.stats.nsolve += 1
 
     __update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && (cache.lincache.b = b)
     linu !== nothing && __set_lincache_u!(cache, linu)
-
-    Plprev = cache.lincache.Pl
-    Prprev = cache.lincache.Pr
-
-    if cache.precs === nothing
-        _Pl, _Pr = nothing, nothing
-    else
-        _Pl, _Pr = cache.precs(cache.lincache.A, du, linu, p, nothing,
-            A !== nothing, Plprev, Prprev, cachedata)
-    end
-
-    if (_Pl !== nothing || _Pr !== nothing)
-        Pl, Pr = __wrapprecs(_Pl, _Pr, linu)
-        cache.lincache.Pl = Pl
-        cache.lincache.Pr = Pr
-    end
-
     linres = solve!(cache.lincache)
     cache.lincache = linres.cache
     # Unfortunately LinearSolve.jl doesn't have the most uniform ReturnCode handling
@@ -163,7 +137,7 @@ function (cache::LinearSolverCache)(;
                 linprob = LinearProblem(A, b; u0 = linres.u)
                 cache.additional_lincache = init(
                     linprob, QRFactorization(ColumnNorm()); alias_u0 = false,
-                    alias_A = false, alias_b = false, cache.lincache.Pl, cache.lincache.Pr)
+                    alias_A = false, alias_b = false)
             else
                 cache.additional_lincache.A = A
                 cache.additional_lincache.b = b
@@ -234,12 +208,6 @@ function __set_lincache_A(lincache, new_A)
             lincache.A = new_A
         end
     end
-end
-
-function __wrapprecs(_Pl, _Pr, u)
-    Pl = _Pl !== nothing ? _Pl : IdentityOperator(length(u))
-    Pr = _Pr !== nothing ? _Pr : IdentityOperator(length(u))
-    return Pl, Pr
 end
 
 @inline __needs_square_A(_, ::Number) = false
