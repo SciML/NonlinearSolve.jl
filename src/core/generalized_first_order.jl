@@ -202,6 +202,10 @@ function SciMLBase.__init(
             linesearch_ad = alg.forward_ad === nothing ?
                             (alg.reverse_ad === nothing ? alg.jacobian_ad :
                              alg.reverse_ad) : alg.forward_ad
+            if linesearch_ad !== nothing && iip && !DI.check_inplace(linesearch_ad)
+                @warn "$(linesearch_ad) doesn't support in-place problems."
+                linesearch_ad = nothing
+            end
             linesearch_ad = get_concrete_forward_ad(
                 linesearch_ad, prob, False; check_forward_mode = false)
             linesearch_cache = init(
