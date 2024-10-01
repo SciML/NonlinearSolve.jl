@@ -31,14 +31,9 @@ using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
 using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                 AbstractSciMLOperator, _unwrap_val, isinplace, NLStats
-using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
-                              JacVecOperator, StatefulJacobianOperator
-using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
-                       ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
-                       NoSparsityDetection, PrecomputedJacobianColorvec,
-                       init_jacobian, sparse_jacobian, sparse_jacobian!,
-                       sparse_jacobian_cache
+                 _unwrap_val, isinplace, NLStats
+using SciMLOperators: AbstractSciMLOperator
+using Setfield: @set!
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values, getu,
@@ -46,16 +41,23 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingPro
 
 # AD Support
 using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
+               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse,
+               NoSparsityDetector, KnownJacobianSparsityDetector
 using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
                AutoSparseZygote # FIXME: deprecated, remove in future
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
+using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
+                              JacVecOperator, StatefulJacobianOperator
 
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
-using SparseConnectivityTracer: TracerSparsityDetector
+using SparseConnectivityTracer: TracerSparsityDetector # This can be dropped in the next release
+using SparseDiffTools: SparseDiffTools, JacPrototypeSparsityDetection,
+                       PrecomputedJacobianColorvec, init_jacobian, sparse_jacobian,
+                       sparse_jacobian!, sparse_jacobian_cache
+using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm
 
 @reexport using SciMLBase, SimpleNonlinearSolve
 

@@ -58,31 +58,34 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
 
     @bb fu = similar(fu_)
 
-    autodiff = get_concrete_forward_ad(autodiff, prob; check_forward_mode = false)
+    autodiff = get_concrete_forward_ad(
+        autodiff, prob, Val(false); check_forward_mode = false)
 
     if !has_analytic_jac && needs_jac
-        sd = sparsity_detection_alg(f, autodiff)
-        sparse_jac = !(sd isa NoSparsityDetection)
-        # Eventually we want to do everything via DI. But for now, we just do the dense via DI
-        if sparse_jac
+        autodiff = construct_concrete_adtype(f, autodiff)
+        using_sparsedifftools = autodiff isa StructuredMatrixAutodiff
+        # DI can't handle structured matrices
+        if using_sparsedifftools
             di_extras = nothing
             uf = JacobianWrapper{iip}(f, p)
             sdifft_extras = if iip
-                sparse_jacobian_cache(autodiff, sd, uf, fu, u)
-            else
                 sparse_jacobian_cache(
-                    autodiff, sd, uf, __maybe_mutable(u, autodiff); fx = fu)
+                    autodiff.autodiff, autodiff.sparsity_detection, uf, fu, u)
+            else
+                sparse_jacobian_cache(autodiff.autodiff, autodiff.sparsity_detection,
+                    uf, __maybe_mutable(u, autodiff); fx = fu)
             end
+            autodiff = autodiff.autodiff # For saving we unwrap
         else
             sdifft_extras = nothing
             di_extras = if iip
-                DI.prepare_jacobian(f, fu, autodiff, u, Constant(p))
+                DI.prepare_jacobian(f, fu, autodiff, u, Constant(prob.p))
             else
-                DI.prepare_jacobian(f, autodiff, u, Constant(p))
+                DI.prepare_jacobian(f, autodiff, u, Constant(prob.p))
             end
         end
     else
-        sparse_jac = false
+        using_sparsedifftools = false
         di_extras = nothing
         sdifft_extras = nothing
     end
@@ -95,7 +98,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
         JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
         if f.jac_prototype === nothing
-            if !sparse_jac
+            if !using_sparsedifftools
                 # While this is technically wasteful, it gives out the type of the Jacobian
                 # which is needed to create the linear solver cache
                 stats.njacs += 1
@@ -113,7 +116,13 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 zero(init_jacobian(sdifft_extras; preserve_immutable = Val(true)))
             end
         else
-            similar(f.jac_prototype)
+            jac_proto = if eltype(f.jac_prototype) <: Bool
+                similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
+            else
+                similar(f.jac_prototype)
+            end
+            fill!(jac_proto, false)
+            jac_proto
         end
     end
 
@@ -188,41 +197,137 @@ function (cache::JacobianCache{iip})(
     end
 end
 
-function sparsity_detection_alg(f::NonlinearFunction, ad::AbstractADType)
-    # TODO: Also handle case where colorvec is provided
-    f.sparsity === nothing && return NoSparsityDetection()
-    return sparsity_detection_alg(f, AutoSparse(ad; sparsity_detector = f.sparsity))
-end
-
-function sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
+function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
+    @assert !(ad isa AutoSparse) "This shouldn't happen. Open an issue."
     if f.sparsity === nothing
         if f.jac_prototype === nothing
-            # is_extension_loaded(Val(:Symbolics)) && return SymbolicsSparsityDetection()
-            return ApproximateJacobianSparsity()
+            if SciMLBase.has_colorvec(f)
+                @warn "`colorvec` is provided but `sparsity` and `jac_prototype` is not \
+                       specified. `colorvec` will be ignored."
+            end
+            return ad # No sparse AD
         else
-            jac_prototype = f.jac_prototype
-        end
-    elseif f.sparsity isa AbstractSparsityDetection
-        f.jac_prototype === nothing && return f.sparsity
-        jac_prototype = f.jac_prototype
-    elseif f.sparsity isa AbstractMatrix
-        jac_prototype = f.sparsity
-    elseif f.jac_prototype isa AbstractMatrix
-        jac_prototype = f.jac_prototype
-    else
-        error("`sparsity::typeof($(typeof(f.sparsity)))` & \
-               `jac_prototype::typeof($(typeof(f.jac_prototype)))` is not supported. \
-               Use `sparsity::AbstractMatrix` or `sparsity::AbstractSparsityDetection` or \
-               set to `nothing`. `jac_prototype` can be set to `nothing` or an \
-               `AbstractMatrix`.")
-    end
+            if ArrayInterface.isstructured(f.jac_prototype)
+                return select_fastest_structured_matrix_autodiff(f.jac_prototype, f, ad)
+            end
 
-    if SciMLBase.has_colorvec(f)
-        return PrecomputedJacobianColorvec(; jac_prototype, f.colorvec,
-            partition_by_rows = ADTypes.mode(ad) isa ADTypes.ReverseMode)
+            return AutoSparse(
+                ad;
+                sparsity_detector = KnownJacobianSparsityDetector(f.jac_prototype),
+                coloring_algorithm = select_fastest_coloring_algorithm(
+                    f.jac_prototype, f, ad)
+            )
+        end
     else
-        return JacPrototypeSparsityDetection(; jac_prototype)
+        if f.sparsity isa AbstractMatrix
+            if f.jac_prototype !== nothing && f.jac_prototype !== f.sparsity
+                throw(ArgumentError("`sparsity::AbstractMatrix` and `jac_prototype` cannot \
+                                     be both provided. Pass only `jac_prototype`."))
+            end
+            Base.depwarn("`sparsity::typeof($(typeof(f.sparsity)))` is deprecated. \
+                          Pass it as `jac_prototype` instead.",
+                :NonlinearSolve)
+            if ArrayInterface.isstructured(f.sparsity)
+                return select_fastest_structured_matrix_autodiff(f.sparsity, f, ad)
+            end
+
+            return AutoSparse(
+                ad;
+                sparsity_detector = KnownJacobianSparsityDetector(f.sparsity),
+                coloring_algorithm = select_fastest_coloring_algorithm(
+                    f.sparsity, f, ad)
+            )
+        end
+
+        @assert f.sparsity isa ADTypes.AbstractSparsityDetector
+        sparsity_detector = f.sparsity
+        if f.jac_prototype === nothing
+            if SciMLBase.has_colorvec(f)
+                @warn "`colorvec` is provided but `jac_prototype` is not specified. \
+                       `colorvec` will be ignored."
+            end
+            return AutoSparse(
+                ad;
+                sparsity_detector,
+                coloring_algorithm = GreedyColoringAlgorithm()
+            )
+        else
+            if ArrayInterface.isstructured(f.jac_prototype)
+                return select_fastest_structured_matrix_autodiff(f.jac_prototype, f, ad)
+            end
+
+            if f.jac_prototype isa AbstractSparseMatrix
+                if !(sparsity_detector isa NoSparsityDetector)
+                    @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
+                           has also been specified. Ignoring sparsity field and using \
+                           `jac_prototype` sparsity."
+                end
+                sparsity_detector = KnownJacobianSparsityDetector(f.jac_prototype)
+            end
+
+            return AutoSparse(
+                ad;
+                sparsity_detector,
+                coloring_algorithm = select_fastest_coloring_algorithm(
+                    f.jac_prototype, f, ad)
+            )
+        end
     end
+end
+
+@concrete struct StructuredMatrixAutodiff <: AbstractADType
+    autodiff <: AbstractADType
+    sparsity_detection
+end
+
+function select_fastest_structured_matrix_autodiff(
+        prototype::AbstractMatrix, f::NonlinearFunction, ad::AbstractADType)
+    sparsity_detection = if SciMLBase.has_colorvec(f)
+        PrecomputedJacobianColorvec(;
+            jac_prototype = prototype,
+            f.colorvec,
+            partition_by_rows = ADTypes.mode(ad) isa ADTypes.ReverseMode
+        )
+    else
+        if ArrayInterface.fast_matrix_colors(prototype)
+            colorvec = if ADTypes.mode(ad) isa ADTypes.ForwardMode
+                ArrayInterface.matrix_colors(prototype)
+            else
+                ArrayInterface.matrix_colors(prototype')
+            end
+            PrecomputedJacobianColorvec(;
+                jac_prototype = prototype,
+                colorvec,
+                partition_by_rows = ADTypes.mode(ad) isa ADTypes.ReverseMode
+            )
+        else
+            JacPrototypeSparsityDetection(; jac_prototype = prototype)
+        end
+    end
+    return StructuredMatrixAutodiff(ad, sparsity_detection)
+end
+
+function select_fastest_coloring_algorithm(
+        prototype, f::NonlinearFunction, ad::AbstractADType)
+    if SciMLBase.has_colorvec(f)
+        return ConstantColoringAlgorithm{ifelse(
+            ADTypes.mode(ad) isa ADTypes.ReverseMode, :row, :column)}(
+            prototype, f.colorvec)
+    end
+    return GreedyColoringAlgorithm()
+end
+
+function construct_concrete_adtype(f::NonlinearFunction, ad::AutoSparse)
+    Base.depwarn(
+        "Specifying a sparse AD type for Nonlinear Problems is deprecated. \
+         Instead use the `sparsity`, `jac_prototype`, and `colorvec` to specify \
+         the right sparsity pattern and coloring algorithm. Ignoring the sparsity \
+         detection algorithm and coloring algorithm present in $(ad).",
+        :NonlinearSolve)
+    if f.sparsity === nothing && f.jac_prototype === nothing
+        @set! f.sparsity = TracerSparsityDetector()
+    end
+    return construct_concrete_adtype(f, get_dense_ad(ad))
 end
 
 get_dense_ad(ad) = ad
