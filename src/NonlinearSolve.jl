@@ -7,12 +7,6 @@ end
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
-using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
-# FIXME: deprecated, remove in future
-using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
-               AutoSparseZygote
-
 using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
                       ismutable
 using ConcreteStructs: @concrete
@@ -22,11 +16,8 @@ using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
                   NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
                   RelSafeTerminationMode, RelTerminationMode,
                   SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
-using DifferentiationInterface: DifferentiationInterface, Constant
 using FastBroadcast: @..
 using FastClosures: @closure
-using FiniteDiff: FiniteDiff
-using ForwardDiff: ForwardDiff, Dual
 using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
@@ -43,7 +34,6 @@ using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearP
                  AbstractSciMLOperator, _unwrap_val, isinplace, NLStats
 using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
                               JacVecOperator, StatefulJacobianOperator
-using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
                        NoSparsityDetection, PrecomputedJacobianColorvec,
@@ -53,6 +43,18 @@ using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values, getu,
                                  setu
+
+# AD Support
+using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
+               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
+using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
+               AutoSparseZygote # FIXME: deprecated, remove in future
+using DifferentiationInterface: DifferentiationInterface, Constant
+using FiniteDiff: FiniteDiff
+using ForwardDiff: ForwardDiff, Dual
+
+## Sparse AD Support
+using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 
 @reexport using SciMLBase, SimpleNonlinearSolve
 

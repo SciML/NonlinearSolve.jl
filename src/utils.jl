@@ -157,5 +157,6 @@ end
 
 function __similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
-    return zero(y)
+    fill!(y, false)
+    return y
 end
