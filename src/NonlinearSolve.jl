@@ -37,8 +37,8 @@ using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJac
 using SparseDiffTools: SparseDiffTools, AbstractSparsityDetection,
                        ApproximateJacobianSparsity, JacPrototypeSparsityDetection,
                        NoSparsityDetection, PrecomputedJacobianColorvec,
-                       SymbolicsSparsityDetection, init_jacobian, sparse_jacobian,
-                       sparse_jacobian!, sparse_jacobian_cache
+                       init_jacobian, sparse_jacobian, sparse_jacobian!,
+                       sparse_jacobian_cache
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values, getu,
@@ -55,6 +55,7 @@ using ForwardDiff: ForwardDiff, Dual
 
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
+using SparseConnectivityTracer: TracerSparsityDetector
 
 @reexport using SciMLBase, SimpleNonlinearSolve
 

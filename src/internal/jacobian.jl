@@ -197,7 +197,7 @@ end
 function sparsity_detection_alg(f::NonlinearFunction, ad::AutoSparse)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
-            is_extension_loaded(Val(:Symbolics)) && return SymbolicsSparsityDetection()
+            # is_extension_loaded(Val(:Symbolics)) && return SymbolicsSparsityDetection()
             return ApproximateJacobianSparsity()
         else
             jac_prototype = f.jac_prototype
