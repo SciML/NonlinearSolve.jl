@@ -1,5 +1,5 @@
 @testitem "Brusselator 2D" tags=[:misc] begin
-    using LinearAlgebra, SparseArrays, Symbolics
+    using LinearAlgebra, SparseArrays, SparseConnectivityTracer, Symbolics
 
     const N = 32
     const xyd_brusselator = range(0, stop = 1, length = N)
@@ -46,20 +46,26 @@
     sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparse(AutoForwardDiff())); abstol = 1e-8)
+    prob_brusselator_2d_sparse = NonlinearProblem(
+        NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
+        u0, p)
+    sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
+    prob_brusselator_2d_sparse = NonlinearProblem(
+        NonlinearFunction(brusselator_2d_loop; sparsity = SymbolicsSparsityDetector()),
+        u0, p)
+    sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
+    @test norm(sol.resid, Inf) < 1e-8
+
+    # Deprecated
     sol = solve(prob_brusselator_2d,
         NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
     du0 = copy(u0)
-    jac_sparsity = Symbolics.jacobian_sparsity(
+    jac_prototype = Symbolics.jacobian_sparsity(
         (du, u) -> brusselator_2d_loop(du, u, p), du0, u0)
-    jac_prototype = float.(jac_sparsity)
-    fill!(jac_prototype, 0)
-    @test all(iszero, jac_prototype)
 
     ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
     prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)
@@ -68,11 +74,6 @@
     @test norm(sol.resid, Inf) < 1e-8
 
     sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
+        NewtonRaphson(autodiff = AutoFiniteDiff()); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
-
-    cache = init(
-        prob_brusselator_2d, NewtonRaphson(; autodiff = AutoSparse(AutoForwardDiff())))
-    @test maximum(cache.jac_cache.sdifft_extras.coloring.colorvec) == 12
-    @test cache.jac_cache.autodiff isa AutoSparse{<:AutoForwardDiff}
 end
