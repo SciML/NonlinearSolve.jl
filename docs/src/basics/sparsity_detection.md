@@ -34,7 +34,7 @@ If the `colorvec` is not provided, then it is computed on demand.
     row colorvec.
 
 !!! warning
-
+    
     Previously you could provide a `sparsity` argument to `NonlinearFunction` to specify
     the jacobian prototype. However, to avoid confusion, this is now deprecated. Instead,
     use the `jac_prototype` argument.
@@ -58,7 +58,7 @@ sparsity detection algorithms.
 ## Case III: Sparse AD Type is being Used
 
 !!! warning
-
+    
     This is now deprecated. Please use the previous two cases instead.
 
 If you constructed a Nonlinear Solver with a sparse AD type, for example
