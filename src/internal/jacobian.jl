@@ -64,7 +64,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
     if !has_analytic_jac && needs_jac
         autodiff = construct_concrete_adtype(f, autodiff)
         using_sparsedifftools = autodiff isa StructuredMatrixAutodiff
-        # DI can't handle structured matrices
+        # SparseMatrixColorings can't handle structured matrices
         if using_sparsedifftools
             di_extras = nothing
             uf = JacobianWrapper{iip}(f, p)
@@ -249,7 +249,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
             return AutoSparse(
                 ad;
                 sparsity_detector,
-                coloring_algorithm = GreedyColoringAlgorithm()
+                coloring_algorithm = GreedyColoringAlgorithm(LargestFirst())
             )
         else
             if ArrayInterface.isstructured(f.jac_prototype)
@@ -304,7 +304,7 @@ function select_fastest_structured_matrix_autodiff(
             JacPrototypeSparsityDetection(; jac_prototype = prototype)
         end
     end
-    return StructuredMatrixAutodiff(ad, sparsity_detection)
+    return StructuredMatrixAutodiff(AutoSparse(ad), sparsity_detection)
 end
 
 function select_fastest_coloring_algorithm(
@@ -314,7 +314,7 @@ function select_fastest_coloring_algorithm(
             ADTypes.mode(ad) isa ADTypes.ReverseMode, :row, :column)}(
             prototype, f.colorvec)
     end
-    return GreedyColoringAlgorithm()
+    return GreedyColoringAlgorithm(LargestFirst())
 end
 
 function construct_concrete_adtype(f::NonlinearFunction, ad::AutoSparse)

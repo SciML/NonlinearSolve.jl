@@ -37,7 +37,8 @@ If the `colorvec` is not provided, then it is computed on demand.
     
     Previously you could provide a `sparsity` argument to `NonlinearFunction` to specify
     the jacobian prototype. However, to avoid confusion, this is now deprecated. Instead,
-    use the `jac_prototype` argument.
+    use the `jac_prototype` argument. `sparsity` must be used to exclusively specify the
+    sparsity detection algorithm.
 
 ## Case II: Sparsity Detection algorithm is provided
 
@@ -46,14 +47,14 @@ algorithm you want to use, then you can create your problem as follows:
 
 ```julia
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetection()), x0)  # Remember to have Symbolics.jl loaded
+    NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetector()), x0)  # Remember to have Symbolics.jl loaded
 # OR
 prob = NonlinearProblem(
     NonlinearFunction(nlfunc; sparsity = TracerSparsityDetector()), x0) # From SparseConnectivityTracer.jl
 ```
 
-Refer to the documentation of DifferentiationInterface.jl for more information on
-sparsity detection algorithms.
+Refer to the documentation of DifferentiationInterface.jl and SparseConnectivityTracer.jl
+for more information on sparsity detection algorithms.
 
 ## Case III: Sparse AD Type is being Used
 

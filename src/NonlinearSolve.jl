@@ -57,7 +57,8 @@ using SparseConnectivityTracer: TracerSparsityDetector # This can be dropped in 
 using SparseDiffTools: SparseDiffTools, JacPrototypeSparsityDetection,
                        PrecomputedJacobianColorvec, init_jacobian, sparse_jacobian,
                        sparse_jacobian!, sparse_jacobian_cache
-using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm
+using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
+                             LargestFirst
 
 @reexport using SciMLBase, SimpleNonlinearSolve
 
