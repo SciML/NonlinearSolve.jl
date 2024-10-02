@@ -1,7 +1,7 @@
 @testsetup module WrapperNLLSSetup
 using Reexport
 @reexport using LinearAlgebra, StableRNGs, StaticArrays, Random, ForwardDiff, Zygote
-import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK
+import FastLevenbergMarquardt, LeastSquaresOptim, MINPACK, Enlsip
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -46,7 +46,7 @@ end
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK + Einsip: Jacobian Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     function jac!(J, θ, p)
         resid = zeros(length(p))
         ForwardDiff.jacobian!(J, (resid, θ) -> loss_function(resid, θ, p), resid, θ)
@@ -71,13 +71,14 @@ end
 
     solvers = Any[FastLevenbergMarquardtJL(linsolve) for linsolve in (:cholesky, :qr)]
     Sys.isapple() || push!(solvers, CMINPACK())
+    push!(solvers, EnlsipJL())
     for solver in solvers, prob in probs
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
         @test maximum(abs, sol.resid) < 1e-6
     end
 end
 
-@testitem "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
+@testitem "FastLevenbergMarquardt.jl + CMINPACK + Einsip: Jacobian Not Provided" setup=[WrapperNLLSSetup] tags=[:wrappers] begin
     probs = [
         NonlinearLeastSquaresProblem(
             NonlinearFunction{true}(loss_function; resid_prototype = zero(y_target)),
@@ -92,6 +93,9 @@ end
     autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
     Sys.isapple() ||
         append!(solvers, [CMINPACK(; method) for method in (:auto, :lm, :lmdif)])
+    append!(solvers,
+        [EnlsipJL(; autodiff)
+         for autodiff in (nothing, AutoForwardDiff(), AutoFiniteDiff())])
 
     for solver in solvers, prob in probs
         sol = solve(prob, solver; maxiters = 10000, abstol = 1e-8)
