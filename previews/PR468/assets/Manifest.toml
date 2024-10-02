@@ -1894,9 +1894,9 @@ version = "1.10.0"
 
 [[deps.SparseConnectivityTracer]]
 deps = ["ADTypes", "DocStringExtensions", "FillArrays", "LinearAlgebra", "Random", "Requires", "SparseArrays"]
-git-tree-sha1 = "d60da13a3f752dd5f3cc7f25d03621b243c98614"
+git-tree-sha1 = "e5efbf152d3e14a513f19a9119b810340b7ac86b"
 uuid = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
-version = "0.6.5"
+version = "0.6.6"
 
     [deps.SparseConnectivityTracer.extensions]
     SparseConnectivityTracerDataInterpolationsExt = "DataInterpolations"
