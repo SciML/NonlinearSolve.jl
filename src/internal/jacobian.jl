@@ -172,6 +172,13 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
             end
             return ad # No sparse AD
         else
+            if !sparse_or_structured_prototype(f.jac_prototype)
+                if SciMLBase.has_colorvec(f)
+                    @warn "`colorvec` is provided but `jac_prototype` is not a sparse \
+                           or structured matrix. `colorvec` will be ignored."
+                end
+                return ad
+            end
             return AutoSparse(
                 ad;
                 sparsity_detector = KnownJacobianSparsityDetector(f.jac_prototype),
@@ -181,13 +188,14 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         end
     else
         if f.sparsity isa AbstractMatrix
-            if f.jac_prototype !== nothing && f.jac_prototype !== f.sparsity
-                throw(ArgumentError("`sparsity::AbstractMatrix` and `jac_prototype` cannot \
-                                     be both provided. Pass only `jac_prototype`."))
+            if f.jac_prototype !== f.sparsity
+                if f.jac_prototype !== nothing &&
+                   sparse_or_structured_prototype(f.jac_prototype)
+                    throw(ArgumentError("`sparsity::AbstractMatrix` and a sparse or \
+                                         structured `jac_prototype` cannot be both \
+                                         provided. Pass only `jac_prototype`."))
+                end
             end
-            Base.depwarn("`sparsity::typeof($(typeof(f.sparsity)))` is deprecated. \
-                          Pass it as `jac_prototype` instead.",
-                :NonlinearSolve)
             return AutoSparse(
                 ad;
                 sparsity_detector = KnownJacobianSparsityDetector(f.sparsity),
@@ -209,8 +217,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
                 coloring_algorithm = GreedyColoringAlgorithm(LargestFirst())
             )
         else
-            if f.jac_prototype isa AbstractSparseMatrix ||
-               ArrayInterface.isstructured(f.jac_prototype)
+            if sparse_or_structured_prototype(f.jac_prototype)
                 if !(sparsity_detector isa NoSparsityDetector)
                     @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
                            has also been specified. Ignoring sparsity field and using \
@@ -254,3 +261,8 @@ end
 
 get_dense_ad(ad) = ad
 get_dense_ad(ad::AutoSparse) = ADTypes.dense_ad(ad)
+
+sparse_or_structured_prototype(::AbstractSparseMatrix) = true
+function sparse_or_structured_prototype(prototype::AbstractMatrix)
+    return ArrayInterface.isstructured(prototype)
+end
