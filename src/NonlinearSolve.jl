@@ -30,8 +30,7 @@ using MaybeInplace: @bb
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
-using SciMLBase: AbstractNonlinearAlgorithm, JacobianWrapper, AbstractNonlinearProblem,
-                 _unwrap_val, isinplace, NLStats
+using SciMLBase: AbstractNonlinearAlgorithm, AbstractNonlinearProblem, _unwrap_val, isinplace, NLStats
 using SciMLOperators: AbstractSciMLOperator
 using Setfield: @set!
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
