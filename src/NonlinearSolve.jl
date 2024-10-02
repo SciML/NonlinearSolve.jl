@@ -54,9 +54,6 @@ using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJac
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseConnectivityTracer: TracerSparsityDetector # This can be dropped in the next release
-using SparseDiffTools: SparseDiffTools, JacPrototypeSparsityDetection,
-                       PrecomputedJacobianColorvec, init_jacobian, sparse_jacobian,
-                       sparse_jacobian!, sparse_jacobian_cache
 using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
                              LargestFirst
 
