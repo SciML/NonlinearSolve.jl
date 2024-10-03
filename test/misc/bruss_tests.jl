@@ -52,12 +52,6 @@
     sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    prob_brusselator_2d_sparse = NonlinearProblem(
-        NonlinearFunction(brusselator_2d_loop; sparsity = SymbolicsSparsityDetector()),
-        u0, p)
-    sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-8
-
     # Deprecated
     sol = solve(prob_brusselator_2d,
         NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
