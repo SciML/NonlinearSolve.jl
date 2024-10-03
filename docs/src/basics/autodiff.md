@@ -22,9 +22,10 @@
 
 ## Summary of Reverse Mode AD Backends
 
-  - [`AutoZygote`](@ref): The fastest choice for non-mutating array-based (BLAS) functions.
-  - [`AutoEnzyme`](@ref): Uses `Enzyme.jl` Reverse Mode and works for both in-place and
-    out-of-place functions.
+  - [`AutoZygote`](@extref ADTypes): The fastest choice for non-mutating array-based (BLAS)
+    functions.
+  - [`AutoEnzyme`](@extref ADTypes): Uses `Enzyme.jl` Reverse Mode and works for both
+    in-place and out-of-place functions.
 
 !!! tip
 

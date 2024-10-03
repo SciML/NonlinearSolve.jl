@@ -68,7 +68,6 @@ const True = Val(true)
 const False = Val(false)
 
 include("abstract_types.jl")
-include("adtypes.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
