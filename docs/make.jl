@@ -12,6 +12,10 @@ include("pages.jl")
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
+interlinks = InterLinks(
+    "ADTypes" => "https://sciml.github.io/ADTypes.jl/stable/",
+)
+
 makedocs(; sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
     modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq,
@@ -23,7 +27,7 @@ makedocs(; sitename = "NonlinearSolve.jl",
         "https://link.springer.com/article/10.1007/s40096-020-00339-4"],
     checkdocs = :exports,
     warnonly = [:missing_docs],
-    plugins = [bib],
+    plugins = [bib, interlinks],
     format = Documenter.HTML(assets = ["assets/favicon.ico", "assets/citations.css"],
         canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
     pages)

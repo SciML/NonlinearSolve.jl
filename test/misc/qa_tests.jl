@@ -18,7 +18,7 @@ end
     using NonlinearSolve, ADTypes, SimpleNonlinearSolve, SciMLBase
     import BandedMatrices, FastLevenbergMarquardt, FixedPointAcceleration,
            LeastSquaresOptim, MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping,
-           Symbolics, Zygote
+           Zygote
 
     using ExplicitImports
 
