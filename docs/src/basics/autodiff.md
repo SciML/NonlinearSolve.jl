@@ -8,24 +8,25 @@
 
 ## Summary of Finite Differencing Backends
 
-  - [`AutoFiniteDiff`](@extref ADTypes): Finite differencing using `FiniteDiff.jl`, not
-    optimal but always applicable.
-  - [`AutoFiniteDifferences`](@extref ADTypes): Finite differencing using
-    `FiniteDifferences.jl`, not optimal but always applicable.
+  - [`AutoFiniteDiff`](@extref ADTypes.AutoFiniteDiff): Finite differencing using
+    `FiniteDiff.jl`, not optimal but always applicable.
+  - [`AutoFiniteDifferences`](@extref ADTypes.AutoFiniteDifferences): Finite differencing
+    using `FiniteDifferences.jl`, not optimal but always applicable.
 
 ## Summary of Forward Mode AD Backends
 
-  - [`AutoForwardDiff`](@extref ADTypes): The best choice for dense problems.
-  - [`AutoPolyesterForwardDiff`](@extref ADTypes): Might be faster than
-    [`AutoForwardDiff`](@extref ADTypes) for large problems. Requires
+  - [`AutoForwardDiff`](@extref ADTypes.AutoForwardDiff): The best choice for dense
+    problems.
+  - [`AutoPolyesterForwardDiff`](@extref ADTypes.AutoPolyesterForwardDiff): Might be faster
+    than [`AutoForwardDiff`](@extref ADTypes.AutoForwardDiff) for large problems. Requires
     `PolyesterForwardDiff.jl` to be installed and loaded.
 
 ## Summary of Reverse Mode AD Backends
 
-  - [`AutoZygote`](@extref ADTypes): The fastest choice for non-mutating array-based (BLAS)
-    functions.
-  - [`AutoEnzyme`](@extref ADTypes): Uses `Enzyme.jl` Reverse Mode and works for both
-    in-place and out-of-place functions.
+  - [`AutoZygote`](@extref ADTypes.AutoZygote): The fastest choice for non-mutating
+    array-based (BLAS) functions.
+  - [`AutoEnzyme`](@extref ADTypes.AutoEnzyme): Uses `Enzyme.jl` Reverse Mode and works for
+    both in-place and out-of-place functions.
 
 !!! tip
     

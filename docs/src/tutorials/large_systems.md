@@ -162,10 +162,11 @@ sparse differentiation!
 
 One of the useful companion tools for NonlinearSolve.jl is
 [ADTypes.jl](https://github.com/SciML/ADTypes.jl) that specifies the interface for sparsity
-detection via [`jacobian_sparsity`](@extref ADTypes). This allows for automatic
-declaration of Jacobian sparsity types. To see this in action, we can give an example `du`
-and `u` and call `jacobian_sparsity` on our function with the example arguments, and it will
-kick out a sparse matrix with our pattern, that we can turn into our `jac_prototype`.
+detection via [`jacobian_sparsity`](@extref ADTypes.jacobian_sparsity). This allows for
+automatic declaration of Jacobian sparsity types. To see this in action, we can give an
+example `du` and `u` and call `jacobian_sparsity` on our function with the example
+arguments, and it will kick out a sparse matrix with our pattern, that we can turn into our
+`jac_prototype`.
 
 !!! tip
     
