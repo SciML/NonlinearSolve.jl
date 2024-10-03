@@ -1,7 +1,7 @@
 @testsetup module CoreRootfindTesting
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
-                LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseDiffTools, DiffEqBase
+                LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 

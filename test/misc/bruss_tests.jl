@@ -1,5 +1,5 @@
 @testitem "Brusselator 2D" tags=[:misc] begin
-    using LinearAlgebra, SparseArrays, SparseConnectivityTracer, Symbolics
+    using LinearAlgebra, SparseArrays, SparseConnectivityTracer, ADTypes
 
     const N = 32
     const xyd_brusselator = range(0, stop = 1, length = N)
@@ -63,9 +63,9 @@
         NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    du0 = copy(u0)
-    jac_prototype = Symbolics.jacobian_sparsity(
-        (du, u) -> brusselator_2d_loop(du, u, p), du0, u0)
+    f! = (du, u) -> brusselator_2d_loop(du, u, p)
+    du0 = similar(u0)
+    jac_prototype = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
 
     ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
     prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)
