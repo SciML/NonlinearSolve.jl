@@ -61,9 +61,6 @@ using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
 
 const DI = DifferentiationInterface
 
-# Type-Inference Friendly Check for Extension Loading
-is_extension_loaded(::Val) = false
-
 const True = Val(true)
 const False = Val(false)
 

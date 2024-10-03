@@ -17,8 +17,7 @@ end
 @testitem "Explicit Imports" tags=[:misc] begin
     using NonlinearSolve, ADTypes, SimpleNonlinearSolve, SciMLBase
     import BandedMatrices, FastLevenbergMarquardt, FixedPointAcceleration,
-           LeastSquaresOptim, MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping,
-           Zygote
+           LeastSquaresOptim, MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping
 
     using ExplicitImports
 
