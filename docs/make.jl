@@ -1,4 +1,4 @@
-using Documenter, DocumenterCitations
+using Documenter, DocumenterCitations, DocumenterInterLinks
 using NonlinearSolve, SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase,
       DiffEqBase
 using SciMLJacobianOperators
