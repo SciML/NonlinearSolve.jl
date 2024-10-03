@@ -1,7 +1,7 @@
 # Automatic Differentiation Backends
 
 !!! note
-
+    
     We support all backends supported by DifferentiationInterface.jl. Please refer to
     the [backends page](https://gdalle.github.io/DifferentiationInterface.jl/DifferentiationInterface/stable/explanation/backends/)
     for more information.
@@ -28,6 +28,6 @@
     in-place and out-of-place functions.
 
 !!! tip
-
+    
     For sparsity detection and sparse AD take a look at
     [sparsity detection](@ref sparsity-detection).
