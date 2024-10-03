@@ -161,22 +161,23 @@ is non-zeros, otherwise the overhead of sparse matrices can be higher than the g
 sparse differentiation!
 
 One of the useful companion tools for NonlinearSolve.jl is
-[Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl). This allows for automatic
+[ADTypes.jl](https://github.com/SciML/ADTypes.jl) that specifies the interface for sparsity
+detection via [`jacobian_sparsity`](@extref ADTypes). This allows for automatic
 declaration of Jacobian sparsity types. To see this in action, we can give an example `du`
 and `u` and call `jacobian_sparsity` on our function with the example arguments, and it will
 kick out a sparse matrix with our pattern, that we can turn into our `jac_prototype`.
 
 !!! tip
     
-    Alternatively you can use the `SparseConnectivityTracer.jl` package to automatically
-    generate a sparse Jacobian.
+    External packages like `SparseConnectivityTracer.jl` and `Symbolics.jl` provide the
+    actual implementation of sparsity detection.
 
 ```@example ill_conditioned_nlprob
-using Symbolics
+using SparseConnectivityTracer, ADTypes
 
-du0 = copy(u0)
-jac_sparsity = Symbolics.jacobian_sparsity(
-    (du, u) -> brusselator_2d_loop(du, u, p), du0, u0)
+f! = (du, u) -> brusselator_2d_loop(du, u, p)
+du0 = similar(u0)
+jac_sparsity = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
 ```
 
 Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
@@ -322,9 +323,6 @@ sparsity detection. Let's compare the two by setting the sparsity detection algo
 ```@example ill_conditioned_nlprob
 using DifferentiationInterface, SparseConnectivityTracer
 
-prob_brusselator_2d_exact_symbolics = NonlinearProblem(
-    NonlinearFunction(brusselator_2d_loop; sparsity = SymbolicsSparsityDetector()),
-    u0, p; abstol = 1e-10, reltol = 1e-10)
 prob_brusselator_2d_exact_tracer = NonlinearProblem(
     NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
     u0, p; abstol = 1e-10, reltol = 1e-10)
@@ -333,7 +331,6 @@ prob_brusselator_2d_approx_di = NonlinearProblem(
         sparsity = DenseSparsityDetector(AutoForwardDiff(); atol = 1e-4)),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 
-@btime solve(prob_brusselator_2d_exact_symbolics, NewtonRaphson());
 @btime solve(prob_brusselator_2d_exact_tracer, NewtonRaphson());
 @btime solve(prob_brusselator_2d_approx_di, NewtonRaphson());
 nothing # hide
