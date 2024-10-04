@@ -27,8 +27,13 @@ is_extension_loaded(::Val) = false
 
 include("utils.jl")
 
+include("broyden.jl")
+include("dfsane.jl")
+include("halley.jl")
 include("klement.jl")
+include("lbroyden.jl")
 include("raphson.jl")
+include("trust_region.jl")
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
 function CommonSolve.solve(prob::NonlinearProblem,
