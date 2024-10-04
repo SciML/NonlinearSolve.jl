@@ -62,13 +62,13 @@ function identity_jacobian(u::Number, fu::Number, α = true)
     return convert(promote_type(eltype(u), eltype(fu)), α)
 end
 function identity_jacobian(u, fu, α = true)
-    J = safe_similar(u, promote_type(eltype(u), eltype(fu)))
+    J = safe_similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
     fill!(J, zero(eltype(J)))
     J[diagind(J)] .= eltype(J)(α)
     return J
 end
 function identity_jacobian(u::StaticArray, fu, α = true)
-    return SMatrix{length(fu), length(u), eltype(u)}(I * α)
+    return SMatrix{length(fu), length(u), promote_type(eltype(fu), eltype(u))}(I * α)
 end
 
 identity_jacobian!!(J::Number) = one(J)
