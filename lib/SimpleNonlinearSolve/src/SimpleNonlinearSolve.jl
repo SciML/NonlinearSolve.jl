@@ -4,8 +4,8 @@ using CommonSolve: CommonSolve, solve
 using ConcreteStructs: @concrete
 using FastClosures: @closure
 using LineSearch: LiFukushimaLineSearch
-using LinearAlgebra: dot
-using MaybeInplace: @bb
+using LinearAlgebra: LinearAlgebra, dot
+using MaybeInplace: @bb, setindex_trait, CannotSetindex, CanSetindex
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 @reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
@@ -82,17 +82,14 @@ function solve_adjoint_internal end
         algs = [
             SimpleBroyden(),
             SimpleKlement(),
+            SimpleHalley(),
             SimpleNewtonRaphson(),
             SimpleTrustRegion()
         ]
-        algs_no_iip = []
 
         @compile_workload begin
             for alg in algs, prob in (prob_scalar, prob_iip, prob_oop)
                 CommonSolve.solve(prob, alg)
-            end
-            for alg in algs_no_iip
-                CommonSolve.solve(prob_scalar, alg)
             end
         end
     end
@@ -104,5 +101,6 @@ export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 export SimpleBroyden, SimpleKlement
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
+export SimpleHalley
 
 end
