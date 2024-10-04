@@ -1,5 +1,6 @@
 module SimpleNonlinearSolve
 
+using Accessors: @reset
 using CommonSolve: CommonSolve, solve
 using ConcreteStructs: @concrete
 using FastClosures: @closure
@@ -10,7 +11,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 @reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
 using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
-using StaticArraysCore: StaticArray
+using StaticArraysCore: StaticArray, SVector
 
 # AD Dependencies
 using ADTypes: AbstractADType, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
@@ -81,7 +82,9 @@ function solve_adjoint_internal end
 
         algs = [
             SimpleBroyden(),
+            # SimpleDFSane(),
             SimpleKlement(),
+            # SimpleLimitedMemoryBroyden(),
             SimpleHalley(),
             SimpleNewtonRaphson(),
             SimpleTrustRegion()
@@ -100,6 +103,7 @@ export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 export SimpleBroyden, SimpleKlement
+export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 export SimpleHalley
 
