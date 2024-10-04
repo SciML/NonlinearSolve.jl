@@ -3,6 +3,7 @@ module SimpleNonlinearSolve
 using CommonSolve: CommonSolve, solve
 using ConcreteStructs: @concrete
 using FastClosures: @closure
+using LineSearch: LiFukushimaLineSearch
 using LinearAlgebra: dot
 using MaybeInplace: @bb
 using PrecompileTools: @compile_workload, @setup_workload
@@ -79,6 +80,7 @@ function solve_adjoint_internal end
         prob_oop = NonlinearProblem{false}((u, p) -> u .* u .- p, ones(T, 3), T(2))
 
         algs = [
+            SimpleBroyden(),
             SimpleKlement(),
             SimpleNewtonRaphson(),
             SimpleTrustRegion()
@@ -100,7 +102,7 @@ export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
-export SimpleKlement
+export SimpleBroyden, SimpleKlement
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 
 end
