@@ -178,4 +178,26 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
     return J
 end
 
+function compute_jacobian_and_hessian(autodiff, prob, _, x::Number)
+    H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
+    fx, J = DI.value_and_derivative(prob.f, autodiff, x, Constant(prob.p))
+    return fx, J, H
+end
+function compute_jacobian_and_hessian(autodiff, prob, fx, x)
+    if SciMLBase.isinplace(prob)
+        jac_fn = @closure (u, p) -> begin
+            du = similar(fx, promote_type(eltype(fx), eltype(u)))
+            return DI.jacobian(prob.f, du, autodiff, u, Constant(p))
+        end
+        J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
+        fx = Utils.eval_f(prob, fx, x)
+        return fx, J, H
+    else
+        jac_fn = @closure (u, p) -> DI.jacobian(prob.f, autodiff, u, Constant(p))
+        J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
+        fx = Utils.eval_f(prob, fx, x)
+        return fx, J, H
+    end
+end
+
 end
