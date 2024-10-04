@@ -193,7 +193,7 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
         end
     end
     if SciMLBase.isinplace(prob)
-        DI.jacobian!(prob.f, J, fx, extras, autodiff, x, Constant(prob.p))
+        DI.jacobian!(prob.f, fx, J, extras, autodiff, x, Constant(prob.p))
     else
         DI.jacobian!(prob.f, J, extras, autodiff, x, Constant(prob.p))
     end
