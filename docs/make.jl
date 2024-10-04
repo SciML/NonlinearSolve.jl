@@ -14,9 +14,11 @@ bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 interlinks = InterLinks(
     "ADTypes" => "https://sciml.github.io/ADTypes.jl/stable/",
+    "LineSearch" => "https://sciml.github.io/LineSearch.jl/dev/"
 )
 
-makedocs(; sitename = "NonlinearSolve.jl",
+makedocs(;
+    sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
     modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq,
         Sundials, DiffEqBase, SciMLBase, SciMLJacobianOperators],
@@ -30,6 +32,7 @@ makedocs(; sitename = "NonlinearSolve.jl",
     plugins = [bib, interlinks],
     format = Documenter.HTML(assets = ["assets/favicon.ico", "assets/citations.css"],
         canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
-    pages)
+    pages
+)
 
 deploydocs(repo = "github.com/SciML/NonlinearSolve.jl.git"; push_preview = true)

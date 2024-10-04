@@ -9,9 +9,8 @@ Method.
 
 ### Arguments
 
-  - `linesearch`: Globalization using a Line Search Method. This needs to follow the
-    [`NonlinearSolve.AbstractNonlinearSolveLineSearchAlgorithm`](@ref) interface. This
-    is not optional currently, but that restriction might be lifted in the future.
+  - `linesearch`: Globalization using a Line Search Method. This is not optional currently,
+    but that restriction might be lifted in the future.
   - `σ_min`: The minimum spectral parameter allowed. This is used to ensure that the
     spectral parameter is not too small.
   - `σ_max`: The maximum spectral parameter allowed. This is used to ensure that the
@@ -119,7 +118,7 @@ end
 function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
         stats = empty_nlstats(), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, termination_condition = nothing,
-        internalnorm::F = DEFAULT_NORM, maxtime = nothing, kwargs...) where {F}
+        maxtime = nothing, kwargs...)
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = __maybe_unaliased(prob.u0, alias_u0)
@@ -130,8 +129,7 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
         fu = evaluate_f(prob, u)
         @bb fu_cache = copy(fu)
 
-        linesearch_cache = __internal_init(prob, alg.linesearch, prob.f, fu, u, prob.p;
-            stats, maxiters, internalnorm, kwargs...)
+        linesearch_cache = init(prob, alg.linesearch, fu, u; stats, kwargs...)
 
         abstol, reltol, tc_cache = init_termination_cache(
             prob, abstol, reltol, fu, u_cache, termination_condition)
@@ -167,7 +165,9 @@ function __step!(cache::GeneralizedDFSaneCache{iip};
     end
 
     @static_timeit cache.timer "linesearch" begin
-        linesearch_failed, α = __internal_solve!(cache.linesearch_cache, cache.u, cache.du)
+        linesearch_sol = solve!(cache.linesearch_cache, cache.u, cache.du)
+        linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+        α = linesearch_sol.step_size
     end
 
     if linesearch_failed

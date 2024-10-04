@@ -22,6 +22,8 @@ using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
+using LineSearch: LineSearch, AbstractLineSearchAlgorithm, AbstractLineSearchCache,
+                  NoLineSearch, RobustNonMonotoneLineSearch
 using LineSearches: LineSearches
 using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
                    needs_concrete_A, AbstractFactorization,
@@ -172,8 +174,9 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcce
 
 # Globalization
 ## Line Search Algorithms
-export LineSearchesJL, NoLineSearch, RobustNonMonotoneLineSearch, LiFukushimaLineSearch
-export Static, HagerZhang, MoreThuente, StrongWolfe, BackTracking
+export LineSearchesJL, LiFukushimaLineSearch # FIXME: deprecated. use LineSearch.jl directly
+export Static, HagerZhang, MoreThuente, StrongWolfe, BackTracking  # FIXME: deprecated
+export NoLineSearch, RobustNonMonotoneLineSearch
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 

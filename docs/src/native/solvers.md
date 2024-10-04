@@ -22,7 +22,7 @@ documentation.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@ref),
+  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@extref LineSearch.NoLineSearch),
     which means that no line search is performed.  Algorithms from
     [`LineSearches.jl`](https://github.com/JuliaNLSolvers/LineSearches.jl/) must be
     wrapped in [`LineSearchesJL`](@ref) before being supplied. For a detailed documentation

@@ -38,13 +38,6 @@ NonlinearSolve.AbstractDampingFunction
 NonlinearSolve.AbstractDampingFunctionCache
 ```
 
-## Line Search
-
-```@docs
-NonlinearSolve.AbstractNonlinearSolveLineSearchAlgorithm
-NonlinearSolve.AbstractNonlinearSolveLineSearchCache
-```
-
 ## Trust Region
 
 ```@docs

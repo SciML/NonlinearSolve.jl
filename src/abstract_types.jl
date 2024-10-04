@@ -107,22 +107,6 @@ function last_step_accepted(cache::AbstractDescentCache)
 end
 
 """
-    AbstractNonlinearSolveLineSearchAlgorithm
-
-Abstract Type for all Line Search Algorithms used in NonlinearSolve.jl.
-
-### `__internal_init` specification
-
-```julia
-__internal_init(
-    prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveLineSearchAlgorithm, f::F,
-    fu, u, p, args...; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN} -->
-AbstractNonlinearSolveLineSearchCache
-```
-"""
-abstract type AbstractNonlinearSolveLineSearchAlgorithm end
-
-"""
     AbstractNonlinearSolveLineSearchCache
 
 Abstract Type for all Line Search Caches used in NonlinearSolve.jl.
@@ -512,9 +496,9 @@ SciMLBase.isinplace(::AbstractNonlinearSolveJacobianCache{iip}) where {iip} = ii
 abstract type AbstractNonlinearSolveTraceLevel end
 
 # Default Printing
-for aType in (AbstractTrustRegionMethod, AbstractNonlinearSolveLineSearchAlgorithm,
-    AbstractResetCondition, AbstractApproximateJacobianUpdateRule,
-    AbstractDampingFunction, AbstractNonlinearSolveExtensionAlgorithm)
+for aType in (AbstractTrustRegionMethod, AbstractResetCondition,
+    AbstractApproximateJacobianUpdateRule, AbstractDampingFunction,
+    AbstractNonlinearSolveExtensionAlgorithm)
     @eval function Base.show(io::IO, alg::$(aType))
         print(io, "$(nameof(typeof(alg)))()")
     end
