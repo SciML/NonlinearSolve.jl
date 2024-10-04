@@ -81,6 +81,7 @@ function solve_adjoint_internal end
         prob_oop = NonlinearProblem{false}((u, p) -> u .* u .- p, ones(T, 3), T(2))
 
         # Only compile frequently used algorithms -- mostly from the NonlinearSolve default
+        #!format: off
         algs = [
             SimpleBroyden(),
             # SimpleDFSane(),
@@ -90,6 +91,7 @@ function solve_adjoint_internal end
             SimpleNewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 1)),
             # SimpleTrustRegion()
         ]
+        #!format: on
 
         @compile_workload begin
             @sync for alg in algs
@@ -100,7 +102,6 @@ function solve_adjoint_internal end
         end
     end
 end
-
 
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 
