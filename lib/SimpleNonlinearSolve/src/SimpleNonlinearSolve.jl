@@ -75,28 +75,32 @@ end
 function solve_adjoint_internal end
 
 @setup_workload begin
-    for T in (Float32, Float64)
+    for T in (Float64,)
         prob_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
         prob_iip = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p, ones(T, 3), T(2))
         prob_oop = NonlinearProblem{false}((u, p) -> u .* u .- p, ones(T, 3), T(2))
 
+        # Only compile frequently used algorithms -- mostly from the NonlinearSolve default
         algs = [
             SimpleBroyden(),
             # SimpleDFSane(),
             SimpleKlement(),
             # SimpleLimitedMemoryBroyden(),
-            SimpleHalley(),
-            SimpleNewtonRaphson(),
-            SimpleTrustRegion()
+            # SimpleHalley(),
+            SimpleNewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 1)),
+            # SimpleTrustRegion()
         ]
 
         @compile_workload begin
-            for alg in algs, prob in (prob_scalar, prob_iip, prob_oop)
-                CommonSolve.solve(prob, alg)
+            @sync for alg in algs
+                for prob in (prob_scalar, prob_iip, prob_oop)
+                    Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2)
+                end
             end
         end
     end
 end
+
 
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 
