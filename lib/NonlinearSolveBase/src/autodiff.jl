@@ -3,21 +3,21 @@
 
 # Ordering is important here. We want to select the first one that is compatible with the
 # problem.
-const ReverseADs = [
+const ReverseADs = (
     ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
     ADTypes.AutoZygote(),
     ADTypes.AutoTracker(),
     ADTypes.AutoReverseDiff(; compile = true),
     ADTypes.AutoReverseDiff(),
     ADTypes.AutoFiniteDiff()
-]
+)
 
-const ForwardADs = [
+const ForwardADs = (
     ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward),
     ADTypes.AutoPolyesterForwardDiff(),
     ADTypes.AutoForwardDiff(),
     ADTypes.AutoFiniteDiff()
-]
+)
 
 # TODO: Handle Sparsity
 
@@ -28,7 +28,8 @@ function select_forward_mode_autodiff(
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_forward_mode_autodiff(prob, nothing; warn_check_mode)
-        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. After \
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
+               could be because the backend package for the choosen AD isn't loaded. After \
                running autodiff selection detected `$(adₙ)` as a potential forward mode \
                backend."
         return adₙ
@@ -57,7 +58,8 @@ function select_reverse_mode_autodiff(
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_reverse_mode_autodiff(prob, nothing; warn_check_mode)
-        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. After \
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
+               could be because the backend package for the choosen AD isn't loaded. After \
                running autodiff selection detected `$(adₙ)` as a potential reverse mode \
                backend."
         return adₙ
@@ -77,7 +79,8 @@ end
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractADType)
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_jacobian_autodiff(prob, nothing)
-        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. After \
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
+               could be because the backend package for the choosen AD isn't loaded. After \
                running autodiff selection detected `$(adₙ)` as a potential jacobian \
                backend."
         return adₙ

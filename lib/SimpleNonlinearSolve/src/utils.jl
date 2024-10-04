@@ -2,7 +2,7 @@ module Utils
 
 using ADTypes: AbstractADType, AutoForwardDiff, AutoFiniteDiff, AutoPolyesterForwardDiff
 using ArrayInterface: ArrayInterface
-using DifferentiationInterface: DifferentiationInterface
+using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
@@ -130,6 +130,74 @@ function check_termination(
         return true, cache.retcode, fx, x
     end
     return false, ReturnCode.Default, fx, x
+end
+
+restructure(y, x) = ArrayInterface.restructure(y, x)
+restructure(::Number, x::Number) = x
+
+safe_vec(x::AbstractArray) = vec(x)
+safe_vec(x::Number) = x
+
+function prepare_jacobian(prob, autodiff, _, x::Number)
+    if SciMLBase.has_jac(prob.f) || SciMLBase.has_vjp(prob.f) || SciMLBase.has_jvp(prob.f)
+        return nothing
+    end
+    return DI.prepare_derivative(prob.f, autodiff, x, Constant(prob.p))
+end
+function prepare_jacobian(prob, autodiff, fx, x)
+    if SciMLBase.has_jac(prob.f)
+        return nothing
+    end
+    if SciMLBase.isinplace(prob.f)
+        return DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p))
+    else
+        return DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p))
+    end
+end
+
+function compute_jacobian!!(_, prob, autodiff, fx, x::Number, extras)
+    if extras === nothing
+        if SciMLBase.has_jac(prob.f)
+            return prob.f.jac(x, prob.p)
+        elseif SciMLBase.has_vjp(prob.f)
+            return prob.f.vjp(one(x), x, prob.p)
+        elseif SciMLBase.has_jvp(prob.f)
+            return prob.f.jvp(one(x), x, prob.p)
+        end
+    end
+    return DI.derivative(prob.f, extras, autodiff, x, Constant(prob.p))
+end
+function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
+    if J === nothing
+        if extras === nothing
+            if SciMLBase.isinplace(prob.f)
+                J = similar(fx, length(fx), length(x))
+                prob.f.jac(J, x, prob.p)
+                return J
+            else
+                return prob.f.jac(x, prob.p)
+            end
+        end
+        if SciMLBase.isinplace(prob)
+            return DI.jacobian(prob.f, fx, extras, autodiff, x, Constant(prob.p))
+        else
+            return DI.jacobian(prob.f, extras, autodiff, x, Constant(prob.p))
+        end
+    end
+    if extras === nothing
+        if SciMLBase.isinplace(prob)
+            prob.jac(J, x, prob.p)
+            return J
+        else
+            return prob.jac(x, prob.p)
+        end
+    end
+    if SciMLBase.isinplace(prob)
+        DI.jacobian!(prob.f, J, fx, extras, autodiff, x, Constant(prob.p))
+    else
+        DI.jacobian!(prob.f, J, extras, autodiff, x, Constant(prob.p))
+    end
+    return J
 end
 
 end

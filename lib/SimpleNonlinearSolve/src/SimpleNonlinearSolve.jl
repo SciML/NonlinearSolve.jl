@@ -1,6 +1,7 @@
 module SimpleNonlinearSolve
 
 using CommonSolve: CommonSolve, solve
+using ConcreteStructs: @concrete
 using FastClosures: @closure
 using MaybeInplace: @bb
 using PrecompileTools: @compile_workload, @setup_workload
@@ -27,6 +28,7 @@ is_extension_loaded(::Val) = false
 include("utils.jl")
 
 include("klement.jl")
+include("raphson.jl")
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
 function CommonSolve.solve(prob::NonlinearProblem,
@@ -69,7 +71,10 @@ function solve_adjoint_internal end
         prob_iip = NonlinearProblem{true}((du, u, p) -> du .= u .* u .- p, ones(T, 3), T(2))
         prob_oop = NonlinearProblem{false}((u, p) -> u .* u .- p, ones(T, 3), T(2))
 
-        algs = [SimpleKlement()]
+        algs = [
+            SimpleKlement(),
+            SimpleNewtonRaphson()
+        ]
         algs_no_iip = []
 
         @compile_workload begin
@@ -86,5 +91,8 @@ end
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
+
+export SimpleKlement
+export SimpleGaussNewton, SimpleNewtonRaphson
 
 end
