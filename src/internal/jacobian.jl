@@ -88,7 +88,7 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 if iip
                     DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
                 else
-                    DI.jacobian(f, autodiff, u, Constant(p))
+                    DI.jacobian(f, di_extras, autodiff, u, Constant(p))
                 end
             end
         else
