@@ -3,6 +3,7 @@ module SimpleNonlinearSolve
 using CommonSolve: CommonSolve, solve
 using ConcreteStructs: @concrete
 using FastClosures: @closure
+using LinearAlgebra: dot
 using MaybeInplace: @bb
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
@@ -17,7 +18,8 @@ using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 
 using BracketingNonlinearSolve: Alefeld, Bisection, Brent, Falsi, ITP, Ridder
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, get_tolerance
+using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, get_tolerance,
+                          L2_NORM
 
 const DI = DifferentiationInterface
 
@@ -78,7 +80,8 @@ function solve_adjoint_internal end
 
         algs = [
             SimpleKlement(),
-            SimpleNewtonRaphson()
+            SimpleNewtonRaphson(),
+            SimpleTrustRegion()
         ]
         algs_no_iip = []
 
@@ -98,6 +101,6 @@ export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 export SimpleKlement
-export SimpleGaussNewton, SimpleNewtonRaphson
+export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 
 end
