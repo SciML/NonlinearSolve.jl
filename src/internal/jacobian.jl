@@ -25,8 +25,7 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
   - `jvp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
     the Jacobian-vector product.
   - `linsolve`: Linear Solver Algorithm used to determine if we need a concrete jacobian
-    or if possible we can just use a [`SciMLJacobianOperators.JacobianOperator`](@ref)
-    instead.
+    or if possible we can just use a `SciMLJacobianOperators.JacobianOperator` instead.
 """
 @concrete mutable struct JacobianCache{iip} <: AbstractNonlinearSolveJacobianCache{iip}
     J

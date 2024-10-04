@@ -8,12 +8,9 @@ Pages = ["globalization.md"]
 
 ## [Line Search Algorithms](@id line-search)
 
-```@docs
-LiFukushimaLineSearch
-LineSearchesJL
-RobustNonMonotoneLineSearch
-NoLineSearch
-```
+Line Searches have been moved to an external package. Take a look at the
+[LineSearch.jl](https://github.com/SciML/LineSearch.jl) package and its
+[documentation](https://sciml.github.io/LineSearch.jl/dev/).
 
 ## Radius Update Schemes for Trust Region
 
