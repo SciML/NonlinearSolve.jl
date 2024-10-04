@@ -28,28 +28,6 @@ function maybe_unaliased(x::T, alias::Bool) where {T <: AbstractArray}
     return copy(x)
 end
 
-function get_concrete_autodiff(_, ad::AbstractADType)
-    DI.check_available(ad) && return ad
-    error("AD Backend $(ad) is not available. This could be because you haven't loaded the \
-           actual backend (See [Differentiation Interface Docs](https://gdalle.github.io/DifferentiationInterface.jl/DifferentiationInterface/stable/) \
-           for more details) or the backend might not be supported by DifferentiationInterface.jl.")
-end
-function get_concrete_autodiff(
-        prob, ad::Union{AutoForwardDiff{nothing}, AutoPolyesterForwardDiff{nothing}})
-    return get_concrete_autodiff(prob,
-        ArrayInterface.parameterless_type(ad)(;
-            chunksize = pickchunksize(length(prob.u0)), ad.tag))
-end
-function get_concrete_autodiff(prob, ::Nothing)
-    if can_dual(eltype(prob.u0)) && DI.check_available(AutoForwardDiff())
-        return AutoForwardDiff(; chunksize = pickchunksize(length(prob.u0)))
-    end
-    DI.check_available(AutoFiniteDiff()) && return AutoFiniteDiff()
-    error("Default AD backends are not available. Please load either FiniteDiff or \
-           ForwardDiff for default AD selection to work. Else provide a specific AD \
-           backend (instead of `nothing`) to the solver.")
-end
-
 # NOTE: This doesn't initialize the `f(x)` but just returns a buffer of the same size
 function get_fx(prob::NonlinearLeastSquaresProblem, x)
     if SciMLBase.isinplace(prob) && prob.f.resid_prototype === nothing
