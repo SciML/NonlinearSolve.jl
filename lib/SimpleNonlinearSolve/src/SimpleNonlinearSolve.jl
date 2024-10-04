@@ -11,7 +11,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 @reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
 using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
-using StaticArraysCore: StaticArray, SVector
+using StaticArraysCore: StaticArray, SArray, SVector, MArray
 
 # AD Dependencies
 using ADTypes: AbstractADType, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
@@ -107,7 +107,7 @@ export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
-export SimpleBroyden, SimpleKlement
+export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 export SimpleHalley
