@@ -92,13 +92,13 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 end
             end
         else
-            jac_proto = if eltype(f.jac_prototype) <: Bool
-                similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
+            if eltype(f.jac_prototype) <: Bool
+                jac_proto = similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
+                fill!(jac_proto, false)
+                jac_proto
             else
-                similar(f.jac_prototype)
+                f.jac_prototype
             end
-            fill!(jac_proto, false)
-            jac_proto
         end
     end
 
