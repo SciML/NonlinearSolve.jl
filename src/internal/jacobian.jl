@@ -92,11 +92,10 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 end
             end
         else
-            # NOTE: don't use similar because that might lead to an unwrapped array
             if eltype(f.jac_prototype) <: Bool
-                promote_type(eltype(fu), eltype(u)).(f.jac_prototype)
+                similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
             else
-                copy(f.jac_prototype)
+                similar(f.jac_prototype)
             end
         end
     end
