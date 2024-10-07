@@ -62,6 +62,19 @@ function CommonSolve.solve(
 end
 
 function CommonSolve.solve(
+        prob::NonlinearLeastSquaresProblem{<:Union{Number, <:AbstractArray}, iip,
+            <:Union{
+                <:ForwardDiff.Dual{T, V, P}, <:AbstractArray{<:ForwardDiff.Dual{T, V, P}}}},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
+        args...;
+        kwargs...) where {T, V, P, iip}
+    sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
+    dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
+    return SciMLBase.build_solution(
+        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+end
+
+function CommonSolve.solve(
         prob::ImmutableNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
