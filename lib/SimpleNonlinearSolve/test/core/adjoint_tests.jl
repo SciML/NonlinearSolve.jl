@@ -1,5 +1,6 @@
 @testitem "Simple Adjoint Test" tags=[:adjoint] begin
-    using ForwardDiff, ReverseDiff, SciMLSensitivity, Tracker, Zygote
+    using ForwardDiff, ReverseDiff, SciMLSensitivity, Tracker, Zygote, DiffEqBase,
+          SimpleNonlinearSolve
 
     ff(u, p) = u .^ 2 .- p
 
