@@ -2,6 +2,7 @@ module Utils
 
 using ADTypes: AbstractADType, AutoForwardDiff, AutoFiniteDiff, AutoPolyesterForwardDiff
 using ArrayInterface: ArrayInterface
+using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
@@ -116,25 +117,35 @@ restructure(::Number, x::Number) = x
 safe_vec(x::AbstractArray) = vec(x)
 safe_vec(x::Number) = x
 
+abstract type AbstractJacobianMode end
+
+struct AnalyticJacobian <: AbstractJacobianMode end
+@concrete struct DIExtras <: AbstractJacobianMode
+    prep
+end
+struct DINoPreparation <: AbstractJacobianMode end
+
+# While we could run prep in other cases, we don't since we need it completely
+# non-allocating for running inside GPU kernels
 function prepare_jacobian(prob, autodiff, _, x::Number)
     if SciMLBase.has_jac(prob.f) || SciMLBase.has_vjp(prob.f) || SciMLBase.has_jvp(prob.f)
-        return nothing
+        return AnalyticJacobian()
     end
-    return DI.prepare_derivative(prob.f, autodiff, x, Constant(prob.p))
+    # return DI.prepare_derivative(prob.f, autodiff, x, Constant(prob.p))
+    return DINoPreparation()
 end
 function prepare_jacobian(prob, autodiff, fx, x)
-    if SciMLBase.has_jac(prob.f)
-        return nothing
-    end
+    SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
     if SciMLBase.isinplace(prob.f)
-        return DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p))
+        return DIExtras(DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p)))
     else
+        x isa SArray && return DINoPreparation()
         return DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p))
     end
 end
 
 function compute_jacobian!!(_, prob, autodiff, fx, x::Number, extras)
-    if extras === nothing
+    if extras isa AnalyticJacobian
         if SciMLBase.has_jac(prob.f)
             return prob.f.jac(x, prob.p)
         elseif SciMLBase.has_vjp(prob.f)
@@ -143,11 +154,15 @@ function compute_jacobian!!(_, prob, autodiff, fx, x::Number, extras)
             return prob.f.jvp(one(x), x, prob.p)
         end
     end
-    return DI.derivative(prob.f, extras, autodiff, x, Constant(prob.p))
+    if extras isa DIExtras
+        return DI.derivative(prob.f, extras.prep, autodiff, x, Constant(prob.p))
+    else
+        return DI.derivative(prob.f, autodiff, x, Constant(prob.p))
+    end
 end
 function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
     if J === nothing
-        if extras === nothing
+        if extras isa AnalyticJacobian
             if SciMLBase.isinplace(prob.f)
                 J = similar(fx, length(fx), length(x))
                 prob.f.jac(J, x, prob.p)
@@ -157,12 +172,17 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
             end
         end
         if SciMLBase.isinplace(prob)
-            return DI.jacobian(prob.f, fx, extras, autodiff, x, Constant(prob.p))
+            @assert extras isa DIExtras
+            return DI.jacobian(prob.f, fx, extras.prep, autodiff, x, Constant(prob.p))
         else
-            return DI.jacobian(prob.f, extras, autodiff, x, Constant(prob.p))
+            if extras isa DIExtras
+                return DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
+            else
+                return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
+            end
         end
     end
-    if extras === nothing
+    if extras isa AnalyticJacobian
         if SciMLBase.isinplace(prob)
             prob.jac(J, x, prob.p)
             return J
@@ -171,9 +191,22 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
         end
     end
     if SciMLBase.isinplace(prob)
-        DI.jacobian!(prob.f, fx, J, extras, autodiff, x, Constant(prob.p))
+        @assert extras isa DIExtras
+        DI.jacobian!(prob.f, fx, J, extras.prep, autodiff, x, Constant(prob.p))
     else
-        DI.jacobian!(prob.f, J, extras, autodiff, x, Constant(prob.p))
+        if ArrayInterface.can_setindex(J)
+            if extras isa DIExtras
+                DI.jacobian!(prob.f, J, extras.prep, autodiff, x, Constant(prob.p))
+            else
+                DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
+            end
+        else
+            if extras isa DIExtras
+                J = DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
+            else
+                J = DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
+            end
+        end
     end
     return J
 end
