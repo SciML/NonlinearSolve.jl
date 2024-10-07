@@ -34,8 +34,8 @@ function SciMLBase.init(
         du, u, mode::AbstractNonlinearTerminationMode, saved_value_prototype...;
         abstol = nothing, reltol = nothing, kwargs...)
     T = promote_type(eltype(du), eltype(u))
-    abstol = get_tolerance(abstol, T)
-    reltol = get_tolerance(reltol, T)
+    abstol = get_tolerance(u, abstol, T)
+    reltol = get_tolerance(u, reltol, T)
     TT = typeof(abstol)
 
     u_unaliased = mode isa AbstractSafeBestNonlinearTerminationMode ?
@@ -90,8 +90,8 @@ function SciMLBase.reinit!(
     cache.u = u_unaliased
     cache.retcode = ReturnCode.Default
 
-    cache.abstol = get_tolerance(abstol, T)
-    cache.reltol = get_tolerance(reltol, T)
+    cache.abstol = get_tolerance(u, abstol, T)
+    cache.reltol = get_tolerance(u, reltol, T)
     cache.nsteps = 0
     TT = typeof(cache.abstol)
 
@@ -274,8 +274,8 @@ end
 function init_termination_cache(::AbstractNonlinearProblem, abstol, reltol, du,
         u, tc::AbstractNonlinearTerminationMode, ::Val)
     T = promote_type(eltype(du), eltype(u))
-    abstol = get_tolerance(abstol, T)
-    reltol = get_tolerance(reltol, T)
+    abstol = get_tolerance(u, abstol, T)
+    reltol = get_tolerance(u, reltol, T)
     cache = SciMLBase.init(du, u, tc; abstol, reltol)
     return abstol, reltol, cache
 end
