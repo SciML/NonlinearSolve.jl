@@ -9,13 +9,13 @@
     prob_oop_bf = NonlinearProblem{false}(fn_oop, u0, BigFloat(2))
 
     @testset "$(nameof(typeof(alg)))" for alg in (
-        SimpleNewtonRaphson(),
+        SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
         SimpleBroyden(),
         SimpleKlement(),
         SimpleDFSane(),
-        SimpleTrustRegion(),
+        SimpleTrustRegion(; autodiff = AutoForwardDiff()),
         SimpleLimitedMemoryBroyden(),
-        SimpleHalley()
+        SimpleHalley(; autodiff = AutoForwardDiff())
     )
         sol = solve(prob_oop_bf, alg)
         @test maximum(abs, sol.resid) < 1e-6

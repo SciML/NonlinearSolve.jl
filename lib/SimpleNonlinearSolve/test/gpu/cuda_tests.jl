@@ -8,14 +8,15 @@
         f!(du, u, p) = (du .= u .* u .- 2)
 
         @testset "$(nameof(typeof(alg)))" for alg in (
-            SimpleNewtonRaphson(),
+            SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
             SimpleDFSane(),
-            SimpleTrustRegion(),
-            SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+            SimpleTrustRegion(; autodiff = AutoForwardDiff()),
+            SimpleTrustRegion(;
+                nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()),
             SimpleBroyden(),
             SimpleLimitedMemoryBroyden(),
             SimpleKlement(),
-            SimpleHalley(),
+            SimpleHalley(; autodiff = AutoForwardDiff()),
             SimpleBroyden(; linesearch = Val(true)),
             SimpleLimitedMemoryBroyden(; linesearch = Val(true))
         )
@@ -63,14 +64,15 @@ end
             prob = convert(ImmutableNonlinearProblem, NonlinearProblem{false}(f, u0, 2.0f0))
 
             @testset "$(nameof(typeof(alg)))" for alg in (
-                SimpleNewtonRaphson(),
+                SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
                 SimpleDFSane(),
-                SimpleTrustRegion(),
-                SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+                SimpleTrustRegion(; autodiff = AutoForwardDiff()),
+                SimpleTrustRegion(;
+                    nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()),
                 SimpleBroyden(),
                 SimpleLimitedMemoryBroyden(),
                 SimpleKlement(),
-                SimpleHalley(),
+                SimpleHalley(; autodiff = AutoForwardDiff()),
                 SimpleBroyden(; linesearch = Val(true)),
                 SimpleLimitedMemoryBroyden(; linesearch = Val(true))
             )
