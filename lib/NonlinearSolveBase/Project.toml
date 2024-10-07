@@ -20,10 +20,12 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [weakdeps]
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [extensions]
+NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 
@@ -33,6 +35,7 @@ ArrayInterface = "7.9"
 CommonSolve = "0.2.4"
 Compat = "4.15"
 ConcreteStructs = "0.2.3"
+DiffEqBase = "6.149"
 DifferentiationInterface = "0.6.1"
 EnzymeCore = "0.8"
 FastClosures = "0.3"
