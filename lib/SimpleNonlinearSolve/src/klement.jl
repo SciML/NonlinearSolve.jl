@@ -12,6 +12,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, 
     x = Utils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
     fx = Utils.get_fx(prob, x)
+    fx = Utils.eval_f(prob, fx, x)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
