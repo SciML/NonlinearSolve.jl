@@ -31,6 +31,8 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
             ∂prob, ∂sensealg, ∂u0, ∂p, _, ∂args... = ∇internal(Tracker.data(Δ))
             return (∂prob, ∂sensealg, ∂u0, nothing, ∂p, nothing, nothing, ∂args...)
         end
+
+        return out, ∇simplenonlinearsolve_solve_up
     end
 end
 

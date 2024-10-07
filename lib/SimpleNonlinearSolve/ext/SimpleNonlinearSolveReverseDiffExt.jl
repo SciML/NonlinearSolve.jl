@@ -32,6 +32,8 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
             ∂prob, ∂sensealg, ∂u0, ∂p, _, ∂args... = ∇internal(Δ...)
             return (∂prob, ∂sensealg, ∂u0, nothing, ∂p, nothing, nothing, ∂args...)
         end
+
+        return Array(out), ∇simplenonlinearsolve_solve_up
     end
 end
 
