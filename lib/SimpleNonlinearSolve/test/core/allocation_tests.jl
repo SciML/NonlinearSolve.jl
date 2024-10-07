@@ -34,7 +34,7 @@
             @test true
         catch e
             @error e
-            @test false broken = (alg isa SimpleHalley)
+            @test false broken=(alg isa SimpleHalley)
         end
     end
 end
