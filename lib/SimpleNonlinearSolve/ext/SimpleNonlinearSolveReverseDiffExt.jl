@@ -6,11 +6,12 @@ using ReverseDiff: ReverseDiff, TrackedArray, TrackedReal
 using SciMLBase: ReverseDiffOriginator, NonlinearLeastSquaresProblem, remake
 
 using SimpleNonlinearSolve: SimpleNonlinearSolve, solve_adjoint
+import SimpleNonlinearSolve: simplenonlinearsolve_solve_up
 
-for pType in (InternalNonlinearProblem, NonlinearLeastSquaresProblem)
+for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     aTypes = (TrackedArray, AbstractArray{<:TrackedReal}, Any)
     for (uT, pT) in collect(Iterators.product(aTypes, aTypes))[1:(end - 1)]
-        @eval function SimpleNonlinearSolve.simplenonlinearsolve_solve_up(
+        @eval function simplenonlinearsolve_solve_up(
                 prob::$(pType), sensealg, u0::$(uT), u0_changed,
                 p::$(pT), p_changed, alg, args...; kwargs...)
             return ReverseDiff.track(SimpleNonlinearSolve.simplenonlinearsolve_solve_up,
@@ -19,7 +20,7 @@ for pType in (InternalNonlinearProblem, NonlinearLeastSquaresProblem)
         end
     end
 
-    @eval ReverseDiff.@grad function SimpleNonlinearSolve.simplenonlinearsolve_solve_up(
+    @eval ReverseDiff.@grad function simplenonlinearsolve_solve_up(
             tprob::$(pType), sensealg, tu0, u0_changed,
             tp, p_changed, alg, args...; kwargs...)
         u0, p = ReverseDiff.value(tu0), ReverseDiff.value(tp)

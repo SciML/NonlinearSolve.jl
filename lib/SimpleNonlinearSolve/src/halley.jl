@@ -41,9 +41,9 @@ function SciMLBase.__solve(
 
     strait = setindex_trait(x)
 
-    A = strait isa CanSetindex ? similar(x, length(x), length(x)) : x
-    Aaᵢ = strait isa CanSetindex ? similar(x, length(x)) : x
-    cᵢ = strait isa CanSetindex ? similar(x) : x
+    A = strait isa CanSetindex ? safe_similar(x, length(x), length(x)) : x
+    Aaᵢ = strait isa CanSetindex ? safe_similar(x, length(x)) : x
+    cᵢ = strait isa CanSetindex ? safe_similar(x) : x
 
     for _ in 1:maxiters
         fx, J, H = Utils.compute_jacobian_and_hessian(autodiff, prob, fx, x)

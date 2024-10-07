@@ -41,8 +41,8 @@ function SciMLBase.__solve(
                NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
 
     @bb xo = similar(x)
-    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ? similar(fx) :
-               nothing
+    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
+               safe_similar(fx) : nothing
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
