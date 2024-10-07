@@ -24,7 +24,8 @@ end
 const SimpleGaussNewton = SimpleNewtonRaphson
 
 function SciMLBase.__solve(
-        prob::ImmutableNonlinearProblem, alg::SimpleNewtonRaphson, args...;
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...)
     x = Utils.maybe_unaliased(prob.u0, alias_u0)
