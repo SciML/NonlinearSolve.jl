@@ -15,7 +15,7 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Brent, args...;
     ϵ = eps(convert(typeof(fl), 1))
 
     abstol = NonlinearSolveBase.get_tolerance(
-        abstol, promote_type(eltype(left), eltype(right)))
+        left, abstol, promote_type(eltype(left), eltype(right)))
 
     if iszero(fl)
         return SciMLBase.build_solution(
