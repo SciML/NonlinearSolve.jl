@@ -35,7 +35,8 @@ function SciMLBase.__solve(
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
 
-    autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+    # The way we write the 2nd order derivatives, we know Enzyme won't work there
+    autodiff = alg.autodiff === nothing ? AutoForwardDiff() : alg.autodiff
 
     @bb xo = copy(x)
 

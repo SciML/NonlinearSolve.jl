@@ -1,19 +1,19 @@
 module SimpleNonlinearSolve
 
 using Accessors: @reset
-using CommonSolve: CommonSolve, solve
+using CommonSolve: CommonSolve, solve, init, solve!
 using ConcreteStructs: @concrete
 using FastClosures: @closure
 using LineSearch: LiFukushimaLineSearch
 using LinearAlgebra: LinearAlgebra, dot
 using MaybeInplace: @bb, setindex_trait, CannotSetindex, CanSetindex
 using PrecompileTools: @compile_workload, @setup_workload
-using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, NonlinearLeastSquaresProblem,
-                 IntervalNonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, NonlinearFunction, NonlinearProblem,
+                 NonlinearLeastSquaresProblem, IntervalNonlinearProblem, ReturnCode, remake
 using StaticArraysCore: StaticArray, SArray, SVector, MArray
 
 # AD Dependencies
-using ADTypes: ADTypes
+using ADTypes: ADTypes, AutoForwardDiff
 using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
@@ -121,7 +121,7 @@ export IntervalNonlinearProblem
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
-export NonlinearProblem, NonlinearLeastSquaresProblem
+export NonlinearFunction, NonlinearProblem, NonlinearLeastSquaresProblem
 
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
