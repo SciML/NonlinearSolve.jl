@@ -8,13 +8,12 @@ using LineSearch: LiFukushimaLineSearch
 using LinearAlgebra: LinearAlgebra, dot
 using MaybeInplace: @bb, setindex_trait, CannotSetindex, CanSetindex
 using PrecompileTools: @compile_workload, @setup_workload
-using Reexport: @reexport
-@reexport using SciMLBase  # I don't like this but needed to avoid a breaking change
-using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
+using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, NonlinearLeastSquaresProblem,
+                 IntervalNonlinearProblem, ReturnCode
 using StaticArraysCore: StaticArray, SArray, SVector, MArray
 
 # AD Dependencies
-using ADTypes: AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+using ADTypes: ADTypes
 using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
@@ -118,13 +117,17 @@ function solve_adjoint_internal end
     end
 end
 
-export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+export IntervalNonlinearProblem
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
+
+export NonlinearProblem, NonlinearLeastSquaresProblem
 
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 export SimpleHalley
+
+export solve
 
 end
