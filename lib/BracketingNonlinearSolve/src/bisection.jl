@@ -28,7 +28,7 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
     fl, fr = f(left), f(right)
 
     abstol = NonlinearSolveBase.get_tolerance(
-        abstol, promote_type(eltype(left), eltype(right)))
+        left, abstol, promote_type(eltype(left), eltype(right)))
 
     if iszero(fl)
         return SciMLBase.build_solution(

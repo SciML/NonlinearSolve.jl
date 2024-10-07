@@ -204,7 +204,12 @@ end
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
         push!(calls, quote
-            α = ls_cache === nothing ? true : ls_cache(xo, δx)
+            if ls_cache === nothing
+                α = true
+            else
+                ls_sol = solve!(ls_cache, xo, δx)
+                α = ls_sol.step_size # Ignores the return code for now
+            end
             x = xo .+ α .* δx
             fx = prob.f(x, prob.p)
             δf = fx - fo
