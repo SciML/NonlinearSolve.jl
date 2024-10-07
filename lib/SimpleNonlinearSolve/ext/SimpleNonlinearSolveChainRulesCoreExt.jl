@@ -8,7 +8,7 @@ using SimpleNonlinearSolve: SimpleNonlinearSolve, simplenonlinearsolve_solve_up,
                             solve_adjoint
 
 function ChainRulesCore.rrule(::typeof(simplenonlinearsolve_solve_up),
-        prob::Union{InternalNonlinearProblem, NonlinearLeastSquaresProblem},
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         sensealg, u0, u0_changed, p, p_changed, alg, args...; kwargs...)
     out, ∇internal = solve_adjoint(
         prob, sensealg, u0, p, ChainRulesOriginator(), alg, args...; kwargs...)
