@@ -1,5 +1,5 @@
 @testitem "Solving on CUDA" tags=[:cuda] begin
-    using StaticArrays, CUDA, SimpleNonlinearSolve
+    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
 
     if CUDA.functional()
         CUDA.allowscalar(false)
@@ -47,7 +47,7 @@
 end
 
 @testitem "CUDA Kernel Launch Test" tags=[:cuda] begin
-    using StaticArrays, CUDA, SimpleNonlinearSolve
+    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
     using NonlinearSolveBase: ImmutableNonlinearProblem
 
     if CUDA.functional()

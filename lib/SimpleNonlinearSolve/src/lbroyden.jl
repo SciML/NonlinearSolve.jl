@@ -38,7 +38,7 @@ function SciMLBase.__solve(
         args...; termination_condition = nothing, kwargs...)
     if prob.u0 isa SArray
         if termination_condition === nothing ||
-           termination_condition isa AbsNormTerminationMode
+           termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
             return internal_static_solve(
                 prob, alg, args...; termination_condition, kwargs...)
         end

@@ -1,5 +1,5 @@
 @testsnippet RobustnessTestSnippet begin
-    using NonlinearProblemLibrary, NonlinearSolveBase, LinearAlgebra
+    using NonlinearProblemLibrary, NonlinearSolveBase, LinearAlgebra, ADTypes
 
     problems = NonlinearProblemLibrary.problems
     dicts = NonlinearProblemLibrary.dicts
@@ -40,7 +40,7 @@
 end
 
 @testitem "23 Test Problems: SimpleNewtonRaphson" setup=[RobustnessTestSnippet] tags=[:core] begin
-    alg_ops = (SimpleNewtonRaphson(),)
+    alg_ops = (SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = []
@@ -49,7 +49,7 @@ end
 end
 
 @testitem "23 Test Problems: SimpleHalley" setup=[RobustnessTestSnippet] tags=[:core] begin
-    alg_ops = (SimpleHalley(),)
+    alg_ops = (SimpleHalley(; autodiff = AutoForwardDiff()),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     if Sys.isapple()
@@ -62,7 +62,10 @@ end
 end
 
 @testitem "23 Test Problems: SimpleTrustRegion" setup=[RobustnessTestSnippet] tags=[:core] begin
-    alg_ops = (SimpleTrustRegion(), SimpleTrustRegion(; nlsolve_update_rule = Val(true)))
+    alg_ops = (
+        SimpleTrustRegion(; autodiff = AutoForwardDiff()),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff())
+    )
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [3, 15, 16, 21]
