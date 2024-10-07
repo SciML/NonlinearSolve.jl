@@ -189,7 +189,7 @@ function dogleg_method!!(cache, J, f, g, Δ)
     # Test if the full step is within the trust region
     (L2_NORM(δN) ≤ Δ) && return δN
 
-    # Calcualte Cauchy point, optimum along the steepest descent direction
+    # Calculate Cauchy point, optimum along the steepest descent direction
     @bb δsd .= g
     @bb @. δsd *= -1
     norm_δsd = L2_NORM(δsd)
