@@ -14,18 +14,19 @@ using SciMLBase: AbstractNonlinearAlgorithm, NonlinearProblem, ReturnCode
 using StaticArraysCore: StaticArray, SArray, SVector, MArray
 
 # AD Dependencies
-using ADTypes: AbstractADType, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+using ADTypes: AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 
 using BracketingNonlinearSolve: Alefeld, Bisection, Brent, Falsi, ITP, Ridder
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, get_tolerance,
-                          L2_NORM
+using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM
 
 const DI = DifferentiationInterface
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
+
+const safe_similar = NonlinearSolveBase.Utils.safe_similar
 
 is_extension_loaded(::Val) = false
 

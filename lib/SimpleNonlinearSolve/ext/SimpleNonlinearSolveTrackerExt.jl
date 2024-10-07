@@ -7,7 +7,7 @@ using Tracker: Tracker, TrackedArray, TrackedReal
 
 using SimpleNonlinearSolve: SimpleNonlinearSolve, solve_adjoint
 
-for pType in (InternalNonlinearProblem, NonlinearLeastSquaresProblem)
+for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     aTypes = (TrackedArray, AbstractArray{<:TrackedReal}, Any)
     for (uT, pT) in collect(Iterators.product(aTypes, aTypes))[1:(end - 1)]
         @eval function SimpleNonlinearSolve.simplenonlinearsolve_solve_up(

@@ -1,6 +1,5 @@
 module Utils
 
-using ADTypes: AbstractADType, AutoForwardDiff, AutoFiniteDiff, AutoPolyesterForwardDiff
 using ArrayInterface: ArrayInterface
 using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface, Constant
@@ -164,7 +163,7 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
     if J === nothing
         if extras isa AnalyticJacobian
             if SciMLBase.isinplace(prob.f)
-                J = similar(fx, length(fx), length(x))
+                J = safe_similar(fx, length(fx), length(x))
                 prob.f.jac(J, x, prob.p)
                 return J
             else
@@ -219,7 +218,7 @@ end
 function compute_jacobian_and_hessian(autodiff, prob, fx, x)
     if SciMLBase.isinplace(prob)
         jac_fn = @closure (u, p) -> begin
-            du = similar(fx, promote_type(eltype(fx), eltype(u)))
+            du = safe_similar(fx, promote_type(eltype(fx), eltype(u)))
             return DI.jacobian(prob.f, du, autodiff, u, Constant(p))
         end
         J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
