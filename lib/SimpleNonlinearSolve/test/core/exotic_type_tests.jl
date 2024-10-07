@@ -1,5 +1,5 @@
 @testitem "BigFloat Support" tags=[:core] begin
-    using SimpleNonlinearSolve, LinearAlgebra
+    using SimpleNonlinearSolve, LinearAlgebra, ADTypes, SciMLBase
 
     fn_iip = NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p)
     fn_oop = NonlinearFunction{false}((u, p) -> u .* u .- p)

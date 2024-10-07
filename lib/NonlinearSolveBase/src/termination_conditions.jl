@@ -26,7 +26,7 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
     if cache.u isa AbstractArray && ArrayInterface.can_setindex(cache.u)
         copyto!(cache.u, u)
     else
-        cache.u .= u
+        cache.u = u
     end
 end
 
@@ -60,6 +60,8 @@ function SciMLBase.init(
         else
             u_diff_cache = u_unaliased
         end
+        best_value = initial_objective
+        max_stalled_steps = mode.max_stalled_steps
     else
         initial_objective = nothing
         objectives_trace = nothing
