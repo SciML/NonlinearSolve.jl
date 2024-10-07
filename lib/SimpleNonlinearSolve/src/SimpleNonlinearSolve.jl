@@ -75,7 +75,8 @@ function CommonSolve.solve(
 end
 
 function CommonSolve.solve(
-        prob::ImmutableNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
@@ -86,7 +87,8 @@ function CommonSolve.solve(
         p === nothing, alg, args...; prob.kwargs..., kwargs...)
 end
 
-function simplenonlinearsolve_solve_up(prob::ImmutableNonlinearProblem, sensealg, u0,
+function simplenonlinearsolve_solve_up(
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem}, sensealg, u0,
         u0_changed, p, p_changed, alg, args...; kwargs...)
     (u0_changed || p_changed) && (prob = remake(prob; u0, p))
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
