@@ -35,8 +35,9 @@ include("autodiff.jl")
     (select_forward_mode_autodiff, select_reverse_mode_autodiff,
         select_jacobian_autodiff))
 
-export RelTerminationMode, AbsTerminationMode, NormTerminationMode, RelNormTerminationMode,
-       AbsNormTerminationMode, RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
-       RelNormSafeNormTerminationMode, AbsNormSafeNormTerminationMode
+export RelTerminationMode, AbsTerminationMode,
+       NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,
+       RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
+       RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
 end
