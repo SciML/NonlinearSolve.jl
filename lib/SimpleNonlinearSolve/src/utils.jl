@@ -183,10 +183,10 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
     end
     if extras isa AnalyticJacobian
         if SciMLBase.isinplace(prob)
-            prob.jac(J, x, prob.p)
+            prob.f.jac(J, x, prob.p)
             return J
         else
-            return prob.jac(x, prob.p)
+            return prob.f.jac(x, prob.p)
         end
     end
     if SciMLBase.isinplace(prob)
