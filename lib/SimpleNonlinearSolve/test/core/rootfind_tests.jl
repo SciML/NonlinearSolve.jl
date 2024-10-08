@@ -36,7 +36,7 @@
 end
 
 @testitem "First Order Methods" setup=[RootfindTestSnippet] tags=[:core] begin
-    @testset for alg in (
+    for alg in (
         SimpleNewtonRaphson,
         SimpleTrustRegion,
         (; kwargs...) -> SimpleTrustRegion(; kwargs..., nlsolve_update_rule = Val(true))
