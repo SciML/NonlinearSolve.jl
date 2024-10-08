@@ -54,6 +54,9 @@ function CommonSolve.solve(
         alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...;
         kwargs...) where {T, V, P, iip}
+    if hasfield(typeof(alg), :autodiff) && alg.autodiff === nothing
+        @reset alg.autodiff = AutoForwardDiff()
+    end
     prob = convert(ImmutableNonlinearProblem, prob)
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
     dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
@@ -68,6 +71,9 @@ function CommonSolve.solve(
         alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...;
         kwargs...) where {T, V, P, iip}
+    if hasfield(typeof(alg), :autodiff) && alg.autodiff === nothing
+        @reset alg.autodiff = AutoForwardDiff()
+    end
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
     dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
