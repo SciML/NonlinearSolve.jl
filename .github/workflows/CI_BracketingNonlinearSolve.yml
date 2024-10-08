@@ -1,19 +1,13 @@
-name: CI (NonlinearSolve)
+name: CI (BracketingNonlinearSolve)
 
 on:
   pull_request:
     branches:
       - master
     paths:
-      - "src/**"
-      - "ext/**"
-      - "test/**"
-      - "Project.toml"
-      - ".github/workflows/CI_NonlinearSolve.yml"
-      - "lib/SciMLNonlinearOperators/**"
       - "lib/BracketingNonlinearSolve/**"
       - "lib/NonlinearSolveBase/**"
-      - "lib/SimpleNonlinearSolve/**"
+      - ".github/workflows/CI_BracketingNonlinearSolve.yml"
   push:
     branches:
       - master
@@ -30,11 +24,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group:
-          - Core
-          - Downstream
-          - Misc
-          - Wrappers
         version:
           - "min"
           - "1"
@@ -63,18 +52,16 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve")
+          for path in ("lib/NonlinearSolveBase",)
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
           Pkg.instantiate()
           Pkg.test(; coverage=true)
-        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=. {0}
-        env:
-          GROUP: ${{ matrix.group }}
+        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=lib/BracketingNonlinearSolve {0}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,ext,lib/SciMLJacobianOperators/src
+          directories: lib/BracketingNonlinearSolve/src,lib/BracketingNonlinearSolve/ext
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
