@@ -143,69 +143,66 @@ function prepare_jacobian(prob, autodiff, fx, x)
     end
 end
 
-function compute_jacobian!!(_, prob, autodiff, fx, x::Number, extras)
-    if extras isa AnalyticJacobian
-        if SciMLBase.has_jac(prob.f)
-            return prob.f.jac(x, prob.p)
-        elseif SciMLBase.has_vjp(prob.f)
-            return prob.f.vjp(one(x), x, prob.p)
-        elseif SciMLBase.has_jvp(prob.f)
-            return prob.f.jvp(one(x), x, prob.p)
-        end
-    end
-    if extras isa DIExtras
-        return DI.derivative(prob.f, extras.prep, autodiff, x, Constant(prob.p))
-    else
-        return DI.derivative(prob.f, autodiff, x, Constant(prob.p))
+function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::AnalyticJacobian)
+    if SciMLBase.has_jac(prob.f)
+        return prob.f.jac(x, prob.p)
+    elseif SciMLBase.has_vjp(prob.f)
+        return prob.f.vjp(one(x), x, prob.p)
+    elseif SciMLBase.has_jvp(prob.f)
+        return prob.f.jvp(one(x), x, prob.p)
     end
 end
-function compute_jacobian!!(J, prob, autodiff, fx, x, extras)
+function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::DIExtras)
+    return DI.derivative(prob.f, extras.prep, autodiff, x, Constant(prob.p))
+end
+function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::DINoPreparation)
+    return DI.derivative(prob.f, autodiff, x, Constant(prob.p))
+end
+
+function compute_jacobian!!(J, prob, autodiff, fx, x, ::AnalyticJacobian)
     if J === nothing
-        if extras isa AnalyticJacobian
-            if SciMLBase.isinplace(prob.f)
-                J = safe_similar(fx, length(fx), length(x))
-                prob.f.jac(J, x, prob.p)
-                return J
-            else
-                return prob.f.jac(x, prob.p)
-            end
-        end
-        if SciMLBase.isinplace(prob)
-            @assert extras isa DIExtras
-            return DI.jacobian(prob.f, fx, extras.prep, autodiff, x, Constant(prob.p))
-        else
-            if extras isa DIExtras
-                return DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
-            else
-                return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
-            end
-        end
-    end
-    if extras isa AnalyticJacobian
-        if SciMLBase.isinplace(prob)
+        if SciMLBase.isinplace(prob.f)
+            J = safe_similar(fx, length(fx), length(x))
             prob.f.jac(J, x, prob.p)
             return J
         else
             return prob.f.jac(x, prob.p)
         end
     end
-    if SciMLBase.isinplace(prob)
-        @assert extras isa DIExtras
-        DI.jacobian!(prob.f, fx, J, extras.prep, autodiff, x, Constant(prob.p))
+    if SciMLBase.isinplace(prob.f)
+        prob.f.jac(J, x, prob.p)
+        return J
+    else
+        return prob.f.jac(x, prob.p)
+    end
+end
+
+function compute_jacobian!!(J, prob, autodiff, fx, x, ::DIExtras)
+    if J === nothing
+        if SciMLBase.isinplace(prob.f)
+            return DI.jacobian(prob.f, fx, extras.prep, autodiff, x, Constant(prob.p))
+        else
+            return DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
+        end
+    end
+    if SciMLBase.isinplace(prob.f)
+        DI.jacobian!(prob.f, J, fx, extras.prep, autodiff, x, Constant(prob.p))
     else
         if ArrayInterface.can_setindex(J)
-            if extras isa DIExtras
-                DI.jacobian!(prob.f, J, extras.prep, autodiff, x, Constant(prob.p))
-            else
-                DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
-            end
+            DI.jacobian!(prob.f, J, extras.prep, autodiff, x, Constant(prob.p))
         else
-            if extras isa DIExtras
-                J = DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
-            else
-                J = DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
-            end
+            J = DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
         end
+    end
+    return J
+end
+function compute_jacobian!!(J, prob, autodiff, fx, x, ::DINoPreparation)
+    @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
+    J === nothing && return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
+    if ArrayInterface.can_setindex(J)
+        DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
+    else
+        J = DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
     end
     return J
 end
