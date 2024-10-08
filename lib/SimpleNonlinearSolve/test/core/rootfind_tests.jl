@@ -91,6 +91,31 @@ end
     end
 end
 
+@testitem "SimpleHouseholder" setup=[RootfindingTesting] tags=[:core] begin
+    using TaylorDiff
+    @testset "AutoDiff: TaylorDiff.jl" for order in (2, 3, 4)
+        @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in (
+            [1.0], @SVector[1.0], 1.0)
+            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = SimpleHouseholder{order}())
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
+
+        @testset "[IIP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0],)
+            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = SimpleHouseholder{order}())
+            @test SciMLBase.successful_retcode(sol)
+            @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
+        end
+    end
+
+    @testset "Termination condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+        u0 in (1.0, [1.0], @SVector[1.0])
+
+        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        @test all(solve(probN, SimpleHouseholder{2}(); termination_condition).u .≈ sqrt(2.0))
+    end
+end
+
 @testitem "Derivative Free Metods" setup=[RootfindingTesting] tags=[:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in [
         SimpleBroyden(), SimpleKlement(), SimpleDFSane(),

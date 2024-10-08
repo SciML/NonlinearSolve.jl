@@ -1,10 +1,13 @@
 """
     SimpleHouseholder{order}()
 
-A low-overhead implementation of Householder's method. This method is non-allocating on scalar
-and static array problems.
+A low-overhead implementation of Householder's method to arbitrary order.
+This method is non-allocating on scalar and static array problems.
 
-Internally, this uses TaylorDiff.jl for the automatic differentiation.
+!!! warning
+
+    Needs `TaylorDiff.jl` to be explicitly loaded before using this functionality.
+    Internally, this uses TaylorDiff.jl for automatic differentiation.
 
 ### Type Parameters
 

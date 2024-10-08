@@ -7,20 +7,20 @@ using SciMLBase: isinplace
 
 import TaylorDiff
 
-@inline function __get_higher_order_derivatives(::SimpleHouseholder{N}, prob, f, x) where N
+@inline function __get_higher_order_derivatives(::SimpleHouseholder{N}, prob, f, x, fx) where N
     vN = Val(N)
     l = map(one, x)
+    t = TaylorDiff.make_seed(x, l, vN)
 
     if isinplace(prob)
-        fx = f(x)
-        invf = x -> inv.(f(x))
-        bundle = TaylorDiff.derivatives(invf, fx, x, l, vN)
+        bundle = similar(fx, TaylorDiff.TaylorScalar{eltype(fx), N})
+        f(bundle, t)
+        map!(TaylorDiff.primal, fx, bundle)
     else
-        t = TaylorDiff.make_seed(x, l, vN)
-        ft = f(t)
-        fx = map(TaylorDiff.primal, ft)
-        bundle = inv.(ft)
+        bundle = f(t)
+        fx = map(TaylorDiff.primal, bundle)
     end
+    bundle = inv.(bundle)
     num = TaylorDiff.extract_derivative(bundle, N - 1)
     den = TaylorDiff.extract_derivative(bundle, N)
     return num, den, fx
@@ -40,7 +40,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHousehold
         prob, abstol, reltol, fx, x, termination_condition)
 
     for i in 1:maxiters
-        num, den, fx = __get_higher_order_derivatives(alg, prob, f, x)
+        num, den, fx = __get_higher_order_derivatives(alg, prob, f, x, fx)
 
         if i == 1
             iszero(fx) && build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
