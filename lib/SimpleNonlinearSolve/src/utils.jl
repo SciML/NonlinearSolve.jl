@@ -152,7 +152,7 @@ function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::AnalyticJacobian
         return prob.f.jvp(one(x), x, prob.p)
     end
 end
-function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::DIExtras)
+function compute_jacobian!!(_, prob, autodiff, fx, x::Number, extras::DIExtras)
     return DI.derivative(prob.f, extras.prep, autodiff, x, Constant(prob.p))
 end
 function compute_jacobian!!(_, prob, autodiff, fx, x::Number, ::DINoPreparation)
@@ -177,7 +177,7 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, ::AnalyticJacobian)
     end
 end
 
-function compute_jacobian!!(J, prob, autodiff, fx, x, ::DIExtras)
+function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
     if J === nothing
         if SciMLBase.isinplace(prob.f)
             return DI.jacobian(prob.f, fx, extras.prep, autodiff, x, Constant(prob.p))
