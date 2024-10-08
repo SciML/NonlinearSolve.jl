@@ -37,7 +37,6 @@ SimpleNonlinearSolveTrackerExt = "Tracker"
 [compat]
 ADTypes = "1.2"
 Accessors = "0.1"
-AllocCheck = "0.1.1"
 Aqua = "0.8.7"
 ArrayInterface = "7.16"
 BracketingNonlinearSolve = "1"
@@ -72,7 +71,6 @@ Zygote = "0.6.70"
 julia = "1.10"
 
 [extras]
-AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
@@ -90,4 +88,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["AllocCheck", "Aqua", "DiffEqBase", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "DiffEqBase", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]
