@@ -30,9 +30,9 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
     end
 end
 
-function SciMLBase.init(
-        du, u, mode::AbstractNonlinearTerminationMode, saved_value_prototype...;
-        abstol = nothing, reltol = nothing, kwargs...)
+function CommonSolve.init(
+        ::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
+        saved_value_prototype...; abstol = nothing, reltol = nothing, kwargs...)
     T = promote_type(eltype(du), eltype(u))
     abstol = get_tolerance(u, abstol, T)
     reltol = get_tolerance(u, reltol, T)
@@ -273,11 +273,11 @@ function init_termination_cache(
         prob, abstol, reltol, du, u, default_termination_mode(prob, callee), callee)
 end
 
-function init_termination_cache(::AbstractNonlinearProblem, abstol, reltol, du,
+function init_termination_cache(prob::AbstractNonlinearProblem, abstol, reltol, du,
         u, tc::AbstractNonlinearTerminationMode, ::Val)
     T = promote_type(eltype(du), eltype(u))
     abstol = get_tolerance(u, abstol, T)
     reltol = get_tolerance(u, reltol, T)
-    cache = SciMLBase.init(du, u, tc; abstol, reltol)
+    cache = CommonSolve.init(prob, tc, du, u; abstol, reltol)
     return abstol, reltol, cache
 end
