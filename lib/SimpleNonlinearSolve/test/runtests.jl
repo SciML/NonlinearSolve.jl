@@ -6,6 +6,7 @@ const GROUP = lowercase(get(ENV, "GROUP", "All"))
 
 (GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
 (GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
+(GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
 
 @testset "SimpleNonlinearSolve.jl" begin
     if GROUP == "all"
