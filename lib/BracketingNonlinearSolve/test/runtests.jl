@@ -1,5 +1,7 @@
-using TestItemRunner, InteractiveUtils
+using TestItemRunner, InteractiveUtils, Test
 
 @info sprint(InteractiveUtils.versioninfo)
 
-@run_package_tests
+@testset "BracketingNonlinearSolve.jl" begin
+    @run_package_tests
+end
