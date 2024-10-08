@@ -22,7 +22,7 @@ sol = solve(prob, Tsit5(); saveat = tsteps)
 
 # Plot the solution
 using Plots
-plot(sol; linewidth = 3)</code></pre><img src="6eef2efd.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
+plot(sol; linewidth = 3)</code></pre><img src="adfc63be.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
     sol = solve(prob, Tsit5(); p = ode_param, saveat = tsteps)
     return vec(reduce(hcat, sol.u)) .- data
 end
@@ -44,21 +44,21 @@ Algorithm: <span class="sgr32"><span class="sgr1">LevenbergMarquardt(</span></sp
 ----     -------------        -----------          -------
 Iter     f(u) 2-norm          Step 2-norm          cond(J)
 ----     -------------        -----------          -------
-0        1.46131516e+01       9.78554816e-310      Inf
+0        1.46131516e+01       9.78208357e-310      Inf
 1        1.46131516e+01       0.00000000e+00       2.99618417e+16
 26       1.83845118e+00       0.00000000e+00       2.99618417e+16
-51       2.15071669e-12       1.63660021e-11       2.99618417e+16
-76       2.15071669e-12       0.00000000e+00       2.99618417e+16
-101      1.92075422e-12       0.00000000e+00       2.99618417e+16
-126      1.84064881e-12       1.53519623e-15       2.99618417e+16
-151      1.63286417e-12       0.00000000e+00       2.99618417e+16
-Final    1.62727191e-12
+51       1.76006423e-12       1.62177236e-11       2.99618417e+16
+76       1.76006423e-12       0.00000000e+00       2.99618417e+16
+101      1.66702130e-12       1.47361367e-15       2.99618417e+16
+126      1.61526625e-12       2.20584074e-15       2.99618417e+16
+151      1.53927724e-12       0.00000000e+00       2.99618417e+16
+Final    1.51633962e-12
 ----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Stalled
 u: 4-element Vector{Float64}:
- 1.4999999999998663
- 0.9999999999996535
- 2.9999999999994853
- 0.9999999999997956</code></pre><p>We can also use Trust Region methods.</p><pre><code class="language-julia hljs">res = solve(nlls_prob, TrustRegion(); maxiters = 1000, show_trace = Val(true),
+ 1.4999999999998752
+ 0.9999999999996069
+ 3.000000000000228
+ 1.0000000000001115</code></pre><p>We can also use Trust Region methods.</p><pre><code class="language-julia hljs">res = solve(nlls_prob, TrustRegion(); maxiters = 1000, show_trace = Val(true),
     trace_level = TraceWithJacobianConditionNumber(25))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
 Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 <span class="sgr32"><span class="sgr1">   trustregion = GenericTrustRegionScheme(method = RadiusUpdateSchemes.Simple),</span></span>
@@ -68,16 +68,16 @@ Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 ----     -------------        -----------          -------
 Iter     f(u) 2-norm          Step 2-norm          cond(J)
 ----     -------------        -----------          -------
-0        1.46131516e+01       4.08348788e+233      Inf
+0        1.46131516e+01       9.78215408e-310      Inf
 1        1.46131516e+01       0.00000000e+00       2.99618417e+16
-Final    1.95512765e-14
+Final    1.87346640e-14
 ----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 u: 4-element Vector{Float64}:
- 1.499999999999998
+ 1.499999999999999
  0.9999999999999987
- 3.00000000000001
- 1.000000000000003</code></pre><p>Let&#39;s plot the solution.</p><pre><code class="language-julia hljs">prob2 = remake(prob; tspan = (0.0, 10.0))
+ 3.0000000000000053
+ 1.0000000000000022</code></pre><p>Let&#39;s plot the solution.</p><pre><code class="language-julia hljs">prob2 = remake(prob; tspan = (0.0, 10.0))
 sol_fit = solve(prob2, Tsit5(); p = res.u)
 sol_true = solve(prob2, Tsit5(); p = p)
 plot(sol_true; linewidth = 3)
-plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="636d50f9.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 7 October 2024 23:27">Monday 7 October 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="460e11b3.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Tuesday 8 October 2024 00:07">Tuesday 8 October 2024</span>. Using Julia version 1.11.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
