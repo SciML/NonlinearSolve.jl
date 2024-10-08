@@ -3,7 +3,7 @@ module NonlinearSolveBaseForwardDiffExt
 using ADTypes: ADTypes, AutoForwardDiff, AutoPolyesterForwardDiff
 using ArrayInterface: ArrayInterface
 using CommonSolve: solve
-using DifferentiationInterface: DifferentiationInterface, Constant
+using DifferentiationInterface: DifferentiationInterface
 using FastClosures: @closure
 using ForwardDiff: ForwardDiff, Dual
 using LinearAlgebra: mul!

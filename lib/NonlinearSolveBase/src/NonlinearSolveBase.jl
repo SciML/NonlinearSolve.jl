@@ -1,7 +1,8 @@
 module NonlinearSolveBase
 
-using ADTypes: ADTypes, AbstractADType, ForwardMode, ReverseMode
+using ADTypes: ADTypes, AbstractADType
 using ArrayInterface: ArrayInterface
+using CommonSolve: CommonSolve
 using Compat: @compat
 using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface
