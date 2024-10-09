@@ -1,3 +1,5 @@
+using Enzyme
+
 """
     JacobianCache(prob, alg, f::F, fu, u, p; autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, linsolve = missing) where {F}
@@ -88,7 +90,11 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
                 if iip
                     DI.jacobian(f, fu, di_extras, autodiff, u, Constant(p))
                 else
-                    DI.jacobian(f, di_extras, autodiff, u, Constant(p))
+                    if autodiff <: AutoEnzyme()
+                        hcat(Enzyme.autodiff(Forward, f, BatchDuplicated(u, Enzyme.onehot(u)), Const(p))[1]...)
+                    else
+                        DI.jacobian(f, di_extras, autodiff, u, Constant(p))
+                    end
                 end
             end
         else
