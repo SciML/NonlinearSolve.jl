@@ -3,9 +3,9 @@ import SimpleNonlinearSolve: __nlsolve_ad, __nlsolve_dual_soln, __nlsolve_∂f_�
                              __nlsolve_∂f_∂u
 
 for (uType, pType) in [
-    (Union{Number, <:AbstractArray}, Union{<:Dual, <:AbstractArray{<:Dual}}),
+    (Union{<:Number, <:AbstractArray}, Union{<:Dual, <:AbstractArray{<:Dual}}),
     (Union{<:Dual, <:AbstractArray{<:Dual}}, Union{<:Dual, <:AbstractArray{<:Dual}}),
-    (Union{<:Dual, <:AbstractArray{<:Dual}}, Any),
+    (Union{<:Dual, <:AbstractArray{<:Dual}}, Union{<:Number, <:AbstractArray})
 ]
     @eval begin
         function SciMLBase.solve(
