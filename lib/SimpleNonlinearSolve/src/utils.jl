@@ -139,7 +139,7 @@ function prepare_jacobian(prob, autodiff, fx, x)
         return DIExtras(DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p)))
     else
         x isa SArray && return DINoPreparation()
-        return DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p))
+        return DIExtras(DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p)))
     end
 end
 
@@ -186,7 +186,7 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
         end
     end
     if SciMLBase.isinplace(prob.f)
-        DI.jacobian!(prob.f, J, fx, extras.prep, autodiff, x, Constant(prob.p))
+        DI.jacobian!(prob.f, fx, J, extras.prep, autodiff, x, Constant(prob.p))
     else
         if ArrayInterface.can_setindex(J)
             DI.jacobian!(prob.f, J, extras.prep, autodiff, x, Constant(prob.p))
