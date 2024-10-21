@@ -143,12 +143,12 @@ prob_brusselator_2d_autosparse = NonlinearProblem(
     u0, p; abstol = 1e-10, reltol = 1e-10)
 
 @btime solve(prob_brusselator_2d_autosparse,
-    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 32)));
+    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12)));
 @btime solve(prob_brusselator_2d_autosparse,
-    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 32),
+    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12),
         linsolve = KLUFactorization()));
 @btime solve(prob_brusselator_2d_autosparse,
-    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 32),
+    NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12),
         linsolve = KrylovJL_GMRES()));
 nothing # hide
 ```
