@@ -2,6 +2,7 @@
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
                 LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase
+using LineSearches: LineSearches
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
@@ -46,8 +47,19 @@ function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
     return sols
 end
 
+for alg in (:Static, :StrongWolfe, :BackTracking, :MoreThuente, :HagerZhang)
+    algname = Symbol(:LineSearches, alg)
+    @eval function $(algname)(args...; autodiff = nothing, initial_alpha = true, kwargs...)
+        return LineSearch.LineSearchesJL(;
+            method = LineSearches.$(alg)(args...; kwargs...), autodiff, initial_alpha)
+    end
+end
+
 export nlprob_iterator_interface, benchmark_nlsolve_oop, benchmark_nlsolve_iip,
        TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!
+export LineSearchesStatic, LineSearchesStrongWolfe, LineSearchesBackTracking,
+       LineSearchesMoreThuente, LineSearchesHagerZhang
+
 end
 
 # --- NewtonRaphson tests ---
@@ -57,9 +69,10 @@ end
             AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
         ),
         linesearch in (
-            Static(; autodiff = ad), StrongWolfe(; autodiff = ad),
-            BackTracking(; autodiff = ad), LineSearch.BackTracking(; autodiff = ad),
-            HagerZhang(; autodiff = ad), MoreThuente(; autodiff = ad)
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
         )
 
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
@@ -471,9 +484,10 @@ end
             AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
         ),
         linesearch in (
-            Static(; autodiff = ad), StrongWolfe(; autodiff = ad),
-            BackTracking(; autodiff = ad), LineSearch.BackTracking(; autodiff = ad),
-            HagerZhang(; autodiff = ad), MoreThuente(; autodiff = ad)
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
         ),
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
@@ -524,9 +538,10 @@ end
             AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
         ),
         linesearch in (
-            Static(; autodiff = ad), StrongWolfe(; autodiff = ad),
-            BackTracking(; autodiff = ad), LineSearch.BackTracking(; autodiff = ad),
-            HagerZhang(; autodiff = ad), MoreThuente(; autodiff = ad)
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
         ),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
@@ -577,10 +592,10 @@ end
             AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
         ),
         linesearch in (
-            Static(; autodiff = ad), StrongWolfe(; autodiff = ad),
-            BackTracking(; autodiff = ad), LineSearch.BackTracking(; autodiff = ad),
-            HagerZhang(; autodiff = ad), MoreThuente(; autodiff = ad),
-            LiFukushimaLineSearch()
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad), LiFukushimaLineSearch()
         )
 
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
