@@ -5,7 +5,8 @@ using Reexport
 using LineSearches: LineSearches, Static, HagerZhang, MoreThuente, StrongWolfe
 
 linesearches = []
-for ls in (Static(), HagerZhang(), MoreThuente(), StrongWolfe(), LineSearches.BackTracking())
+for ls in (
+    Static(), HagerZhang(), MoreThuente(), StrongWolfe(), LineSearches.BackTracking())
     push!(linesearches, LineSearchesJL(; method = ls))
 end
 push!(linesearches, BackTracking())
@@ -37,7 +38,6 @@ for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
     vjp_autodiffs = linsolve isa KrylovJL ? [nothing, AutoZygote(), AutoFiniteDiff()] :
                     [nothing]
     for linesearch in linesearches, vjp_autodiff in vjp_autodiffs
-
         push!(solvers, GaussNewton(; linsolve, linesearch, vjp_autodiff))
     end
 end
