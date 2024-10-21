@@ -1,5 +1,6 @@
 module NonlinearSolveNLsolveExt
 
+using LineSearches: Static
 using NonlinearSolve: NonlinearSolve, NLsolveJL, TraceMinimal
 using NLsolve: NLsolve, OnceDifferentiable, nlsolve
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
@@ -27,13 +28,15 @@ function SciMLBase.__solve(
     end
 
     abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
-    show_trace = ShT || alg.show_trace
-    store_trace = StT || alg.store_trace
-    extended_trace = !(trace_level isa TraceMinimal) || alg.extended_trace
+    show_trace = ShT
+    store_trace = StT
+    extended_trace = !(trace_level isa TraceMinimal)
+
+    linesearch = alg.linesearch === missing ? Static() : alg.linesearch
 
     original = nlsolve(df, vec(u0); ftol = abstol, iterations = maxiters, alg.method,
-        store_trace, extended_trace, alg.linesearch, alg.linsolve,
-        alg.factor, alg.autoscale, alg.m, alg.beta, show_trace)
+        store_trace, extended_trace, linesearch, alg.linsolve, alg.factor,
+        alg.autoscale, alg.m, alg.beta, show_trace)
 
     f!(vec(resid), original.zero)
     u = prob.u0 isa Number ? original.zero[1] : reshape(original.zero, size(prob.u0))

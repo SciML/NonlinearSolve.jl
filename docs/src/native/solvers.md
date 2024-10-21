@@ -23,10 +23,7 @@ documentation.
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@extref LineSearch.NoLineSearch),
-    which means that no line search is performed.  Algorithms from
-    [`LineSearches.jl`](https://github.com/JuliaNLSolvers/LineSearches.jl/) must be
-    wrapped in [`LineSearchesJL`](@ref) before being supplied. For a detailed documentation
-    refer to [Line Search Algorithms](@ref line-search).
+    which means that no line search is performed.
   - `autodiff`/`jacobian_ad`: etermines the backend used for the Jacobian. Note that this
     argument is ignored if an analytical Jacobian is passed, as that will be used instead.
     Defaults to `nothing` which means that a default is selected according to the problem

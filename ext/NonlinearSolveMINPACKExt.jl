@@ -19,8 +19,8 @@ function SciMLBase.__solve(
     method = ifelse(alg.method === :auto,
         ifelse(prob isa NonlinearLeastSquaresProblem, :lm, :hybr), alg.method)
 
-    show_trace = alg.show_trace || ShT
-    tracing = alg.tracing || StT
+    show_trace = ShT
+    tracing = StT
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
 
     if alg.autodiff === missing && prob.f.jac === nothing

@@ -243,17 +243,11 @@ function select_fastest_coloring_algorithm(
     return GreedyColoringAlgorithm(LargestFirst())
 end
 
-function construct_concrete_adtype(f::NonlinearFunction, ad::AutoSparse)
-    Base.depwarn(
-        "Specifying a sparse AD type for Nonlinear Problems is deprecated. \
-         Instead use the `sparsity`, `jac_prototype`, and `colorvec` to specify \
-         the right sparsity pattern and coloring algorithm. Ignoring the sparsity \
-         detection algorithm and coloring algorithm present in $(ad).",
-        :NonlinearSolve)
-    if f.sparsity === nothing && f.jac_prototype === nothing
-        @set! f.sparsity = TracerSparsityDetector()
-    end
-    return construct_concrete_adtype(f, get_dense_ad(ad))
+function construct_concrete_adtype(::NonlinearFunction, ad::AutoSparse)
+    error("Specifying a sparse AD type for Nonlinear Problems was removed in v4. \
+           Instead use the `sparsity`, `jac_prototype`, and `colorvec` to specify \
+           the right sparsity pattern and coloring algorithm. Ignoring the sparsity \
+           detection algorithm and coloring algorithm present in $(ad).")
 end
 
 get_dense_ad(ad) = ad

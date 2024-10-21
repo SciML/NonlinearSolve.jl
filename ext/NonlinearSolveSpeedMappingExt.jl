@@ -14,7 +14,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
         prob; alias_u0, make_fixed_point = Val(true))
     tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
 
-    time_limit = ifelse(maxtime === nothing, alg.time_limit, maxtime)
+    time_limit = ifelse(maxtime === nothing, 1000, maxtime)
 
     sol = speedmapping(u; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
         alg.check_obj, store_info, alg.σ_min, alg.stabilize, time_limit)

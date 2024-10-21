@@ -2,6 +2,7 @@
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
                 LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase
+using LineSearches: LineSearches
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
 
@@ -46,18 +47,34 @@ function nlprob_iterator_interface(f, p_range, ::Val{iip}, solver) where {iip}
     return sols
 end
 
+for alg in (:Static, :StrongWolfe, :BackTracking, :MoreThuente, :HagerZhang)
+    algname = Symbol(:LineSearches, alg)
+    @eval function $(algname)(args...; autodiff = nothing, initial_alpha = true, kwargs...)
+        return LineSearch.LineSearchesJL(;
+            method = LineSearches.$(alg)(args...; kwargs...), autodiff, initial_alpha)
+    end
+end
+
 export nlprob_iterator_interface, benchmark_nlsolve_oop, benchmark_nlsolve_iip,
        TERMINATION_CONDITIONS, _nameof, newton_fails, quadratic_f, quadratic_f!
+export LineSearchesStatic, LineSearchesStrongWolfe, LineSearchesBackTracking,
+       LineSearchesMoreThuente, LineSearchesHagerZhang
+
 end
 
 # --- NewtonRaphson tests ---
 
 @testitem "NewtonRaphson" setup=[CoreRootfindTesting] tags=[:core] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
-        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff())
+    @testset "LineSearch: $(_nameof(linesearch)) LineSearch AD: $(_nameof(ad))" for ad in (
+            AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
+        ),
+        linesearch in (
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
+        )
 
-        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -463,14 +480,18 @@ end
 # --- Broyden tests ---
 
 @testitem "Broyden" setup=[CoreRootfindTesting] tags=[:core] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(),
-            HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
-        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()),
+    @testset "LineSearch: $(_nameof(linesearch)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian) Update Rule: $(update_rule)" for ad in (
+            AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
+        ),
+        linesearch in (
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
+        ),
         init_jacobian in (Val(:identity), Val(:true_jacobian)),
         update_rule in (Val(:good_broyden), Val(:bad_broyden), Val(:diagonal))
 
-        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -513,12 +534,17 @@ end
 # --- Klement tests ---
 
 @testitem "Klement" setup=[CoreRootfindTesting] tags=[:core] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(), HagerZhang(), MoreThuente()),
-        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()),
+    @testset "LineSearch: $(_nameof(linesearch)) LineSearch AD: $(_nameof(ad)) Init Jacobian: $(init_jacobian)" for ad in (
+            AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
+        ),
+        linesearch in (
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad)
+        ),
         init_jacobian in (Val(:identity), Val(:true_jacobian), Val(:true_jacobian_diagonal))
 
-        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -562,12 +588,16 @@ end
 # --- LimitedMemoryBroyden tests ---
 
 @testitem "LimitedMemoryBroyden" setup=[CoreRootfindTesting] tags=[:core] begin
-    @testset "LineSearch: $(_nameof(lsmethod)) LineSearch AD: $(_nameof(ad))" for lsmethod in (
-            Static(), StrongWolfe(), BackTracking(),
-            HagerZhang(), MoreThuente(), LiFukushimaLineSearch()),
-        ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff())
+    @testset "LineSearch: $(_nameof(linesearch)) LineSearch AD: $(_nameof(ad))" for ad in (
+            AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()
+        ),
+        linesearch in (
+            LineSearchesStatic(; autodiff = ad), LineSearchesStrongWolfe(; autodiff = ad),
+            LineSearchesBackTracking(; autodiff = ad), BackTracking(; autodiff = ad),
+            LineSearchesHagerZhang(; autodiff = ad),
+            LineSearchesMoreThuente(; autodiff = ad), LiFukushimaLineSearch()
+        )
 
-        linesearch = LineSearchesJL(; method = lsmethod, autodiff = ad)
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
