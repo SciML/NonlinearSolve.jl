@@ -1,7 +1,8 @@
 @testsetup module CoreRootfindTesting
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
-                LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase
+                LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase,
+                SparseConnectivityTracer
 using LineSearches: LineSearches
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
@@ -116,12 +117,12 @@ end
     @test nlprob_iterator_interface(quadratic_f, p, Val(false), NewtonRaphson()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), NewtonRaphson()) ≈ sqrt.(p)
 
-    @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
+    @testset "Sparsity ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
+            AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme()),
         u0 in (1.0, [1.0, 1.0])
 
-        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        probN = NonlinearProblem(
+            NonlinearFunction(quadratic_f; sparsity = TracerSparsityDetector()), u0, 2.0)
         @test all(solve(probN, NewtonRaphson(; autodiff)).u .≈ sqrt(2.0))
     end
 
@@ -180,12 +181,12 @@ end
     @test nlprob_iterator_interface(quadratic_f!, p, Val(true), TrustRegion()) ≈ sqrt.(p)
 
     @testset "$(_nameof(autodiff)) u0: $(_nameof(u0)) $(radius_update_scheme)" for autodiff in (
-            AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
+            AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme()),
         u0 in (1.0, [1.0, 1.0]),
         radius_update_scheme in radius_update_schemes
 
-        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        probN = NonlinearProblem(
+            NonlinearFunction(quadratic_f; sparsity = TracerSparsityDetector()), u0, 2.0)
         @test all(solve(probN, TrustRegion(; autodiff, radius_update_scheme)).u .≈
                   sqrt(2.0))
     end
@@ -276,11 +277,11 @@ end
     end
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
+            AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme()),
         u0 in (1.0, [1.0, 1.0])
 
-        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        probN = NonlinearProblem(
+            NonlinearFunction(quadratic_f; sparsity = TracerSparsityDetector()), u0, 2.0)
         @test all(solve(
             probN, LevenbergMarquardt(; autodiff); abstol = 1e-9, reltol = 1e-9).u .≈
                   sqrt(2.0))
@@ -458,11 +459,11 @@ end
         quadratic_f!, p, Val(true), PseudoTransient(; alpha_initial = 10.0)) ≈ sqrt.(p)
 
     @testset "ADType: $(autodiff) u0: $(_nameof(u0))" for autodiff in (
-            AutoSparse(AutoForwardDiff()), AutoSparse(AutoFiniteDiff()),
-            AutoZygote(), AutoSparse(AutoZygote()), AutoSparse(AutoEnzyme())),
+            AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme()),
         u0 in (1.0, [1.0, 1.0])
 
-        probN = NonlinearProblem(quadratic_f, u0, 2.0)
+        probN = NonlinearProblem(
+            NonlinearFunction(quadratic_f; sparsity = TracerSparsityDetector()), u0, 2.0)
         @test all(solve(probN, PseudoTransient(; alpha_initial = 10.0, autodiff)).u .≈
                   sqrt(2.0))
     end

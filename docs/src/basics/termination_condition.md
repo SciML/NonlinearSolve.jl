@@ -54,18 +54,3 @@ not used as a default anywhere.
 ```@docs
 SimpleNonlinearSolveTerminationMode
 ```
-
-### Return Codes (Deprecated)
-
-These are deprecated and will be removed in a future release. Use the
-`use_deprecated_retcodes = Val(false)` option to `SciMLBase.init` to use the new return
-`ReturnCode` versions.
-
-```@docs
-DiffEqBase.NonlinearSafeTerminationReturnCode
-DiffEqBase.NonlinearSafeTerminationReturnCode.Success
-DiffEqBase.NonlinearSafeTerminationReturnCode.Default
-DiffEqBase.NonlinearSafeTerminationReturnCode.Failure
-DiffEqBase.NonlinearSafeTerminationReturnCode.PatienceTermination
-DiffEqBase.NonlinearSafeTerminationReturnCode.ProtectiveTermination
-```
