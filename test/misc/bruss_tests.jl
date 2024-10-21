@@ -52,11 +52,6 @@
     sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
     @test norm(sol.resid, Inf) < 1e-8
 
-    # Deprecated
-    sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoSparse(AutoFiniteDiff())); abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-8
-
     f! = (du, u) -> brusselator_2d_loop(du, u, p)
     du0 = similar(u0)
     jac_prototype = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
