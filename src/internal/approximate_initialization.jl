@@ -20,11 +20,11 @@ end
 function (::DiagonalStructure)(J::AbstractVector, J_new::AbstractMatrix)
     if __can_setindex(J)
         if fast_scalar_indexing(J)
-            @inbounds for i in eachindex(J)
-                J[i] = J_new[i, i]
+            @simd for i in eachindex(J)
+                @inbounds J[i] = J_new[i, i]
             end
         else
-            @.. broadcast=false J=@view(J_new[diagind(J_new)])
+            J .= @view(J_new[diagind(J_new)])
         end
         return J
     end

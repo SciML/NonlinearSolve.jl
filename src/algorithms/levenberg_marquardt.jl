@@ -156,18 +156,16 @@ end
 @inline function __update_LM_diagonal!!(y::Diagonal, x::AbstractMatrix)
     if __can_setindex(y.diag)
         if fast_scalar_indexing(y.diag)
-            @inbounds for i in axes(x, 1)
-                y.diag[i] = max(y.diag[i], x[i, i])
+            @simd for i in axes(x, 1)
+                @inbounds y.diag[i] = max(y.diag[i], x[i, i])
             end
             return y
         else
-            idxs = diagind(x)
-            @.. broadcast=false y.diag=max(y.diag, @view(x[idxs]))
+            y .= max.(y.diag, @view(x[diagind(x)]))
             return y
         end
     else
-        idxs = diagind(x)
-        return Diagonal(@.. broadcast=false max(y.diag, @view(x[idxs])))
+        return Diagonal(max.(y.diag, @view(x[diagind(x)])))
     end
 end
 
