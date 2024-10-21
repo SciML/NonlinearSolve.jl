@@ -142,39 +142,15 @@ NonlinearLeastSquaresProblem.
     This algorithm is only available if `MINPACK.jl` is installed.
 """
 @concrete struct CMINPACK <: AbstractNonlinearSolveExtensionAlgorithm
-    show_trace::Bool
-    tracing::Bool
     method::Symbol
     autodiff
 end
 
-function CMINPACK(; show_trace = missing, tracing = missing,
-        method::Symbol = :auto, autodiff = missing)
+function CMINPACK(; method::Symbol = :auto, autodiff = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveMINPACKExt) === nothing
         error("CMINPACK requires MINPACK.jl to be loaded")
     end
-
-    if show_trace !== missing
-        Base.depwarn(
-            "`show_trace` for CMINPACK has been deprecated and will be removed \
-             in v4. Use the `show_trace` keyword argument via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-             instead.", :CMINPACK)
-    else
-        show_trace = false
-    end
-
-    if tracing !== missing
-        Base.depwarn(
-            "`tracing` for CMINPACK has been deprecated and will be removed \
-             in v4. Use the `store_trace` keyword argument via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-             instead.", :CMINPACK)
-    else
-        tracing = false
-    end
-
-    return CMINPACK(show_trace, tracing, method, autodiff)
+    return CMINPACK(method, autodiff)
 end
 
 """
@@ -228,63 +204,26 @@ For more information on these arguments, consult the
 @concrete struct NLsolveJL <: AbstractNonlinearSolveExtensionAlgorithm
     method::Symbol
     autodiff
-    store_trace::Bool
-    extended_trace::Bool
     linesearch
     linsolve
     factor
     autoscale::Bool
     m::Int
     beta
-    show_trace::Bool
 end
 
-function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = missing,
-        extended_trace = missing, linesearch = missing,
+function NLsolveJL(; method = :trust_region, autodiff = :central, linesearch = missing,
         linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0,
-        autoscale = true, m = 10, beta = one(Float64), show_trace = missing)
+        autoscale = true, m = 10, beta = one(Float64))
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing
         error("NLsolveJL requires NLsolve.jl to be loaded")
-    end
-
-    if show_trace !== missing
-        Base.depwarn("`show_trace` for NLsolveJL has been deprecated and will be removed \
-                      in v4. Use the `show_trace` keyword argument via the logging API \
-                      https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-                      instead.",
-            :NLsolveJL)
-    else
-        show_trace = false
-    end
-
-    if store_trace !== missing
-        Base.depwarn(
-            "`store_trace` for NLsolveJL has been deprecated and will be removed \
-             in v4. Use the `store_trace` keyword argument via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ \
-             instead.",
-            :NLsolveJL)
-    else
-        store_trace = false
-    end
-
-    if extended_trace !== missing
-        Base.depwarn(
-            "`extended_trace` for NLsolveJL has been deprecated and will be \
-             removed in v4. Use the `trace_level = TraceAll()` keyword argument \
-             via the logging API \
-             https://docs.sciml.ai/NonlinearSolve/stable/basics/Logging/ instead.",
-            :NLsolveJL)
-    else
-        extended_trace = false
     end
 
     if autodiff isa Symbol && autodiff !== :central && autodiff !== :forward
         error("`autodiff` must be `:central` or `:forward`.")
     end
 
-    return NLsolveJL(method, autodiff, store_trace, extended_trace, linesearch,
-        linsolve, factor, autoscale, m, beta, show_trace)
+    return NLsolveJL(method, autodiff, linesearch, linsolve, factor, autoscale, m, beta)
 end
 
 """
@@ -349,25 +288,15 @@ Fixed Point Problems. We allow using this algorithm to solve root finding proble
     stabilize::Bool
     check_obj::Bool
     orders::Vector{Int}
-    time_limit
 end
 
 function SpeedMappingJL(; σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
-        orders::Vector{Int} = [3, 3, 2], time_limit = missing)
+        orders::Vector{Int} = [3, 3, 2])
     if Base.get_extension(@__MODULE__, :NonlinearSolveSpeedMappingExt) === nothing
         error("SpeedMappingJL requires SpeedMapping.jl to be loaded")
     end
 
-    if time_limit !== missing
-        Base.depwarn("`time_limit` keyword argument to `SpeedMappingJL` has been \
-                      deprecated and will be removed in v4. Pass `maxtime = <value>` to \
-                      `SciMLBase.solve`.",
-            :SpeedMappingJL)
-    else
-        time_limit = 1000
-    end
-
-    return SpeedMappingJL(σ_min, stabilize, check_obj, orders, time_limit)
+    return SpeedMappingJL(σ_min, stabilize, check_obj, orders)
 end
 
 """

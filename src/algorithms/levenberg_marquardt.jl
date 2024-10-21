@@ -31,19 +31,11 @@ For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolve.LevenbergMarquardtTrustRegion`](@ref) documentations.
 """
 function LevenbergMarquardt(;
-        concrete_jac = missing, linsolve = nothing, precs = DEFAULT_PRECS,
-        damping_initial::Real = 1.0, α_geodesic::Real = 0.75,
-        damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
-        finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0,
-        autodiff = nothing, min_damping_D::Real = 1e-8, disable_geodesic = False)
-    if concrete_jac !== missing
-        Base.depwarn("The `concrete_jac` keyword argument is deprecated and will be \
-                      removed in v0.4. This kwarg doesn't make sense (and is currently \
-                      ignored) for LM since it needs to materialize the Jacobian to \
-                      compute the Damping Term",
-            :LevenbergMarquardt)
-    end
-
+        linsolve = nothing, precs = DEFAULT_PRECS, damping_initial::Real = 1.0,
+        α_geodesic::Real = 0.75, damping_increase_factor::Real = 2.0,
+        damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic = 0.1,
+        b_uphill::Real = 1.0, autodiff = nothing,
+        min_damping_D::Real = 1e-8, disable_geodesic = False)
     descent = DampedNewtonDescent(; linsolve,
         precs,
         initial_damping = damping_initial,
