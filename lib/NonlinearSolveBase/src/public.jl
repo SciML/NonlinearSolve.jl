@@ -8,6 +8,8 @@ function get_tolerance end
 # Forward declarations of functions for forward mode AD
 function nonlinearsolve_forwarddiff_solve end
 function nonlinearsolve_dual_solution end
+function nonlinearsolve_∂f_∂p end
+function nonlinearsolve_∂f_∂u end
 
 # Nonlinear Solve Termination Conditions
 abstract type AbstractNonlinearTerminationMode end

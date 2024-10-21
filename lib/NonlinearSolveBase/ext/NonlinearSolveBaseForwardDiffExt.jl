@@ -37,8 +37,8 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
     sol = solve(newprob, alg, args...; kwargs...)
 
     uu = sol.u
-    Jₚ = nonlinearsolve_∂f_∂p(prob, prob.f, uu, p)
-    Jᵤ = nonlinearsolve_∂f_∂u(prob, prob.f, uu, p)
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, prob.f, uu, p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, prob.f, uu, p)
     z = -Jᵤ \ Jₚ
     pp = prob.p
     sumfun = ((z, p),) -> map(Base.Fix2(*, ForwardDiff.partials(p)), z)
@@ -123,8 +123,8 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
         end
     end
 
-    Jₚ = nonlinearsolve_∂f_∂p(prob, vjp_fn, uu, newprob.p)
-    Jᵤ = nonlinearsolve_∂f_∂u(prob, vjp_fn, uu, newprob.p)
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, vjp_fn, uu, newprob.p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, vjp_fn, uu, newprob.p)
     z = -Jᵤ \ Jₚ
     pp = prob.p
     sumfun = ((z, p),) -> map(Base.Fix2(*, ForwardDiff.partials(p)), z)
@@ -140,7 +140,7 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
     return sol, partials
 end
 
-function nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
+function NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
         f2 = @closure p -> begin
             du = Utils.safe_similar(u, promote_type(eltype(u), eltype(p)))
@@ -159,7 +159,7 @@ function nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     end
 end
 
-function nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
+function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
         return ForwardDiff.jacobian(
             @closure((du, u)->f(du, u, p)), Utils.safe_similar(u), u)

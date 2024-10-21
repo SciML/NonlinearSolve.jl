@@ -22,6 +22,9 @@ using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSea
 using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
 using MaybeInplace: @bb
+using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
+                          nonlinearsolve_dual_solution, nonlinearsolve_∂f_∂p,
+                          nonlinearsolve_∂f_∂u
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
