@@ -176,7 +176,7 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcce
 ## Line Search Algorithms
 export LineSearchesJL, LiFukushimaLineSearch # FIXME: deprecated. use LineSearch.jl directly
 export Static, HagerZhang, MoreThuente, StrongWolfe, BackTracking  # FIXME: deprecated
-export NoLineSearch, RobustNonMonotoneLineSearch
+export LineSearch, NoLineSearch, RobustNonMonotoneLineSearch
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 
