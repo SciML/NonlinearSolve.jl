@@ -1,9 +1,5 @@
 module NonlinearSolve
 
-if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_methods"))
-    @eval Base.Experimental.@max_methods 1
-end
-
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
@@ -23,7 +19,7 @@ using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Sy
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearch: LineSearch, AbstractLineSearchAlgorithm, AbstractLineSearchCache,
-                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking
+                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking, LineSearchesJL
 using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
                    needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
@@ -34,7 +30,6 @@ using RecursiveArrayTools: recursivecopy!
 using SciMLBase: AbstractNonlinearAlgorithm, AbstractNonlinearProblem, _unwrap_val,
                  isinplace, NLStats
 using SciMLOperators: AbstractSciMLOperator
-using Setfield: @set!
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
 using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
                                  symbolic_container, parameter_values, state_values, getu,
@@ -44,8 +39,6 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingPro
 using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
                AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse,
                NoSparsityDetector, KnownJacobianSparsityDetector
-using ADTypes: AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
-               AutoSparseZygote # FIXME: deprecated, remove in future
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
@@ -114,11 +107,20 @@ include("default.jl")
         push!(probs_nls, NonlinearProblem(fn, u0, 2.0))
     end
 
-    nls_algs = (NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-        PseudoTransient(), Broyden(), Klement(), DFSane(), nothing)
+    nls_algs = (
+        NewtonRaphson(),
+        TrustRegion(),
+        LevenbergMarquardt(),
+        # PseudoTransient(),
+        Broyden(),
+        Klement(),
+        # DFSane(),
+        nothing
+    )
 
     probs_nlls = NonlinearLeastSquaresProblem[]
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
+    nlfuncs = (
+        (NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
         (
             NonlinearFunction{true}(
@@ -127,15 +129,22 @@ include("default.jl")
         (
             NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
                 resid_prototype = zeros(4)),
-            [0.1, 0.1]))
+            [0.1, 0.1]
+        )
+    )
     for (fn, u0) in nlfuncs
         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
-    nlls_algs = (LevenbergMarquardt(), GaussNewton(), TrustRegion(),
-        LevenbergMarquardt(; linsolve = LUFactorization()),
-        GaussNewton(; linsolve = LUFactorization()),
-        TrustRegion(; linsolve = LUFactorization()), nothing)
+    nlls_algs = (
+        LevenbergMarquardt(),
+        GaussNewton(),
+        TrustRegion(),
+        # LevenbergMarquardt(; linsolve = LUFactorization()),
+        # GaussNewton(; linsolve = LUFactorization()),
+        # TrustRegion(; linsolve = LUFactorization()),
+        nothing
+    )
 
     @compile_workload begin
         @sync begin
@@ -177,7 +186,7 @@ export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch, Line
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 
-# Export the termination conditions from DiffEqBase
+# Export the termination conditions from NonlinearSolveBase
 export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
        NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
        AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
@@ -189,8 +198,5 @@ export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
 # Reexport ADTypes
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme,
        AutoSparse
-# FIXME: deprecated, remove in future
-export AutoSparseFiniteDiff, AutoSparseForwardDiff, AutoSparsePolyesterForwardDiff,
-       AutoSparseZygote
 
-end # module
+end

@@ -2,6 +2,13 @@
 using Reexport
 @reexport using NonlinearSolve, LinearSolve, LinearAlgebra, StableRNGs, Random, ForwardDiff,
                 Zygote
+using LineSearches: LineSearches, Static, HagerZhang, MoreThuente, StrongWolfe
+
+linesearches = []
+for ls in (Static(), HagerZhang(), MoreThuente(), StrongWolfe(), LineSearches.BackTracking())
+    push!(linesearches, LineSearchesJL(; method = ls))
+end
+push!(linesearches, BackTracking())
 
 true_function(x, θ) = @. θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4])
 true_function(y, x, θ) = (@. y = θ[1] * exp(θ[2] * x) * cos(θ[3] * x + θ[4]))
@@ -29,8 +36,7 @@ solvers = []
 for linsolve in [nothing, LUFactorization(), KrylovJL_GMRES(), KrylovJL_LSMR()]
     vjp_autodiffs = linsolve isa KrylovJL ? [nothing, AutoZygote(), AutoFiniteDiff()] :
                     [nothing]
-    for linesearch in [Static(), BackTracking(), HagerZhang(), StrongWolfe(), MoreThuente()],
-        vjp_autodiff in vjp_autodiffs
+    for linesearch in linesearches, vjp_autodiff in vjp_autodiffs
 
         push!(solvers, GaussNewton(; linsolve, linesearch, vjp_autodiff))
     end
