@@ -59,12 +59,6 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(;
         linesearch = missing, trustregion = missing, descent, update_rule,
         reinit_rule, initialization, max_resets::Int = typemax(Int),
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
-    if linesearch !== missing && !(linesearch isa AbstractLineSearchAlgorithm)
-        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.",
-            :GeneralizedFirstOrderAlgorithm)
-        linesearch = LineSearchesJL(; method = linesearch)
-    end
     return ApproximateJacobianSolveAlgorithm{concrete_jac, name}(
         linesearch, trustregion, descent, update_rule,
         reinit_rule, max_resets, max_shrink_times, initialization)

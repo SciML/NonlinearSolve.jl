@@ -66,13 +66,6 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
             jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ReverseMode,
             jacobian_ad, nothing))
 
-    if linesearch !== missing && !(linesearch isa AbstractLineSearchAlgorithm)
-        Base.depwarn("Passing in a `LineSearches.jl` algorithm directly is deprecated. \
-                      Please use `LineSearchesJL` instead.",
-            :GeneralizedFirstOrderAlgorithm)
-        linesearch = LineSearchesJL(; method = linesearch)
-    end
-
     return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(
         linesearch, trustregion, descent, max_shrink_times,
         jacobian_ad, forward_ad, reverse_ad)
