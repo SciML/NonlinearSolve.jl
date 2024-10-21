@@ -12,14 +12,14 @@ using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
                   NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
                   RelSafeTerminationMode, RelTerminationMode,
                   SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
-using FastBroadcast: @..
 using FastClosures: @closure
 using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearch: LineSearch, AbstractLineSearchAlgorithm, AbstractLineSearchCache,
-                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking, LineSearchesJL
+                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking, LineSearchesJL,
+                  LiFukushimaLineSearch
 using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
                    needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
@@ -47,7 +47,6 @@ using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJac
 
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
-using SparseConnectivityTracer: TracerSparsityDetector # This can be dropped in the next release
 using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
                              LargestFirst
 
@@ -182,7 +181,8 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcce
 
 # Globalization
 ## Line Search Algorithms
-export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch, LineSearchesJL
+export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch,
+       LiFukushimaLineSearch, LineSearchesJL
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 
