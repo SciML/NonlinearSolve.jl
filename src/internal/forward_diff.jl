@@ -1,15 +1,12 @@
-# Not part of public API but helps reduce code duplication
-import SimpleNonlinearSolve: __nlsolve_ad, __nlsolve_dual_soln, __nlsolve_∂f_∂p,
-                             __nlsolve_∂f_∂u
-
+# XXX: dispatch on `__solve` & `__init`
 function SciMLBase.solve(
         prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
             <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
         alg::Union{Nothing, AbstractNonlinearAlgorithm},
         args...;
         kwargs...) where {T, V, P, iip}
-    sol, partials = __nlsolve_ad(prob, alg, args...; kwargs...)
-    dual_soln = __nlsolve_dual_soln(sol.u, partials, prob.p)
+    sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
+    dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
         prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
@@ -53,10 +50,10 @@ function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
     prob = cache.prob
 
     uu = sol.u
-    f_p = __nlsolve_∂f_∂p(prob, prob.f, uu, cache.values_p)
-    f_x = __nlsolve_∂f_∂u(prob, prob.f, uu, cache.values_p)
+    Jₚ = nonlinearsolve_∂f_∂p(prob, prob.f, uu, cache.values_p)
+    Jᵤ = nonlinearsolve_∂f_∂u(prob, prob.f, uu, cache.values_p)
 
-    z_arr = -f_x \ f_p
+    z_arr = -Jᵤ \ Jₚ
 
     sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
     if cache.p isa Number
@@ -65,7 +62,7 @@ function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
         partials = sum(sumfun, zip(eachcol(z_arr), cache.p))
     end
 
-    dual_soln = __nlsolve_dual_soln(sol.u, partials, cache.p)
+    dual_soln = nonlinearsolve_dual_solution(sol.u, partials, cache.p)
     return SciMLBase.build_solution(
         prob, cache.alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
 end
