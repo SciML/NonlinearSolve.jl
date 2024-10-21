@@ -203,6 +203,12 @@ end
     acceleration of the fixed-point iteration xₙ₊₁ = xₙ + beta*f(xₙ), where by default
     beta = 1.
 
+!!! warning
+
+    Line Search Algorithms from [`LineSearch.jl`](https://github.com/SciML/LineSearch.jl)
+    aren't supported by `NLsolveJL`. Instead, use the line search algorithms from
+    [`LineSearches.jl`](https://github.com/JuliaNLSolvers/LineSearches.jl).
+
 ### Submethod Choice
 
 Choices for methods in `NLsolveJL`:
@@ -234,7 +240,7 @@ For more information on these arguments, consult the
 end
 
 function NLsolveJL(; method = :trust_region, autodiff = :central, store_trace = missing,
-        extended_trace = missing, linesearch = LineSearches.Static(),
+        extended_trace = missing, linesearch = missing,
         linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0,
         autoscale = true, m = 10, beta = one(Float64), show_trace = missing)
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing

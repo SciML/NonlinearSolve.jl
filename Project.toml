@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "3.15.2"
+version = "4.0.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -15,7 +15,6 @@ FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LazyArrays = "5078a376-72f3-5289-bfd5-ec5146d43c02"
 LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
-LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 MaybeInplace = "bb5d69b7-63fc-4a16-80bd-7e42200c7bdb"
@@ -41,6 +40,7 @@ BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
+LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
 NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
@@ -54,7 +54,7 @@ NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 NonlinearSolveMINPACKExt = "MINPACK"
 NonlinearSolveNLSolversExt = "NLSolvers"
-NonlinearSolveNLsolveExt = "NLsolve"
+NonlinearSolveNLsolveExt = ["NLsolve", "LineSearches"]
 NonlinearSolveSIAMFANLEquationsExt = "SIAMFANLEquations"
 NonlinearSolveSpeedMappingExt = "SpeedMapping"
 
@@ -132,6 +132,7 @@ FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
+LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
@@ -151,4 +152,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "MINPACK", "ModelingToolkit", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "Pkg", "Random", "ReTestItems", "SIAMFANLEquations", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]
+test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "ModelingToolkit", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "Pkg", "Random", "ReTestItems", "SIAMFANLEquations", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]

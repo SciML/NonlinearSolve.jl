@@ -23,8 +23,7 @@ using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Sy
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearch: LineSearch, AbstractLineSearchAlgorithm, AbstractLineSearchCache,
-                  NoLineSearch, RobustNonMonotoneLineSearch
-using LineSearches: LineSearches
+                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking
 using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
                    needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
@@ -174,9 +173,7 @@ export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcce
 
 # Globalization
 ## Line Search Algorithms
-export LineSearchesJL, LiFukushimaLineSearch # FIXME: deprecated. use LineSearch.jl directly
-export Static, HagerZhang, MoreThuente, StrongWolfe, BackTracking  # FIXME: deprecated
-export LineSearch, NoLineSearch, RobustNonMonotoneLineSearch
+export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch, LineSearchesJL
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
 
