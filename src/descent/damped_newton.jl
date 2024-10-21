@@ -226,12 +226,12 @@ end
     if __can_setindex(J_cache)
         copyto!(J_cache, J)
         if fast_scalar_indexing(J_cache)
-            @inbounds for i in axes(J_cache, 1)
-                J_cache[i, i] += D[i, i]
+            @simd for i in axes(J_cache, 1)
+                @inbounds J_cache[i, i] += D[i, i]
             end
         else
             idxs = diagind(J_cache)
-            @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) + @view(D[idxs])
+            J_cache[idxs] .= @view(J[idxs]) .+ @view(D[idxs])
         end
         return J_cache
     else
@@ -242,12 +242,12 @@ end
     if __can_setindex(J_cache)
         copyto!(J_cache, J)
         if fast_scalar_indexing(J_cache)
-            @inbounds for i in axes(J_cache, 1)
-                J_cache[i, i] += D
+            @simd for i in axes(J_cache, 1)
+                @inbounds J_cache[i, i] += D
             end
         else
             idxs = diagind(J_cache)
-            @.. broadcast=false @view(J_cache[idxs])=@view(J[idxs]) + D
+            J_cache[idxs] .= @view(J[idxs]) .+ D
         end
         return J_cache
     else
