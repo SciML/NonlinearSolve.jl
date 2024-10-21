@@ -17,11 +17,9 @@ using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
-using LineSearch: LineSearch, AbstractLineSearchAlgorithm, AbstractLineSearchCache,
-                  NoLineSearch, RobustNonMonotoneLineSearch, BackTracking, LineSearchesJL,
-                  LiFukushimaLineSearch
-using LinearSolve: LinearSolve, LUFactorization, QRFactorization,
-                   needs_concrete_A, AbstractFactorization,
+using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSearch,
+                  RobustNonMonotoneLineSearch, BackTracking,  LiFukushimaLineSearch
+using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
 using MaybeInplace: @bb
 using Printf: @printf
@@ -110,10 +108,8 @@ include("default.jl")
         NewtonRaphson(),
         TrustRegion(),
         LevenbergMarquardt(),
-        # PseudoTransient(),
         Broyden(),
         Klement(),
-        # DFSane(),
         nothing
     )
 
@@ -139,9 +135,6 @@ include("default.jl")
         LevenbergMarquardt(),
         GaussNewton(),
         TrustRegion(),
-        # LevenbergMarquardt(; linsolve = LUFactorization()),
-        # GaussNewton(; linsolve = LUFactorization()),
-        # TrustRegion(; linsolve = LUFactorization()),
         nothing
     )
 
