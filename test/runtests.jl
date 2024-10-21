@@ -1,8 +1,13 @@
-using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils
+using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils, Pkg
 
 @info sprint(InteractiveUtils.versioninfo)
 
 const GROUP = lowercase(get(ENV, "GROUP", "All"))
+
+const EXTRA_PKGS = Pkg.PackageSpec[]
+(GROUP == "all" || GROUP == "downstream") &&
+    push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
+Pkg.add(EXTRA_PKGS)
 
 const RETESTITEMS_NWORKERS = parse(
     Int, get(ENV, "RETESTITEMS_NWORKERS", string(min(Hwloc.num_physical_cores(), 4))))
