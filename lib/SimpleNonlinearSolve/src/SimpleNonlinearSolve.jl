@@ -1,6 +1,7 @@
 module SimpleNonlinearSolve
 
 using Accessors: @reset
+using BracketingNonlinearSolve: BracketingNonlinearSolve
 using CommonSolve: CommonSolve, solve, init, solve!
 using ConcreteStructs: @concrete
 using FastClosures: @closure

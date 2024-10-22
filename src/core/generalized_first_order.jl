@@ -60,7 +60,7 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
     return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(
         linesearch, trustregion, descent, max_shrink_times,
-        autodiff, jvp_autodiff, vjp_autodiff)
+        autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
