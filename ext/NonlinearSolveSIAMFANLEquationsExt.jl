@@ -91,10 +91,11 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
                         f, u, m, zeros(T, N, 2 * m + 4); atol, rtol, maxit = maxiters, beta)
                 end
             else
+                autodiff = alg.autodiff === missing ? nothing : alg.autodiff
                 FPS = prob.f.jac_prototype !== nothing ? zero(prob.f.jac_prototype) :
                       __zeros_like(u, N, N)
                 jac = NonlinearSolve.__construct_extension_jac(
-                    prob, alg, u, resid; alg.autodiff)
+                    prob, alg, u, resid; autodiff)
                 AJ! = @closure (J, u, x) -> jac(J, x)
                 if method == :newton
                     sol = nsol(f, u, FS, FPS, AJ!; sham = 1, atol,

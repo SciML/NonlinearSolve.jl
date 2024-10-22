@@ -28,7 +28,8 @@ function SciMLBase.__solve(
         original = MINPACK.fsolve(
             f!, u0, m; tol, show_trace, tracing, method, iterations = maxiters)
     else
-        _jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+        autodiff = alg.autodiff === missing ? nothing : alg.autodiff
+        _jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; autodiff)
         jac! = @closure (J, u) -> (_jac!(J, u); Cint(0))
         original = MINPACK.fsolve(
             f!, jac!, u0, m; tol, show_trace, tracing, method, iterations = maxiters)

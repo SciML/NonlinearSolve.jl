@@ -18,7 +18,8 @@ function SciMLBase.__solve(
     if prob.f.jac === nothing && alg.autodiff isa Symbol
         df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
     else
-        jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+        autodiff = alg.autodiff isa Symbol ? nothing : alg.autodiff
+        jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; autodiff)
         if prob.f.jac_prototype === nothing
             J = similar(
                 u0, promote_type(eltype(u0), eltype(resid)), length(u0), length(resid))
