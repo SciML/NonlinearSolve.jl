@@ -67,7 +67,6 @@ include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("internal/jacobian.jl")
-include("internal/forward_diff.jl")
 include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
@@ -92,6 +91,8 @@ include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
 include("algorithms/extension_algs.jl")
+
+include("internal/forward_diff.jl") # we need to define after the algorithms
 
 include("utils.jl")
 include("default.jl")
