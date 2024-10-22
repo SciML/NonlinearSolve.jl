@@ -1,5 +1,5 @@
 """
-    Broyden(; max_resets::Int = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
+    Broyden(; max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing)
 
 An implementation of `Broyden`'s Method [broyden1965class](@cite) with resetting and line
@@ -29,36 +29,37 @@ search.
         problem
 """
 function Broyden(;
-        max_resets = 100, linesearch = NoLineSearch(), reset_tolerance = nothing,
-        init_jacobian::Val{IJ} = Val(:identity), autodiff = nothing,
-        alpha = nothing, update_rule::Val{UR} = Val(:good_broyden)) where {IJ, UR}
-    if IJ === :identity
-        if UR === :diagonal
-            initialization = IdentityInitialization(alpha, DiagonalStructure())
-        else
-            initialization = IdentityInitialization(alpha, FullStructure())
-        end
-    elseif IJ === :true_jacobian
-        initialization = TrueJacobianInitialization(FullStructure(), autodiff)
-    else
-        throw(ArgumentError("`init_jacobian` must be one of `:identity` or \
-                             `:true_jacobian`"))
-    end
+        max_resets = 100, linesearch = nothing, reset_tolerance = nothing,
+        init_jacobian = Val(:identity), autodiff = nothing, alpha = nothing,
+        update_rule = Val(:good_broyden))
+    initialization = broyden_init(init_jacobian, update_rule, autodiff, alpha)
+    update_rule = broyden_update_rule(update_rule)
+    return ApproximateJacobianSolveAlgorithm{
+        init_jacobian isa Val{:true_jacobian}, :Broyden}(;
+        linesearch, descent = NewtonDescent(), update_rule, max_resets, initialization,
+        reinit_rule = NoChangeInStateReset(; reset_tolerance))
+end
 
-    update_rule = if UR === :good_broyden
-        GoodBroydenUpdateRule()
-    elseif UR === :bad_broyden
-        BadBroydenUpdateRule()
-    elseif UR === :diagonal
-        GoodBroydenUpdateRule()
-    else
-        throw(ArgumentError("`update_rule` must be one of `:good_broyden`, `:bad_broyden`, \
-                             or `:diagonal`"))
-    end
+function broyden_init(::Val{:identity}, ::Val{:diagonal}, autodiff, alpha)
+    return IdentityInitialization(alpha, DiagonalStructure())
+end
+function broyden_init(::Val{:identity}, ::Val, autodiff, alpha)
+    IdentityInitialization(alpha, FullStructure())
+end
+function broyden_init(::Val{:true_jacobian}, ::Val, autodiff, alpha)
+    return TrueJacobianInitialization(FullStructure(), autodiff)
+end
+function broyden_init(::Val{IJ}, ::Val{UR}, autodiff, alpha) where {IJ, UR}
+    error("Unknown combination of `init_jacobian = Val($(Meta.quot(IJ)))` and \
+           `update_rule = Val($(Meta.quot(UR)))`. Please choose a valid combination.")
+end
 
-    return ApproximateJacobianSolveAlgorithm{IJ === :true_jacobian, :Broyden}(;
-        linesearch, descent = NewtonDescent(), update_rule, max_resets,
-        initialization, reinit_rule = NoChangeInStateReset(; reset_tolerance))
+broyden_update_rule(::Val{:good_broyden}) = GoodBroydenUpdateRule()
+broyden_update_rule(::Val{:bad_broyden}) = BadBroydenUpdateRule()
+broyden_update_rule(::Val{:diagonal}) = GoodBroydenUpdateRule()
+function broyden_update_rule(::Val{UR}) where {UR}
+    error("Unknown update rule `update_rule = Val($(Meta.quot(UR)))`. Please choose a \
+           valid update rule.")
 end
 
 # Checks for no significant change for `nsteps`

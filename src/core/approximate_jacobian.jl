@@ -174,7 +174,10 @@ function SciMLBase.__init(
 
         reinit_rule_cache = __internal_init(alg.reinit_rule, J, fu, u, du)
 
-        if alg.trustregion !== missing && alg.linesearch !== missing
+        has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
+        has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
+
+        if has_trustregion && has_linesearch
             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
         end
 
@@ -182,7 +185,7 @@ function SciMLBase.__init(
         linesearch_cache = nothing
         trustregion_cache = nothing
 
-        if alg.trustregion !== missing
+        if has_trustregion
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
             trustregion_cache = __internal_init(
@@ -190,7 +193,7 @@ function SciMLBase.__init(
             GB = :TrustRegion
         end
 
-        if alg.linesearch !== missing
+        if has_linesearch
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
             linesearch_cache = init(

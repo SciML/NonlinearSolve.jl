@@ -28,65 +28,6 @@ function evaluate_f!!(f::NonlinearFunction{iip}, fu, u, p) where {iip}
     return f(u, p)
 end
 
-# AutoDiff Selection Functions
-function get_concrete_forward_ad(
-        autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
-        args...; check_forward_mode = true, kwargs...) where {test_sparse}
-    if !isa(ADTypes.mode(autodiff), ADTypes.ForwardMode) && check_forward_mode
-        @warn "$(autodiff)::$(typeof(autodiff)) is not a `ForwardMode`. Use with caution." maxlog=1
-    end
-    return autodiff
-end
-function get_concrete_forward_ad(
-        autodiff, prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
-    if test_sparse
-        (; sparsity, jac_prototype) = prob.f
-        use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
-    else
-        use_sparse_ad = false
-    end
-    ad = if !ForwardDiff.can_dual(eltype(prob.u0)) # Use Finite Differencing
-        use_sparse_ad ? AutoSparse(AutoFiniteDiff()) : AutoFiniteDiff()
-    else
-        use_sparse_ad ? AutoSparse(AutoForwardDiff()) : AutoForwardDiff()
-    end
-    return ad
-end
-
-function get_concrete_reverse_ad(
-        autodiff::ADTypes.AbstractADType, prob, sp::Val{test_sparse} = True,
-        args...; check_reverse_mode = true, kwargs...) where {test_sparse}
-    if !isa(ADTypes.mode(autodiff), ADTypes.ReverseMode) &&
-       !isa(autodiff, ADTypes.AutoFiniteDiff) && # User specified finite differencing
-       check_reverse_mode
-        @warn "$(autodiff)::$(typeof(autodiff)) is not a `ReverseMode`. Use with caution." maxlog=1
-    end
-    if autodiff isa Union{AutoZygote, AutoSparse{<:AutoZygote}} && isinplace(prob)
-        @warn "Attempting to use Zygote.jl for inplace problems. Switching to FiniteDiff. \
-               Sparsity even if present will be ignored for correctness purposes. Set \
-               the reverse ad option to `nothing` to automatically select the best option \
-               and exploit sparsity."
-        return AutoFiniteDiff() # colorvec confusion will occur if we use FiniteDiff
-    else
-        return autodiff
-    end
-end
-function get_concrete_reverse_ad(
-        autodiff, prob, sp::Val{test_sparse} = True, args...; kwargs...) where {test_sparse}
-    if test_sparse
-        (; sparsity, jac_prototype) = prob.f
-        use_sparse_ad = sparsity !== nothing || jac_prototype !== nothing
-    else
-        use_sparse_ad = false
-    end
-    ad = if isinplace(prob) || !DI.check_available(AutoZygote()) # Use Finite Differencing
-        use_sparse_ad ? AutoSparse(AutoFiniteDiff()) : AutoFiniteDiff()
-    else
-        use_sparse_ad ? AutoSparse(AutoZygote()) : AutoZygote()
-    end
-    return ad
-end
-
 # Callbacks
 """
     callback_into_cache!(cache, internalcache, args...)

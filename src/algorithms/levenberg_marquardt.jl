@@ -3,7 +3,8 @@
         precs = DEFAULT_PRECS, damping_initial::Real = 1.0, α_geodesic::Real = 0.75,
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, autodiff = nothing,
-        min_damping_D::Real = 1e-8, disable_geodesic = Val(false))
+        min_damping_D::Real = 1e-8, disable_geodesic = Val(false), vjp_autodiff = nothing,
+        jvp_autodiff = nothing)
 
 An advanced Levenberg-Marquardt implementation with the improvements suggested in
 [transtrum2012improvements](@citet). Designed for large-scale and numerically-difficult
@@ -34,20 +35,17 @@ function LevenbergMarquardt(;
         linsolve = nothing, precs = DEFAULT_PRECS, damping_initial::Real = 1.0,
         α_geodesic::Real = 0.75, damping_increase_factor::Real = 2.0,
         damping_decrease_factor::Real = 3.0, finite_diff_step_geodesic = 0.1,
-        b_uphill::Real = 1.0, autodiff = nothing,
-        min_damping_D::Real = 1e-8, disable_geodesic = False)
-    descent = DampedNewtonDescent(; linsolve,
-        precs,
-        initial_damping = damping_initial,
+        b_uphill::Real = 1.0, min_damping_D::Real = 1e-8, disable_geodesic = False,
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing)
+    descent = DampedNewtonDescent(; linsolve, precs, initial_damping = damping_initial,
         damping_fn = LevenbergMarquardtDampingFunction(
             damping_increase_factor, damping_decrease_factor, min_damping_D))
     if disable_geodesic === False
         descent = GeodesicAcceleration(descent, finite_diff_step_geodesic, α_geodesic)
     end
     trustregion = LevenbergMarquardtTrustRegion(b_uphill)
-    return GeneralizedFirstOrderAlgorithm(;
-        concrete_jac = true, name = :LevenbergMarquardt,
-        trustregion, descent, jacobian_ad = autodiff)
+    return GeneralizedFirstOrderAlgorithm{true, :LevenbergMarquardt}(;
+        trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff)
 end
 
 @concrete struct LevenbergMarquardtDampingFunction <: AbstractDampingFunction

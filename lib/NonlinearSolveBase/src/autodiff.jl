@@ -3,23 +3,33 @@
 
 # Ordering is important here. We want to select the first one that is compatible with the
 # problem.
-const ReverseADs = (
-    ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
-    ADTypes.AutoZygote(),
-    ADTypes.AutoTracker(),
-    ADTypes.AutoReverseDiff(; compile = true),
-    ADTypes.AutoReverseDiff(),
-    ADTypes.AutoFiniteDiff()
-)
+# XXX: Remove this once Enzyme is properly supported on Julia 1.11+
+@static if VERSION ≥ v"1.11-"
+    const ReverseADs = (
+        ADTypes.AutoZygote(),
+        ADTypes.AutoTracker(),
+        ADTypes.AutoReverseDiff(; compile = true),
+        ADTypes.AutoReverseDiff(),
+        ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
+        ADTypes.AutoFiniteDiff()
+    )
+else
+    const ReverseADs = (
+        ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
+        ADTypes.AutoZygote(),
+        ADTypes.AutoTracker(),
+        ADTypes.AutoReverseDiff(; compile = true),
+        ADTypes.AutoReverseDiff(),
+        ADTypes.AutoFiniteDiff()
+    )
+end
 
 const ForwardADs = (
-    ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward),
     ADTypes.AutoPolyesterForwardDiff(),
     ADTypes.AutoForwardDiff(),
+    ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward),
     ADTypes.AutoFiniteDiff()
 )
-
-# TODO: Handle Sparsity
 
 function select_forward_mode_autodiff(
         prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true)
