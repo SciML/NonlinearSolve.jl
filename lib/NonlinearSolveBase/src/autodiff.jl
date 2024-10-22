@@ -33,7 +33,8 @@ const ForwardADs = (
 
 function select_forward_mode_autodiff(
         prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true)
-    if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ForwardMode)
+    if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ForwardMode) &&
+       !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode)
         @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
     end
     if incompatible_backend_and_problem(prob, ad)
@@ -58,7 +59,8 @@ end
 
 function select_reverse_mode_autodiff(
         prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true)
-    if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ReverseMode)
+    if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ReverseMode) &&
+       !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode)
         if !is_finite_differences_backend(ad)
             @warn "The chosen AD backend $(ad) is not a reverse mode AD. Use with caution."
         else
