@@ -1,5 +1,6 @@
 module NonlinearSolveSpeedMappingExt
 
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, SpeedMappingJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using SpeedMapping: speedmapping
@@ -12,7 +13,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SpeedMappingJL, args...;
 
     m!, u, resid = NonlinearSolve.__construct_extension_f(
         prob; alias_u0, make_fixed_point = Val(true))
-    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
+    tol = get_tolerance(abstol, eltype(u))
 
     time_limit = ifelse(maxtime === nothing, 1000, maxtime)
 

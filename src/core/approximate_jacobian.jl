@@ -148,7 +148,7 @@ function SciMLBase.__init(
         args...; stats = empty_nlstats(), alias_u0 = false, maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
-        internalnorm::F = DEFAULT_NORM, kwargs...) where {uType, iip, F}
+        internalnorm::F = L2_NORM, kwargs...) where {uType, iip, F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
@@ -162,8 +162,8 @@ function SciMLBase.__init(
         initialization_cache = __internal_init(prob, alg.initialization, alg, f, fu, u, p;
             stats, linsolve, maxiters, internalnorm)
 
-        abstol, reltol, termination_cache = init_termination_cache(
-            prob, abstol, reltol, fu, u, termination_condition)
+        abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
+            prob, abstol, reltol, fu, u, termination_condition, Val(:regular))
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)

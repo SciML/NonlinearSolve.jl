@@ -54,7 +54,7 @@ standardize_norm(f::F) where {F} = f
 norm_op(norm::N, op::OP, x, y) where {N, OP} = norm(op.(x, y))
 function norm_op(::typeof(L2_NORM), op::OP, x, y) where {OP}
     if fast_scalar_indexing(x, y)
-        return sqrt(sum(@closure((xᵢ, yᵢ)->begin
+        return sqrt(sum(@closure((xᵢyᵢ)->begin
                 xᵢ, yᵢ = xᵢyᵢ
                 return op(xᵢ, yᵢ)^2
             end), zip(x, y)))

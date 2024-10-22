@@ -1,16 +1,8 @@
 # Defaults
-@inline DEFAULT_NORM(args...) = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM(args...)
 @inline DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
-@inline DEFAULT_TOLERANCE(args...) = DiffEqBase._get_tolerance(args...)
 
 # Helper  Functions
-@static if VERSION ≤ v"1.10-"
-    @inline @generated function __hasfield(::T, ::Val{field}) where {T, field}
-        return :($(field ∉ fieldnames(T)))
-    end
-else
-    @inline __hasfield(::T, ::Val{field}) where {T, field} = hasfield(T, field)
-end
+@inline __hasfield(::T, ::Val{field}) where {T, field} = hasfield(T, field)
 
 @generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
@@ -86,12 +78,10 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __is_complex(::Type{T}) where {T} = false
 
 @inline __findmin_caches(f::F, caches) where {F} = __findmin(f ∘ get_fu, caches)
-# FIXME: DEFAULT_NORM makes an Array of NaNs not a NaN (atleast according to `isnan`)
+# FIXME: L2_NORM makes an Array of NaNs not a NaN (atleast according to `isnan`)
 @generated function __findmin(f::F, x) where {F}
     # JET shows dynamic dispatch if this is not written as a generated function
-    if F === typeof(DEFAULT_NORM)
-        return :(return __findmin_impl(Base.Fix1(maximum, abs), x))
-    end
+    F === typeof(L2_NORM) && return :(return __findmin_impl(Base.Fix1(maximum, abs), x))
     return :(return __findmin_impl(f, x))
 end
 @inline @views function __findmin_impl(f::F, x) where {F}

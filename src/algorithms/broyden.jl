@@ -171,7 +171,7 @@ end
 
 function __internal_init(prob::AbstractNonlinearProblem,
         alg::Union{GoodBroydenUpdateRule, BadBroydenUpdateRule}, J, fu, u,
-        du, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
+        du, args...; internalnorm::F = L2_NORM, kwargs...) where {F}
     @bb J⁻¹dfu = similar(u)
     @bb dfu = copy(fu)
     if alg isa GoodBroydenUpdateRule || J isa Diagonal

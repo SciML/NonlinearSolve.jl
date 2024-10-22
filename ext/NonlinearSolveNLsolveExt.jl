@@ -1,6 +1,7 @@
 module NonlinearSolveNLsolveExt
 
 using LineSearches: Static
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, NLsolveJL, TraceMinimal
 using NLsolve: NLsolve, OnceDifferentiable, nlsolve
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
@@ -27,7 +28,7 @@ function SciMLBase.__solve(
         df = OnceDifferentiable(f!, jac!, vec(u0), vec(resid), J)
     end
 
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
+    abstol = get_tolerance(abstol, eltype(u0))
     show_trace = ShT
     store_trace = StT
     extended_trace = !(trace_level isa TraceMinimal)

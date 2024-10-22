@@ -263,8 +263,7 @@ Abstract Type for Damping Functions in DampedNewton.
 ```julia
 __internal_init(
     prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
-    J, fu, u, args...; internal_norm = DEFAULT_NORM, kwargs...) -->
-AbstractDampingFunctionCache
+    J, fu, u, args...; internal_norm = L2_NORM, kwargs...) --> AbstractDampingFunctionCache
 ```
 
 Returns a [`AbstractDampingFunctionCache`](@ref).
@@ -348,7 +347,7 @@ Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolve.
 ```julia
 __internal_init(
     prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization, solver,
-    f::F, fu, u, p; linsolve = missing, internalnorm::IN = DEFAULT_NORM, kwargs...)
+    f::F, fu, u, p; linsolve = missing, internalnorm::IN = L2_NORM, kwargs...)
 ```
 
 Returns a [`NonlinearSolve.InitializedApproximateJacobianCache`](@ref).
@@ -382,9 +381,8 @@ Abstract Type for all Approximate Jacobian Update Rules used in NonlinearSolve.j
 
 ```julia
 __internal_init(
-    prob::AbstractNonlinearProblem, alg::AbstractApproximateJacobianUpdateRule, J,
-    fu, u, du, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F} -->
-AbstractApproximateJacobianUpdateRuleCache{INV}
+    prob::AbstractNonlinearProblem, alg::AbstractApproximateJacobianUpdateRule, J, fu, u,
+    du, args...; internalnorm::F = L2_NORM, kwargs...) where {F} --> AbstractApproximateJacobianUpdateRuleCache{INV}
 ```
 """
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
@@ -440,9 +438,8 @@ Abstract Type for all Trust Region Methods used in NonlinearSolve.jl.
 
 ```julia
 __internal_init(
-    prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f::F, fu, u,
-    p, args...; internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF} -->
-AbstractTrustRegionMethodCache
+    prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f::F, fu, u, p, args...;
+    internalnorm::IF = L2_NORM, kwargs...) where {F, IF} --> AbstractTrustRegionMethodCache
 ```
 """
 abstract type AbstractTrustRegionMethod end

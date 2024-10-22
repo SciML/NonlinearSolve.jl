@@ -6,12 +6,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
                       ismutable
 using ConcreteStructs: @concrete
-using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
-                  AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
-                  AbsSafeBestTerminationMode, AbsSafeTerminationMode, AbsTerminationMode,
-                  NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
-                  RelSafeTerminationMode, RelTerminationMode,
-                  SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
+using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using FastClosures: @closure
 using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
@@ -24,7 +19,9 @@ using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFacto
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
                           nonlinearsolve_dual_solution, nonlinearsolve_∂f_∂p,
-                          nonlinearsolve_∂f_∂u
+                          nonlinearsolve_∂f_∂u, L2_NORM, AbstractNonlinearTerminationMode,
+                          AbstractSafeNonlinearTerminationMode,
+                          AbstractSafeBestNonlinearTerminationMode
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
@@ -51,7 +48,7 @@ using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
                              LargestFirst
 
-@reexport using SciMLBase, SimpleNonlinearSolve
+@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase
 
 const DI = DifferentiationInterface
 
@@ -181,12 +178,6 @@ export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch,
        LiFukushimaLineSearch, LineSearchesJL
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
-
-# Export the termination conditions from NonlinearSolveBase
-export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
-       NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
-       AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
-       RelSafeBestTerminationMode, AbsSafeBestTerminationMode
 
 # Tracing Functionality
 export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber

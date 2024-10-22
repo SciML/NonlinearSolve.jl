@@ -87,7 +87,7 @@ end
 function __internal_init(prob::AbstractNonlinearProblem, alg::GeodesicAcceleration, J,
         fu, u; shared::Val{N} = Val(1), pre_inverted::Val{INV} = False,
         linsolve_kwargs = (;), abstol = nothing, reltol = nothing,
-        internalnorm::F = DEFAULT_NORM, kwargs...) where {INV, N, F}
+        internalnorm::F = L2_NORM, kwargs...) where {INV, N, F}
     T = promote_type(eltype(u), eltype(fu))
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i

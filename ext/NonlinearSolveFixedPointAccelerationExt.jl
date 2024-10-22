@@ -1,5 +1,6 @@
 module NonlinearSolveFixedPointAccelerationExt
 
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, FixedPointAccelerationJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using FixedPointAcceleration: FixedPointAcceleration, fixed_point
@@ -13,7 +14,7 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::FixedPointAccelerationJL
 
     f, u0, resid = NonlinearSolve.__construct_extension_f(
         prob; alias_u0, make_fixed_point = Val(true), force_oop = Val(true))
-    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
+    tol = get_tolerance(abstol, eltype(u0))
 
     sol = fixed_point(f, u0; Algorithm = alg.algorithm, MaxIter = maxiters, MaxM = alg.m,
         ConvergenceMetricThreshold = tol, ExtrapolationPeriod = alg.extrapolation_period,

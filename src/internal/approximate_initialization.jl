@@ -65,14 +65,14 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver, f::F,
-        fu, u::Number, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        fu, u::Number, p; internalnorm::IN = L2_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     return InitializedApproximateJacobianCache(
         α, alg.structure, alg, nothing, true, internalnorm)
 end
 function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitialization,
         solver, f::F, fu::StaticArray, u::StaticArray, p;
-        internalnorm::IN = DEFAULT_NORM, kwargs...) where {IN, F}
+        internalnorm::IN = L2_NORM, kwargs...) where {IN, F}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
@@ -91,7 +91,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::IdentityInitializa
 end
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver,
-        f::F, fu, u, p; internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        f::F, fu, u, p; internalnorm::IN = L2_NORM, kwargs...) where {F, IN}
     α = __initial_alpha(alg.alpha, u, fu, internalnorm)
     if alg.structure isa DiagonalStructure
         @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
@@ -147,7 +147,7 @@ end
 
 function __internal_init(prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
         solver, f::F, fu, u, p; stats, linsolve = missing,
-        internalnorm::IN = DEFAULT_NORM, kwargs...) where {F, IN}
+        internalnorm::IN = L2_NORM, kwargs...) where {F, IN}
     autodiff = get_concrete_forward_ad(
         alg.autodiff, prob; check_forward_mode = false, kwargs...)
     jac_cache = JacobianCache(prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve)

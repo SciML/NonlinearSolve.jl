@@ -1,6 +1,7 @@
 module NonlinearSolveSIAMFANLEquationsExt
 
 using FastClosures: @closure
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, ptcsoli,
@@ -40,8 +41,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, arg
 
     (; method, delta, linsolve, m, beta) = alg
     T = eltype(prob.u0)
-    atol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, T)
-    rtol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, T)
+    atol = get_tolerance(abstol, T)
+    rtol = get_tolerance(reltol, T)
 
     if prob.u0 isa Number
         f = @closure u -> prob.f(u, prob.p)
