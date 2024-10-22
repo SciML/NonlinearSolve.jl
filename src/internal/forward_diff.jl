@@ -1,14 +1,24 @@
-# XXX: dispatch on `__solve` & `__init`
-function SciMLBase.solve(
-        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
-            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-        alg::Union{Nothing, AbstractNonlinearAlgorithm},
-        args...;
-        kwargs...) where {T, V, P, iip}
-    sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
-    dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
-    return SciMLBase.build_solution(
-        prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+const DualNonlinearProblem = NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}} where {iip, T, V, P}
+const DualNonlinearLeastSquaresProblem = NonlinearLeastSquaresProblem{
+    <:Union{Number, <:AbstractArray}, iip,
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}} where {iip, T, V, P}
+const DualAbstractNonlinearProblem = Union{
+    DualNonlinearProblem, DualNonlinearLeastSquaresProblem}
+
+for algType in (
+    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
+    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
+    LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL
+)
+    @eval function SciMLBase.__solve(
+            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
+        sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
+        dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
+        return SciMLBase.build_solution(
+            prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+    end
 end
 
 @concrete mutable struct NonlinearSolveForwardDiffCache
@@ -32,17 +42,21 @@ function reinit_cache!(cache::NonlinearSolveForwardDiffCache;
     return cache
 end
 
-function SciMLBase.init(
-        prob::NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
-            <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}},
-        alg::Union{Nothing, AbstractNonlinearAlgorithm},
-        args...;
-        kwargs...) where {T, V, P, iip}
-    p = __value(prob.p)
-    newprob = NonlinearProblem(prob.f, __value(prob.u0), p; prob.kwargs...)
-    cache = init(newprob, alg, args...; kwargs...)
-    return NonlinearSolveForwardDiffCache(
-        cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p))
+for algType in (
+    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
+    SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
+    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
+    LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL
+)
+    @eval function SciMLBase.__init(
+            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
+        p = __value(prob.p)
+        newprob = NonlinearProblem(prob.f, __value(prob.u0), p; prob.kwargs...)
+        cache = init(newprob, alg, args...; kwargs...)
+        return NonlinearSolveForwardDiffCache(
+            cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p))
+    end
 end
 
 function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
