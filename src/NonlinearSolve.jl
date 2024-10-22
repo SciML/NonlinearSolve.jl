@@ -96,10 +96,10 @@ include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
 include("algorithms/extension_algs.jl")
 
-include("internal/forward_diff.jl") # we need to define after the algorithms
-
 include("utils.jl")
 include("default.jl")
+
+include("internal/forward_diff.jl") # we need to define after the algorithms
 
 # @setup_workload begin
 #     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),

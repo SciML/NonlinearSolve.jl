@@ -149,8 +149,7 @@ function (cache::LinearSolverCache)(;
     if linres.retcode === ReturnCode.Failure
         structured_mat = ArrayInterface.isstructured(cache.lincache.A)
         is_gpuarray = ArrayInterface.device(cache.lincache.A) isa ArrayInterface.GPU
-        if !(cache.linsolve isa QRFactorization{ColumnNorm}) &&
-           !is_gpuarray &&
+        if !(cache.linsolve isa QRFactorization{ColumnNorm}) && !is_gpuarray &&
            !structured_mat
             if verbose
                 @warn "Potential Rank Deficient Matrix Detected. Attempting to solve using \
@@ -177,15 +176,11 @@ function (cache::LinearSolverCache)(;
             return LinearSolveResult(; u = linres.u)
         elseif !(cache.linsolve isa QRFactorization{ColumnNorm})
             if verbose
-                if structured_mat
+                if structured_mat || is_gpuarray
+                    mat_desc = structured_mat ? "Structured" : "GPU"
                     @warn "Potential Rank Deficient Matrix Detected. But Matrix is \
-                           Structured. Currently, we don't attempt to solve Rank Deficient \
-                           Structured Matrices. Please open an issue at \
-                           https://github.com/SciML/NonlinearSolve.jl"
-                elseif is_gpuarray
-                    @warn "Potential Rank Deficient Matrix Detected. But Matrix is on GPU. \
-                           Currently, we don't attempt to solve Rank Deficient GPU \
-                           Matrices. Please open an issue at \
+                           $(mat_desc). Currently, we don't attempt to solve Rank Deficient \
+                           $(mat_desc) Matrices. Please open an issue at \
                            https://github.com/SciML/NonlinearSolve.jl"
                 end
             end

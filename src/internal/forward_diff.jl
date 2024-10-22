@@ -10,7 +10,8 @@ for algType in (
     Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
     GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
     LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
+    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
 )
     @eval function SciMLBase.__solve(
             prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
@@ -47,7 +48,8 @@ for algType in (
     SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
     GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
     LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
+    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
 )
     @eval function SciMLBase.__init(
             prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)

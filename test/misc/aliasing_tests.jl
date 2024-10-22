@@ -9,7 +9,7 @@
 
     # If aliasing is not handled properly this will diverge
     sol = solve(prob; abstol = 1e-6, alias_u0 = true,
-        termination_condition = AbsNormTerminationMode())
+        termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)))
 
     @test sol.u === prob.u0
     @test SciMLBase.successful_retcode(sol.retcode)
@@ -17,7 +17,7 @@
     prob = remake(prob; u0 = copy(u0))
 
     cache = init(prob; abstol = 1e-6, alias_u0 = true,
-        termination_condition = AbsNormTerminationMode())
+        termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)))
     sol = solve!(cache)
 
     @test sol.u === prob.u0
