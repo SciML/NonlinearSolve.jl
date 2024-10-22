@@ -27,20 +27,16 @@ Note that you will have to restart Julia to disable the timer outputs once enabl
 ## Example Usage
 
 ```@example diagnostics_example
-using ModelingToolkit, NonlinearSolve
+using NonlinearSolve
 
-@variables x y z
-@parameters σ ρ β
+function nlfunc(resid, u0, p)
+    resid[1] = u0[1] * u0[1] - p
+    resid[2] = u0[2] * u0[2] - p
+    resid[3] = u0[3] * u0[3] - p
+    nothing
+end
 
-# Define a nonlinear system
-eqs = [0 ~ σ * (y - x), 0 ~ x * (ρ - z) - y, 0 ~ x * y - β * z]
-@mtkbuild ns = NonlinearSystem(eqs, [x, y, z], [σ, ρ, β])
-
-u0 = [x => 1.0, y => 0.0, z => 0.0]
-
-ps = [σ => 10.0 ρ => 26.0 β => 8 / 3]
-
-prob = NonlinearProblem(ns, u0, ps)
+prob = NonlinearProblem(nlfunc, [1.0, 3.0, 5.0], 2.0)
 
 solve(prob)
 ```

@@ -5,7 +5,7 @@ modeling system for the Julia SciML ecosystem. It adds a high-level interactive 
 for the numerical solvers which can make it easy to symbolically modify and generate
 equations to be solved. The basic form of using ModelingToolkit looks as follows:
 
-```@example mtk
+```julia
 using ModelingToolkit, NonlinearSolve
 
 @variables x y z
@@ -30,20 +30,20 @@ sol = solve(prob, NewtonRaphson())
 As a symbolic system, ModelingToolkit can be used to represent the equations and derive new
 forms. For example, let's look at the equations:
 
-```@example mtk
+```julia
 equations(ns)
 ```
 
 We can ask it what the Jacobian of our system is via `calculate_jacobian`:
 
-```@example mtk
+```julia
 calculate_jacobian(ns)
 ```
 
 We can tell MTK to generate a computable form of this analytical Jacobian via `jac = true`
 to help the solver use efficient forms:
 
-```@example mtk
+```julia
 prob = NonlinearProblem(ns, u0, ps, jac = true)
 sol = solve(prob, NewtonRaphson())
 ```
@@ -54,7 +54,7 @@ One of the major reasons for using ModelingToolkit is to allow structural simpli
 the systems. It's very easy to write down a mathematical model that, in theory, could be
 solved more simply. Let's take a look at a quick system:
 
-```@example mtk
+```julia
 @variables u1 u2 u3 u4 u5
 eqs = [0 ~ u1 - sin(u5), 0 ~ u2 - cos(u1), 0 ~ u3 - hypot(u1, u2),
     0 ~ u4 - hypot(u2, u3), 0 ~ u5 - hypot(u4, u1)]
@@ -63,23 +63,23 @@ eqs = [0 ~ u1 - sin(u5), 0 ~ u2 - cos(u1), 0 ~ u3 - hypot(u1, u2),
 
 If we run structural simplification, we receive the following form:
 
-```@example mtk
+```julia
 sys = structural_simplify(sys)
 ```
 
-```@example mtk
+```julia
 equations(sys)
 ```
 
 How did it do this? Let's look at the `observed` to see the relationships that it found:
 
-```@example mtk
+```julia
 observed(sys)
 ```
 
 Using ModelingToolkit, we can build and solve the simplified system:
 
-```@example mtk
+```julia
 u0 = [u5 .=> 1.0]
 prob = NonlinearProblem(sys, u0)
 sol = solve(prob, NewtonRaphson())
@@ -87,23 +87,23 @@ sol = solve(prob, NewtonRaphson())
 
 We can then use symbolic indexing to retrieve any variable:
 
-```@example mtk
+```julia
 sol[u1]
 ```
 
-```@example mtk
+```julia
 sol[u2]
 ```
 
-```@example mtk
+```julia
 sol[u3]
 ```
 
-```@example mtk
+```julia
 sol[u4]
 ```
 
-```@example mtk
+```julia
 sol[u5]
 ```
 

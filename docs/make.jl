@@ -1,7 +1,8 @@
 using Documenter, DocumenterCitations, DocumenterInterLinks
 using NonlinearSolve, SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase,
-      DiffEqBase
+      BracketingNonlinearSolve, NonlinearSolveBase
 using SciMLJacobianOperators
+import DiffEqBase
 
 cp(joinpath(@__DIR__, "Manifest.toml"),
     joinpath(@__DIR__, "src/assets/Manifest.toml"), force = true)
@@ -20,8 +21,9 @@ interlinks = InterLinks(
 makedocs(;
     sitename = "NonlinearSolve.jl",
     authors = "Chris Rackauckas",
-    modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq,
-        Sundials, DiffEqBase, SciMLBase, SciMLJacobianOperators],
+    modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq, DiffEqBase,
+        Sundials, NonlinearSolveBase, SciMLBase, SciMLJacobianOperators,
+        BracketingNonlinearSolve],
     clean = true,
     doctest = false,
     linkcheck = true,

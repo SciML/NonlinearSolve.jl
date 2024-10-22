@@ -81,7 +81,7 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
     supertype_name = Symbol(:Abstract, safety, :NonlinearTerminationMode)
 
     doctring = safety == :Safe ?
-               "Essentially [`$(norm_type)NormTerminationMode`](@ref) + terminate if there \
+               "Essentially [`$(norm_type)TerminationMode`](@ref) + terminate if there \
                 has been no improvement for the last `patience_steps` + terminate if the \
                 solution blows up (diverges)." :
                "Essentially [`$(norm_type)SafeTerminationMode`](@ref), but caches the best\

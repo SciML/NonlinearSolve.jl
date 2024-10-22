@@ -60,9 +60,6 @@ NonlinearSolve.GenericTrustRegionScheme
 ## Miscellaneous
 
 ```@docs
-SimpleNonlinearSolve.__nextfloat_tdir
-SimpleNonlinearSolve.__prevfloat_tdir
-SimpleNonlinearSolve.__max_tdir
 NonlinearSolve.callback_into_cache!
 NonlinearSolve.concrete_jac
 ```
