@@ -48,8 +48,6 @@ using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
 using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
                              LargestFirst
 
-@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase
-
 const DI = DifferentiationInterface
 
 const True = Val(true)
@@ -156,6 +154,9 @@ include("default.jl")
         end
     end
 end
+
+# Rexexports
+@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase
 
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane

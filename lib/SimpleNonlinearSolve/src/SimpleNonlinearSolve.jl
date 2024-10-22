@@ -8,6 +8,7 @@ using LineSearch: LiFukushimaLineSearch
 using LinearAlgebra: LinearAlgebra, dot
 using MaybeInplace: @bb, setindex_trait, CannotSetindex, CanSetindex
 using PrecompileTools: @compile_workload, @setup_workload
+using Reexport: @reexport
 using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, NonlinearFunction, NonlinearProblem,
                  NonlinearLeastSquaresProblem, IntervalNonlinearProblem, ReturnCode, remake
 using StaticArraysCore: StaticArray, SArray, SVector, MArray
@@ -18,7 +19,6 @@ using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 
-using BracketingNonlinearSolve: Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 
@@ -138,11 +138,8 @@ function solve_adjoint_internal end
     end
 end
 
-export IntervalNonlinearProblem
-
-export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
-
-export NonlinearFunction, NonlinearProblem, NonlinearLeastSquaresProblem
+# Rexexports
+@reexport using ADTypes, SciMLBase, BracketingNonlinearSolve, NonlinearSolveBase
 
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
