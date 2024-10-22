@@ -1,8 +1,8 @@
 @testsetup module CoreRootfindTesting
 using Reexport
 @reexport using BenchmarkTools, LinearSolve, NonlinearSolve, StaticArrays, Random,
-                LinearAlgebra, ForwardDiff, Zygote, Enzyme, DiffEqBase,
-                SparseConnectivityTracer
+                LinearAlgebra, ForwardDiff, Zygote, Enzyme, SparseConnectivityTracer,
+                NonlinearSolveBase
 using LineSearches: LineSearches
 
 _nameof(x) = applicable(nameof, x) ? nameof(x) : _nameof(typeof(x))
@@ -22,9 +22,16 @@ function newton_fails(u, p)
 end
 
 const TERMINATION_CONDITIONS = [
-    NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
-    AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-    AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()]
+    NormTerminationMode(Base.Fix1(maximum, abs)),
+    RelTerminationMode(),
+    RelNormTerminationMode(Base.Fix1(maximum, abs)),
+    RelNormSafeTerminationMode(Base.Fix1(maximum, abs)),
+    RelNormSafeBestTerminationMode(Base.Fix1(maximum, abs)),
+    AbsTerminationMode(),
+    AbsNormTerminationMode(Base.Fix1(maximum, abs)),
+    AbsNormSafeTerminationMode(Base.Fix1(maximum, abs)),
+    AbsNormSafeBestTerminationMode(Base.Fix1(maximum, abs))
+]
 
 function benchmark_nlsolve_oop(f, u0, p = 2.0; solver, kwargs...)
     prob = NonlinearProblem{false}(f, u0, p)

@@ -13,14 +13,14 @@ using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Sy
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSearch,
-                  RobustNonMonotoneLineSearch, BackTracking,  LiFukushimaLineSearch
+                  RobustNonMonotoneLineSearch, BackTracking, LiFukushimaLineSearch
 using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
                           nonlinearsolve_dual_solution, nonlinearsolve_∂f_∂p,
-                          nonlinearsolve_∂f_∂u, L2_NORM, AbstractNonlinearTerminationMode,
-                          AbstractSafeNonlinearTerminationMode,
+                          nonlinearsolve_∂f_∂u, L2_NORM, AbsNormTerminationMode,
+                          AbstractNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!

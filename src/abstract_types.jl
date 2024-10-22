@@ -382,7 +382,8 @@ Abstract Type for all Approximate Jacobian Update Rules used in NonlinearSolve.j
 ```julia
 __internal_init(
     prob::AbstractNonlinearProblem, alg::AbstractApproximateJacobianUpdateRule, J, fu, u,
-    du, args...; internalnorm::F = L2_NORM, kwargs...) where {F} --> AbstractApproximateJacobianUpdateRuleCache{INV}
+    du, args...; internalnorm::F = L2_NORM, kwargs...) where {F} -->
+AbstractApproximateJacobianUpdateRuleCache{INV}
 ```
 """
 abstract type AbstractApproximateJacobianUpdateRule{INV} end
