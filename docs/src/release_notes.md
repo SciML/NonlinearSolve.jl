@@ -4,13 +4,16 @@
 
 ### Breaking Changes in `NonlinearSolve.jl` v4
 
+  - See [common breaking changes](@ref common-breaking-changes-v4v2) below.
+
 ### Breaking Changes in `SimpleNonlinearSolve.jl` v2
 
-  - `Auto*` structs are no longer exported. Load `ADTypes` to access them.
+  - See [common breaking changes](@ref common-breaking-changes-v4v2) below.
+
+### [Common Breaking Changes](@id common-breaking-changes-v4v2)
+
   - Use of termination conditions from `DiffEqBase` has been removed. Use the termination
     conditions from `NonlinearSolveBase` instead.
-  - We no longer export the entire `SciMLBase`. Instead selected functionality relevant to
-    `SimpleNonlinearSolve` has been exported.
   - If no autodiff is provided, we now choose from a list of autodiffs based on the packages
     loaded. For example, if `Enzyme` is loaded, we will default to that. In general, we
     don't guarantee the exact autodiff selected if `autodiff` is not provided (i.e.
