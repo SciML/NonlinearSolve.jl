@@ -23,17 +23,23 @@ terminated = cache(du, u, uprev)
 ### Absolute Tolerance
 
 ```@docs
-AbsTerminationMode
-AbsNormTerminationMode
-AbsNormSafeTerminationMode
-AbsNormSafeBestTerminationMode
+NonlinearSolveBase.AbsTerminationMode
+NonlinearSolveBase.AbsNormTerminationMode
+NonlinearSolveBase.AbsNormSafeTerminationMode
+NonlinearSolveBase.AbsNormSafeBestTerminationMode
 ```
 
 ### Relative Tolerance
 
 ```@docs
-RelTerminationMode
-RelNormTerminationMode
-RelNormSafeTerminationMode
-RelNormSafeBestTerminationMode
+NonlinearSolveBase.RelTerminationMode
+NonlinearSolveBase.RelNormTerminationMode
+NonlinearSolveBase.RelNormSafeTerminationMode
+NonlinearSolveBase.RelNormSafeBestTerminationMode
+```
+
+### Both Tolerances
+
+```@docs
+NonlinearSolveBase.NormTerminationMode
 ```

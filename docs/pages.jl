@@ -1,6 +1,7 @@
 # Put in a separate page so it can be used by SciMLDocs.jl
 
-pages = ["index.md",
+pages = [
+    "index.md",
     "Getting Started with Nonlinear Rootfinding in Julia" => "tutorials/getting_started.md",
     "Tutorials" => Any[
         "tutorials/code_optimization.md",
@@ -31,6 +32,7 @@ pages = ["index.md",
     "Native Functionalities" => Any[
         "native/solvers.md",
         "native/simplenonlinearsolve.md",
+        "native/bracketingnonlinearsolve.md",
         "native/steadystatediffeq.md",
         "native/descent.md",
         "native/globalization.md",

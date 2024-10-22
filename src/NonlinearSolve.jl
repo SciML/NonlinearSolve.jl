@@ -101,65 +101,65 @@ include("default.jl")
 
 include("internal/forward_diff.jl") # we need to define after the algorithms
 
-# @setup_workload begin
-#     nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
-#         (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
-#     probs_nls = NonlinearProblem[]
-#     for (fn, u0) in nlfuncs
-#         push!(probs_nls, NonlinearProblem(fn, u0, 2.0))
-#     end
+@setup_workload begin
+    nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
+        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
+    probs_nls = NonlinearProblem[]
+    for (fn, u0) in nlfuncs
+        push!(probs_nls, NonlinearProblem(fn, u0, 2.0))
+    end
 
-#     nls_algs = (
-#         NewtonRaphson(),
-#         TrustRegion(),
-#         LevenbergMarquardt(),
-#         Broyden(),
-#         Klement(),
-#         nothing
-#     )
+    nls_algs = (
+        NewtonRaphson(),
+        TrustRegion(),
+        LevenbergMarquardt(),
+        Broyden(),
+        Klement(),
+        nothing
+    )
 
-#     probs_nlls = NonlinearLeastSquaresProblem[]
-#     nlfuncs = (
-#         (NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
-#         (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
-#         (
-#             NonlinearFunction{true}(
-#                 (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)),
-#             [0.1, 0.0]),
-#         (
-#             NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-#                 resid_prototype = zeros(4)),
-#             [0.1, 0.1]
-#         )
-#     )
-#     for (fn, u0) in nlfuncs
-#         push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-#     end
+    probs_nlls = NonlinearLeastSquaresProblem[]
+    nlfuncs = (
+        (NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
+        (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
+        (
+            NonlinearFunction{true}(
+                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)),
+            [0.1, 0.0]),
+        (
+            NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+                resid_prototype = zeros(4)),
+            [0.1, 0.1]
+        )
+    )
+    for (fn, u0) in nlfuncs
+        push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
+    end
 
-#     nlls_algs = (
-#         LevenbergMarquardt(),
-#         GaussNewton(),
-#         TrustRegion(),
-#         nothing
-#     )
+    nlls_algs = (
+        LevenbergMarquardt(),
+        GaussNewton(),
+        TrustRegion(),
+        nothing
+    )
 
-#     @compile_workload begin
-#         @sync begin
-#             for T in (Float32, Float64), (fn, u0) in nlfuncs
-#                 Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
-#             end
-#             for (fn, u0) in nlfuncs
-#                 Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
-#             end
-#             for prob in probs_nls, alg in nls_algs
-#                 Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-#             end
-#             for prob in probs_nlls, alg in nlls_algs
-#                 Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-#             end
-#         end
-#     end
-# end
+    @compile_workload begin
+        @sync begin
+            for T in (Float32, Float64), (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
+            end
+            for (fn, u0) in nlfuncs
+                Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
+            end
+            for prob in probs_nls, alg in nls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
+            for prob in probs_nlls, alg in nlls_algs
+                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
+        end
+    end
+end
 
 # Rexexports
 @reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase

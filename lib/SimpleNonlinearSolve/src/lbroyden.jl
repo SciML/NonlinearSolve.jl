@@ -44,8 +44,8 @@ function SciMLBase.__solve(
         end
         @warn "Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
-               either `termination_condition = AbsNormTerminationMode()` or \
-               `termination_condition = nothing`." maxlog=1
+               either `termination_condition = AbsNormTerminationMode(Base.Fix2(norm, Inf))` \
+               or `termination_condition = nothing`." maxlog=1
     end
     return internal_generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
