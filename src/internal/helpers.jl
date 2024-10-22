@@ -109,9 +109,11 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
 end
 
 function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = False,
-        can_handle_scalar::Val = False, kwargs...)
+        can_handle_scalar::Val = False, autodiff = nothing, kwargs...)
+    autodiff = select_jacobian_autodiff(prob, autodiff)
+
     Jₚ = JacobianCache(
-        prob, alg, prob.f, fu, u0, prob.p; stats = empty_nlstats(), kwargs...)
+        prob, alg, prob.f, fu, u0, prob.p; stats = empty_nlstats(), autodiff, kwargs...)
 
     𝓙 = (can_handle_scalar === False && prob.u0 isa Number) ? @closure(u->[Jₚ(u[1])]) : Jₚ
 
