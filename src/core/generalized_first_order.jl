@@ -1,7 +1,7 @@
 """
     GeneralizedFirstOrderAlgorithm{concrete_jac, name}(; descent, linesearch = missing,
-        trustregion = missing, jacobian_ad = nothing, forward_ad = nothing,
-        reverse_ad = nothing, max_shrink_times::Int = typemax(Int))
+        trustregion = missing, autodiff = nothing, vjp_autodiff = nothing,
+        jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int))
     GeneralizedFirstOrderAlgorithm(; concrete_jac = nothing, name::Symbol = :unknown,
         kwargs...)
 
@@ -11,7 +11,9 @@ common example of this is Newton-Raphson Method.
 First Order here refers to the order of differentiation, and should not be confused with the
 order of convergence.
 
-`trustregion` and `linesearch` cannot be specified together.
+!!! danger
+
+    `trustregion` and `linesearch` cannot be specified together.
 
 ### Keyword Arguments
 
@@ -28,9 +30,10 @@ order of convergence.
     trustregion
     descent
     max_shrink_times::Int
-    jacobian_ad
-    forward_ad
-    reverse_ad
+
+    autodiff
+    vjp_autodiff
+    jvp_autodiff
 end
 
 function __show_algorithm(io::IO, alg::GeneralizedFirstOrderAlgorithm, name, indent)
@@ -38,9 +41,9 @@ function __show_algorithm(io::IO, alg::GeneralizedFirstOrderAlgorithm, name, ind
     __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
     __is_present(alg.trustregion) && push!(modifiers, "trustregion = $(alg.trustregion)")
     push!(modifiers, "descent = $(alg.descent)")
-    __is_present(alg.jacobian_ad) && push!(modifiers, "jacobian_ad = $(alg.jacobian_ad)")
-    __is_present(alg.forward_ad) && push!(modifiers, "forward_ad = $(alg.forward_ad)")
-    __is_present(alg.reverse_ad) && push!(modifiers, "reverse_ad = $(alg.reverse_ad)")
+    __is_present(alg.autodiff) && push!(modifiers, "autodiff = $(alg.autodiff)")
+    __is_present(alg.vjp_autodiff) && push!(modifiers, "vjp_autodiff = $(alg.vjp_autodiff)")
+    __is_present(alg.jvp_autodiff) && push!(modifiers, "jvp_autodiff = $(alg.jvp_autodiff)")
     spacing = " "^indent * "   "
     spacing_last = " "^indent
     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
@@ -53,22 +56,11 @@ end
 
 function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
         descent, linesearch = missing, trustregion = missing,
-        jacobian_ad = nothing, forward_ad = nothing, reverse_ad = nothing,
+        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing,
         max_shrink_times::Int = typemax(Int)) where {concrete_jac, name}
-    forward_ad = ifelse(forward_ad !== nothing,
-        forward_ad,
-        ifelse(
-            jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ForwardMode,
-            jacobian_ad, nothing))
-    reverse_ad = ifelse(reverse_ad !== nothing,
-        reverse_ad,
-        ifelse(
-            jacobian_ad !== nothing && ADTypes.mode(jacobian_ad) isa ADTypes.ReverseMode,
-            jacobian_ad, nothing))
-
     return GeneralizedFirstOrderAlgorithm{concrete_jac, name}(
         linesearch, trustregion, descent, max_shrink_times,
-        jacobian_ad, forward_ad, reverse_ad)
+        autodiff, jvp_autodiff, vjp_autodiff)
 end
 
 concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
@@ -152,6 +144,22 @@ function SciMLBase.__init(
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm = L2_NORM,
         linsolve_kwargs = (;), kwargs...) where {uType, iip}
+    autodiff = select_jacobian_autodiff(prob, alg.autodiff)
+    jvp_autodiff = if alg.jvp_autodiff === nothing && alg.autodiff !== nothing &&
+                      (ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
+                       ADTypes.mode(alg.autodiff) isa ADTypes.ForwardOrReverseMode)
+        select_forward_mode_autodiff(prob, alg.autodiff)
+    else
+        select_forward_mode_autodiff(prob, alg.jvp_autodiff)
+    end
+    vjp_autodiff = if alg.vjp_autodiff === nothing && alg.autodiff !== nothing &&
+                      (ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+                       ADTypes.mode(alg.autodiff) isa ADTypes.ForwardOrReverseMode)
+        select_reverse_mode_autodiff(prob, alg.autodiff)
+    else
+        select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
+    end
+
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         (; f, u0, p) = prob
@@ -166,14 +174,16 @@ function SciMLBase.__init(
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         jac_cache = JacobianCache(
-            prob, alg, f, fu, u, p; stats, autodiff = alg.jacobian_ad, linsolve,
-            jvp_autodiff = alg.forward_ad, vjp_autodiff = alg.reverse_ad)
+            prob, alg, f, fu, u, p; stats, autodiff, linsolve, jvp_autodiff, vjp_autodiff)
         J = jac_cache(nothing)
         descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol,
             reltol, internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)
 
-        if alg.trustregion !== missing && alg.linesearch !== missing
+        has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
+        has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
+
+        if has_trustregion && has_linesearch
             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
         end
 
@@ -181,28 +191,20 @@ function SciMLBase.__init(
         linesearch_cache = nothing
         trustregion_cache = nothing
 
-        if alg.trustregion !== missing
+        if has_trustregion
             supports_trust_region(alg.descent) || error("Trust Region not supported by \
                                                         $(alg.descent).")
             trustregion_cache = __internal_init(
-                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...)
+                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...,
+                autodiff, jvp_autodiff, vjp_autodiff)
             GB = :TrustRegion
         end
 
-        if alg.linesearch !== missing
+        if has_linesearch
             supports_line_search(alg.descent) || error("Line Search not supported by \
                                                         $(alg.descent).")
-            linesearch_ad = alg.forward_ad === nothing ?
-                            (alg.reverse_ad === nothing ? alg.jacobian_ad :
-                             alg.reverse_ad) : alg.forward_ad
-            if linesearch_ad !== nothing && iip && !DI.check_inplace(linesearch_ad)
-                @warn "$(linesearch_ad) doesn't support in-place problems."
-                linesearch_ad = nothing
-            end
-            linesearch_ad = get_concrete_forward_ad(
-                linesearch_ad, prob, False; check_forward_mode = false)
             linesearch_cache = init(
-                prob, alg.linesearch, fu, u; stats, autodiff = linesearch_ad, kwargs...)
+                prob, alg.linesearch, fu, u; stats, autodiff = jvp_autodiff, kwargs...)
             GB = :LineSearch
         end
 

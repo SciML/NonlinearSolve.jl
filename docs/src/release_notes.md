@@ -15,9 +15,9 @@
   - Use of termination conditions from `DiffEqBase` has been removed. Use the termination
     conditions from `NonlinearSolveBase` instead.
   - If no autodiff is provided, we now choose from a list of autodiffs based on the packages
-    loaded. For example, if `Enzyme` is loaded, we will default to that. In general, we
-    don't guarantee the exact autodiff selected if `autodiff` is not provided (i.e.
-    `nothing`).
+    loaded. For example, if `Enzyme` is loaded, we will default to that (for reverse mode).
+    In general, we don't guarantee the exact autodiff selected if `autodiff` is not provided
+    (i.e. `nothing`).
 
 ## Dec '23
 

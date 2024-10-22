@@ -22,15 +22,16 @@ documentation.
     preconditioners. For more information on specifying preconditioners for LinearSolve
     algorithms, consult the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `linesearch`: the line search algorithm to use. Defaults to [`NoLineSearch()`](@extref LineSearch.NoLineSearch),
-    which means that no line search is performed.
-  - `autodiff`/`jacobian_ad`: etermines the backend used for the Jacobian. Note that this
+  - `linesearch`: the line search algorithm to use. Defaults to
+    [`NoLineSearch()`](@extref LineSearch.NoLineSearch), which means that no line search is
+    performed.
+  - `autodiff`: etermines the backend used for the Jacobian. Note that this
     argument is ignored if an analytical Jacobian is passed, as that will be used instead.
     Defaults to `nothing` which means that a default is selected according to the problem
     specification! Valid choices are types from ADTypes.jl.
-  - `forward_ad`/`vjp_autodiff`: similar to `autodiff`, but is used to compute Jacobian
+  - `vjp_autodiff`: similar to `autodiff`, but is used to compute Jacobian
     Vector Products. Ignored if the NonlinearFunction contains the `jvp` function.
-  - `reverse_ad`/`vjp_autodiff`: similar to `autodiff`, but is used to compute Vector
+  - `vjp_autodiff`: similar to `autodiff`, but is used to compute Vector
     Jacobian Products. Ignored if the NonlinearFunction contains the `vjp` function.
   - `concrete_jac`: whether to build a concrete Jacobian. If a Krylov-subspace method is
     used, then the Jacobian will not be constructed and instead direct Jacobian-Vector

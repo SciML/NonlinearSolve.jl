@@ -1,5 +1,5 @@
 """
-    Klement(; max_resets = 100, linsolve = NoLineSearch(), linesearch = nothing,
+    Klement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
         precs = DEFAULT_PRECS, alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
@@ -25,25 +25,29 @@ over this.
         differentiable problems.
 """
 function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
-        linesearch = NoLineSearch(), precs = DEFAULT_PRECS,
-        autodiff = nothing, init_jacobian::Val{IJ} = Val(:identity)) where {IJ}
-    if IJ === :identity
-        initialization = IdentityInitialization(alpha, DiagonalStructure())
-    elseif IJ === :true_jacobian
-        initialization = TrueJacobianInitialization(FullStructure(), autodiff)
-    elseif IJ === :true_jacobian_diagonal
-        initialization = TrueJacobianInitialization(DiagonalStructure(), autodiff)
-    else
-        throw(ArgumentError("`init_jacobian` must be one of `:identity`, `:true_jacobian`, \
-                             or `:true_jacobian_diagonal`"))
-    end
-
-    CJ = IJ === :true_jacobian || IJ === :true_jacobian_diagonal
-
+        linesearch = nothing, precs = DEFAULT_PRECS,
+        autodiff = nothing, init_jacobian::Val = Val(:identity))
+    initialization = klement_init(init_jacobian, autodiff, alpha)
+    CJ = init_jacobian isa Val{:true_jacobian} ||
+         init_jacobian isa Val{:true_jacobian_diagonal}
     return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(;
         linesearch, descent = NewtonDescent(; linsolve, precs),
         update_rule = KlementUpdateRule(),
         reinit_rule = IllConditionedJacobianReset(), max_resets, initialization)
+end
+
+function klement_init(::Val{:identity}, autodiff, alpha)
+    return IdentityInitialization(alpha, DiagonalStructure())
+end
+function klement_init(::Val{:true_jacobian}, autodiff, alpha)
+    return TrueJacobianInitialization(FullStructure(), autodiff)
+end
+function klement_init(::Val{:true_jacobian_diagonal}, autodiff, alpha)
+    return TrueJacobianInitialization(DiagonalStructure(), autodiff)
+end
+function klement_init(::Val{IJ}, autodiff, alpha) where {IJ}
+    error("Unknown `init_jacobian = Val($(Meta.quot(IJ)))`. Please choose a valid \
+           `init_jacobian`.")
 end
 
 # Essentially checks ill conditioned Jacobian

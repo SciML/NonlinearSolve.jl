@@ -1,5 +1,5 @@
 """
-    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
+    LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Val = Val(10), reset_tolerance = nothing, alpha = nothing)
 
 An implementation of `LimitedMemoryBroyden` [ziani2008autoadaptative](@cite) with resetting
@@ -15,16 +15,13 @@ and line search.
   - `alpha`: The initial Jacobian inverse is set to be `(αI)⁻¹`. Defaults to `nothing`
     which implies `α = max(norm(u), 1) / (2 * norm(fu))`.
 """
-function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = NoLineSearch(),
+function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing, alpha = nothing)
     threshold isa Int && (threshold = Val(threshold))
+    initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(alpha, threshold)
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
-        descent = NewtonDescent(),
-        update_rule = GoodBroydenUpdateRule(),
-        max_resets,
-        initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(
-            alpha, threshold),
-        reinit_rule = NoChangeInStateReset(; reset_tolerance))
+        descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(),
+        max_resets, initialization, reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 """

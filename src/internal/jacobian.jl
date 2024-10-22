@@ -56,9 +56,6 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
 
     @bb fu = similar(fu_)
 
-    autodiff = get_concrete_forward_ad(
-        autodiff, prob, Val(false); check_forward_mode = false)
-
     if !has_analytic_jac && needs_jac
         autodiff = construct_concrete_adtype(f, autodiff)
         di_extras = if iip
@@ -71,10 +68,6 @@ function JacobianCache(prob, alg, f::F, fu_, u, p; stats, autodiff = nothing,
     end
 
     J = if !needs_jac
-        jvp_autodiff = get_concrete_forward_ad(
-            jvp_autodiff, prob, Val(false); check_forward_mode = true)
-        vjp_autodiff = get_concrete_reverse_ad(
-            vjp_autodiff, prob, Val(false); check_reverse_mode = false)
         JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
         if f.jac_prototype === nothing
@@ -109,8 +102,6 @@ function JacobianCache(prob, alg, f::F, ::Number, u::Number, p; stats,
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
         return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, nothing)
     end
-    autodiff = get_dense_ad(get_concrete_forward_ad(
-        autodiff, prob; check_forward_mode = false))
     di_extras = DI.prepare_derivative(f, get_dense_ad(autodiff), u, Constant(prob.p))
     return JacobianCache{false}(u, f, fu, u, p, stats, autodiff, di_extras)
 end

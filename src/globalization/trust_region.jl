@@ -198,8 +198,7 @@ const RUS = RadiusUpdateSchemes
     GenericTrustRegionScheme(; method = RadiusUpdateSchemes.Simple,
         max_trust_radius = nothing, initial_trust_radius = nothing,
         step_threshold = nothing, shrink_threshold = nothing, expand_threshold = nothing,
-        shrink_factor = nothing, expand_factor = nothing, forward_ad = nothing,
-        reverse_ad = nothing)
+        shrink_factor = nothing, expand_factor = nothing)
 
 Trust Region Method that updates and stores the current trust region radius in
 `trust_region`. For any of the keyword arguments, if the value is `nothing`, then we use
@@ -245,8 +244,6 @@ the value used in the respective paper.
     expand_threshold = nothing
     max_trust_radius = nothing
     initial_trust_radius = nothing
-    forward_ad = nothing
-    reverse_ad = nothing
 end
 
 function Base.show(io::IO, alg::GenericTrustRegionScheme)
@@ -367,7 +364,8 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu, u,
-        p, args...; stats, internalnorm::IF = L2_NORM, kwargs...) where {F, IF}
+        p, args...; stats, internalnorm::IF = L2_NORM, vjp_autodiff = nothing,
+        jvp_autodiff = nothing, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)
@@ -386,13 +384,11 @@ function __internal_init(
     p1, p2, p3, p4 = __get_parameters(T, alg.method)
     ϵ = T(1e-8)
 
-    reverse_ad = get_concrete_reverse_ad(alg.reverse_ad, prob; check_reverse_mode = true)
     vjp_operator = alg.method isa RUS.__Yuan || alg.method isa RUS.__Bastin ?
-                   VecJacOperator(prob, fu, u; autodiff = reverse_ad) : nothing
+                   VecJacOperator(prob, fu, u; autodiff = vjp_autodiff) : nothing
 
-    forward_ad = get_concrete_forward_ad(alg.forward_ad, prob; check_forward_mode = true)
     jvp_operator = alg.method isa RUS.__Bastin ?
-                   JacVecOperator(prob, fu, u; autodiff = forward_ad) : nothing
+                   JacVecOperator(prob, fu, u; autodiff = jvp_autodiff) : nothing
 
     if alg.method isa RUS.__Yuan
         Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * _vec(fu)

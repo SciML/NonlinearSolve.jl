@@ -130,7 +130,6 @@ function prepare_jacobian(prob, autodiff, _, x::Number)
     if SciMLBase.has_jac(prob.f) || SciMLBase.has_vjp(prob.f) || SciMLBase.has_jvp(prob.f)
         return AnalyticJacobian()
     end
-    # return DI.prepare_derivative(prob.f, autodiff, x, Constant(prob.p))
     return DINoPreparation()
 end
 function prepare_jacobian(prob, autodiff, fx, x)
