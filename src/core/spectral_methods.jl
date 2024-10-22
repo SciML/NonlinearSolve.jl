@@ -131,8 +131,8 @@ function SciMLBase.__init(prob::AbstractNonlinearProblem, alg::GeneralizedDFSane
 
         linesearch_cache = init(prob, alg.linesearch, fu, u; stats, kwargs...)
 
-        abstol, reltol, tc_cache = init_termination_cache(
-            prob, abstol, reltol, fu, u_cache, termination_condition)
+        abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+            prob, abstol, reltol, fu, u_cache, termination_condition, Val(:regular))
         trace = init_nonlinearsolve_trace(prob, alg, u, fu, nothing, du; kwargs...)
 
         if alg.σ_1 === nothing

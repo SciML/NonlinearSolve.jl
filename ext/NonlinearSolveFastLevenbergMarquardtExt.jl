@@ -3,6 +3,7 @@ module NonlinearSolveFastLevenbergMarquardtExt
 using ArrayInterface: ArrayInterface
 using FastClosures: @closure
 using FastLevenbergMarquardt: FastLevenbergMarquardt
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, FastLevenbergMarquardtJL
 using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 using StaticArraysCore: SArray
@@ -33,8 +34,8 @@ function SciMLBase.__solve(prob::Union{NonlinearLeastSquaresProblem, NonlinearPr
     else
         @closure (du, u, p) -> fn(du, u)
     end
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
-    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
+    abstol = get_tolerance(abstol, eltype(u))
+    reltol = get_tolerance(reltol, eltype(u))
 
     _jac_fn = NonlinearSolve.__construct_extension_jac(
         prob, alg, u, resid; alg.autodiff, can_handle_oop = Val(prob.u0 isa SArray))

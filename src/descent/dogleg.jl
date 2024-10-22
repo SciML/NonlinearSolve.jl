@@ -49,7 +49,7 @@ end
 
 function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
         pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
-        abstol = nothing, reltol = nothing, internalnorm::F = DEFAULT_NORM,
+        abstol = nothing, reltol = nothing, internalnorm::F = L2_NORM,
         shared::Val{N} = Val(1), kwargs...) where {F, INV, N}
     newton_cache = __internal_init(prob, alg.newton_descent, J, fu, u; pre_inverted,
         linsolve_kwargs, abstol, reltol, shared, kwargs...)

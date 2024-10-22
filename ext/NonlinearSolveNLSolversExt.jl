@@ -6,6 +6,7 @@ using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 using LinearAlgebra: norm
 using NLSolvers: NLSolvers, NEqOptions, NEqProblem
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, NLSolversJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
@@ -14,8 +15,8 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
         alias_u0::Bool = false, termination_condition = nothing, kwargs...)
     NonlinearSolve.__test_termination_condition(termination_condition, :NLSolversJL)
 
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(prob.u0))
-    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(prob.u0))
+    abstol = get_tolerance(abstol, eltype(prob.u0))
+    reltol = get_tolerance(reltol, eltype(prob.u0))
 
     options = NEqOptions(; maxiter = maxiters, f_abstol = abstol, f_reltol = reltol)
 

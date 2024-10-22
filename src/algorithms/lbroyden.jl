@@ -44,7 +44,7 @@ jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization{T},
         solver, f::F, fu, u, p; maxiters = 1000,
-        internalnorm::IN = DEFAULT_NORM, kwargs...) where {T, F, IN}
+        internalnorm::IN = L2_NORM, kwargs...) where {T, F, IN}
     if u isa Number # Use the standard broyden
         return __internal_init(prob, IdentityInitialization(true, FullStructure()),
             solver, f, fu, u, p; maxiters, kwargs...)

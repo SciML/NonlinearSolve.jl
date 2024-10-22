@@ -57,7 +57,7 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion, f::F, fu,
-        u, p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        u, p, args...; stats, internalnorm::IF = L2_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
     @bb u_cache = similar(u)
@@ -367,7 +367,7 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f::F, fu, u,
-        p, args...; stats, internalnorm::IF = DEFAULT_NORM, kwargs...) where {F, IF}
+        p, args...; stats, internalnorm::IF = L2_NORM, kwargs...) where {F, IF}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
     fu_norm = internalnorm(fu)

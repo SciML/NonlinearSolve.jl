@@ -150,7 +150,7 @@ function SciMLBase.__init(
         prob::AbstractNonlinearProblem{uType, iip}, alg::GeneralizedFirstOrderAlgorithm,
         args...; stats = empty_nlstats(), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
-        termination_condition = nothing, internalnorm = DEFAULT_NORM,
+        termination_condition = nothing, internalnorm = L2_NORM,
         linsolve_kwargs = (;), kwargs...) where {uType, iip}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
@@ -161,8 +161,8 @@ function SciMLBase.__init(
 
         linsolve = get_linear_solver(alg.descent)
 
-        abstol, reltol, termination_cache = init_termination_cache(
-            prob, abstol, reltol, fu, u, termination_condition)
+        abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
+            prob, abstol, reltol, fu, u, termination_condition, Val(:regular))
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         jac_cache = JacobianCache(

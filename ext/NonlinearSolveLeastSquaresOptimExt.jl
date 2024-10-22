@@ -2,6 +2,7 @@ module NonlinearSolveLeastSquaresOptimExt
 
 using ConcreteStructs: @concrete
 using LeastSquaresOptim: LeastSquaresOptim
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL, TraceMinimal
 using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 
@@ -42,8 +43,8 @@ function SciMLBase.__init(prob::Union{NonlinearLeastSquaresProblem, NonlinearPro
     NonlinearSolve.__test_termination_condition(termination_condition, :LeastSquaresOptim)
 
     f!, u, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
-    abstol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u))
-    reltol = NonlinearSolve.DEFAULT_TOLERANCE(reltol, eltype(u))
+    abstol = get_tolerance(abstol, eltype(u))
+    reltol = get_tolerance(reltol, eltype(u))
 
     if prob.f.jac === nothing && alg.autodiff isa Symbol
         lsoprob = LSO.LeastSquaresProblem(; x = u, f!, y = resid, alg.autodiff,

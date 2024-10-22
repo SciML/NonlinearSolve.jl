@@ -53,7 +53,7 @@ end
 
 function __internal_init(
         prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation, initial_damping,
-        J, fu, u, args...; internalnorm::F = DEFAULT_NORM, kwargs...) where {F}
+        J, fu, u, args...; internalnorm::F = L2_NORM, kwargs...) where {F}
     T = promote_type(eltype(u), eltype(fu))
     return SwitchedEvolutionRelaxationCache(
         internalnorm(fu), T(1 / initial_damping), internalnorm)

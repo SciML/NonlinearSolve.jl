@@ -1,6 +1,7 @@
 module NonlinearSolveMINPACKExt
 
 using MINPACK: MINPACK
+using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
 using NonlinearSolve: NonlinearSolve, CMINPACK
 using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 using FastClosures: @closure
@@ -21,7 +22,7 @@ function SciMLBase.__solve(
 
     show_trace = ShT
     tracing = StT
-    tol = NonlinearSolve.DEFAULT_TOLERANCE(abstol, eltype(u0))
+    tol = get_tolerance(abstol, eltype(u0))
 
     if alg.autodiff === missing && prob.f.jac === nothing
         original = MINPACK.fsolve(

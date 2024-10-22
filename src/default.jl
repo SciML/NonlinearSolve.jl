@@ -101,7 +101,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
     @eval begin
         function SciMLBase.__init(
                 prob::$probType, alg::$algType{N}, args...; stats = empty_nlstats(),
-                maxtime = nothing, maxiters = 1000, internalnorm = DEFAULT_NORM,
+                maxtime = nothing, maxiters = 1000, internalnorm = L2_NORM,
                 alias_u0 = false, verbose = true, kwargs...) where {N}
             if (alias_u0 && !ismutable(prob.u0))
                 verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
@@ -309,7 +309,7 @@ for (probType, pType) in ((:NonlinearProblem, :NLS), (:NonlinearLeastSquaresProb
 
             push!(calls, quote
                 resids = tuple($(Tuple(resids)...))
-                minfu, idx = __findmin(DEFAULT_NORM, resids)
+                minfu, idx = __findmin(L2_NORM, resids)
             end)
 
             for i in 1:N

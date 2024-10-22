@@ -21,7 +21,7 @@ solve(prob::SciMLBase.NonlinearProblem, args...; kwargs...)
     `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `reltol::Number`: The relative tolerance. Defaults to
     `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
-  - `termination_condition`: Termination Condition from DiffEqBase. Defaults to
+  - `termination_condition`: Termination Condition from NonlinearSolveBase. Defaults to
     `AbsSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsTerminateMode()` for
     `SimpleNonlinearSolve.jl`.
 

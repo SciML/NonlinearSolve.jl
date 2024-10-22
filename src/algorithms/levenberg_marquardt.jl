@@ -98,7 +98,7 @@ end
 function __internal_init(
         prob::AbstractNonlinearProblem, f::LevenbergMarquardtDampingFunction,
         initial_damping, J, fu, u, ::Val{NF};
-        internalnorm::F = DEFAULT_NORM, kwargs...) where {F, NF}
+        internalnorm::F = L2_NORM, kwargs...) where {F, NF}
     T = promote_type(eltype(u), eltype(fu))
     DᵀD = __init_diagonal(u, T(f.min_damping))
     if NF
