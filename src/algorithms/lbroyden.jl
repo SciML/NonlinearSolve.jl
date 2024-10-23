@@ -18,30 +18,30 @@ and line search.
 function LimitedMemoryBroyden(; max_resets::Int = 3, linesearch = nothing,
         threshold::Union{Val, Int} = Val(10), reset_tolerance = nothing, alpha = nothing)
     threshold isa Int && (threshold = Val(threshold))
-    initialization = BroydenLowRankInitialization{_unwrap_val(threshold)}(alpha, threshold)
+    initialization = BroydenLowRankInitialization(alpha, threshold)
     return ApproximateJacobianSolveAlgorithm{false, :LimitedMemoryBroyden}(; linesearch,
         descent = NewtonDescent(), update_rule = GoodBroydenUpdateRule(),
         max_resets, initialization, reinit_rule = NoChangeInStateReset(; reset_tolerance))
 end
 
 """
-    BroydenLowRankInitialization{T}(alpha, threshold::Val{T})
+    BroydenLowRankInitialization(alpha, threshold::Val)
 
 An initialization for `LimitedMemoryBroyden` that uses a low rank approximation of the
 Jacobian. The low rank updates to the Jacobian matrix corresponds to what SciPy calls
 ["simple"](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.broyden2.html#scipy-optimize-broyden2).
 """
-@concrete struct BroydenLowRankInitialization{T} <: AbstractJacobianInitialization
+@concrete struct BroydenLowRankInitialization <: AbstractJacobianInitialization
     alpha
-    threshold::Val{T}
+    threshold <: Val
 end
 
 jacobian_initialized_preinverted(::BroydenLowRankInitialization) = true
 
 function __internal_init(
-        prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization{T},
+        prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
         solver, f::F, fu, u, p; maxiters = 1000,
-        internalnorm::IN = L2_NORM, kwargs...) where {T, F, IN}
+        internalnorm::IN = L2_NORM, kwargs...) where {F, IN}
     if u isa Number # Use the standard broyden
         return __internal_init(prob, IdentityInitialization(true, FullStructure()),
             solver, f, fu, u, p; maxiters, kwargs...)

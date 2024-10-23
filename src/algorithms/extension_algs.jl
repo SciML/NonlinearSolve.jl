@@ -362,11 +362,7 @@ function FixedPointAccelerationJL(;
         end
     end
     if extrapolation_period === missing
-        if algorithm === :SEA || algorithm === :VEA
-            extrapolation_period = 6
-        else
-            extrapolation_period = 7
-        end
+        extrapolation_period  = algorithm === :SEA || algorithm === :VEA ? 6 : 7
     else
         if (algorithm === :SEA || algorithm === :VEA) && extrapolation_period % 2 != 0
             error("`extrapolation_period` must be multiples of 2 for SEA and VEA")
@@ -404,11 +400,10 @@ end
 
     This algorithm is only available if `SIAMFANLEquations.jl` is installed and loaded.
 """
-@concrete struct SIAMFANLEquationsJL{L <: Union{Symbol, Nothing}} <:
-                 AbstractNonlinearSolveExtensionAlgorithm
+@concrete struct SIAMFANLEquationsJL <: AbstractNonlinearSolveExtensionAlgorithm
     method::Symbol
     delta
-    linsolve::L
+    linsolve <: Union{Symbol, Nothing}
     m::Int
     beta
     autodiff

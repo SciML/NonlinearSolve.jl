@@ -152,14 +152,14 @@ end
 
 Broyden Update Rule corresponding to "bad broyden's method" [broyden1965class](@cite).
 """
-@concrete struct BadBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
+struct BadBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
 
 """
     GoodBroydenUpdateRule()
 
 Broyden Update Rule corresponding to "good broyden's method" [broyden1965class](@cite).
 """
-@concrete struct GoodBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
+struct GoodBroydenUpdateRule <: AbstractApproximateJacobianUpdateRule{true} end
 
 @concrete mutable struct BroydenUpdateRuleCache{mode} <:
                          AbstractApproximateJacobianUpdateRuleCache{true}

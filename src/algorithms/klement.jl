@@ -86,7 +86,7 @@ end
 
 Update rule for [`Klement`](@ref).
 """
-@concrete struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule{false} end
+struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule{false} end
 
 @concrete mutable struct KlementUpdateRuleCache <:
                          AbstractApproximateJacobianUpdateRuleCache{false}
