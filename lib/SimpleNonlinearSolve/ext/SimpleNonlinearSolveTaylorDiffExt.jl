@@ -1,13 +1,15 @@
 module SimpleNonlinearSolveTaylorDiffExt
 using SimpleNonlinearSolve
-using SimpleNonlinearSolve: ImmutableNonlinearProblem, ReturnCode, build_solution, check_termination, init_termination_cache
+using SimpleNonlinearSolve: ImmutableNonlinearProblem, ReturnCode, build_solution,
+                            check_termination, init_termination_cache
 using SimpleNonlinearSolve: __maybe_unaliased, _get_fx, __fixed_parameter_function
 using MaybeInplace: @bb
 using SciMLBase: isinplace
 
 import TaylorDiff
 
-@inline function __get_higher_order_derivatives(::SimpleHouseholder{N}, prob, f, x, fx) where N
+@inline function __get_higher_order_derivatives(
+        ::SimpleHouseholder{N}, prob, f, x, fx) where {N}
     vN = Val(N)
     l = map(one, x)
     t = TaylorDiff.make_seed(x, l, vN)
@@ -28,7 +30,7 @@ end
 
 function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHouseholder{N},
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        termination_condition = nothing, alias_u0 = false, kwargs...) where N
+        termination_condition = nothing, alias_u0 = false, kwargs...) where {N}
     x = __maybe_unaliased(prob.u0, alias_u0)
     length(x) == 1 ||
         throw(ArgumentError("SimpleHouseholder only supports scalar problems"))

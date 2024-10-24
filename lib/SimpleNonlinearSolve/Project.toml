@@ -65,6 +65,7 @@ SciMLBase = "2.37.0"
 Setfield = "1.1.1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4.2"
+TaylorDiff = "0.2.5"
 Test = "1.10"
 Tracker = "0.2.33"
 Zygote = "0.6.69"
@@ -88,9 +89,10 @@ ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["AllocCheck", "Aqua", "DiffEqBase", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LinearAlgebra",  "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "Reexport", "ReverseDiff",  "StaticArrays", "Test", "Tracker", "Zygote"]
+test = ["AllocCheck", "Aqua", "DiffEqBase", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LinearAlgebra",  "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "Reexport", "ReverseDiff",  "StaticArrays", "TaylorDiff", "Test", "Tracker", "Zygote"]

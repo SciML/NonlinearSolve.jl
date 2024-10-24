@@ -1,6 +1,7 @@
 @testsetup module RootfindingTesting
 using Reexport
-@reexport using AllocCheck, StaticArrays, Random, LinearAlgebra, ForwardDiff, DiffEqBase
+@reexport using AllocCheck, StaticArrays, Random, LinearAlgebra, ForwardDiff, DiffEqBase,
+                TaylorDiff
 import PolyesterForwardDiff
 
 quadratic_f(u, p) = u .* u .- p
@@ -92,17 +93,17 @@ end
 end
 
 @testitem "SimpleHouseholder" setup=[RootfindingTesting] tags=[:core] begin
-    using TaylorDiff
     @testset "AutoDiff: TaylorDiff.jl" for order in (2, 3, 4)
-        @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in (
-            [1.0], @SVector[1.0], 1.0)
-            sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = SimpleHouseholder{order}())
+        @testset "[OOP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0], @SVector[1.0], 1.0)
+            sol = benchmark_nlsolve_oop(
+                quadratic_f, u0; solver = SimpleHouseholder{order}())
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
 
         @testset "[IIP] u0: $(nameof(typeof(u0)))" for u0 in ([1.0],)
-            sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = SimpleHouseholder{order}())
+            sol = benchmark_nlsolve_iip(
+                quadratic_f!, u0; solver = SimpleHouseholder{order}())
             @test SciMLBase.successful_retcode(sol)
             @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
         end
@@ -112,7 +113,8 @@ end
         u0 in (1.0, [1.0], @SVector[1.0])
 
         probN = NonlinearProblem(quadratic_f, u0, 2.0)
-        @test all(solve(probN, SimpleHouseholder{2}(); termination_condition).u .≈ sqrt(2.0))
+        @test all(solve(probN, SimpleHouseholder{2}(); termination_condition).u .≈
+                  sqrt(2.0))
     end
 end
 
