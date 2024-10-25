@@ -9,7 +9,8 @@ pages = [
         "tutorials/modelingtoolkit.md",
         "tutorials/small_compile.md",
         "tutorials/iterator_interface.md",
-        "tutorials/optimizing_parameterized_ode.md"
+        "tutorials/optimizing_parameterized_ode.md",
+        "tutorials/snes_ex2.md"
     ],
     "Basics" => Any[
         "basics/nonlinear_problem.md",
@@ -45,6 +46,7 @@ pages = [
         "api/minpack.md",
         "api/nlsolve.md",
         "api/nlsolvers.md",
+        "api/petsc.md",
         "api/siamfanlequations.md",
         "api/speedmapping.md",
         "api/sundials.md"
