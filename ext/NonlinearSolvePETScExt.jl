@@ -12,6 +12,8 @@ function SciMLBase.__solve(
         prob::NonlinearProblem, alg::PETScSNES, args...; abstol = nothing, reltol = nothing,
         maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing,
         show_trace::Val{ShT} = Val(false), kwargs...) where {ShT}
+    !MPI.Initialized() && MPI.Init()
+
     # XXX: https://petsc.org/release/manualpages/SNES/SNESSetConvergenceTest/
     termination_condition === nothing ||
         error("`PETScSNES` does not support termination conditions!")
@@ -62,8 +64,14 @@ function SciMLBase.__solve(
         njac = Ref{Int}(-1)
     else
         autodiff = alg.autodiff === missing ? nothing : alg.autodiff
-        _jac!, J_init = NonlinearSolve.__construct_extension_jac(
-            prob, alg, u0, resid; autodiff, initial_jacobian = Val(true))
+        if prob.u0 isa Number
+            _jac! = NonlinearSolve.__construct_extension_jac(
+                prob, alg, prob.u0, prob.u0; autodiff)
+            J_init = zeros(T, 1, 1)
+        else
+            _jac!, J_init = NonlinearSolve.__construct_extension_jac(
+                prob, alg, u0, resid; autodiff, initial_jacobian = Val(true))
+        end
 
         njac = Ref{Int}(0)
 
