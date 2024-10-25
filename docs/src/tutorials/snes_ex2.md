@@ -52,7 +52,7 @@ sol_dense_nr .- sol_dense_snes
 ```@example snes_ex2
 sol_sparse_nr = solve(nlprob_sparse, NewtonRaphson(); abstol = 1e-8)
 sol_sparse_snes = solve(nlprob_sparse, PETScSNES(); abstol = 1e-8)
-@show sol_sparse_nr .- sol_sparse_snes
+sol_sparse_nr .- sol_sparse_snes
 ```
 
 As expected the solutions are the same (upto floating point error). Now let's compare the

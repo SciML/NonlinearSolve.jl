@@ -12,8 +12,6 @@ function SciMLBase.__solve(
         prob::NonlinearProblem, alg::PETScSNES, args...; abstol = nothing, reltol = nothing,
         maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing,
         show_trace::Val{ShT} = Val(false), kwargs...) where {ShT}
-    !MPI.Initialized() && MPI.Init()
-
     # XXX: https://petsc.org/release/manualpages/SNES/SNESSetConvergenceTest/
     termination_condition === nothing ||
         error("`PETScSNES` does not support termination conditions!")

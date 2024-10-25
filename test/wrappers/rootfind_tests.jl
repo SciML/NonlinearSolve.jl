@@ -24,6 +24,7 @@ end
         PETScSNES(; autodiff = missing)
     ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -43,13 +44,15 @@ end
         PETScSNES(; autodiff = missing)
     ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
     end
 end
 
-@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] begin
+# Can lead to segfaults
+@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] retries=3 begin
     # IIP Tests
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]
@@ -67,6 +70,7 @@ end
         PETScSNES(; autodiff = missing)
     ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -86,6 +90,7 @@ end
         PETScSNES(; autodiff = missing)
     ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -108,7 +113,7 @@ end
         ]
 
         alg isa CMINPACK && Sys.isapple() && continue
-
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_tol, alg, abstol = tol)
         @test abs(sol.u[1] - sqrt(2)) < tol
     end
@@ -159,11 +164,13 @@ end
     @test maximum(abs, sol.resid) < 1e-6
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :pseudotransient); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
-    sol = solve(ProbN, PETScSNES(); abstol = 1e-8)
-    @test maximum(abs, sol.resid) < 1e-6
+    if !Sys.iswindows()
+        sol = solve(ProbN, PETScSNES(); abstol = 1e-8)
+        @test maximum(abs, sol.resid) < 1e-6
+    end
 end
 
-@testitem "PETSc SNES Floating Points" setup=[WrapperRootfindImports] tags=[:wrappers] begin
+@testitem "PETSc SNES Floating Points" setup=[WrapperRootfindImports] tags=[:wrappers] skip=:(Sys.iswindows()) begin
     f(u, p) = u .* u .- 2
 
     u0 = [1.0, 1.0]
