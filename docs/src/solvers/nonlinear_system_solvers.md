@@ -177,3 +177,12 @@ This is a wrapper package for importing solvers from NLSolvers.jl into the SciML
     [NLSolvers.jl](https://github.com/JuliaNLSolvers/NLSolvers.jl)
 
 For a list of possible solvers see the [NLSolvers.jl documentation](https://julianlsolvers.github.io/NLSolvers.jl/)
+
+### PETSc.jl
+
+This is a wrapper package for importing solvers from PETSc.jl into the SciML interface.
+
+  - [`PETScSNES()`](@ref): A wrapper for
+    [PETSc.jl](https://github.com/JuliaParallel/PETSc.jl)
+
+For a list of possible solvers see the [PETSc.jl documentation](https://petsc.org/release/manual/snes/)

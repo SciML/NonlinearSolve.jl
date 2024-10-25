@@ -99,6 +99,15 @@ include("algorithms/extension_algs.jl")
 include("utils.jl")
 include("default.jl")
 
+const ALL_SOLVER_TYPES = [
+    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
+    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
+    LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
+    CMINPACK, PETScSNES,
+    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
+]
+
 include("internal/forward_diff.jl") # we need to define after the algorithms
 
 @setup_workload begin
@@ -171,8 +180,9 @@ export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPoly
        FastShortcutNLLSPolyalg
 
 # Extension Algorithms
-export LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
+export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
        FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+export PETScSNES, CMINPACK
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
