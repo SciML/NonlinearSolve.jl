@@ -1,5 +1,5 @@
 """
-    Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS)
+    Dogleg(; linsolve = nothing, precs = nothing)
 
 Switch between Newton's method and the steepest descent method depending on the size of the
 trust region. The trust region is specified via keyword argument `trust_region` to
@@ -7,82 +7,94 @@ trust region. The trust region is specified via keyword argument `trust_region` 
 
 See also [`SteepestDescent`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDescent`](@ref).
 """
-@concrete struct Dogleg <: AbstractDescentAlgorithm
-    newton_descent
-    steepest_descent
-end
-
-function Base.show(io::IO, d::Dogleg)
-    print(io,
-        "Dogleg(newton_descent = $(d.newton_descent), steepest_descent = $(d.steepest_descent))")
+@concrete struct Dogleg <: AbstractDescentDirection
+    newton_descent <: Union{NewtonDescent, DampedNewtonDescent}
+    steepest_descent <: SteepestDescent
 end
 
 supports_trust_region(::Dogleg) = true
 get_linear_solver(alg::Dogleg) = get_linear_solver(alg.newton_descent)
 
-function Dogleg(; linsolve = nothing, precs = DEFAULT_PRECS, damping = False,
+function Dogleg(; linsolve = nothing, precs = nothing, damping = Val(false),
         damping_fn = missing, initial_damping = missing, kwargs...)
-    if damping === False
+    if !Utils.unwrap_val(damping)
         return Dogleg(NewtonDescent(; linsolve, precs), SteepestDescent(; linsolve, precs))
     end
     if damping_fn === missing || initial_damping === missing
         throw(ArgumentError("`damping_fn` and `initial_damping` must be supplied if \
                              `damping = Val(true)`."))
     end
-    return Dogleg(DampedNewtonDescent(; linsolve, precs, damping_fn, initial_damping),
-        SteepestDescent(; linsolve, precs))
+    return Dogleg(
+        DampedNewtonDescent(; linsolve, precs, damping_fn, initial_damping),
+        SteepestDescent(; linsolve, precs)
+    )
 end
 
-@concrete mutable struct DoglegCache{pre_inverted, normalform} <: AbstractDescentCache
+@concrete mutable struct DoglegCache <: AbstractDescentCache
     δu
     δus
-    newton_cache
-    cauchy_cache
+    newton_cache <: Union{NewtonDescentCache, DampedNewtonDescentCache}
+    cauchy_cache <: SteepestDescentCache
     internalnorm
-    JᵀJ_cache
+    Jᵀδu_cache
     δu_cache_1
     δu_cache_2
     δu_cache_mul
+    preinverted_jacobian <: Union{Val{false}, Val{true}}
+    normal_form <: Union{Val{false}, Val{true}}
 end
 
-@internal_caches DoglegCache :newton_cache :cauchy_cache
+# XXX: Implement
+# @internal_caches DoglegCache :newton_cache :cauchy_cache
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
-        pre_inverted::Val{INV} = False, linsolve_kwargs = (;),
+function InternalAPI.init(
+        prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
+        pre_inverted::Val = Val(false), linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, internalnorm::F = L2_NORM,
-        shared::Val{N} = Val(1), kwargs...) where {F, INV, N}
-    newton_cache = __internal_init(prob, alg.newton_descent, J, fu, u; pre_inverted,
-        linsolve_kwargs, abstol, reltol, shared, kwargs...)
-    cauchy_cache = __internal_init(prob, alg.steepest_descent, J, fu, u; pre_inverted,
-        linsolve_kwargs, abstol, reltol, shared, kwargs...)
+        shared::Val = Val(1), kwargs...
+) where {F}
+    newton_cache = InternalAPI.init(
+        prob, alg.newton_descent, J, fu, u;
+        pre_inverted, linsolve_kwargs, abstol, reltol, shared, kwargs...
+    )
+    cauchy_cache = InternalAPI.init(
+        prob, alg.steepest_descent, J, fu, u;
+        pre_inverted, linsolve_kwargs, abstol, reltol, shared, kwargs...
+    )
+
     @bb δu = similar(u)
-    δus = N ≤ 1 ? nothing : map(2:N) do i
+    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
         @bb δu_ = similar(u)
     end
     @bb δu_cache_1 = similar(u)
     @bb δu_cache_2 = similar(u)
     @bb δu_cache_mul = similar(u)
 
-    T = promote_type(eltype(u), eltype(fu))
-
     normal_form = prob isa NonlinearLeastSquaresProblem &&
-                  NonlinearSolveBase.needs_square_A(alg.newton_descent.linsolve, u)
-    JᵀJ_cache = !normal_form ? J * _vec(δu) : nothing  # TODO: Rename
+                  needs_square_A(alg.newton_descent.linsolve, u)
 
-    return DoglegCache{INV, normal_form}(δu, δus, newton_cache, cauchy_cache, internalnorm,
-        JᵀJ_cache, δu_cache_1, δu_cache_2, δu_cache_mul)
+    Jᵀδu_cache = !normal_form ? J * Utils.safe_vec(δu) : nothing
+
+    return DoglegCache(
+        δu, δus, newton_cache, cauchy_cache, internalnorm, Jᵀδu_cache,
+        δu_cache_1, δu_cache_2, δu_cache_mul, pre_inverted, Val(normal_form)
+    )
 end
 
-# If TrustRegion is not specified, then use a Gauss-Newton step
-function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = Val(1);
-        trust_region = nothing, skip_solve::Bool = false, kwargs...) where {INV, NF, N}
+# If trust_region is not specified, then use a Gauss-Newton step
+function InternalAPI.solve!(
+        cache::DoglegCache, J, fu, u, idx::Val = Val(1);
+        trust_region = nothing, skip_solve::Bool = false, kwargs...
+)
     @assert trust_region!==nothing "Trust Region must be specified for Dogleg. Use \
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
-    δu = get_du(cache, idx)
+
+    δu = SciMLBase.get_du(cache, idx)
     T = promote_type(eltype(u), eltype(fu))
-    δu_newton = __internal_solve!(
-        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...).δu
+    δu_newton = InternalAPI.solve!(
+        cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...
+    ).δu
 
     # Newton's Step within the trust region
     if cache.internalnorm(δu_newton) ≤ trust_region
@@ -91,23 +103,24 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
         return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
     end
 
-    # Take intersection of steepest descent direction and trust region if Cauchy point lies
-    # outside of trust region
-    if NF
+    # Take intersection of steepest descent direction and trust region if Cauchy point
+    # lies outside of trust region
+    if normal_form(cache)
         δu_cauchy = cache.newton_cache.Jᵀfu_cache
         JᵀJ = cache.newton_cache.JᵀJ_cache
         @bb @. δu_cauchy *= -1
 
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-        δuJᵀJδu = __dot(δu_cauchy, cache.δu_cache_mul)
+        δuJᵀJδu = Utils.dot(cache.δu_cache_mul, cache.δu_cache_mul)
     else
-        δu_cauchy = __internal_solve!(
-            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...).δu
-        J_ = INV ? inv(J) : J
+        δu_cauchy = InternalAPI.solve!(
+            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...
+        ).δu
+        J_ = preinverted_jacobian(cache) ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
-        @bb cache.JᵀJ_cache = J × vec(δu_cauchy)  # TODO: Rename
-        δuJᵀJδu = __dot(cache.JᵀJ_cache, cache.JᵀJ_cache)
+        @bb cache.Jᵀδu_cache = J_ × vec(δu_cauchy)
+        δuJᵀJδu = Utils.dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
     end
     d_cauchy = (l_grad^3) / δuJᵀJδu
 
@@ -125,8 +138,8 @@ function __internal_solve!(cache::DoglegCache{INV, NF}, J, fu, u, idx::Val{N} = 
     # trust region
     @bb @. cache.δu_cache_1 = (d_cauchy / l_grad) * δu_cauchy
     @bb @. cache.δu_cache_2 = δu_newton - cache.δu_cache_1
-    a = dot(cache.δu_cache_2, cache.δu_cache_2)
-    b = 2 * dot(cache.δu_cache_1, cache.δu_cache_2)
+    a = Utils.safe_dot(cache.δu_cache_2, cache.δu_cache_2)
+    b = 2 * Utils.safe_dot(cache.δu_cache_1, cache.δu_cache_2)
     c = d_cauchy^2 - trust_region^2
     aux = max(0, b^2 - 4 * a * c)
     τ = (-b + sqrt(aux)) / (2 * a)

@@ -1,6 +1,8 @@
 """
-    DescentResult(; δu = missing, u = missing, success::Bool = true,
-        linsolve_success::Bool = true, extras = (;))
+    DescentResult(;
+        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        extras = (;)
+    )
 
 Construct a `DescentResult` object.
 
@@ -23,8 +25,10 @@ Construct a `DescentResult` object.
     extras
 end
 
-function DescentResult(; δu = missing, u = missing, success::Bool = true,
-        linsolve_success::Bool = true, extras = (;))
+function DescentResult(;
+        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        extras = (;)
+)
     @assert δu !== missing || u !== missing
     return DescentResult(δu, u, success, linsolve_success, extras)
 end

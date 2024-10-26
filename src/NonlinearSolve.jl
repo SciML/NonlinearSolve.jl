@@ -18,20 +18,37 @@ using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSea
 using LinearSolve: LinearSolve
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase,
+                          # ForwardDiff integration support
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
                           nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u,
+                          # faster norms
                           L2_NORM,
+                          # termination conditions
                           AbsNormTerminationMode, AbstractNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode,
+                          # autodiff selection
                           select_forward_mode_autodiff, select_reverse_mode_autodiff,
                           select_jacobian_autodiff,
-                          construct_linear_solver, construct_jacobian_cache
+                          # helpers for constructing caches
+                          construct_linear_solver, construct_jacobian_cache,
+                          # Descent Directions
+                          DescentResult,
+                          SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
+                          GeodesicAcceleration,
+                          # Timer Outputs
+                          reset_timer!, @static_timeit
+
 
 # XXX: Remove
-import NonlinearSolveBase: concrete_jac
+import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
+                           supports_trust_region, set_du!, last_step_accepted,
+                           get_linear_solver,
+                           AbstractDampingFunction, AbstractDampingFunctionCache,
+                           requires_normal_form_jacobian, requires_normal_form_rhs,
+                           returns_norm_form_damping, get_timer_output
 
 using Printf: @printf
-using Preferences: Preferences, @load_preference, @set_preferences!
+using Preferences: Preferences, set_preferences!
 using RecursiveArrayTools: recursivecopy!
 using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, AbstractNonlinearProblem,
                  _unwrap_val, isinplace, NLStats, NonlinearFunction,
@@ -65,13 +82,6 @@ const False = Val(false)
 include("abstract_types.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
-
-include("descent/common.jl")
-include("descent/newton.jl")
-include("descent/steepest.jl")
-include("descent/dogleg.jl")
-include("descent/damped_newton.jl")
-include("descent/geodesic_acceleration.jl")
 
 include("internal/termination.jl")
 include("internal/tracing.jl")
@@ -189,9 +199,6 @@ export PETScSNES, CMINPACK
 
 # Advanced Algorithms -- Without Bells and Whistles
 export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
-
-# Descent Algorithms
-export NewtonDescent, SteepestDescent, Dogleg, DampedNewtonDescent, GeodesicAcceleration
 
 # Globalization
 ## Line Search Algorithms

@@ -72,7 +72,7 @@ end
 Low Rank Approximation of the Jacobian Matrix. Currently only used for
 [`LimitedMemoryBroyden`](@ref). This computes the Jacobian as ``U \\times V^T``.
 """
-@concrete mutable struct BroydenLowRankJacobian{T} <: AbstractNonlinearSolveOperator{T}
+@concrete mutable struct BroydenLowRankJacobian{T} <: AbstractSciMLOperator{T}
     U
     Vᵀ
     idx::Int
