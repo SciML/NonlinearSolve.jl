@@ -1,6 +1,6 @@
 """
     PseudoTransient(; concrete_jac = nothing, linsolve = nothing,
-        linesearch = NoLineSearch(), precs = DEFAULT_PRECS, autodiff = nothing,
+        linesearch = NoLineSearch(), precs = nothing, autodiff = nothing,
         jvp_autodiff = nothing, vjp_autodiff = nothing)
 
 An implementation of PseudoTransient Method [coffey2003pseudotransient](@cite) that is used
@@ -17,7 +17,7 @@ This implementation specifically uses "switched evolution relaxation"
 """
 function PseudoTransient(;
         concrete_jac = nothing, linsolve = nothing, linesearch = nothing,
-        precs = DEFAULT_PRECS, alpha_initial = 1e-3, autodiff = nothing,
+        precs = nothing, alpha_initial = 1e-3, autodiff = nothing,
         jvp_autodiff = nothing, vjp_autodiff = nothing)
     descent = DampedNewtonDescent(; linsolve, precs, initial_damping = alpha_initial,
         damping_fn = SwitchedEvolutionRelaxation())

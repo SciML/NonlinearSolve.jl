@@ -1,5 +1,5 @@
 """
-    TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+    TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
@@ -20,7 +20,7 @@ for large-scale and numerically-difficult nonlinear systems.
 For the remaining arguments, see [`NonlinearSolve.GenericTrustRegionScheme`](@ref)
 documentation.
 """
-function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+function TrustRegion(; concrete_jac = nothing, linsolve = nothing, precs = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,

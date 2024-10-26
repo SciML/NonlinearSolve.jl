@@ -1,6 +1,6 @@
 """
     Klement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
-        precs = DEFAULT_PRECS, alpha = nothing, init_jacobian::Val = Val(:identity),
+        precs = nothing, alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing)
 
 An implementation of `Klement` [klement2014using](@citep) with line search, preconditioning
@@ -25,7 +25,7 @@ over this.
         differentiable problems.
 """
 function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
-        linesearch = nothing, precs = DEFAULT_PRECS,
+        linesearch = nothing, precs = nothing,
         autodiff = nothing, init_jacobian::Val = Val(:identity))
     initialization = klement_init(init_jacobian, autodiff, alpha)
     CJ = init_jacobian isa Val{:true_jacobian} ||

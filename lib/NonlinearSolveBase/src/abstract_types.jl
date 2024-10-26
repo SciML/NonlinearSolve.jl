@@ -3,6 +3,7 @@ module InternalAPI
 function init end
 function solve! end
 function reinit! end
+function step! end
 
 end
 
@@ -134,6 +135,8 @@ for fname in (:preinverted_jacobian, :normal_form)
     end
 end
 
+
+
 """
     AbstractDampingFunction
 
@@ -145,7 +148,7 @@ Abstract Type for Damping Functions in DampedNewton.
 InternalAPI.init(
     prob::AbstractNonlinearProblem, f::AbstractDampingFunction, initial_damping,
     J, fu, u, args...;
-    internalnorm::F = L2_NORM, kwargs...
+    internalnorm = L2_NORM, kwargs...
 )::AbstractDampingFunctionCache
 ```
 

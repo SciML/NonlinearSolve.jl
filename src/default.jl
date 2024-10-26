@@ -338,7 +338,7 @@ end
 
 """
     RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, autodiff = nothing)
+        precs = nothing, autodiff = nothing)
 
 A polyalgorithm focused on robustness. It uses a mixture of Newton methods with different
 globalizing techniques (trust region updates, line searches, etc.) in order to find a
@@ -354,7 +354,7 @@ or more precision / more stable linear solver choice is required).
     are compatible with the problem type. Defaults to `Float64`.
 """
 function RobustMultiNewton(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, autodiff = nothing) where {T}
+        precs = nothing, autodiff = nothing) where {T}
     if __is_complex(T)
         # Let's atleast have something here for complex numbers
         algs = (NewtonRaphson(; concrete_jac, linsolve, precs, autodiff),)
@@ -375,7 +375,7 @@ end
 
 """
     FastShortcutNonlinearPolyalg(::Type{T} = Float64; concrete_jac = nothing,
-        linsolve = nothing, precs = DEFAULT_PRECS, must_use_jacobian::Val = Val(false),
+        linsolve = nothing, precs = nothing, must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val{SA} = Val(false), autodiff = nothing,
         u0_len::Union{Int, Nothing} = nothing) where {T}
 
@@ -395,7 +395,7 @@ for more performance and then tries more robust techniques if the faster ones fa
 """
 function FastShortcutNonlinearPolyalg(
         ::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, must_use_jacobian::Val{JAC} = Val(false),
+        precs = nothing, must_use_jacobian::Val{JAC} = Val(false),
         prefer_simplenonlinearsolve::Val{SA} = Val(false),
         u0_len::Union{Int, Nothing} = nothing, autodiff = nothing) where {T, JAC, SA}
     start_index = 1
@@ -457,7 +457,7 @@ end
 
 """
     FastShortcutNLLSPolyalg(::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, autodiff = nothing, kwargs...)
+        precs = nothing, autodiff = nothing, kwargs...)
 
 A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
 for more performance and then tries more robust techniques if the faster ones fail.
@@ -469,7 +469,7 @@ for more performance and then tries more robust techniques if the faster ones fa
 """
 function FastShortcutNLLSPolyalg(
         ::Type{T} = Float64; concrete_jac = nothing, linsolve = nothing,
-        precs = DEFAULT_PRECS, autodiff = nothing, kwargs...) where {T}
+        precs = nothing, autodiff = nothing, kwargs...) where {T}
     if __is_complex(T)
         algs = (GaussNewton(; concrete_jac, linsolve, precs, autodiff, kwargs...),
             LevenbergMarquardt(;
