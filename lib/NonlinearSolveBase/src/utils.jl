@@ -144,4 +144,6 @@ function evaluate_f!!(f::NonlinearFunction, fu, u, p)
     return f(u, p)
 end
 
+function make_sparse end
+
 end

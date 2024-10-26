@@ -135,8 +135,6 @@ for fname in (:preinverted_jacobian, :normal_form)
     end
 end
 
-
-
 """
     AbstractDampingFunction
 
