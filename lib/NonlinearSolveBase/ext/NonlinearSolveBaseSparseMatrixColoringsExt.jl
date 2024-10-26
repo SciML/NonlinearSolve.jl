@@ -8,7 +8,8 @@ using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
 
 Utils.is_extension_loaded(::Val{:SparseMatrixColorings}) = true
 
-function NonlinearSolveBase.select_fastest_coloring_algorithm(::Val{:SparseMatrixColorings},
+function NonlinearSolveBase.select_fastest_coloring_algorithm(
+        ::Val{:SparseMatrixColorings},
         prototype, f::NonlinearFunction, ad::AbstractADType)
     prototype === nothing && return GreedyColoringAlgorithm(LargestFirst())
     if SciMLBase.has_colorvec(f)
