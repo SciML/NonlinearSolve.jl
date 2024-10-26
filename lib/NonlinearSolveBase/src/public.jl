@@ -95,9 +95,11 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
 
         ## Constructor
 
-            $($struct_name)(internalnorm; protective_threshold = nothing,
+            $($struct_name)(
+                internalnorm; protective_threshold = nothing,
                 patience_steps = 100, patience_objective_multiplier = 3,
-                min_max_factor = 1.3, max_stalled_steps = nothing)
+                min_max_factor = 1.3, max_stalled_steps = nothing
+            )
 
         $($TERM_INTERNALNORM_DOCS).
         """

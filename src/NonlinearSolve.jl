@@ -18,13 +18,19 @@ using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSea
 using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFactorization,
                    DefaultAlgorithmChoice, DefaultLinearSolver
 using MaybeInplace: @bb
-using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
-                          nonlinearsolve_dual_solution, nonlinearsolve_∂f_∂p,
-                          nonlinearsolve_∂f_∂u, L2_NORM, AbsNormTerminationMode,
-                          AbstractNonlinearTerminationMode,
+using NonlinearSolveBase: NonlinearSolveBase,
+                          nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
+                          nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u,
+                          L2_NORM,
+                          AbsNormTerminationMode, AbstractNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode,
                           select_forward_mode_autodiff, select_reverse_mode_autodiff,
-                          select_jacobian_autodiff, construct_linear_solver
+                          select_jacobian_autodiff,
+                          construct_linear_solver, construct_jacobian_cache
+
+# XXX: Remove
+import NonlinearSolveBase: concrete_jac
+
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
@@ -70,7 +76,6 @@ include("descent/dogleg.jl")
 include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
 
-include("internal/jacobian.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
 include("internal/approximate_initialization.jl")

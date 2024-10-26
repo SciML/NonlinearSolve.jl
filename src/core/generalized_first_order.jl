@@ -63,7 +63,8 @@ function GeneralizedFirstOrderAlgorithm{concrete_jac, name}(;
         autodiff, vjp_autodiff, jvp_autodiff)
 end
 
-concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = CJ
+# XXX: Remove
+concrete_jac(::GeneralizedFirstOrderAlgorithm{CJ}) where {CJ} = concrete_jac(CJ)
 
 @concrete mutable struct GeneralizedFirstOrderAlgorithmCache{iip, GB, timeit} <:
                          AbstractNonlinearSolveCache{iip, timeit}
@@ -173,9 +174,10 @@ function SciMLBase.__init(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular))
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
-        jac_cache = JacobianCache(
+        jac_cache = construct_jacobian_cache(
             prob, alg, f, fu, u, p; stats, autodiff, linsolve, jvp_autodiff, vjp_autodiff)
         J = jac_cache(nothing)
+
         descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol,
             reltol, internalnorm, linsolve_kwargs, timer)
         du = get_du(descent_cache)

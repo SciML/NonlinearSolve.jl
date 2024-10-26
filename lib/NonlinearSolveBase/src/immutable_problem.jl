@@ -6,14 +6,14 @@ struct ImmutableNonlinearProblem{uType, iip, P, F, K, PT} <:
     problem_type::PT
     kwargs::K
 
-    @add_kwonly function ImmutableNonlinearProblem{iip}(
+    SciMLBase.@add_kwonly function ImmutableNonlinearProblem{iip}(
             f::AbstractNonlinearFunction{iip}, u0, p = NullParameters(),
             problem_type = StandardNonlinearProblem(); kwargs...) where {iip}
         if haskey(kwargs, :p)
             error("`p` specified as a keyword argument `p = $(kwargs[:p])` to \
                    `NonlinearProblem`. This is not supported.")
         end
-        warn_paramtype(p)
+        SciMLBase.warn_paramtype(p)
         return new{
             typeof(u0), iip, typeof(p), typeof(f), typeof(kwargs), typeof(problem_type)}(
             f, u0, p, problem_type, kwargs)
@@ -31,12 +31,11 @@ struct ImmutableNonlinearProblem{uType, iip, P, F, K, PT} <:
 end
 
 """
-Define a nonlinear problem using an instance of
-[`AbstractNonlinearFunction`](@ref AbstractNonlinearFunction).
+Define a nonlinear problem using an instance of [`AbstractNonlinearFunction`](@ref).
 """
 function ImmutableNonlinearProblem(
         f::AbstractNonlinearFunction, u0, p = NullParameters(); kwargs...)
-    return ImmutableNonlinearProblem{isinplace(f)}(f, u0, p; kwargs...)
+    return ImmutableNonlinearProblem{SciMLBase.isinplace(f)}(f, u0, p; kwargs...)
 end
 
 function ImmutableNonlinearProblem(f, u0, p = NullParameters(); kwargs...)
@@ -44,14 +43,14 @@ function ImmutableNonlinearProblem(f, u0, p = NullParameters(); kwargs...)
 end
 
 """
-Define a ImmutableNonlinearProblem problem from SteadyStateProblem
+Define a ImmutableNonlinearProblem problem from SteadyStateProblem.
 """
 function ImmutableNonlinearProblem(prob::AbstractNonlinearProblem)
-    return ImmutableNonlinearProblem{isinplace(prob)}(prob.f, prob.u0, prob.p)
+    return ImmutableNonlinearProblem{SciMLBase.isinplace(prob)}(prob.f, prob.u0, prob.p)
 end
 
 function Base.convert(
         ::Type{ImmutableNonlinearProblem}, prob::T) where {T <: NonlinearProblem}
-    return ImmutableNonlinearProblem{isinplace(prob)}(
+    return ImmutableNonlinearProblem{SciMLBase.isinplace(prob)}(
         prob.f, prob.u0, prob.p, prob.problem_type; prob.kwargs...)
 end

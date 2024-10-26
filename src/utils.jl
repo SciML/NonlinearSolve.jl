@@ -7,13 +7,6 @@
     return :(missing)
 end
 
-@inline __needs_concrete_A(::Nothing) = false
-@inline __needs_concrete_A(::typeof(\)) = true
-@inline __needs_concrete_A(linsolve) = needs_concrete_A(linsolve)
-
-@inline __maybe_mutable(x, ::AutoSparse{<:AutoEnzyme}) = __mutable(x)  # TODO: remove?
-@inline __maybe_mutable(x, _) = x
-
 @inline @generated function _vec(v)
     hasmethod(vec, Tuple{typeof(v)}) || return :(vec(v))
     return :(v)
@@ -60,10 +53,6 @@ LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
 @inline __maybe_symmetric(x::AbstractSparseMatrix) = x
 @inline __maybe_symmetric(x::AbstractSciMLOperator) = x
 
-# SparseAD --> NonSparseAD
-@inline __get_nonsparse_ad(backend::AutoSparse) = ADTypes.dense_ad(backend)
-@inline __get_nonsparse_ad(ad) = ad
-
 # Simple Checks
 @inline __is_present(::Nothing) = false
 @inline __is_present(::Missing) = false
@@ -100,14 +89,6 @@ end
 
 @inline __can_setindex(x) = can_setindex(x)
 @inline __can_setindex(::Number) = false
-
-@inline function __mutable(x)
-    __can_setindex(x) && return x
-    y = similar(x)
-    copyto!(y, x)
-    return y
-end
-@inline __mutable(x::SArray) = MArray(x)
 
 @inline __dot(x, y) = dot(_vec(x), _vec(y))
 

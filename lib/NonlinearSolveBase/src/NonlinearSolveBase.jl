@@ -1,12 +1,13 @@
 module NonlinearSolveBase
 
-using ADTypes: ADTypes, AbstractADType
+using ADTypes: ADTypes, AbstractADType, AutoSparse, NoSparsityDetector,
+               KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init
 using Compat: @compat
 using ConcreteStructs: @concrete
-using DifferentiationInterface: DifferentiationInterface
+using DifferentiationInterface: DifferentiationInterface, Constant
 using EnzymeCore: EnzymeCore
 using FastClosures: @closure
 using FunctionProperties: hasbranching
@@ -17,8 +18,8 @@ using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
                  NonlinearProblem, NonlinearLeastSquaresProblem, StandardNonlinearProblem,
-                 NullParameters, NLStats, LinearProblem, isinplace, warn_paramtype,
-                 @add_kwonly
+                 NonlinearFunction, NullParameters, NLStats, LinearProblem
+using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
@@ -44,9 +45,10 @@ include("linear_solve.jl")
     (select_forward_mode_autodiff, select_reverse_mode_autodiff,
         select_jacobian_autodiff))
 
-# public for NonlinearSolve.jl to use
+# public for NonlinearSolve.jl and subpackages to use
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
-@compat(public, (construct_linear_solver, needs_square_A))
+@compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
+@compat(public, (construct_jacobian_cache,))
 
 export RelTerminationMode, AbsTerminationMode,
        NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,

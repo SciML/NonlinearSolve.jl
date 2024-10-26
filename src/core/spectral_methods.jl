@@ -36,7 +36,8 @@ function __show_algorithm(io::IO, alg::GeneralizedDFSane, name, indent)
     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
 end
 
-concrete_jac(::GeneralizedDFSane) = nothing
+# XXX: Remove
+concrete_jac(::GeneralizedDFSane) = false
 
 @concrete mutable struct GeneralizedDFSaneCache{iip, timeit} <:
                          AbstractNonlinearSolveCache{iip, timeit}
