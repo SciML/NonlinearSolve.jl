@@ -10,13 +10,12 @@ using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using FastClosures: @closure
 using LazyArrays: LazyArrays, ApplyArray, cache
-using LinearAlgebra: LinearAlgebra, ColumnNorm, Diagonal, I, LowerTriangular, Symmetric,
+using LinearAlgebra: LinearAlgebra, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
 using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSearch,
                   RobustNonMonotoneLineSearch, BackTracking, LiFukushimaLineSearch
-using LinearSolve: LinearSolve, QRFactorization, needs_concrete_A, AbstractFactorization,
-                   DefaultAlgorithmChoice, DefaultLinearSolver
+using LinearSolve: LinearSolve
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase,
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
@@ -47,18 +46,16 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingPro
 
 # AD Support
 using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse,
-               NoSparsityDetector, KnownJacobianSparsityDetector
-using DifferentiationInterface: DifferentiationInterface, Constant
+               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
+using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
-using SciMLJacobianOperators: AbstractJacobianOperator, JacobianOperator, VecJacOperator,
+using SciMLJacobianOperators: AbstractJacobianOperator, VecJacOperator,
                               JacVecOperator, StatefulJacobianOperator
 
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
-using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
-                             LargestFirst
+using SparseMatrixColorings: SparseMatrixColorings # NOTE: This triggers an extension in NonlinearSolveBase
 
 const DI = DifferentiationInterface
 
