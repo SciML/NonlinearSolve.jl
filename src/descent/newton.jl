@@ -41,7 +41,7 @@ function __internal_init(prob::NonlinearProblem, alg::NewtonDescent, J, fu, u; s
         @bb δu_ = similar(u)
     end
     INV && return NewtonDescentCache{true, false}(δu, δus, nothing, nothing, nothing, timer)
-    lincache = LinearSolverCache(
+    lincache = construct_linear_solver(
         alg, alg.linsolve, J, _vec(fu), _vec(u); stats, abstol, reltol, linsolve_kwargs...)
     return NewtonDescentCache{false, false}(δu, δus, lincache, nothing, nothing, timer)
 end
@@ -53,7 +53,7 @@ function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent,
     length(fu) != length(u) &&
         @assert !INV "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
-    normal_form = __needs_square_A(alg.linsolve, u)
+    normal_form = NonlinearSolveBase.needs_square_A(alg.linsolve, u)
     if normal_form
         JᵀJ = transpose(J) * J
         Jᵀfu = transpose(J) * _vec(fu)
@@ -62,7 +62,7 @@ function __internal_init(prob::NonlinearLeastSquaresProblem, alg::NewtonDescent,
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, _vec(fu)
     end
-    lincache = LinearSolverCache(
+    lincache = construct_linear_solver(
         alg, alg.linsolve, A, b, _vec(u); stats, abstol, reltol, linsolve_kwargs...)
     @bb δu = similar(u)
     δus = N ≤ 1 ? nothing : map(2:N) do i

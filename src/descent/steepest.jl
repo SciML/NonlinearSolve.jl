@@ -40,7 +40,8 @@ end
         @bb δu_ = similar(u)
     end
     if INV
-        lincache = LinearSolverCache(alg, alg.linsolve, transpose(J), _vec(fu), _vec(u);
+        lincache = construct_linear_solver(
+            alg, alg.linsolve, transpose(J), _vec(fu), _vec(u);
             stats, abstol, reltol, linsolve_kwargs...)
     else
         lincache = nothing

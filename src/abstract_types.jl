@@ -107,29 +107,6 @@ function last_step_accepted(cache::AbstractDescentCache)
 end
 
 """
-    AbstractNonlinearSolveLineSearchCache
-
-Abstract Type for all Line Search Caches used in NonlinearSolve.jl.
-
-### `__internal_solve!` specification
-
-```julia
-__internal_solve!(cache::AbstractNonlinearSolveLineSearchCache, u, du; kwargs...)
-```
-
-Returns 2 values:
-
-  - `unsuccessful`: If `true` it means that the Line Search Failed.
-  - `alpha`: The step size.
-"""
-abstract type AbstractNonlinearSolveLineSearchCache end
-
-function reinit_cache!(
-        cache::AbstractNonlinearSolveLineSearchCache, args...; p = cache.p, kwargs...)
-    cache.p = p
-end
-
-"""
     AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm
 
 Abstract Type for all NonlinearSolve.jl Algorithms. `name` can be used to define custom

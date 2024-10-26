@@ -294,7 +294,7 @@ function __step!(cache::ApproximateJacobianSolveCache{INV, GB, iip};
             # Extremely pathological case. Jacobian was just reset and linear solve
             # failed. Should ideally never happen in practice unless true jacobian init
             # is used.
-            cache.retcode = LinearSolveFailureCode
+            cache.retcode = ReturnCode.InternalLinearSolveFailed
             cache.force_stop = true
             return
         else
