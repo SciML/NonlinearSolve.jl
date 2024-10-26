@@ -362,7 +362,7 @@ function FixedPointAccelerationJL(;
         end
     end
     if extrapolation_period === missing
-        extrapolation_period  = algorithm === :SEA || algorithm === :VEA ? 6 : 7
+        extrapolation_period = algorithm === :SEA || algorithm === :VEA ? 6 : 7
     else
         if (algorithm === :SEA || algorithm === :VEA) && extrapolation_period % 2 != 0
             error("`extrapolation_period` must be multiples of 2 for SEA and VEA")

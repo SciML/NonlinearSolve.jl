@@ -2,8 +2,6 @@
 @inline DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
 
 # Helper  Functions
-@inline __hasfield(::T, ::Val{field}) where {T, field} = hasfield(T, field)
-
 @generated function __getproperty(s::S, ::Val{X}) where {S, X}
     hasfield(S, X) && return :(s.$X)
     return :(missing)

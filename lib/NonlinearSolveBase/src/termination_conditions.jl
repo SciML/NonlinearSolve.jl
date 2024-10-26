@@ -278,6 +278,6 @@ function init_termination_cache(prob::AbstractNonlinearProblem, abstol, reltol, 
     T = promote_type(eltype(du), eltype(u))
     abstol = get_tolerance(u, abstol, T)
     reltol = get_tolerance(u, reltol, T)
-    cache = CommonSolve.init(prob, tc, du, u; abstol, reltol)
+    cache = init(prob, tc, du, u; abstol, reltol)
     return abstol, reltol, cache
 end

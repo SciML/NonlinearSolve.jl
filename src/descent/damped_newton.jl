@@ -63,7 +63,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
     end
 
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
-    normal_form_linsolve = __needs_square_A(alg.linsolve, u)
+    normal_form_linsolve = NonlinearSolveBase.needs_square_A(alg.linsolve, u)
     if u isa Number
         mode = :simple
     elseif prob isa NonlinearProblem
@@ -124,7 +124,7 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::DampedNewtonDescen
         rhs_cache = nothing
     end
 
-    lincache = LinearSolverCache(
+    lincache = construct_linear_solver(
         alg, alg.linsolve, A, b, _vec(u); stats, abstol, reltol, linsolve_kwargs...)
 
     return DampedNewtonDescentCache{INV, mode}(

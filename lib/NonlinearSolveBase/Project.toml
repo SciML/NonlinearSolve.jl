@@ -1,10 +1,11 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
@@ -15,22 +16,27 @@ FastClosures = "9aa1b823-49e4-5ca5-8b0f-3971ec8bab6a"
 FunctionProperties = "f62d2435-5019-4c03-9749-2d4c77af0cbc"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
+MaybeInplace = "bb5d69b7-63fc-4a16-80bd-7e42200c7bdb"
 RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SciMLOperators = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [weakdeps]
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [extensions]
 NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
+NonlinearSolveBaseLinearSolveExt = "LinearSolve"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 
 [compat]
 ADTypes = "1.9"
+Adapt = "4.1.0"
 Aqua = "0.8.7"
 ArrayInterface = "7.9"
 CommonSolve = "0.2.4"
@@ -45,9 +51,12 @@ ForwardDiff = "0.10.36"
 FunctionProperties = "0.1.2"
 InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
+LinearSolve = "2.36.1"
 Markdown = "1.10"
+MaybeInplace = "0.1.4"
 RecursiveArrayTools = "3"
 SciMLBase = "2.50"
+SciMLOperators = "0.3.10"
 SparseArrays = "1.10"
 StaticArraysCore = "1.4"
 Test = "1.10"

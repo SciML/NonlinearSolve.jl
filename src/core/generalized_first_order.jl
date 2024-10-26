@@ -245,7 +245,7 @@ function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
     if !descent_result.linsolve_success
         if new_jacobian
             # Jacobian Information is current and linear solve failed terminate the solve
-            cache.retcode = LinearSolveFailureCode
+            cache.retcode = ReturnCode.InternalLinearSolveFailed
             cache.force_stop = true
             return
         else

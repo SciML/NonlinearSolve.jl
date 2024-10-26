@@ -24,7 +24,7 @@ using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
                           AbstractNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode,
                           select_forward_mode_autodiff, select_reverse_mode_autodiff,
-                          select_jacobian_autodiff
+                          select_jacobian_autodiff, construct_linear_solver
 using Printf: @printf
 using Preferences: Preferences, @load_preference, @set_preferences!
 using RecursiveArrayTools: recursivecopy!
@@ -71,7 +71,6 @@ include("descent/damped_newton.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("internal/jacobian.jl")
-include("internal/linear_solve.jl")
 include("internal/termination.jl")
 include("internal/tracing.jl")
 include("internal/approximate_initialization.jl")
@@ -111,8 +110,10 @@ const ALL_SOLVER_TYPES = [
 include("internal/forward_diff.jl") # we need to define after the algorithms
 
 @setup_workload begin
-    nlfuncs = ((NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]))
+    nlfuncs = (
+        (NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
+        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1])
+    )
     probs_nls = NonlinearProblem[]
     for (fn, u0) in nlfuncs
         push!(probs_nls, NonlinearProblem(fn, u0, 2.0))

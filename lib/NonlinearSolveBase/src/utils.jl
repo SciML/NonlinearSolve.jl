@@ -90,4 +90,9 @@ end
 safe_reshape(x::Number, args...) = x
 safe_reshape(x, args...) = reshape(x, args...)
 
+@generated function safe_getproperty(s::S, ::Val{X}) where {S, X}
+    hasfield(S, X) && return :(getproperty(s, $(X)))
+    return :(missing)
+end
+
 end
