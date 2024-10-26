@@ -25,7 +25,7 @@ using NonlinearSolveBase: NonlinearSolveBase,
                           AbstractSafeBestNonlinearTerminationMode,
                           select_forward_mode_autodiff, select_reverse_mode_autodiff,
                           select_jacobian_autodiff,
-                          construct_linear_solver, construct_jacobian_cache,
+                          construct_jacobian_cache,
                           DescentResult,
                           SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
                           GeodesicAcceleration,
@@ -33,8 +33,7 @@ using NonlinearSolveBase: NonlinearSolveBase,
 
 # XXX: Remove
 import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
-                           supports_trust_region, set_du!, last_step_accepted,
-                           get_linear_solver,
+                           supports_trust_region, last_step_accepted, get_linear_solver,
                            AbstractDampingFunction, AbstractDampingFunctionCache,
                            requires_normal_form_jacobian, requires_normal_form_rhs,
                            returns_norm_form_damping, get_timer_output
@@ -59,8 +58,7 @@ using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
 using DifferentiationInterface: DifferentiationInterface
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff, Dual
-using SciMLJacobianOperators: AbstractJacobianOperator, VecJacOperator,
-                              JacVecOperator, StatefulJacobianOperator
+using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
 
 ## Sparse AD Support
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC

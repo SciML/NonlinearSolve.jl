@@ -1,5 +1,5 @@
 """
-    GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+    GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = nothing,
         linesearch = nothing, vjp_autodiff = nothing, autodiff = nothing,
         jvp_autodiff = nothing)
 
@@ -7,7 +7,7 @@ An advanced GaussNewton implementation with support for efficient handling of sp
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
 for large-scale and numerically-difficult nonlinear least squares problems.
 """
-function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = DEFAULT_PRECS,
+function GaussNewton(; concrete_jac = nothing, linsolve = nothing, precs = nothing,
         linesearch = nothing, vjp_autodiff = nothing, autodiff = nothing,
         jvp_autodiff = nothing)
     return GeneralizedFirstOrderAlgorithm{concrete_jac, :GaussNewton}(; linesearch,

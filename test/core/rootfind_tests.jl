@@ -96,7 +96,7 @@ end
             @test (@ballocated solve!($cache)) < 200
         end
 
-        precs = [(u0) -> NonlinearSolve.DEFAULT_PRECS,
+        precs = [(u0) -> nothing,
             u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
@@ -437,7 +437,7 @@ end
             @test (@ballocated solve!($cache)) < 200
         end
 
-        precs = [NonlinearSolve.DEFAULT_PRECS, :Random]
+        precs = [nothing, :Random]
 
         @testset "[IIP] u0: $(typeof(u0)) precs: $(_nameof(prec)) linsolve: $(_nameof(linsolve))" for u0 in ([
                 1.0, 1.0],),
