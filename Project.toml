@@ -35,7 +35,6 @@ SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
-BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
@@ -50,7 +49,6 @@ SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
 [extensions]
-NonlinearSolveBandedMatricesExt = "BandedMatrices"
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"

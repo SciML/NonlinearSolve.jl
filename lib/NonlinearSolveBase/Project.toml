@@ -27,6 +27,7 @@ SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
+BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
@@ -34,6 +35,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 
 [extensions]
+NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
 NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
@@ -45,6 +47,7 @@ ADTypes = "1.9"
 Adapt = "4.1.0"
 Aqua = "0.8.7"
 ArrayInterface = "7.9"
+BandedMatrices = "1.5"
 CommonSolve = "0.2.4"
 Compat = "4.15"
 ConcreteStructs = "0.2.3"
