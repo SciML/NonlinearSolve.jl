@@ -11,9 +11,10 @@ using DifferentiationInterface: DifferentiationInterface, Constant
 using EnzymeCore: EnzymeCore
 using FastClosures: @closure
 using FunctionProperties: hasbranching
-using LinearAlgebra: Diagonal, norm, ldiv!
+using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
 using Markdown: @doc_str
 using MaybeInplace: @bb
+using Preferences: @load_preference
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
@@ -37,6 +38,14 @@ include("termination_conditions.jl")
 include("autodiff.jl")
 include("jacobian.jl")
 include("linear_solve.jl")
+include("timer_outputs.jl")
+
+include("descent/common.jl")
+include("descent/newton.jl")
+include("descent/steepest.jl")
+include("descent/damped_newton.jl")
+include("descent/dogleg.jl")
+include("descent/geodesic_acceleration.jl")
 
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
@@ -54,5 +63,8 @@ export RelTerminationMode, AbsTerminationMode,
        NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,
        RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
        RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
+
+export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
+       GeodesicAcceleration
 
 end

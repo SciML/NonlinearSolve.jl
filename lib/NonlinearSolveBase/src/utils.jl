@@ -2,8 +2,11 @@ module Utils
 
 using ArrayInterface: ArrayInterface
 using FastClosures: @closure
-using LinearAlgebra: norm
+using LinearAlgebra: Symmetric, norm, dot
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
+using SciMLOperators: AbstractSciMLOperator
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
+using StaticArraysCore: StaticArray, SArray
 
 using ..NonlinearSolveBase: L2_NORM, Linf_NORM
 
@@ -93,8 +96,52 @@ safe_reshape(x::Number, args...) = x
 safe_reshape(x, args...) = reshape(x, args...)
 
 @generated function safe_getproperty(s::S, ::Val{X}) where {S, X}
-    hasfield(S, X) && return :(getproperty(s, $(X)))
+    hasfield(S, X) && return :(getproperty(s, $(Meta.quot(X))))
     return :(missing)
+end
+
+@generated function safe_vec(v)
+    hasmethod(vec, Tuple{typeof(v)}) || return :(vec(v))
+    return :(v)
+end
+safe_vec(v::Number) = v
+safe_vec(v::AbstractVector) = v
+
+safe_dot(x, y) = dot(safe_vec(x), safe_vec(y))
+
+unwrap_val(x) = x
+unwrap_val(::Val{x}) where {x} = unwrap_val(x)
+
+is_default_value(::Any, ::Symbol, ::Nothing) = true
+is_default_value(::Any, ::Symbol, ::Missing) = true
+is_default_value(::Any, ::Symbol, ::Any) = false
+
+maybe_symmetric(x) = Symmetric(x)
+maybe_symmetric(x::Number) = x
+## LinearSolve with `nothing` doesn't dispatch correctly here
+maybe_symmetric(x::StaticArray) = x # XXX: Can we remove this?
+maybe_symmetric(x::AbstractSciMLOperator) = x
+
+# Define special concatenation for certain Array combinations
+faster_vcat(x, y) = vcat(x, y)
+
+maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
+function maybe_unaliased(x::AbstractArray, alias::Bool)
+    (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
+    return copy(x)
+end
+maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
+
+can_setindex(x) = ArrayInterface.can_setindex(x)
+can_setindex(::Number) = false
+
+evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p) = evaluate_f!!(prob.f, fu, u, p)
+function evaluate_f!!(f::NonlinearFunction, fu, u, p)
+    if SciMLBase.isinplace(f)
+        f(fu, u, p)
+        return fu
+    end
+    return f(u, p)
 end
 
 end

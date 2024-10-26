@@ -1,6 +1,6 @@
 module NonlinearSolveBaseSparseArraysExt
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, Utils
 using SparseArrays: AbstractSparseMatrix, AbstractSparseMatrixCSC, nonzeros
 
 function NonlinearSolveBase.NAN_CHECK(x::AbstractSparseMatrixCSC)
@@ -8,5 +8,7 @@ function NonlinearSolveBase.NAN_CHECK(x::AbstractSparseMatrixCSC)
 end
 
 NonlinearSolveBase.sparse_or_structured_prototype(::AbstractSparseMatrix) = true
+
+Utils.maybe_symmetric(x::AbstractSparseMatrix) = x
 
 end
