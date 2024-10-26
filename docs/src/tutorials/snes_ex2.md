@@ -64,22 +64,18 @@ runtimes.
 
 ```@example snes_ex2
 @benchmark solve($(nlprob_dense), $(NewtonRaphson()); abstol = 1e-8)
-nothing # hide
 ```
 
 ```@example snes_ex2
 @benchmark solve($(nlprob_dense), $(PETScSNES()); abstol = 1e-8)
-nothing # hide
 ```
 
 ### Sparse Jacobian
 
 ```@example snes_ex2
 @benchmark solve($(nlprob_sparse), $(NewtonRaphson()); abstol = 1e-8)
-nothing # hide
 ```
 
 ```@example snes_ex2
 @benchmark solve($(nlprob_sparse), $(PETScSNES()); abstol = 1e-8)
-nothing # hide
 ```
