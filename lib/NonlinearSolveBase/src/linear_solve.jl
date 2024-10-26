@@ -133,8 +133,12 @@ function wrap_preconditioners(Pl, Pr, u)
     return Pl, Pr
 end
 
+# Traits. Core traits are expanded in LinearSolve extension
 needs_square_A(::Any, ::Number) = false
 needs_square_A(::Nothing, ::Number) = false
 needs_square_A(::Nothing, ::Any) = false
 needs_square_A(::typeof(\), ::Number) = false
 needs_square_A(::typeof(\), ::Any) = false
+
+needs_concrete_A(::Union{Nothing, Missing}) = false
+needs_concrete_A(::typeof(\)) = true

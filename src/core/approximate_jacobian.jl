@@ -64,7 +64,8 @@ function ApproximateJacobianSolveAlgorithm{concrete_jac, name}(;
         reinit_rule, max_resets, max_shrink_times, initialization)
 end
 
-@inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = CJ
+# XXX: Remove
+@inline concrete_jac(::ApproximateJacobianSolveAlgorithm{CJ}) where {CJ} = concrete_jac(CJ)
 
 @concrete mutable struct ApproximateJacobianSolveCache{INV, GB, iip, timeit} <:
                          AbstractNonlinearSolveCache{iip, timeit}

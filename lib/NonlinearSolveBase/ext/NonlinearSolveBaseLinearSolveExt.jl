@@ -3,7 +3,7 @@ module NonlinearSolveBaseLinearSolveExt
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init, solve!
 using LinearAlgebra: ColumnNorm
-using LinearSolve: LinearSolve, QRFactorization
+using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils
 using SciMLBase: ReturnCode, LinearProblem
 
@@ -81,7 +81,12 @@ function (cache::LinearSolveJLCache)(;
     return LinearSolveResult(; linres.u)
 end
 
-NonlinearSolveBase.needs_square_A(linsolve, ::Any) = LinearSolve.needs_square_A(linsolve)
+function NonlinearSolveBase.needs_square_A(linsolve::SciMLLinearSolveAlgorithm, ::Any)
+    return LinearSolve.needs_square_A(linsolve)
+end
+function NonlinearSolveBase.needs_concrete_A(linsolve::SciMLLinearSolveAlgorithm)
+    return LinearSolve.needs_concrete_A(linsolve)
+end
 
 update_A!(cache::LinearSolveJLCache, ::Nothing, reuse) = cache
 function update_A!(cache::LinearSolveJLCache, A, reuse)

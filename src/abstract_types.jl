@@ -120,14 +120,6 @@ dispatches by wrapped solvers.
 """
 abstract type AbstractNonlinearSolveAlgorithm{name} <: AbstractNonlinearAlgorithm end
 
-"""
-    concrete_jac(alg::AbstractNonlinearSolveAlgorithm)
-
-Whether the algorithm uses a concrete Jacobian. Defaults to `nothing` if it is unknown or
-not applicable. Else a boolean value is returned.
-"""
-concrete_jac(::AbstractNonlinearSolveAlgorithm) = nothing
-
 function Base.show(io::IO, alg::AbstractNonlinearSolveAlgorithm)
     __show_algorithm(io, alg, get_name(alg), 0)
 end
@@ -222,13 +214,6 @@ end
 function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
     return reinit_cache!(cache; u0, kwargs...)
 end
-
-"""
-    AbstractLinearSolverCache <: Function
-
-Abstract Type for all Linear Solvers used in NonlinearSolve.jl.
-"""
-abstract type AbstractLinearSolverCache <: Function end
 
 """
     AbstractDampingFunction

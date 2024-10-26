@@ -1,6 +1,7 @@
 module SciMLJacobianOperators
 
 using ADTypes: ADTypes, AutoSparse
+using ArrayInterface: ArrayInterface
 using ConcreteStructs: @concrete
 using ConstructionBase: ConstructionBase
 using DifferentiationInterface: DifferentiationInterface, Constant
@@ -14,6 +15,8 @@ const True = Val(true)
 const False = Val(false)
 
 abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
+
+ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
 
 abstract type AbstractMode end
 

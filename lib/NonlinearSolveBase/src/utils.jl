@@ -7,6 +7,8 @@ using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 
 using ..NonlinearSolveBase: L2_NORM, Linf_NORM
 
+is_extension_loaded(::Val) = false
+
 fast_scalar_indexing(xs...) = all(ArrayInterface.fast_scalar_indexing, xs)
 
 function nonallocating_isapprox(x::Number, y::Number; atol = false,
