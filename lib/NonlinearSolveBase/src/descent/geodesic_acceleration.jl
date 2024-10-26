@@ -98,8 +98,8 @@ function InternalAPI.init(
 end
 
 function InternalAPI.solve!(
-    cache::GeodesicAccelerationCache, J, fu, u, idx::Val = Val(1);
-    skip_solve::Bool = false, kwargs...
+        cache::GeodesicAccelerationCache, J, fu, u, idx::Val = Val(1);
+        skip_solve::Bool = false, kwargs...
 )
     a = get_acceleration(cache, idx)
     v = get_velocity(cache, idx)

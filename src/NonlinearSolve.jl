@@ -18,26 +18,18 @@ using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSea
 using LinearSolve: LinearSolve
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase,
-                          # ForwardDiff integration support
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
                           nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u,
-                          # faster norms
                           L2_NORM,
-                          # termination conditions
                           AbsNormTerminationMode, AbstractNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode,
-                          # autodiff selection
                           select_forward_mode_autodiff, select_reverse_mode_autodiff,
                           select_jacobian_autodiff,
-                          # helpers for constructing caches
                           construct_linear_solver, construct_jacobian_cache,
-                          # Descent Directions
                           DescentResult,
                           SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
                           GeodesicAcceleration,
-                          # Timer Outputs
                           reset_timer!, @static_timeit
-
 
 # XXX: Remove
 import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
