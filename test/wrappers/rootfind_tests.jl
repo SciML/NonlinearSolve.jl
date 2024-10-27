@@ -1,7 +1,7 @@
 @testsetup module WrapperRootfindImports
 using Reexport
 @reexport using LinearAlgebra
-import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK
+import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
 
 export NLSolvers
 end
@@ -15,10 +15,16 @@ end
     u0 = zeros(2)
     prob_iip = SteadyStateProblem(f_iip, u0)
 
-    for alg in [
+    @testset "$(nameof(typeof(alg)))" for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(),
+        SIAMFANLEquationsJL(),
+        CMINPACK(),
+        PETScSNES(),
+        PETScSNES(; autodiff = missing)
+    ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
@@ -29,17 +35,24 @@ end
     u0 = zeros(2)
     prob_oop = SteadyStateProblem(f_oop, u0)
 
-    for alg in [
+    @testset "$(nameof(typeof(alg)))" for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(),
+        SIAMFANLEquationsJL(),
+        CMINPACK(),
+        PETScSNES(),
+        PETScSNES(; autodiff = missing)
+    ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
         @test maximum(abs, sol.resid) < 1e-6
     end
 end
 
-@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] begin
+# Can lead to segfaults
+@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] retries=3 begin
     # IIP Tests
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]
@@ -48,10 +61,16 @@ end
     u0 = zeros(2)
     prob_iip = NonlinearProblem{true}(f_iip, u0)
 
-    for alg in [
+    @testset "$(nameof(typeof(alg)))" for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(),
+        SIAMFANLEquationsJL(),
+        CMINPACK(),
+        PETScSNES(),
+        PETScSNES(; autodiff = missing)
+    ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         local sol
         sol = solve(prob_iip, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -62,10 +81,16 @@ end
     f_oop(u, p) = [2 - 2u[1], u[1] - 4u[2]]
     u0 = zeros(2)
     prob_oop = NonlinearProblem{false}(f_oop, u0)
-    for alg in [
+    @testset "$(nameof(typeof(alg)))" for alg in [
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-        NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL()]
+        NLsolveJL(),
+        SIAMFANLEquationsJL(),
+        CMINPACK(),
+        PETScSNES(),
+        PETScSNES(; autodiff = missing)
+    ]
         alg isa CMINPACK && Sys.isapple() && continue
+        alg isa PETScSNES && Sys.iswindows() && continue
         local sol
         sol = solve(prob_oop, alg)
         @test SciMLBase.successful_retcode(sol.retcode)
@@ -78,12 +103,17 @@ end
     for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-15],
         alg in [
             NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking())),
-            NLsolveJL(), CMINPACK(), SIAMFANLEquationsJL(; method = :newton),
+            NLsolveJL(),
+            CMINPACK(),
+            PETScSNES(),
+            PETScSNES(; autodiff = missing),
+            SIAMFANLEquationsJL(; method = :newton),
             SIAMFANLEquationsJL(; method = :pseudotransient),
-            SIAMFANLEquationsJL(; method = :secant)]
+            SIAMFANLEquationsJL(; method = :secant)
+        ]
 
         alg isa CMINPACK && Sys.isapple() && continue
-
+        alg isa PETScSNES && Sys.iswindows() && continue
         sol = solve(prob_tol, alg, abstol = tol)
         @test abs(sol.u[1] - sqrt(2)) < tol
     end
@@ -134,4 +164,29 @@ end
     @test maximum(abs, sol.resid) < 1e-6
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :pseudotransient); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
+    if !Sys.iswindows()
+        sol = solve(ProbN, PETScSNES(); abstol = 1e-8)
+        @test maximum(abs, sol.resid) < 1e-6
+    end
+end
+
+@testitem "PETSc SNES Floating Points" setup=[WrapperRootfindImports] tags=[:wrappers] skip=:(Sys.iswindows()) begin
+    f(u, p) = u .* u .- 2
+
+    u0 = [1.0, 1.0]
+    probN = NonlinearProblem{false}(f, u0)
+
+    sol = solve(probN, PETScSNES(); abstol = 1e-8)
+    @test maximum(abs, sol.resid) < 1e-6
+
+    u0 = [1.0f0, 1.0f0]
+    probN = NonlinearProblem{false}(f, u0)
+
+    sol = solve(probN, PETScSNES(); abstol = 1e-5)
+    @test maximum(abs, sol.resid) < 1e-4
+
+    u0 = Float16[1.0, 1.0]
+    probN = NonlinearProblem{false}(f, u0)
+
+    @test_throws AssertionError solve(probN, PETScSNES(); abstol = 1e-8)
 end

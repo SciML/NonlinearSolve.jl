@@ -109,7 +109,8 @@ function __construct_extension_f(prob::AbstractNonlinearProblem; alias_u0::Bool 
 end
 
 function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = False,
-        can_handle_scalar::Val = False, autodiff = nothing, kwargs...)
+        can_handle_scalar::Val = False, autodiff = nothing, initial_jacobian = False,
+        kwargs...)
     autodiff = select_jacobian_autodiff(prob, autodiff)
 
     Jₚ = JacobianCache(
@@ -120,7 +121,9 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
     𝐉 = (can_handle_oop === False && !isinplace(prob)) ?
         @closure((J, u)->copyto!(J, 𝓙(u))) : 𝓙
 
-    return 𝐉
+    initial_jacobian === False && return 𝐉
+
+    return 𝐉, Jₚ(nothing)
 end
 
 function reinit_cache! end

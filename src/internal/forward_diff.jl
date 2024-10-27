@@ -6,13 +6,7 @@ const DualNonlinearLeastSquaresProblem = NonlinearLeastSquaresProblem{
 const DualAbstractNonlinearProblem = Union{
     DualNonlinearProblem, DualNonlinearLeastSquaresProblem}
 
-for algType in (
-    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
-    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
-    LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
-    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
-)
+for algType in ALL_SOLVER_TYPES
     @eval function SciMLBase.__solve(
             prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
         sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
@@ -43,14 +37,7 @@ function reinit_cache!(cache::NonlinearSolveForwardDiffCache;
     return cache
 end
 
-for algType in (
-    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
-    SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
-    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
-    LeastSquaresOptimJL, FastLevenbergMarquardtJL, CMINPACK, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
-    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
-)
+for algType in ALL_SOLVER_TYPES
     @eval function SciMLBase.__init(
             prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
         p = __value(prob.p)
