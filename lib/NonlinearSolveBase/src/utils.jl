@@ -9,7 +9,7 @@ using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
 using StaticArraysCore: StaticArray, SArray
 
-using ..NonlinearSolveBase: L2_NORM, Linf_NORM
+using ..NonlinearSolveBase: NonlinearSolveBase, L2_NORM, Linf_NORM
 
 is_extension_loaded(::Val) = false
 
@@ -143,6 +143,26 @@ function evaluate_f!!(f::NonlinearFunction, fu, u, p)
         return fu
     end
     return f(u, p)
+end
+
+function evaluate_f(prob::AbstractNonlinearProblem, u)
+    if SciMLBase.isinplace(prob)
+        fu = prob.f.resid_prototype === nothing ? similar(u) :
+             similar(prob.f.resid_prototype)
+        prob.f(fu, u, prob.p)
+    else
+        fu = prob.f(u, prob.p)
+    end
+    return fu
+end
+
+function evaluate_f!(cache, u, p)
+    cache.stats.nf += 1
+    if SciMLBase.isinplace(cache)
+        cache.prob.f(NonlinearSolveBase.get_fu(cache), u, p)
+    else
+        NonlinearSolveBase.set_fu!(cache, cache.prob.f(u, p))
+    end
 end
 
 function make_sparse end

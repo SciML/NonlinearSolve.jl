@@ -55,8 +55,7 @@ function SciMLBase.step!(cache::AbstractNonlinearSolveCache{iip, timeit},
 
     if timeit
         cache.total_time += time() - time_start
-        if !cache.force_stop &&
-           cache.retcode == ReturnCode.Default &&
+        if !cache.force_stop && cache.retcode == ReturnCode.Default &&
            cache.total_time ≥ cache.maxtime
             cache.retcode = ReturnCode.MaxTime
             cache.force_stop = true

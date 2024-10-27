@@ -24,8 +24,10 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
+using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 const DI = DifferentiationInterface
+const SII = SymbolicIndexingInterface
 
 include("public.jl")
 include("utils.jl")
@@ -48,6 +50,8 @@ include("descent/steepest.jl")
 include("descent/damped_newton.jl")
 include("descent/dogleg.jl")
 include("descent/geodesic_acceleration.jl")
+
+include("solve.jl")
 
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))

@@ -218,10 +218,111 @@ concrete_jac(v::Bool) = v
 concrete_jac(::Val{false}) = false
 concrete_jac(::Val{true}) = true
 
+"""
+    AbstractNonlinearSolveCache
+
+Abstract Type for all NonlinearSolveBase Caches.
+
+### Interface Functions
+
+  - `get_fu(cache)`: get the residual.
+  - `get_u(cache)`: get the current state.
+  - `set_fu!(cache, fu)`: set the residual.
+  - `has_time_limit(cache)`: whether or not the solver has a maximum time limit.
+  - `not_terminated(cache)`: whether or not the solver has terminated.
+
+  - `SciMLBase.set_u!(cache, u)`: set the current state.
+  - `SciMLBase.reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state
+    `u0` and any additional keyword arguments.
+  - `SciMLBase.step!(cache; kwargs...)`: See [`SciMLBase.step!`](@ref) for more details.
+  - `SciMLBase.isinplace(cache)`: whether or not the solver is inplace.
+
+Additionally implements `SymbolicIndexingInterface` interface Functions.
+
+#### Expected Fields in Sub-Types
+
+For the default interface implementations we expect the following fields to be present in
+the cache:
+
+  - `fu`: the residual.
+  - `u`: the current state.
+  - `maxiters`: the maximum number of iterations.
+  - `nsteps`: the number of steps taken.
+  - `force_stop`: whether or not the solver has been forced to stop.
+  - `retcode`: the return code.
+  - `stats`: `NLStats` object.
+  - `alg`: the algorithm.
+  - `maxtime`: the maximum time limit for the solver. (Optional)
+  - `timer`: the timer for the solver. (Optional)
+  - `total_time`: the total time taken by the solver. (Optional)
+"""
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
-function get_u end
-function get_fu end
+get_u(cache::AbstractNonlinearSolveCache) = cache.u
+get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
+SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
+
+function has_time_limit(cache::AbstractNonlinearSolveCache)
+    maxtime = Utils.safe_getproperty(cache, Val(:maxtime))
+    return maxtime !== missing && maxtime !== nothing
+end
+
+function not_terminated(cache::AbstractNonlinearSolveCache)
+    return !cache.force_stop && cache.nsteps < cache.maxiters
+end
+
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; kwargs...)
+    return InternalAPI.reinit!(cache; kwargs...)
+end
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
+    return InternalAPI.reinit!(cache; u0, kwargs...)
+end
+
+SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
+
+## SII Interface
+SII.symbolic_container(cache::AbstractNonlinearSolveCache) = cache.prob
+SII.parameter_values(cache::AbstractNonlinearSolveCache) = SII.parameter_values(cache.prob)
+SII.state_values(cache::AbstractNonlinearSolveCache) = SII.state_values(cache.prob)
+
+function Base.getproperty(cache::AbstractNonlinearSolveCache, sym::Symbol)
+    if sym === :ps
+        !hasfield(typeof(cache), :ps) && return SII.ParameterIndexingProxy(cache)
+        return getfield(cache, :ps)
+    end
+    return getfield(cache, sym)
+end
+
+Base.getindex(cache::AbstractNonlinearSolveCache, sym) = SII.getu(cache, sym)(cache)
+function Base.setindex!(cache::AbstractNonlinearSolveCache, val, sym)
+    return SII.setu(cache, sym)(cache, val)
+end
+
+# XXX: Implement this
+# function Base.show(io::IO, cache::AbstractNonlinearSolveCache)
+#     __show_cache(io, cache, 0)
+# end
+
+# function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
+#     println(io, "$(nameof(typeof(cache)))(")
+#     __show_algorithm(io, cache.alg,
+#         (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
+
+#     ustr = sprint(show, get_u(cache); context = (:compact => true, :limit => true))
+#     println(io, ",\n" * (" "^(indent + 4)) * "u = $(ustr),")
+
+#     residstr = sprint(show, get_fu(cache); context = (:compact => true, :limit => true))
+#     println(io, (" "^(indent + 4)) * "residual = $(residstr),")
+
+#     normstr = sprint(
+#         show, norm(get_fu(cache), Inf); context = (:compact => true, :limit => true))
+#     println(io, (" "^(indent + 4)) * "inf-norm(residual) = $(normstr),")
+
+#     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
+#     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
+#     print(io, " "^(indent) * ")")
+# end
 
 """
     AbstractLinearSolverCache
