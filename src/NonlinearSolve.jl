@@ -37,9 +37,9 @@ import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
                            supports_trust_region, last_step_accepted, get_linear_solver,
                            AbstractDampingFunction, AbstractDampingFunctionCache,
                            requires_normal_form_jacobian, requires_normal_form_rhs,
-                           returns_norm_form_damping, get_timer_output, get_u, get_fu
+                           returns_norm_form_damping, get_timer_output, get_u, get_fu,
+                           set_fu!
 
-using Printf: @printf
 using Preferences: Preferences, set_preferences!
 using RecursiveArrayTools: recursivecopy!
 using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, AbstractNonlinearProblem,
@@ -83,7 +83,6 @@ include("globalization/trust_region.jl")
 include("core/generic.jl")
 include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
-include("core/spectral_methods.jl")
 include("core/noinit.jl")
 
 include("algorithms/raphson.jl")
@@ -91,7 +90,6 @@ include("algorithms/pseudo_transient.jl")
 include("algorithms/broyden.jl")
 include("algorithms/klement.jl")
 include("algorithms/lbroyden.jl")
-include("algorithms/dfsane.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
@@ -174,10 +172,11 @@ include("internal/forward_diff.jl") # we need to define after the algorithms
 end
 
 # Rexexports
-@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase
+@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase,
+                NonlinearSolveSpectralMethods
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
+export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPolyalg,
        FastShortcutNLLSPolyalg
@@ -188,7 +187,7 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
 export PETScSNES, CMINPACK
 
 # Advanced Algorithms -- Without Bells and Whistles
-export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm, GeneralizedDFSane
+export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm
 
 # Globalization
 ## Line Search Algorithms
@@ -196,9 +195,6 @@ export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch,
        LiFukushimaLineSearch, LineSearchesJL
 ## Trust Region Algorithms
 export RadiusUpdateSchemes
-
-# Tracing Functionality
-export TraceAll, TraceMinimal, TraceWithJacobianConditionNumber
 
 # Reexport ADTypes
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme,
