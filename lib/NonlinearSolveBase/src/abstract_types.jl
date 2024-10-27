@@ -220,6 +220,9 @@ concrete_jac(::Val{true}) = true
 
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
+function get_u end
+function get_fu end
+
 """
     AbstractLinearSolverCache
 

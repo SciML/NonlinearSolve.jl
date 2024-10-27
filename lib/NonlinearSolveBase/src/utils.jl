@@ -2,7 +2,8 @@ module Utils
 
 using ArrayInterface: ArrayInterface
 using FastClosures: @closure
-using LinearAlgebra: Symmetric, norm, dot
+using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
+using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
@@ -145,5 +146,47 @@ function evaluate_f!!(f::NonlinearFunction, fu, u, p)
 end
 
 function make_sparse end
+
+condition_number(J::AbstractMatrix) = cond(J)
+function condition_number(J::AbstractVector)
+    if !ArrayInterface.can_setindex(J)
+        J′ = similar(J)
+        copyto!(J′, J)
+        J = J′
+    end
+    return cond(Diagonal(J))
+end
+condition_number(::Any) = -1
+
+# XXX: Move to NonlinearSolveQuasiNewton
+# compute `pinv` if `inv` won't work
+maybe_pinv!!_workspace(A) = nothing
+
+maybe_pinv!!(workspace, A::Union{Number, AbstractMatrix}) = pinv(A)
+function maybe_pinv!!(workspace, A::Diagonal)
+    D = A.diag
+    @bb @. D = pinv(D)
+    return Diagonal(D)
+end
+maybe_pinv!!(workspace, A::AbstractVector) = maybe_pinv!!(workspace, Diagonal(A))
+function maybe_pinv!!(workspace, A::StridedMatrix)
+    LinearAlgebra.checksquare(A)
+    if LinearAlgebra.istriu(A)
+        issingular = any(iszero, @view(A[diagind(A)]))
+        A_ = UpperTriangular(A)
+        !issingular && return triu!(parent(inv(A_)))
+    elseif LinearAlgebra.istril(A)
+        A_ = LowerTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return tril!(parent(inv(A_)))
+    else
+        F = LinearAlgebra.lu(A; check = false)
+        if issuccess(F)
+            Ai = LinearAlgebra.inv!(F)
+            return convert(typeof(parent(Ai)), Ai)
+        end
+    end
+    return pinv(A)
+end
 
 end

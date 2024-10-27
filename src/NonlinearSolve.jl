@@ -29,14 +29,15 @@ using NonlinearSolveBase: NonlinearSolveBase,
                           DescentResult,
                           SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
                           GeodesicAcceleration,
-                          reset_timer!, @static_timeit
+                          reset_timer!, @static_timeit,
+                          init_nonlinearsolve_trace, update_trace!, reset!
 
 # XXX: Remove
 import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
                            supports_trust_region, last_step_accepted, get_linear_solver,
                            AbstractDampingFunction, AbstractDampingFunctionCache,
                            requires_normal_form_jacobian, requires_normal_form_rhs,
-                           returns_norm_form_damping, get_timer_output
+                           returns_norm_form_damping, get_timer_output, get_u, get_fu
 
 using Printf: @printf
 using Preferences: Preferences, set_preferences!
@@ -74,7 +75,6 @@ include("timer_outputs.jl")
 include("internal/helpers.jl")
 
 include("internal/termination.jl")
-include("internal/tracing.jl")
 include("internal/approximate_initialization.jl")
 
 include("globalization/line_search.jl")
