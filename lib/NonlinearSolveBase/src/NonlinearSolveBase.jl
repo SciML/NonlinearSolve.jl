@@ -15,6 +15,7 @@ using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
 using Markdown: @doc_str
 using MaybeInplace: @bb
 using Preferences: @load_preference
+using Printf: @printf
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
@@ -39,6 +40,7 @@ include("autodiff.jl")
 include("jacobian.jl")
 include("linear_solve.jl")
 include("timer_outputs.jl")
+include("tracing.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -58,6 +60,8 @@ include("descent/geodesic_acceleration.jl")
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
 @compat(public, (construct_jacobian_cache,))
+
+export TraceMinimal, TraceWithJacobianConditionNumber, TraceAll
 
 export RelTerminationMode, AbsTerminationMode,
        NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,

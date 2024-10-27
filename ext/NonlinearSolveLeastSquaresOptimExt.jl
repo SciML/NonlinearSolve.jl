@@ -2,8 +2,8 @@ module NonlinearSolveLeastSquaresOptimExt
 
 using ConcreteStructs: @concrete
 using LeastSquaresOptim: LeastSquaresOptim
-using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
-using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL, TraceMinimal
+using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal, get_tolerance
+using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL
 using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 
 const LSO = LeastSquaresOptim

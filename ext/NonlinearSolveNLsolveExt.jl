@@ -1,8 +1,8 @@
 module NonlinearSolveNLsolveExt
 
 using LineSearches: Static
-using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
-using NonlinearSolve: NonlinearSolve, NLsolveJL, TraceMinimal
+using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal, get_tolerance
+using NonlinearSolve: NonlinearSolve, NLsolveJL
 using NLsolve: NLsolve, OnceDifferentiable, nlsolve
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
@@ -32,7 +32,7 @@ function SciMLBase.__solve(
     abstol = get_tolerance(abstol, eltype(u0))
     show_trace = ShT
     store_trace = StT
-    extended_trace = !(trace_level isa TraceMinimal)
+    extended_trace = !(trace_level.trace_mode isa Val{:minimal})
 
     linesearch = alg.linesearch === missing ? Static() : alg.linesearch
 

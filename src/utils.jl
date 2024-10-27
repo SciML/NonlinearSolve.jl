@@ -22,13 +22,6 @@ end
 end
 @inline __maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 
-@inline __cond(J::AbstractMatrix) = cond(J)
-@inline __cond(J::SVector) = __cond(Diagonal(MVector(J)))
-@inline __cond(J::AbstractVector) = __cond(Diagonal(J))
-@inline __cond(J::ApplyArray) = __cond(J.f(J.args...))
-@inline __cond(J::SparseMatrixCSC) = __cond(Matrix(J))
-@inline __cond(J) = -1  # Covers cases where `J` is a Operator, nothing, etc.
-
 @inline __copy(x::AbstractArray) = copy(x)
 @inline __copy(x::Number) = x
 @inline __copy(x) = x
