@@ -184,7 +184,8 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
                 error("Trust Region not supported by $(alg.descent).")
             trustregion_cache = InternalAPI.init(
-                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...
+                prob, alg.trustregion, prob.f, fu, u, prob.p;
+                stats, internalnorm, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
