@@ -103,7 +103,7 @@ function InternalAPI.init(
 end
 
 @concrete struct IllConditionedJacobianResetCache <: AbstractResetConditionCache
-    condition_number_threshold <: Number
+    condition_number_threshold
 end
 
 # NOTE: we don't need a reinit! since we establish the threshold based on the eltype

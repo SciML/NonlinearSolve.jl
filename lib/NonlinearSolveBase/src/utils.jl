@@ -115,6 +115,7 @@ unwrap_val(::Val{x}) where {x} = unwrap_val(x)
 
 is_default_value(::Any, ::Symbol, ::Nothing) = true
 is_default_value(::Any, ::Symbol, ::Missing) = true
+is_default_value(::Any, ::Symbol, val::Int) = val == typemax(typeof(val))
 is_default_value(::Any, ::Symbol, ::Any) = false
 
 maybe_symmetric(x) = Symmetric(x)
@@ -178,7 +179,6 @@ function condition_number(J::AbstractVector)
 end
 condition_number(::Any) = -1
 
-# XXX: Move to NonlinearSolveQuasiNewton
 # compute `pinv` if `inv` won't work
 maybe_pinv!!_workspace(A) = nothing, A
 
@@ -237,6 +237,49 @@ function make_identity!!(A::AbstractMatrix{T}, α) where {T}
         A[diagind(A)] .= α
     end
     return A
+end
+
+function clean_sprint_struct(x)
+    x isa Symbol && return "$(Meta.quot(x))"
+    x isa Number && return string(x)
+    (!Base.isstructtype(typeof(x)) || x isa Val) && return string(x)
+
+    modifiers = String[]
+    name = nameof(typeof(x))
+    for field in fieldnames(typeof(x))
+        val = getfield(x, field)
+        if field === :name
+            name = val
+            continue
+        end
+        is_default_value(x, field, val) && continue
+        push!(modifiers, "$(field) = $(clean_sprint_struct(val))")
+    end
+
+    return "$(nameof(typeof(x)))($(join(modifiers, ", ")))"
+end
+
+function clean_sprint_struct(x, indent::Int)
+    x isa Symbol && return "$(Meta.quot(x))"
+    x isa Number && return string(x)
+    (!Base.isstructtype(typeof(x)) || x isa Val) && return string(x)
+
+    modifiers = String[]
+    name = nameof(typeof(x))
+    for field in fieldnames(typeof(x))
+        val = getfield(x, field)
+        if field === :name
+            name = val
+            continue
+        end
+        is_default_value(x, field, val) && continue
+        push!(modifiers, "$(field) = $(clean_sprint_struct(val, indent + 4))")
+    end
+    spacing = " "^indent * "    "
+    spacing_last = " "^indent
+
+    length(modifiers) == 0 && return "$(nameof(typeof(x)))()"
+    return "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))"
 end
 
 end

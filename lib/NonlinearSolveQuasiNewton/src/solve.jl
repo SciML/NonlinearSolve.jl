@@ -37,22 +37,6 @@ examples include [`Broyden`](@ref)'s Method.
     name::Symbol
 end
 
-# XXX: Implement
-# function __show_algorithm(io::IO, alg::QuasiNewtonAlgorithm, name, indent)
-#     modifiers = String[]
-#     __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
-#     __is_present(alg.trustregion) && push!(modifiers, "trustregion = $(alg.trustregion)")
-#     push!(modifiers, "descent = $(alg.descent)")
-#     push!(modifiers, "update_rule = $(alg.update_rule)")
-#     push!(modifiers, "reinit_rule = $(alg.reinit_rule)")
-#     push!(modifiers, "max_resets = $(alg.max_resets)")
-#     push!(modifiers, "initialization = $(alg.initialization)")
-#     store_inverse_jacobian(alg.update_rule) && push!(modifiers, "inverse_jacobian = true")
-#     spacing = " "^indent * "    "
-#     spacing_last = " "^indent
-#     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
-# end
-
 function QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,

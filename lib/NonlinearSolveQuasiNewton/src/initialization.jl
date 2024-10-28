@@ -151,12 +151,13 @@ NonlinearSolveBase.jacobian_initialized_preinverted(::BroydenLowRankInitializati
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
-        solver, f::F, fu, u, p; internalnorm::IN = L2_NORM, kwargs...
+        solver, f::F, fu, u, p;
+        internalnorm::IN = L2_NORM, maxiters = 1000, kwargs...
 ) where {F, IN}
     if u isa Number # Use the standard broyden
         return InternalAPI.init(
             prob, IdentityInitialization(true, FullStructure()),
-            solver, f, fu, u, p; internalnorm, kwargs...
+            solver, f, fu, u, p; internalnorm, maxiters, kwargs...
         )
     end
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
@@ -212,7 +213,7 @@ Base.adjoint(op::BroydenLowRankJacobian{<:Real}) = transpose(op)
 
 # Storing the transpose to ensure contiguous memory on splicing
 function BroydenLowRankJacobian(
-    fu::StaticArray, u::StaticArray; alpha = true, threshold::Val = Val(10)
+        fu::StaticArray, u::StaticArray; alpha = true, threshold::Val = Val(10)
 )
     T = promote_type(eltype(u), eltype(fu))
     U = MArray{Tuple{prod(Size(fu)), Utils.unwrap_val(threshold)}, T}(undef)
@@ -265,8 +266,8 @@ function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowR
 end
 
 function LinearAlgebra.mul!(
-    J::BroydenLowRankJacobian, u::AbstractArray, vᵀ::LinearAlgebra.AdjOrTransAbsVec,
-    α::Bool, β::Bool
+        J::BroydenLowRankJacobian, u::AbstractArray, vᵀ::LinearAlgebra.AdjOrTransAbsVec,
+        α::Bool, β::Bool
 )
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))

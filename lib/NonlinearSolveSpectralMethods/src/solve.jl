@@ -32,18 +32,6 @@ function GeneralizedDFSane(;
     return GeneralizedDFSane(linesearch, sigma_min, sigma_max, sigma_1, name)
 end
 
-# XXX: Add
-# function __show_algorithm(io::IO, alg::GeneralizedDFSane, name, indent)
-#     modifiers = String[]
-#     __is_present(alg.linesearch) && push!(modifiers, "linesearch = $(alg.linesearch)")
-#     push!(modifiers, "σ_min = $(alg.σ_min)")
-#     push!(modifiers, "σ_max = $(alg.σ_max)")
-#     push!(modifiers, "σ_1 = $(alg.σ_1)")
-#     spacing = " "^indent * "    "
-#     spacing_last = " "^indent
-#     print(io, "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))")
-# end
-
 @concrete mutable struct GeneralizedDFSaneCache <: AbstractNonlinearSolveCache
     # Basic Requirements
     fu
