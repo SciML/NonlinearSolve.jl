@@ -2,12 +2,12 @@ module Utils
 
 using ArrayInterface: ArrayInterface
 using FastClosures: @closure
-using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
+using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv, inv
 using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
-using StaticArraysCore: StaticArray, SArray
+using StaticArraysCore: StaticArray, SArray, SMatrix
 
 using ..NonlinearSolveBase: NonlinearSolveBase, L2_NORM, Linf_NORM
 
@@ -180,7 +180,7 @@ condition_number(::Any) = -1
 
 # XXX: Move to NonlinearSolveQuasiNewton
 # compute `pinv` if `inv` won't work
-maybe_pinv!!_workspace(A) = nothing
+maybe_pinv!!_workspace(A) = nothing, A
 
 maybe_pinv!!(workspace, A::Union{Number, AbstractMatrix}) = pinv(A)
 function maybe_pinv!!(workspace, A::Diagonal)
@@ -193,12 +193,12 @@ function maybe_pinv!!(workspace, A::StridedMatrix)
     LinearAlgebra.checksquare(A)
     if LinearAlgebra.istriu(A)
         issingular = any(iszero, @view(A[diagind(A)]))
-        A_ = UpperTriangular(A)
-        !issingular && return triu!(parent(inv(A_)))
+        A_ = LinearAlgebra.UpperTriangular(A)
+        !issingular && return LinearAlgebra.triu!(parent(inv(A_)))
     elseif LinearAlgebra.istril(A)
-        A_ = LowerTriangular(A)
+        A_ = LinearAlgebra.LowerTriangular(A)
         issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return tril!(parent(inv(A_)))
+        !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
     else
         F = LinearAlgebra.lu(A; check = false)
         if issuccess(F)
@@ -207,6 +207,36 @@ function maybe_pinv!!(workspace, A::StridedMatrix)
         end
     end
     return pinv(A)
+end
+
+function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
+    return convert(promote_type(eltype(u), eltype(fu)), α)
+end
+function initial_jacobian_scaling_alpha(::Nothing, u, fu, internalnorm::F) where {F}
+    fu_norm = internalnorm(fu)
+    fu_norm < 1e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
+    return (2 * fu_norm) / max(L2_NORM(u), true)
+end
+
+make_identity!!(::T, α) where {T <: Number} = T(α)
+function make_identity!!(A::AbstractVector{T}, α) where {T}
+    @bb @. A = T(α)
+    return A
+end
+function make_identity!!(::SMatrix{S1, S2, T, L}, α) where {S1, S2, T, L}
+    return SMatrix{S1, S2, T, L}(LinearAlgebra.I * α)
+end
+function make_identity!!(A::AbstractMatrix{T}, α) where {T}
+    A = ArrayInterface.can_setindex(A) ? A : similar(A)
+    fill!(A, false)
+    if ArrayInterface.fast_scalar_indexing(A)
+        @simd ivdep for i in axes(A, 1)
+            @inbounds A[i, i] = α
+        end
+    else
+        A[diagind(A)] .= α
+    end
+    return A
 end
 
 end

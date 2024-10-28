@@ -205,7 +205,7 @@ function update_trace!(
     return trace
 end
 
-function update_trace!(cache, α = true)
+function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
     trace = Utils.safe_getproperty(cache, Val(:trace))
     trace === missing && return nothing
 
@@ -214,11 +214,8 @@ function update_trace!(cache, α = true)
         update_trace!(
             trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, cache.du, α
         )
-        # XXX: Implement
-        # elseif cache isa ApproximateJacobianSolveCache && store_inverse_jacobian(cache)
-        #     update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache),
-        #         ApplyArray(__safe_inv, J), cache.du, α)
     else
+        J = uses_jac_inverse isa Val{true} ? pinv(J) : J
         update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, cache.du, α)
     end
 end

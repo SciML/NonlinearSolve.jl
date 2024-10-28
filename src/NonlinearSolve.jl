@@ -75,24 +75,20 @@ include("timer_outputs.jl")
 include("internal/helpers.jl")
 
 include("internal/termination.jl")
-include("internal/approximate_initialization.jl")
 
 include("globalization/line_search.jl")
 include("globalization/trust_region.jl")
 
 include("core/generic.jl")
-include("core/approximate_jacobian.jl")
 include("core/generalized_first_order.jl")
 include("core/noinit.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")
-include("algorithms/broyden.jl")
-include("algorithms/klement.jl")
-include("algorithms/lbroyden.jl")
 include("algorithms/gauss_newton.jl")
 include("algorithms/levenberg_marquardt.jl")
 include("algorithms/trust_region.jl")
+
 include("algorithms/extension_algs.jl")
 
 include("utils.jl")
@@ -123,8 +119,6 @@ include("internal/forward_diff.jl") # we need to define after the algorithms
         NewtonRaphson(),
         TrustRegion(),
         LevenbergMarquardt(),
-        Broyden(),
-        Klement(),
         nothing
     )
 
@@ -173,10 +167,10 @@ end
 
 # Rexexports
 @reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase,
-                NonlinearSolveSpectralMethods
+                NonlinearSolveSpectralMethods, NonlinearSolveQuasiNewton
 
 # Core Algorithms
-export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden
+export NewtonRaphson, PseudoTransient
 export GaussNewton, LevenbergMarquardt, TrustRegion
 export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPolyalg,
        FastShortcutNLLSPolyalg
@@ -187,7 +181,7 @@ export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
 export PETScSNES, CMINPACK
 
 # Advanced Algorithms -- Without Bells and Whistles
-export GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm
+export GeneralizedFirstOrderAlgorithm
 
 # Globalization
 ## Line Search Algorithms

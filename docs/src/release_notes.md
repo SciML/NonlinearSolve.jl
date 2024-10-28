@@ -4,6 +4,7 @@
 
 ### Breaking Changes in `NonlinearSolve.jl` v4
 
+  - `ApproximateJacobianSolveAlgorithm` has been renamed to `QuasiNewtonAlgorithm`.
   - See [common breaking changes](@ref common-breaking-changes-v4v2) below.
 
 ### Breaking Changes in `SimpleNonlinearSolve.jl` v2
