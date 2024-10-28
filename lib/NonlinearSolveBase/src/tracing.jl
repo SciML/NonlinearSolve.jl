@@ -103,8 +103,16 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
     norm_type = ifelse(prob isa NonlinearLeastSquaresProblem, :L2, :Inf)
     fnorm = prob isa NonlinearLeastSquaresProblem ? L2_NORM(fu) : Linf_NORM(fu)
     condJ = J !== missing ? Utils.condition_number(J) : nothing
-    storage = u === missing ? nothing :
-              (; u = copy(u), fu = copy(fu), δu = copy(δu), J = copy(J))
+    storage = if u === missing
+        nothing
+    else
+        (;
+            u = ArrayInterface.ismutable(u) ? copy(u) : u,
+            fu = ArrayInterface.ismutable(fu) ? copy(fu) : fu,
+            δu = ArrayInterface.ismutable(δu) ? copy(δu) : δu,
+            J = ArrayInterface.ismutable(J) ? copy(J) : J
+        )
+    end
     return NonlinearSolveTraceEntry(
         iteration, fnorm, L2_NORM(δu), condJ, storage, norm_type
     )
@@ -149,7 +157,8 @@ function init_nonlinearsolve_trace(
 )
     if show_trace isa Val{true}
         print("\nAlgorithm: ")
-        Base.printstyled(alg, "\n\n"; color = :green, bold = true)
+        str = Utils.clean_sprint_struct(alg, 0)
+        Base.printstyled(str, "\n\n"; color = :green, bold = true)
     end
     J = uses_jac_inverse isa Val{true} ?
         (trace_level.trace_mode isa Val{:minimal} ? J : LinearAlgebra.pinv(J)) : J

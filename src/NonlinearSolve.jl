@@ -76,9 +76,6 @@ include("abstract_types.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
-include("internal/termination.jl")
-
-include("globalization/line_search.jl")
 include("globalization/trust_region.jl")
 
 include("core/generic.jl")

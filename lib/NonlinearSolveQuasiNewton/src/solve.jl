@@ -122,7 +122,9 @@ end
 #     reset_timer!(cache.timer)
 # end
 
-# @internal_caches ApproximateJacobianSolveCache :initialization_cache :descent_cache :linesearch_cache :trustregion_cache :update_rule_cache :reinit_rule_cache
+NonlinearSolveBase.@internal_caches(ApproximateJacobianSolveCache,
+    :initialization_cache, :descent_cache, :linesearch_cache, :trustregion_cache,
+    :update_rule_cache, :reinit_rule_cache)
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::QuasiNewtonAlgorithm, args...;
@@ -361,8 +363,8 @@ function InternalAPI.step!(
             error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
                    are (:LineSearch, :TrustRegion, :None)")
         end
-        # XXX: Implement
-        # check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+
+        NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else
         α = false
         cache.force_reinit = true
@@ -376,8 +378,7 @@ function InternalAPI.step!(
 
     if (cache.force_stop || cache.force_reinit ||
         (recompute_jacobian !== nothing && !recompute_jacobian))
-        # XXX: Implement
-        # callback_into_cache!(cache)
+        NonlinearSolveBase.callback_into_cache!(cache)
         return nothing
     end
 
@@ -385,8 +386,7 @@ function InternalAPI.step!(
         cache.J = InternalAPI.solve!(
             cache.update_rule_cache, cache.J, cache.fu, cache.u, δu
         )
-        # XXX: Implement
-        # callback_into_cache!(cache)
+        NonlinearSolveBase.callback_into_cache!(cache)
     end
 
     return nothing

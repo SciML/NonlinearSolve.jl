@@ -103,18 +103,3 @@ function __build_solution_less_specialize(prob::AbstractNonlinearProblem, alg, u
         Any, typeof(left), typeof(stats), typeof(trace)}(
         u, resid, prob, alg, retcode, original, left, right, stats, trace)
 end
-
-@inline empty_nlstats() = NLStats(0, 0, 0, 0, 0)
-function __reinit_internal!(stats::NLStats)
-    stats.nf = 0
-    stats.nsteps = 0
-    stats.nfactors = 0
-    stats.njacs = 0
-    stats.nsolve = 0
-end
-
-function __similar(x, args...; kwargs...)
-    y = similar(x, args...; kwargs...)
-    fill!(y, false)
-    return y
-end

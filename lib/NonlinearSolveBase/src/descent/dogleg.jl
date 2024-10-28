@@ -44,8 +44,7 @@ end
     normal_form <: Union{Val{false}, Val{true}}
 end
 
-# XXX: Implement
-# @internal_caches DoglegCache :newton_cache :cauchy_cache
+NonlinearSolveBase.@internal_caches DoglegCache :newton_cache :cauchy_cache
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;

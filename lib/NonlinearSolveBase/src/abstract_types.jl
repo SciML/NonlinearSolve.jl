@@ -1,9 +1,30 @@
 module InternalAPI
 
+using SciMLBase: NLStats
+
 function init end
 function solve! end
-function reinit! end
 function step! end
+
+function reinit! end
+function reinit_self! end
+
+function reinit!(x::Any; kwargs...)
+    @debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
+    return
+end
+function reinit_self!(x::Any; kwargs...)
+    @debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
+    return
+end
+
+function reinit_self!(stats::NLStats)
+    stats.nf = 0
+    stats.nsteps = 0
+    stats.nfactors = 0
+    stats.njacs = 0
+    stats.nsolve = 0
+end
 
 end
 
@@ -512,3 +533,53 @@ accepted then these values should be copied into the toplevel cache.
 abstract type AbstractTrustRegionMethodCache <: AbstractNonlinearSolveBaseAPI end
 
 last_step_accepted(cache::AbstractTrustRegionMethodCache) = cache.last_step_accepted
+
+# Additional Interface
+"""
+    callback_into_cache!(cache, internalcache, args...)
+
+Define custom operations on `internalcache` tightly coupled with the calling `cache`.
+`args...` contain the sequence of caches calling into `internalcache`.
+
+This unfortunately makes code very tightly coupled and not modular. It is recommended to not
+use this functionality unless it can't be avoided (like in [`LevenbergMarquardt`](@ref)).
+"""
+callback_into_cache!(cache, internalcache, args...) = nothing  # By default do nothing
+
+# Helper functions to generate cache callbacks and resetting functions
+macro internal_caches(cType, internal_cache_names...)
+    callback_caches = map(internal_cache_names) do name
+        return quote
+            $(callback_into_cache!)(
+                cache, getproperty(internalcache, $(name)), internalcache, args...
+            )
+        end
+    end
+    callbacks_self = map(internal_cache_names) do name
+        return quote
+            $(callback_into_cache!)(cache, getproperty(cache, $(name)))
+        end
+    end
+    reinit_caches = map(internal_cache_names) do name
+        return quote
+            $(InternalAPI.reinit!)(getproperty(cache, $(name)), args...; kwargs...)
+        end
+    end
+    return esc(quote
+        function NonlinearSolveBase.callback_into_cache!(
+                cache, internalcache::$(cType), args...
+        )
+            $(callback_caches...)
+            return
+        end
+        function NonlinearSolveBase.callback_into_cache!(cache::$(cType))
+            $(callbacks_self...)
+            return
+        end
+        function NonlinearSolveBase.InternalAPI.reinit!(cache::$(cType), args...; kwargs...)
+            $(reinit_caches...)
+            $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
+            return
+        end
+    end)
+end
