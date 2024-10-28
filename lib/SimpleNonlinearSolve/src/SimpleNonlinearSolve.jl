@@ -130,10 +130,8 @@ function solve_adjoint_internal end
         #!format: on
 
         @compile_workload begin
-            @sync for alg in algs
-                for prob in (prob_scalar, prob_iip, prob_oop)
-                    Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2)
-                end
+            for prob in (prob_scalar, prob_iip, prob_oop)
+                CommonSolve.solve(prob, alg; abstol = 1e-2)
             end
         end
     end
