@@ -20,13 +20,14 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractApproximateJacobianUpdateRule, AbstractDescentDirection,
                           AbstractApproximateJacobianUpdateRuleCache,
                           AbstractDampingFunction, AbstractDampingFunctionCache,
+                          AbstractTrustRegionMethod, AbstractTrustRegionMethodCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM,
                           NewtonDescent, DampedNewtonDescent
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode
 using SciMLOperators: AbstractSciMLOperator
 using Setfield: @set!
-using StaticArraysCore: StaticArray, Size, MArray
+using StaticArraysCore: StaticArray, SArray, Size, MArray
 
 include("raphson.jl")
 include("gauss_newton.jl")

@@ -126,7 +126,7 @@ function InternalAPI.solve!(
 
     if 2 * norm_a ≤ norm_v * cache.α
         @bb @. δu = v + a / 2
-        SciMLBase.set_du!(cache, δu, idx)
+        set_du!(cache, δu, idx)
         cache.last_step_accepted = true
     else
         cache.last_step_accepted = false
