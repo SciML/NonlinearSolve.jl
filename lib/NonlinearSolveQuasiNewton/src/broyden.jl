@@ -150,11 +150,13 @@ function InternalAPI.solve!(
     if cache.rule isa GoodBroydenUpdateRule
         @bb @. J⁻¹_diag = J⁻¹_diag * cache.dfu * du
         denom = sum(J⁻¹_diag)
-        @bb @. J⁻¹_diag = J⁻¹_diag + (du - J⁻¹_diag * cache.dfu) * du * J⁻¹_diag /
+        @bb @. J⁻¹_diag = J⁻¹_diag +
+                          (du - J⁻¹_diag * cache.dfu) * du * J⁻¹_diag /
                           ifelse(iszero(denom), T(1e-5), denom)
     else
         denom = cache.internalnorm(cache.dfu)^2
-        @bb @. J⁻¹_diag = J⁻¹_diag + (du - J⁻¹_diag * cache.dfu) * cache.dfu /
+        @bb @. J⁻¹_diag = J⁻¹_diag +
+                          (du - J⁻¹_diag * cache.dfu) * cache.dfu /
                           ifelse(iszero(denom), T(1e-5), denom)
     end
     @bb copyto!(cache.dfu, fu)
