@@ -11,7 +11,7 @@ using DifferentiationInterface: DifferentiationInterface, Constant
 using EnzymeCore: EnzymeCore
 using FastClosures: @closure
 using FunctionProperties: hasbranching
-using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
+using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, pinv
 using Markdown: @doc_str
 using MaybeInplace: @bb
 using Preferences: @load_preference

@@ -122,8 +122,7 @@ end
     di_extras
 end
 
-function InternalAPI.reinit!(
-        cache::JacobianCache, args...; p = cache.p, u0 = cache.u, kwargs...)
+function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, u0 = cache.u, kwargs...)
     cache.u = u0
     cache.p = p
 end

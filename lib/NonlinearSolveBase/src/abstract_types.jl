@@ -226,11 +226,11 @@ Abstract Type for all NonlinearSolveBase Caches.
 ### Interface Functions
 
   - `get_fu(cache)`: get the residual.
+
   - `get_u(cache)`: get the current state.
   - `set_fu!(cache, fu)`: set the residual.
   - `has_time_limit(cache)`: whether or not the solver has a maximum time limit.
   - `not_terminated(cache)`: whether or not the solver has terminated.
-
   - `SciMLBase.set_u!(cache, u)`: set the current state.
   - `SciMLBase.reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state
     `u0` and any additional keyword arguments.
@@ -339,3 +339,170 @@ Abstract Type for all Jacobian Caches used in NonlinearSolveBase. Subtypes of th
 meant to be constructured via [`construct_jacobian_cache`](@ref).
 """
 abstract type AbstractJacobianCache <: AbstractNonlinearSolveBaseAPI end
+
+"""
+    AbstractApproximateJacobianStructure
+
+Abstract Type for all Approximate Jacobian Structures used in NonlinearSolve.jl.
+
+### Interface Functions
+
+  - `stores_full_jacobian(alg)`: whether or not the algorithm stores the full Jacobian.
+    Defaults to `false`.
+  - `get_full_jacobian(cache, alg, J)`: get the full Jacobian. Defaults to throwing an
+    error if `stores_full_jacobian(alg)` is `false`.
+"""
+abstract type AbstractApproximateJacobianStructure <: AbstractNonlinearSolveBaseAPI end
+
+stores_full_jacobian(::AbstractApproximateJacobianStructure) = false
+function get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
+    stores_full_jacobian(alg) && return J
+    error("This algorithm does not store the full Jacobian. Define `get_full_jacobian` for \
+           this algorithm.")
+end
+
+"""
+    AbstractJacobianInitialization
+
+Abstract Type for all Jacobian Initialization Algorithms used in NonlinearSolveBase.
+
+### Interface Functions
+
+  - `jacobian_initialized_preinverted(alg)`: whether or not the Jacobian is initialized
+    preinverted. Defaults to `false`.
+
+### `InternalAPI.init` specification
+
+```julia
+InternalAPI.init(
+    prob::AbstractNonlinearProblem, alg::AbstractJacobianInitialization, solver,
+    f, fu, u, p;
+    linsolve = missing, internalnorm::IN = L2_NORM, kwargs...
+)::AbstractJacobianCache
+```
+
+All subtypes need to define
+`(cache::AbstractJacobianCache)(alg::NewSubType, fu, u)` which reinitializes the Jacobian in
+`cache.J`.
+"""
+abstract type AbstractJacobianInitialization <: AbstractNonlinearSolveBaseAPI end
+
+jacobian_initialized_preinverted(::AbstractJacobianInitialization) = false
+
+"""
+    AbstractApproximateJacobianUpdateRule
+
+Abstract Type for all Approximate Jacobian Update Rules used in NonlinearSolveBase.
+
+### Interface Functions
+
+  - `store_inverse_jacobian(alg)`: Return `alg.store_inverse_jacobian`
+
+### `InternalAPI.init` specification
+
+```julia
+InternalAPI.init(
+    prob::AbstractNonlinearProblem, alg::AbstractApproximateJacobianUpdateRule, J, fu, u,
+    du, args...; internalnorm = L2_NORM, kwargs...
+)::AbstractApproximateJacobianUpdateRuleCache
+```
+"""
+abstract type AbstractApproximateJacobianUpdateRule <: AbstractNonlinearSolveBaseAPI end
+
+function store_inverse_jacobian(rule::AbstractApproximateJacobianUpdateRule)
+    return rule.store_inverse_jacobian
+end
+
+"""
+    AbstractApproximateJacobianUpdateRuleCache
+
+Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearSolveBase.
+
+### Interface Functions
+
+  - `store_inverse_jacobian(cache)`: Return `store_inverse_jacobian(cache.rule)`
+
+### `InternalAPI.solve!` specification
+
+```julia
+InternalAPI.solve!(
+    cache::AbstractApproximateJacobianUpdateRuleCache, J, fu, u, du; kwargs...
+) --> J / J⁻¹
+```
+"""
+abstract type AbstractApproximateJacobianUpdateRuleCache <: AbstractNonlinearSolveBaseAPI end
+
+function store_inverse_jacobian(cache::AbstractApproximateJacobianUpdateRuleCache)
+    return store_inverse_jacobian(cache.rule)
+end
+
+"""
+    AbstractResetCondition
+
+Condition for resetting the Jacobian in Quasi-Newton's methods.
+
+### `InternalAPI.init` specification
+
+```julia
+InternalAPI.init(
+    alg::AbstractResetCondition, J, fu, u, du, args...; kwargs...
+)::AbstractResetConditionCache
+```
+"""
+abstract type AbstractResetCondition <: AbstractNonlinearSolveBaseAPI end
+
+"""
+    AbstractResetConditionCache
+
+Abstract Type for all Reset Condition Caches used in NonlinearSolveBase.
+
+### `InternalAPI.solve!` specification
+
+```julia
+InternalAPI.solve!(
+    cache::AbstractResetConditionCache, J, fu, u, du; kwargs...
+)::Bool
+```
+"""
+abstract type AbstractResetConditionCache <: AbstractNonlinearSolveBaseAPI end
+
+"""
+    AbstractTrustRegionMethod
+
+Abstract Type for all Trust Region Methods used in NonlinearSolveBase.
+
+### `InternalAPI.init` specification
+
+```julia
+InternalAPI.init(
+    prob::AbstractNonlinearProblem, alg::AbstractTrustRegionMethod, f, fu, u, p, args...;
+    internalnorm = L2_NORM, kwargs...
+)::AbstractTrustRegionMethodCache
+```
+"""
+abstract type AbstractTrustRegionMethod <: AbstractNonlinearSolveBaseAPI end
+
+"""
+    AbstractTrustRegionMethodCache
+
+Abstract Type for all Trust Region Method Caches used in NonlinearSolveBase.
+
+### Interface Functions
+
+  - `last_step_accepted(cache)`: whether or not the last step was accepted. Defaults to
+    `cache.last_step_accepted`. Should if overloaded if the field is not present.
+
+### `InternalAPI.solve!` specification
+
+```julia
+InternalAPI.solve!(
+    cache::AbstractTrustRegionMethodCache, J, fu, u, δu, descent_stats; kwargs...
+)
+```
+
+Returns `last_step_accepted`, updated `u_cache` and `fu_cache`. If the last step was
+accepted then these values should be copied into the toplevel cache.
+"""
+abstract type AbstractTrustRegionMethodCache <: AbstractNonlinearSolveBaseAPI end
+
+last_step_accepted(cache::AbstractTrustRegionMethodCache) = cache.last_step_accepted

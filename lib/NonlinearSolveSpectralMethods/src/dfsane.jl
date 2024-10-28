@@ -27,5 +27,7 @@ function DFSane(;
         gamma = gamma, sigma_1 = sigma_1, M, tau_min = tau_min, tau_max = tau_max,
         n_exp, η_strategy = eta_strategy, maxiters = max_inner_iterations
     )
-    return GeneralizedDFSane(linesearch, sigma_min, sigma_max, nothing, :DFSane)
+    return GeneralizedDFSane(;
+        linesearch, sigma_min, sigma_max, sigma_1 = nothing, name = :DFSane
+    )
 end

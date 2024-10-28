@@ -2,7 +2,7 @@
 # papers, this seems to be the only one that is widely used. If we have a list of more
 # papers we can see what is the right level of abstraction to implement here
 """
-    GeneralizedDFSane(linesearch, sigma_min, sigma_max, sigma_1, name::Symbol)
+    GeneralizedDFSane(; linesearch, sigma_min, sigma_max, sigma_1, name::Symbol = :unknown)
 
 A generalized version of the DF-SANE algorithm. This algorithm is a Jacobian-Free Spectral
 Method.
@@ -26,6 +26,12 @@ Method.
     name::Symbol
 end
 
+function GeneralizedDFSane(;
+        linesearch, sigma_min, sigma_max, sigma_1, name::Symbol = :unknown
+)
+    return GeneralizedDFSane(linesearch, sigma_min, sigma_max, sigma_1, name)
+end
+
 # XXX: Add
 # function __show_algorithm(io::IO, alg::GeneralizedDFSane, name, indent)
 #     modifiers = String[]
@@ -47,7 +53,7 @@ end
     p
     du
     alg <: GeneralizedDFSane
-    prob
+    prob <: AbstractNonlinearProblem
 
     # Parameters
     σ_n
@@ -65,7 +71,7 @@ end
 
     # Timer
     timer
-    total_time::Float64   # Simple Counter which works even if TimerOutput is disabled
+    total_time::Float64
 
     # Termination & Tracking
     termination_cache

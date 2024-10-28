@@ -1,7 +1,9 @@
 """
-    Klement(; max_resets = 100, linsolve = nothing, linesearch = nothing,
+    Klement(;
+        max_resets = 100, linsolve = nothing, linesearch = nothing,
         precs = nothing, alpha = nothing, init_jacobian::Val = Val(:identity),
-        autodiff = nothing)
+        autodiff = nothing
+    )
 
 An implementation of `Klement` [klement2014using](@citep) with line search, preconditioning
 and customizable linear solves. It is recommended to use [`Broyden`](@ref) for most problems
@@ -24,16 +26,23 @@ over this.
       + `Val(:true_jacobian_diagonal)`: Diagonal of True Jacobian. This is a good choice for
         differentiable problems.
 """
-function Klement(; max_resets::Int = 100, linsolve = nothing, alpha = nothing,
-        linesearch = nothing, precs = nothing,
-        autodiff = nothing, init_jacobian::Val = Val(:identity))
-    initialization = klement_init(init_jacobian, autodiff, alpha)
-    CJ = init_jacobian isa Val{:true_jacobian} ||
-         init_jacobian isa Val{:true_jacobian_diagonal}
-    return ApproximateJacobianSolveAlgorithm{CJ, :Klement}(;
-        linesearch, descent = NewtonDescent(; linsolve, precs),
+function Klement(;
+        max_resets = 100, linsolve = nothing, linesearch = nothing,
+        precs = nothing, alpha = nothing, init_jacobian::Val = Val(:identity),
+        autodiff = nothing
+)
+    concrete_jac = Val(init_jacobian isa Val{:true_jacobian} ||
+                       init_jacobian isa Val{:true_jacobian_diagonal})
+    return QuasiNewtonAlgorithm(;
+        linesearch,
+        descent = NewtonDescent(; linsolve, precs),
         update_rule = KlementUpdateRule(),
-        reinit_rule = IllConditionedJacobianReset(), max_resets, initialization)
+        reinit_rule = IllConditionedJacobianReset(),
+        max_resets,
+        initialization = klement_init(init_jacobian, autodiff, alpha),
+        concrete_jac,
+        name = :Klement
+    )
 end
 
 function klement_init(::Val{:identity}, autodiff, alpha)
@@ -50,55 +59,22 @@ function klement_init(::Val{IJ}, autodiff, alpha) where {IJ}
            `init_jacobian`.")
 end
 
-# Essentially checks ill conditioned Jacobian
-"""
-    IllConditionedJacobianReset()
-
-Recommend resetting the Jacobian if the current jacobian is ill-conditioned. This is used
-in [`Klement`](@ref).
-"""
-struct IllConditionedJacobianReset <: AbstractResetCondition end
-
-@concrete struct IllConditionedJacobianResetCache
-    condition_number_threshold
-end
-
-function __internal_init(alg::IllConditionedJacobianReset, J, fu, u, du, args...; kwargs...)
-    condition_number_threshold = if J isa AbstractMatrix
-        inv(eps(real(eltype(J)))^(1 // 2))
-    else
-        nothing
-    end
-    return IllConditionedJacobianResetCache(condition_number_threshold)
-end
-
-function __internal_solve!(cache::IllConditionedJacobianResetCache, J, fu, u, du)
-    J isa Number && return iszero(J)
-    J isa Diagonal && return any(iszero, diag(J))
-    J isa AbstractMatrix && return cond(J) ≥ cache.condition_number_threshold
-    J isa AbstractVector && return any(iszero, J)
-    return false
-end
-
-# Update Rule
 """
     KlementUpdateRule()
 
 Update rule for [`Klement`](@ref).
 """
-struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule{false} end
+struct KlementUpdateRule <: AbstractApproximateJacobianUpdateRule end
 
-@concrete mutable struct KlementUpdateRuleCache <:
-                         AbstractApproximateJacobianUpdateRuleCache{false}
-    Jdu
-    J_cache
-    J_cache_2
-    Jdu_cache
-    fu_cache
+function Base.getproperty(rule::KlementUpdateRule, sym::Symbol)
+    sym == :store_inverse_jacobian && return Val(false)
+    return getfield(rule, sym)
 end
 
-function __internal_init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule,
-        J, fu, u, du, args...; kwargs...)
+function InternalAPI.init(
+        prob::AbstractNonlinearProblem, alg::KlementUpdateRule,
+        J, fu, u, du, args...; kwargs...
+)
     @bb Jdu = similar(fu)
     if J isa Diagonal || J isa Number
         J_cache, J_cache_2, Jdu_cache = nothing, nothing, nothing
@@ -108,29 +84,43 @@ function __internal_init(prob::AbstractNonlinearProblem, alg::KlementUpdateRule,
         @bb Jdu_cache = similar(Jdu)
     end
     @bb fu_cache = copy(fu)
-    return KlementUpdateRuleCache(Jdu, J_cache, J_cache_2, Jdu_cache, fu_cache)
+    return KlementUpdateRuleCache(Jdu, J_cache, J_cache_2, Jdu_cache, fu_cache, alg)
 end
 
-function __internal_solve!(cache::KlementUpdateRuleCache, J::Number, fu, u, du)
+@concrete mutable struct KlementUpdateRuleCache <:
+                         AbstractApproximateJacobianUpdateRuleCache
+    Jdu
+    J_cache
+    J_cache_2
+    Jdu_cache
+    fu_cache
+    rule <: KlementUpdateRule
+end
+
+function InternalAPI.solve!(
+        cache::KlementUpdateRuleCache, J::Number, fu, u, du; kwargs...
+)
     Jdu = J^2 * du^2
     J = J + ((fu - cache.fu_cache - J * du) / ifelse(iszero(Jdu), 1e-5, Jdu)) * du * J^2
     cache.fu_cache = fu
     return J
 end
 
-function __internal_solve!(cache::KlementUpdateRuleCache, J_::Diagonal, fu, u, du)
+function InternalAPI.solve!(
+        cache::KlementUpdateRuleCache, J::Diagonal, fu, u, du; kwargs...
+)
     T = eltype(u)
-    J = _restructure(u, diag(J_))
+    J = Utils.restructure(u, diag(J))
     @bb @. cache.Jdu = (J^2) * (du^2)
-    @bb @. J += ((fu - cache.fu_cache - J * du) /
-                 ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) *
-                du *
-                (J^2)
+    @bb @. J += ((fu - cache.fu_cache - cache.Jdu) /
+                 ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * du * (J^2)
     @bb copyto!(cache.fu_cache, fu)
     return Diagonal(vec(J))
 end
 
-function __internal_solve!(cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du)
+function InternalAPI.solve!(
+        cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du; kwargs...
+)
     T = eltype(u)
     @bb @. cache.J_cache = J'^2
     @bb @. cache.Jdu = du^2
@@ -138,7 +128,7 @@ function __internal_solve!(cache::KlementUpdateRuleCache, J::AbstractMatrix, fu,
     @bb cache.Jdu = J × vec(du)
     @bb @. cache.fu_cache = (fu - cache.fu_cache - cache.Jdu) /
                             ifelse(iszero(cache.Jdu_cache), T(1e-5), cache.Jdu_cache)
-    @bb cache.J_cache = vec(cache.fu_cache) × transpose(_vec(du))
+    @bb cache.J_cache = vec(cache.fu_cache) × transpose(Utils.safe_vec(du))
     @bb @. cache.J_cache *= J
     @bb cache.J_cache_2 = cache.J_cache × J
     @bb J .+= cache.J_cache_2
