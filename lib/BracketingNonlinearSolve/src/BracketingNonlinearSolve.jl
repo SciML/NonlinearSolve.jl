@@ -1,6 +1,7 @@
 module BracketingNonlinearSolve
 
 using ConcreteStructs: @concrete
+using Reexport: @reexport
 
 using CommonSolve: CommonSolve, solve
 using NonlinearSolveBase: NonlinearSolveBase
@@ -30,7 +31,8 @@ end
 @setup_workload begin
     for T in (Float32, Float64)
         prob_brack = IntervalNonlinearProblem{false}(
-            (u, p) -> u^2 - p, T.((0.0, 2.0)), T(2))
+            (u, p) -> u^2 - p, T.((0.0, 2.0)), T(2)
+        )
         algs = (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder())
 
         @compile_workload begin
@@ -41,8 +43,7 @@ end
     end
 end
 
-export IntervalNonlinearProblem
-export solve
+@reexport using SciMLBase, NonlinearSolveBase
 
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 

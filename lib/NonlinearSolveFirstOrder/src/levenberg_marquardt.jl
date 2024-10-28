@@ -131,10 +131,10 @@ end
 function InternalAPI.solve!(
         cache::LevenbergMarquardtDampingCache, J, fu, ::Val{false}; kwargs...
 )
-    if ArrayInterface.can_setindex(cache.J_diag_cache)
-        sum!(abs2, Utils.safe_vec(cache.J_diag_cache), J')
-    elseif cache.J_diag_cache isa Number
+    if cache.J_diag_cache isa Number
         cache.J_diag_cache = abs2(J)
+    elseif ArrayInterface.can_setindex(cache.J_diag_cache)
+        sum!(abs2, Utils.safe_vec(cache.J_diag_cache), J')
     else
         cache.J_diag_cache = dropdims(sum(abs2, J'; dims = 1); dims = 1)
     end

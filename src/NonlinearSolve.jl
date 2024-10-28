@@ -57,21 +57,8 @@ using SparseMatrixColorings: SparseMatrixColorings # NOTE: This triggers an exte
 
 const DI = DifferentiationInterface
 
-const True = Val(true)
-const False = Val(false)
-
 include("timer_outputs.jl")
 include("internal/helpers.jl")
-
-include("globalization/trust_region.jl")
-
-include("core/generalized_first_order.jl")
-
-include("algorithms/raphson.jl")
-include("algorithms/pseudo_transient.jl")
-include("algorithms/gauss_newton.jl")
-include("algorithms/levenberg_marquardt.jl")
-include("algorithms/trust_region.jl")
 
 include("algorithms/extension_algs.jl")
 
@@ -100,9 +87,6 @@ include("internal/forward_diff.jl") # we need to define after the algorithms
     end
 
     nls_algs = (
-        NewtonRaphson(),
-        TrustRegion(),
-        LevenbergMarquardt(),
         nothing
     )
 
@@ -132,44 +116,28 @@ include("internal/forward_diff.jl") # we need to define after the algorithms
     )
 
     @compile_workload begin
-        @sync begin
-            for prob in probs_nls, alg in nls_algs
-                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-            end
-            for prob in probs_nlls, alg in nlls_algs
-                Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
-            end
+        for prob in probs_nls, alg in nls_algs
+            solve(prob, alg; abstol = 1e-2, verbose = false)
+        end
+        for prob in probs_nlls, alg in nlls_algs
+            solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end
 end
 
 # Rexexports
-@reexport using SciMLBase, SimpleNonlinearSolve, NonlinearSolveBase,
-                NonlinearSolveSpectralMethods, NonlinearSolveQuasiNewton
+@reexport using SciMLBase, NonlinearSolveBase
+@reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
+                NonlinearSolveQuasiNewton, SimpleNonlinearSolve
+@reexport using LineSearch
+@reexport using ADTypes
 
-# Core Algorithms
-export NewtonRaphson, PseudoTransient
-export GaussNewton, LevenbergMarquardt, TrustRegion
-export NonlinearSolvePolyAlgorithm, RobustMultiNewton, FastShortcutNonlinearPolyalg,
-       FastShortcutNLLSPolyalg
+export NonlinearSolvePolyAlgorithm, RobustMultiNewton,
+       FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
        FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 export PETScSNES, CMINPACK
-
-# Advanced Algorithms -- Without Bells and Whistles
-export GeneralizedFirstOrderAlgorithm
-
-# Globalization
-## Line Search Algorithms
-export LineSearch, BackTracking, NoLineSearch, RobustNonMonotoneLineSearch,
-       LiFukushimaLineSearch, LineSearchesJL
-## Trust Region Algorithms
-export RadiusUpdateSchemes
-
-# Reexport ADTypes
-export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme,
-       AutoSparse
 
 end
