@@ -1,53 +1,3 @@
-# Helper  Functions
-@generated function __getproperty(s::S, ::Val{X}) where {S, X}
-    hasfield(S, X) && return :(s.$X)
-    return :(missing)
-end
-
-@inline @generated function _vec(v)
-    hasmethod(vec, Tuple{typeof(v)}) || return :(vec(v))
-    return :(v)
-end
-@inline _vec(v::Number) = v
-@inline _vec(v::AbstractVector) = v
-
-@inline _restructure(y, x) = restructure(y, x)
-@inline _restructure(y::Number, x::Number) = x
-
-@inline __maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
-@inline function __maybe_unaliased(x::AbstractArray, alias::Bool)
-    # Spend time coping iff we will mutate the array
-    (alias || !__can_setindex(typeof(x))) && return x
-    return deepcopy(x)
-end
-@inline __maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
-
-@inline __copy(x::AbstractArray) = copy(x)
-@inline __copy(x::Number) = x
-@inline __copy(x) = x
-
-# LazyArrays for tracing
-__zero(x::AbstractArray) = zero(x)
-__zero(x) = x
-LazyArrays.applied_eltype(::typeof(__zero), x) = eltype(x)
-LazyArrays.applied_ndims(::typeof(__zero), x) = ndims(x)
-LazyArrays.applied_size(::typeof(__zero), x) = size(x)
-LazyArrays.applied_axes(::typeof(__zero), x) = axes(x)
-
-# Use Symmetric Matrices if known to be efficient
-@inline __maybe_symmetric(x) = Symmetric(x)
-@inline __maybe_symmetric(x::Number) = x
-## LinearSolve with `nothing` doesn't dispatch correctly here
-@inline __maybe_symmetric(x::StaticArray) = x
-@inline __maybe_symmetric(x::AbstractSparseMatrix) = x
-@inline __maybe_symmetric(x::AbstractSciMLOperator) = x
-
-# Simple Checks
-@inline __is_present(::Nothing) = false
-@inline __is_present(::Missing) = false
-@inline __is_present(::Any) = true
-@inline __is_present(::NoLineSearch) = false
-
 @inline __is_complex(::Type{ComplexF64}) = true
 @inline __is_complex(::Type{ComplexF32}) = true
 @inline __is_complex(::Type{Complex}) = true
@@ -76,10 +26,6 @@ end
     return fx_idx, idx
 end
 
-@inline __can_setindex(x) = can_setindex(x)
-@inline __can_setindex(::Number) = false
-
-@inline __dot(x, y) = dot(_vec(x), _vec(y))
 
 """
     pickchunksize(x) = pickchunksize(length(x))

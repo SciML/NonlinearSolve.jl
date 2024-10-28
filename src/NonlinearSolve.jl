@@ -9,7 +9,6 @@ using CommonSolve: solve, init, solve!
 using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using FastClosures: @closure
-using LazyArrays: LazyArrays, ApplyArray, cache
 using LinearAlgebra: LinearAlgebra, Diagonal, I, LowerTriangular, Symmetric,
                      UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
                      istriu, lu, mul!, norm, pinv, tril!, triu!
@@ -34,14 +33,6 @@ using NonlinearSolveBase: NonlinearSolveBase,
 
 using NonlinearSolveQuasiNewton: Broyden, Klement
 
-# XXX: Remove
-import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
-                           supports_trust_region, last_step_accepted, get_linear_solver,
-                           AbstractDampingFunction, AbstractDampingFunctionCache,
-                           requires_normal_form_jacobian, requires_normal_form_rhs,
-                           returns_norm_form_damping, get_timer_output, get_u, get_fu,
-                           set_fu!
-
 using Preferences: Preferences, set_preferences!
 using RecursiveArrayTools: recursivecopy!
 using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, AbstractNonlinearProblem,
@@ -51,9 +42,6 @@ using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, AbstractNonlinearProblem
 using SciMLOperators: AbstractSciMLOperator
 using SimpleNonlinearSolve: SimpleNonlinearSolve
 using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
-using SymbolicIndexingInterface: SymbolicIndexingInterface, ParameterIndexingProxy,
-                                 symbolic_container, parameter_values, state_values, getu,
-                                 setu
 
 # AD Support
 using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
@@ -72,15 +60,12 @@ const DI = DifferentiationInterface
 const True = Val(true)
 const False = Val(false)
 
-include("abstract_types.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
 
 include("globalization/trust_region.jl")
 
-include("core/generic.jl")
 include("core/generalized_first_order.jl")
-include("core/noinit.jl")
 
 include("algorithms/raphson.jl")
 include("algorithms/pseudo_transient.jl")

@@ -30,9 +30,11 @@ examples include [`Broyden`](@ref)'s Method.
     descent <: AbstractDescentDirection
     update_rule <: AbstractApproximateJacobianUpdateRule
     reinit_rule <: AbstractResetCondition
+    initialization <: AbstractJacobianInitialization
+
     max_resets::Int
     max_shrink_times::Int
-    initialization
+
     concrete_jac <: Union{Val{false}, Val{true}}
     name::Symbol
 end
@@ -43,8 +45,8 @@ function QuasiNewtonAlgorithm(;
         max_shrink_times::Int = typemax(Int), concrete_jac = Val(false)
 )
     return QuasiNewtonAlgorithm(
-        linesearch, trustregion, descent, update_rule, reinit_rule,
-        max_resets, max_shrink_times, initialization, concrete_jac, name
+        linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
+        max_resets, max_shrink_times, concrete_jac, name
     )
 end
 
@@ -94,7 +96,7 @@ end
 end
 
 # XXX: Implement
-# function __reinit_internal!(cache::ApproximateJacobianSolveCache{INV, GB, iip},
+# function __reinit_internal!(cache::QuasiNewtonCache{INV, GB, iip},
 #         args...; p = cache.p, u0 = cache.u, alias_u0::Bool = false,
 #         maxiters = 1000, maxtime = nothing, kwargs...) where {INV, GB, iip}
 #     if iip
@@ -122,7 +124,7 @@ end
 #     reset_timer!(cache.timer)
 # end
 
-NonlinearSolveBase.@internal_caches(ApproximateJacobianSolveCache,
+NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
     :initialization_cache, :descent_cache, :linesearch_cache, :trustregion_cache,
     :update_rule_cache, :reinit_rule_cache)
 

@@ -23,6 +23,7 @@ Method.
     σ_min
     σ_max
     σ_1
+
     name::Symbol
 end
 
