@@ -18,8 +18,7 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
         )
     end
 
-    # XXX: Implement this
-    # update_from_termination_cache!(cache.termination_cache, cache)
+    update_from_termination_cache!(cache.termination_cache, cache)
 
     update_trace!(
         cache.trace, cache.nsteps, get_u(cache), get_fu(cache), nothing, nothing, nothing;

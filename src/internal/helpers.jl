@@ -1,45 +1,3 @@
-# Evaluate the residual function at a given point
-function evaluate_f(prob::AbstractNonlinearProblem{uType, iip}, u) where {uType, iip}
-    (; f, p) = prob
-    if iip
-        fu = f.resid_prototype === nothing ? zero(u) : similar(f.resid_prototype)
-        f(fu, u, p)
-    else
-        fu = f(u, p)
-    end
-    return fu
-end
-
-function evaluate_f!(cache, u, p)
-    cache.stats.nf += 1
-    if isinplace(cache)
-        cache.prob.f(get_fu(cache), u, p)
-    else
-        set_fu!(cache, cache.prob.f(u, p))
-    end
-end
-
-evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p) = evaluate_f!!(prob.f, fu, u, p)
-function evaluate_f!!(f::NonlinearFunction{iip}, fu, u, p) where {iip}
-    if iip
-        f(fu, u, p)
-        return fu
-    end
-    return f(u, p)
-end
-
-# Callbacks
-"""
-    callback_into_cache!(cache, internalcache, args...)
-
-Define custom operations on `internalcache` tightly coupled with the calling `cache`.
-`args...` contain the sequence of caches calling into `internalcache`.
-
-This unfortunately makes code very tightly coupled and not modular. It is recommended to not
-use this functionality unless it can't be avoided (like in [`LevenbergMarquardt`](@ref)).
-"""
-@inline callback_into_cache!(cache, internalcache, args...) = nothing  # By default do nothing
-
 # Extension Algorithm Helpers
 function __test_termination_condition(termination_condition, alg)
     !(termination_condition isa AbsNormTerminationMode) &&
@@ -124,43 +82,4 @@ function __construct_extension_jac(prob, alg, u0, fu; can_handle_oop::Val = Fals
     initial_jacobian === False && return 𝐉
 
     return 𝐉, Jₚ(nothing)
-end
-
-function reinit_cache! end
-reinit_cache!(cache::Nothing, args...; kwargs...) = nothing
-reinit_cache!(cache, args...; kwargs...) = nothing
-
-function __reinit_internal! end
-__reinit_internal!(::Nothing, args...; kwargs...) = nothing
-__reinit_internal!(cache, args...; kwargs...) = nothing
-
-# Auto-generate some of the helper functions
-macro internal_caches(cType, internal_cache_names...)
-    return __internal_caches(cType, internal_cache_names)
-end
-
-function __internal_caches(cType, internal_cache_names::Tuple)
-    callback_caches = map(
-        name -> :($(callback_into_cache!)(
-            cache, getproperty(internalcache, $(name)), internalcache, args...)),
-        internal_cache_names)
-    callbacks_self = map(
-        name -> :($(callback_into_cache!)(
-            internalcache, getproperty(internalcache, $(name)))),
-        internal_cache_names)
-    reinit_caches = map(
-        name -> :($(reinit_cache!)(getproperty(cache, $(name)), args...; kwargs...)),
-        internal_cache_names)
-    return esc(quote
-        function callback_into_cache!(cache, internalcache::$(cType), args...)
-            $(callback_caches...)
-        end
-        function callback_into_cache!(internalcache::$(cType))
-            $(callbacks_self...)
-        end
-        function reinit_cache!(cache::$(cType), args...; kwargs...)
-            $(reinit_caches...)
-            $(__reinit_internal!)(cache, args...; kwargs...)
-        end
-    end)
 end

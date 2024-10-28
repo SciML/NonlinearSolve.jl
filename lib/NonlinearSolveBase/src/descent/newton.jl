@@ -24,8 +24,7 @@ supports_line_search(::NewtonDescent) = true
     normal_form <: Union{Val{false}, Val{true}}
 end
 
-# XXX: Implement
-# @internal_caches NewtonDescentCache :lincache
+NonlinearSolveBase.@internal_caches NewtonDescentCache :lincache
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::NewtonDescent, J, fu, u; stats,

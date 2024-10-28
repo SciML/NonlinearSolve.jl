@@ -21,8 +21,7 @@ supports_line_search(::SteepestDescent) = true
     preinverted_jacobian <: Union{Val{false}, Val{true}}
 end
 
-# XXX: Implement
-# @internal_caches SteepestDescentCache :lincache
+NonlinearSolveBase.@internal_caches SteepestDescentCache :lincache
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::SteepestDescent, J, fu, u;

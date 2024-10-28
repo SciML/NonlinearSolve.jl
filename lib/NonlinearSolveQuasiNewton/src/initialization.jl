@@ -37,12 +37,11 @@ is reinitialized.
     internalnorm
 end
 
-function InternalAPI.reinit!(cache::InitializedApproximateJacobianCache; kwargs...)
+function InternalAPI.reinit_self!(cache::InitializedApproximateJacobianCache; kwargs...)
     cache.initialized = false
 end
 
-# XXX: Implement
-# @internal_caches InitializedApproximateJacobianCache :cache
+NonlinearSolveBase.@internal_caches InitializedApproximateJacobianCache :cache
 
 function (cache::InitializedApproximateJacobianCache)(::Nothing)
     return NonlinearSolveBase.get_full_jacobian(cache, cache.structure, cache.J)

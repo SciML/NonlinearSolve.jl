@@ -107,7 +107,7 @@ end
 #     cache.retcode = ReturnCode.Default
 # end
 
-# @internal_caches GeneralizedDFSaneCache :linesearch_cache
+NonlinearSolveBase.@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
@@ -186,8 +186,8 @@ function InternalAPI.step!(
     end
 
     update_trace!(cache, α)
-    # XXX: Implement
-    # check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+
+    NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
 
     # Update Spectral Parameter
     @static_timeit cache.timer "update spectral parameter" begin
@@ -209,8 +209,7 @@ function InternalAPI.step!(
     @bb copyto!(cache.u_cache, cache.u)
     @bb copyto!(cache.fu_cache, cache.fu)
 
-    # XXX: Implement
-    # callback_into_cache!(cache, cache.linesearch_cache)
+    NonlinearSolveBase.callback_into_cache!(cache, cache.linesearch_cache)
 
     return
 end
