@@ -3,12 +3,15 @@ module NonlinearSolveFirstOrder
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
+using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve
 using ConcreteStructs: @concrete
-using DiffEqBase: DiffEqBase   # Needed for `init` / `solve` dispatches
+using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
+using FiniteDiff: FiniteDiff    # Default Finite Difference Method
+using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, inv, diag
-using LinearSolve: LinearSolve # Trigger Linear Solve extension in NonlinearSolveBase
+using LinearSolve: LinearSolve  # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractNonlinearSolveCache, AbstractResetCondition,
@@ -16,10 +19,13 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractJacobianCache, AbstractJacobianInitialization,
                           AbstractApproximateJacobianUpdateRule, AbstractDescentDirection,
                           AbstractApproximateJacobianUpdateRuleCache,
+                          AbstractDampingFunction, AbstractDampingFunctionCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
-                          update_trace!, L2_NORM, NewtonDescent
+                          update_trace!, L2_NORM,
+                          NewtonDescent, DampedNewtonDescent
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode
 using SciMLOperators: AbstractSciMLOperator
+using Setfield: @set!
 using StaticArraysCore: StaticArray, Size, MArray
 
 include("raphson.jl")
