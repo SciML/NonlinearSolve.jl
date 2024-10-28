@@ -32,6 +32,8 @@ using NonlinearSolveBase: NonlinearSolveBase,
                           reset_timer!, @static_timeit,
                           init_nonlinearsolve_trace, update_trace!, reset!
 
+using NonlinearSolveQuasiNewton: Broyden, Klement
+
 # XXX: Remove
 import NonlinearSolveBase: InternalAPI, concrete_jac, supports_line_search,
                            supports_trust_region, last_step_accepted, get_linear_solver,
@@ -149,12 +151,6 @@ include("internal/forward_diff.jl") # we need to define after the algorithms
 
     @compile_workload begin
         @sync begin
-            for T in (Float32, Float64), (fn, u0) in nlfuncs
-                Threads.@spawn NonlinearProblem(fn, T.(u0), T(2))
-            end
-            for (fn, u0) in nlfuncs
-                Threads.@spawn NonlinearLeastSquaresProblem(fn, u0, 2.0)
-            end
             for prob in probs_nls, alg in nls_algs
                 Threads.@spawn solve(prob, alg; abstol = 1e-2, verbose = false)
             end

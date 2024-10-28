@@ -10,14 +10,7 @@ end
 abstract type AbstractNonlinearSolveBaseAPI end # Mostly used for pretty-printing
 
 function Base.show(io::IO, ::MIME"text/plain", alg::AbstractNonlinearSolveBaseAPI)
-    main_name = nameof(typeof(alg))
-    modifiers = String[]
-    for field in fieldnames(typeof(alg))
-        val = getfield(alg, field)
-        Utils.is_default_value(val, field, getfield(alg, field)) && continue
-        push!(modifiers, "$(field) = $(val)")
-    end
-    print(io, "$(main_name)($(join(modifiers, ", ")))")
+    print(io, Utils.clean_sprint_struct(alg))
     return
 end
 
@@ -198,11 +191,8 @@ Abstract Type for all NonlinearSolveBase Algorithms.
 
   - `concrete_jac(alg)`: whether or not the algorithm uses a concrete Jacobian. Defaults
     to `nothing`.
-  - `get_name(alg)`: get the name of the algorithm.
 """
 abstract type AbstractNonlinearSolveAlgorithm <: AbstractNonlinearAlgorithm end
-
-get_name(alg::AbstractNonlinearSolveAlgorithm) = Utils.safe_getproperty(alg, Val(:name))
 
 """
     concrete_jac(alg::AbstractNonlinearSolveAlgorithm)::Bool
@@ -217,6 +207,18 @@ concrete_jac(::Nothing) = false
 concrete_jac(v::Bool) = v
 concrete_jac(::Val{false}) = false
 concrete_jac(::Val{true}) = true
+
+function Base.show(io::IO, ::MIME"text/plain", alg::AbstractNonlinearSolveAlgorithm)
+    print(io, Utils.clean_sprint_struct(alg, 0))
+    return
+end
+
+function show_nonlinearsolve_algorithm(
+        io::IO, alg::AbstractNonlinearSolveAlgorithm, name, indent::Int = 0
+)
+    print(io, name)
+    print(io, Utils.clean_sprint_struct(alg, indent))
+end
 
 """
     AbstractNonlinearSolveCache
@@ -299,30 +301,34 @@ function Base.setindex!(cache::AbstractNonlinearSolveCache, val, sym)
     return SII.setu(cache, sym)(cache, val)
 end
 
-# XXX: Implement this
-# function Base.show(io::IO, cache::AbstractNonlinearSolveCache)
-#     __show_cache(io, cache, 0)
-# end
+function Base.show(io::IO, ::MIME"text/plain", cache::AbstractNonlinearSolveCache)
+    return show_nonlinearsolve_cache(io, cache)
+end
 
-# function __show_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
-#     println(io, "$(nameof(typeof(cache)))(")
-#     __show_algorithm(io, cache.alg,
-#         (" "^(indent + 4)) * "alg = " * string(get_name(cache.alg)), indent + 4)
+function show_nonlinearsolve_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
+    println(io, "$(nameof(typeof(cache)))(")
+    show_nonlinearsolve_algorithm(
+        io,
+        cache.alg,
+        (" "^(indent + 4)) * "alg = ",
+        indent + 4
+    )
 
-#     ustr = sprint(show, get_u(cache); context = (:compact => true, :limit => true))
-#     println(io, ",\n" * (" "^(indent + 4)) * "u = $(ustr),")
+    ustr = sprint(show, get_u(cache); context = (:compact => true, :limit => true))
+    println(io, ",\n" * (" "^(indent + 4)) * "u = $(ustr),")
 
-#     residstr = sprint(show, get_fu(cache); context = (:compact => true, :limit => true))
-#     println(io, (" "^(indent + 4)) * "residual = $(residstr),")
+    residstr = sprint(show, get_fu(cache); context = (:compact => true, :limit => true))
+    println(io, (" "^(indent + 4)) * "residual = $(residstr),")
 
-#     normstr = sprint(
-#         show, norm(get_fu(cache), Inf); context = (:compact => true, :limit => true))
-#     println(io, (" "^(indent + 4)) * "inf-norm(residual) = $(normstr),")
+    normstr = sprint(
+        show, norm(get_fu(cache), Inf); context = (:compact => true, :limit => true)
+    )
+    println(io, (" "^(indent + 4)) * "inf-norm(residual) = $(normstr),")
 
-#     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
-#     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
-#     print(io, " "^(indent) * ")")
-# end
+    println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
+    println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
+    print(io, " "^(indent) * ")")
+end
 
 """
     AbstractLinearSolverCache
