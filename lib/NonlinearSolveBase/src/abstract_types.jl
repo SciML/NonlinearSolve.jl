@@ -576,7 +576,8 @@ macro internal_caches(cType, internal_cache_names...)
             $(callbacks_self...)
             return
         end
-        function NonlinearSolveBase.InternalAPI.reinit!(cache::$(cType), args...; kwargs...)
+        function NonlinearSolveBase.InternalAPI.reinit!(
+                cache::$(cType), args...; kwargs...)
             $(reinit_caches...)
             $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
             return
