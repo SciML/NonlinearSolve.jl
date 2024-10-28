@@ -38,7 +38,10 @@ end
 function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), name::Symbol = :unknown)
+        concrete_jac = Val(false), name::Symbol = :unknown
+)
+    concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
+                   (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
     return GeneralizedFirstOrderAlgorithm(
         linesearch, trustregion, descent, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
@@ -116,188 +119,202 @@ end
 NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
     :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache)
 
-# function SciMLBase.__init(
-#         prob::AbstractNonlinearProblem{uType, iip}, alg::GeneralizedFirstOrderAlgorithm,
-#         args...; stats = empty_nlstats(), alias_u0 = false, maxiters = 1000,
-#         abstol = nothing, reltol = nothing, maxtime = nothing,
-#         termination_condition = nothing, internalnorm = L2_NORM,
-#         linsolve_kwargs = (;), kwargs...) where {uType, iip}
-#     autodiff = select_jacobian_autodiff(prob, alg.autodiff)
-#     jvp_autodiff = if alg.jvp_autodiff === nothing && alg.autodiff !== nothing &&
-#                       (ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
-#                        ADTypes.mode(alg.autodiff) isa ADTypes.ForwardOrReverseMode)
-#         select_forward_mode_autodiff(prob, alg.autodiff)
-#     else
-#         select_forward_mode_autodiff(prob, alg.jvp_autodiff)
-#     end
-#     vjp_autodiff = if alg.vjp_autodiff === nothing && alg.autodiff !== nothing &&
-#                       (ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
-#                        ADTypes.mode(alg.autodiff) isa ADTypes.ForwardOrReverseMode)
-#         select_reverse_mode_autodiff(prob, alg.autodiff)
-#     else
-#         select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
-#     end
+function SciMLBase.__init(
+        prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm,
+        args...; stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        abstol = nothing, reltol = nothing, maxtime = nothing,
+        termination_condition = nothing, internalnorm = L2_NORM,
+        linsolve_kwargs = (;), kwargs...
+)
+    @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+    @set! alg.jvp_autodiff = if alg.jvp_autodiff === nothing && alg.autodiff !== nothing &&
+                                (ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
+                                 ADTypes.mode(alg.autodiff) isa
+                                 ADTypes.ForwardOrReverseMode)
+        NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.autodiff)
+    else
+        NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.jvp_autodiff)
+    end
+    @set! alg.vjp_autodiff = if alg.vjp_autodiff === nothing && alg.autodiff !== nothing &&
+                                (ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+                                 ADTypes.mode(alg.autodiff) isa
+                                 ADTypes.ForwardOrReverseMode)
+        NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.autodiff)
+    else
+        NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
+    end
 
-#     timer = get_timer_output()
-#     @static_timeit timer "cache construction" begin
-#         (; f, u0, p) = prob
-#         u = __maybe_unaliased(u0, alias_u0)
-#         fu = evaluate_f(prob, u)
-#         @bb u_cache = copy(u)
+    timer = get_timer_output()
+    @static_timeit timer "cache construction" begin
+        u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        fu = Utils.evaluate_f(prob, u)
+        @bb u_cache = copy(u)
 
-#         linsolve = get_linear_solver(alg.descent)
+        linsolve = NonlinearSolveBase.get_linear_solver(alg.descent)
 
-#         abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
-#             prob, abstol, reltol, fu, u, termination_condition, Val(:regular))
-#         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
+        abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
+            prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
+        )
+        linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
-#         jac_cache = construct_jacobian_cache(
-#             prob, alg, f, fu, u, p; stats, autodiff, linsolve, jvp_autodiff, vjp_autodiff)
-#         J = jac_cache(nothing)
+        jac_cache = NonlinearSolveBase.construct_jacobian_cache(
+            prob, alg, prob.f, fu, u, prob.p;
+            stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
+        )
+        J = jac_cache(nothing)
 
-#         descent_cache = __internal_init(prob, alg.descent, J, fu, u; stats, abstol,
-#             reltol, internalnorm, linsolve_kwargs, timer)
-#         du = get_du(descent_cache)
+        descent_cache = InternalAPI.init(
+            prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
+            linsolve_kwargs, timer
+        )
+        du = SciMLBase.get_du(descent_cache)
 
-#         has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
-#         has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
+        has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
+        has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
 
-#         if has_trustregion && has_linesearch
-#             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
-#         end
+        if has_trustregion && has_linesearch
+            error("TrustRegion and LineSearch methods are algorithmically incompatible.")
+        end
 
-#         GB = :None
-#         linesearch_cache = nothing
-#         trustregion_cache = nothing
+        globalization = Val(:None)
+        linesearch_cache = nothing
+        trustregion_cache = nothing
 
-#         if has_trustregion
-#             supports_trust_region(alg.descent) || error("Trust Region not supported by \
-#                                                $(alg.descent).")
-#             trustregion_cache = __internal_init(
-#                 prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...,
-#                 autodiff, jvp_autodiff, vjp_autodiff)
-#             GB = :TrustRegion
-#         end
+        if has_trustregion
+            NonlinearSolveBase.supports_trust_region(alg.descent) ||
+                error("Trust Region not supported by $(alg.descent).")
+            trustregion_cache = InternalAPI.init(
+                prob, alg.trustregion, f, fu, u, p; stats, internalnorm, kwargs...
+            )
+            globalization = Val(:TrustRegion)
+        end
 
-#         if has_linesearch
-#             supports_line_search(alg.descent) || error("Line Search not supported by \
-#                                                $(alg.descent).")
-#             linesearch_cache = init(
-#                 prob, alg.linesearch, fu, u; stats, autodiff = jvp_autodiff, kwargs...)
-#             GB = :LineSearch
-#         end
+        if has_linesearch
+            NonlinearSolveBase.supports_line_search(alg.descent) ||
+                error("Line Search not supported by $(alg.descent).")
+            linesearch_cache = CommonSolve.init(
+                prob, alg.linesearch, fu, u; stats, internalnorm, kwargs...
+            )
+            globalization = Val(:LineSearch)
+        end
 
-#         trace = init_nonlinearsolve_trace(
-#             prob, alg, u, fu, ApplyArray(__zero, J), du; kwargs...)
+        trace = NonlinearSolveBase.init_nonlinearsolve_trace(
+            prob, alg, u, fu, J, du; kwargs...
+        )
 
-#         return GeneralizedFirstOrderAlgorithmCache{iip, GB, maxtime !== nothing}(
-#             fu, u, u_cache, p, du, J, alg, prob, jac_cache, descent_cache, linesearch_cache,
-#             trustregion_cache, stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
-#             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs)
-#     end
-# end
+        return GeneralizedFirstOrderAlgorithmCache(
+            fu, u, u_cache, prob.p, du, J, alg, prob, globalization,
+            jac_cache, descent_cache, linesearch_cache, trustregion_cache,
+            stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
+            0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs
+        )
+    end
+end
 
-# function __step!(cache::GeneralizedFirstOrderAlgorithmCache{iip, GB};
-#         recompute_jacobian::Union{Nothing, Bool} = nothing, kwargs...) where {iip, GB}
-#     @static_timeit cache.timer "jacobian" begin
-#         if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
-#             J = cache.jac_cache(cache.u)
-#             new_jacobian = true
-#         else
-#             J = cache.jac_cache(nothing)
-#             new_jacobian = false
-#         end
-#     end
+function InternalAPI.step!(
+        cache::GeneralizedFirstOrderAlgorithmCache;
+        recompute_jacobian::Union{Nothing, Bool} = nothing
+)
+    @static_timeit cache.timer "jacobian" begin
+        if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
+            J = cache.jac_cache(cache.u)
+            new_jacobian = true
+        else
+            J = cache.jac_cache(nothing)
+            new_jacobian = false
+        end
+    end
 
-#     @static_timeit cache.timer "descent" begin
-#         if cache.trustregion_cache !== nothing &&
-#            hasfield(typeof(cache.trustregion_cache), :trust_region)
-#             descent_result = __internal_solve!(
-#                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
-#                 trust_region = cache.trustregion_cache.trust_region, cache.kwargs...)
-#         else
-#             descent_result = __internal_solve!(
-#                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...)
-#         end
-#     end
+    @static_timeit cache.timer "descent" begin
+        if cache.trustregion_cache !== nothing &&
+           hasfield(typeof(cache.trustregion_cache), :trust_region)
+            descent_result = InternalAPI.solve!(
+                cache.descent_cache, J, cache.fu, cache.u;
+                new_jacobian, cache.trustregion_cache.trust_region, cache.kwargs...
+            )
+        else
+            descent_result = InternalAPI.solve!(
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...
+            )
+        end
+    end
 
-#     if !descent_result.linsolve_success
-#         if new_jacobian
-#             # Jacobian Information is current and linear solve failed terminate the solve
-#             cache.retcode = ReturnCode.InternalLinearSolveFailed
-#             cache.force_stop = true
-#             return
-#         else
-#             # Jacobian Information is not current and linear solve failed, recompute
-#             # Jacobian
-#             if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
-#                 @warn "Linear Solve Failed but Jacobian Information is not current. \
-#                   Retrying with updated Jacobian."
-#             end
-#             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
-#             cache.make_new_jacobian = true
-#             __step!(cache; recompute_jacobian = true, kwargs...)
-#             return
-#         end
-#     end
+    if !descent_result.linsolve_success
+        if new_jacobian
+            # Jacobian Information is current and linear solve failed terminate the solve
+            cache.retcode = ReturnCode.InternalLinearSolveFailed
+            cache.force_stop = true
+            return
+        else
+            # Jacobian Information is not current and linear solve failed, recompute it
+            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
+                @warn "Linear Solve Failed but Jacobian Information is not current. \
+                       Retrying with updated Jacobian."
+            end
+            # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
+            cache.make_new_jacobian = true
+            InternalAPI.step!(cache; recompute_jacobian = true, kwargs...)
+            return
+        end
+    end
 
-#     δu, descent_intermediates = descent_result.δu, descent_result.extras
+    δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-#     if descent_result.success
-#         cache.make_new_jacobian = true
-#         if GB === :LineSearch
-#             @static_timeit cache.timer "linesearch" begin
-#                 linesearch_sol = solve!(cache.linesearch_cache, cache.u, δu)
-#                 linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
-#                 α = linesearch_sol.step_size
-#             end
-#             if linesearch_failed
-#                 cache.retcode = ReturnCode.InternalLineSearchFailed
-#                 cache.force_stop = true
-#             end
-#             @static_timeit cache.timer "step" begin
-#                 @bb axpy!(α, δu, cache.u)
-#                 evaluate_f!(cache, cache.u, cache.p)
-#             end
-#         elseif GB === :TrustRegion
-#             @static_timeit cache.timer "trustregion" begin
-#                 tr_accepted, u_new, fu_new = __internal_solve!(
-#                     cache.trustregion_cache, J, cache.fu,
-#                     cache.u, δu, descent_intermediates)
-#                 if tr_accepted
-#                     @bb copyto!(cache.u, u_new)
-#                     @bb copyto!(cache.fu, fu_new)
-#                     α = true
-#                 else
-#                     α = false
-#                     cache.make_new_jacobian = false
-#                 end
-#                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-#                    cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-#                     cache.retcode = ReturnCode.ShrinkThresholdExceeded
-#                     cache.force_stop = true
-#                 end
-#             end
-#         elseif GB === :None
-#             @static_timeit cache.timer "step" begin
-#                 @bb axpy!(1, δu, cache.u)
-#                 evaluate_f!(cache, cache.u, cache.p)
-#             end
-#             α = true
-#         else
-#             error("Unknown Globalization Strategy: $(GB). Allowed values are (:LineSearch, \
-#             :TrustRegion, :None)")
-#         end
-#         check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
-#     else
-#         α = false
-#         cache.make_new_jacobian = false
-#     end
+    if descent_result.success
+        cache.make_new_jacobian = true
+        if cache.globalization isa Val{:LineSearch}
+            @static_timeit cache.timer "linesearch" begin
+                linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
+                linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+                α = linesearch_sol.step_size
+            end
+            if linesearch_failed
+                cache.retcode = ReturnCode.InternalLineSearchFailed
+                cache.force_stop = true
+            end
+            @static_timeit cache.timer "step" begin
+                @bb axpy!(α, δu, cache.u)
+                Utils.evaluate_f!(cache, cache.u, cache.p)
+            end
+        elseif cache.globalization isa Val{:TrustRegion}
+            @static_timeit cache.timer "trustregion" begin
+                tr_accepted, u_new, fu_new = InternalAPI.solve!(
+                    cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
+                )
+                if tr_accepted
+                    @bb copyto!(cache.u, u_new)
+                    @bb copyto!(cache.fu, fu_new)
+                    α = true
+                else
+                    α = false
+                    cache.make_new_jacobian = false
+                end
+                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                    cache.force_stop = true
+                end
+            end
+        elseif cache.globalization isa Val{:None}
+            @static_timeit cache.timer "step" begin
+                @bb axpy!(1, δu, cache.u)
+                Utils.evaluate_f!(cache, cache.u, cache.p)
+            end
+            α = true
+        else
+            error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
+                   are (:LineSearch, :TrustRegion, :None)")
+        end
+        NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    else
+        α = false
+        cache.make_new_jacobian = false
+    end
 
-#     update_trace!(cache, α)
-#     @bb copyto!(cache.u_cache, cache.u)
+    update_trace!(cache, α)
+    @bb copyto!(cache.u_cache, cache.u)
 
-#     callback_into_cache!(cache)
+    NonlinearSolveBase.callback_into_cache!(cache)
 
-#     return nothing
-# end
+    return nothing
+end
