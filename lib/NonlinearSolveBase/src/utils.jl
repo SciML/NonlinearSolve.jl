@@ -248,7 +248,7 @@ function clean_sprint_struct(x)
     name = nameof(typeof(x))
     for field in fieldnames(typeof(x))
         val = getfield(x, field)
-        if field === :name
+        if field === :name && val isa Symbol && val !== :unknown
             name = val
             continue
         end
@@ -268,7 +268,7 @@ function clean_sprint_struct(x, indent::Int)
     name = nameof(typeof(x))
     for field in fieldnames(typeof(x))
         val = getfield(x, field)
-        if field === :name
+        if field === :name && val isa Symbol && val !== :unknown
             name = val
             continue
         end

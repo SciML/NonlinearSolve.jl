@@ -1,6 +1,7 @@
 """
-    InitializedApproximateJacobianCache(J, structure, alg, cache, initialized::Bool,
-        internalnorm)
+    InitializedApproximateJacobianCache(
+        J, structure, alg, cache, initialized::Bool, internalnorm
+    )
 
 A cache for Approximate Jacobian.
 
@@ -22,7 +23,7 @@ A cache for Approximate Jacobian.
 Returns the current Jacobian `cache.J` with the proper `structure`.
 
 ```julia
-__internal_solve!(cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit})
+InternalAPI.solve!(cache::InitializedApproximateJacobianCache, fu, u, ::Val{reinit})
 ```
 
 Solves for the Jacobian `cache.J` and returns it. If `reinit` is `true`, then the Jacobian

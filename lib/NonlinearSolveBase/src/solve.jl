@@ -32,8 +32,10 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 """
-    step!(cache::AbstractNonlinearSolveCache;
-        recompute_jacobian::Union{Nothing, Bool} = nothing)
+    step!(
+        cache::AbstractNonlinearSolveCache;
+        recompute_jacobian::Union{Nothing, Bool} = nothing
+    )
 
 Performs one step of the nonlinear solver.
 
