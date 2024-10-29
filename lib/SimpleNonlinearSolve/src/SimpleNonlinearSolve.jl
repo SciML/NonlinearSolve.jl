@@ -47,6 +47,7 @@ include("nlsolve/lbroyden.jl")
 include("nlsolve/klement.jl")
 include("nlsolve/trustRegion.jl")
 include("nlsolve/halley.jl")
+include("nlsolve/householder.jl")
 include("nlsolve/dfsane.jl")
 
 ## Interval Nonlinear Solvers
@@ -139,6 +140,7 @@ end
 export AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 export SimpleBroyden, SimpleDFSane, SimpleGaussNewton, SimpleHalley, SimpleKlement,
        SimpleLimitedMemoryBroyden, SimpleNewtonRaphson, SimpleTrustRegion
+export SimpleHouseholder
 export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
 
 end # module
