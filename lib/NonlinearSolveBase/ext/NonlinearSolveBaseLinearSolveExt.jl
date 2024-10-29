@@ -26,8 +26,10 @@ function (cache::LinearSolveJLCache)(;
     if cache.precs === nothing
         Pl, Pr = nothing, nothing
     else
-        Pl, Pr = cache.precs(cache.lincache.A, du, linu, p, nothing,
-            A !== nothing, Plprev, Prprev, cachedata)
+        Pl, Pr = cache.precs(
+            cache.lincache.A, du, linu, p, nothing,
+            A !== nothing, Plprev, Prprev, cachedata
+        )
     end
 
     if Pl !== nothing || Pr !== nothing

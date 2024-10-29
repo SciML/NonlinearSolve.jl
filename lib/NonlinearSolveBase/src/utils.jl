@@ -1,6 +1,7 @@
 module Utils
 
 using ArrayInterface: ArrayInterface
+using ConcreteStructs: @concrete
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
 using MaybeInplace: @bb
@@ -14,6 +15,17 @@ using ..NonlinearSolveBase: NonlinearSolveBase, L2_NORM, Linf_NORM
 is_extension_loaded(::Val) = false
 
 fast_scalar_indexing(xs...) = all(ArrayInterface.fast_scalar_indexing, xs)
+
+@concrete struct Pinv
+    J
+end
+
+function Base.convert(::Type{AbstractArray}, A::Pinv)
+    hasmethod(pinv, Tuple{typeof(A.J)}) && return pinv(A.J)
+    @warn "`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
+           tracing." maxlog=1
+    return A.J
+end
 
 function nonallocating_isapprox(x::Number, y::Number; atol = false,
         rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y)))))
@@ -223,7 +235,11 @@ end
 
 make_identity!!(::T, α) where {T <: Number} = T(α)
 function make_identity!!(A::AbstractVector{T}, α) where {T}
-    @bb @. A = T(α)
+    if ArrayInterface.can_setindex(A)
+        @. A = α
+    else
+        A = one.(A) .* α
+    end
     return A
 end
 function make_identity!!(::SMatrix{S1, S2, T, L}, α) where {S1, S2, T, L}

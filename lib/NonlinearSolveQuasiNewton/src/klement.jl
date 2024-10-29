@@ -112,7 +112,7 @@ function InternalAPI.solve!(
     T = eltype(u)
     J = Utils.restructure(u, diag(J))
     @bb @. cache.Jdu = (J^2) * (du^2)
-    @bb @. J += ((fu - cache.fu_cache - cache.Jdu) /
+    @bb @. J += ((fu - cache.fu_cache - J * du) /
                  ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * du * (J^2)
     @bb copyto!(cache.fu_cache, fu)
     return Diagonal(vec(J))

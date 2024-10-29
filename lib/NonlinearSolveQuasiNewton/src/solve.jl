@@ -95,34 +95,31 @@ end
     kwargs
 end
 
-# XXX: Implement
-# function __reinit_internal!(cache::QuasiNewtonCache{INV, GB, iip},
-#         args...; p = cache.p, u0 = cache.u, alias_u0::Bool = false,
-#         maxiters = 1000, maxtime = nothing, kwargs...) where {INV, GB, iip}
-#     if iip
-#         recursivecopy!(cache.u, u0)
-#         cache.prob.f(cache.fu, cache.u, p)
-#     else
-#         cache.u = __maybe_unaliased(u0, alias_u0)
-#         set_fu!(cache, cache.prob.f(cache.u, p))
-#     end
-#     cache.p = p
+function InternalAPI.reinit_self!(
+        cache::QuasiNewtonCache, args...; p = cache.p, u0 = cache.u,
+        alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...
+)
+    Utils.reinit_common!(cache, u0, p, alias_u0)
 
-#     __reinit_internal!(cache.stats)
-#     cache.nsteps = 0
-#     cache.nresets = 0
-#     cache.steps_since_last_reset = 0
-#     cache.maxiters = maxiters
-#     cache.maxtime = maxtime
-#     cache.total_time = 0.0
-#     cache.force_stop = false
-#     cache.force_reinit = false
-#     cache.retcode = ReturnCode.Default
+    InternalAPI.reinit!(cache.stats)
+    cache.nsteps = 0
+    cache.nresets = 0
+    cache.steps_since_last_reset = 0
+    cache.maxiters = maxiters
+    cache.maxtime = maxtime
+    cache.total_time = 0.0
+    cache.force_stop = false
+    cache.force_reinit = false
+    cache.retcode = ReturnCode.Default
 
-#     reset!(cache.trace)
-#     reinit!(cache.termination_cache, get_fu(cache), get_u(cache); kwargs...)
-#     reset_timer!(cache.timer)
-# end
+    NonlinearSolveBase.reset!(cache.trace)
+    SciMLBase.reinit!(
+        cache.termination_cache, NonlinearSolveBase.get_fu(cache),
+        NonlinearSolveBase.get_u(cache); kwargs...
+    )
+    NonlinearSolveBase.reset_timer!(cache.timer)
+    return
+end
 
 NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
     :initialization_cache, :descent_cache, :linesearch_cache, :trustregion_cache,

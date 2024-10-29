@@ -148,16 +148,14 @@ function InternalAPI.solve!(
     @bb @. cache.dfu = fu - cache.dfu
     J⁻¹_diag = Utils.restructure(cache.dfu, diag(J⁻¹))
     if cache.rule isa GoodBroydenUpdateRule
-        @bb @. J⁻¹_diag = J⁻¹_diag * cache.dfu * du
-        denom = sum(J⁻¹_diag)
-        @bb @. J⁻¹_diag = J⁻¹_diag +
-                          (du - J⁻¹_diag * cache.dfu) * du * J⁻¹_diag /
-                          ifelse(iszero(denom), T(1e-5), denom)
+        @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu * du
+        denom = sum(cache.J⁻¹dfu)
+        @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * du * J⁻¹_diag /
+                           ifelse(iszero(denom), T(1e-5), denom)
     else
         denom = cache.internalnorm(cache.dfu)^2
-        @bb @. J⁻¹_diag = J⁻¹_diag +
-                          (du - J⁻¹_diag * cache.dfu) * cache.dfu /
-                          ifelse(iszero(denom), T(1e-5), denom)
+        @bb @. J⁻¹_diag += (du - J⁻¹_diag * cache.dfu) * cache.dfu /
+                           ifelse(iszero(denom), T(1e-5), denom)
     end
     @bb copyto!(cache.dfu, fu)
     return Diagonal(vec(J⁻¹_diag))
