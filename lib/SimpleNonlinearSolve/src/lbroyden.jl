@@ -1,6 +1,7 @@
 """
-    SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
-        linesearch = Val(false), alpha = nothing)
+    SimpleLimitedMemoryBroyden(;
+        threshold::Union{Val, Int} = Val(27), linesearch = Val(false), alpha = nothing
+    )
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
 Broyden's method.
@@ -40,7 +41,8 @@ function SciMLBase.__solve(
         if termination_condition === nothing ||
            termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
             return internal_static_solve(
-                prob, alg, args...; termination_condition, kwargs...)
+                prob, alg, args...; termination_condition, kwargs...
+            )
         end
         @warn "Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
@@ -53,22 +55,26 @@ end
 @views function internal_generic_solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
-    η = min(SciMLBase._unwrap_val(alg.threshold), maxiters)
+        alias_u0 = false, termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    η = min(NLBUtils.unwrap_val(alg.threshold), maxiters)
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
-        return SciMLBase.__solve(prob, SimpleBroyden(; alg.linesearch), args...; abstol,
-            reltol, maxiters, termination_condition, kwargs...)
+        return SciMLBase.__solve(
+            prob, SimpleBroyden(; alg.linesearch), args...;
+            abstol, reltol, maxiters, termination_condition, kwargs...
+        )
     end
 
-    fx = Utils.get_fx(prob, x)
+    fx = NLBUtils.evaluate_f(prob, x)
 
     U, Vᵀ = init_low_rank_jacobian(x, fx, x isa StaticArray ? alg.threshold : Val(η))
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     @bb xo = copy(x)
     @bb δx = copy(fx)
@@ -80,7 +86,7 @@ end
     Tcache = lbroyden_threshold_cache(x, x isa StaticArray ? alg.threshold : Val(η))
     @bb mat_cache = copy(x)
 
-    if alg.linesearch === Val(true)
+    if alg.linesearch isa Val{true}
         ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
         ls_cache = init(prob, ls_alg, fx, x)
     else
@@ -96,7 +102,7 @@ end
         end
 
         @bb @. x = xo + α * δx
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         @bb @. δf = fx - fo
 
         # Termination Checks
@@ -111,8 +117,8 @@ end
         d = dot(vᵀ, δf)
         @bb @. δx = (δx - mvec) / d
 
-        selectdim(U, 2, mod1(i, η)) .= Utils.safe_vec(δx)
-        selectdim(Vᵀ, 1, mod1(i, η)) .= Utils.safe_vec(vᵀ)
+        selectdim(U, 2, mod1(i, η)) .= NLBUtils.safe_vec(δx)
+        selectdim(Vᵀ, 1, mod1(i, η)) .= NLBUtils.safe_vec(vᵀ)
 
         Uₚ = selectdim(U, 2, 1:min(η, i))
         Vᵀₚ = selectdim(Vᵀ, 1, 1:min(η, i))
@@ -130,10 +136,11 @@ end
 # finicky, so we'll implement it separately from the generic version
 # Ignore termination_condition. Don't pass things into internal functions
 function internal_static_solve(
-        prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden,
-        args...; abstol = nothing, maxiters = 1000, kwargs...)
+        prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden, args...;
+        abstol = nothing, maxiters = 1000, kwargs...
+)
     x = prob.u0
-    fx = Utils.get_fx(prob, x)
+    fx = NLBUtils.evaluate_f(prob, x)
 
     U, Vᵀ = init_low_rank_jacobian(vec(x), vec(fx), alg.threshold)
 
@@ -165,7 +172,7 @@ function internal_static_solve(
 
     xo, fo, δx = res.x, res.fx, res.δx
 
-    for i in 1:(maxiters - SciMLBase._unwrap_val(alg.threshold))
+    for i in 1:(maxiters - NLBUtils.unwrap_val(alg.threshold))
         if ls_cache === nothing
             α = true
         else
@@ -174,22 +181,22 @@ function internal_static_solve(
         end
 
         x = xo + α * δx
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         δf = fx - fo
 
         maximum(abs, fx) ≤ abstol &&
             return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
-        vᵀ = Utils.restructure(x, rmatvec!!(U, Vᵀ, vec(δx), init_α))
-        mvec = Utils.restructure(x, matvec!!(U, Vᵀ, vec(δf), init_α))
+        vᵀ = NLBUtils.restructure(x, rmatvec!!(U, Vᵀ, vec(δx), init_α))
+        mvec = NLBUtils.restructure(x, matvec!!(U, Vᵀ, vec(δf), init_α))
 
         d = dot(vᵀ, δf)
         δx = @. (δx - mvec) / d
 
-        U = Base.setindex(U, vec(δx), mod1(i, SciMLBase._unwrap_val(alg.threshold)))
-        Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), mod1(i, SciMLBase._unwrap_val(alg.threshold)))
+        U = Base.setindex(U, vec(δx), mod1(i, NLBUtils.unwrap_val(alg.threshold)))
+        Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), mod1(i, NLBUtils.unwrap_val(alg.threshold)))
 
-        δx = -Utils.restructure(fx, matvec!!(U, Vᵀ, vec(fx), init_α))
+        δx = -NLBUtils.restructure(fx, matvec!!(U, Vᵀ, vec(fx), init_α))
 
         xo, fo = x, fx
     end
@@ -198,8 +205,8 @@ function internal_static_solve(
 end
 
 @generated function internal_unrolled_lbroyden_initial_iterations(
-        prob, xo, fo, δx, abstol, U, Vᵀ, ::Val{threshold},
-        ls_cache, init_α) where {threshold}
+        prob, xo, fo, δx, abstol, U, Vᵀ, ::Val{threshold}, ls_cache, init_α
+) where {threshold}
     calls = []
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
@@ -219,8 +226,8 @@ end
             Uₚ = first_n_getindex(U, $(static_idx))
             Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx))
 
-            vᵀ = Utils.restructure(x, rmatvec!!(Uₚ, Vᵀₚ, vec(δx), init_α))
-            mvec = Utils.restructure(x, matvec!!(Uₚ, Vᵀₚ, vec(δf), init_α))
+            vᵀ = NLBUtils.restructure(x, rmatvec!!(Uₚ, Vᵀₚ, vec(δx), init_α))
+            mvec = NLBUtils.restructure(x, matvec!!(Uₚ, Vᵀₚ, vec(δf), init_α))
 
             d = dot(vᵀ, δf)
             δx = @. (δx - mvec) / d
@@ -230,7 +237,7 @@ end
 
             Uₚ = first_n_getindex(U, $(static_idx_p1))
             Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx_p1))
-            δx = -Utils.restructure(fx, matvec!!(Uₚ, Vᵀₚ, vec(fx), init_α))
+            δx = -NLBUtils.restructure(fx, matvec!!(Uₚ, Vᵀₚ, vec(fx), init_α))
 
             x0, fo = x, fx
         end)
@@ -284,7 +291,8 @@ function fast_mapdot(x::SVector{S1}, Y::SVector{S2, <:SVector{S1}}) where {S1, S
     return map(Base.Fix1(dot, x), Y)
 end
 @generated function fast_mapTdot(
-        x::SVector{S1}, Y::SVector{S1, <:SVector{S2}}) where {S1, S2}
+        x::SVector{S1}, Y::SVector{S1, <:SVector{S2}}
+) where {S1, S2}
     calls = []
     syms = [gensym("m$(i)") for i in 1:S1]
     for i in 1:S1
@@ -301,22 +309,26 @@ end
     return :(return SVector{$N, $T}(($(getcalls...))))
 end
 
-lbroyden_threshold_cache(x, ::Val{threshold}) where {threshold} = safe_similar(x, threshold)
+function lbroyden_threshold_cache(x, ::Val{threshold}) where {threshold}
+    return NLBUtils.safe_similar(x, threshold)
+end
 function lbroyden_threshold_cache(x::StaticArray, ::Val{threshold}) where {threshold}
     return zeros(MArray{Tuple{threshold}, eltype(x)})
 end
 lbroyden_threshold_cache(::SArray, ::Val{threshold}) where {threshold} = nothing
 
-function init_low_rank_jacobian(u::StaticArray{S1, T1}, fu::StaticArray{S2, T2},
-        ::Val{threshold}) where {S1, S2, T1, T2, threshold}
+function init_low_rank_jacobian(
+        u::StaticArray{S1, T1}, fu::StaticArray{S2, T2}, ::Val{threshold}
+) where {S1, S2, T1, T2, threshold}
     T = promote_type(T1, T2)
     fuSize, uSize = Size(fu), Size(u)
     Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
     U = MArray{Tuple{prod(fuSize), threshold}, T}(undef)
     return U, Vᵀ
 end
-@generated function init_low_rank_jacobian(u::SVector{Lu, T1}, fu::SVector{Lfu, T2},
-        ::Val{threshold}) where {Lu, Lfu, T1, T2, threshold}
+@generated function init_low_rank_jacobian(
+        u::SVector{Lu, T1}, fu::SVector{Lfu, T2}, ::Val{threshold}
+) where {Lu, Lfu, T1, T2, threshold}
     T = promote_type(T1, T2)
     inner_inits_Vᵀ = [:(zeros(SVector{$Lu, $T})) for i in 1:threshold]
     inner_inits_U = [:(zeros(SVector{$Lfu, $T})) for i in 1:threshold]
@@ -327,7 +339,7 @@ end
     end
 end
 function init_low_rank_jacobian(u, fu, ::Val{threshold}) where {threshold}
-    Vᵀ = safe_similar(u, threshold, length(u))
-    U = safe_similar(u, length(fu), threshold)
+    Vᵀ = NLBUtils.safe_similar(u, threshold, length(u))
+    U = NLBUtils.safe_similar(u, length(fu), threshold)
     return U, Vᵀ
 end

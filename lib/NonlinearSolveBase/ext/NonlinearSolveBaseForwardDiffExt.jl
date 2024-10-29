@@ -25,7 +25,8 @@ Utils.value(x::AbstractArray{<:Dual}) = Utils.value.(x)
 
 function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
         prob::Union{IntervalNonlinearProblem, NonlinearProblem, ImmutableNonlinearProblem},
-        alg, args...; kwargs...)
+        alg, args...; kwargs...
+)
     p = Utils.value(prob.p)
     if prob isa IntervalNonlinearProblem
         tspan = Utils.value.(prob.tspan)
@@ -55,7 +56,8 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
 end
 
 function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
-        prob::NonlinearLeastSquaresProblem, alg, args...; kwargs...)
+        prob::NonlinearLeastSquaresProblem, alg, args...; kwargs...
+)
     p = Utils.value(prob.p)
     newprob = remake(prob; p, u0 = Utils.value(prob.u0))
     sol = solve(newprob, alg, args...; kwargs...)
@@ -168,13 +170,17 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
 end
 
-function NonlinearSolveBase.nonlinearsolve_dual_solution(u::Number, partials,
-        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}) where {T, V, P}
+function NonlinearSolveBase.nonlinearsolve_dual_solution(
+        u::Number, partials,
+        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}
+) where {T, V, P}
     return Dual{T, V, P}(u, partials)
 end
 
-function NonlinearSolveBase.nonlinearsolve_dual_solution(u::AbstractArray, partials,
-        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}) where {T, V, P}
+function NonlinearSolveBase.nonlinearsolve_dual_solution(
+        u::AbstractArray, partials,
+        ::Union{<:AbstractArray{<:Dual{T, V, P}}, Dual{T, V, P}}
+) where {T, V, P}
     return map(((uᵢ, pᵢ),) -> Dual{T, V, P}(uᵢ, pᵢ), zip(u, Utils.restructure(u, partials)))
 end
 

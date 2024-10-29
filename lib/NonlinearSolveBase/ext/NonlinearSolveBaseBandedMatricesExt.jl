@@ -2,6 +2,7 @@ module NonlinearSolveBaseBandedMatricesExt
 
 using BandedMatrices: BandedMatrix
 using LinearAlgebra: Diagonal
+
 using NonlinearSolveBase: NonlinearSolveBase, Utils
 
 # This is used if we vcat a Banded Jacobian with a Diagonal Matrix in Levenberg

@@ -1,15 +1,19 @@
 module NonlinearSolveBaseLinearSolveExt
 
 using ArrayInterface: ArrayInterface
+
 using CommonSolve: CommonSolve, init, solve!
-using LinearAlgebra: ColumnNorm
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
-using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils
 using SciMLBase: ReturnCode, LinearProblem
+
+using LinearAlgebra: ColumnNorm
+
+using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils
 
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-        cachedata = nothing, reuse_A_if_factorization = false, verbose = true, kwargs...)
+        cachedata = nothing, reuse_A_if_factorization = false, verbose = true, kwargs...
+)
     cache.stats.nsolve += 1
 
     update_A!(cache, A, reuse_A_if_factorization)

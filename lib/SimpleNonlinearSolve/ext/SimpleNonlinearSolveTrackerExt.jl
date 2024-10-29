@@ -1,8 +1,9 @@
 module SimpleNonlinearSolveTrackerExt
 
-using ArrayInterface: ArrayInterface
 using NonlinearSolveBase: ImmutableNonlinearProblem
 using SciMLBase: TrackerOriginator, NonlinearLeastSquaresProblem, remake
+
+using ArrayInterface: ArrayInterface
 using Tracker: Tracker, TrackedArray, TrackedReal
 
 using SimpleNonlinearSolve: SimpleNonlinearSolve, solve_adjoint

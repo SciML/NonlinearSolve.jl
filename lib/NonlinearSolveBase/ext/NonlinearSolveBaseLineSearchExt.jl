@@ -1,8 +1,9 @@
 module NonlinearSolveBaseLineSearchExt
 
 using LineSearch: LineSearch, AbstractLineSearchCache
-using NonlinearSolveBase: NonlinearSolveBase, InternalAPI
 using SciMLBase: SciMLBase
+
+using NonlinearSolveBase: NonlinearSolveBase, InternalAPI
 
 function NonlinearSolveBase.callback_into_cache!(
         topcache, cache::AbstractLineSearchCache, args...
