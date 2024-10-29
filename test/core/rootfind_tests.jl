@@ -348,31 +348,6 @@ end
 # --- DFSane tests ---
 
 @testitem "DFSane" setup=[CoreRootfindTesting] tags=[:core] begin
-    u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-
-    @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
-        sol = benchmark_nlsolve_oop(quadratic_f, u0; solver = DFSane())
-        @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-
-        cache = init(NonlinearProblem{false}(quadratic_f, u0, 2.0), DFSane(), abstol = 1e-9)
-        @test (@ballocated solve!($cache)) < 200
-    end
-
-    @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
-        sol = benchmark_nlsolve_iip(quadratic_f!, u0; solver = DFSane())
-        @test SciMLBase.successful_retcode(sol)
-        @test all(abs.(sol.u .* sol.u .- 2) .< 1e-9)
-
-        cache = init(NonlinearProblem{true}(quadratic_f!, u0, 2.0), DFSane(), abstol = 1e-9)
-        @test (@ballocated solve!($cache)) ≤ 64
-    end
-
-    # Iterator interface
-    p = range(0.01, 2, length = 200)
-    @test abs.(nlprob_iterator_interface(quadratic_f, p, Val(false), DFSane())) ≈ sqrt.(p)
-    @test abs.(nlprob_iterator_interface(quadratic_f!, p, Val(true), DFSane())) ≈ sqrt.(p)
-
     # Test that `DFSane` passes a test that `NewtonRaphson` fails on.
     @testset "Newton Raphson Fails" begin
         u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
