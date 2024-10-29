@@ -24,16 +24,16 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
-TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 
 [extensions]
 SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
 SimpleNonlinearSolveReverseDiffExt = "ReverseDiff"
+SimpleNonlinearSolveTaylorDiffExt = "TaylorDiff"
 SimpleNonlinearSolveTrackerExt = "Tracker"
 SimpleNonlinearSolveZygoteExt = "Zygote"
-SimpleNonlinearSolveTaylorDiffExt = "TaylorDiff"
 
 [compat]
 ADTypes = "1.9"
@@ -65,7 +65,7 @@ SciMLBase = "2.37.0"
 Setfield = "1.1.1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4.2"
-TaylorDiff = "0.2.5"
+TaylorDiff = "0.2.5, 0.3"
 Test = "1.10"
 Tracker = "0.2.33"
 Zygote = "0.6.69"
@@ -95,4 +95,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["AllocCheck", "Aqua", "DiffEqBase", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LinearAlgebra",  "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "Reexport", "ReverseDiff",  "StaticArrays", "TaylorDiff", "Test", "Tracker", "Zygote"]
+test = ["AllocCheck", "Aqua", "DiffEqBase", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LinearAlgebra", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "Reexport", "ReverseDiff", "StaticArrays", "TaylorDiff", "Test", "Tracker", "Zygote"]
