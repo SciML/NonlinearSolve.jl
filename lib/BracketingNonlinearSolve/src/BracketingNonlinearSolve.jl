@@ -35,8 +35,8 @@ end
         algs = (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder())
 
         @compile_workload begin
-            for alg in algs
-                CommonSolve.solve(prob_brack, alg; abstol = 1e-6)
+            @sync for alg in algs
+                Threads.@spawn CommonSolve.solve(prob_brack, alg; abstol = 1e-6)
             end
         end
     end

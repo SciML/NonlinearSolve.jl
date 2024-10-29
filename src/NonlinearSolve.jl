@@ -58,12 +58,18 @@ include("default.jl")
     include(joinpath(@__DIR__, "..", "common", "nlls_problem_workloads.jl"))
 
     @compile_workload begin
-        for prob in nonlinear_problems
-            CommonSolve.solve(prob, nothing; abstol = 1e-2, verbose = false)
-        end
+        @sync begin
+            for prob in nonlinear_problems
+                Threads.@spawn CommonSolve.solve(
+                    prob, nothing; abstol = 1e-2, verbose = false
+                )
+            end
 
-        for prob in nlls_problems
-            CommonSolve.solve(prob, nothing; abstol = 1e-2, verbose = false)
+            for prob in nlls_problems
+                Threads.@spawn CommonSolve.solve(
+                    prob, nothing; abstol = 1e-2, verbose = false
+                )
+            end
         end
     end
 end

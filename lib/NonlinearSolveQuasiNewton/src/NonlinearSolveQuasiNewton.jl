@@ -33,15 +33,13 @@ include("klement.jl")
 include("solve.jl")
 
 @setup_workload begin
-    include(joinpath(
-        @__DIR__, "..", "..", "..", "common", "nonlinear_problem_workloads.jl"
-    ))
+    include("../../../common/nonlinear_problem_workloads.jl")
 
     algs = [Broyden(), Klement()]
 
     @compile_workload begin
-        for prob in nonlinear_problems, alg in algs
-            CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+        @sync for prob in nonlinear_problems, alg in algs
+            Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end
 end

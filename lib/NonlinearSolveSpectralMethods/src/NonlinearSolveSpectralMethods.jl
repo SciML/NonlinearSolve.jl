@@ -23,8 +23,8 @@ include("solve.jl")
     algs = [DFSane()]
 
     @compile_workload begin
-        for prob in nonlinear_problems, alg in algs
-            CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+        @sync for prob in nonlinear_problems, alg in algs
+            Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end
 end

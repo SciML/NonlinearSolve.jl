@@ -35,23 +35,21 @@ include("pseudo_transient.jl")
 include("solve.jl")
 
 @setup_workload begin
-    include(joinpath(
-        @__DIR__, "..", "..", "..", "common", "nonlinear_problem_workloads.jl"
-    ))
-    include(joinpath(
-        @__DIR__, "..", "..", "..", "common", "nlls_problem_workloads.jl"
-    ))
+    include("../../../common/nonlinear_problem_workloads.jl")
+    include("../../../common/nlls_problem_workloads.jl")
 
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
-        for prob in nonlinear_problems, alg in nlp_algs
-            CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
-        end
+        @sync begin
+            for prob in nonlinear_problems, alg in nlp_algs
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
 
-        for prob in nlls_problems, alg in nlls_algs
-            CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+            for prob in nlls_problems, alg in nlls_algs
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+            end
         end
     end
 end
