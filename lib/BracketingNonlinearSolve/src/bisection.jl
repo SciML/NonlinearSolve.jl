@@ -19,8 +19,10 @@ A common bisection method.
     exact_right::Bool = false
 end
 
-function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
-        args...; maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...)
+function CommonSolve.solve(
+        prob::IntervalNonlinearProblem, alg::Bisection, args...;
+        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
+)
     @assert !SciMLBase.isinplace(prob) "`Bisection` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -32,12 +34,14 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
 
     if iszero(fl)
         return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right)
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
+        )
     end
 
     if iszero(fr)
         return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right)
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
+        )
     end
 
     if sign(fl) == sign(fr)
@@ -45,7 +49,8 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
             @warn "The interval is not an enclosing interval, opposite signs at the \
                    boundaries are required."
         return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right)
+            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
+        )
     end
 
     i = 1
@@ -54,13 +59,15 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
 
         if mid == left || mid == right
             return SciMLBase.build_solution(
-                prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit, left, right)
+                prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit, left, right
+            )
         end
 
         fm = f(mid)
         if abs((right - left) / 2) < abstol
             return SciMLBase.build_solution(
-                prob, alg, mid, fm; retcode = ReturnCode.Success, left, right)
+                prob, alg, mid, fm; retcode = ReturnCode.Success, left, right
+            )
         end
 
         if iszero(fm)
@@ -80,10 +87,12 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Bisection,
     end
 
     sol, i, left, right, fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg)
+        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
+    )
 
     sol !== nothing && return sol
 
     return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right)
+        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
+    )
 end
