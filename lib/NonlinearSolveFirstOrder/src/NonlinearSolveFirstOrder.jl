@@ -22,6 +22,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
                           Dogleg
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode, NonlinearFunction
+using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
 using Setfield: @set!
 using StaticArraysCore: SArray
 
@@ -41,9 +42,8 @@ include("solve.jl")
         @__DIR__, "..", "..", "..", "common", "nlls_problem_workloads.jl"
     ))
 
-    # XXX: TrustRegion
-    nlp_algs = [NewtonRaphson(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), LevenbergMarquardt()]
+    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
         for prob in nonlinear_problems, alg in nlp_algs
@@ -60,6 +60,8 @@ end
 
 export NewtonRaphson, PseudoTransient
 export GaussNewton, LevenbergMarquardt, TrustRegion
+
+export RadiusUpdateSchemes
 
 export GeneralizedFirstOrderAlgorithm
 

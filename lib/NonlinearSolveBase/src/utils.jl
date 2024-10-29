@@ -2,7 +2,7 @@ module Utils
 
 using ArrayInterface: ArrayInterface
 using FastClosures: @closure
-using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv, inv
+using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
 using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLOperators: AbstractSciMLOperator
@@ -117,6 +117,7 @@ is_default_value(::Any, ::Symbol, ::Nothing) = true
 is_default_value(::Any, ::Symbol, ::Missing) = true
 is_default_value(::Any, ::Symbol, val::Int) = val == typemax(typeof(val))
 is_default_value(::Any, ::Symbol, ::Any) = false
+is_default_value(::Any, ::Any, ::Any) = false
 
 maybe_symmetric(x) = Symmetric(x)
 maybe_symmetric(x::Number) = x

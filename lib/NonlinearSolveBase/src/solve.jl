@@ -2,13 +2,13 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
         kwargs...
 )
-    cache = SciMLBase.init(prob, alg, args...; kwargs...)
-    return SciMLBase.solve!(cache)
+    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    return CommonSolve.solve!(cache)
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
     while not_terminated(cache)
-        SciMLBase.step!(cache)
+        CommonSolve.step!(cache)
     end
 
     # The solver might have set a different `retcode`
@@ -47,7 +47,7 @@ Performs one step of the nonlinear solver.
     respectively. For algorithms that don't use jacobian information, this keyword is
     ignored with a one-time warning.
 """
-function SciMLBase.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
+function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     not_terminated(cache) || return
 
     has_time_limit(cache) && (time_start = time())

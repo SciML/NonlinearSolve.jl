@@ -44,7 +44,7 @@ end
     normal_form <: Union{Val{false}, Val{true}}
 end
 
-NonlinearSolveBase.@internal_caches DoglegCache :newton_cache :cauchy_cache
+@internal_caches DoglegCache :newton_cache :cauchy_cache
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::Dogleg, J, fu, u;
@@ -111,7 +111,7 @@ function InternalAPI.solve!(
 
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.dot(cache.δu_cache_mul, cache.δu_cache_mul)
+        δuJᵀJδu = Utils.safe_dot(cache.δu_cache_mul, cache.δu_cache_mul)
     else
         δu_cauchy = InternalAPI.solve!(
             cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...
@@ -119,7 +119,7 @@ function InternalAPI.solve!(
         J_ = preinverted_jacobian(cache) ? inv(J) : J
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.Jᵀδu_cache = J_ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
+        δuJᵀJδu = Utils.safe_dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
     end
     d_cauchy = (l_grad^3) / δuJᵀJδu
 
