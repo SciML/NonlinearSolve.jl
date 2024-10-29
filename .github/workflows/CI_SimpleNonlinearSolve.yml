@@ -6,9 +6,10 @@ on:
       - master
     paths:
       - "lib/SimpleNonlinearSolve/**"
+      - ".github/workflows/CI_SimpleNonlinearSolve.yml"
       - "lib/BracketingNonlinearSolve/**"
       - "lib/NonlinearSolveBase/**"
-      - ".github/workflows/CI_SimpleNonlinearSolve.yml"
+      - "lib/SciMLJacobianOperators/**"
   push:
     branches:
       - master
@@ -26,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "lts"
+          - "1.10"
           - "1"
         os:
           - ubuntu-latest
@@ -57,7 +58,7 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve")
+          for path in ("lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/SciMLJacobianOperators")
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
@@ -68,7 +69,7 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext
+          directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/BracketingNonlinearSolve/ext,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
