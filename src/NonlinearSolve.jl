@@ -3,137 +3,80 @@ module NonlinearSolve
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
-using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
-                      ismutable
-using CommonSolve: solve, init, solve!
+using ArrayInterface: ArrayInterface
+using CommonSolve: CommonSolve, solve, solve!
 using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using FastClosures: @closure
-using LinearAlgebra: LinearAlgebra, Diagonal, I, LowerTriangular, Symmetric,
-                     UpperTriangular, axpy!, cond, diag, diagind, dot, issuccess, istril,
-                     istriu, lu, mul!, norm, pinv, tril!, triu!
-using LineSearch: LineSearch, AbstractLineSearchCache, LineSearchesJL, NoLineSearch,
-                  RobustNonMonotoneLineSearch, BackTracking, LiFukushimaLineSearch
-using LinearSolve: LinearSolve
-using MaybeInplace: @bb
-using NonlinearSolveBase: NonlinearSolveBase,
-                          nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
-                          nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u,
-                          L2_NORM,
-                          AbsNormTerminationMode, AbstractNonlinearTerminationMode,
-                          AbstractSafeBestNonlinearTerminationMode,
-                          select_forward_mode_autodiff, select_reverse_mode_autodiff,
-                          select_jacobian_autodiff,
-                          construct_jacobian_cache,
-                          DescentResult,
-                          SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
-                          GeodesicAcceleration,
-                          reset_timer!, @static_timeit,
-                          init_nonlinearsolve_trace, update_trace!, reset!
+using LinearAlgebra: LinearAlgebra, norm
+using LineSearch: BackTracking
+using NonlinearSolveBase: NonlinearSolveBase, InternalAPI, AbstractNonlinearSolveAlgorithm,
+                          AbstractNonlinearSolveCache, Utils, L2_NORM
 
+using Preferences: set_preferences!
+using SciMLBase: SciMLBase, NLStats, ReturnCode, AbstractNonlinearProblem, NonlinearProblem,
+                 NonlinearLeastSquaresProblem
+using SymbolicIndexingInterface: SymbolicIndexingInterface
+using StaticArraysCore: StaticArray
+
+# Default Algorithm
+using NonlinearSolveFirstOrder: NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton,
+                                RUS
 using NonlinearSolveQuasiNewton: Broyden, Klement
+using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
-using Preferences: Preferences, set_preferences!
-using RecursiveArrayTools: recursivecopy!
-using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, AbstractNonlinearProblem,
-                 _unwrap_val, isinplace, NLStats, NonlinearFunction,
-                 NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode, get_du, step!,
-                 set_u!, LinearProblem, IdentityOperator
-using SciMLOperators: AbstractSciMLOperator
-using SimpleNonlinearSolve: SimpleNonlinearSolve
-using StaticArraysCore: StaticArray, SVector, SArray, MArray, Size, SMatrix
+# Default AD Support
+using FiniteDiff: FiniteDiff    # Default Finite Difference Method
+using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 
-# AD Support
-using ADTypes: ADTypes, AbstractADType, AutoFiniteDiff, AutoForwardDiff,
-               AutoPolyesterForwardDiff, AutoZygote, AutoEnzyme, AutoSparse
-using DifferentiationInterface: DifferentiationInterface
-using FiniteDiff: FiniteDiff
-using ForwardDiff: ForwardDiff, Dual
-using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
+# Sparse AD Support: Implemented via extensions
+using SparseArrays: SparseArrays
+using SparseMatrixColorings: SparseMatrixColorings
 
-## Sparse AD Support
-using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC
-using SparseMatrixColorings: SparseMatrixColorings # NOTE: This triggers an extension in NonlinearSolveBase
+const SII = SymbolicIndexingInterface
 
-const DI = DifferentiationInterface
+include("helpers.jl")
 
-include("timer_outputs.jl")
-include("internal/helpers.jl")
+include("polyalg.jl")
+# include("extension_algs.jl")
 
-include("algorithms/extension_algs.jl")
-
-include("utils.jl")
 include("default.jl")
 
-const ALL_SOLVER_TYPES = [
-    Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
-    GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
-    LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
-    CMINPACK, PETScSNES,
-    NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
-]
+# const ALL_SOLVER_TYPES = [
+#     Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
+#     GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
+#     LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
+#     SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
+#     CMINPACK, PETScSNES,
+#     NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
+# ]
 
-include("internal/forward_diff.jl") # we need to define after the algorithms
+# include("internal/forward_diff.jl") # we need to define after the algorithms
 
 @setup_workload begin
-    nlfuncs = (
-        (NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1])
-    )
-    probs_nls = NonlinearProblem[]
-    for (fn, u0) in nlfuncs
-        push!(probs_nls, NonlinearProblem(fn, u0, 2.0))
-    end
-
-    nls_algs = (
-        nothing
-    )
-
-    probs_nlls = NonlinearLeastSquaresProblem[]
-    nlfuncs = (
-        (NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
-        (NonlinearFunction{false}((u, p) -> vcat(u .* u .- p, u .* u .- p)), [0.1, 0.1]),
-        (
-            NonlinearFunction{true}(
-                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)),
-            [0.1, 0.0]),
-        (
-            NonlinearFunction{true}((du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
-                resid_prototype = zeros(4)),
-            [0.1, 0.1]
-        )
-    )
-    for (fn, u0) in nlfuncs
-        push!(probs_nlls, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-    end
-
-    nlls_algs = (
-        LevenbergMarquardt(),
-        GaussNewton(),
-        TrustRegion(),
-        nothing
-    )
+    include(joinpath(@__DIR__, "..", "common", "nonlinear_problem_workloads.jl"))
+    include(joinpath(@__DIR__, "..", "common", "nlls_problem_workloads.jl"))
 
     @compile_workload begin
-        for prob in probs_nls, alg in nls_algs
-            solve(prob, alg; abstol = 1e-2, verbose = false)
+        for prob in nonlinear_problems
+            CommonSolve.solve(prob, nothing; abstol = 1e-2, verbose = false)
         end
-        for prob in probs_nlls, alg in nlls_algs
-            solve(prob, alg; abstol = 1e-2, verbose = false)
+
+        for prob in nlls_problems
+            CommonSolve.solve(prob, nothing; abstol = 1e-2, verbose = false)
         end
     end
 end
 
 # Rexexports
-@reexport using SciMLBase, NonlinearSolveBase
+@reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
                 NonlinearSolveQuasiNewton, SimpleNonlinearSolve
-@reexport using LineSearch
-@reexport using ADTypes
+@reexport using LinearSolve
 
-export NonlinearSolvePolyAlgorithm, RobustMultiNewton,
-       FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+# Poly Algorithms
+export NonlinearSolvePolyAlgorithm,
+       RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,

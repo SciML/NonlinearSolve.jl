@@ -18,7 +18,7 @@ function reinit_self!(x::Any; kwargs...)
     return
 end
 
-function reinit_self!(stats::NLStats)
+function reinit!(stats::NLStats)
     stats.nf = 0
     stats.nsteps = 0
     stats.nfactors = 0
@@ -257,8 +257,8 @@ Abstract Type for all NonlinearSolveBase Caches.
   - `SciMLBase.set_u!(cache, u)`: set the current state.
   - `SciMLBase.reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state
     `u0` and any additional keyword arguments.
-  - `SciMLBase.step!(cache; kwargs...)`: See [`SciMLBase.step!`](@ref) for more details.
   - `SciMLBase.isinplace(cache)`: whether or not the solver is inplace.
+  - `CommonSolve.step!(cache; kwargs...)`: See [`CommonSolve.step!`](@ref) for more details.
 
 Additionally implements `SymbolicIndexingInterface` interface Functions.
 
@@ -577,7 +577,8 @@ macro internal_caches(cType, internal_cache_names...)
             return
         end
         function NonlinearSolveBase.InternalAPI.reinit!(
-                cache::$(cType), args...; kwargs...)
+                cache::$(cType), args...; kwargs...
+        )
             $(reinit_caches...)
             $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
             return

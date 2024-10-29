@@ -42,7 +42,7 @@ supports_trust_region(::DampedNewtonDescent) = true
     mode <: Union{Val{:normal_form}, Val{:least_squares}, Val{:simple}}
 end
 
-NonlinearSolveBase.@internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
+@internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::DampedNewtonDescent, J, fu, u; stats,

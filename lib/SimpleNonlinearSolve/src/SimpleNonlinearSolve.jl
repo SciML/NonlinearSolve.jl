@@ -130,7 +130,7 @@ function solve_adjoint_internal end
         #!format: on
 
         @compile_workload begin
-            for prob in (prob_scalar, prob_iip, prob_oop)
+            for prob in (prob_scalar, prob_iip, prob_oop), alg in algs
                 CommonSolve.solve(prob, alg; abstol = 1e-2)
             end
         end
