@@ -166,6 +166,10 @@ function InternalAPI.init(
         J = BroydenLowRankJacobian(fu, u; alg.threshold, alpha = α)
     else
         threshold = min(Utils.unwrap_val(alg.threshold), maxiters)
+        if threshold > length(u)
+            @warn "`threshold` is larger than the size of the state, which may cause \
+                   numerical instability. Consider reducing `threshold`."
+        end
         J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end
     return InitializedApproximateJacobianCache(
@@ -240,9 +244,9 @@ function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::Abs
         @. y = -J.alpha * x
         return y
     end
-    _, U, Vᵀ = get_components(J)
+    cache, U, Vᵀ = get_components(J)
     @bb cache = Vᵀ × x
-    mul!(y, U, cache)
+    LinearAlgebra.mul!(y, U, cache)
     @bb @. y -= J.alpha * x
     return y
 end
@@ -258,9 +262,9 @@ function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowR
         @. y = -J.alpha * x
         return y
     end
-    _, U, Vᵀ = get_components(J)
+    cache, U, Vᵀ = get_components(J)
     @bb cache = transpose(U) × x
-    mul!(y, transpose(Vᵀ), cache)
+    LinearAlgebra.mul!(y, transpose(Vᵀ), cache)
     @bb @. y -= J.alpha * x
     return y
 end

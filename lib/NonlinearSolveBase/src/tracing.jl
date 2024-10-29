@@ -203,10 +203,13 @@ function update_trace!(
     if show_now || store_now
         entry = if trace.trace_level.trace_mode isa Val{:minimal}
             NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, missing, missing)
-        elseif trace.trace_level.trace_mode isa Val{:condition_number}
-            NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, missing)
         else
-            NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, u)
+            J = convert(AbstractArray, J)
+            if trace.trace_level.trace_mode isa Val{:condition_number}
+                NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, missing)
+            else
+                NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, u)
+            end
         end
         show_now && show(stdout, MIME"text/plain"(), entry)
         store_now && push!(trace.history, entry)
@@ -224,7 +227,7 @@ function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
             trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, cache.du, α
         )
     else
-        J = uses_jac_inverse isa Val{true} ? pinv(J) : J
+        J = uses_jac_inverse isa Val{true} ? Utils.Pinv(cache.J) : cache.J
         update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, cache.du, α)
     end
 end
