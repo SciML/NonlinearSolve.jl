@@ -8,7 +8,10 @@ using InteractiveUtils, Test
     @testset "Aqua" begin
         using Aqua, NonlinearSolveBase
 
-        Aqua.test_all(NonlinearSolveBase; piracies = false, ambiguities = false)
+        Aqua.test_all(
+            NonlinearSolveBase; piracies = false, ambiguities = false, stale_deps = false
+        )
+        Aqua.test_stale_deps(NonlinearSolveBase; ignore = [:TimerOutputs])
         Aqua.test_piracies(NonlinearSolveBase)
         Aqua.test_ambiguities(NonlinearSolveBase; recursive = false)
     end

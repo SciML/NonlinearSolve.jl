@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "min"
+          - "lts"
           - "1"
         os:
           - ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
           end
           Pkg.develop(dev_pks)
           Pkg.instantiate()
-          Pkg.test(; coverage=true)
+          Pkg.test(; coverage="user")
         shell: julia --color=yes --code-coverage=user --depwarn=yes --project=lib/SimpleNonlinearSolve {0}
         env:
           GROUP: ${{ matrix.group }}
