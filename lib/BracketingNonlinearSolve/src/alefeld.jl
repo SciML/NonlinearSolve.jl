@@ -8,8 +8,10 @@ algorithm 4.1 because, in certain sense, the second algorithm(4.2) is an optimal
 """
 struct Alefeld <: AbstractBracketingAlgorithm end
 
-function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...;
-        maxiters = 1000, abstol = nothing, kwargs...)
+function CommonSolve.solve(
+        prob::IntervalNonlinearProblem, alg::Alefeld, args...;
+        maxiters = 1000, abstol = nothing, kwargs...
+)
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     c = a - (b - a) / (f(b) - f(a)) * f(a)
@@ -17,12 +19,14 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
     fc = f(c)
     if a == c || b == c
         return SciMLBase.build_solution(
-            prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit, left = a, right = b)
+            prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit, left = a, right = b
+        )
     end
 
     if iszero(fc)
         return SciMLBase.build_solution(
-            prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b)
+            prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b
+        )
     end
 
     a, b, d = Impl.bracket(f, a, b, c)
@@ -68,13 +72,15 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
 
         if ā == c || b̄ == c
             return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
-                left = ā, right = b̄)
+                prob, alg, c, fc;
+                retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
+            )
         end
 
         if iszero(fc)
             return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
+                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
+            )
         end
 
         ā, b̄, d̄ = Impl.bracket(f, ā, b̄, c)
@@ -89,13 +95,15 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
 
         if ā == c || b̄ == c
             return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
-                left = ā, right = b̄)
+                prob, alg, c, fc;
+                retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
+            )
         end
 
         if iszero(fc)
             return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
+                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
+            )
         end
 
         ā, b̄, d = Impl.bracket(f, ā, b̄, c)
@@ -110,12 +118,14 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
 
             if ā == c || b̄ == c
                 return SciMLBase.build_solution(
-                    prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
-                    left = ā, right = b̄)
+                    prob, alg, c, fc;
+                    retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
+                )
             end
             if iszero(fc)
                 return SciMLBase.build_solution(
-                    prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄)
+                    prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
+                )
             end
             a, b, d = Impl.bracket(f, ā, b̄, c)
         end
@@ -131,5 +141,6 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Alefeld, args...
 
     # Return solution when run out of max iteration
     return SciMLBase.build_solution(
-        prob, alg, c, fc; retcode = ReturnCode.MaxIters, left = a, right = b)
+        prob, alg, c, fc; retcode = ReturnCode.MaxIters, left = a, right = b
+    )
 end

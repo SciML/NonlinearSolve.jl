@@ -1,15 +1,14 @@
 module BracketingNonlinearSolve
 
 using ConcreteStructs: @concrete
+using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 
 using CommonSolve: CommonSolve, solve
-using NonlinearSolveBase: NonlinearSolveBase
-using SciMLBase: SciMLBase, AbstractNonlinearAlgorithm, IntervalNonlinearProblem, ReturnCode
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm
+using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
 
-using PrecompileTools: @compile_workload, @setup_workload
-
-abstract type AbstractBracketingAlgorithm <: AbstractNonlinearAlgorithm end
+abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 
 include("common.jl")
 

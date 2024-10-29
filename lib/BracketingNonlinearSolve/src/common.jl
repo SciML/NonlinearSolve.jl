@@ -10,14 +10,16 @@ function bisection(left, right, fl, fr, f::F, abstol, maxiters, prob, alg) where
 
         if mid == left || mid == right
             sol = SciMLBase.build_solution(
-                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit)
+                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit
+            )
             break
         end
 
         fm = f(mid)
         if abs((right - left) / 2) < abstol
             sol = SciMLBase.build_solution(
-                prob, alg, mid, fm; left, right, retcode = ReturnCode.Success)
+                prob, alg, mid, fm; left, right, retcode = ReturnCode.Success
+            )
             break
         end
 
