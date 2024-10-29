@@ -4,7 +4,7 @@ using ArrayInterface: ArrayInterface
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
 using MaybeInplace: @bb
-using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
+using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition, recursivecopy!
 using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
 using StaticArraysCore: StaticArray, SArray, SMatrix
@@ -240,6 +240,17 @@ function make_identity!!(A::AbstractMatrix{T}, α) where {T}
         A[diagind(A)] .= α
     end
     return A
+end
+
+function reinit_common!(cache, u0, p, alias_u0::Bool)
+    if SciMLBase.isinplace(cache)
+        recursivecopy!(cache.u, u0)
+        cache.prob.f(cache.fu, cache.u, p)
+    else
+        cache.u = maybe_unaliased(u0, alias_u0)
+        NonlinearSolveBase.set_fu!(cache, cache.prob.f(u0, p))
+    end
+    cache.p = p
 end
 
 function clean_sprint_struct(x)

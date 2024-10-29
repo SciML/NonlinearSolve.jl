@@ -70,43 +70,41 @@ end
     kwargs
 end
 
-# XXX: Implement
-# function __reinit_internal!(
-#         cache::GeneralizedDFSaneCache{iip}, args...; p = cache.p, u0 = cache.u,
-#         alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...) where {iip}
-#     if iip
-#         recursivecopy!(cache.u, u0)
-#         cache.prob.f(cache.fu, cache.u, p)
-#     else
-#         cache.u = __maybe_unaliased(u0, alias_u0)
-#         set_fu!(cache, cache.prob.f(cache.u, p))
-#     end
-#     cache.p = p
+function InternalAPI.reinit_self!(
+        cache::GeneralizedDFSaneCache, args...; p = cache.p, u0 = cache.u,
+        alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...
+)
+    Utils.reinit_common!(cache, u0, p, alias_u0)
 
-#     if cache.alg.σ_1 === nothing
-#         σ_n = dot(cache.u, cache.u) / dot(cache.u, cache.fu)
-#         # Spectral parameter bounds check
-#         if !(cache.alg.σ_min ≤ abs(σ_n) ≤ cache.alg.σ_max)
-#             test_norm = dot(cache.fu, cache.fu)
-#             σ_n = clamp(inv(test_norm), T(1), T(1e5))
-#         end
-#     else
-#         σ_n = T(cache.alg.σ_1)
-#     end
-#     cache.σ_n = σ_n
+    if cache.alg.σ_1 === nothing
+        σ_n = Utils.safe_dot(cache.u, cache.u) / Utils.safe_dot(cache.u, cache.fu)
+        # Spectral parameter bounds check
+        if !(cache.alg.σ_min ≤ abs(σ_n) ≤ cache.alg.σ_max)
+            test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
+            σ_n = clamp(inv(test_norm), T(1), T(1e5))
+        end
+    else
+        σ_n = T(cache.alg.σ_1)
+    end
+    cache.σ_n = σ_n
 
-#     reset_timer!(cache.timer)
-#     cache.total_time = 0.0
+    NonlinearSolveBase.reset_timer!(cache.timer)
+    cache.total_time = 0.0
 
-#     reset!(cache.trace)
-#     reinit!(cache.termination_cache, get_fu(cache), get_u(cache); kwargs...)
-#     __reinit_internal!(cache.stats)
-#     cache.nsteps = 0
-#     cache.maxiters = maxiters
-#     cache.maxtime = maxtime
-#     cache.force_stop = false
-#     cache.retcode = ReturnCode.Default
-# end
+    NonlinearSolveBase.reset!(cache.trace)
+    SciMLBase.reinit!(
+        cache.termination_cache, NonlinearSolveBase.get_fu(cache),
+        NonlinearSolveBase.get_u(cache); kwargs...
+    )
+
+    InternalAPI.reinit!(cache.stats)
+    cache.nsteps = 0
+    cache.maxiters = maxiters
+    cache.maxtime = maxtime
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    return
+end
 
 NonlinearSolveBase.@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
@@ -137,7 +135,7 @@ function SciMLBase.__init(
         )
 
         if alg.σ_1 === nothing
-            σ_n = dot(u, u) / dot(u, fu)
+            σ_n = Utils.safe_dot(u, u) / Utils.safe_dot(u, fu)
             # Spectral parameter bounds check
             if !(alg.σ_min ≤ abs(σ_n) ≤ alg.σ_max)
                 test_norm = NonlinearSolveBase.L2_NORM(fu)

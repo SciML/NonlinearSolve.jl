@@ -1,12 +1,11 @@
 module NonlinearSolveSpectralMethods
 
+using ConcreteStructs: @concrete
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
 using CommonSolve: CommonSolve
-using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
-using LinearAlgebra: dot
 using LineSearch: RobustNonMonotoneLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
@@ -19,9 +18,7 @@ include("dfsane.jl")
 include("solve.jl")
 
 @setup_workload begin
-    include(joinpath(
-        @__DIR__, "..", "..", "..", "common", "nonlinear_problem_workloads.jl"
-    ))
+    include("../../../common/nonlinear_problem_workloads.jl")
 
     algs = [DFSane()]
 
