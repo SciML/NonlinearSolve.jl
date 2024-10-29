@@ -1,7 +1,8 @@
 module NonlinearSolveBaseSparseArraysExt
 
-using NonlinearSolveBase: NonlinearSolveBase, Utils
 using SparseArrays: AbstractSparseMatrix, AbstractSparseMatrixCSC, nonzeros, sparse
+
+using NonlinearSolveBase: NonlinearSolveBase, Utils
 
 function NonlinearSolveBase.NAN_CHECK(x::AbstractSparseMatrixCSC)
     return any(NonlinearSolveBase.NAN_CHECK, nonzeros(x))

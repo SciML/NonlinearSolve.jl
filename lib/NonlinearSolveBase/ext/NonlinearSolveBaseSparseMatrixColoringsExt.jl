@@ -1,10 +1,12 @@
 module NonlinearSolveBaseSparseMatrixColoringsExt
 
 using ADTypes: ADTypes, AbstractADType
-using NonlinearSolveBase: NonlinearSolveBase, Utils
 using SciMLBase: SciMLBase, NonlinearFunction
+
 using SparseMatrixColorings: ConstantColoringAlgorithm, GreedyColoringAlgorithm,
                              LargestFirst
+
+using NonlinearSolveBase: NonlinearSolveBase, Utils
 
 Utils.is_extension_loaded(::Val{:SparseMatrixColorings}) = true
 

@@ -1,9 +1,11 @@
 """
-    SimpleTrustRegion(; autodiff = AutoForwardDiff(), max_trust_radius = 0.0,
+    SimpleTrustRegion(;
+        autodiff = AutoForwardDiff(), max_trust_radius = 0.0,
         initial_trust_radius = 0.0, step_threshold = nothing,
         shrink_threshold = nothing, expand_threshold = nothing,
         shrink_factor = 0.25, expand_factor = 2.0, max_shrink_times::Int = 32,
-        nlsolve_update_rule = Val(false))
+        nlsolve_update_rule = Val(false)
+    )
 
 A low-overhead implementation of a trust-region solver. This method is non-allocating on
 scalar and static array problems.
@@ -18,18 +20,18 @@ scalar and static array problems.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
     `max_trust_radius / 11`.
   - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
-    compared with a value `r`, which is the actual reduction in the objective function divided
-    by the predicted reduction. If `step_threshold > r` the model is not a good approximation,
-    and the step is rejected. Defaults to `0.1`. For more details, see
+    compared with a value `r`, which is the actual reduction in the objective function
+    divided by the predicted reduction. If `step_threshold > r` the model is not a good
+    approximation, and the step is rejected. Defaults to `0.1`. For more details, see
     [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
   - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
-    iteration, the threshold is compared with a value `r` which is the actual reduction in the
-    objective function divided by the predicted reduction. If `shrink_threshold > r` the trust
-    region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details, see
-    [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
+    iteration, the threshold is compared with a value `r` which is the actual reduction in
+    the objective function divided by the predicted reduction. If `shrink_threshold > r` the
+    trust region radius is shrunk by `shrink_factor`. Defaults to `0.25`. For more details,
+    see [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
   - `expand_threshold`: the threshold for expanding the trust region radius. If a step is
-    taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is also
-    made to see if `expand_threshold < r`. If that is true, the trust region radius is
+    taken, i.e `step_threshold < r` (with `r` defined in `shrink_threshold`), a check is
+    also made to see if `expand_threshold < r`. If that is true, the trust region radius is
     expanded by `expand_factor`. Defaults to `0.75`.
   - `shrink_factor`: the factor to shrink the trust region radius with if
     `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
@@ -55,29 +57,32 @@ scalar and static array problems.
     nlsolve_update_rule = Val(false)
 end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegion,
-        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
+function SciMLBase.__solve(
+        prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::SimpleTrustRegion, args...;
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias_u0 = false, termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
     Δₘₐₓ = T(alg.max_trust_radius)
     Δ = T(alg.initial_trust_radius)
     η₁ = T(alg.step_threshold)
 
     if alg.shrink_threshold === nothing
-        η₂ = T(ifelse(SciMLBase._unwrap_val(alg.nlsolve_update_rule), 0.05, 0.25))
+        η₂ = T(ifelse(NLBUtils.unwrap_val(alg.nlsolve_update_rule), 0.05, 0.25))
     else
         η₂ = T(alg.shrink_threshold)
     end
 
     if alg.expand_threshold === nothing
-        η₃ = T(ifelse(SciMLBase._unwrap_val(alg.nlsolve_update_rule), 0.9, 0.75))
+        η₃ = T(ifelse(NLBUtils.unwrap_val(alg.nlsolve_update_rule), 0.9, 0.75))
     else
         η₃ = T(alg.expand_threshold)
     end
 
     if alg.shrink_factor === nothing
-        t₁ = T(ifelse(SciMLBase._unwrap_val(alg.nlsolve_update_rule), 0.5, 0.25))
+        t₁ = T(ifelse(NLBUtils.unwrap_val(alg.nlsolve_update_rule), 0.5, 0.25))
     else
         t₁ = T(alg.shrink_factor)
     end
@@ -88,23 +93,23 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegi
     autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
                NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
 
-    fx = Utils.get_fx(prob, x)
-    fx = Utils.eval_f(prob, fx, x)
+    fx = NLBUtils.evaluate_f(prob, x)
     norm_fx = L2_NORM(fx)
 
     @bb xo = copy(x)
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               safe_similar(fx) : fx
+               NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     # Set default trust region radius if not specified by user.
     iszero(Δₘₐₓ) && (Δₘₐₓ = max(L2_NORM(fx), maximum(x) - minimum(x)))
     if iszero(Δ)
-        if SciMLBase._unwrap_val(alg.nlsolve_update_rule)
+        if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             norm_x = L2_NORM(x)
             Δ = T(ifelse(norm_x > 0, norm_x, 1))
         else
@@ -114,7 +119,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegi
 
     fₖ = 0.5 * norm_fx^2
     H = transpose(J) * J
-    g = Utils.restructure(x, J' * Utils.safe_vec(fx))
+    g = NLBUtils.restructure(x, J' * NLBUtils.safe_vec(fx))
     shrink_counter = 0
 
     @bb δsd = copy(x)
@@ -128,7 +133,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegi
         δ = dogleg_method!!(dogleg_cache, J, fx, g, Δ)
         @bb @. x = xo + δ
 
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
         fₖ₊₁ = L2_NORM(fx)^2 / T(2)
 
@@ -149,17 +154,18 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegi
         if r ≥ η₁
             # Termination Checks
             solved, retcode, fx_sol, x_sol = Utils.check_termination(
-                tc_cache, fx, x, xo, prob)
+                tc_cache, fx, x, xo, prob
+            )
             solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
 
             # Take the step.
             @bb copyto!(xo, x)
 
             J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
-            fx = Utils.eval_f(prob, fx, x)
+            fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
             # Update the trust region radius.
-            if !SciMLBase._unwrap_val(alg.nlsolve_update_rule) && r > η₃
+            if !NLBUtils.unwrap_val(alg.nlsolve_update_rule) && r > η₃
                 Δ = min(t₂ * Δ, Δₘₐₓ)
             end
             fₖ = fₖ₊₁
@@ -168,7 +174,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleTrustRegi
             @bb g = transpose(J) × vec(fx)
         end
 
-        if SciMLBase._unwrap_val(alg.nlsolve_update_rule)
+        if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             if r > η₃
                 Δ = t₂ * L2_NORM(δ)
             elseif r > 0.5
@@ -184,7 +190,7 @@ function dogleg_method!!(cache, J, f, g, Δ)
     (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step
-    @bb δN .= Utils.restructure(δN, J \ Utils.safe_vec(f))
+    @bb δN .= NLBUtils.restructure(δN, J \ NLBUtils.safe_vec(f))
     @bb δN .*= -1
     # Test if the full step is within the trust region
     (L2_NORM(δN) ≤ Δ) && return δN

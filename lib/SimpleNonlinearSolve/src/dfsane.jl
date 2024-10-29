@@ -1,7 +1,9 @@
 """
-    SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
+    SimpleDFSane(;
+        σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
         M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
-        nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2)
+        nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2
+    )
 
 A low-overhead implementation of the df-sane method for solving large-scale nonlinear
 systems of equations. For in depth information about all the parameters and the algorithm,
@@ -48,20 +50,26 @@ see [la2006spectral](@citet).
     M <: Val
 end
 
-# XXX[breaking]: we should change the names to not have unicode
-function SimpleDFSane(; σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-        M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
-        nexp::Int = 2, η_strategy::F = (f_1, k, x, F) -> f_1 ./ k^2) where {F}
+function SimpleDFSane(;
+        sigma_min::Real = 1e-10, sigma_max::Real = 1e10, sigma_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), gamma::Real = 1e-4, tau_min::Real = 0.1,
+        tau_max::Real = 0.5, n_exp::Int = 2,
+        eta_strategy::F = (fn_1, n, x_n, f_n) -> fn_1 / n^2
+) where {F}
     M = M isa Int ? Val(M) : M
-    return SimpleDFSane(σ_min, σ_max, σ_1, γ, τ_min, τ_max, nexp, η_strategy, M)
+    return SimpleDFSane(
+        sigma_min, sigma_max, sigma_1, gamma, tau_min, tau_max, n_exp,
+        eta_strategy, M
+    )
 end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, args...;
+function SciMLBase.__solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleDFSane, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
-        termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
-    fx = Utils.get_fx(prob, x)
-    fx = Utils.eval_f(prob, fx, x)
+        termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
     σ_min = T(alg.σ_min)
@@ -74,7 +82,8 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, a
     τ_max = T(alg.τ_max)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     fx_norm = L2_NORM(fx)^nexp
     α_1 = one(T)
@@ -104,7 +113,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, a
 
         @bb @. x_cache = x + α_p * d
 
-        fx = Utils.eval_f(prob, fx, x_cache)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x_cache)
         fx_norm_new = L2_NORM(fx)^nexp
 
         while k < maxiters
@@ -113,7 +122,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, a
             α_tp = α_p^2 * fx_norm / (fx_norm_new + (T(2) * α_p - T(1)) * fx_norm)
             @bb @. x_cache = x - α_m * d
 
-            fx = Utils.eval_f(prob, fx, x_cache)
+            fx = NLBUtils.evaluate_f!!(prob, fx, x_cache)
             fx_norm_new = L2_NORM(fx)^nexp
 
             (fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm)) && break
@@ -123,7 +132,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, a
             α_m = clamp(α_tm, τ_min * α_m, τ_max * α_m)
             @bb @. x_cache = x + α_p * d
 
-            fx = Utils.eval_f(prob, fx, x_cache)
+            fx = NLBUtils.evaluate_f!!(prob, fx, x_cache)
             fx_norm_new = L2_NORM(fx)^nexp
 
             k += 1
@@ -146,11 +155,11 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleDFSane, a
         fx_norm = fx_norm_new
 
         # Store function value
-        idx = mod1(k, SciMLBase._unwrap_val(alg.M))
+        idx = mod1(k, NLBUtils.unwrap_val(alg.M))
         if history_f_k isa SVector
             history_f_k = Base.setindex(history_f_k, fx_norm_new, idx)
         elseif history_f_k isa NTuple
-            @reset history_f_k[idx] = fx_norm_new
+            @set! history_f_k[idx] = fx_norm_new
         else
             history_f_k[idx] = fx_norm_new
         end

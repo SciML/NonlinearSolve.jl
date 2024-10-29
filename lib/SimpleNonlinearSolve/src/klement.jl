@@ -6,16 +6,18 @@ method is non-allocating on scalar and static array problems.
 """
 struct SimpleKlement <: AbstractSimpleNonlinearSolveAlgorithm end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, args...;
+function SciMLBase.__solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleKlement, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
+        alias_u0 = false, termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
-    fx = Utils.get_fx(prob, x)
-    fx = Utils.eval_f(prob, fx, x)
+    fx = NLBUtils.evaluate_f(prob, x)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     @bb δx = copy(x)
     @bb fprev = copy(fx)
@@ -31,7 +33,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleKlement, 
         @bb @. δx = fprev / J
 
         @bb @. x = xo - δx
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
         # Termination Checks
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)

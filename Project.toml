@@ -6,6 +6,7 @@ version = "4.0.0"
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"

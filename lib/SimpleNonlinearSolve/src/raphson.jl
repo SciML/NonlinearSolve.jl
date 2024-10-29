@@ -27,35 +27,37 @@ function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
-    fx = Utils.get_fx(prob, x)
-    fx = Utils.eval_f(prob, fx, x)
+        alias_u0 = false, termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    fx = NLBUtils.evaluate_f(prob, x)
 
     iszero(fx) &&
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
                NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+    @set! alg.autodiff = autodiff
 
     @bb xo = similar(x)
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               safe_similar(fx) : fx
+               NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
     for _ in 1:maxiters
         @bb copyto!(xo, x)
-        δx = Utils.restructure(x, J \ Utils.safe_vec(fx))
+        δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
         @bb x .-= δx
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
         solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
 
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
     end
 

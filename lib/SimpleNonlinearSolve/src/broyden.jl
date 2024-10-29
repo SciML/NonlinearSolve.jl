@@ -18,17 +18,19 @@ array problems.
 end
 
 function SimpleBroyden(;
-        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing)
+        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
+)
     linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
     return SimpleBroyden(linesearch, alpha)
 end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
+function SciMLBase.__solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...)
-    x = Utils.maybe_unaliased(prob.u0, alias_u0)
-    fx = Utils.get_fx(prob, x)
-    fx = Utils.eval_f(prob, fx, x)
+        alias_u0 = false, termination_condition = nothing, kwargs...
+)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
     iszero(fx) &&
@@ -54,9 +56,10 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleBroyden, 
     @bb δJ⁻¹ = copy(J⁻¹)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
-    if alg.linesearch === Val(true)
+    if alg.linesearch isa Val{true}
         ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
         ls_cache = init(prob, ls_alg, fx, x)
     else
@@ -75,7 +78,7 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleBroyden, 
         end
 
         @bb @. x = xo + α * δx
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         @bb @. δf = fx - fprev
 
         # Termination Checks
@@ -88,8 +91,8 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleBroyden, 
 
         @bb @. δJ⁻¹n = (δx - J⁻¹δf) / d
 
-        δJ⁻¹n_ = Utils.safe_vec(δJ⁻¹n)
-        xᵀJ⁻¹_ = Utils.safe_vec(xᵀJ⁻¹)
+        δJ⁻¹n_ = NLBUtils.safe_vec(δJ⁻¹n)
+        xᵀJ⁻¹_ = NLBUtils.safe_vec(xᵀJ⁻¹)
         @bb δJ⁻¹ = δJ⁻¹n_ × transpose(xᵀJ⁻¹_)
         @bb J⁻¹ .+= δJ⁻¹
 

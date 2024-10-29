@@ -1,70 +1,31 @@
 module Utils
 
 using ArrayInterface: ArrayInterface
-using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
-                          AbstractNonlinearTerminationMode,
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearTerminationMode,
                           AbstractSafeNonlinearTerminationMode,
                           AbstractSafeBestNonlinearTerminationMode
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearLeastSquaresProblem,
-                 NonlinearProblem, NonlinearFunction, ReturnCode
+using SciMLBase: SciMLBase, ReturnCode
 using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 
 const DI = DifferentiationInterface
-
-const safe_similar = NonlinearSolveBase.Utils.safe_similar
-
-pickchunksize(n::Int) = min(n, 12)
-
-can_dual(::Type{<:Real}) = true
-can_dual(::Type) = false
-
-maybe_unaliased(x::Union{Number, SArray}, ::Bool) = x
-function maybe_unaliased(x::T, alias::Bool) where {T <: AbstractArray}
-    (alias || !ArrayInterface.can_setindex(T)) && return x
-    return copy(x)
-end
-
-# NOTE: This doesn't initialize the `f(x)` but just returns a buffer of the same size
-function get_fx(prob::NonlinearLeastSquaresProblem, x)
-    if SciMLBase.isinplace(prob) && prob.f.resid_prototype === nothing
-        error("Inplace NonlinearLeastSquaresProblem requires a `resid_prototype` to be \
-               specified.")
-    end
-    return get_fx(prob.f, x, prob.p)
-end
-function get_fx(prob::Union{ImmutableNonlinearProblem, NonlinearProblem}, x)
-    return get_fx(prob.f, x, prob.p)
-end
-function get_fx(f::NonlinearFunction, x, p)
-    if SciMLBase.isinplace(f)
-        f.resid_prototype === nothing || return eltype(x).(f.resid_prototype)
-        return safe_similar(x)
-    end
-    return f(x, p)
-end
-
-function eval_f(prob, fx, x)
-    SciMLBase.isinplace(prob) || return prob.f(x, prob.p)
-    prob.f(fx, x, prob.p)
-    return fx
-end
-
-function fixed_parameter_function(prob::AbstractNonlinearProblem)
-    SciMLBase.isinplace(prob) && return @closure (du, u) -> prob.f(du, u, prob.p)
-    return Base.Fix2(prob.f, prob.p)
-end
+const NLBUtils = NonlinearSolveBase.Utils
 
 function identity_jacobian(u::Number, fu::Number, α = true)
     return convert(promote_type(eltype(u), eltype(fu)), α)
 end
 function identity_jacobian(u, fu, α = true)
-    J = safe_similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
-    fill!(J, zero(eltype(J)))
-    J[diagind(J)] .= eltype(J)(α)
+    J = NLBUtils.safe_similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    fill!(J, false)
+    if ArrayInterface.fast_scalar_indexing(J)
+        @simd ivdep for i in axes(J, 1)
+            @inbounds J[i, i] = α
+        end
+    else
+        J[diagind(J)] .= α
+    end
     return J
 end
 function identity_jacobian(u::StaticArray, fu, α = true)
@@ -97,30 +58,21 @@ function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminati
     return cache(fx, x, xo), cache.retcode, fx, x
 end
 function check_termination(
-        cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode)
+        cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode
+)
     if cache(fx, x, xo)
         x = cache.u
-        if SciMLBase.isinplace(prob)
-            prob.f(fx, x, prob.p)
-        else
-            fx = prob.f(x, prob.p)
-        end
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         return true, cache.retcode, fx, x
     end
     return false, ReturnCode.Default, fx, x
 end
 
-restructure(y, x) = ArrayInterface.restructure(y, x)
-restructure(::Number, x::Number) = x
-
-safe_vec(x::AbstractArray) = vec(x)
-safe_vec(x::Number) = x
-
 abstract type AbstractJacobianMode end
 
 struct AnalyticJacobian <: AbstractJacobianMode end
-@concrete struct DIExtras <: AbstractJacobianMode
-    prep
+struct DIExtras{P} <: AbstractJacobianMode
+    prep::P
 end
 struct DINoPreparation <: AbstractJacobianMode end
 
@@ -161,7 +113,7 @@ end
 function compute_jacobian!!(J, prob, autodiff, fx, x, ::AnalyticJacobian)
     if J === nothing
         if SciMLBase.isinplace(prob.f)
-            J = safe_similar(fx, length(fx), length(x))
+            J = NLBUtils.safe_similar(fx, length(fx), length(x))
             prob.f.jac(J, x, prob.p)
             return J
         else
@@ -214,16 +166,16 @@ end
 function compute_jacobian_and_hessian(autodiff, prob, fx, x)
     if SciMLBase.isinplace(prob)
         jac_fn = @closure (u, p) -> begin
-            du = safe_similar(fx, promote_type(eltype(fx), eltype(u)))
+            du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
             return DI.jacobian(prob.f, du, autodiff, u, Constant(p))
         end
         J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         return fx, J, H
     else
         jac_fn = @closure (u, p) -> DI.jacobian(prob.f, autodiff, u, Constant(p))
         J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
-        fx = Utils.eval_f(prob, fx, x)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
         return fx, J, H
     end
 end
