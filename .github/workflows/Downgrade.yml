@@ -40,7 +40,7 @@ jobs:
           end
           Pkg.develop(dev_pks)
           Pkg.instantiate()
-          Pkg.test(; coverage=true)
+          Pkg.test(; coverage="user")
         shell: julia --color=yes --code-coverage=user --depwarn=yes --project=. {0}
         env:
           GROUP: ${{ matrix.group }}

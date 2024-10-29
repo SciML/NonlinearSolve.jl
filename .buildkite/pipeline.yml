@@ -19,7 +19,7 @@ steps:
         end
         Pkg.develop(dev_pks);
         Pkg.instantiate();
-        Pkg.test(; coverage=true)'
+        Pkg.test(; coverage="user")'
     agents:
       queue: "juliagpu"
       cuda: "*"
@@ -47,7 +47,7 @@ steps:
         end
         Pkg.develop(dev_pks);
         Pkg.instantiate();
-        Pkg.test(; coverage=true)'
+        Pkg.test(; coverage="user")'
     agents:
       queue: "juliagpu"
       cuda: "*"
