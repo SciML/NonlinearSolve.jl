@@ -102,7 +102,7 @@ function (cache::NativeJLLinearSolveCache)(;
     b === nothing || (cache.b = b)
 
     if linu !== nothing && ArrayInterface.can_setindex(linu) &&
-       applicable(ldiv!, linu, cache.A, cache.b)
+       applicable(ldiv!, linu, cache.A, cache.b) && applicable(ldiv!, cache.A, linu)
         ldiv!(linu, cache.A, cache.b)
         res = linu
     else

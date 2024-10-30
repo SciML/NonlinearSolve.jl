@@ -17,6 +17,12 @@ const False = Val(false)
 abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
 
 ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
+function ArrayInterface.restructure(
+        y::AbstractJacobianOperator, x::AbstractJacobianOperator
+)
+    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
+    return x
+end
 
 abstract type AbstractMode end
 

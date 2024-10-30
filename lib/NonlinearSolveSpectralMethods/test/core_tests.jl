@@ -1,6 +1,6 @@
 @testsetup module CoreRootfindTesting
 
-include("../../../common/common_core_testing.jl")
+include("../../../common/common_rootfind_testing.jl")
 
 end
 

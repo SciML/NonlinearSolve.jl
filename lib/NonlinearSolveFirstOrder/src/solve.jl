@@ -89,45 +89,43 @@ end
     kwargs
 end
 
-# XXX: Implement
-# function __reinit_internal!(
-#         cache::GeneralizedFirstOrderAlgorithmCache{iip}, args...; p = cache.p, u0 = cache.u,
-#         alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...) where {iip}
-#     if iip
-#         recursivecopy!(cache.u, u0)
-#         cache.prob.f(cache.fu, cache.u, p)
-#     else
-#         cache.u = __maybe_unaliased(u0, alias_u0)
-#         set_fu!(cache, cache.prob.f(cache.u, p))
-#     end
-#     cache.p = p
+function InternalAPI.reinit_self!(
+        cache::GeneralizedFirstOrderAlgorithmCache, args...; p = cache.p, u0 = cache.u,
+        alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...
+)
+    Utils.reinit_common!(cache, u0, p, alias_u0)
 
-#     __reinit_internal!(cache.stats)
-#     cache.nsteps = 0
-#     cache.maxiters = maxiters
-#     cache.maxtime = maxtime
-#     cache.total_time = 0.0
-#     cache.force_stop = false
-#     cache.retcode = ReturnCode.Default
-#     cache.make_new_jacobian = true
+    InternalAPI.reinit!(cache.stats)
+    cache.nsteps = 0
+    cache.maxiters = maxiters
+    cache.maxtime = maxtime
+    cache.total_time = 0.0
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
+    cache.make_new_jacobian = true
 
-#     reset!(cache.trace)
-#     reinit!(cache.termination_cache, get_fu(cache), get_u(cache); kwargs...)
-#     reset_timer!(cache.timer)
-# end
+    NonlinearSolveBase.reset!(cache.trace)
+    SciMLBase.reinit!(
+        cache.termination_cache, NonlinearSolveBase.get_fu(cache),
+        NonlinearSolveBase.get_u(cache); kwargs...
+    )
+    NonlinearSolveBase.reset_timer!(cache.timer)
+    return
+end
 
 NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
     :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache)
 
 function SciMLBase.__init(
-        prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm,
-        args...; stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
+        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm = L2_NORM,
         linsolve_kwargs = (;), kwargs...
 )
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
-    @set! alg.jvp_autodiff = if alg.jvp_autodiff === nothing && alg.autodiff !== nothing &&
+    provided_jvp_autodiff = alg.jvp_autodiff !== nothing
+    @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
                                 (ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
                                  ADTypes.mode(alg.autodiff) isa
                                  ADTypes.ForwardOrReverseMode)
@@ -135,7 +133,8 @@ function SciMLBase.__init(
     else
         NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.jvp_autodiff)
     end
-    @set! alg.vjp_autodiff = if alg.vjp_autodiff === nothing && alg.autodiff !== nothing &&
+    provided_vjp_autodiff = alg.vjp_autodiff !== nothing
+    @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
                                 (ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
                                  ADTypes.mode(alg.autodiff) isa
                                  ADTypes.ForwardOrReverseMode)
@@ -185,7 +184,7 @@ function SciMLBase.__init(
                 error("Trust Region not supported by $(alg.descent).")
             trustregion_cache = InternalAPI.init(
                 prob, alg.trustregion, prob.f, fu, u, prob.p;
-                stats, internalnorm, kwargs...
+                alg.vjp_autodiff, alg.jvp_autodiff, stats, internalnorm, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
@@ -194,7 +193,11 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_line_search(alg.descent) ||
                 error("Line Search not supported by $(alg.descent).")
             linesearch_cache = CommonSolve.init(
-                prob, alg.linesearch, fu, u; stats, internalnorm, kwargs...
+                prob, alg.linesearch, fu, u; stats, internalnorm,
+                autodiff = ifelse(
+                    provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
+                ),
+                kwargs...
             )
             globalization = Val(:LineSearch)
         end

@@ -91,6 +91,12 @@ convert_real(::Type{T}, ::Nothing) where {T} = nothing
 convert_real(::Type{T}, x) where {T} = real(T(x))
 
 restructure(::Number, x::Number) = x
+function restructure(
+        y::T1, x::T2
+) where {T1 <: AbstractSciMLOperator, T2 <: AbstractSciMLOperator}
+    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
+    return x
+end
 restructure(y, x) = ArrayInterface.restructure(y, x)
 
 function safe_similar(x, args...; kwargs...)

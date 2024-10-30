@@ -1,4 +1,4 @@
-@testitem "Issue #451" tags=[:misc] begin
+@testitem "Scalar Jacobians: Issue #451" tags=[:core] begin
     f(u, p) = u^2 - p
 
     jac_calls = 0

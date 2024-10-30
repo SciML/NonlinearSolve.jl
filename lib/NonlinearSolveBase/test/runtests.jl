@@ -24,4 +24,13 @@ using InteractiveUtils, Test
         @test check_no_stale_explicit_imports(NonlinearSolveBase) === nothing
         @test check_all_qualified_accesses_via_owners(NonlinearSolveBase) === nothing
     end
+
+    @testset "Banded Matrix vcat" begin
+        using BandedMatrices, LinearAlgebra, SparseArrays
+
+        b = BandedMatrix(Ones(5, 5), (1, 1))
+        d = Diagonal(ones(5, 5))
+
+        @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
+    end
 end

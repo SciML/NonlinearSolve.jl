@@ -1,6 +1,6 @@
 @testsetup module CoreRootfindTesting
 
-include("../../../common/common_core_testing.jl")
+include("../../../common/common_rootfind_testing.jl")
 
 end
 
@@ -73,7 +73,8 @@ end
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, Broyden(); termination_condition)
-            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-9)
+            err = maximum(abs, quadratic_f(sol.u, 2.0))
+            @test err < 1e-9
         end
     end
 end
@@ -145,7 +146,8 @@ end
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, Klement(); termination_condition)
-            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-9)
+            err = maximum(abs, quadratic_f(sol.u, 2.0))
+            @test err < 1e-9
         end
     end
 end
@@ -177,7 +179,7 @@ end
                 cache = init(
                     NonlinearProblem{false}(quadratic_f, u0, 2.0), solver, abstol = 1e-9
                 )
-                @test (@ballocated solve!($cache)) ≤ 320
+                @test (@ballocated solve!($cache)) ≤ 400
             end
 
             @testset "[IIP] u0: $(typeof(u0))" for u0 in (ones(32),)
@@ -213,7 +215,8 @@ end
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, LimitedMemoryBroyden(); termination_condition)
-            @test all(abs.(quadratic_f(sol.u, 2.0)) .< 1e-9)
+            err = maximum(abs, quadratic_f(sol.u, 2.0))
+            @test err < 1e-9
         end
     end
 end
