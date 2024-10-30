@@ -1,21 +1,21 @@
 module NonlinearSolveBase
 
+using Compat: @compat
+using ConcreteStructs: @concrete
+using FastClosures: @closure
+using Preferences: @load_preference
+
 using ADTypes: ADTypes, AbstractADType, AutoSparse, NoSparsityDetector,
                KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
-using CommonSolve: CommonSolve, init
-using Compat: @compat
-using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface, Constant
+using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
+
+using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
-using FastClosures: @closure
 using FunctionProperties: hasbranching
-using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
-using Markdown: @doc_str
 using MaybeInplace: @bb
-using Preferences: @load_preference
-using Printf: @printf
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
@@ -23,8 +23,11 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  NonlinearFunction, NullParameters, NLStats, LinearProblem
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
-using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 using SymbolicIndexingInterface: SymbolicIndexingInterface
+
+using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
+using Markdown: @doc_str
+using Printf: @printf
 
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
