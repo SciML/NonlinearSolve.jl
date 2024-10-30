@@ -72,9 +72,7 @@ function InternalAPI.init(
 ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     return SwitchedEvolutionRelaxationCache(
-        internalnorm(fu),
-        T(inv(initial_damping)),
-        internalnorm
+        internalnorm(fu), T(inv(initial_damping)), internalnorm
     )
 end
 

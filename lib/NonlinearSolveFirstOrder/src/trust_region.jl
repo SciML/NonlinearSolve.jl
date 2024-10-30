@@ -363,7 +363,9 @@ end
 
 expand_factor(::Nothing, ::Type{T}, method) where {T} = T(2)
 
-function rfunc_adaptive_trust_region(r::R, c2::R, M::R, γ1::R, β::R) where {R <: Real}
+function rfunc_adaptive_trust_region(
+        r::R, c2::R, M::R, γ1::R, γ2::R, β::R
+) where {R <: Real}
     return ifelse(
         r ≥ c2,
         (2 * (M - 1 - γ2) * atan(r - c2) + (1 + γ2)) / R(π),
@@ -433,8 +435,8 @@ function InternalAPI.solve!(
         end
     elseif cache.method isa RUS.__Hei
         tr_new = rfunc_adaptive_trust_region(
-            cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4
-        )
+            cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4, cache.p2
+        ) * cache.internalnorm(δu)
         if tr_new < cache.trust_region
             cache.shrink_counter += 1
         else
@@ -471,9 +473,9 @@ function InternalAPI.solve!(
             vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
             @bb cache.Jδu_cache = jvp_op × vec(cache.δu_cache)
             @bb cache.Jᵀfu_cache = vjp_op × vec(cache.fu_cache)
-            denom_1 = dot(_vec(cache.Jᵀfu_cache), cache.Jᵀfu_cache)
+            denom_1 = dot(Utils.safe_vec(cache.Jᵀfu_cache), cache.Jᵀfu_cache)
             @bb cache.Jᵀfu_cache = vjp_op × vec(cache.Jδu_cache)
-            denom_2 = dot(_vec(cache.Jᵀfu_cache), cache.Jᵀfu_cache)
+            denom_2 = dot(Utils.safe_vec(cache.Jᵀfu_cache), cache.Jᵀfu_cache)
             denom = denom_1 + denom_2 / 2
             ρ = num / denom
             if ρ ≥ cache.expand_threshold

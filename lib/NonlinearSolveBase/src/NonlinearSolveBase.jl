@@ -57,8 +57,7 @@ include("solve.jl")
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
 @compat(public,
-    (select_forward_mode_autodiff, select_reverse_mode_autodiff,
-        select_jacobian_autodiff))
+    (select_forward_mode_autodiff, select_reverse_mode_autodiff, select_jacobian_autodiff))
 
 # public for NonlinearSolve.jl and subpackages to use
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
