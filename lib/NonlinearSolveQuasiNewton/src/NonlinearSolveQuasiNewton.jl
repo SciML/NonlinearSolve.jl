@@ -1,11 +1,13 @@
 module NonlinearSolveQuasiNewton
 
-using Reexport: @reexport
+using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using Reexport: @reexport
 
 using ArrayInterface: ArrayInterface
+using StaticArraysCore: StaticArray, Size, MArray
+
 using CommonSolve: CommonSolve
-using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase   # Needed for `init` / `solve` dispatches
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diag
 using LinearSolve: LinearSolve # Trigger Linear Solve extension in NonlinearSolveBase
@@ -20,7 +22,6 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           update_trace!, L2_NORM, NewtonDescent
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode
 using SciMLOperators: AbstractSciMLOperator
-using StaticArraysCore: StaticArray, Size, MArray
 
 include("reset_conditions.jl")
 include("structure.jl")

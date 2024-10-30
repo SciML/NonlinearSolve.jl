@@ -1,16 +1,17 @@
 module NonlinearSolveFirstOrder
 
-using Reexport: @reexport
+using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using Reexport: @reexport
+using Setfield: @set!
 
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
-using CommonSolve: CommonSolve
-using ConcreteStructs: @concrete
-using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
-using FiniteDiff: FiniteDiff    # Default Finite Difference Method
-using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 using LinearAlgebra: LinearAlgebra, Diagonal, dot
+using StaticArraysCore: SArray
+
+using CommonSolve: CommonSolve
+using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
 using LinearSolve: LinearSolve  # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
@@ -23,8 +24,9 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           Dogleg
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode, NonlinearFunction
 using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
-using Setfield: @set!
-using StaticArraysCore: SArray
+
+using FiniteDiff: FiniteDiff    # Default Finite Difference Method
+using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 
 include("raphson.jl")
 include("gauss_newton.jl")

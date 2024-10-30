@@ -20,7 +20,7 @@ ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
 function ArrayInterface.restructure(
         y::AbstractJacobianOperator, x::AbstractJacobianOperator
 )
-    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
+    @assert size(y)==size(x) "cannot restructure operators. ensure their sizes match."
     return x
 end
 

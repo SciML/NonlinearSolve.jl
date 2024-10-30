@@ -1,13 +1,14 @@
 module NonlinearSolve
 
+using ConcreteStructs: @concrete
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
+using FastClosures: @closure
 
+using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, solve, solve!
-using ConcreteStructs: @concrete
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
-using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, norm
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, InternalAPI, AbstractNonlinearSolveAlgorithm,
@@ -33,6 +34,15 @@ using ForwardDiff: ForwardDiff  # Default Forward Mode AD
 using SparseArrays: SparseArrays
 using SparseMatrixColorings: SparseMatrixColorings
 
+# Sub-Packages that are re-exported by NonlinearSolve
+using BracketingNonlinearSolve: BracketingNonlinearSolve
+using LineSearch: LineSearch
+using LinearSolve: LinearSolve
+using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder
+using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton
+using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods
+using SimpleNonlinearSolve: SimpleNonlinearSolve
+
 const SII = SymbolicIndexingInterface
 
 include("helpers.jl")
@@ -54,8 +64,8 @@ include("default.jl")
 # include("internal/forward_diff.jl") # we need to define after the algorithms
 
 @setup_workload begin
-    include(joinpath(@__DIR__, "..", "common", "nonlinear_problem_workloads.jl"))
-    include(joinpath(@__DIR__, "..", "common", "nlls_problem_workloads.jl"))
+    include("../common/nonlinear_problem_workloads.jl")
+    include("../common/nlls_problem_workloads.jl")
 
     @compile_workload begin
         @sync begin
