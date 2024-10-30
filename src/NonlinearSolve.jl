@@ -12,7 +12,8 @@ using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using LinearAlgebra: LinearAlgebra, norm
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, InternalAPI, AbstractNonlinearSolveAlgorithm,
-                          AbstractNonlinearSolveCache, Utils, L2_NORM
+                          AbstractNonlinearSolveCache, Utils, L2_NORM,
+                          enable_timer_outputs, disable_timer_outputs
 
 using Preferences: set_preferences!
 using SciMLBase: SciMLBase, NLStats, ReturnCode, AbstractNonlinearProblem, NonlinearProblem,

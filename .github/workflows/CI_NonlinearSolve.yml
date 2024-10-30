@@ -14,6 +14,9 @@ on:
       - "lib/BracketingNonlinearSolve/**"
       - "lib/NonlinearSolveBase/**"
       - "lib/SimpleNonlinearSolve/**"
+      - "lib/NonlinearSolveFirstOrder/**"
+      - "lib/NonlinearSolveSpectralMethods/**"
+      - "lib/NonlinearSolveQuasiNewton/**"
   push:
     branches:
       - master
@@ -33,10 +36,9 @@ jobs:
         group:
           - Core
           - Downstream
-          - Misc
           - Wrappers
         version:
-          - "lts"
+          - "1.10"
           - "1"
         os:
           - ubuntu-latest
@@ -63,7 +65,7 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve")
+          for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveQuasiNewton")
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
@@ -74,7 +76,7 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,ext,lib/SciMLJacobianOperators/src
+          directories: src,ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SimpleNonlinearSolve/src,lib/NonlinearSolveFirstOrder/src,lib/NonlinearSolveSpectralMethods/src,lib/NonlinearSolveQuasiNewton/src
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
