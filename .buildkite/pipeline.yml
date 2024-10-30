@@ -14,7 +14,7 @@ steps:
         Pkg.Registry.update();
         # Install packages present in subdirectories
         dev_pks = Pkg.PackageSpec[];
-        for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve")
+        for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveQuasiNewton")
           push!(dev_pks, Pkg.PackageSpec(; path));
         end
         Pkg.develop(dev_pks);
@@ -42,7 +42,7 @@ steps:
         Pkg.Registry.update();
         # Install packages present in subdirectories
         dev_pks = Pkg.PackageSpec[];
-        for path in ("lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve")
+        for path in ("lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/SciMLJacobianOperators")
           push!(dev_pks, Pkg.PackageSpec(; path))
         end
         Pkg.develop(dev_pks);

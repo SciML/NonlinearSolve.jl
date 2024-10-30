@@ -21,7 +21,6 @@ jobs:
         group:
           - Core
           - Downstream
-          - Misc
           - Wrappers
     steps:
       - uses: actions/checkout@v4
