@@ -28,8 +28,8 @@ using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
 # Default AD Support
-using FiniteDiff: FiniteDiff    # Default Finite Difference Method
-using ForwardDiff: ForwardDiff  # Default Forward Mode AD
+using FiniteDiff: FiniteDiff          # Default Finite Difference Method
+using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
 # Sparse AD Support: Implemented via extensions
 using SparseArrays: SparseArrays
@@ -39,9 +39,9 @@ using SparseMatrixColorings: SparseMatrixColorings
 using BracketingNonlinearSolve: BracketingNonlinearSolve
 using LineSearch: LineSearch
 using LinearSolve: LinearSolve
-using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder
-using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton
-using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods
+using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, GeneralizedFirstOrderAlgorithm
+using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton, QuasiNewtonAlgorithm
+using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods, GeneralizedDFSane
 using SimpleNonlinearSolve: SimpleNonlinearSolve
 
 const SII = SymbolicIndexingInterface
@@ -53,16 +53,16 @@ include("extension_algs.jl")
 
 include("default.jl")
 
-# const ALL_SOLVER_TYPES = [
-#     Nothing, AbstractNonlinearSolveAlgorithm, GeneralizedDFSane,
-#     GeneralizedFirstOrderAlgorithm, ApproximateJacobianSolveAlgorithm,
-#     LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
-#     SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
-#     CMINPACK, PETScSNES,
-#     NonlinearSolvePolyAlgorithm{:NLLS, <:Any}, NonlinearSolvePolyAlgorithm{:NLS, <:Any}
-# ]
+const ALL_SOLVER_TYPES = [
+    Nothing, AbstractNonlinearSolveAlgorithm,
+    GeneralizedDFSane, GeneralizedFirstOrderAlgorithm, QuasiNewtonAlgorithm,
+    LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
+    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
+    CMINPACK, PETScSNES,
+    NonlinearSolvePolyAlgorithm
+]
 
-# include("internal/forward_diff.jl") # we need to define after the algorithms
+include("forward_diff.jl")
 
 @setup_workload begin
     include("../common/nonlinear_problem_workloads.jl")

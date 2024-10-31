@@ -1,22 +1,30 @@
-const DualNonlinearProblem = NonlinearProblem{<:Union{Number, <:AbstractArray}, iip,
-    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}} where {iip, T, V, P}
+const DualNonlinearProblem = NonlinearProblem{
+    <:Union{Number, <:AbstractArray}, iip,
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
+} where {iip, T, V, P}
 const DualNonlinearLeastSquaresProblem = NonlinearLeastSquaresProblem{
     <:Union{Number, <:AbstractArray}, iip,
-    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}} where {iip, T, V, P}
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
+} where {iip, T, V, P}
 const DualAbstractNonlinearProblem = Union{
-    DualNonlinearProblem, DualNonlinearLeastSquaresProblem}
+    DualNonlinearProblem, DualNonlinearLeastSquaresProblem
+}
 
 for algType in ALL_SOLVER_TYPES
     @eval function SciMLBase.__solve(
-            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
-        sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
-        dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
+            prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
+    )
+        sol, partials = NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
+            prob, alg, args...; kwargs...
+        )
+        dual_soln = NonlinearSolveBase.nonlinearsolve_dual_solution(sol.u, partials, prob.p)
         return SciMLBase.build_solution(
-            prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+            prob, alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original
+        )
     end
 end
 
-@concrete mutable struct NonlinearSolveForwardDiffCache
+@concrete mutable struct NonlinearSolveForwardDiffCache <: AbstractNonlinearSolveCache
     cache
     prob
     alg
@@ -25,36 +33,41 @@ end
     partials_p
 end
 
-@internal_caches NonlinearSolveForwardDiffCache :cache
-
-function reinit_cache!(cache::NonlinearSolveForwardDiffCache;
-        p = cache.p, u0 = get_u(cache.cache), kwargs...)
-    inner_cache = reinit_cache!(cache.cache; p = __value(p), u0 = __value(u0), kwargs...)
+function InternalAPI.reinit!(
+        cache::NonlinearSolveForwardDiffCache, args...;
+        p = cache.p, u0 = NonlinearSolveBase.get_u(cache.cache), kwargs...
+)
+    inner_cache = InternalAPI.reinit!(
+        cache.cache; p = nodual_value(p), u0 = nodual_value(u0), kwargs...
+    )
     cache.cache = inner_cache
     cache.p = p
-    cache.values_p = __value(p)
+    cache.values_p = nodual_value(p)
     cache.partials_p = ForwardDiff.partials(p)
     return cache
 end
 
 for algType in ALL_SOLVER_TYPES
+    # XXX: Extend to DualNonlinearLeastSquaresProblem
     @eval function SciMLBase.__init(
-            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...)
-        p = __value(prob.p)
-        newprob = NonlinearProblem(prob.f, __value(prob.u0), p; prob.kwargs...)
+            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...
+    )
+        p = nodual_value(prob.p)
+        newprob = SciMLBase.remake(prob; u0 = nodual_value(prob.u0), p)
         cache = init(newprob, alg, args...; kwargs...)
         return NonlinearSolveForwardDiffCache(
-            cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p))
+            cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p)
+        )
     end
 end
 
-function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
+function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     sol = solve!(cache.cache)
     prob = cache.prob
 
     uu = sol.u
-    Jₚ = nonlinearsolve_∂f_∂p(prob, prob.f, uu, cache.values_p)
-    Jᵤ = nonlinearsolve_∂f_∂u(prob, prob.f, uu, cache.values_p)
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, prob.f, uu, cache.values_p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, prob.f, uu, cache.values_p)
 
     z_arr = -Jᵤ \ Jₚ
 
@@ -65,11 +78,12 @@ function SciMLBase.solve!(cache::NonlinearSolveForwardDiffCache)
         partials = sum(sumfun, zip(eachcol(z_arr), cache.p))
     end
 
-    dual_soln = nonlinearsolve_dual_solution(sol.u, partials, cache.p)
+    dual_soln = NonlinearSolveBase.nonlinearsolve_dual_solution(sol.u, partials, cache.p)
     return SciMLBase.build_solution(
-        prob, cache.alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original)
+        prob, cache.alg, dual_soln, sol.resid; sol.retcode, sol.stats, sol.original
+    )
 end
 
-@inline __value(x) = x
-@inline __value(x::Dual) = ForwardDiff.value(x)
-@inline __value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+nodual_value(x) = x
+nodual_value(x::Dual) = ForwardDiff.value(x)
+nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)

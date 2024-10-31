@@ -15,8 +15,7 @@
         SOLVERS = (
             NewtonRaphson(),
             LevenbergMarquardt(; linsolve = QRFactorization()),
-            # XXX: Fails currently
-            # LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
+            LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
             PseudoTransient(),
             Klement(),
             Broyden(; linesearch = LiFukushimaLineSearch()),
