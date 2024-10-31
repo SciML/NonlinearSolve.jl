@@ -5,9 +5,9 @@
 These functions are not exported since the names have a potential for conflict.
 
 ```@docs
-NonlinearSolve.enable_timer_outputs
-NonlinearSolve.disable_timer_outputs
-NonlinearSolve.@static_timeit
+NonlinearSolveBase.enable_timer_outputs
+NonlinearSolveBase.disable_timer_outputs
+NonlinearSolveBase.@static_timeit
 ```
 
 ## Tracing API
@@ -17,6 +17,3 @@ TraceAll
 TraceWithJacobianConditionNumber
 TraceMinimal
 ```
-
-For details about the arguments refer to the documentation of
-[`NonlinearSolve.AbstractNonlinearSolveTraceLevel`](@ref).

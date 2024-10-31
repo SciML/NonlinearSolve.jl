@@ -1,6 +1,5 @@
 # Jacobian Wrappers
 
 ```@docs
-NonlinearSolve.AbstractNonlinearSolveJacobianCache
-NonlinearSolve.JacobianCache
+NonlinearSolveBase.construct_jacobian_cache
 ```

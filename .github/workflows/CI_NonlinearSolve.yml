@@ -34,9 +34,9 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - Core
-          - Downstream
-          - Wrappers
+          - core
+          - downstream
+          - wrappers
         version:
           - "1.10"
           - "1"
@@ -92,9 +92,9 @@ jobs:
         version:
           - "1.10"
         group:
-          - Core
-          - Downstream
-          - Wrappers
+          - core
+          - downstream
+          - wrappers
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

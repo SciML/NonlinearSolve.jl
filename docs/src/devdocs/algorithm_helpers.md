@@ -3,8 +3,8 @@
 ## Pseudo Transient Method
 
 ```@docs
-NonlinearSolve.SwitchedEvolutionRelaxation
-NonlinearSolve.SwitchedEvolutionRelaxationCache
+NonlinearSolveFirstOrder.SwitchedEvolutionRelaxation
+NonlinearSolveFirstOrder.SwitchedEvolutionRelaxationCache
 ```
 
 ## Approximate Jacobian Methods
@@ -12,54 +12,54 @@ NonlinearSolve.SwitchedEvolutionRelaxationCache
 ### Initialization
 
 ```@docs
-NonlinearSolve.IdentityInitialization
-NonlinearSolve.TrueJacobianInitialization
-NonlinearSolve.BroydenLowRankInitialization
+NonlinearSolveQuasiNewton.IdentityInitialization
+NonlinearSolveQuasiNewton.TrueJacobianInitialization
+NonlinearSolveQuasiNewton.BroydenLowRankInitialization
 ```
 
 ### Jacobian Structure
 
 ```@docs
-NonlinearSolve.FullStructure
-NonlinearSolve.DiagonalStructure
+NonlinearSolveQuasiNewton.FullStructure
+NonlinearSolveQuasiNewton.DiagonalStructure
 ```
 
 ### Jacobian Caches
 
 ```@docs
-NonlinearSolve.InitializedApproximateJacobianCache
+NonlinearSolveQuasiNewton.InitializedApproximateJacobianCache
 ```
 
 ### Reset Methods
 
 ```@docs
-NonlinearSolve.NoChangeInStateReset
-NonlinearSolve.IllConditionedJacobianReset
+NonlinearSolveQuasiNewton.NoChangeInStateReset
+NonlinearSolveQuasiNewton.IllConditionedJacobianReset
 ```
 
 ### Update Rules
 
 ```@docs
-NonlinearSolve.GoodBroydenUpdateRule
-NonlinearSolve.BadBroydenUpdateRule
-NonlinearSolve.KlementUpdateRule
+NonlinearSolveQuasiNewton.GoodBroydenUpdateRule
+NonlinearSolveQuasiNewton.BadBroydenUpdateRule
+NonlinearSolveQuasiNewton.KlementUpdateRule
 ```
 
 ## Levenberg Marquardt Method
 
 ```@docs
-NonlinearSolve.LevenbergMarquardtTrustRegion
+NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion
 ```
 
 ## Trust Region Method
 
 ```@docs
-NonlinearSolve.GenericTrustRegionScheme
+NonlinearSolveFirstOrder.GenericTrustRegionScheme
 ```
 
 ## Miscellaneous
 
 ```@docs
-NonlinearSolve.callback_into_cache!
-NonlinearSolve.concrete_jac
+NonlinearSolveBase.callback_into_cache!
+NonlinearSolveBase.concrete_jac
 ```

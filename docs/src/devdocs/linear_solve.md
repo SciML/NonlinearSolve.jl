@@ -1,6 +1,6 @@
 # Linear Solve
 
 ```@docs
-NonlinearSolve.AbstractLinearSolverCache
-NonlinearSolve.LinearSolverCache
+NonlinearSolveBase.AbstractLinearSolverCache
+NonlinearSolveBase.construct_linear_solver
 ```

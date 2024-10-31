@@ -5,7 +5,7 @@ Uses the `descent` algorithm to compute the velocity and acceleration terms for 
 geodesic acceleration method. The velocity and acceleration terms are then combined to
 compute the descent direction.
 
-This method in its current form was developed for [`LevenbergMarquardt`](@ref). Performance
+This method in its current form was developed for `LevenbergMarquardt`. Performance
 for other methods are not theorectically or experimentally verified.
 
 ### Keyword Arguments

@@ -19,7 +19,7 @@ for large-scale and numerically-difficult nonlinear systems.
     `RadiusUpdateSchemes.Simple`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
     review on trust region radius update schemes, see [yuan2015recent](@citet).
 
-For the remaining arguments, see [`NonlinearSolve.GenericTrustRegionScheme`](@ref)
+For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref)
 documentation.
 """
 function TrustRegion(;

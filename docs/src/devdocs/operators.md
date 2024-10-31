@@ -3,5 +3,5 @@
 ## Low-Rank Jacobian Operators
 
 ```@docs
-NonlinearSolve.BroydenLowRankJacobian
+NonlinearSolveQuasiNewton.BroydenLowRankJacobian
 ```

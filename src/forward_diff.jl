@@ -87,3 +87,12 @@ end
 nodual_value(x) = x
 nodual_value(x::Dual) = ForwardDiff.value(x)
 nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+
+"""
+    pickchunksize(x) = pickchunksize(length(x))
+    pickchunksize(x::Int)
+
+Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
+"""
+@inline pickchunksize(x) = pickchunksize(length(x))
+@inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
