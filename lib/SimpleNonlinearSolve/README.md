@@ -1,5 +1,8 @@
 # SimpleNonlinearSolve.jl
 
+> [!WARNING]
+> This package has been moved into a subpackage in NonlinearSolve (https://github.com/SciML/NonlinearSolve.jl/tree/master/lib/SimpleNonlinearSolve). Direct all questions and issues to NonlinearSolve.jl repository
+
 [![Join the chat at https://julialang.zulipchat.com #sciml-bridged](https://img.shields.io/static/v1?label=Zulip&message=chat&color=9558b2&labelColor=389826)](https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged)
 [![Global Docs](https://img.shields.io/badge/docs-SciML-blue.svg)](https://docs.sciml.ai/NonlinearSolve/stable/)
 
