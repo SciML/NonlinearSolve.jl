@@ -7,7 +7,6 @@ end
     lincache
     linsolve
     additional_lincache::Any
-    precs
     stats::NLStats
 end
 
@@ -34,8 +33,8 @@ handled:
 
 ```julia
 (cache::LinearSolverCache)(;
-    A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-    weight = nothing, cachedata = nothing, reuse_A_if_factorization = false, kwargs...)
+    A = nothing, b = nothing, linu = nothing, reuse_A_if_factorization = false, kwargs...
+)
 ```
 
 Returns the solution of the system `u` and stores the updated cache in `cache.lincache`.
@@ -60,15 +59,11 @@ aliasing arguments even after cache construction, i.e., if we passed in an `A` t
 not mutated, we do this by copying over `A` to a preconstructed cache.
 """
 function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
-    no_preconditioner = !hasfield(typeof(alg), :precs) || alg.precs === nothing
-
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve isa typeof(\)
-        !no_preconditioner &&
-            error("Default Julia Backsolve Operator `\\` doesn't support Preconditioners")
         return NativeJLLinearSolveCache(A, b, stats)
-    elseif no_preconditioner && linsolve === nothing
+    elseif linsolve === nothing
         if (A isa SMatrix || A isa WrappedArray{<:Any, <:SMatrix})
             return NativeJLLinearSolveCache(A, b, stats)
         end
@@ -78,17 +73,9 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
     @bb u_cache = copy(u_fixed)
     linprob = LinearProblem(A, b; u0 = u_cache, kwargs...)
 
-    if no_preconditioner
-        precs, Pl, Pr = nothing, nothing, nothing
-    else
-        precs = alg.precs
-        Pl, Pr = precs(A, nothing, u, ntuple(Returns(nothing), 6)...)
-    end
-    Pl, Pr = wrap_preconditioners(Pl, Pr, u)
-
     # unlias here, we will later use these as caches
-    lincache = init(linprob, linsolve; alias_A = false, alias_b = false, Pl, Pr)
-    return LinearSolveJLCache(lincache, linsolve, nothing, precs, stats)
+    lincache = init(linprob, linsolve; alias_A = false, alias_b = false)
+    return LinearSolveJLCache(lincache, linsolve, nothing, stats)
 end
 
 function (cache::NativeJLLinearSolveCache)(;

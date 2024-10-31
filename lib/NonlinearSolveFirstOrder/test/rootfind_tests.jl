@@ -13,11 +13,6 @@ end
 
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
-    preconditioners = [
-        u0 -> nothing,
-        u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))
-    ]
-
     @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
         @testset "$(nameof(typeof(linesearch)))" for linesearch in (
             LineSearchesJL(; method = LineSearches.Static(), autodiff = ad),
@@ -43,13 +38,22 @@ end
             @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
                 ad isa AutoZygote && continue
 
-                @testset for preconditioner in preconditioners,
-                    linsolve in (nothing, KrylovJL_GMRES(), \)
-
-                    precs = preconditioner(u0)
-                    typeof(linsolve) <: typeof(\) && precs !== nothing && continue
-
-                    solver = NewtonRaphson(; linsolve, precs, linesearch, autodiff = ad)
+                @testset for (concrete_jac, linsolve) in (
+                    (Val(false), nothing),
+                    (Val(false), KrylovJL_GMRES(; precs = nothing)),
+                    (
+                        Val(true),
+                        KrylovJL_GMRES(;
+                            precs = (A, p = nothing) -> (
+                                Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                            )
+                        )
+                    ),
+                    (Val(false), \)
+                )
+                    solver = NewtonRaphson(;
+                        linsolve, linesearch, autodiff = ad, concrete_jac
+                    )
 
                     sol = solve_iip(quadratic_f!, u0; solver)
                     @test SciMLBase.successful_retcode(sol)
@@ -115,14 +119,22 @@ end
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
 
-            @testset for preconditioner in preconditioners,
-                linsolve in (nothing, KrylovJL_GMRES(), \)
-
-                precs = preconditioner(u0)
-                typeof(linsolve) <: typeof(\) && precs !== nothing && continue
-
+            @testset for (concrete_jac, linsolve) in (
+                (Val(false), nothing),
+                (Val(false), KrylovJL_GMRES(; precs = nothing)),
+                (
+                    Val(true),
+                    KrylovJL_GMRES(;
+                        precs = (A, p = nothing) -> (
+                            Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                        )
+                    )
+                ),
+                (Val(false), \)
+            )
                 solver = PseudoTransient(;
-                    alpha_initial = 10.0, linsolve, precs, autodiff = ad)
+                    alpha_initial = 10.0, linsolve, autodiff = ad, concrete_jac
+                )
                 sol = solve_iip(quadratic_f!, u0; solver)
                 @test SciMLBase.successful_retcode(sol)
                 err = maximum(abs, quadratic_f(sol.u, 2.0))

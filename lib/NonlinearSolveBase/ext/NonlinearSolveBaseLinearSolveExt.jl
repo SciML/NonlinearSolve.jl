@@ -11,32 +11,14 @@ using LinearAlgebra: ColumnNorm
 using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils
 
 function (cache::LinearSolveJLCache)(;
-        A = nothing, b = nothing, linu = nothing, du = nothing, p = nothing,
-        cachedata = nothing, reuse_A_if_factorization = false, verbose = true, kwargs...
+        A = nothing, b = nothing, linu = nothing,
+        reuse_A_if_factorization = false, verbose = true, kwargs...
 )
     cache.stats.nsolve += 1
 
     update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && setproperty!(cache.lincache, :b, b)
     linu !== nothing && NonlinearSolveBase.set_lincache_u!(cache, linu)
-
-    Plprev = cache.lincache.Pl
-    Prprev = cache.lincache.Pr
-
-    if cache.precs === nothing
-        Pl, Pr = nothing, nothing
-    else
-        Pl, Pr = cache.precs(
-            cache.lincache.A, du, linu, p, nothing,
-            A !== nothing, Plprev, Prprev, cachedata
-        )
-    end
-
-    if Pl !== nothing || Pr !== nothing
-        Pl, Pr = NonlinearSolveBase.wrap_preconditioners(Pl, Pr, linu)
-        cache.lincache.Pl = Pl
-        cache.lincache.Pr = Pr
-    end
 
     linres = solve!(cache.lincache)
     cache.lincache = linres.cache
@@ -58,7 +40,8 @@ function (cache::LinearSolveJLCache)(;
                 linprob = LinearProblem(A, b; u0 = linres.u)
                 cache.additional_lincache = init(
                     linprob, QRFactorization(ColumnNorm()); alias_u0 = false,
-                    alias_A = false, alias_b = false, cache.lincache.Pl, cache.lincache.Pr)
+                    alias_A = false, alias_b = false
+                )
             else
                 cache.additional_lincache.A = A
                 cache.additional_lincache.b = b

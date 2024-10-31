@@ -1,5 +1,5 @@
 """
-    SteepestDescent(; linsolve = nothing, precs = nothing)
+    SteepestDescent(; linsolve = nothing)
 
 Compute the descent direction as ``δu = -Jᵀfu``. The linear solver and preconditioner are
 only used if `J` is provided in the inverted form.
@@ -8,7 +8,6 @@ See also [`Dogleg`](@ref), [`NewtonDescent`](@ref), [`DampedNewtonDescent`](@ref
 """
 @kwdef @concrete struct SteepestDescent <: AbstractDescentDirection
     linsolve = nothing
-    precs = nothing
 end
 
 supports_line_search(::SteepestDescent) = true
@@ -57,7 +56,6 @@ function InternalAPI.solve!(
         A = J === nothing ? nothing : transpose(J)
         linres = cache.lincache(;
             A, b = Utils.safe_vec(fu), kwargs..., linu = Utils.safe_vec(δu),
-            du = Utils.safe_vec(δu),
             reuse_A_if_factorization = !new_jacobian || idx !== Val(1)
         )
         δu = Utils.restructure(SciMLBase.get_du(cache, idx), linres.u)

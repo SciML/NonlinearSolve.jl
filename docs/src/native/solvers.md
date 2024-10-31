@@ -18,10 +18,6 @@ documentation.
     uses the LinearSolve.jl default algorithm choice. For more information on available
     algorithm choices, see the
     [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
-  - `precs`: the choice of preconditioners for the linear solver. Defaults to using no
-    preconditioners. For more information on specifying preconditioners for LinearSolve
-    algorithms, consult the
-    [LinearSolve.jl documentation](https://docs.sciml.ai/LinearSolve/stable/).
   - `linesearch`: the line search algorithm to use. Defaults to
     [`NoLineSearch()`](@extref LineSearch.NoLineSearch), which means that no line search is
     performed.

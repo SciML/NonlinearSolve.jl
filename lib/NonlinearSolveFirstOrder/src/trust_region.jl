@@ -1,6 +1,6 @@
 """
     TrustRegion(;
-        concrete_jac = nothing, linsolve = nothing, precs = nothing,
+        concrete_jac = nothing, linsolve = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
@@ -23,7 +23,7 @@ For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionSc
 documentation.
 """
 function TrustRegion(;
-        concrete_jac = nothing, linsolve = nothing, precs = nothing,
+        concrete_jac = nothing, linsolve = nothing,
         radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
@@ -31,7 +31,7 @@ function TrustRegion(;
         max_shrink_times::Int = 32,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
 )
-    descent = Dogleg(; linsolve, precs)
+    descent = Dogleg(; linsolve)
     trustregion = GenericTrustRegionScheme(;
         method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
         shrink_factor, expand_factor, initial_trust_radius, max_trust_radius
