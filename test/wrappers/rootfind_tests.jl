@@ -43,7 +43,6 @@
     end
 end
 
-# Can lead to segfaults
 @testitem "Nonlinear Root Finding Problems" tags=[:wrappers] begin
     using LinearAlgebra
     import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc

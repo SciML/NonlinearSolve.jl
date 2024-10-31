@@ -64,11 +64,7 @@ end
     alg_ops = (SimpleHalley(; autodiff = AutoForwardDiff()),)
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    if Sys.isapple()
-        broken_tests[alg_ops[1]] = [1, 5, 11, 15, 16, 18]
-    else
-        broken_tests[alg_ops[1]] = [1, 5, 15, 16, 18]
-    end
+    broken_tests[alg_ops[1]] = [1, 5, 15, 16, 18]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
