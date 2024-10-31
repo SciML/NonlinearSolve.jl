@@ -1,13 +1,6 @@
-@testsetup module WrapperRootfindImports
-using Reexport
-@reexport using LinearAlgebra
-import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
+@testitem "Steady State Problems" tags=[:wrappers] begin
+    import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
 
-export NLSolvers
-end
-
-@testitem "Steady State Problems" setup=[WrapperRootfindImports] tags=[:wrappers] begin
-    # IIP Tests
     function f_iip(du, u, p, t)
         du[1] = 2 - 2u[1]
         du[2] = u[1] - 4u[2]
@@ -30,7 +23,6 @@ end
         @test maximum(abs, sol.resid) < 1e-6
     end
 
-    # OOP Tests
     f_oop(u, p, t) = [2 - 2u[1], u[1] - 4u[2]]
     u0 = zeros(2)
     prob_oop = SteadyStateProblem(f_oop, u0)
@@ -52,8 +44,10 @@ end
 end
 
 # Can lead to segfaults
-@testitem "Nonlinear Root Finding Problems" setup=[WrapperRootfindImports] tags=[:wrappers] retries=3 begin
-    # IIP Tests
+@testitem "Nonlinear Root Finding Problems" tags=[:wrappers] begin
+    using LinearAlgebra
+    import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
+
     function f_iip(du, u, p)
         du[1] = 2 - 2u[1]
         du[2] = u[1] - 4u[2]
@@ -77,7 +71,6 @@ end
         @test maximum(abs, sol.resid) < 1e-6
     end
 
-    # OOP Tests
     f_oop(u, p) = [2 - 2u[1], u[1] - 4u[2]]
     u0 = zeros(2)
     prob_oop = NonlinearProblem{false}(f_oop, u0)
@@ -97,7 +90,6 @@ end
         @test maximum(abs, sol.resid) < 1e-6
     end
 
-    # Tolerance Tests
     f_tol(u, p) = u^2 - 2
     prob_tol = NonlinearProblem(f_tol, 1.0)
     for tol in [1e-1, 1e-3, 1e-6, 1e-10, 1e-15],
@@ -156,9 +148,11 @@ end
 
     sol = solve(ProbN, NLsolveJL(); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
-    sol = solve(ProbN,
+    sol = solve(
+        ProbN,
         NLSolversJL(NLSolvers.LineSearch(NLSolvers.Newton(), NLSolvers.Backtracking()));
-        abstol = 1e-8)
+        abstol = 1e-8
+    )
     @test maximum(abs, sol.resid) < 1e-6
     sol = solve(ProbN, SIAMFANLEquationsJL(; method = :newton); abstol = 1e-8)
     @test maximum(abs, sol.resid) < 1e-6
@@ -170,7 +164,9 @@ end
     end
 end
 
-@testitem "PETSc SNES Floating Points" setup=[WrapperRootfindImports] tags=[:wrappers] skip=:(Sys.iswindows()) begin
+@testitem "PETSc SNES Floating Points" tags=[:wrappers] skip=:(Sys.iswindows()) begin
+    import PETSc
+
     f(u, p) = u .* u .- 2
 
     u0 = [1.0, 1.0]

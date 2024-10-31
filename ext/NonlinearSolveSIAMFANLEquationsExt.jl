@@ -1,13 +1,14 @@
 module NonlinearSolveSIAMFANLEquationsExt
 
 using FastClosures: @closure
-using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
-using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, ptcsoli,
                          ptcsolsc, secant
 
-@inline function __siam_fanl_equations_retcode_mapping(sol)
+using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+
+function siamfanlequations_retcode_mapping(sol)
     if sol.errcode == 0
         return ReturnCode.Success
     elseif sol.errcode == 10
@@ -16,102 +17,129 @@ using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, 
         return ReturnCode.Failure
     elseif sol.errcode == -1
         return ReturnCode.Default
+    else
+        error("Unknown SIAMFANLEquations return code: $(sol.errcode)")
     end
 end
 
-@inline function __zeros_like(x, args...)
+function zeros_like(x, args...)
     z = similar(x, args...)
-    fill!(z, zero(eltype(x)))
+    fill!(z, false)
     return z
 end
 
 # pseudo transient continuation has a fixed cost per iteration, iteration statistics are
 # not interesting here.
-@inline function __siam_fanl_equations_stats_mapping(method, sol)
+function siamfanlequations_stats_mapping(method, sol)
     ((method === :pseudotransient) || (method === :anderson)) && return nothing
     return SciMLBase.NLStats(
-        sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm))
+        sum(sol.stats.ifun), sum(sol.stats.ijac), 0, 0, sum(sol.stats.iarm)
+    )
 end
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...;
-        abstol = nothing, reltol = nothing, alias_u0::Bool = false,
-        maxiters = 1000, termination_condition = nothing,
-        show_trace::Val{ShT} = Val(false), kwargs...) where {ShT}
-    NonlinearSolve.__test_termination_condition(termination_condition, :SIAMFANLEquationsJL)
+function SciMLBase.__solve(
+        prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...;
+        abstol = nothing, reltol = nothing, alias_u0::Bool = false, maxiters = 1000,
+        termination_condition = nothing, show_trace = Val(false), kwargs...
+)
+    NonlinearSolveBase.assert_extension_supported_termination_condition(
+        termination_condition, alg
+    )
 
     (; method, delta, linsolve, m, beta) = alg
     T = eltype(prob.u0)
-    atol = get_tolerance(abstol, T)
-    rtol = get_tolerance(reltol, T)
+    atol = NonlinearSolveBase.get_tolerance(abstol, T)
+    rtol = NonlinearSolveBase.get_tolerance(reltol, T)
+
+    printerr = show_trace isa Val{true}
 
     if prob.u0 isa Number
-        f = @closure u -> prob.f(u, prob.p)
+        f = Base.Fix2(prob.f, prob.p)
         if method == :newton
-            sol = nsolsc(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
+            sol = nsolsc(f, prob.u0; maxit = maxiters, atol, rtol, printerr)
         elseif method == :pseudotransient
             sol = ptcsolsc(
-                f, prob.u0; delta0 = delta, maxit = maxiters, atol, rtol, printerr = ShT)
+                f, prob.u0; delta0 = delta, maxit = maxiters, atol, rtol, printerr
+            )
         elseif method == :secant
-            sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr = ShT)
+            sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr)
         elseif method == :anderson
-            f_aa, u, _ = NonlinearSolve.__construct_extension_f(
-                prob; alias_u0, make_fixed_point = Val(true))
-            sol = aasol(f_aa, u, m, __zeros_like(u, 1, 2 * m + 4);
-                maxit = maxiters, atol, rtol, beta)
+            f_aa, u, _ = NonlinearSolveBase.construct_extension_function_wrapper(
+                prob; alias_u0, make_fixed_point = Val(true)
+            )
+            sol = aasol(
+                f_aa, u, m, zeros_like(u, 1, 2 * m + 4);
+                maxit = maxiters, atol, rtol, beta
+            )
         end
     else
-        f, u, resid = NonlinearSolve.__construct_extension_f(
-            prob; alias_u0, make_fixed_point = Val(method == :anderson))
+        f, u, resid = NonlinearSolveBase.construct_extension_function_wrapper(
+            prob; alias_u0, make_fixed_point = Val(method == :anderson)
+        )
         N = length(u)
-        FS = __zeros_like(u, N)
+        FS = zeros_like(u, N)
 
         # Jacobian Free Newton Krylov
         if linsolve !== nothing
             # Allocate ahead for Krylov basis
-            JVS = linsolve == :gmres ? __zeros_like(u, N, 3) : __zeros_like(u, N)
+            JVS = linsolve == :gmres ? zeros_like(u, N, 3) : zeros_like(u, N)
             linsolve_alg = String(linsolve)
             if method == :newton
-                sol = nsoli(f, u, FS, JVS; lsolver = linsolve_alg,
-                    maxit = maxiters, atol, rtol, printerr = ShT)
+                sol = nsoli(
+                    f, u, FS, JVS; lsolver = linsolve_alg,
+                    maxit = maxiters, atol, rtol, printerr
+                )
             elseif method == :pseudotransient
-                sol = ptcsoli(f, u, FS, JVS; lsolver = linsolve_alg,
-                    maxit = maxiters, atol, rtol, printerr = ShT)
+                sol = ptcsoli(
+                    f, u, FS, JVS; lsolver = linsolve_alg,
+                    maxit = maxiters, atol, rtol, printerr
+                )
             end
         else
             if prob.f.jac === nothing && alg.autodiff === missing
-                FPS = __zeros_like(u, N, N)
+                FPS = zeros_like(u, N, N)
                 if method == :newton
-                    sol = nsol(f, u, FS, FPS; sham = 1, atol, rtol,
-                        maxit = maxiters, printerr = ShT)
+                    sol = nsol(
+                        f, u, FS, FPS; sham = 1, atol, rtol, maxit = maxiters, printerr
+                    )
                 elseif method == :pseudotransient
-                    sol = ptcsol(f, u, FS, FPS; atol, rtol, maxit = maxiters,
-                        delta0 = delta, printerr = ShT)
+                    sol = ptcsol(
+                        f, u, FS, FPS;
+                        atol, rtol, maxit = maxiters, delta0 = delta, printerr
+                    )
                 elseif method == :anderson
                     sol = aasol(
-                        f, u, m, zeros(T, N, 2 * m + 4); atol, rtol, maxit = maxiters, beta)
+                        f, u, m, zeros(T, N, 2 * m + 4);
+                        atol, rtol, maxit = maxiters, beta
+                    )
                 end
             else
                 autodiff = alg.autodiff === missing ? nothing : alg.autodiff
                 FPS = prob.f.jac_prototype !== nothing ? zero(prob.f.jac_prototype) :
-                      __zeros_like(u, N, N)
-                jac = NonlinearSolve.__construct_extension_jac(
-                    prob, alg, u, resid; autodiff)
+                      zeros_like(u, N, N)
+                jac = NonlinearSolveBase.construct_extension_jac(
+                    prob, alg, u, resid; autodiff
+                )
                 AJ! = @closure (J, u, x) -> jac(J, x)
                 if method == :newton
-                    sol = nsol(f, u, FS, FPS, AJ!; sham = 1, atol,
-                        rtol, maxit = maxiters, printerr = ShT)
+                    sol = nsol(
+                        f, u, FS, FPS, AJ!; sham = 1, atol,
+                        rtol, maxit = maxiters, printerr
+                    )
                 elseif method == :pseudotransient
-                    sol = ptcsol(f, u, FS, FPS, AJ!; atol, rtol, maxit = maxiters,
-                        delta0 = delta, printerr = ShT)
+                    sol = ptcsol(
+                        f, u, FS, FPS, AJ!; atol, rtol, maxit = maxiters,
+                        delta0 = delta, printerr
+                    )
                 end
             end
         end
     end
 
-    retcode = __siam_fanl_equations_retcode_mapping(sol)
-    stats = __siam_fanl_equations_stats_mapping(method, sol)
+    retcode = siamfanlequations_retcode_mapping(sol)
+    stats = siamfanlequations_stats_mapping(method, sol)
     res = prob.u0 isa Number && method === :anderson ? sol.solution[1] : sol.solution
-    resid = NonlinearSolve.evaluate_f(prob, res)
+    resid = NonlinearSolveBase.Utils.evaluate_f(prob, res)
     return SciMLBase.build_solution(prob, alg, res, resid; retcode, stats, original = sol)
 end
 

@@ -1,74 +1,63 @@
 module NonlinearSolveNLSolversExt
 
 using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
+using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
-using FiniteDiff: FiniteDiff
-using ForwardDiff: ForwardDiff
-using LinearAlgebra: norm
+
 using NLSolvers: NLSolvers, NEqOptions, NEqProblem
-using NonlinearSolveBase: NonlinearSolveBase, get_tolerance
+
+using NonlinearSolveBase: NonlinearSolveBase
 using NonlinearSolve: NonlinearSolve, NLSolversJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
-function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0::Bool = false, termination_condition = nothing, kwargs...)
-    NonlinearSolve.__test_termination_condition(termination_condition, :NLSolversJL)
+const DI = DifferentiationInterface
 
-    abstol = get_tolerance(abstol, eltype(prob.u0))
-    reltol = get_tolerance(reltol, eltype(prob.u0))
+function SciMLBase.__solve(
+        prob::NonlinearProblem, alg::NLSolversJL, args...;
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        termination_condition = nothing, kwargs...
+)
+    NonlinearSolveBase.assert_extension_supported_termination_condition(
+        termination_condition, alg
+    )
+
+    abstol = NonlinearSolveBase.get_tolerance(abstol, eltype(prob.u0))
+    reltol = NonlinearSolveBase.get_tolerance(reltol, eltype(prob.u0))
 
     options = NEqOptions(; maxiter = maxiters, f_abstol = abstol, f_reltol = reltol)
 
     if prob.u0 isa Number
-        f_scalar = @closure x -> prob.f(x, prob.p)
+        f_scalar = Base.Fix2(prob.f, prob.p)
+        autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
 
-        if alg.autodiff === nothing
-            if ForwardDiff.can_dual(typeof(prob.u0))
-                autodiff_concrete = :forwarddiff
-            else
-                autodiff_concrete = :finitediff
-            end
-        else
-            if alg.autodiff isa AutoForwardDiff || alg.autodiff isa AutoPolyesterForwardDiff
-                autodiff_concrete = :forwarddiff
-            elseif alg.autodiff isa AutoFiniteDiff
-                autodiff_concrete = :finitediff
-            else
-                error("Only ForwardDiff or FiniteDiff autodiff is supported.")
-            end
-        end
+        prep = DifferentiationInterface.prepare_derivative(
+            prob.f, autodiff, prob.u0, Constant(prob.p)
+        )
 
-        if autodiff_concrete === :forwarddiff
-            fj_scalar = @closure (Jx, x) -> begin
-                T = typeof(ForwardDiff.Tag(prob.f, eltype(x)))
-                x_dual = ForwardDiff.Dual{T}(x, one(x))
-                y = prob.f(x_dual, prob.p)
-                return ForwardDiff.value(y), ForwardDiff.extract_derivative(T, y)
-            end
-        else
-            fj_scalar = @closure (Jx, x) -> begin
-                _f = Base.Fix2(prob.f, prob.p)
-                return _f(x), FiniteDiff.finite_difference_derivative(_f, x)
-            end
+        fj_scalar = @closure (Jx, x) -> begin
+            return DifferentiationInterface.value_and_derivative(
+                prob.f, prep, autodiff, x, Constant(prob.p)
+            )
         end
 
         prob_obj = NLSolvers.ScalarObjective(; f = f_scalar, fg = fj_scalar)
         prob_nlsolver = NEqProblem(prob_obj; inplace = false)
         res = NLSolvers.solve(prob_nlsolver, prob.u0, alg.method, options)
 
-        retcode = ifelse(norm(res.info.best_residual, Inf) ≤ abstol,
-            ReturnCode.Success, ReturnCode.MaxIters)
+        retcode = ifelse(
+            maximum(abs, res.info.best_residual) ≤ abstol,
+            ReturnCode.Success, ReturnCode.MaxIters
+        )
         stats = SciMLBase.NLStats(-1, -1, -1, -1, res.info.iter)
 
         return SciMLBase.build_solution(
             prob, alg, res.info.solution, res.info.best_residual;
-            retcode, original = res, stats)
+            retcode, original = res, stats
+        )
     end
 
-    f!, u0, resid = NonlinearSolve.__construct_extension_f(prob; alias_u0)
-
-    jac! = NonlinearSolve.__construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
+    f!, u0, resid = NonlinearSolveBase.construct_extension_function_wrapper(prob; alias_u0)
+    jac! = NonlinearSolveBase.construct_extension_jac(prob, alg, u0, resid; alg.autodiff)
 
     FJ_vector! = @closure (Fx, Jx, x) -> begin
         f!(Fx, x)
@@ -82,11 +71,15 @@ function SciMLBase.__solve(prob::NonlinearProblem, alg::NLSolversJL, args...;
     res = NLSolvers.solve(prob_nlsolver, u0, alg.method, options)
 
     retcode = ifelse(
-        norm(res.info.best_residual, Inf) ≤ abstol, ReturnCode.Success, ReturnCode.MaxIters)
+        maximum(abs, res.info.best_residual) ≤ abstol,
+        ReturnCode.Success, ReturnCode.MaxIters
+    )
     stats = SciMLBase.NLStats(-1, -1, -1, -1, res.info.iter)
 
-    return SciMLBase.build_solution(prob, alg, res.info.solution, res.info.best_residual;
-        retcode, original = res, stats)
+    return SciMLBase.build_solution(
+        prob, alg, res.info.solution, res.info.best_residual;
+        retcode, original = res, stats
+    )
 end
 
 end
