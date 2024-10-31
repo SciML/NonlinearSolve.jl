@@ -61,3 +61,33 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           fail_ci_if_error: true
+
+  downgrade:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - "1.10"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/julia-downgrade-compat@v1
+      - name: "Install Dependencies and Run Tests"
+        run: |
+          import Pkg
+          Pkg.Registry.update()
+          Pkg.instantiate()
+          Pkg.test(; coverage="user")
+        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=lib/SciMLJacobianOperators {0}
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: lib/SciMLJacobianOperators/src
+      - uses: codecov/codecov-action@v4
+        with:
+          file: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: true
