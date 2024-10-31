@@ -38,17 +38,22 @@ end
             @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
                 ad isa AutoZygote && continue
 
-                @testset for linsolve in (
-                    nothing,
-                    KrylovJL_GMRES(; precs = nothing),
-                    KrylovJL_GMRES(;
-                        precs = (A, p = nothing) -> (
-                            Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                @testset for (concrete_jac, linsolve) in (
+                    (Val(false), nothing),
+                    (Val(false), KrylovJL_GMRES(; precs = nothing)),
+                    (
+                        Val(true),
+                        KrylovJL_GMRES(;
+                            precs = (A, p = nothing) -> (
+                                Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                            )
                         )
                     ),
-                    \
+                    (Val(false), \)
                 )
-                    solver = NewtonRaphson(; linsolve, linesearch, autodiff = ad)
+                    solver = NewtonRaphson(;
+                        linsolve, linesearch, autodiff = ad, concrete_jac
+                    )
 
                     sol = solve_iip(quadratic_f!, u0; solver)
                     @test SciMLBase.successful_retcode(sol)
@@ -114,17 +119,22 @@ end
         @testset "[IIP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0],)
             ad isa AutoZygote && continue
 
-            @testset for linsolve in (
-                nothing,
-                KrylovJL_GMRES(; precs = nothing),
-                KrylovJL_GMRES(;
-                    precs = (A, p = nothing) -> (
-                        Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+            @testset for (concrete_jac, linsolve) in (
+                (Val(false), nothing),
+                (Val(false), KrylovJL_GMRES(; precs = nothing)),
+                (
+                    Val(true),
+                    KrylovJL_GMRES(;
+                        precs = (A, p = nothing) -> (
+                            Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                        )
                     )
                 ),
-                \
+                (Val(false), \)
             )
-                solver = PseudoTransient(; alpha_initial = 10.0, linsolve, autodiff = ad)
+                solver = PseudoTransient(;
+                    alpha_initial = 10.0, linsolve, autodiff = ad, concrete_jac
+                )
                 sol = solve_iip(quadratic_f!, u0; solver)
                 @test SciMLBase.successful_retcode(sol)
                 err = maximum(abs, quadratic_f(sol.u, 2.0))

@@ -274,7 +274,7 @@ which is more automatic. The setup is very similar to before:
 using AlgebraicMultigrid
 
 function algebraicmultigrid(W, p = nothing)
-    return aspreconditioner(ruge_stuben(convert(AbstractMatrix, W))),  LinearAlgebra.I
+    return aspreconditioner(ruge_stuben(convert(AbstractMatrix, W))), LinearAlgebra.I
 end
 
 @btime solve(prob_brusselator_2d_sparse,
