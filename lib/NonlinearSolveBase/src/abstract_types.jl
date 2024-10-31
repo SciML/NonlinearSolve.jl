@@ -542,7 +542,7 @@ Define custom operations on `internalcache` tightly coupled with the calling `ca
 `args...` contain the sequence of caches calling into `internalcache`.
 
 This unfortunately makes code very tightly coupled and not modular. It is recommended to not
-use this functionality unless it can't be avoided (like in [`LevenbergMarquardt`](@ref)).
+use this functionality unless it can't be avoided (like in `LevenbergMarquardt`).
 """
 callback_into_cache!(cache, internalcache, args...) = nothing  # By default do nothing
 

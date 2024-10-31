@@ -102,7 +102,8 @@ It is hard to say why your code is not fast. Take a look at the
 there is type instability.
 
 If you are using the defaults for the autodiff and your problem is not a scalar or using
-static arrays, ForwardDiff will create type unstable code. See this simple example:
+static arrays, ForwardDiff will create type unstable code and lead to dynamic dispatch
+internally. See this simple example:
 
 ```@example type_unstable
 using NonlinearSolve, InteractiveUtils
@@ -136,14 +137,17 @@ prob = NonlinearProblem(f, [1.0, 2.0], 2.0)
 nothing # hide
 ```
 
-Oh no! This is type unstable. This is because ForwardDiff.jl will chunk the jacobian
-computation and the type of this chunksize can't be statically inferred. To fix this, we
-directly specify the chunksize:
+Ah it is still type stable. But internally since the chunksize is not statically inferred,
+it will be dynamic and lead to dynamic dispatch. To fix this, we directly specify the
+chunksize:
 
 ```@example type_unstable
-@code_warntype solve(prob,
+@code_warntype solve(
+    prob,
     NewtonRaphson(;
-        autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))))
+        autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))
+    )
+)
 nothing # hide
 ```
 

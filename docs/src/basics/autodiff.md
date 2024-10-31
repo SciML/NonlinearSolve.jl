@@ -3,7 +3,7 @@
 !!! note
     
     We support all backends supported by DifferentiationInterface.jl. Please refer to
-    the [backends page](https://gdalle.github.io/DifferentiationInterface.jl/DifferentiationInterface/stable/explanation/backends/)
+    the [backends page](https://juliadiff.org/DifferentiationInterface.jl/DifferentiationInterface/stable/explanation/backends/)
     for more information.
 
 ## Summary of Finite Differencing Backends

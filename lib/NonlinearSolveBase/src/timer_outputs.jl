@@ -18,7 +18,7 @@ end
     @static_timeit to name expr
 
 Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is disabled via
-[`NonlinearSolve.disable_timer_outputs()`](@ref).
+[`NonlinearSolveBase.disable_timer_outputs()`](@ref).
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED

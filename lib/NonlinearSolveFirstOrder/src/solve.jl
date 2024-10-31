@@ -15,9 +15,9 @@ order of convergence.
 ### Keyword Arguments
 
   - `trustregion`: Globalization using a Trust Region Method. This needs to follow the
-    [`NonlinearSolve.AbstractTrustRegionMethod`](@ref) interface.
+    [`NonlinearSolveBase.AbstractTrustRegionMethod`](@ref) interface.
   - `descent`: The descent method to use to compute the step. This needs to follow the
-    [`NonlinearSolve.AbstractDescentAlgorithm`](@ref) interface.
+    [`NonlinearSolveBase.AbstractDescentDirection`](@ref) interface.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
     before the algorithm terminates.
 """

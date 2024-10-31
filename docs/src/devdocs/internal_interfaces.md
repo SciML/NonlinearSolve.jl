@@ -3,50 +3,43 @@
 ## Solvers
 
 ```@docs
-NonlinearSolve.AbstractNonlinearSolveAlgorithm
-NonlinearSolve.AbstractNonlinearSolveExtensionAlgorithm
-NonlinearSolve.AbstractNonlinearSolveCache
+NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
+NonlinearSolveBase.AbstractNonlinearSolveCache
 ```
 
-## Descent Algorithms
+## Descent Directions
 
 ```@docs
-NonlinearSolve.AbstractDescentAlgorithm
-NonlinearSolve.AbstractDescentCache
+NonlinearSolveBase.AbstractDescentDirection
+NonlinearSolveBase.AbstractDescentCache
 ```
 
-## Descent Results
+### Descent Results
 
 ```@docs
-NonlinearSolve.DescentResult
+NonlinearSolveBase.DescentResult
 ```
 
 ## Approximate Jacobian
 
 ```@docs
-NonlinearSolve.AbstractApproximateJacobianStructure
-NonlinearSolve.AbstractJacobianInitialization
-NonlinearSolve.AbstractApproximateJacobianUpdateRule
-NonlinearSolve.AbstractApproximateJacobianUpdateRuleCache
-NonlinearSolve.AbstractResetCondition
+NonlinearSolveBase.AbstractApproximateJacobianStructure
+NonlinearSolveBase.AbstractJacobianInitialization
+NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
+NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
+NonlinearSolveBase.AbstractResetCondition
 ```
 
 ## Damping Algorithms
 
 ```@docs
-NonlinearSolve.AbstractDampingFunction
-NonlinearSolve.AbstractDampingFunctionCache
+NonlinearSolveBase.AbstractDampingFunction
+NonlinearSolveBase.AbstractDampingFunctionCache
 ```
 
 ## Trust Region
 
 ```@docs
-NonlinearSolve.AbstractTrustRegionMethod
-NonlinearSolve.AbstractTrustRegionMethodCache
-```
-
-## Tracing
-
-```@docs
-NonlinearSolve.AbstractNonlinearSolveTraceLevel
+NonlinearSolveBase.AbstractTrustRegionMethod
+NonlinearSolveBase.AbstractTrustRegionMethodCache
 ```

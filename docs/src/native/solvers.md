@@ -81,7 +81,7 @@ All of the previously mentioned solvers are wrappers around the following solver
 are meant for advanced users and allow building custom solvers.
 
 ```@docs
-ApproximateJacobianSolveAlgorithm
+QuasiNewtonAlgorithm
 GeneralizedFirstOrderAlgorithm
 GeneralizedDFSane
 ```

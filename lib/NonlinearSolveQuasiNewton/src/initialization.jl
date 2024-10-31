@@ -10,7 +10,8 @@ A cache for Approximate Jacobian.
   - `J`: The current Jacobian.
   - `structure`: The structure of the Jacobian.
   - `alg`: The initialization algorithm.
-  - `cache`: The Jacobian cache [`NonlinearSolve.JacobianCache`](@ref) (if needed).
+  - `cache`: The Jacobian cache [`NonlinearSolveBase.construct_jacobian_cache`](@ref)
+    (if needed).
   - `initialized`: A boolean indicating whether the Jacobian has been initialized.
   - `internalnorm`: The norm to be used.
 

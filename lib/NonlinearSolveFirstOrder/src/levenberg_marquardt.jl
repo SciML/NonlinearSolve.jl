@@ -30,7 +30,7 @@ nonlinear systems.
     should not be disabled.
 
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
-[`NonlinearSolve.LevenbergMarquardtTrustRegion`](@ref) documentations.
+[`NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion`](@ref) documentations.
 """
 function LevenbergMarquardt(;
         linsolve = nothing, precs = nothing,

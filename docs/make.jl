@@ -1,13 +1,23 @@
 using Documenter, DocumenterCitations, DocumenterInterLinks
-using NonlinearSolve, SimpleNonlinearSolve, Sundials, SteadyStateDiffEq, SciMLBase,
-      BracketingNonlinearSolve, NonlinearSolveBase
-using SciMLJacobianOperators
 import DiffEqBase
 
-cp(joinpath(@__DIR__, "Manifest.toml"),
-    joinpath(@__DIR__, "src/assets/Manifest.toml"), force = true)
-cp(joinpath(@__DIR__, "Project.toml"),
-    joinpath(@__DIR__, "src/assets/Project.toml"), force = true)
+using Sundials
+using NonlinearSolveBase, SciMLBase, DiffEqBase
+using SimpleNonlinearSolve, BracketingNonlinearSolve
+using NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods
+using SciMLJacobianOperators
+using NonlinearSolve, SteadyStateDiffEq
+
+cp(
+    joinpath(@__DIR__, "Manifest.toml"),
+    joinpath(@__DIR__, "src/assets/Manifest.toml");
+    force = true
+)
+cp(
+    joinpath(@__DIR__, "Project.toml"),
+    joinpath(@__DIR__, "src/assets/Project.toml");
+    force = true
+)
 
 include("pages.jl")
 
@@ -20,20 +30,29 @@ interlinks = InterLinks(
 
 makedocs(;
     sitename = "NonlinearSolve.jl",
-    authors = "Chris Rackauckas",
-    modules = [NonlinearSolve, SimpleNonlinearSolve, SteadyStateDiffEq, DiffEqBase,
-        Sundials, NonlinearSolveBase, SciMLBase, SciMLJacobianOperators,
-        BracketingNonlinearSolve],
+    authors = "SciML",
+    modules = [
+        NonlinearSolveBase, SciMLBase, DiffEqBase,
+        SimpleNonlinearSolve, BracketingNonlinearSolve,
+        NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods,
+        Sundials,
+        SciMLJacobianOperators,
+        NonlinearSolve, SteadyStateDiffEq
+    ],
     clean = true,
     doctest = false,
     linkcheck = true,
-    linkcheck_ignore = ["https://twitter.com/ChrisRackauckas/status/1544743542094020615",
-        "https://link.springer.com/article/10.1007/s40096-020-00339-4"],
+    linkcheck_ignore = [
+        "https://twitter.com/ChrisRackauckas/status/1544743542094020615",
+        "https://link.springer.com/article/10.1007/s40096-020-00339-4"
+    ],
     checkdocs = :exports,
     warnonly = [:missing_docs],
     plugins = [bib, interlinks],
-    format = Documenter.HTML(assets = ["assets/favicon.ico", "assets/citations.css"],
-        canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"),
+    format = Documenter.HTML(
+        assets = ["assets/favicon.ico", "assets/citations.css"],
+        canonical = "https://docs.sciml.ai/NonlinearSolve/stable/"
+    ),
     pages
 )
 
