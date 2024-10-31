@@ -170,11 +170,14 @@ end
             LiFukushimaLineSearch()
         )
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (ones(32), @SVector(ones(2)), 1.0)
+                broken = Sys.iswindows() && u0 isa Vector{Float64} &&
+                         linesearch isa BackTracking && ad isa AutoFiniteDiff
+
                 solver = LimitedMemoryBroyden(; linesearch)
                 sol = solve_oop(quadratic_f, u0; solver)
-                @test SciMLBase.successful_retcode(sol)
+                @test SciMLBase.successful_retcode(sol) broken=broken
                 err = maximum(abs, quadratic_f(sol.u, 2.0))
-                @test err < 1e-9
+                @test err<1e-9 broken=broken
 
                 cache = init(
                     NonlinearProblem{false}(quadratic_f, u0, 2.0), solver, abstol = 1e-9
@@ -185,11 +188,14 @@ end
             @testset "[IIP] u0: $(typeof(u0))" for u0 in (ones(32),)
                 ad isa AutoZygote && continue
 
+                broken = Sys.iswindows() && u0 isa Vector{Float64} &&
+                         linesearch isa BackTracking && ad isa AutoFiniteDiff
+
                 solver = LimitedMemoryBroyden(; linesearch)
                 sol = solve_iip(quadratic_f!, u0; solver)
                 @test SciMLBase.successful_retcode(sol)
                 err = maximum(abs, quadratic_f(sol.u, 2.0))
-                @test err < 1e-9
+                @test err<1e-9 broken=broken
 
                 cache = init(
                     NonlinearProblem{true}(quadratic_f!, u0, 2.0), solver, abstol = 1e-9

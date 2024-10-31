@@ -222,7 +222,7 @@ function maybe_pinv!!(workspace, A::StridedMatrix)
         !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
     else
         F = LinearAlgebra.lu(A; check = false)
-        if issuccess(F)
+        if LinearAlgebra.issuccess(F)
             Ai = LinearAlgebra.inv!(F)
             return convert(typeof(parent(Ai)), Ai)
         end

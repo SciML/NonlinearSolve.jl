@@ -35,9 +35,9 @@ function SciMLBase.__solve(
         )
     end
 
-    linsolve = alg.ls === :qr ? LSO.QR() :
-               (alg.ls === :cholesky ? LSO.Cholesky() :
-                (alg.ls === :lsmr ? LSO.LSMR() : nothing))
+    linsolve = alg.linsolve === :qr ? LSO.QR() :
+               (alg.linsolve === :cholesky ? LSO.Cholesky() :
+                (alg.linsolve === :lsmr ? LSO.LSMR() : nothing))
 
     lso_solver = if alg.alg === :lm
         LSO.LevenbergMarquardt(linsolve)

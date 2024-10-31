@@ -7,7 +7,7 @@ using Setfield: @set!
 
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
-using LinearAlgebra: LinearAlgebra, Diagonal, dot
+using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
 using StaticArraysCore: SArray
 
 using CommonSolve: CommonSolve

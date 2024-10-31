@@ -69,9 +69,7 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
             error("Default Julia Backsolve Operator `\\` doesn't support Preconditioners")
         return NativeJLLinearSolveCache(A, b, stats)
     elseif no_preconditioner && linsolve === nothing
-        # Non-allocating linear solve exists in StaticArrays.jl
-        if (A isa SMatrix || A isa WrappedArray{<:Any, <:SMatrix}) &&
-           Core.Compiler.return_type(\, Tuple{typeof(A), typeof(b)}) <: SArray
+        if (A isa SMatrix || A isa WrappedArray{<:Any, <:SMatrix})
             return NativeJLLinearSolveCache(A, b, stats)
         end
     end

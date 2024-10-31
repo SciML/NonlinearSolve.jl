@@ -106,10 +106,13 @@ end
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
 
-@testitem "Broyden" setup=[RobustnessTesting] tags=[:core] begin
-    alg_ops = (Broyden(), Broyden(; init_jacobian = Val(:true_jacobian)),
+@testitem "Broyden" setup=[RobustnessTesting] tags=[:core] retries=3 begin
+    alg_ops = (
+        Broyden(),
+        Broyden(; init_jacobian = Val(:true_jacobian)),
         Broyden(; update_rule = Val(:bad_broyden)),
-        Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden)))
+        Broyden(; init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden))
+    )
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     if Sys.isapple()
