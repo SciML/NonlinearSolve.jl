@@ -47,7 +47,7 @@ function SciMLBase.__solve(
         throw(ArgumentError("Unknown LeastSquaresOptim Algorithm: $(Meta.quot(alg.alg))"))
     end
 
-    allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, lso_solver(alg))
+    allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, lso_solver)
     res = LSO.optimize!(
         allocated_prob;
         x_tol = reltol, f_tol = abstol, g_tol = abstol, iterations = maxiters,
