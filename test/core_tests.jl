@@ -4,7 +4,7 @@
     dataOut = f([1, 2, 3], nothing) + 0.1 * randn(10, 1)
 
     resid(x, p) = f(x, p) - dataOut
-    jac(x, p) = [1:10 .^ 2 1:10 ones(10, 1)]
+    jac(x, p) = [dataIn .^ 2 dataIn ones(10, 1)]
     x0 = [1, 1, 1]
 
     prob = NonlinearLeastSquaresProblem(resid, x0)
