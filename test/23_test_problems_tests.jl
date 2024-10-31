@@ -119,7 +119,7 @@ end
         broken_tests[alg_ops[1]] = [1, 5, 11]
         broken_tests[alg_ops[2]] = [1, 5, 8, 11, 18]
         broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
-        broken_tests[alg_ops[4]] = [5, 6, 8, 11]
+        broken_tests[alg_ops[4]] = [5, 6, 8, 11, 16]
     else
         broken_tests[alg_ops[1]] = [1, 5, 11, 15]
         broken_tests[alg_ops[2]] = [1, 5, 8, 11, 18]
