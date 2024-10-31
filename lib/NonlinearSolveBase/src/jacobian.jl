@@ -142,10 +142,16 @@ end
 ## Numbers
 function (cache::JacobianCache{<:Number})(::Number, u, p = cache.p)
     cache.stats.njacs += 1
-    SciMLBase.has_jac(cache.f) && return cache.f.jac(u, p)
-    SciMLBase.has_vjp(cache.f) && return cache.f.vjp(one(u), u, p)
-    SciMLBase.has_jvp(cache.f) && return cache.f.jvp(one(u), u, p)
-    return DI.derivative(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+    cache.J = if SciMLBase.has_jac(cache.f)
+        cache.f.jac(u, p)
+    elseif SciMLBase.has_vjp(cache.f)
+        cache.f.vjp(one(u), u, p)
+    elseif SciMLBase.has_jvp(cache.f)
+        cache.f.jvp(one(u), u, p)
+    else
+        DI.derivative(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+    end
+    return cache.J
 end
 
 ## Actually Compute the Jacobian
@@ -156,12 +162,17 @@ function (cache::JacobianCache)(J::Union{AbstractMatrix, Nothing}, u, p = cache.
             cache.f.jac(J, u, p)
         else
             DI.jacobian!(
-                cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p))
+                cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p)
+            )
         end
         return J
     else
-        SciMLBase.has_jac(cache.f) && return cache.f.jac(u, p)
-        return DI.jacobian(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+        if SciMLBase.has_jac(cache.f)
+            cache.J = cache.f.jac(u, p)
+        else
+            cache.J = DI.jacobian(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+        end
+        return cache.J
     end
 end
 
