@@ -1,7 +1,7 @@
 """
     Klement(;
         max_resets = 100, linsolve = nothing, linesearch = nothing,
-        precs = nothing, alpha = nothing, init_jacobian::Val = Val(:identity),
+        alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing
     )
 
@@ -28,14 +28,14 @@ over this.
 """
 function Klement(;
         max_resets = 100, linsolve = nothing, linesearch = nothing,
-        precs = nothing, alpha = nothing, init_jacobian::Val = Val(:identity),
+        alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing
 )
     concrete_jac = Val(init_jacobian isa Val{:true_jacobian} ||
                        init_jacobian isa Val{:true_jacobian_diagonal})
     return QuasiNewtonAlgorithm(;
         linesearch,
-        descent = NewtonDescent(; linsolve, precs),
+        descent = NewtonDescent(; linsolve),
         update_rule = KlementUpdateRule(),
         reinit_rule = IllConditionedJacobianReset(),
         max_resets,

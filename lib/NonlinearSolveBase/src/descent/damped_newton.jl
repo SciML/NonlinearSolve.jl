@@ -1,7 +1,5 @@
 """
-    DampedNewtonDescent(;
-        linsolve = nothing, precs = nothing, initial_damping, damping_fn
-    )
+    DampedNewtonDescent(; linsolve = nothing, initial_damping, damping_fn)
 
 A Newton descent algorithm with damping. The damping factor is computed using the
 `damping_fn` function. The descent direction is computed as ``(JᵀJ + λDᵀD) δu = -fu``. For
@@ -20,7 +18,6 @@ The damping factor returned must be a non-negative number.
 """
 @kwdef @concrete struct DampedNewtonDescent <: AbstractDescentDirection
     linsolve = nothing
-    precs = nothing
     initial_damping
     damping_fn <: AbstractDampingFunction
 end

@@ -1,6 +1,6 @@
 """
     LevenbergMarquardt(;
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1e-8,
@@ -33,7 +33,7 @@ For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion`](@ref) documentations.
 """
 function LevenbergMarquardt(;
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1e-8,
@@ -41,7 +41,6 @@ function LevenbergMarquardt(;
 )
     descent = DampedNewtonDescent(;
         linsolve,
-        precs,
         initial_damping = damping_initial,
         damping_fn = LevenbergMarquardtDampingFunction(
             damping_increase_factor, damping_decrease_factor, min_damping_D

@@ -1,5 +1,5 @@
 """
-    NewtonDescent(; linsolve = nothing, precs = nothing)
+    NewtonDescent(; linsolve = nothing)
 
 Compute the descent direction as ``J δu = -fu``. For non-square Jacobian problems, this is
 commonly referred to as the Gauss-Newton Descent.
@@ -8,7 +8,6 @@ See also [`Dogleg`](@ref), [`SteepestDescent`](@ref), [`DampedNewtonDescent`](@r
 """
 @kwdef @concrete struct NewtonDescent <: AbstractDescentDirection
     linsolve = nothing
-    precs = nothing
 end
 
 supports_line_search(::NewtonDescent) = true
@@ -103,7 +102,7 @@ function InternalAPI.solve!(
             @static_timeit cache.timer "linear solve" begin
                 linres = cache.lincache(;
                     A = Utils.maybe_symmetric(cache.JᵀJ_cache), b = cache.Jᵀfu_cache,
-                    kwargs..., linu = Utils.safe_vec(δu), du = Utils.safe_vec(δu),
+                    kwargs..., linu = Utils.safe_vec(δu),
                     reuse_A_if_factorization = !new_jacobian || (idx !== Val(1))
                 )
             end
@@ -111,7 +110,7 @@ function InternalAPI.solve!(
             @static_timeit cache.timer "linear solve" begin
                 linres = cache.lincache(;
                     A = J, b = Utils.safe_vec(fu),
-                    kwargs..., linu = Utils.safe_vec(δu), du = Utils.safe_vec(δu),
+                    kwargs..., linu = Utils.safe_vec(δu),
                     reuse_A_if_factorization = !new_jacobian || idx !== Val(1)
                 )
             end

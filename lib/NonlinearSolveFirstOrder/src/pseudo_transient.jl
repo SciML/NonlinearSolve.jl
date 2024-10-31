@@ -1,7 +1,7 @@
 """
     PseudoTransient(;
         concrete_jac = nothing, linesearch = missing, alpha_initial = 1e-3,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing
     )
 
@@ -19,13 +19,13 @@ This implementation specifically uses "switched evolution relaxation"
 """
 function PseudoTransient(;
         concrete_jac = nothing, linesearch = missing, alpha_initial = 1e-3,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing
 )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
         descent = DampedNewtonDescent(;
-            linsolve, precs, initial_damping = alpha_initial,
+            linsolve, initial_damping = alpha_initial,
             damping_fn = SwitchedEvolutionRelaxation()
         ),
         autodiff,

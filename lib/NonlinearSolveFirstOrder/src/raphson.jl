@@ -1,6 +1,6 @@
 """
     NewtonRaphson(;
-        concrete_jac = nothing, linsolve = nothing, linesearch = missing, precs = nothing,
+        concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
     )
 
@@ -9,12 +9,12 @@ matrices via colored automatic differentiation and preconditioned linear solvers
 for large-scale and numerically-difficult nonlinear systems.
 """
 function NewtonRaphson(;
-        concrete_jac = nothing, linsolve = nothing, linesearch = missing, precs = nothing,
+        concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
 )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
-        descent = NewtonDescent(; linsolve, precs),
+        descent = NewtonDescent(; linsolve),
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac,
         name = :NewtonRaphson

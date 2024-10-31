@@ -322,7 +322,7 @@ end
     RobustMultiNewton(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
     )
 
@@ -342,12 +342,14 @@ or more precision / more stable linear solver choice is required).
 function RobustMultiNewton(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
 ) where {T}
-    common_kwargs = (; concrete_jac, linsolve, precs, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
     if T <: Complex # Let's atleast have something here for complex numbers
-        algs = (NewtonRaphson(; common_kwargs...),)
+        algs = (
+            NewtonRaphson(; common_kwargs...),
+        )
     else
         algs = (
             TrustRegion(; common_kwargs...),
@@ -365,7 +367,7 @@ end
     FastShortcutNonlinearPolyalg(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
@@ -389,14 +391,14 @@ for more performance and then tries more robust techniques if the faster ones fa
 function FastShortcutNonlinearPolyalg(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         u0_len::Union{Int, Nothing} = nothing
 ) where {T}
     start_index = 1
-    common_kwargs = (; concrete_jac, linsolve, precs, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
     if must_use_jacobian isa Val{true}
         if T <: Complex
             algs = (NewtonRaphson(; common_kwargs...),)
@@ -436,7 +438,7 @@ function FastShortcutNonlinearPolyalg(
                 algs = (
                     Broyden(; autodiff),
                     Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
-                    Klement(; linsolve, precs, autodiff),
+                    Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...)
                 )
             else
@@ -445,7 +447,7 @@ function FastShortcutNonlinearPolyalg(
                 algs = (
                     Broyden(; autodiff),
                     Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
-                    Klement(; linsolve, precs, autodiff),
+                    Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
                     NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
                     TrustRegion(; common_kwargs...),
@@ -461,7 +463,7 @@ end
     FastShortcutNLLSPolyalg(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
     )
 
@@ -476,10 +478,10 @@ for more performance and then tries more robust techniques if the faster ones fa
 function FastShortcutNLLSPolyalg(
         ::Type{T} = Float64;
         concrete_jac = nothing,
-        linsolve = nothing, precs = nothing,
+        linsolve = nothing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
 ) where {T}
-    common_kwargs = (; linsolve, precs, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
     if T <: Complex
         algs = (
             GaussNewton(; common_kwargs..., concrete_jac),
