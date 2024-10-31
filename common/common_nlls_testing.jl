@@ -47,3 +47,4 @@ prob_iip_vjp = NonlinearLeastSquaresProblem(
 )
 
 export prob_oop, prob_iip, prob_oop_vjp, prob_iip_vjp
+export true_function, θ_true, x, y_target, loss_function, θ_init

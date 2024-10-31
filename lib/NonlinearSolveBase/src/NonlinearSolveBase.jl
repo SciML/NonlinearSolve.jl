@@ -46,6 +46,7 @@ include("jacobian.jl")
 include("linear_solve.jl")
 include("timer_outputs.jl")
 include("tracing.jl")
+include("wrappers.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -66,6 +67,9 @@ include("solve.jl")
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
 @compat(public, (construct_jacobian_cache,))
+@compat(public,
+    (assert_extension_supported_termination_condition,
+        construct_extension_function_wrapper, construct_extension_jac))
 
 export TraceMinimal, TraceWithJacobianConditionNumber, TraceAll
 

@@ -49,7 +49,7 @@ const SII = SymbolicIndexingInterface
 include("helpers.jl")
 
 include("polyalg.jl")
-# include("extension_algs.jl")
+include("extension_algs.jl")
 
 include("default.jl")
 
