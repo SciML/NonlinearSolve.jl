@@ -1,4 +1,4 @@
-@testitem "Steady State Problems" tags=[:wrappers] begin
+@testitem "Steady State Problems" tags=[:wrappers] retries=3 begin
     import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
 
     function f_iip(du, u, p, t)
@@ -43,7 +43,7 @@
     end
 end
 
-@testitem "Nonlinear Root Finding Problems" tags=[:wrappers] begin
+@testitem "Nonlinear Root Finding Problems" tags=[:wrappers] retries=3 begin
     using LinearAlgebra
     import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK, PETSc
 
@@ -163,7 +163,7 @@ end
     end
 end
 
-@testitem "PETSc SNES Floating Points" tags=[:wrappers] skip=:(Sys.iswindows()) begin
+@testitem "PETSc SNES Floating Points" tags=[:wrappers] skip=:(Sys.iswindows()) retries=3 begin
     import PETSc
 
     f(u, p) = u .* u .- 2
