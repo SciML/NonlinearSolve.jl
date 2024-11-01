@@ -20,7 +20,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractApproximateJacobianUpdateRuleCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM, NewtonDescent
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
+                 NonlinearProblem, NonlinearFunction, NoSpecialize
 using SciMLOperators: AbstractSciMLOperator
 
 include("reset_conditions.jl")
@@ -34,7 +35,16 @@ include("klement.jl")
 include("solve.jl")
 
 @setup_workload begin
-    include("../../../common/nonlinear_problem_workloads.jl")
+    nonlinear_functions = (
+        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
+        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
+        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+    )
+
+    nonlinear_problems = NonlinearProblem[]
+    for (fn, u0) in nonlinear_functions
+        push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
+    end
 
     algs = [Broyden(), Klement()]
 
