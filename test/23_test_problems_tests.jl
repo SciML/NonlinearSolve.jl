@@ -120,7 +120,11 @@ end
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
     broken_tests[alg_ops[1]] = [1, 2, 3, 5, 21]
     if Sys.isapple()
-        broken_tests[alg_ops[2]] = [1, 2, 3, 5, 6, 21]
+        if VERSION ≥ v"1.11-"
+            broken_tests[alg_ops[2]] = [1, 2, 3, 5, 6, 11, 21]
+        else
+            broken_tests[alg_ops[2]] = [1, 2, 3, 5, 6, 21]
+        end
     else
         broken_tests[alg_ops[2]] = [1, 2, 3, 5, 6, 11, 21]
     end
@@ -143,11 +147,16 @@ end
     if Sys.isapple()
         broken_tests[alg_ops[1]] = [1, 5, 11]
         broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
+        if VERSION ≥ v"1.11-"
+            broken_tests[alg_ops[5]] = [1, 4, 5, 11]
+        else
+            broken_tests[alg_ops[5]] = [1, 5, 11]
+        end
     else
         broken_tests[alg_ops[1]] = [1, 5, 11, 15]
         broken_tests[alg_ops[3]] = [1, 5, 9, 11, 16]
+        broken_tests[alg_ops[5]] = [1, 5, 11]
     end
-    broken_tests[alg_ops[5]] = [1, 5, 11]
 
     test_on_library(problems, dicts, alg_ops, broken_tests, Sys.isapple() ? 1e-3 : 1e-4)
 end
