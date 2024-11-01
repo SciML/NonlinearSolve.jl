@@ -37,10 +37,9 @@ function InternalAPI.reinit!(
         cache::NonlinearSolveForwardDiffCache, args...;
         p = cache.p, u0 = NonlinearSolveBase.get_u(cache.cache), kwargs...
 )
-    inner_cache = InternalAPI.reinit!(
+    InternalAPI.reinit!(
         cache.cache; p = nodual_value(p), u0 = nodual_value(u0), kwargs...
     )
-    cache.cache = inner_cache
     cache.p = p
     cache.values_p = nodual_value(p)
     cache.partials_p = ForwardDiff.partials(p)
