@@ -17,7 +17,7 @@ const RETESTITEMS_NWORKERS = parse(
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
         ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ RETESTITEMS_NWORKERS, 1))
+        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
     )
 )
 
