@@ -10,7 +10,9 @@ const EXTRA_PKGS = Pkg.PackageSpec[]
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
 const RETESTITEMS_NWORKERS = parse(
-    Int, get(ENV, "RETESTITEMS_NWORKERS", string(min(Hwloc.num_physical_cores(), 4)))
+    Int, get(ENV, "RETESTITEMS_NWORKERS",
+        string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
+    )
 )
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
