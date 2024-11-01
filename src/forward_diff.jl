@@ -48,9 +48,8 @@ function InternalAPI.reinit!(
 end
 
 for algType in ALL_SOLVER_TYPES
-    # XXX: Extend to DualNonlinearLeastSquaresProblem
     @eval function SciMLBase.__init(
-            prob::DualNonlinearProblem, alg::$(algType), args...; kwargs...
+            prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
     )
         p = nodual_value(prob.p)
         newprob = SciMLBase.remake(prob; u0 = nodual_value(prob.u0), p)
@@ -64,10 +63,13 @@ end
 function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     sol = solve!(cache.cache)
     prob = cache.prob
-
     uu = sol.u
-    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, prob.f, uu, cache.values_p)
-    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, prob.f, uu, cache.values_p)
+
+    fn = prob isa NonlinearLeastSquaresProblem ?
+         NonlinearSolveBase.nlls_generate_vjp_function(prob, sol, uu) : prob.f
+
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, fn, uu, cache.values_p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, fn, uu, cache.values_p)
 
     z_arr = -Jᵤ \ Jₚ
 
