@@ -20,7 +20,7 @@ function NonlinearSolveBase.additional_incompatible_backend_check(
 end
 
 Utils.value(::Type{Dual{T, V, N}}) where {T, V, N} = V
-Utils.value(x::Dual) = Utils.value(ForwardDiff.value(x))
+Utils.value(x::Dual) = ForwardDiff.value(x)
 Utils.value(x::AbstractArray{<:Dual}) = Utils.value.(x)
 
 function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
