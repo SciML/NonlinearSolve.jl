@@ -83,7 +83,7 @@ end
 
         push!(solvers, FastLevenbergMarquardtJL(linsolve; autodiff))
     end
-    if Sys.isapple()
+    if !Sys.isapple()
         for method in (:auto, :lm, :lmdif)
             push!(solvers, CMINPACK(; method))
         end
