@@ -10,6 +10,7 @@ function nonlinearsolve_forwarddiff_solve end
 function nonlinearsolve_dual_solution end
 function nonlinearsolve_∂f_∂p end
 function nonlinearsolve_∂f_∂u end
+function nlls_generate_vjp_function end
 
 # Nonlinear Solve Termination Conditions
 abstract type AbstractNonlinearTerminationMode end

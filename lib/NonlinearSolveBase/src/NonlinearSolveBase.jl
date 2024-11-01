@@ -5,7 +5,7 @@ using ConcreteStructs: @concrete
 using FastClosures: @closure
 using Preferences: @load_preference, @set_preferences!
 
-using ADTypes: ADTypes, AbstractADType, AutoSparse, NoSparsityDetector,
+using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityDetector,
                KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
@@ -25,7 +25,7 @@ using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
-using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind
+using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
 using Printf: @printf
 
