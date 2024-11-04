@@ -43,7 +43,7 @@ If you found this library to be useful in academic work, then please cite:
 ```bibtex
 @article{pal2024nonlinearsolve,
   title={NonlinearSolve. jl: High-Performance and Robust Solvers for Systems of Nonlinear Equations in Julia},
-  author={Pal, Avik and Holtorf, Flemming and Larsson, Axel and Loman, Torkel and Schaefer, Frank and Qu, Qingyu and Edelman, Alan and Rackauckas, Chris and others},
+  author={Pal, Avik and Holtorf, Flemming and Larsson, Axel and Loman, Torkel and Schaefer, Frank and Qu, Qingyu and Edelman, Alan and Rackauckas, Chris},
   journal={arXiv preprint arXiv:2403.16341},
   year={2024}
 }
