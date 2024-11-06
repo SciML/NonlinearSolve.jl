@@ -47,6 +47,7 @@ include("linear_solve.jl")
 include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
+include("polyalg.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -80,5 +81,7 @@ export RelTerminationMode, AbsTerminationMode,
 
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
        GeodesicAcceleration
+
+export NonlinearSolvePolyAlgorithm
 
 end
