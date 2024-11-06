@@ -1,5 +1,6 @@
 @testsetup module RobustnessTesting
 using NonlinearSolve, LinearAlgebra, LinearSolve, NonlinearProblemLibrary, Test
+import TaylorDiff
 
 problems = NonlinearProblemLibrary.problems
 dicts = NonlinearProblemLibrary.dicts
@@ -61,10 +62,14 @@ end
 end
 
 @testitem "23 Test Problems: Halley" setup=[RobustnessTesting] tags=[:core] begin
-    alg_ops = (SimpleHalley(; autodiff = AutoForwardDiff()),)
+    alg_ops = (
+        Halley(),
+        SimpleHalley(; autodiff = AutoForwardDiff())
+    )
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1, 5, 15, 16, 18]
+    broken_tests[alg_ops[1]] = [1, 5, 15, 16]
+    broken_tests[alg_ops[2]] = [1, 5, 15, 16, 18]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
