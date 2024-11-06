@@ -47,7 +47,7 @@ using SimpleNonlinearSolve: SimpleNonlinearSolve
 
 const SII = SymbolicIndexingInterface
 
-include("polyalg.jl")
+include("poly_algs.jl")
 include("extension_algs.jl")
 
 include("default.jl")
