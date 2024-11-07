@@ -414,3 +414,16 @@ end
     solve(prob)
     @test sol.u≈[1.0, 0.25] atol=1e-3 rtol=1e-3
 end
+
+@testitem "No PolyesterForwardDiff for SArray" tags=[:core] begin
+    using StaticArrays, PolyesterForwardDiff
+
+    f_oop(u, p) = u .* u .- p
+
+    N = 4
+    u0 = SVector{N, Float64}(ones(N) .+ randn(N) * 0.01)
+
+    nlprob = NonlinearProblem(f_oop, u0, 2.0)
+
+    @test !(solve(nlprob, NewtonRaphson()).alg.autodiff isa AutoPolyesterForwardDiff)
+end
