@@ -124,6 +124,11 @@ function additional_incompatible_backend_check(prob::AbstractNonlinearProblem,
     end
     return hasbranching(prob.f, prob.u0, prob.p)
 end
+function additional_incompatible_backend_check(
+        prob::AbstractNonlinearProblem, ::ADTypes.AutoPolyesterForwardDiff)
+    prob.u0 isa SArray && return true # promotes to a mutable array
+    return false
+end
 
 is_finite_differences_backend(ad::AbstractADType) = false
 is_finite_differences_backend(::ADTypes.AutoFiniteDiff) = true
