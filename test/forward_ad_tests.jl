@@ -71,6 +71,7 @@ end
         Broyden(),
         Klement(),
         DFSane(),
+        FastShortcutNonlinearPolyalg(),
         nothing,
         NLsolveJL(),
         CMINPACK(),
