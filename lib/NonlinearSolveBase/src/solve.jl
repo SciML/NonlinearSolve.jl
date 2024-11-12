@@ -105,10 +105,10 @@ end
 
 function SciMLBase.__solve(prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, 
         args...; kwargs...)
-        SciMLBase.__generated_polysolve(prob, alg, args...; kwargs...)
+        __generated_polysolve(prob, alg, args...; kwargs...)
 end
 
-@generated function SciMLBase.__generated_polysolve(
+@generated function __generated_polysolve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true, kwargs...
 ) where {N}
