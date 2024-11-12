@@ -20,7 +20,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractDampingFunctionCache, AbstractTrustRegionMethod,
                           AbstractTrustRegionMethodCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
-                          update_trace!, L2_NORM,
+                          update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
                           Dogleg
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
