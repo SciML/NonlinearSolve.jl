@@ -1,6 +1,7 @@
 @testitem "Modeling Toolkit Cache Indexing" tags=[:downstream] begin
     using ModelingToolkit
     using ModelingToolkit: t_nounits as t
+    import NonlinearSolveBase, NonlinearSolveFirstOrder
 
     @parameters p d
     @variables X(t)
@@ -11,9 +12,9 @@
     nlprob = NonlinearProblem(nlsys, [X => 1.0], [p => 2.0, d => 3.0])
 
     @testset "$integtype" for (alg, integtype) in [
-        (NewtonRaphson(), NonlinearSolve.GeneralizedFirstOrderAlgorithmCache),
-        (FastShortcutNonlinearPolyalg(), NonlinearSolve.NonlinearSolvePolyAlgorithmCache),
-        (SimpleNewtonRaphson(), NonlinearSolve.NonlinearSolveNoInitCache)
+        (NewtonRaphson(), NonlinearSolveFirstOrder.GeneralizedFirstOrderAlgorithmCache),
+        (FastShortcutNonlinearPolyalg(), NonlinearSolveBase.NonlinearSolvePolyAlgorithmCache),
+        (SimpleNewtonRaphson(), NonlinearSolveBase.NonlinearSolveNoInitCache)
     ]
         nint = init(nlprob, alg)
         @test nint isa integtype
