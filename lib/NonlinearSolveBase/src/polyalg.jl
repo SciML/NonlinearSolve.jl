@@ -64,7 +64,7 @@ end
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
     return cache.caches[cache.current]
 end
-SII.state_values(cache::NonlinearSolvePolyAlgorithmCache) = cache.u0
+SII.state_values(cache::NonlinearSolvePolyAlgorithmCache) = SII.state_values(SII.symbolic_container(cache))
 
 function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorithmCache)
     println(io, "NonlinearSolvePolyAlgorithmCache with \
