@@ -307,7 +307,7 @@ SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(ca
 ## SII Interface
 SII.symbolic_container(cache::AbstractNonlinearSolveCache) = cache.prob
 SII.parameter_values(cache::AbstractNonlinearSolveCache) = SII.parameter_values(cache.prob)
-SII.state_values(cache::AbstractNonlinearSolveCache) = SII.state_values(cache.prob)
+SII.state_values(cache::AbstractNonlinearSolveCache) = get_u(cache)
 
 function Base.getproperty(cache::AbstractNonlinearSolveCache, sym::Symbol)
     if sym === :ps
