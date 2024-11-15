@@ -22,11 +22,11 @@ end
     u0 = zeros(2)
     p = zeros(3)
 
-    function f1(du, u, (cache, p))
+    function f1(du, u, p)
         du[1] = cos(u[2]) - u[1]
         du[2] = sin(u[1] + u[2]) + u[2]
     end
-    explicitfun1(cache, sols) = nothing
+    explicitfun1(p, sols) = nothing
     prob1 = NonlinearProblem(
         NonlinearFunction{true, SciMLBase.NoSpecialize}(f1), zeros(2), p)
     sol1 = solve(prob1, NewtonRaphson())
@@ -36,7 +36,7 @@ end
         du[2] = u[3]^2 + u[2]
         du[3] = u[1]^2 + u[3]
     end
-    explicitfun2(cache, sols) = nothing
+    explicitfun2(p, sols) = nothing
     prob2 = NonlinearProblem(
         NonlinearFunction{true, SciMLBase.NoSpecialize}(f2), zeros(3), p)
     sol2 = solve(prob2, NewtonRaphson())
@@ -54,7 +54,7 @@ end
         p[3] = sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
                6.0sols[2][3]
     end
-    explicitfun3(cache, [sol1, sol2])
+    explicitfun3(p, [sol1, sol2])
     sol3 = solve(prob3, NewtonRaphson())
     manualscc = [sol1; sol2; sol3]
 
