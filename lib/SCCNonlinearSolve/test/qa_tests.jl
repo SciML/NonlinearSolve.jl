@@ -12,7 +12,7 @@
 end
 
 @testitem "Explicit Imports" tags=[:core] begin
-    using ExplicitImports, SCCNonlinearSolve
+    using ExplicitImports, SciMLBase, SCCNonlinearSolve
 
     @test check_no_implicit_imports(
         SCCNonlinearSolve; skip = (Base, Core, SciMLBase)
