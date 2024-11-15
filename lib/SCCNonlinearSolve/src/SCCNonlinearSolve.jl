@@ -1,8 +1,9 @@
 module SCCNonlinearSolve
 
 import SciMLBase
+import CommonSolve
 
-function SciMLBase.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
 	numscc = length(prob.probs)
 	sols = [SciMLBase.build_solution(prob, nothing, prob.u0, convert(eltype(prob.u0),NaN)*prob.u0) for prob in prob.probs]
 	u = reduce(vcat,[prob.u0 for prob in prob.probs])
