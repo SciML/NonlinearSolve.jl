@@ -13,7 +13,8 @@
 
     @testset "$integtype" for (alg, integtype) in [
         (NewtonRaphson(), NonlinearSolveFirstOrder.GeneralizedFirstOrderAlgorithmCache),
-        (FastShortcutNonlinearPolyalg(), NonlinearSolveBase.NonlinearSolvePolyAlgorithmCache),
+        (FastShortcutNonlinearPolyalg(),
+            NonlinearSolveBase.NonlinearSolvePolyAlgorithmCache),
         (SimpleNewtonRaphson(), NonlinearSolveBase.NonlinearSolveNoInitCache)
     ]
         nint = init(nlprob, alg)
