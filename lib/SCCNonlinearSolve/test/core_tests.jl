@@ -17,7 +17,7 @@ end
         du[8] = u[1] + 2.0u[2] + 3.0u[3] + 5.0u[4] + 6.0u[5] + u[6] - u[7] - u[8]
     end
     prob = NonlinearProblem(f, zeros(8))
-    sol = solve(prob)
+    sol = solve(prob, NewtonRaphson())
 
     u0 = zeros(2)
     cache = zeros(3)
