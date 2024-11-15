@@ -6,7 +6,6 @@ end
 
 @testitem "Manual SCC" setup=[CoreRootfindTesting] tags=[:core] begin
     using NonlinearSolveFirstOrder
-    
     function f(du, u, p)
         du[1] = cos(u[2]) - u[1]
         du[2] = sin(u[1] + u[2]) + u[2]
