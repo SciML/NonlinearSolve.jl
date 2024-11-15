@@ -103,9 +103,10 @@ end
     return Expr(:block, calls...)
 end
 
-function SciMLBase.__solve(prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, 
+function SciMLBase.__solve(
+        prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm,
         args...; kwargs...)
-        __generated_polysolve(prob, alg, args...; kwargs...)
+    __generated_polysolve(prob, alg, args...; kwargs...)
 end
 
 @generated function __generated_polysolve(
