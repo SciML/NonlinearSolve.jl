@@ -30,7 +30,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">NewtonRaphson(</span></span>
 ----    	-------------       	-----------         	-------
 Iter    	f(u) inf-norm       	Step 2-norm         	cond(J)
 ----    	-------------       	-----------         	-------
-0       	2.30000000e+01      	NaN                 	5.00000000e+00
+0       	2.30000000e+01      	0.00000000e+00      	5.00000000e+00
 1       	5.29000000e+00      	2.62699660e+00      	5.00000000e+00
 Final   	4.44089210e-16
 ----------------------</code></pre><p>You can also store the trace in the solution object:</p><pre><code class="language-julia hljs">sol = solve(prob; trace_level = TraceAll(), store_trace = Val(true));
