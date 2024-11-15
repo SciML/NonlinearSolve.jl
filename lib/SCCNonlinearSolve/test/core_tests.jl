@@ -52,7 +52,7 @@ end
         p[1] = sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3]
         p[2] = sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3]
         p[3] = sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
-                   6.0sols[2][3]
+               6.0sols[2][3]
     end
     explicitfun3(cache, [sol1, sol2])
     sol3 = solve(prob3, NewtonRaphson())
