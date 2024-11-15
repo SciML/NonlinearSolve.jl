@@ -9,17 +9,14 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
 	u = reduce(vcat,[prob.u0 for prob in prob.probs])
 	resid = copy(u)
 
-    earlyexit = false
     lasti = 1
 	for i in 1:numscc
 		prob.explictfuns![i](prob.probs[i].p[1],sols)
 		sol = SciMLBase.solve(prob.probs[i], alg; kwargs...)
 		_sol = SciMLBase.build_solution(prob.probs[i], nothing, sol.u, sol.resid, retcode = sol.retcode)
 		sols[i] = _sol
-        
+                lasti = i
         if !SciMLBase.successful_retcode(_sol)
-            earlyexit = true
-            lasti = i
             break
         end
 	end
@@ -28,11 +25,7 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
 	u .= reduce(vcat,sols)
 	resid .= reduce(vcat,getproperty.(sols,:resid))
 
-    if earlyexit
         retcode = sols[lasti].retcode
-    else
-        retcode = SciMLBase.ReturnCode.Success
-    end
 
 	SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
 end
