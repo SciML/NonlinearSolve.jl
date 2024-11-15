@@ -75,6 +75,6 @@ end
 
     sccprob = SciMLBase.SCCNonlinearProblem([prob1,prob2,prob3], SciMLBase.Void{Any}.([explicitfun1,explicitfun2,explicitfun3]))
     scc_sol = solve(sccprob, NewtonRaphson())
-    sol ≈ manualscc ≈ scc_sol
+    @test sol ≈ manualscc ≈ scc_sol
 
 end
