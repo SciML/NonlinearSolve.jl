@@ -5,7 +5,7 @@
         SCCNonlinearSolve;
         piracies = false, ambiguities = false, stale_deps = false, deps_compat = false
     )
-    Aqua.test_stale_deps(SCCNonlinearSolve; ignore = [:SciMLJacobianOperators])
+    Aqua.test_stale_deps(SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase])
     Aqua.test_deps_compat(SCCNonlinearSolve; ignore = [:SciMLJacobianOperators])
     Aqua.test_piracies(
         SCCNonlinearSolve; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve])
