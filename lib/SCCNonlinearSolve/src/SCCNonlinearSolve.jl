@@ -11,7 +11,7 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
 
     lasti = 1
 	for i in 1:numscc
-		prob.explictfuns![i](prob.probs[i].p[1],sols)
+		prob.explictfuns![i](parameter_values(prob.probs[i])[1],sols)
 		sol = SciMLBase.solve(prob.probs[i], alg; kwargs...)
 		_sol = SciMLBase.build_solution(prob.probs[i], nothing, sol.u, sol.resid, retcode = sol.retcode)
 		sols[i] = _sol
