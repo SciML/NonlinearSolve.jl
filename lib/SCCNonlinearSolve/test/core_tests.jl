@@ -20,7 +20,7 @@ end
     sol = solve(prob, NewtonRaphson())
 
     u0 = zeros(2)
-    cache = zeros(3)
+    p = zeros(3)
 
     function f1(du, u, (cache, p))
         du[1] = cos(u[2]) - u[1]
@@ -28,30 +28,30 @@ end
     end
     explicitfun1(cache, sols) = nothing
     prob1 = NonlinearProblem(
-        NonlinearFunction{true, SciMLBase.NoSpecialize}(f1), zeros(2), cache)
+        NonlinearFunction{true, SciMLBase.NoSpecialize}(f1), zeros(2), p)
     sol1 = solve(prob1, NewtonRaphson())
 
-    function f2(du, u, (cache, p))
+    function f2(du, u, p)
         du[1] = 2u[2] + u[1] + 1.0
         du[2] = u[3]^2 + u[2]
         du[3] = u[1]^2 + u[3]
     end
     explicitfun2(cache, sols) = nothing
     prob2 = NonlinearProblem(
-        NonlinearFunction{true, SciMLBase.NoSpecialize}(f2), zeros(3), cache)
+        NonlinearFunction{true, SciMLBase.NoSpecialize}(f2), zeros(3), p)
     sol2 = solve(prob2, NewtonRaphson())
 
-    function f3(du, u, (cache, p))
-        du[1] = cache[1] + 2.0u[1] + 2.5u[2] + 1.5u[3]
-        du[2] = cache[2] + 4.0u[1] - 1.5u[2] + 1.5u[3]
-        du[3] = cache[3] + +u[1] - u[2] - u[3]
+    function f3(du, u, p)
+        du[1] = p[1] + 2.0u[1] + 2.5u[2] + 1.5u[3]
+        du[2] = p[2] + 4.0u[1] - 1.5u[2] + 1.5u[3]
+        du[3] = p[3] + +u[1] - u[2] - u[3]
     end
     prob3 = NonlinearProblem(
-        NonlinearFunction{true, SciMLBase.NoSpecialize}(f3), zeros(3), cache)
-    function explicitfun3(cache, sols)
-        cache[1] = sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3]
-        cache[2] = sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3]
-        cache[3] = sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
+        NonlinearFunction{true, SciMLBase.NoSpecialize}(f3), zeros(3), p)
+    function explicitfun3(p, sols)
+        p[1] = sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3]
+        p[2] = sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3]
+        p[3] = sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
                    6.0sols[2][3]
     end
     explicitfun3(cache, [sol1, sol2])
