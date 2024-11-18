@@ -77,7 +77,7 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SimpleNonlinearSolve/src,lib/NonlinearSolveFirstOrder/src,lib/NonlinearSolveSpectralMethods/src,lib/NonlinearSolveQuasiNewton/src
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -121,7 +121,7 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SimpleNonlinearSolve/src,lib/NonlinearSolveFirstOrder/src,lib/NonlinearSolveSpectralMethods/src,lib/NonlinearSolveQuasiNewton/src
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
