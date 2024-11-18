@@ -3,7 +3,7 @@
 Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><ul><li><p>Please refer to the <a href="https://github.com/SciML/ColPrac/blob/master/README.md">SciML ColPrac: Contributor&#39;s Guide on Collaborative Practices for Community Packages</a> for guidance on PRs, issues, and other matters relating to contributing to SciML.</p></li><li><p>See the <a href="https://github.com/SciML/SciMLStyle">SciML Style Guide</a> for common coding practices and other style decisions.</p></li><li><p>There are a few community forums:</p><ul><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.org/slack/">Julia Slack</a></li><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged">Julia Zulip</a></li><li>On the <a href="https://discourse.julialang.org">Julia Discourse forums</a></li><li>See also <a href="https://sciml.ai/community/">SciML Community page</a></li></ul></li></ul><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Project.toml`
   <span class="sgr90">[47edcb42] </span>ADTypes v1.10.0
   <span class="sgr90">[2169fc97] </span>AlgebraicMultigrid v0.6.0
-  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.17.0
+  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.17.1
   <span class="sgr90">[6e4b80f9] </span>BenchmarkTools v1.5.0
   <span class="sgr90">[70df07ce] </span>BracketingNonlinearSolve v1.1.0 `../lib/BracketingNonlinearSolve`
   <span class="sgr90">[2b5f629d] </span>DiffEqBase v6.160.0
@@ -21,7 +21,7 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v1.1.0
   <span class="sgr90">[ace2c81b] </span>PETSc v0.3.1
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.9
-  <span class="sgr90">[0bca4576] </span>SciMLBase v2.61.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v2.62.0
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.1 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v2.0.0 `../lib/SimpleNonlinearSolve`
   <span class="sgr90">[9f842d2f] </span>SparseConnectivityTracer v0.6.8
@@ -48,7 +48,7 @@ Environment:
   <span class="sgr90">[7d9f7c33] </span>Accessors v0.1.38
   <span class="sgr90">[79e6a3ab] </span>Adapt v4.1.1
   <span class="sgr90">[2169fc97] </span>AlgebraicMultigrid v0.6.0
-  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.17.0
+  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.17.1
   <span class="sgr90">[4c555306] </span>ArrayLayouts v1.10.4
   <span class="sgr90">[6e4b80f9] </span>BenchmarkTools v1.5.0
   <span class="sgr90">[2027ae74] </span>BibInternal v0.3.7
@@ -187,7 +187,7 @@ Environment:
   <span class="sgr90">[7e49a35a] </span>RuntimeGeneratedFunctions v0.5.13
   <span class="sgr90">[94e857df] </span>SIMDTypes v0.1.0
   <span class="sgr90">[476501e8] </span>SLEEFPirates v0.6.43
-  <span class="sgr90">[0bca4576] </span>SciMLBase v2.61.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v2.62.0
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.1 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[c0aeaf25] </span>SciMLOperators v0.3.12
   <span class="sgr90">[53ae85a6] </span>SciMLStructures v1.5.0
@@ -376,4 +376,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.11.0+0
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.52.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+2
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.1.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.1.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Monday 18 November 2024 07:16">Monday 18 November 2024</span>. Using Julia version 1.10.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.1.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.1.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Monday 18 November 2024 11:12">Monday 18 November 2024</span>. Using Julia version 1.10.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
