@@ -20,6 +20,9 @@
         nint = init(nlprob, alg)
         @test nint isa integtype
 
+        @test_nowarn state_values(nint)
+        @test_nowarn parameter_values(nint)
+
         for (i, sym) in enumerate([X, nlsys.X, :X])
             # test both getindex and setindex!
             nint[sym] = 1.5i
