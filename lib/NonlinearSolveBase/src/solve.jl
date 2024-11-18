@@ -248,6 +248,8 @@ end
     kwargs::Any
 end
 
+get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
+
 function SciMLBase.reinit!(
         cache::NonlinearSolveNoInitCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
 )
