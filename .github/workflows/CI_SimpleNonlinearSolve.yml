@@ -70,7 +70,7 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/BracketingNonlinearSolve/ext,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -114,7 +114,7 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/BracketingNonlinearSolve/ext,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
