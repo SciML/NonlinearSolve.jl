@@ -15,6 +15,7 @@ A low-overhead implementation of Halley's Method.
   - `autodiff`: determines the backend used for the Jacobian. Defaults to  `nothing` (i.e.
     automatic backend selection). Valid choices include jacobian backends from
     `DifferentiationInterface.jl`.
+    In addition, `AutoTaylorDiff` can be used to enable Taylor mode for computing the Hessian-vector-vector product more efficiently; in this case, the Jacobian would still be calculated using the default backend. You need to have `TaylorDiff.jl` loaded to use this option.
 """
 @kwdef @concrete struct SimpleHalley <: AbstractSimpleNonlinearSolveAlgorithm
     autodiff = nothing
