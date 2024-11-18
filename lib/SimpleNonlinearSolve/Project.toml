@@ -27,12 +27,14 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [extensions]
 SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
 SimpleNonlinearSolveDiffEqBaseExt = "DiffEqBase"
 SimpleNonlinearSolveReverseDiffExt = "ReverseDiff"
+SimpleNonlinearSolveTaylorDiffExt = "TaylorDiff"
 SimpleNonlinearSolveTrackerExt = "Tracker"
 
 [compat]
@@ -66,6 +68,7 @@ SciMLBase = "2.58"
 Setfield = "1.1.1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4.3"
+TaylorDiff = "0.3"
 Test = "1.10"
 TestItemRunner = "1"
 Tracker = "0.2.35"
@@ -84,10 +87,11 @@ PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "DiffEqBase", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "DiffEqBase", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "TaylorDiff", "Test", "TestItemRunner", "Tracker", "Zygote"]
