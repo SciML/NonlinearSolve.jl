@@ -25,7 +25,7 @@ using StaticArraysCore: StaticArray
 
 # Default Algorithm
 using NonlinearSolveFirstOrder: NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton,
-                                RUS
+                                RUS, RobustMultiNewton
 using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
@@ -125,8 +125,7 @@ end
 @reexport using LinearSolve
 
 # Poly Algorithms
-export NonlinearSolvePolyAlgorithm,
-       RobustMultiNewton, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
+export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutNLLSPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,

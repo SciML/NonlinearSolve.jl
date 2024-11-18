@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "4.1.0"
+version = "4.2.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -96,9 +96,9 @@ NonlinearSolveSpectralMethods = "1"
 OrdinaryDiffEqTsit5 = "1.1.0"
 PETSc = "0.3"
 Pkg = "1.10"
+PolyesterForwardDiff = "0.1"
 PrecompileTools = "1.2"
 Preferences = "1.4"
-PolyesterForwardDiff = "0.1"
 Random = "1.10"
 ReTestItems = "1.24"
 Reexport = "1.2"

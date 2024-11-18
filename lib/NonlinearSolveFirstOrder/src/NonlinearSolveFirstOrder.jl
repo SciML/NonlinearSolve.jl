@@ -8,6 +8,7 @@ using Setfield: @set!
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
+using LineSearch: BackTracking
 using StaticArraysCore: SArray
 
 using CommonSolve: CommonSolve
@@ -19,7 +20,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractDampingFunctionCache, AbstractTrustRegionMethod,
                           AbstractTrustRegionMethodCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
-                          update_trace!, L2_NORM,
+                          update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
                           Dogleg
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
@@ -35,6 +36,8 @@ include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
 include("trust_region.jl")
 include("pseudo_transient.jl")
+
+include("poly_algs.jl")
 
 include("solve.jl")
 
@@ -99,5 +102,8 @@ export GaussNewton, LevenbergMarquardt, TrustRegion
 export RadiusUpdateSchemes
 
 export GeneralizedFirstOrderAlgorithm
+
+# Polyalgorithms
+export RobustMultiNewton
 
 end
