@@ -5,8 +5,7 @@
 ### Breaking Changes in `NonlinearSolve.jl` v4
 
   - `ApproximateJacobianSolveAlgorithm` has been renamed to `QuasiNewtonAlgorithm`.
-  - Preconditioners for the linear solver needs to be specified with the linear solver
-    instead of `precs` keyword argument.
+  - Preconditioners for the linear solver needs to be passed with the `precs` keyword argument to the linear solver instead of to the nonlinear solver.
   - See [common breaking changes](@ref common-breaking-changes-v4v2) below.
 
 ### Breaking Changes in `SimpleNonlinearSolve.jl` v2
