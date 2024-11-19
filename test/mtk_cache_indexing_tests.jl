@@ -1,6 +1,7 @@
 @testitem "Modeling Toolkit Cache Indexing" tags=[:downstream] begin
     using ModelingToolkit
     using ModelingToolkit: t_nounits as t
+    using SymbolicIndexingInterface
     import NonlinearSolveBase, NonlinearSolveFirstOrder
 
     @parameters p d

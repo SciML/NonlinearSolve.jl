@@ -5,8 +5,10 @@ using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils, Pkg
 const GROUP = lowercase(get(ENV, "GROUP", "All"))
 
 const EXTRA_PKGS = Pkg.PackageSpec[]
-(GROUP == "all" || GROUP == "downstream") &&
+if GROUP == "all" || GROUP == "downstream"
     push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
+    push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
+end
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
 const RETESTITEMS_NWORKERS = parse(
