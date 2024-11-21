@@ -59,7 +59,8 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHousehold
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
 
-function SimpleNonlinearSolve.evaluate_hvvp_internal(hvvp, prob::ImmutableNonlinearProblem, u, a)
+function SimpleNonlinearSolve.evaluate_hvvp_internal(
+        hvvp, prob::ImmutableNonlinearProblem, u, a)
     if SciMLBase.isinplace(prob)
         binary_f = @closure (y, x) -> prob.f(y, x, prob.p)
         TaylorDiff.derivative!(hvvp, binary_f, cache.fu, u, a, Val(2))

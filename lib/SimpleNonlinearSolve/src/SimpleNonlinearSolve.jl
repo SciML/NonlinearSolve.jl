@@ -131,7 +131,7 @@ function solve_adjoint_internal end
 
 function evaluate_hvvp(args...; kws...)
     is_extension_loaded(Val(:TaylorDiff)) && return evaluate_hvvp_internal(args...; kws...)
-    error("Halley's mathod with Taylor mode requires `TaylorDiff.jl` to be explicitly loaded.")
+    error("Halley's method with Taylor mode requires `TaylorDiff.jl` to be explicitly loaded.")
 end
 
 function evaluate_hvvp_internal end
