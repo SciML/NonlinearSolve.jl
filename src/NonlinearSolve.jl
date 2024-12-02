@@ -62,8 +62,6 @@ const ALL_SOLVER_TYPES = [
     NonlinearSolvePolyAlgorithm
 ]
 
-include("forward_diff.jl")
-
 @setup_workload begin
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
