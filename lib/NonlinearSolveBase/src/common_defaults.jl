@@ -45,3 +45,12 @@ function get_tolerance(::Union{StaticArray, Number}, ::Nothing, ::Type{T}) where
     # Rational numbers can throw an error if used inside GPU Kernels
     return T(real(oneunit(T)) * (eps(real(one(T)))^(real(T)(0.8))))
 end
+
+"""
+    pickchunksize(x) = pickchunksize(length(x))
+    pickchunksize(x::Int)
+
+Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
+"""
+@inline pickchunksize(x) = pickchunksize(length(x))
+@inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)

@@ -84,4 +84,6 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
+export pickchunksize
+
 end

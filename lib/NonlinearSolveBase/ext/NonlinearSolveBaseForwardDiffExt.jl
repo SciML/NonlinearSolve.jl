@@ -12,12 +12,12 @@ using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
 
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
                           AbstractNonlinearSolveAlgorithm, Utils, InternalAPI,
-                          AbstractNonlinearSolveCache
+                          AbstractNonlinearSolveCache, NonlinearSolvePolyAlgorithm
 
 const DI = DifferentiationInterface
 
-const ALL_SOLVER_TYPES = [
-    Nothing, AbstractNonlinearSolveAlgorithm
+const GENERAL_SOLVER_TYPES = [
+    Nothing, AbstractNonlinearSolveAlgorithm, NonlinearSolvePolyAlgorithm
 ]
 
 const DualNonlinearProblem = NonlinearProblem{
@@ -121,7 +121,7 @@ function NonlinearSolveBase.nonlinearsolve_dual_solution(
     return map(((uᵢ, pᵢ),) -> Dual{T, V, P}(uᵢ, pᵢ), zip(u, Utils.restructure(u, partials)))
 end
 
-for algType in ALL_SOLVER_TYPES
+for algType in GENERAL_SOLVER_TYPES
     @eval function SciMLBase.__solve(
             prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
     )
@@ -157,7 +157,7 @@ function InternalAPI.reinit!(
     return cache
 end
 
-for algType in ALL_SOLVER_TYPES
+for algType in GENERAL_SOLVER_TYPES
     @eval function SciMLBase.__init(
             prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
     )
@@ -199,14 +199,5 @@ end
 nodual_value(x) = x
 nodual_value(x::Dual) = ForwardDiff.value(x)
 nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
-
-"""
-    pickchunksize(x) = pickchunksize(length(x))
-    pickchunksize(x::Int)
-
-Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
-"""
-@inline pickchunksize(x) = pickchunksize(length(x))
-@inline pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
 
 end
