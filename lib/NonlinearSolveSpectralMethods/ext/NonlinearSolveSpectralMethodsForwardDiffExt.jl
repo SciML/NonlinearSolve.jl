@@ -1,9 +1,8 @@
 module NonlinearSolveSpectralMethodsForwardDiffExt
 
-using CommonSolve: CommonSolve, solve
+using CommonSolve: CommonSolve, init
 using ForwardDiff: ForwardDiff, Dual
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
-                 NonlinearProblem, NonlinearLeastSquaresProblem, remake
+using SciMLBase: SciMLBase, NonlinearProblem, NonlinearLeastSquaresProblem
 
 using NonlinearSolveBase: NonlinearSolveBase
 

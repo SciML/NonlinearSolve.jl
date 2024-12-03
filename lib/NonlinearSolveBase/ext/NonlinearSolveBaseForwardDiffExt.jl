@@ -2,7 +2,7 @@ module NonlinearSolveBaseForwardDiffExt
 
 using ADTypes: ADTypes, AutoForwardDiff, AutoPolyesterForwardDiff
 using ArrayInterface: ArrayInterface
-using CommonSolve: CommonSolve, solve
+using CommonSolve: CommonSolve, solve, solve!, init
 using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface
 using FastClosures: @closure
@@ -10,14 +10,14 @@ using ForwardDiff: ForwardDiff, Dual
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
                  NonlinearProblem, NonlinearLeastSquaresProblem, remake
 
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
-                          AbstractNonlinearSolveAlgorithm, Utils, InternalAPI,
-                          AbstractNonlinearSolveCache, NonlinearSolvePolyAlgorithm
+using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
+                          AbstractNonlinearSolveCache, NonlinearSolvePolyAlgorithm,
+                          NonlinearSolveForwardDiffCache
 
 const DI = DifferentiationInterface
 
 const GENERAL_SOLVER_TYPES = [
-    Nothing, AbstractNonlinearSolveAlgorithm, NonlinearSolvePolyAlgorithm
+    Nothing, NonlinearSolvePolyAlgorithm
 ]
 
 const DualNonlinearProblem = NonlinearProblem{
@@ -135,24 +135,16 @@ for algType in GENERAL_SOLVER_TYPES
     end
 end
 
-@concrete mutable struct NonlinearSolveForwardDiffCache <: AbstractNonlinearSolveCache
-    cache
-    prob
-    alg
-    p
-    values_p
-    partials_p
-end
-
 function InternalAPI.reinit!(
         cache::NonlinearSolveForwardDiffCache, args...;
         p = cache.p, u0 = NonlinearSolveBase.get_u(cache.cache), kwargs...
 )
     InternalAPI.reinit!(
-        cache.cache; p = nodual_value(p), u0 = nodual_value(u0), kwargs...
+        cache.cache; p = NonlinearSolveBase.nodual_value(p),
+        u0 = NonlinearSolveBase.nodual_value(u0), kwargs...
     )
     cache.p = p
-    cache.values_p = nodual_value(p)
+    cache.values_p = NonlinearSolveBase.nodual_value(p)
     cache.partials_p = ForwardDiff.partials(p)
     return cache
 end
@@ -161,8 +153,8 @@ for algType in GENERAL_SOLVER_TYPES
     @eval function SciMLBase.__init(
             prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
     )
-        p = nodual_value(prob.p)
-        newprob = SciMLBase.remake(prob; u0 = nodual_value(prob.u0), p)
+        p = NonlinearSolveBase.nodual_value(prob.p)
+        newprob = SciMLBase.remake(prob; u0 = NonlinearSolveBase.nodual_value(prob.u0), p)
         cache = init(newprob, alg, args...; kwargs...)
         return NonlinearSolveForwardDiffCache(
             cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p)
@@ -196,8 +188,17 @@ function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     )
 end
 
-nodual_value(x) = x
-nodual_value(x::Dual) = ForwardDiff.value(x)
-nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+NonlinearSolveBase.nodual_value(x) = x
+NonlinearSolveBase.nodual_value(x::Dual) = ForwardDiff.value(x)
+NonlinearSolveBase.nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.value, x)
+
+"""
+    pickchunksize(x) = pickchunksize(length(x))
+    pickchunksize(x::Int)
+
+Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
+"""
+@inline NonlinearSolveBase.pickchunksize(x) = pickchunksize(length(x))
+@inline NonlinearSolveBase.pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
 
 end
