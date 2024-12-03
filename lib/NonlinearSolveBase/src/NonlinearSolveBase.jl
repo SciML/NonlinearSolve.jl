@@ -14,7 +14,6 @@ using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
-using FunctionProperties: hasbranching
 using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
