@@ -3,24 +3,13 @@
 
 # Ordering is important here. We want to select the first one that is compatible with the
 # problem.
-# XXX: Remove this once Enzyme is properly supported on Julia 1.11+
-@static if VERSION ≥ v"1.11-"
-    const ReverseADs = (
-        ADTypes.AutoZygote(),
-        ADTypes.AutoTracker(),
-        ADTypes.AutoReverseDiff(),
-        ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
-        ADTypes.AutoFiniteDiff()
-    )
-else
-    const ReverseADs = (
-        ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
-        ADTypes.AutoZygote(),
-        ADTypes.AutoTracker(),
-        ADTypes.AutoReverseDiff(),
-        ADTypes.AutoFiniteDiff()
-    )
-end
+const ReverseADs = (
+    ADTypes.AutoEnzyme(; mode = EnzymeCore.Reverse),
+    ADTypes.AutoZygote(),
+    ADTypes.AutoTracker(),
+    ADTypes.AutoReverseDiff(),
+    ADTypes.AutoFiniteDiff()
+)
 
 const ForwardADs = (
     ADTypes.AutoPolyesterForwardDiff(),
