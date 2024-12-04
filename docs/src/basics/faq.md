@@ -157,5 +157,5 @@ must be `≤ length of input`. However, a very large chunksize can lead to exces
 compilation times and slowdown.
 
 ```@docs
-NonlinearSolve.pickchunksize
+NonlinearSolveBase.pickchunksize
 ```
