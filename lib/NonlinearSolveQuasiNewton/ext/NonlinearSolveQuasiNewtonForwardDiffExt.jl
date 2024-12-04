@@ -4,7 +4,7 @@ using CommonSolve: CommonSolve, init
 using ForwardDiff: ForwardDiff, Dual
 using SciMLBase: SciMLBase, NonlinearProblem, NonlinearLeastSquaresProblem
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, nondual_value
 
 using NonlinearSolveQuasiNewton: QuasiNewtonAlgorithm
 

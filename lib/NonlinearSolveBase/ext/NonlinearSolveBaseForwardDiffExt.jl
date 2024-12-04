@@ -11,8 +11,7 @@ using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
                  NonlinearProblem, NonlinearLeastSquaresProblem, remake
 
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
-                          AbstractNonlinearSolveCache, NonlinearSolvePolyAlgorithm,
-                          NonlinearSolveForwardDiffCache
+                          NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache
 
 const DI = DifferentiationInterface
 
