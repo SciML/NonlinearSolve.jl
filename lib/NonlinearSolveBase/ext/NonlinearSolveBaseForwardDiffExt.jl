@@ -6,7 +6,7 @@ using CommonSolve: CommonSolve, solve, solve!, init
 using ConcreteStructs: @concrete
 using DifferentiationInterface: DifferentiationInterface
 using FastClosures: @closure
-using ForwardDiff: ForwardDiff, Dual
+using ForwardDiff: ForwardDiff, Dual, pickchunksize
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
                  NonlinearProblem, NonlinearLeastSquaresProblem, remake
 
