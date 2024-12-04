@@ -12,6 +12,13 @@ function nonlinearsolve_∂f_∂p end
 function nonlinearsolve_∂f_∂u end
 function nlls_generate_vjp_function end
 function nodual_value end
+
+"""
+    pickchunksize(x) = pickchunksize(length(x))
+    pickchunksize(x::Int)
+
+Determine the chunk size for ForwardDiff and PolyesterForwardDiff based on the input length.
+"""
 function pickchunksize end
 
 # Nonlinear Solve Termination Conditions
