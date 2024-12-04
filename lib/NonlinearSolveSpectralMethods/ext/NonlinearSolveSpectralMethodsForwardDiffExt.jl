@@ -4,7 +4,7 @@ using CommonSolve: CommonSolve, init
 using ForwardDiff: ForwardDiff, Dual
 using SciMLBase: SciMLBase, NonlinearProblem, NonlinearLeastSquaresProblem
 
-using NonlinearSolveBase: NonlinearSolveBase, nodual_value
+using NonlinearSolveBase: NonlinearSolveBase, NonlinearSolveForwardDiffCache, nodual_value
 
 using NonlinearSolveSpectralMethods: GeneralizedDFSane
 
