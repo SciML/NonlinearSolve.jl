@@ -152,7 +152,7 @@ nothing # hide
 ```
 
 And boom! Type stable again. We always recommend picking the chunksize via
-[`NonlinearSolve.pickchunksize`](@ref), however, if you manually specify the chunksize, it
+[`NonlinearSolveBase.pickchunksize`](@ref), however, if you manually specify the chunksize, it
 must be `≤ length of input`. However, a very large chunksize can lead to excessive
 compilation times and slowdown.
 
