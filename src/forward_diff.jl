@@ -33,6 +33,13 @@ end
     partials_p
 end
 
+function NonlinearSolveBase.get_abstol(cache::NonlinearSolveForwardDiffCache)
+    NonlinearSolveBase.get_abstol(cache.cache)
+end
+function NonlinearSolveBase.get_reltol(cache::NonlinearSolveForwardDiffCache)
+    NonlinearSolveBase.get_reltol(cache.cache)
+end
+
 function InternalAPI.reinit!(
         cache::NonlinearSolveForwardDiffCache, args...;
         p = cache.p, u0 = NonlinearSolveBase.get_u(cache.cache), kwargs...

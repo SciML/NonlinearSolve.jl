@@ -95,6 +95,13 @@ end
     kwargs
 end
 
+function NonlinearSolveBase.get_abstol(cache::QuasiNewtonCache)
+    NonlinearSolveBase.get_abstol(cache.termination_cache)
+end
+function NonlinearSolveBase.get_reltol(cache::QuasiNewtonCache)
+    NonlinearSolveBase.get_reltol(cache.termination_cache)
+end
+
 function InternalAPI.reinit_self!(
         cache::QuasiNewtonCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...
