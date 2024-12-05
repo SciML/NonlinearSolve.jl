@@ -246,6 +246,11 @@ end
     alg
     args
     kwargs::Any
+    initializealg
+end
+
+function update_parameter_object!(cache::NonlinearSolveNoInitCache, p)
+    SciMLBase.reinit!(cache, cache.prob.u0, p)
 end
 
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
@@ -264,9 +269,12 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
+        initializealg = NonlinearSolveDefaultInit(),
         kwargs...
 )
-    return NonlinearSolveNoInitCache(prob, alg, args, kwargs)
+    cache = NonlinearSolveNoInitCache(prob, alg, args, kwargs, initializealg)
+    initialize_cache!(cache)
+    return cache
 end
 
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
