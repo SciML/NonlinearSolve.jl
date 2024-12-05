@@ -93,6 +93,9 @@ end
     force_stop::Bool
     force_reinit::Bool
     kwargs
+
+    # Initialization
+    initializealg
 end
 
 function NonlinearSolveBase.get_abstol(cache::QuasiNewtonCache)
@@ -137,7 +140,8 @@ function SciMLBase.__init(
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
-        internalnorm::F = L2_NORM, kwargs...
+        internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
+        kwargs...
 ) where {F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
@@ -211,15 +215,18 @@ function SciMLBase.__init(
             uses_jacobian_inverse = inverted_jac, kwargs...
         )
 
-        return QuasiNewtonCache(
+        cache = QuasiNewtonCache(
             fu, u, u_cache, prob.p, du, J, alg, prob, globalization,
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             inv_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
             alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs
+            ReturnCode.Default, false, false, kwargs, initializealg
         )
+        NonlinearSolveBase.run_initialization!(cache)
     end
+
+    return cache
 end
 
 function InternalAPI.step!(
