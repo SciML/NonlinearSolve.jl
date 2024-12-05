@@ -248,6 +248,13 @@ end
     kwargs::Any
 end
 
+function get_abstol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
+function get_reltol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
+
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
 function SciMLBase.reinit!(

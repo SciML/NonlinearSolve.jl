@@ -259,6 +259,8 @@ Abstract Type for all NonlinearSolveBase Caches.
     `u0` and any additional keyword arguments.
   - `SciMLBase.isinplace(cache)`: whether or not the solver is inplace.
   - `CommonSolve.step!(cache; kwargs...)`: See [`CommonSolve.step!`](@ref) for more details.
+  - `get_abstol(cache)`: get the `abstol` provided to the cache.
+  - `get_reltol(cache)`: get the `reltol` provided to the cache.
 
 Additionally implements `SymbolicIndexingInterface` interface Functions.
 
@@ -303,6 +305,13 @@ function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
 end
 
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
+
+function get_abstol(cache::AbstractNonlinearSolveCache)
+    get_abstol(cache.termination_cache)
+end
+function get_reltol(cache::AbstractNonlinearSolveCache)
+    get_reltol(cache.termination_cache)
+end
 
 ## SII Interface
 SII.symbolic_container(cache::AbstractNonlinearSolveCache) = cache.prob

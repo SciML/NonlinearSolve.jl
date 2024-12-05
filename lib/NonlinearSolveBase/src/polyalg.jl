@@ -61,6 +61,13 @@ end
     alias_u0::Bool
 end
 
+function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
+    NonlinearSolveBase.get_abstol(cache.caches[cache.current])
+end
+function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
+    NonlinearSolveBase.get_reltol(cache.caches[cache.current])
+end
+
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
     return cache.caches[cache.current]
 end
