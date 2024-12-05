@@ -59,6 +59,14 @@ end
     u0
     u0_aliased
     alias_u0::Bool
+
+    initializealg
+end
+
+function update_parameter_object!(cache::NonlinearSolvePolyAlgorithmCache, p)
+    foreach(cache.caches) do subcache
+        update_parameter_object!(subcache, p)
+    end
 end
 
 function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
@@ -104,7 +112,7 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm = L2_NORM, alias_u0 = false, verbose = true, kwargs...
+        internalnorm = L2_NORM, alias_u0 = false, verbose = true, initializealg = NonlinearSolveDefaultInit(), kwargs...
 )
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
@@ -116,18 +124,20 @@ function SciMLBase.__init(
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
 
-    return NonlinearSolvePolyAlgorithmCache(
+    cache = NonlinearSolvePolyAlgorithmCache(
         alg.static_length, prob,
         map(alg.algs) do solver
             SciMLBase.__init(
                 prob, solver, args...;
-                stats, maxtime, internalnorm, alias_u0, verbose, kwargs...
+                stats, maxtime, internalnorm, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,
         alg, -1, alg.start_index, 0, stats, 0.0, maxtime,
         ReturnCode.Default, false, maxiters, internalnorm,
-        u0, u0_aliased, alias_u0
+        u0, u0_aliased, alias_u0, initializealg
     )
+    initialize_cache!(cache)
+    return cache
 end
 
 @generated function InternalAPI.step!(
