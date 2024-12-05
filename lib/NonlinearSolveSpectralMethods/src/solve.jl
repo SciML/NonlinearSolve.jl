@@ -68,6 +68,8 @@ end
     retcode::ReturnCode.T
     force_stop::Bool
     kwargs
+
+    initializealg
 end
 
 function InternalAPI.reinit_self!(
@@ -112,7 +114,7 @@ function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, termination_condition = nothing,
-        maxtime = nothing, kwargs...
+        maxtime = nothing, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 )
     timer = get_timer_output()
 
@@ -145,13 +147,16 @@ function SciMLBase.__init(
             σ_n = T(alg.σ_1)
         end
 
-        return GeneralizedDFSaneCache(
+        cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),
             linesearch_cache, stats, 0, maxiters, maxtime, timer, 0.0,
-            tc_cache, trace, ReturnCode.Default, false, kwargs
+            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg
         )
+        NonlinearSolveBase.run_initialization!(cache)
     end
+
+    return cache
 end
 
 function InternalAPI.step!(
