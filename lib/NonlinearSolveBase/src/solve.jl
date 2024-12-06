@@ -47,15 +47,16 @@ end
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
 
-    push!(calls, quote
-        if cache.retcode == ReturnCode.InitialFailure
-            u = $(SII.state_values)(cache)
-            return build_solution_less_specialize(
-                cache.prob, cache.alg, u, $(Utils.evaluate_f)(cache.prob, u);
-                retcode = cache.retcode,
-            )
-        end
-    end)
+    push!(calls,
+        quote
+            if cache.retcode == ReturnCode.InitialFailure
+                u = $(SII.state_values)(cache)
+                return build_solution_less_specialize(
+                    cache.prob, cache.alg, u, $(Utils.evaluate_f)(cache.prob, u);
+                    retcode = cache.retcode
+                )
+            end
+        end)
 
     for i in 1:N
         push!(calls,
@@ -143,14 +144,16 @@ end
         end
     end]
 
-    push!(calls, quote
-        prob, success = $(run_initialization!)(prob, initializealg, prob)
-        if !success
-            u = $(SII.state_values)(prob)
-            return build_solution_less_specialize(prob, alg, u, $(Utils.evaluate_f)(prob, u);
-                retcode = $(ReturnCode.InitialFailure))
-        end
-    end)
+    push!(calls,
+        quote
+            prob, success = $(run_initialization!)(prob, initializealg, prob)
+            if !success
+                u = $(SII.state_values)(prob)
+                return build_solution_less_specialize(
+                    prob, alg, u, $(Utils.evaluate_f)(prob, u);
+                    retcode = $(ReturnCode.InitialFailure))
+            end
+        end)
 
     push!(calls, quote
         u0 = prob.u0
