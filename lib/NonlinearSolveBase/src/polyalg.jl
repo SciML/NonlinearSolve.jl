@@ -59,6 +59,23 @@ end
     u0
     u0_aliased
     alias_u0::Bool
+
+    initializealg
+end
+
+function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
+    foreach(cache.caches) do subcache
+        update_initial_values!(subcache, u0, p)
+    end
+    cache.prob = SciMLBase.remake(cache.prob; u0, p)
+    return cache
+end
+
+function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
+    NonlinearSolveBase.get_abstol(cache.caches[cache.current])
+end
+function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
+    NonlinearSolveBase.get_reltol(cache.caches[cache.current])
 end
 
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
@@ -66,6 +83,9 @@ function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
 end
 function SII.state_values(cache::NonlinearSolvePolyAlgorithmCache)
     SII.state_values(SII.symbolic_container(cache))
+end
+function SII.parameter_values(cache::NonlinearSolvePolyAlgorithmCache)
+    SII.parameter_values(SII.symbolic_container(cache))
 end
 
 function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorithmCache)
@@ -97,7 +117,8 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm = L2_NORM, alias_u0 = false, verbose = true, kwargs...
+        internalnorm = L2_NORM, alias_u0 = false, verbose = true,
+        initializealg = NonlinearSolveDefaultInit(), kwargs...
 )
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
@@ -109,18 +130,21 @@ function SciMLBase.__init(
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
 
-    return NonlinearSolvePolyAlgorithmCache(
+    cache = NonlinearSolvePolyAlgorithmCache(
         alg.static_length, prob,
         map(alg.algs) do solver
             SciMLBase.__init(
                 prob, solver, args...;
-                stats, maxtime, internalnorm, alias_u0, verbose, kwargs...
+                stats, maxtime, internalnorm, alias_u0, verbose,
+                initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,
         alg, -1, alg.start_index, 0, stats, 0.0, maxtime,
         ReturnCode.Default, false, maxiters, internalnorm,
-        u0, u0_aliased, alias_u0
+        u0, u0_aliased, alias_u0, initializealg
     )
+    run_initialization!(cache)
+    return cache
 end
 
 @generated function InternalAPI.step!(

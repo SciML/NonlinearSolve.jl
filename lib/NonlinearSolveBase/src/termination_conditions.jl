@@ -23,6 +23,9 @@ const AbsNormModes = Union{
     u_diff_cache::uType
 end
 
+get_abstol(cache::NonlinearTerminationModeCache) = cache.abstol
+get_reltol(cache::NonlinearTerminationModeCache) = cache.reltol
+
 function update_u!!(cache::NonlinearTerminationModeCache, u)
     cache.u === nothing && return
     if cache.u isa AbstractArray && ArrayInterface.can_setindex(cache.u)

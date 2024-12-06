@@ -59,6 +59,12 @@ function CommonSolve.solve(
         prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
         kwargs...
 )
+    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    prob = cache.prob
+    if cache.retcode == ReturnCode.InitialFailure
+        return SciMLBase.build_solution(prob, alg, prob.u0,
+            NonlinearSolveBase.Utils.evaluate_f(prob, prob.u0); cache.retcode)
+    end
     prob = convert(ImmutableNonlinearProblem, prob)
     return solve(prob, alg, args...; kwargs...)
 end
@@ -97,6 +103,12 @@ function CommonSolve.solve(
         alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...
 )
+    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    prob = cache.prob
+    if cache.retcode == ReturnCode.InitialFailure
+        return SciMLBase.build_solution(prob, alg, prob.u0,
+            NonlinearSolveBase.Utils.evaluate_f(prob, prob.u0); cache.retcode)
+    end
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
