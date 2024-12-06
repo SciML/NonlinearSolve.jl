@@ -63,10 +63,12 @@ end
     initializealg
 end
 
-function update_parameter_object!(cache::NonlinearSolvePolyAlgorithmCache, p)
+function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
     foreach(cache.caches) do subcache
-        update_parameter_object!(subcache, p)
+        update_initial_values!(subcache, u0, p)
     end
+    cache.prob = SciMLBase.remake(cache.prob; u0, p)
+    return cache
 end
 
 function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
@@ -139,7 +141,7 @@ function SciMLBase.__init(
         ReturnCode.Default, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg
     )
-    initialize_cache!(cache)
+    run_initialization!(cache)
     return cache
 end
 
