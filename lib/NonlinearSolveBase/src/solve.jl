@@ -249,6 +249,9 @@ end
     initializealg
 end
 
+get_abstol(cache::NonlinearSolveNoInitCache) = get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
+get_reltol(cache::NonlinearSolveNoInitCache) = get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+
 SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
 function update_parameter_object!(cache::NonlinearSolveNoInitCache, p)
     SciMLBase.reinit!(cache, cache.prob.u0, p)
