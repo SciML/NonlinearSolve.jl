@@ -284,8 +284,12 @@ end
     retcode::ReturnCode.T
 end
 
-get_abstol(cache::NonlinearSolveNoInitCache) = get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
-get_reltol(cache::NonlinearSolveNoInitCache) = get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+function get_abstol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
+function get_reltol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
 
 SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
 SII.state_values(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
