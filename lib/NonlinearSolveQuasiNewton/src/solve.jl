@@ -140,7 +140,8 @@ function SciMLBase.__init(
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
-        internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
+        internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
+        kwargs...
 ) where {F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
