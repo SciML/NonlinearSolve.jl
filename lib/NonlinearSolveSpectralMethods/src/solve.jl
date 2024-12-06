@@ -77,6 +77,7 @@ function InternalAPI.reinit_self!(
         alias_u0::Bool = false, maxiters = 1000, maxtime = nothing, kwargs...
 )
     Utils.reinit_common!(cache, u0, p, alias_u0)
+    T = eltype(u0)
 
     if cache.alg.σ_1 === nothing
         σ_n = Utils.safe_dot(cache.u, cache.u) / Utils.safe_dot(cache.u, cache.fu)
