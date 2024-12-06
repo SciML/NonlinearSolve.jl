@@ -117,7 +117,8 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm = L2_NORM, alias_u0 = false, verbose = true, initializealg = NonlinearSolveDefaultInit(), kwargs...
+        internalnorm = L2_NORM, alias_u0 = false, verbose = true,
+        initializealg = NonlinearSolveDefaultInit(), kwargs...
 )
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
@@ -134,7 +135,8 @@ function SciMLBase.__init(
         map(alg.algs) do solver
             SciMLBase.__init(
                 prob, solver, args...;
-                stats, maxtime, internalnorm, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+                stats, maxtime, internalnorm, alias_u0, verbose,
+                initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,
         alg, -1, alg.start_index, 0, stats, 0.0, maxtime,
