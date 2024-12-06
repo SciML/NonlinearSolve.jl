@@ -249,6 +249,7 @@ end
     initializealg
 end
 
+SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
 function update_parameter_object!(cache::NonlinearSolveNoInitCache, p)
     SciMLBase.reinit!(cache, cache.prob.u0, p)
 end
