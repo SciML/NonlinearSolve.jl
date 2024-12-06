@@ -155,7 +155,7 @@ function SciMLBase.__init(
         )
     end
 
-    NonlinearSolveBase.initialize_cache!(cache)
+    NonlinearSolveBase.run_initialization!(cache)
     return cache
 end
 
