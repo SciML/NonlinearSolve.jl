@@ -7,6 +7,13 @@ function SciMLBase.__solve(
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
+    if cache.retcode == ReturnCode.InitialFailure
+        return SciMLBase.build_solution(
+            cache.prob, cache.alg, get_u(cache), get_fu(cache);
+            cache.retcode, cache.stats, cache.trace
+        )
+    end
+
     while not_terminated(cache)
         CommonSolve.step!(cache)
     end
