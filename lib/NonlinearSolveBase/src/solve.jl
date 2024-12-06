@@ -317,7 +317,8 @@ function SciMLBase.__init(
         initializealg = NonlinearSolveDefaultInit(),
         kwargs...
 )
-    cache = NonlinearSolveNoInitCache(prob, alg, args, kwargs, initializealg, ReturnCode.Success)
+    cache = NonlinearSolveNoInitCache(
+        prob, alg, args, kwargs, initializealg, ReturnCode.Success)
     run_initialization!(cache)
     return cache
 end
@@ -325,7 +326,8 @@ end
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
     if cache.retcode == ReturnCode.InitialFailure
         u = SII.state_values(cache)
-        return SciMLBase.build_solution(cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode)
+        return SciMLBase.build_solution(
+            cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode)
     end
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
 end
