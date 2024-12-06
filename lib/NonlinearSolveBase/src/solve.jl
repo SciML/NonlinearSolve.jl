@@ -285,6 +285,7 @@ function get_reltol(cache::NonlinearSolveNoInitCache)
 end
 
 SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
+SII.state_values(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
