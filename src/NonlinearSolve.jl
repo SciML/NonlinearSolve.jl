@@ -14,7 +14,7 @@ using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, InternalAPI, AbstractNonlinearSolveAlgorithm,
                           AbstractNonlinearSolveCache, Utils, L2_NORM,
                           enable_timer_outputs, disable_timer_outputs,
-                          NonlinearSolvePolyAlgorithm
+                          NonlinearSolvePolyAlgorithm, pickchunksize
 
 using Preferences: set_preferences!
 using SciMLBase: SciMLBase, NLStats, ReturnCode, AbstractNonlinearProblem,
@@ -52,15 +52,6 @@ include("poly_algs.jl")
 include("extension_algs.jl")
 
 include("default.jl")
-
-const ALL_SOLVER_TYPES = [
-    Nothing, AbstractNonlinearSolveAlgorithm,
-    GeneralizedDFSane, GeneralizedFirstOrderAlgorithm, QuasiNewtonAlgorithm,
-    LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
-    SpeedMappingJL, FixedPointAccelerationJL, SIAMFANLEquationsJL,
-    CMINPACK, PETScSNES,
-    NonlinearSolvePolyAlgorithm
-]
 
 include("forward_diff.jl")
 

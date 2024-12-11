@@ -57,6 +57,8 @@ include("descent/geodesic_acceleration.jl")
 
 include("solve.jl")
 
+include("forward_diff.jl")
+
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
@@ -82,5 +84,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
        GeodesicAcceleration
 
 export NonlinearSolvePolyAlgorithm
+
+export pickchunksize
 
 end

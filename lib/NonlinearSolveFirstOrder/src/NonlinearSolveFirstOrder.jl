@@ -22,14 +22,14 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-                          Dogleg
+                          Dogleg, NonlinearSolveForwardDiffCache
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearFunction,
                  NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
 using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
 
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method
-using ForwardDiff: ForwardDiff  # Default Forward Mode AD
+using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
 include("raphson.jl")
 include("gauss_newton.jl")
@@ -40,6 +40,8 @@ include("pseudo_transient.jl")
 include("poly_algs.jl")
 
 include("solve.jl")
+
+include("forward_diff.jl")
 
 @setup_workload begin
     nonlinear_functions = (
