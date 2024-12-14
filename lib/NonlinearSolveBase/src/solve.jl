@@ -284,6 +284,8 @@ function get_reltol(cache::NonlinearSolveNoInitCache)
     get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
 end
 
+SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
+
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
 function SciMLBase.reinit!(
