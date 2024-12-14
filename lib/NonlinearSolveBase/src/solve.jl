@@ -272,6 +272,9 @@ end
     alg
     args
     kwargs::Any
+    initializealg
+
+    retcode::ReturnCode.T
 end
 
 function get_abstol(cache::NonlinearSolveNoInitCache)
@@ -297,11 +300,20 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
+        initializealg = NonlinearSolveDefaultInit(),
         kwargs...
 )
-    return NonlinearSolveNoInitCache(prob, alg, args, kwargs)
+    cache = NonlinearSolveNoInitCache(
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default)
+    run_initialization!(cache)
+    return cache
 end
 
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
+    if cache.retcode == ReturnCode.InitialFailure
+        u = SII.state_values(cache)
+        return SciMLBase.build_solution(
+            cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode)
+    end
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
 end
