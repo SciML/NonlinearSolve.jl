@@ -7,6 +7,13 @@ function SciMLBase.__solve(
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
+    if cache.retcode == ReturnCode.InitialFailure
+        return SciMLBase.build_solution(
+            cache.prob, cache.alg, get_u(cache), get_fu(cache);
+            cache.retcode, cache.stats, cache.trace
+        )
+    end
+
     while not_terminated(cache)
         CommonSolve.step!(cache)
     end
@@ -39,6 +46,17 @@ end
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
+
+    push!(calls,
+        quote
+            if cache.retcode == ReturnCode.InitialFailure
+                u = $(SII.state_values)(cache)
+                return build_solution_less_specialize(
+                    cache.prob, cache.alg, u, $(Utils.evaluate_f)(cache.prob, u);
+                    retcode = cache.retcode
+                )
+            end
+        end)
 
     for i in 1:N
         push!(calls,
@@ -111,7 +129,8 @@ end
 
 @generated function __generated_polysolve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true, kwargs...
+        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true,
+        initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {N}
     sol_syms = [gensym("sol") for _ in 1:N]
     prob_syms = [gensym("prob") for _ in 1:N]
@@ -123,9 +142,23 @@ end
                               immutable (checked using `ArrayInterface.ismutable`)."
             alias_u0 = false  # If immutable don't care about aliasing
         end
+    end]
+
+    push!(calls,
+        quote
+            prob, success = $(run_initialization!)(prob, initializealg, prob)
+            if !success
+                u = $(SII.state_values)(prob)
+                return build_solution_less_specialize(
+                    prob, alg, u, $(Utils.evaluate_f)(prob, u);
+                    retcode = $(ReturnCode.InitialFailure))
+            end
+        end)
+
+    push!(calls, quote
         u0 = prob.u0
         u0_aliased = alias_u0 ? zero(u0) : u0
-    end]
+    end)
     for i in 1:N
         cur_sol = sol_syms[i]
         push!(calls,
@@ -246,7 +279,20 @@ end
     alg
     args
     kwargs::Any
+    initializealg
+
+    retcode::ReturnCode.T
 end
+
+function get_abstol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
+function get_reltol(cache::NonlinearSolveNoInitCache)
+    get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+end
+
+SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
+SII.state_values(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
@@ -264,11 +310,20 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
+        initializealg = NonlinearSolveDefaultInit(),
         kwargs...
 )
-    return NonlinearSolveNoInitCache(prob, alg, args, kwargs)
+    cache = NonlinearSolveNoInitCache(
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default)
+    run_initialization!(cache)
+    return cache
 end
 
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
+    if cache.retcode == ReturnCode.InitialFailure
+        u = SII.state_values(cache)
+        return SciMLBase.build_solution(
+            cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode)
+    end
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
 end

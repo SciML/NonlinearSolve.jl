@@ -55,6 +55,7 @@ include("descent/damped_newton.jl")
 include("descent/dogleg.jl")
 include("descent/geodesic_acceleration.jl")
 
+include("initialization.jl")
 include("solve.jl")
 
 include("forward_diff.jl")

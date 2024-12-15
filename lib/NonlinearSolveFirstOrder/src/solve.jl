@@ -87,6 +87,8 @@ end
     retcode::ReturnCode.T
     force_stop::Bool
     kwargs
+
+    initializealg
 end
 
 function InternalAPI.reinit_self!(
@@ -121,7 +123,7 @@ function SciMLBase.__init(
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm = L2_NORM,
-        linsolve_kwargs = (;), kwargs...
+        linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 )
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
@@ -206,13 +208,17 @@ function SciMLBase.__init(
             prob, alg, u, fu, J, du; kwargs...
         )
 
-        return GeneralizedFirstOrderAlgorithmCache(
+        cache = GeneralizedFirstOrderAlgorithmCache(
             fu, u, u_cache, prob.p, du, J, alg, prob, globalization,
             jac_cache, descent_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
-            0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs
+            0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
+            initializealg
         )
+        NonlinearSolveBase.run_initialization!(cache)
     end
+
+    return cache
 end
 
 function InternalAPI.step!(
