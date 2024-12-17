@@ -1,6 +1,7 @@
 @testsnippet RootfindTestSnippet begin
     using StaticArrays, Random, LinearAlgebra, ForwardDiff, NonlinearSolveBase, SciMLBase
     using ADTypes, PolyesterForwardDiff, Enzyme, ReverseDiff
+    import TaylorDiff
 
     quadratic_f(u, p) = u .* u .- p
     quadratic_f!(du, u, p) = (du .= u .* u .- p)
@@ -81,11 +82,13 @@ end
             AutoForwardDiff(),
             AutoFiniteDiff(),
             AutoReverseDiff(),
+            AutoTaylorDiff(),
             nothing
         )
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (
                 [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff))
+                sol = run_nlsolve_oop(
+                    quadratic_f, u0; solver = alg(; autodiff))
                 @test SciMLBase.successful_retcode(sol)
                 @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
             end
@@ -96,7 +99,32 @@ end
 
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             @test all(solve(
-                probN, alg(; autodiff = AutoForwardDiff()); termination_condition).u .≈
+                probN, alg(; autodiff = AutoTaylorDiff());
+                termination_condition).u .≈
+                      sqrt(2.0))
+        end
+    end
+end
+
+@testitem "Higher Order Methods" setup=[RootfindTestSnippet] tags=[:core] begin
+    @testset for alg in (
+        SimpleHouseholder,
+    )
+        @testset for order in (1, 2, 3, 4)
+            @testset "[OOP] u0: $(typeof(u0))" for u0 in (
+                [1.0], @SVector[1.0], 1.0)
+                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg{order}())
+                @test SciMLBase.successful_retcode(sol)
+                @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
+            end
+        end
+
+        @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+            u0 in (1.0, [1.0], @SVector[1.0])
+
+            probN = NonlinearProblem(quadratic_f, u0, 2.0)
+            @test all(solve(
+                probN, alg{2}(); termination_condition).u .≈
                       sqrt(2.0))
         end
     end
