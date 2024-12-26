@@ -6,5 +6,8 @@ using Aqua
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(NonlinearSolveHomotopyContinuation)
     end
+    @testset "AllRoots" begin
+        include("allroots.jl")
+    end
     # Write your tests here.
 end
