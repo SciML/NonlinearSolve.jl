@@ -1,11 +1,15 @@
 module NonlinearSolveHomotopyContinuation
 
+using SciMLBase: AbstractNonlinearProblem
 using SciMLBase
 using NonlinearSolveBase
 using SymbolicIndexingInterface
 using LinearAlgebra
 using ADTypes
 import CommonSolve
+import HomotopyContinuation as HC
+import DifferentiationInterface as DI
+
 using ConcreteStructs: @concrete
 
 export HomotopyContinuationJL, HomotopyNonlinearFunction
@@ -23,5 +27,8 @@ function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {A
 end
 
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
+
+include("interface_types.jl")
+include("solve.jl")
 
 end
