@@ -9,6 +9,8 @@ struct Scalar <: HomotopySystemVariant end
     autodiff
     prep
     vars
+    taylorvars
+    jacobian_buffers
 end
 
 Base.size(sys::HomotopySystemWrapper) = (length(sys.prob.u0), length(sys.prob.u0))
@@ -36,7 +38,11 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Inp
         return
     end
 
-    DI.value_and_jacobian!(f.f, u, U, sys.prep, sys.autodiff, x, DI.Constant(p))
+    x_tmp, u_tmp, U_tmp = sys.jacobian_buffers
+    copyto!(x_tmp, x)
+    DI.value_and_jacobian!(f.f, u_tmp, U_tmp, sys.prep, sys.autodiff, x_tmp, DI.Constant(p))
+    copyto!(u, u_tmp)
+    copyto!(U, U_tmp)
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
@@ -49,8 +55,11 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Out
         copyto!(U, j_tmp)
         return
     end
-    u_tmp, _ = DI.value_and_jacobian(f.f, U, sys.prep, sys.autodiff, x, DI.Constant(p))
+    x_tmp, U_tmp = sys.jacobian_buffers
+    copyto!(x_tmp, x)
+    u_tmp, _ = DI.value_and_jacobian!(f.f, U_tmp, sys.prep, sys.autodiff, x_tmp, DI.Constant(p))
     copyto!(u, u_tmp)
+    copyto!(U, U_tmp)
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
@@ -60,9 +69,52 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Sca
         HC.ModelKit.evaluate!(u, sys, x, p)
         U[1] = f.jac(only(x), p)
     else
-        u[1], U[1] = DI.value_and_derivative(f.f, sys.prep, sys.autodiff, only(x), DI.Constant(p))
+        x = real(first(x))
+        u[1], U[1] = DI.value_and_derivative(f.f, sys.prep, sys.autodiff, x, DI.Constant(p))
     end
     return nothing
+end
+
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{Inplace}, x::HC.ModelKit.TaylorVector{M}, p = nothing) where {N, M}
+    f = sys.prob.f
+    p = parameter_values(sys.prob)
+    buffer, vars = sys.taylorvars
+    for i in eachindex(vars)
+        for j in 0:M
+            vars[i][j] = x[i, j + 1]
+        end
+    end
+    f.f(buffer, vars, p)
+    for i in eachindex(vars)
+        u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
+    end
+end
+
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{OutOfPlace}, x::HC.ModelKit.TaylorVector{M}, p = nothing) where {N, M}
+    f = sys.prob.f
+    p = parameter_values(sys.prob)
+    vars = sys.taylorvars
+    for i in eachindex(vars)
+        for j in 0:M
+            vars[i][j] = x[i, j + 1]
+        end
+    end
+    buffer = f.f(vars, p)
+    for i in eachindex(vars)
+        u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
+    end
+end
+
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{Scalar}, x::HC.ModelKit.TaylorVector{M}, p = nothing) where {N, M}
+    f = sys.prob.f
+    p = parameter_values(sys.prob)
+    var = sys.taylorvars
+    for i in 0:M
+        var[i] = x[1, i + 1]
+    end
+    taylor = f.f(var, p)
+    val = ntuple(i -> taylor[i - 1], Val(N + 1))
+    u[1] = val
 end
 
 @concrete struct GuessHomotopy <: HC.AbstractHomotopy

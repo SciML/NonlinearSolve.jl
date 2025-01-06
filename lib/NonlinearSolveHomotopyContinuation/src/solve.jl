@@ -31,9 +31,26 @@ function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::Homoto
         HC.variables(:x, axes(u0)...)
     end
 
+    # TODO: Is there an upper bound for the order?
+    taylorvars = if isscalar
+        Taylor1(zeros(ComplexF64, 5), 4)
+    elseif iip
+        ([Taylor1(zeros(ComplexF64, 5), 4) for _ in u0], [Taylor1(zeros(ComplexF64, 5), 4) for _ in u0])
+    else
+        [Taylor1(zeros(ComplexF64, 5), 4) for _ in u0]
+    end
+
+    jacobian_buffers = if isscalar
+        nothing
+    elseif iip
+        (similar(u0), similar(u0), similar(u0, length(u0), length(u0)))
+    else
+        (similar(u0), similar(u0, length(u0), length(u0)))
+    end
+
     # HC-compatible system
     variant = iip ? Inplace : isscalar ? Scalar : OutOfPlace
-    hcsys = HomotopySystemWrapper{variant}(prob, alg.autodiff, prep, vars)
+    hcsys = HomotopySystemWrapper{variant}(prob, alg.autodiff, prep, vars, taylorvars, jacobian_buffers)
 
     return f, hcsys
 end
