@@ -113,7 +113,10 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
     fu0 = NonlinearSolveBase.Utils.evaluate_f(prob, u0_p)
 
     homotopy = GuessHomotopy(hcsys, fu0)
-    orig_sol = HC.solve(homotopy, [fu0]; alg.kwargs..., kwargs...)
+    if u0_p isa Number
+        u0_p = [u0_p]
+    end
+    orig_sol = HC.solve(homotopy, [u0_p]; alg.kwargs..., kwargs...)
     realsols = HC.results(orig_sol; only_real = true)
 
     # no real solutions or infeasible solution
