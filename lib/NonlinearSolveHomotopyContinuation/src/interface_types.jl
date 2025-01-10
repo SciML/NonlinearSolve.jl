@@ -85,14 +85,24 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWra
     p = parameter_values(sys.prob)
     buffer, vars = sys.taylorvars
     for i in eachindex(vars)
-        for j in 0:M
+        for j in 0:M-1
             vars[i][j] = x[i, j + 1]
+        end
+        for j in M:4
+            vars[i][j] = zero(vars[i][j])
         end
     end
     f.f(buffer, vars, p)
-    for i in eachindex(vars)
-        u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
+    if u isa Vector
+        for i in eachindex(vars)
+            u[i] = buffer[i][N]
+        end
+    else
+        for i in eachindex(vars)
+            u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
+        end
     end
+    return u
 end
 
 function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{OutOfPlace}, x::HC.ModelKit.TaylorVector{M}, p = nothing) where {N, M}
