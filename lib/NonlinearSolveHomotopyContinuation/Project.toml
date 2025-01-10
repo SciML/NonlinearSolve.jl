@@ -13,6 +13,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
+TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
 
 [compat]
 ADTypes = "1.11.0"
@@ -24,11 +25,13 @@ LinearAlgebra = "1.11.0"
 NonlinearSolveBase = "1.3.3"
 SciMLBase = "2.68.1"
 SymbolicIndexingInterface = "0.3.36"
+TaylorSeries = "0.18.2"
 julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Test"]
+test = ["Aqua", "Test", "NonlinearSolve"]
