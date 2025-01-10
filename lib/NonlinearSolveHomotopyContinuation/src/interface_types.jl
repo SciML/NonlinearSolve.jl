@@ -135,20 +135,50 @@ end
 @concrete struct GuessHomotopy <: HC.AbstractHomotopy
     sys <: HC.AbstractSystem
     fu0
+    taylorbuffer::HC.ModelKit.TaylorVector{5, ComplexF64}
+end
+
+function GuessHomotopy(sys, fu0)
+    return GuessHomotopy(sys, fu0, HC.ModelKit.TaylorVector{5}(ComplexF64, length(fu0)))
 end
 
 Base.size(h::GuessHomotopy) = size(h.sys)
 
+# H(x, t) = (1 - t) * F(x) + t * (F(x) - F(x0))
+#         = F(x) - t * F(x0)
 function HC.ModelKit.evaluate!(u, h::GuessHomotopy, x, t, p = nothing)
     HC.ModelKit.evaluate!(u, h.sys, x, p)
     @inbounds for i in eachindex(u)
-        u[i] += (t + 1) * h.fu0[i]
+        u[i] -= t * h.fu0[i]
     end
+    return u
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, h::GuessHomotopy, x, t, p = nothing)
     HC.ModelKit.evaluate_and_jacobian!(u, U, h.sys, x, p)
     @inbounds for i in eachindex(u)
-        u[i] += (t + 1) * h.fu0[i]
+        u[i] -= t * h.fu0[i]
     end
+    return u, U
+end
+
+HC.ModelKit.taylor!(u, v::Val{N}, H::GuessHomotopy, tx, t, incremental::Bool) where {N} =
+    HC.ModelKit.taylor!(u, v, H, tx, t)
+
+function HC.ModelKit.taylor!(u, ::Val{1}, h::GuessHomotopy, x::AbstractVector{<:Number}, t, p = nothing)
+    HC.ModelKit.evaluate!(u, h.sys, x, p)
+    @inbounds for i in eachindex(u)
+        u[i] -= h.fu0[i]
+    end
+    return u
+end
+
+function HC.ModelKit.taylor!(u, ::Val{N}, h::GuessHomotopy, x, t, p = nothing) where {N}
+    HC.ModelKit.taylor!(h.taylorbuffer, Val(N), h.sys, x, p)
+    @inbounds for i in eachindex(u)
+        h.taylorbuffer[i, 1] -= t * h.fu0[i]
+        h.taylorbuffer[i, 2] -= h.fu0[i]
+        u[i] = h.taylorbuffer[i, N + 1]
+    end
+    return u
 end
