@@ -17,11 +17,11 @@ function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::Homoto
         prep = nothing
     elseif iip
         # prepare a DI jacobian if not
-        prep = DI.prepare_jacobian(f, copy(state_values(prob)), alg.autodiff, u0, DI.Constant(p))
+        prep = DI.prepare_jacobian(prob.f.f, copy(state_values(prob)), alg.autodiff, u0, DI.Constant(p))
     elseif isscalar
-        prep = DI.prepare_derivative(f, alg.autodiff, u0, DI.Constant(p))
+        prep = DI.prepare_derivative(prob.f.f, alg.autodiff, u0, DI.Constant(p))
     else
-        prep = DI.prepare_jacobian(f, alg.autodiff, u0, DI.Constant(p))
+        prep = DI.prepare_jacobian(prob.f.f, alg.autodiff, u0, DI.Constant(p))
     end
 
     # variables for HC to use
