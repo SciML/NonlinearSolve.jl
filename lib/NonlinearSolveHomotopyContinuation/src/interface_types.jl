@@ -18,15 +18,18 @@ HC.ModelKit.variables(sys::HomotopySystemWrapper) = sys.vars
 
 function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{Inplace}, x, p = nothing)
     sys.prob.f.f(u, x, parameter_values(sys.prob))
+    return u
 end
 
 function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
     values = sys.prob.f.f(x, parameter_values(sys.prob))
     copyto!(u, values)
+    return u
 end
 
 function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
     u[1] = sys.prob.f.f(only(x), parameter_values(sys.prob))
+    return u
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Inplace}, x, p = nothing)
@@ -43,6 +46,7 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Inp
     DI.value_and_jacobian!(f.f, u_tmp, U_tmp, sys.prep, sys.autodiff, x_tmp, DI.Constant(p))
     copyto!(u, u_tmp)
     copyto!(U, U_tmp)
+    return u, U
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
@@ -60,6 +64,7 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Out
     u_tmp, _ = DI.value_and_jacobian!(f.f, U_tmp, sys.prep, sys.autodiff, x_tmp, DI.Constant(p))
     copyto!(u, u_tmp)
     copyto!(U, U_tmp)
+    return u, U
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
@@ -72,7 +77,7 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Sca
         x = real(first(x))
         u[1], U[1] = DI.value_and_derivative(f.f, sys.prep, sys.autodiff, x, DI.Constant(p))
     end
-    return nothing
+    return u, U
 end
 
 function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{Inplace}, x::HC.ModelKit.TaylorVector{M}, p = nothing) where {N, M}
