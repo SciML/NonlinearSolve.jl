@@ -21,7 +21,7 @@ documentation.
   - `linesearch`: the line search algorithm to use. Defaults to
     [`NoLineSearch()`](@extref LineSearch.NoLineSearch), which means that no line search is
     performed.
-  - `autodiff`: etermines the backend used for the Jacobian. Note that this
+  - `autodiff`: determines the backend used for the Jacobian. Note that this
     argument is ignored if an analytical Jacobian is passed, as that will be used instead.
     Defaults to `nothing` which means that a default is selected according to the problem
     specification! Valid choices are types from ADTypes.jl.
