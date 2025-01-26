@@ -2,36 +2,29 @@ using NonlinearSolve
 using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 
-alg = HomotopyContinuationJL{true}(; threading = false)
+alg = HomotopyContinuationJL{false}(; threading = false)
 
 @testset "scalar u" begin
     rhs = function (u, p)
-        return u * u - 2p * u + p * p
+        return (u - 3.0) * (u - p)
     end
     jac = function (u, p)
-        return 2u - 2p
+        return 2u - (p + 3)
     end
     @testset "`NonlinearProblem` - $name" for (jac, name) in [(nothing, "no jac"), (jac, "jac")]
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, 1.0, 2.0)
         sol = solve(prob, alg)
 
-        @test sol isa EnsembleSolution
-        @test sol.converged
-        for nlsol in sol
-            @test nlsol isa NonlinearSolution
-            @test SciMLBase.successful_retcode(nlsol)
-            @test nlsol.u[1] ≈ 2.0 atol = 1e-7
-        end
+        @test sol isa NonlinearSolution
+        @test sol.u ≈ 2.0 atol = 1e-10
 
         @testset "no real solutions" begin
-            prob = NonlinearProblem(1.0, 0.5) do u, p
-                return u * u - 2p * u  + p
+            prob = NonlinearProblem(1.0, 1.0) do u, p
+                return u * u - 2p * u + p
             end
             sol = solve(prob, alg)
-            @test length(sol) == 1
-            @test sol.u[1].retcode == SciMLBase.ReturnCode.ConvergenceFailure
-            @test !sol.converged
+            @test sol.retcode == SciMLBase.ReturnCode.ConvergenceFailure
         end
     end
 
@@ -51,22 +44,21 @@ alg = HomotopyContinuationJL{true}(; threading = false)
         prob = NonlinearProblem(fn, 0.0, [0.5, 0.7])
 
         sol = solve(prob, alg)
-        @test length(sol) == 1
-        @test sin(sol.u[1][1]) ≈ 0.5
+        @test sin(sol.u[1]) ≈ 0.5 atol=1e-10
 
         @testset "no valid solutions" begin
             prob2 = remake(prob; p = [0.7, 0.7])
             sol2 = solve(prob2, alg)
-            @test !sol2.converged
-            @test length(sol2) == 1
-            @test sol2.u[1].retcode == SciMLBase.ReturnCode.Infeasible
+            @test sol2.retcode == SciMLBase.ReturnCode.Infeasible
         end
 
-        @testset "multiple solutions" begin
-            prob3 = remake(prob; p = [0.5, 0.6])
+        @testset "closest root" begin
+            prob3 = remake(prob; p = [0.5, 0.6], u0 = asin(0.4))
             sol3 = solve(prob3, alg)
-            @test length(sol3) == 2
-            @test sort(sin.([sol3.u[1][1], sol3.u[2][1]])) ≈ [0.5, 0.6]
+            @test sin(sol3.u) ≈ 0.5 atol = 1e-10
+            prob4 = remake(prob3; u0 = asin(0.7))
+            sol4 = solve(prob4, alg)
+            @test sin(sol4.u) ≈ 0.6 atol = 1e-10
         end
     end
 end
@@ -86,30 +78,24 @@ jac! = function (j, u, p)
     j[2, 1] = 2 * p[2] * u[2]
     j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
 end
+
 jac = function (u, p)
     [2u[1] -p[1] + 3 * u[2]^2;
      2 * p[2] * u[2] 3 * u[2]^2 + 2 * p[2] * u[1] + 1]
 end
 
 @testset "vector u - $name" for (rhs, jac, name) in [(f, nothing, "oop"), (f, jac, "oop + jac"), (f!, nothing, "iip"), (f!, jac!, "iip + jac")]
-    sol = nothing
     @testset "`NonlinearProblem`" begin
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0])
         sol = solve(prob, alg)
-        @test sol isa EnsembleSolution
-        @test sol.converged
-        for nlsol in sol.u
-            @test SciMLBase.successful_retcode(nlsol)
-            @test f(nlsol.u, prob.p) ≈ [0.0, 0.0] atol = 1e-10
-        end
+        @test SciMLBase.successful_retcode(sol)
+        @test f(sol.u, prob.p) ≈ [0.0, 0.0] atol = 1e-10
 
         @testset "no real solutions" begin
-            _prob = remake(prob; p = zeros(2))
-            _sol = solve(_prob, alg)
-            @test !_sol.converged
-            @test length(_sol) == 1
-            @test !SciMLBase.successful_retcode(_sol.u[1])
+            prob2 = remake(prob; p = zeros(2))
+            sol2 = solve(prob2, alg)
+            @test !SciMLBase.successful_retcode(sol2)
         end
     end
 
@@ -125,19 +111,15 @@ end
         end
         nlfn = NonlinearFunction(rhs; jac)
         fn = HomotopyNonlinearFunction(nlfn; denominator, polynomialize, unpolynomialize)
-        prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0, 4.0, 5.0])
-        sol2 = solve(prob, alg)
-        @test sol2 isa EnsembleSolution
-        @test sol2.converged
-        @test length(sol.u) == length(sol2.u)
-        for nlsol2 in sol2.u
-            @test any(nlsol -> isapprox(polynomialize(nlsol2.u, prob.p), nlsol.u; rtol = 1e-8), sol.u)
-        end
+        prob = NonlinearProblem(fn, [1.0, 1.0], [2.0, 3.0, 4.0, 5.0])
+        sol = solve(prob, alg)
+        @test SciMLBase.successful_retcode(sol)
+        @test f(polynomialize(sol.u, prob.p), prob.p) ≈ zeros(2) atol = 1e-10
 
         @testset "some invalid solutions" begin
-            prob3 = remake(prob; p = [2.0, 3.0, polynomialize(sol2.u[1].u, prob.p)...])
-            sol3 = solve(prob3, alg)
-            @test length(sol3.u) == length(sol2.u) - 1
+            prob2 = remake(prob; p = [2.0, 3.0, polynomialize(sol.u, prob.p)...])
+            sol2 = solve(prob2, alg)
+            @test !SciMLBase.successful_retcode(sol2)
         end
     end
 end

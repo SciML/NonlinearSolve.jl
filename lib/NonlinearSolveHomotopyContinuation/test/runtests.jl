@@ -9,5 +9,7 @@ using Aqua
     @testset "AllRoots" begin
         include("allroots.jl")
     end
-    # Write your tests here.
+    @testset "Single Root" begin
+        include("single_root.jl")
+    end
 end
