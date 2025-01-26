@@ -1,3 +1,9 @@
+"""
+    $(TYPEDSIGNATURES)
+
+Create and return the appropriate `HomotopySystemWrapper` to use for solving the given
+`prob` with `alg`.
+"""
 function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::HomotopyContinuationJL)
     # cast to a `HomotopyNonlinearFunction`
     f = if prob.f isa HomotopyNonlinearFunction
@@ -36,7 +42,6 @@ function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::Homoto
         HC.variables(:x, axes(u0)...)
     end
 
-    # TODO: Is there an upper bound for the order?
     taylorvars = if isscalar
         Taylor1(zeros(ComplexF64, 5), 4)
     elseif iip

@@ -4,6 +4,16 @@ struct Inplace <: HomotopySystemVariant end
 struct OutOfPlace <: HomotopySystemVariant end
 struct Scalar <: HomotopySystemVariant end
 
+"""
+    $(TYPEDEF)
+
+A simple struct that wraps a polynomial function which takes complex input and returns
+complex output in a form that supports automatic differentiation. If the wrapped
+function if ``f: \\mathbb{C}^n \\rightarrow \\mathbb{C}^n`` then it is assumed
+the input arrays are real-valued and have length ``2n``. They are `reinterpret`ed
+into complex arrays and passed into the function. This struct has an in-place signature
+regardless of the signature of ``f``.
+"""
 @concrete struct ComplexJacobianWrapper{variant <: HomotopySystemVariant}
     f
 end
@@ -32,14 +42,49 @@ function (cjw::ComplexJacobianWrapper{Scalar})(u::AbstractVector{T}, x::Abstract
     return u
 end
 
+"""
+    $(TYPEDEF)
+
+A struct which implements the `HomotopyContinuation.AbstractSystem` interface for
+polynomial systems specified using `NonlinearProblem`.
+
+# Fields
+
+$(FIELDS)
+"""
 @concrete struct HomotopySystemWrapper{variant <: HomotopySystemVariant} <: HC.AbstractSystem
+    """
+    The wrapped polynomial function.
+    """
     f
+    """
+    The jacobian function, if provided to the `NonlinearProblem` being solved. Otherwise,
+    a `ComplexJacobianWrapper` wrapping `f` used for automatic differentiation.
+    """
     jac
+    """
+    The parameter object.
+    """
     p
+    """
+    The ADType for automatic differentiation.
+    """
     autodiff
+    """
+    The result from `DifferentiationInterface.prepare_jacobian`.
+    """
     prep
+    """
+    HomotopyContinuation.jl's symbolic variables for the system.
+    """
     vars
+    """
+    The `TaylorSeries.Taylor1` objects used to compute the taylor series of `f`.
+    """
     taylorvars
+    """
+    Preallocated intermediate buffers used for calculating the jacobian.
+    """
     jacobian_buffers
 end
 
@@ -168,9 +213,38 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWra
     return u
 end
 
+"""
+    $(TYPEDEF)
+
+A `HomotopyContinuation.AbstractHomotopy` which uses an inital guess ``x_0`` to construct
+the start system for the homotopy. The homotopy is
+
+```math
+\\begin{aligned}
+H(x, t) &= t * (F(x) - F(x_0)) + (1 - t) * F(x)
+        &= F(x) - t * F(x_0)
+\\end{aligned}
+```
+
+Where ``F: \\mathbb{R}^n \\rightarrow \\mathbb{R}^n`` is the polynomial system and
+``x_0 \\in \\mathbb{R}^n`` is the guess provided to the `NonlinearProblem`.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 @concrete struct GuessHomotopy <: HC.AbstractHomotopy
+    """
+    The `HomotopyContinuation.AbstractSystem` to solve.
+    """
     sys <: HC.AbstractSystem
+    """
+    The residual of the initial guess, i.e. ``F(x_0)``.
+    """
     fu0
+    """
+    A preallocated `TaylorVector` for efficient `taylor!` implementation.
+    """
     taylorbuffer::HC.ModelKit.TaylorVector{5, ComplexF64}
 end
 
@@ -180,8 +254,6 @@ end
 
 Base.size(h::GuessHomotopy) = size(h.sys)
 
-# H(x, t) = (1 - t) * F(x) + t * (F(x) - F(x0))
-#         = F(x) - t * F(x0)
 function HC.ModelKit.evaluate!(u, h::GuessHomotopy, x, t, p = nothing)
     HC.ModelKit.evaluate!(u, h.sys, x, p)
     @inbounds for i in eachindex(u)
