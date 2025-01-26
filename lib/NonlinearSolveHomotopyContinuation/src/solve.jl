@@ -11,17 +11,22 @@ function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::Homoto
     isscalar = u0 isa Number
     iip = SciMLBase.isinplace(prob)
 
+    variant = iip ? Inplace : isscalar ? Scalar : OutOfPlace
+
     # jacobian handling
-    if SciMLBase.has_jac(f)
+    if SciMLBase.has_jac(f.f)
         # use if present
         prep = nothing
-    elseif iip
-        # prepare a DI jacobian if not
-        prep = DI.prepare_jacobian(prob.f.f, copy(state_values(prob)), alg.autodiff, u0, DI.Constant(p))
-    elseif isscalar
-        prep = DI.prepare_derivative(prob.f.f, alg.autodiff, u0, DI.Constant(p))
+        jac = f.jac
     else
-        prep = DI.prepare_jacobian(prob.f.f, alg.autodiff, u0, DI.Constant(p))
+        # prepare a DI jacobian if not
+        jac = ComplexJacobianWrapper{variant}(f.f.f)
+        tmp = if isscalar
+            Vector{Float64}(undef, 2)
+        else
+            similar(u0, Float64, 2length(u0))
+        end
+        prep = DI.prepare_jacobian(jac, tmp, alg.autodiff, copy(tmp), DI.Constant(p))
     end
 
     # variables for HC to use
@@ -41,16 +46,13 @@ function homotopy_continuation_preprocessing(prob::NonlinearProblem, alg::Homoto
     end
 
     jacobian_buffers = if isscalar
-        nothing
-    elseif iip
-        (similar(u0), similar(u0), similar(u0, length(u0), length(u0)))
+        Matrix{Float64}(undef, 2, 2)
     else
-        (similar(u0), similar(u0, length(u0), length(u0)))
+        similar(u0, Float64, 2length(u0), 2length(u0))
     end
 
     # HC-compatible system
-    variant = iip ? Inplace : isscalar ? Scalar : OutOfPlace
-    hcsys = HomotopySystemWrapper{variant}(prob, alg.autodiff, prep, vars, taylorvars, jacobian_buffers)
+    hcsys = HomotopySystemWrapper{variant}(f.f.f, jac, p, alg.autodiff, prep, vars, taylorvars, jacobian_buffers)
 
     return f, hcsys
 end
@@ -113,14 +115,14 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
     fu0 = NonlinearSolveBase.Utils.evaluate_f(prob, u0_p)
 
     homotopy = GuessHomotopy(hcsys, fu0)
-    if u0_p isa Number
-        u0_p = [u0_p]
+    orig_sol = HC.solve(homotopy, u0_p isa Number ? [[u0_p]] : [u0_p]; alg.kwargs..., kwargs...)
+    realsols = map(res -> res.solution, HC.results(orig_sol; only_real = true))
+    if u0 isa Number
+        realsols = map(only, realsols)
     end
-    orig_sol = HC.solve(homotopy, [u0_p]; alg.kwargs..., kwargs...)
-    realsols = HC.results(orig_sol; only_real = true)
 
     # no real solutions or infeasible solution
-    if isempty(realsols) || any(<=(denominator_abstol), f.denominator(real.(only(realsols).solution), p))
+    if isempty(realsols) || any(<=(denominator_abstol), map(abs, f.denominator(real.(only(realsols)), p)))
         retcode = if isempty(realsols)
             SciMLBase.ReturnCode.ConvergenceFailure
         else
@@ -129,15 +131,21 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
         resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
         return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
     end
-    realsol = only(realsols)
+
+    realsol = real(only(realsols))
     T = eltype(u0)
-    validsols = f.unpolynomialize(realsol.solution, p)
-    sol, idx = findmin(validsols) do sol
-        norm(sol - u0)
+    validsols = f.unpolynomialize(realsol, p)
+    _, idx = findmin(validsols) do sol
+        norm(sol - u0_p)
     end
-    resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+    u = map(real, validsols[idx])
+
+    if u0 isa Number
+        u = only(u)
+    end
+    resid = NonlinearSolveBase.Utils.evaluate_f(prob, u)
 
     retcode = SciMLBase.ReturnCode.Success
-    return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
+    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original = orig_sol)
 end
 
