@@ -49,7 +49,8 @@ pages = [
         "api/petsc.md",
         "api/siamfanlequations.md",
         "api/speedmapping.md",
-        "api/sundials.md"
+        "api/sundials.md",
+        "api/homotopycontinuation.md"
     ],
     "Sub-Packages" => Any[
         "api/SciMLJacobianOperators.md",

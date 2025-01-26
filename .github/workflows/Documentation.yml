@@ -22,7 +22,7 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", ".", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveQuasiNewton", "lib/NonlinearSolveSpectralMethods")
+          for path in ("lib/SciMLJacobianOperators", ".", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveQuasiNewton", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveHomotopyContinuation")
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
