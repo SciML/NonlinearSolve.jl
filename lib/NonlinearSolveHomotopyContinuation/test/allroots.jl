@@ -40,7 +40,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
 
     @testset "`HomotopyContinuationFunction`" begin
         denominator = function (u, p)
-            return [u - 0.7]
+            return [u - 0.7, u - 0.9]
         end
         polynomialize = function (u, p)
             return sin(u)
@@ -59,7 +59,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
         @test sin(sol.u[1][1]) ≈ 0.5
 
         @testset "no valid solutions" begin
-            prob2 = remake(prob; p = [0.7, 0.7])
+            prob2 = remake(prob; p = [0.7, 0.9])
             sol2 = solve(prob2, alg)
             @test !sol2.converged
             @test length(sol2) == 1

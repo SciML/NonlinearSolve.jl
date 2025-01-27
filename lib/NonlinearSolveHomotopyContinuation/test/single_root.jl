@@ -31,7 +31,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
 
     @testset "`HomotopyContinuationFunction`" begin
         denominator = function (u, p)
-            return [u - 0.7]
+            return [u - 0.7, u - 0.9]
         end
         polynomialize = function (u, p)
             return sin(u)
@@ -49,7 +49,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
         @test sin(sol.u[1])≈0.5 atol=1e-10
 
         @testset "no valid solutions" begin
-            prob2 = remake(prob; p = [0.7, 0.7])
+            prob2 = remake(prob; p = [0.7, 0.9])
             sol2 = solve(prob2, alg)
             @test sol2.retcode == SciMLBase.ReturnCode.Infeasible
         end
