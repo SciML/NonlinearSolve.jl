@@ -6,23 +6,24 @@ alg = HomotopyContinuationJL{true}(; threading = false)
 
 @testset "scalar u" begin
     rhs = function (u, p)
-        return u * u - 2p * u + p * p
+        return u * u - p[1] * u + p[2]
     end
     jac = function (u, p)
-        return 2u - 2p
+        return 2u - p[1]
     end
     @testset "`NonlinearProblem` - $name" for (jac, name) in [(nothing, "no jac"), (jac, "jac")]
         fn = NonlinearFunction(rhs; jac)
-        prob = NonlinearProblem(fn, 1.0, 2.0)
+        prob = NonlinearProblem(fn, 1.0, [5.0, 6.0])
         sol = solve(prob, alg)
 
         @test sol isa EnsembleSolution
         @test sol.converged
-        for nlsol in sol
-            @test nlsol isa NonlinearSolution
-            @test SciMLBase.successful_retcode(nlsol)
-            @test nlsol.u[1] ≈ 2.0 atol = 1e-7
-        end
+        @test sol.u[1] isa NonlinearSolution
+        @test SciMLBase.successful_retcode(sol.u[1])
+        @test sol.u[1].u ≈ 2.0 atol = 1e-10
+        @test sol.u[2] isa NonlinearSolution
+        @test SciMLBase.successful_retcode(sol.u[2])
+        @test sol.u[2].u ≈ 3.0 atol = 1e-10
 
         @testset "no real solutions" begin
             prob = NonlinearProblem(1.0, 0.5) do u, p
