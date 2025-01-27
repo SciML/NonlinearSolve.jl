@@ -18,6 +18,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
 
         @test sol isa EnsembleSolution
         @test sol.converged
+        sort!(sol.u; by = x -> x.u)
         @test sol.u[1] isa NonlinearSolution
         @test SciMLBase.successful_retcode(sol.u[1])
         @test sol.u[1].u ≈ 2.0 atol = 1e-10
