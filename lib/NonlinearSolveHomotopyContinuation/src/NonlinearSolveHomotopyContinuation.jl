@@ -45,7 +45,8 @@ specified using ADTypes.jl.
 HomotopyContinuation.jl requires the taylor series of the polynomial system for the single
 root method. This is automatically computed using TaylorSeries.jl.
 """
-@concrete struct HomotopyContinuationJL{AllRoots} <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
+@concrete struct HomotopyContinuationJL{AllRoots} <:
+                 NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
     autodiff
     kwargs
 end

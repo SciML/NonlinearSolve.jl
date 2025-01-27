@@ -11,7 +11,8 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     jac = function (u, p)
         return 2u - p[1]
     end
-    @testset "`NonlinearProblem` - $name" for (jac, name) in [(nothing, "no jac"), (jac, "jac")]
+    @testset "`NonlinearProblem` - $name" for (jac, name) in [
+        (nothing, "no jac"), (jac, "jac")]
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, 1.0, [5.0, 6.0])
         sol = solve(prob, alg)
@@ -21,14 +22,14 @@ alg = HomotopyContinuationJL{true}(; threading = false)
         sort!(sol.u; by = x -> x.u)
         @test sol.u[1] isa NonlinearSolution
         @test SciMLBase.successful_retcode(sol.u[1])
-        @test sol.u[1].u ≈ 2.0 atol = 1e-10
+        @test sol.u[1].u≈2.0 atol=1e-10
         @test sol.u[2] isa NonlinearSolution
         @test SciMLBase.successful_retcode(sol.u[2])
-        @test sol.u[2].u ≈ 3.0 atol = 1e-10
+        @test sol.u[2].u≈3.0 atol=1e-10
 
         @testset "no real solutions" begin
             prob = NonlinearProblem(1.0, 0.5) do u, p
-                return u * u - 2p * u  + p
+                return u * u - 2p * u + p
             end
             sol = solve(prob, alg)
             @test length(sol) == 1
@@ -47,7 +48,8 @@ alg = HomotopyContinuationJL{true}(; threading = false)
         unpolynomialize = function (u, p)
             return [asin(u)]
         end
-        fn = HomotopyNonlinearFunction(; denominator, polynomialize, unpolynomialize) do u, p
+        fn = HomotopyNonlinearFunction(;
+            denominator, polynomialize, unpolynomialize) do u, p
             return (u - p[1]) * (u - p[2])
         end
         prob = NonlinearProblem(fn, 0.0, [0.5, 0.7])
@@ -74,12 +76,12 @@ alg = HomotopyContinuationJL{true}(; threading = false)
 end
 
 f! = function (du, u, p)
-    du[1] = u[1] * u[1] - p[1] * u[2] + u[2] ^ 3 + 1
-    du[2] = u[2] ^ 3 + 2 * p[2] * u[1] * u[2] + u[2]
+    du[1] = u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1
+    du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
 end
 
 f = function (u, p)
-    [u[1] * u[1] - p[1] * u[2] + u[2] ^ 3 + 1, u[2] ^ 3 + 2 * p[2] * u[1] * u[2] + u[2]]
+    [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
 end
 
 jac! = function (j, u, p)
@@ -89,11 +91,13 @@ jac! = function (j, u, p)
     j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
 end
 jac = function (u, p)
-    [2u[1] -p[1] + 3 * u[2]^2;
-     2 * p[2] * u[2] 3 * u[2]^2 + 2 * p[2] * u[1] + 1]
+    [2u[1] -p[1]+3 * u[2]^2;
+     2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
 end
 
-@testset "vector u - $name" for (rhs, jac, name) in [(f, nothing, "oop"), (f, jac, "oop + jac"), (f!, nothing, "iip"), (f!, jac!, "iip + jac")]
+@testset "vector u - $name" for (rhs, jac, name) in [
+    (f, nothing, "oop"), (f, jac, "oop + jac"),
+    (f!, nothing, "iip"), (f!, jac!, "iip + jac")]
     sol = nothing
     @testset "`NonlinearProblem`" begin
         fn = NonlinearFunction(rhs; jac)
@@ -103,7 +107,7 @@ end
         @test sol.converged
         for nlsol in sol.u
             @test SciMLBase.successful_retcode(nlsol)
-            @test f(nlsol.u, prob.p) ≈ [0.0, 0.0] atol = 1e-10
+            @test f(nlsol.u, prob.p)≈[0.0, 0.0] atol=1e-10
         end
 
         @testset "no real solutions" begin
@@ -123,7 +127,7 @@ end
             return [[cbrt(u[1]), sin(u[2] / 40)]]
         end
         polynomialize = function (u, p)
-            return [u[1] ^ 3, 40asin(u[2])]
+            return [u[1]^3, 40asin(u[2])]
         end
         nlfn = NonlinearFunction(rhs; jac)
         fn = HomotopyNonlinearFunction(nlfn; denominator, polynomialize, unpolynomialize)
@@ -133,7 +137,9 @@ end
         @test sol2.converged
         @test length(sol.u) == length(sol2.u)
         for nlsol2 in sol2.u
-            @test any(nlsol -> isapprox(polynomialize(nlsol2.u, prob.p), nlsol.u; rtol = 1e-8), sol.u)
+            @test any(
+                nlsol -> isapprox(polynomialize(nlsol2.u, prob.p), nlsol.u; rtol = 1e-8),
+                sol.u)
         end
 
         @testset "some invalid solutions" begin

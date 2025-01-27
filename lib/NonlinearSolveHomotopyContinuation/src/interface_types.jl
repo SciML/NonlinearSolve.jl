@@ -18,7 +18,8 @@ regardless of the signature of ``f``.
     f
 end
 
-function (cjw::ComplexJacobianWrapper{Inplace})(u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
+function (cjw::ComplexJacobianWrapper{Inplace})(
+        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
     x = reinterpret(Complex{T}, x)
     u = reinterpret(Complex{T}, u)
     cjw.f(u, x, p)
@@ -26,7 +27,8 @@ function (cjw::ComplexJacobianWrapper{Inplace})(u::AbstractVector{T}, x::Abstrac
     return u
 end
 
-function (cjw::ComplexJacobianWrapper{OutOfPlace})(u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
+function (cjw::ComplexJacobianWrapper{OutOfPlace})(
+        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
     x = reinterpret(Complex{T}, x)
     u_tmp = cjw.f(x, p)
     u_tmp = reinterpret(T, u_tmp)
@@ -34,7 +36,8 @@ function (cjw::ComplexJacobianWrapper{OutOfPlace})(u::AbstractVector{T}, x::Abst
     return u
 end
 
-function (cjw::ComplexJacobianWrapper{Scalar})(u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
+function (cjw::ComplexJacobianWrapper{Scalar})(
+        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
     x = reinterpret(Complex{T}, x)
     u_tmp = cjw.f(x[1], p)
     u[1] = real(u_tmp)
@@ -52,7 +55,8 @@ polynomial systems specified using `NonlinearProblem`.
 
 $(FIELDS)
 """
-@concrete struct HomotopySystemWrapper{variant <: HomotopySystemVariant} <: HC.AbstractSystem
+@concrete struct HomotopySystemWrapper{variant <: HomotopySystemVariant} <:
+                 HC.AbstractSystem
     """
     The wrapped polynomial function.
     """
@@ -107,14 +111,16 @@ function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{Scalar}, x, p = not
     return u
 end
 
-function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Inplace}, x, p = nothing)
+function HC.ModelKit.evaluate_and_jacobian!(
+        u, U, sys::HomotopySystemWrapper{Inplace}, x, p = nothing)
     p = sys.p
     sys.f(u, x, p)
     sys.jac(U, x, p)
     return u, U
 end
 
-function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
+function HC.ModelKit.evaluate_and_jacobian!(
+        u, U, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
     p = sys.p
     u_tmp = sys.f(x, p)
     copyto!(u, u_tmp)
@@ -123,7 +129,8 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Out
     return u, U
 end
 
-function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
+function HC.ModelKit.evaluate_and_jacobian!(
+        u, U, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
     p = sys.p
     u[1] = sys.f(x[1], p)
     U[1] = sys.jac(x[1], p)
@@ -131,7 +138,9 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{Sca
 end
 
 for V in (Inplace, OutOfPlace, Scalar)
-    @eval function HC.ModelKit.evaluate_and_jacobian!(u, U, sys::HomotopySystemWrapper{$V, F, J}, x, p = nothing) where {F, J <: ComplexJacobianWrapper}
+    @eval function HC.ModelKit.evaluate_and_jacobian!(
+            u, U, sys::HomotopySystemWrapper{$V, F, J}, x,
+            p = nothing) where {F, J <: ComplexJacobianWrapper}
         p = sys.p
         U_tmp = sys.jacobian_buffers
         x = reinterpret(Float64, x)
@@ -151,9 +160,10 @@ for V in (Inplace, OutOfPlace, Scalar)
     end
 end
 
-function update_taylorvars_from_taylorvector!(vars, x::HC.ModelKit.TaylorVector{M}) where {M}
+function update_taylorvars_from_taylorvector!(
+        vars, x::HC.ModelKit.TaylorVector{M}) where {M}
     for i in eachindex(vars)
-        for j in 0:M-1
+        for j in 0:(M - 1)
             vars[i][j] = x[i, j + 1]
         end
         for j in M:4
@@ -171,19 +181,22 @@ function update_taylorvars_from_taylorvector!(vars, x::AbstractVector)
     end
 end
 
-function update_maybe_taylorvector_from_taylorvars!(u::Vector, vars, buffer, ::Val{N}) where {N}
+function update_maybe_taylorvector_from_taylorvars!(
+        u::Vector, vars, buffer, ::Val{N}) where {N}
     for i in eachindex(vars)
         u[i] = buffer[i][N]
     end
 end
 
-function update_maybe_taylorvector_from_taylorvars!(u::HC.ModelKit.TaylorVector, vars, buffer, ::Val{N}) where {N}
+function update_maybe_taylorvector_from_taylorvars!(
+        u::HC.ModelKit.TaylorVector, vars, buffer, ::Val{N}) where {N}
     for i in eachindex(vars)
         u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
     end
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{Inplace}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{Inplace}, x, p = nothing) where {N}
     f = sys.f
     p = sys.p
     buffer, vars = sys.taylorvars
@@ -193,7 +206,8 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWra
     return u
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing) where {N}
     f = sys.f
     p = sys.p
     vars = sys.taylorvars
@@ -203,7 +217,8 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWra
     return u
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N}, sys::HomotopySystemWrapper{Scalar}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{Scalar}, x, p = nothing) where {N}
     f = sys.f
     p = sys.p
     var = sys.taylorvars
@@ -270,8 +285,10 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, h::GuessHomotopy, x, t, p = no
     return u, U
 end
 
-HC.ModelKit.taylor!(u, v::Val{N}, H::GuessHomotopy, tx, t, incremental::Bool) where {N} =
+function HC.ModelKit.taylor!(
+        u, v::Val{N}, H::GuessHomotopy, tx, t, incremental::Bool) where {N}
     HC.ModelKit.taylor!(u, v, H, tx, t)
+end
 
 function HC.ModelKit.taylor!(u, ::Val{N}, h::GuessHomotopy, x, t, p = nothing) where {N}
     HC.ModelKit.taylor!(h.taylorbuffer, Val(N), h.sys, x, p)
