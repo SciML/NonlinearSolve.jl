@@ -13,6 +13,6 @@ using NonlinearSolveHomotopyContinuation, NonlinearSolve
 # Solver API
 
 ```@docs
-HomotopyContinuationJL
+NonlinearSolveHomotopyContinuation.HomotopyContinuationJL
 SciMLBase.HomotopyContinuationFunction
 ```
