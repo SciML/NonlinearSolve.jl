@@ -6,7 +6,7 @@ using NonlinearSolveBase
 using SymbolicIndexingInterface
 using LinearAlgebra
 using ADTypes
-using TaylorSeries
+using TaylorDiff
 using DocStringExtensions
 import CommonSolve
 import HomotopyContinuation as HC

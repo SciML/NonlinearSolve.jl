@@ -83,7 +83,7 @@ $(FIELDS)
     """
     vars
     """
-    The `TaylorSeries.Taylor1` objects used to compute the taylor series of `f`.
+    The `TaylorDiff.TaylorScalar` objects used to compute the taylor series of `f`.
     """
     taylorvars
     """
@@ -161,37 +161,58 @@ for V in (Inplace, OutOfPlace, Scalar)
 end
 
 function update_taylorvars_from_taylorvector!(
-        vars, x::HC.ModelKit.TaylorVector{M}) where {M}
-    for i in eachindex(vars)
-        for j in 0:(M - 1)
-            vars[i][j] = x[i, j + 1]
+        vars, x::HC.ModelKit.TaylorVector)
+    for i in eachindex(x)
+        xvar = x[i]
+        realx = ntuple(Val(4)) do j
+            j <= length(xvar) ? real(xvar[j - 1]) : 0.0
         end
-        for j in M:4
-            vars[i][j] = zero(vars[i][j])
+        imagx = ntuple(Val(4)) do j
+            j <= length(xvar) ? imag(xvar[j - 1]) : 0.0
         end
+
+        vars[2i - 1] = TaylorScalar(realx)
+        vars[2i] = TaylorScalar(imagx)
     end
 end
 
 function update_taylorvars_from_taylorvector!(vars, x::AbstractVector)
-    for i in eachindex(vars)
-        vars[i][0] = x[i]
-        for j in 1:4
-            vars[i][j] = zero(vars[i][j])
-        end
+    for i in eachindex(x)
+        vars[2i - 1] = TaylorScalar(real(x[i]), ntuple(Returns(0.0), Val(3)))
+        vars[2i] = TaylorScalar(imag(x[i]), ntuple(Returns(0.0), Val(3)))
     end
+end
+
+function check_taylor_equality(vars, x::HC.ModelKit.TaylorVector)
+    for i in eachindex(x)
+        TaylorDiff.flatten(vars[2i-1]) == map(real, x[i]) || return false
+        TaylorDiff.flatten(vars[2i]) == map(imag, x[i]) || return false
+    end
+    return true
+end
+function check_taylor_equality(vars, x::AbstractVector)
+    for i in eachindex(x)
+        TaylorDiff.value(vars[2i-1]) != real(x[i]) && return false
+        TaylorDiff.value(vars[2i]) != imag(x[i]) && return false
+    end
+    return true
 end
 
 function update_maybe_taylorvector_from_taylorvars!(
         u::Vector, vars, buffer, ::Val{N}) where {N}
     for i in eachindex(vars)
-        u[i] = buffer[i][N]
+        rval = TaylorDiff.flatten(real(buffer[i]))
+        ival = TaylorDiff.flatten(imag(buffer[i]))
+        u[i] = rval[N] + im * ival[N]
     end
 end
 
 function update_maybe_taylorvector_from_taylorvars!(
-        u::HC.ModelKit.TaylorVector, vars, buffer, ::Val{N}) where {N}
+        u::HC.ModelKit.TaylorVector{M}, vars, buffer, ::Val{N}) where {M, N}
     for i in eachindex(vars)
-        u[i] = ntuple(j -> buffer[i][j - 1], Val(N + 1))
+        rval = TaylorDiff.flatten(real(buffer[i]))
+        ival = TaylorDiff.flatten(imag(buffer[i]))
+        u[i] = ntuple(i -> rval[i]  + im * ival[i], Val(length(rval)))
     end
 end
 
@@ -199,9 +220,15 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
         sys::HomotopySystemWrapper{Inplace}, x, p = nothing) where {N}
     f = sys.f
     p = sys.p
-    buffer, vars = sys.taylorvars
-    update_taylorvars_from_taylorvector!(vars, x)
-    f(buffer, vars, p)
+    vars, buffer = sys.taylorvars
+    if !check_taylor_equality(vars, x)
+        update_taylorvars_from_taylorvector!(vars, x)
+        vars = reinterpret(Complex{eltype(vars)}, vars)
+        buffer = reinterpret(Complex{eltype(buffer)}, buffer)
+        f(buffer, vars, p)
+    else
+        vars = reinterpret(Complex{eltype(vars)}, vars)
+    end
     update_maybe_taylorvector_from_taylorvars!(u, vars, buffer, Val(N))
     return u
 end
@@ -211,8 +238,14 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
     f = sys.f
     p = sys.p
     vars = sys.taylorvars
-    update_taylorvars_from_taylorvector!(vars, x)
-    buffer = f(vars, p)
+    if !check_taylor_equality(vars, x)
+        update_taylorvars_from_taylorvector!(vars, x)
+        vars = reinterpret(Complex{eltype(vars)}, vars)
+        buffer = f(vars, p)
+        copyto!(vars, buffer)
+    else
+        vars = buffer = reinterpret(Complex{eltype(vars)}, vars)
+    end
     update_maybe_taylorvector_from_taylorvars!(u, vars, buffer, Val(N))
     return u
 end
@@ -222,9 +255,15 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
     f = sys.f
     p = sys.p
     var = sys.taylorvars
-    update_taylorvars_from_taylorvector!((var,), x)
-    buffer = f(var, p)
-    update_maybe_taylorvector_from_taylorvars!(u, (var,), (buffer,), Val(N))
+    if !check_taylor_equality(var, x)
+        update_taylorvars_from_taylorvector!(var, x)
+        var = reinterpret(Complex{eltype(var)}, var)
+        buffer = f(var[1], p)
+        var[1] = buffer
+    else
+        var = buffer = reinterpret(Complex{eltype(var)}, var)
+    end
+    update_maybe_taylorvector_from_taylorvars!(u, var, buffer, Val(N))
     return u
 end
 

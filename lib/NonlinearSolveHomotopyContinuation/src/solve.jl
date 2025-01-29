@@ -44,12 +44,14 @@ function homotopy_continuation_preprocessing(
     end
 
     taylorvars = if isscalar
-        Taylor1(zeros(ComplexF64, 5), 4)
+        [TaylorScalar(ntuple(Returns(0.0), 4)), TaylorScalar(ntuple(Returns(0.0), 4))]
     elseif iip
-        ([Taylor1(zeros(ComplexF64, 5), 4) for _ in u0],
-            [Taylor1(zeros(ComplexF64, 5), 4) for _ in u0])
+        (
+            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)],
+            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)]
+        )
     else
-        [Taylor1(zeros(ComplexF64, 5), 4) for _ in u0]
+        [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)]
     end
 
     jacobian_buffers = if isscalar
