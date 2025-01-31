@@ -5,6 +5,7 @@ using Sundials
 using NonlinearSolveBase, SciMLBase, DiffEqBase
 using SimpleNonlinearSolve, BracketingNonlinearSolve
 using NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods
+using NonlinearSolveHomotopyContinuation
 using SciMLJacobianOperators
 using NonlinearSolve, SteadyStateDiffEq
 
@@ -35,6 +36,7 @@ makedocs(;
         NonlinearSolveBase, SciMLBase, DiffEqBase,
         SimpleNonlinearSolve, BracketingNonlinearSolve,
         NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods,
+        NonlinearSolveHomotopyContinuation,
         Sundials,
         SciMLJacobianOperators,
         NonlinearSolve, SteadyStateDiffEq
