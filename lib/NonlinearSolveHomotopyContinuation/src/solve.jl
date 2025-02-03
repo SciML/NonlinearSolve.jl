@@ -23,17 +23,10 @@ function homotopy_continuation_preprocessing(
     # jacobian handling
     if SciMLBase.has_jac(f.f)
         # use if present
-        prep = nothing
-        jac = f.jac
+        jac = ExplicitJacobian{variant}(f.f.f, f.f.jac)
     else
         # prepare a DI jacobian if not
-        jac = ComplexJacobianWrapper{variant}(f.f.f)
-        tmp = if isscalar
-            Vector{Float64}(undef, 2)
-        else
-            similar(u0, Float64, 2length(u0))
-        end
-        prep = DI.prepare_jacobian(jac, tmp, alg.autodiff, copy(tmp), DI.Constant(p))
+        jac = construct_jacobian(f.f.f, alg.autodiff, variant, u0, p)
     end
 
     # variables for HC to use
@@ -47,22 +40,16 @@ function homotopy_continuation_preprocessing(
         [TaylorScalar(ntuple(Returns(0.0), 4)), TaylorScalar(ntuple(Returns(0.0), 4))]
     elseif iip
         (
-            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)],
-            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)]
+            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))],
+            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))]
         )
     else
-        [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:2length(u0)]
-    end
-
-    jacobian_buffers = if isscalar
-        Matrix{Float64}(undef, 2, 2)
-    else
-        similar(u0, Float64, 2length(u0), 2length(u0))
+        [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))]
     end
 
     # HC-compatible system
     hcsys = HomotopySystemWrapper{variant}(
-        f.f.f, jac, p, alg.autodiff, prep, vars, taylorvars, jacobian_buffers)
+        f.f.f, jac, p, vars, taylorvars)
 
     return f, hcsys
 end

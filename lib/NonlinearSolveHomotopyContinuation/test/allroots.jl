@@ -1,6 +1,8 @@
 using NonlinearSolve
 using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
+using ADTypes
+using Enzyme
 
 alg = HomotopyContinuationJL{true}(; threading = false)
 
@@ -11,11 +13,20 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     jac = function (u, p)
         return 2u - p[1]
     end
-    @testset "`NonlinearProblem` - $name" for (jac, name) in [
-        (nothing, "no jac"), (jac, "jac")]
+    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in [
+        (AutoForwardDiff(), "no jac - forwarddiff"), (AutoEnzyme(), "no jac - enzyme"), (
+            jac, "jac")]
+        if jac_or_autodiff isa Function
+            jac = jac_or_autodiff
+            autodiff = nothing
+        else
+            jac = nothing
+            autodiff = jac_or_autodiff
+        end
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, 1.0, [5.0, 6.0])
-        sol = solve(prob, alg)
+        _alg = HomotopyContinuationJL(alg; autodiff)
+        sol = solve(prob, _alg)
 
         @test sol isa EnsembleSolution
         @test sol.converged
@@ -84,25 +95,35 @@ f = function (u, p)
     [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
 end
 
-jac! = function (j, u, p)
+fjac! = function (j, u, p)
     j[1, 1] = 2u[1]
     j[1, 2] = -p[1] + 3 * u[2]^2
     j[2, 1] = 2 * p[2] * u[2]
     j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
 end
-jac = function (u, p)
+fjac = function (u, p)
     [2u[1] -p[1]+3 * u[2]^2;
      2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
 end
 
-@testset "vector u - $name" for (rhs, jac, name) in [
-    (f, nothing, "oop"), (f, jac, "oop + jac"),
-    (f!, nothing, "iip"), (f!, jac!, "iip + jac")]
+@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in [
+    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, AutoEnzyme(), "oop + enzyme"), (
+        f, fjac, "oop + jac"),
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, AutoEnzyme(), "iip + enzyme"), (
+        f!, fjac!, "iip + jac")]
     sol = nothing
+    if jac_or_autodiff isa Function
+        jac = jac_or_autodiff
+        autodiff = nothing
+    else
+        jac = nothing
+        autodiff = jac_or_autodiff
+    end
+    _alg = HomotopyContinuationJL(alg; autodiff)
     @testset "`NonlinearProblem`" begin
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0])
-        sol = solve(prob, alg)
+        sol = solve(prob, _alg)
         @test sol isa EnsembleSolution
         @test sol.converged
         for nlsol in sol.u
@@ -112,7 +133,7 @@ end
 
         @testset "no real solutions" begin
             _prob = remake(prob; p = zeros(2))
-            _sol = solve(_prob, alg)
+            _sol = solve(_prob, _alg)
             @test !_sol.converged
             @test length(_sol) == 1
             @test !SciMLBase.successful_retcode(_sol.u[1])
@@ -132,7 +153,7 @@ end
         nlfn = NonlinearFunction(rhs; jac)
         fn = HomotopyNonlinearFunction(nlfn; denominator, polynomialize, unpolynomialize)
         prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0, 4.0, 5.0])
-        sol2 = solve(prob, alg)
+        sol2 = solve(prob, _alg)
         @test sol2 isa EnsembleSolution
         @test sol2.converged
         @test length(sol.u) == length(sol2.u)
@@ -144,7 +165,7 @@ end
 
         @testset "some invalid solutions" begin
             prob3 = remake(prob; p = [2.0, 3.0, polynomialize(sol2.u[1].u, prob.p)...])
-            sol3 = solve(prob3, alg)
+            sol3 = solve(prob3, _alg)
             @test length(sol3.u) == length(sol2.u) - 1
         end
     end

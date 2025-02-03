@@ -7,47 +7,6 @@ struct Scalar <: HomotopySystemVariant end
 """
     $(TYPEDEF)
 
-A simple struct that wraps a polynomial function which takes complex input and returns
-complex output in a form that supports automatic differentiation. If the wrapped
-function if ``f: \\mathbb{C}^n \\rightarrow \\mathbb{C}^n`` then it is assumed
-the input arrays are real-valued and have length ``2n``. They are `reinterpret`ed
-into complex arrays and passed into the function. This struct has an in-place signature
-regardless of the signature of ``f``.
-"""
-@concrete struct ComplexJacobianWrapper{variant <: HomotopySystemVariant}
-    f
-end
-
-function (cjw::ComplexJacobianWrapper{Inplace})(
-        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
-    x = reinterpret(Complex{T}, x)
-    u = reinterpret(Complex{T}, u)
-    cjw.f(u, x, p)
-    u = parent(u)
-    return u
-end
-
-function (cjw::ComplexJacobianWrapper{OutOfPlace})(
-        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
-    x = reinterpret(Complex{T}, x)
-    u_tmp = cjw.f(x, p)
-    u_tmp = reinterpret(T, u_tmp)
-    copyto!(u, u_tmp)
-    return u
-end
-
-function (cjw::ComplexJacobianWrapper{Scalar})(
-        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
-    x = reinterpret(Complex{T}, x)
-    u_tmp = cjw.f(x[1], p)
-    u[1] = real(u_tmp)
-    u[2] = imag(u_tmp)
-    return u
-end
-
-"""
-    $(TYPEDEF)
-
 A struct which implements the `HomotopyContinuation.AbstractSystem` interface for
 polynomial systems specified using `NonlinearProblem`.
 
@@ -62,22 +21,16 @@ $(FIELDS)
     """
     f
     """
-    The jacobian function, if provided to the `NonlinearProblem` being solved. Otherwise,
-    a `ComplexJacobianWrapper` wrapping `f` used for automatic differentiation.
+    A function which calculates both the polynomial and the jacobian. Must be a function
+    of the form `f(u, U, x, p)` where `x` is the current unknowns and `p` is the parameter
+    object, writing the value of the polynomial to `u` and the jacobian to `U`. Must be able
+    to handle complex `x`.
     """
     jac
     """
     The parameter object.
     """
     p
-    """
-    The ADType for automatic differentiation.
-    """
-    autodiff
-    """
-    The result from `DifferentiationInterface.prepare_jacobian`.
-    """
-    prep
     """
     HomotopyContinuation.jl's symbolic variables for the system.
     """
@@ -86,10 +39,6 @@ $(FIELDS)
     The `TaylorDiff.TaylorScalar` objects used to compute the taylor series of `f`.
     """
     taylorvars
-    """
-    Preallocated intermediate buffers used for calculating the jacobian.
-    """
-    jacobian_buffers
 end
 
 Base.size(sys::HomotopySystemWrapper) = (length(sys.vars), length(sys.vars))
@@ -112,52 +61,9 @@ function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{Scalar}, x, p = not
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(
-        u, U, sys::HomotopySystemWrapper{Inplace}, x, p = nothing)
-    p = sys.p
-    sys.f(u, x, p)
-    sys.jac(U, x, p)
+        u, U, sys::HomotopySystemWrapper, x, p = nothing)
+    sys.jac(u, U, x, sys.p)
     return u, U
-end
-
-function HC.ModelKit.evaluate_and_jacobian!(
-        u, U, sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing)
-    p = sys.p
-    u_tmp = sys.f(x, p)
-    copyto!(u, u_tmp)
-    j_tmp = sys.jac(x, p)
-    copyto!(U, j_tmp)
-    return u, U
-end
-
-function HC.ModelKit.evaluate_and_jacobian!(
-        u, U, sys::HomotopySystemWrapper{Scalar}, x, p = nothing)
-    p = sys.p
-    u[1] = sys.f(x[1], p)
-    U[1] = sys.jac(x[1], p)
-    return u, U
-end
-
-for V in (Inplace, OutOfPlace, Scalar)
-    @eval function HC.ModelKit.evaluate_and_jacobian!(
-            u, U, sys::HomotopySystemWrapper{$V, F, J}, x,
-            p = nothing) where {F, J <: ComplexJacobianWrapper}
-        p = sys.p
-        U_tmp = sys.jacobian_buffers
-        x = reinterpret(Float64, x)
-        u = reinterpret(Float64, u)
-        DI.value_and_jacobian!(sys.jac, u, U_tmp, sys.prep, sys.autodiff, x, DI.Constant(p))
-        U = reinterpret(Float64, U)
-        @inbounds for j in axes(U, 2)
-            jj = 2j - 1
-            for i in axes(U, 1)
-                U[i, j] = U_tmp[i, jj]
-            end
-        end
-        u = parent(u)
-        U = parent(U)
-
-        return u, U
-    end
 end
 
 function update_taylorvars_from_taylorvector!(
@@ -185,14 +91,14 @@ end
 
 function check_taylor_equality(vars, x::HC.ModelKit.TaylorVector)
     for i in eachindex(x)
-        TaylorDiff.flatten(vars[2i-1]) == map(real, x[i]) || return false
+        TaylorDiff.flatten(vars[2i - 1]) == map(real, x[i]) || return false
         TaylorDiff.flatten(vars[2i]) == map(imag, x[i]) || return false
     end
     return true
 end
 function check_taylor_equality(vars, x::AbstractVector)
     for i in eachindex(x)
-        TaylorDiff.value(vars[2i-1]) != real(x[i]) && return false
+        TaylorDiff.value(vars[2i - 1]) != real(x[i]) && return false
         TaylorDiff.value(vars[2i]) != imag(x[i]) && return false
     end
     return true
@@ -212,7 +118,7 @@ function update_maybe_taylorvector_from_taylorvars!(
     for i in eachindex(vars)
         rval = TaylorDiff.flatten(real(buffer[i]))
         ival = TaylorDiff.flatten(imag(buffer[i]))
-        u[i] = ntuple(i -> rval[i]  + im * ival[i], Val(length(rval)))
+        u[i] = ntuple(i -> rval[i] + im * ival[i], Val(length(rval)))
     end
 end
 

@@ -11,11 +11,20 @@ alg = HomotopyContinuationJL{false}(; threading = false)
     jac = function (u, p)
         return 2u - (p + 3)
     end
-    @testset "`NonlinearProblem` - $name" for (jac, name) in [
-        (nothing, "no jac"), (jac, "jac")]
+    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in [
+        (AutoForwardDiff(), "no jac - forwarddiff"), (AutoEnzyme(), "no jac - enzyme"), (
+            jac, "jac")]
+        if jac_or_autodiff isa Function
+            jac = jac_or_autodiff
+            autodiff = nothing
+        else
+            jac = nothing
+            autodiff = jac_or_autodiff
+        end
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, 1.0, 2.0)
-        sol = solve(prob, alg)
+        _alg = HomotopyContinuationJL(alg; autodiff)
+        sol = solve(prob, _alg)
 
         @test sol isa NonlinearSolution
         @test sol.u≈2.0 atol=1e-10
@@ -86,19 +95,29 @@ jac = function (u, p)
      2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
 end
 
-@testset "vector u - $name" for (rhs, jac, name) in [
-    (f, nothing, "oop"), (f, jac, "oop + jac"),
-    (f!, nothing, "iip"), (f!, jac!, "iip + jac")]
+@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in [
+    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, AutoEnzyme(), "oop + enzyme"), (
+        f, jac, "oop + jac"),
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, AutoEnzyme(), "iip + enzyme"), (
+        f!, jac!, "iip + jac")]
+    if jac_or_autodiff isa Function
+        jac = jac_or_autodiff
+        autodiff = nothing
+    else
+        jac = nothing
+        autodiff = jac_or_autodiff
+    end
+    _alg = HomotopyContinuationJL(alg; autodiff)
     @testset "`NonlinearProblem`" begin
         fn = NonlinearFunction(rhs; jac)
         prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0])
-        sol = solve(prob, alg)
+        sol = solve(prob, _alg)
         @test SciMLBase.successful_retcode(sol)
         @test f(sol.u, prob.p)≈[0.0, 0.0] atol=1e-10
 
         @testset "no real solutions" begin
             prob2 = remake(prob; p = zeros(2))
-            sol2 = solve(prob2, alg)
+            sol2 = solve(prob2, _alg)
             @test !SciMLBase.successful_retcode(sol2)
         end
     end
@@ -116,13 +135,13 @@ end
         nlfn = NonlinearFunction(rhs; jac)
         fn = HomotopyNonlinearFunction(nlfn; denominator, polynomialize, unpolynomialize)
         prob = NonlinearProblem(fn, [1.0, 1.0], [2.0, 3.0, 4.0, 5.0])
-        sol = solve(prob, alg)
+        sol = solve(prob, _alg)
         @test SciMLBase.successful_retcode(sol)
         @test f(polynomialize(sol.u, prob.p), prob.p)≈zeros(2) atol=1e-10
 
         @testset "some invalid solutions" begin
             prob2 = remake(prob; p = [2.0, 3.0, polynomialize(sol.u, prob.p)...])
-            sol2 = solve(prob2, alg)
+            sol2 = solve(prob2, _alg)
             @test !SciMLBase.successful_retcode(sol2)
         end
     end
