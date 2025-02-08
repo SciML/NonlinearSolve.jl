@@ -3,6 +3,7 @@ using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 using ADTypes
 using Enzyme
+import NaNMath
 
 alg = HomotopyContinuationJL{true}(; threading = false)
 
@@ -168,5 +169,24 @@ end
             sol3 = solve(prob3, _alg)
             @test length(sol3.u) == length(sol2.u) - 1
         end
+    end
+end
+
+@testset "`NaN` unpolynomialize" begin
+    polynomialize = function (u, p)
+        return sin(u^2)
+    end
+    unpolynomialize = function (u, p)
+        return (-NaNMath.sqrt(NaNMath.asin(u)), NaNMath.sqrt(NaNMath.asin(u)))
+    end
+    rhs = function (u, p)
+        return u^2 + u - 1
+    end
+    prob = NonlinearProblem(
+        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0)
+    sol = solve(prob, alg)
+    @test sol isa EnsembleSolution
+    for nlsol in sol.u
+        @test !isnan(nlsol.u)
     end
 end
