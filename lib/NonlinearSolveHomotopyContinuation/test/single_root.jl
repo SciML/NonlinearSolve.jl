@@ -1,6 +1,7 @@
 using NonlinearSolve
 using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
+import NaNMath
 
 alg = HomotopyContinuationJL{false}(; threading = false)
 
@@ -145,4 +146,20 @@ end
             @test !SciMLBase.successful_retcode(sol2)
         end
     end
+end
+
+@testset "`NaN` unpolynomialize" begin
+    polynomialize = function (u, p)
+        return sin(u^2)
+    end
+    unpolynomialize = function (u, p)
+        return NaN
+    end
+    rhs = function (u, p)
+        return u^2 + u - 1
+    end
+    prob = NonlinearProblem(
+        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0)
+    sol = solve(prob, alg)
+    @test !SciMLBase.successful_retcode(sol)
 end

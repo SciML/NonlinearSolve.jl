@@ -84,7 +84,11 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{t
         end
         # unpack solutions and make them real
         u = isscalar ? only(result.solution) : result.solution
-        append!(validsols, f.unpolynomialize(real.(u), p))
+        unpolysols = f.unpolynomialize(real.(u), p)
+        for sol in unpolysols
+            any(isnan, sol) && continue
+            push!(validsols, sol)
+        end
     end
 
     # if there are no valid solutions
@@ -137,9 +141,16 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
     T = eltype(u0)
     validsols = f.unpolynomialize(realsol, p)
     _, idx = findmin(validsols) do sol
-        norm(sol - u0_p)
+        any(isnan, sol) ? Inf : norm(sol - u0_p)
     end
+
     u = map(real, validsols[idx])
+
+    if any(isnan, u)
+        retcode = SciMLBase.ReturnCode.Infeasible
+        resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+        return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
+    end
 
     if u0 isa Number
         u = only(u)
