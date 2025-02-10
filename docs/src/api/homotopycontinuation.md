@@ -14,5 +14,5 @@ using NonlinearSolveHomotopyContinuation, NonlinearSolve
 
 ```@docs
 NonlinearSolveHomotopyContinuation.HomotopyContinuationJL
-SciMLBase.HomotopyContinuationFunction
+SciMLBase.HomotopyNonlinearFunction
 ```
