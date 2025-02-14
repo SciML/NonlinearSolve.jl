@@ -1,6 +1,6 @@
 @testitem "Brusselator 2D" tags=[:core] begin
     using LinearAlgebra, SparseArrays, SparseConnectivityTracer, ADTypes,
-          SparseMatrixColorings
+          SparseMatrixColorings, Sparspak
 
     const N = 32
     const xyd_brusselator = range(0, stop = 1, length = N)
@@ -72,7 +72,7 @@ end
 
 @testitem "Structured Jacobians" tags=[:core] begin
     using SparseConnectivityTracer, BandedMatrices, LinearAlgebra, SparseArrays,
-          SparseMatrixColorings
+          SparseMatrixColorings, Sparspak
 
     N = 16
     p = rand(N)

@@ -393,7 +393,7 @@ end
 end
 
 @testitem "Simple Sparse AutoDiff" setup=[CoreRootfindTesting] tags=[:core] begin
-    using ADTypes, SparseConnectivityTracer, SparseMatrixColorings
+    using ADTypes, SparseConnectivityTracer, SparseMatrixColorings, Sparspak
 
     @testset for ad in (AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme())
         @testset for u0 in ([1.0, 1.0], 1.0)
