@@ -74,7 +74,7 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
     linprob = LinearProblem(A, b; u0 = u_cache, kwargs...)
 
     # unlias here, we will later use these as caches
-    lincache = init(linprob, linsolve; alias_A = false, alias_b = false)
+    lincache = init(linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false))
     return LinearSolveJLCache(lincache, linsolve, nothing, stats)
 end
 
