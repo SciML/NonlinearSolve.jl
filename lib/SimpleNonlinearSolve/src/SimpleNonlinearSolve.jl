@@ -49,6 +49,7 @@ include("utils.jl")
 include("broyden.jl")
 include("dfsane.jl")
 include("halley.jl")
+include("householder.jl")
 include("klement.jl")
 include("lbroyden.jl")
 include("raphson.jl")
@@ -140,6 +141,13 @@ end
 
 function solve_adjoint_internal end
 
+function evaluate_hvvp(args...; kws...)
+    is_extension_loaded(Val(:TaylorDiff)) && return evaluate_hvvp_internal(args...; kws...)
+    error("Halley's method with Taylor mode requires `TaylorDiff.jl` to be explicitly loaded.")
+end
+
+function evaluate_hvvp_internal end
+
 @setup_workload begin
     for T in (Float64,)
         prob_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
@@ -173,7 +181,7 @@ end
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
-export SimpleHalley
+export SimpleHalley, SimpleHouseholder
 
 export solve
 
