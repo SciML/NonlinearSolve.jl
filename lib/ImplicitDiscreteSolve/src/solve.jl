@@ -5,7 +5,6 @@ function perform_step!(integrator, cache::IDSolveCache, repeat_step = false)
     @unpack state, prob = cache
     state.u .= uprev
     state.t_next = t
-    @show state
     prob = remake(prob, p = state)
 
     u = solve(prob, nlsolve)
@@ -32,15 +31,3 @@ function initialize!(integrator, cache::IDSolveCache)
     end
     cache.prob = prob
 end
-
-#### unnecessary
-#function DiffEqBase.__init(prob::ImplicitDiscreteProblem, alg) 
-#    f = prob.f
-#    t_i = prob.tspan[1]
-#    u0 = state_values(prob)
-#    p = parameter_values(prob)
-#
-#    _f(resid, u_next, p) = f(resid, u_next, p.u, p.p, p.t)
-#    state = ImplicitDiscreteState(u0, p, t_i)
-#    nlprob = NonlinearProblem(_f, u0, state)
-#end

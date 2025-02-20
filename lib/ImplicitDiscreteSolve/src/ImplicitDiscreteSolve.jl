@@ -7,7 +7,7 @@ using SymbolicIndexingInterface
 using LinearAlgebra
 using ADTypes
 using UnPack
-import OrdinaryDiffEqCore: OrdinaryDiffEqAlgorithm, alg_cache, OrdinaryDiffEqMutableCache, OrdinaryDiffEqConstantCache, get_fsalfirstlast, initialize!, perform_step!
+import OrdinaryDiffEqCore: OrdinaryDiffEqAlgorithm, alg_cache, OrdinaryDiffEqMutableCache, OrdinaryDiffEqConstantCache, get_fsalfirstlast, isfsal, initialize!, perform_step!, isdiscretecache, isdiscretealg, alg_order, beta2_default, beta1_default, dt_required
 import CommonSolve
 import DifferentiationInterface as DI
 
@@ -25,6 +25,7 @@ end
 
 include("cache.jl")
 include("solve.jl")
+include("alg_utils.jl")
 
 export IDSolve
 
