@@ -6,26 +6,26 @@ using NonlinearSolveBase
 using SymbolicIndexingInterface
 using LinearAlgebra
 using ADTypes
-using TaylorDiff
-using DocStringExtensions
+using UnPack
+import OrdinaryDiffEqCore: OrdinaryDiffEqAlgorithm, alg_cache, OrdinaryDiffEqMutableCache, OrdinaryDiffEqConstantCache, get_fsalfirstlast, initialize!, perform_step!
 import CommonSolve
 import DifferentiationInterface as DI
 
-using ConcreteStructs: @concrete
+using Reexport
+@reexport using DiffEqBase
 
 """
-    IteratedNonlinearSolve(; nlsolvealg, autodiff = true, kwargs...)
+    IDSolve(alg; autodiff = true, kwargs...)
 
-This algorithm is a solver for ImplicitDiscreteSystems.
+Solver for `ImplicitDiscreteSystems`. `alg` is the NonlinearSolve algorithm that is used to solve for the next timestep at each step.
 """
-@concrete struct IteratedNonlinearSolve <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
-    nlsolvealg
-    autodiff
-    kwargs
+struct IDSolve{algType} <: OrdinaryDiffEqAlgorithm
+    nlsolve::algType
 end
 
-export IteratedNonlinearSolve
-
+include("cache.jl")
 include("solve.jl")
+
+export IDSolve
 
 end

@@ -2,3 +2,37 @@ name = "ImplicitDiscreteSolve"
 uuid = "3263718b-31ed-49cf-8a0f-35a466e8af96"
 authors = ["vyudu <vincent.duyuan@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
+OrdinaryDiffEqSDIRK = "2d112036-d095-4a1e-ab9a-08536f3ecdbf"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
+UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
+[compat]
+ADTypes = "1.13.0"
+CommonSolve = "0.2.4"
+DiffEqBase = "6.164.1"
+DifferentiationInterface = "0.6.42"
+LinearAlgebra = "1.11.0"
+NonlinearSolveBase = "1.5.0"
+OrdinaryDiffEqCore = "1.18.1"
+OrdinaryDiffEqSDIRK = "1.2.0"
+Reexport = "1.2.2"
+SciMLBase = "2.74.1"
+SimpleNonlinearSolve = "2.1.0"
+SymbolicIndexingInterface = "0.3.37"
+UnPack = "1.0.2"
+
+[extras]
+OrdinaryDiffEqSDIRK = "2d112036-d095-4a1e-ab9a-08536f3ecdbf"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
