@@ -35,5 +35,4 @@ function alg_cache(alg::SimpleIDSolve, u, rate_prototype, ::Type{uEltypeNoUnits}
     SimpleIDSolveCache(u, uprev, state, nothing)
 end
 
-isfsal(alg::SimpleIDSolve) = false
 get_fsalfirstlast(cache::SimpleIDSolveCache, rate_prototype) = (nothing, nothing)

@@ -1,4 +1,4 @@
-name = "ImplicitDiscreteSolve"
+name = "SimpleImplicitDiscreteSolve"
 uuid = "3263718b-31ed-49cf-8a0f-35a466e8af96"
 authors = ["vyudu <vincent.duyuan@gmail.com>"]
 version = "0.1.0"
@@ -13,6 +13,7 @@ NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
