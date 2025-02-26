@@ -1,8 +1,7 @@
 #runtests
-using ImplicitDiscreteSolve
+using SimpleImplicitDiscreteSolve
 using OrdinaryDiffEqCore
 using OrdinaryDiffEqSDIRK
-using SimpleNonlinearSolve
 
 # Test implicit Euler using ImplicitDiscreteProblem
 @testset "Implicit Discrete System" begin
@@ -20,7 +19,7 @@ using SimpleNonlinearSolve
     tspan = (0., 0.5)
 
     idprob = ImplicitDiscreteProblem(f!, u0, tspan, []; dt = 0.01)
-    idsol = solve(idprob, IDSolve(SimpleNewtonRaphson()))
+    idsol = solve(idprob, SimpleIDSolve())
 
     oprob = ODEProblem(lotkavolterra, u0, tspan)
     osol = solve(oprob, ImplicitEuler())
