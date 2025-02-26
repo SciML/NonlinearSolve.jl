@@ -1,4 +1,4 @@
-module ImplicitDiscreteSolve
+module SimpleImplicitDiscreteSolve
 
 using SciMLBase: AbstractNonlinearProblem
 using SciMLBase
@@ -16,11 +16,11 @@ using Reexport
 @reexport using DiffEqBase
 
 """
-    IDSolve(alg; autodiff = true, kwargs...)
+    SimpleIDSolve()
 
-Solver for `ImplicitDiscreteSystems`. `alg` is the NonlinearSolve algorithm that is used to solve for the next timestep at each step.
+Simple solver for `ImplicitDiscreteSystems`. Uses `SimpleNewtonRaphson` to solve for the next state at every timestep.
 """
-struct SimpleIDSolve{algType} <: OrdinaryDiffEqAlgorithm end
+struct SimpleIDSolve <: OrdinaryDiffEqAlgorithm end
 
 include("cache.jl")
 include("solve.jl")
