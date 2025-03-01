@@ -8,7 +8,7 @@ mutable struct SimpleIDSolveCache{uType} <: OrdinaryDiffEqMutableCache
     u::uType
     uprev::uType
     state::ImplicitDiscreteState
-    prob::Union{Nothing, AbstractNonlinearProblem}
+    prob::Union{Nothing, SciMLBase.AbstractNonlinearProblem}
 end
 
 function alg_cache(alg::SimpleIDSolve, u, rate_prototype, ::Type{uEltypeNoUnits},
@@ -23,7 +23,7 @@ end
 isdiscretecache(cache::SimpleIDSolveCache) = true
 
 struct SimpleIDSolveConstantCache <: OrdinaryDiffEqConstantCache 
-    prob::Union{Nothing, AbstractNonlinearProblem}
+    prob::Union{Nothing, SciMLBase.AbstractNonlinearProblem}
 end
 
 function alg_cache(alg::SimpleIDSolve, u, rate_prototype, ::Type{uEltypeNoUnits},
