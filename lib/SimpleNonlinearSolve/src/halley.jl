@@ -20,11 +20,18 @@ A low-overhead implementation of Halley's Method.
     autodiff = nothing
 end
 
+function configure_autodiff(prob, alg::SimpleHalley)
+    # The way we write the 2nd order derivatives, we know Enzyme won't work there
+    @set! alg.autodiff = something(alg.autodiff, AutoForwardDiff())
+    alg
+end
+
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleHalley, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...
 )
+    autodiff = alg.autodiff
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
@@ -35,10 +42,6 @@ function SciMLBase.__solve(
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
-
-    # The way we write the 2nd order derivatives, we know Enzyme won't work there
-    autodiff = alg.autodiff === nothing ? AutoForwardDiff() : alg.autodiff
-    @set! alg.autodiff = autodiff
 
     @bb xo = copy(x)
 

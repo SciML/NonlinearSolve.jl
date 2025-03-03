@@ -39,6 +39,7 @@ const DualNonlinearLeastSquaresProblem = NonlinearLeastSquaresProblem{
 } where {iip, T, V, P}
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearSolveAlgorithm end
+configure_autodiff(prob, alg::AbstractSimpleNonlinearSolveAlgorithm) = alg
 
 const NLBUtils = NonlinearSolveBase.Utils
 
@@ -59,12 +60,6 @@ function CommonSolve.solve(
         prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
         kwargs...
 )
-    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
-    prob = cache.prob
-    if cache.retcode == ReturnCode.InitialFailure
-        return SciMLBase.build_solution(prob, alg, prob.u0,
-            NonlinearSolveBase.Utils.evaluate_f(prob, prob.u0); cache.retcode)
-    end
     prob = convert(ImmutableNonlinearProblem, prob)
     return solve(prob, alg, args...; kwargs...)
 end
@@ -73,9 +68,7 @@ function CommonSolve.solve(
         prob::DualNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; kwargs...
 )
-    if hasfield(typeof(alg), :autodiff) && alg.autodiff === nothing
-        @set! alg.autodiff = AutoForwardDiff()
-    end
+    alg = configure_autodiff(prob, alg)
     prob = convert(ImmutableNonlinearProblem, prob)
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
     dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
@@ -88,9 +81,7 @@ function CommonSolve.solve(
         prob::DualNonlinearLeastSquaresProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; kwargs...
 )
-    if hasfield(typeof(alg), :autodiff) && alg.autodiff === nothing
-        @set! alg.autodiff = AutoForwardDiff()
-    end
+    alg = configure_autodiff(prob, alg)
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
     dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
     return SciMLBase.build_solution(
@@ -103,6 +94,7 @@ function CommonSolve.solve(
         alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...
 )
+    alg = configure_autodiff(prob, alg)
     cache = SciMLBase.__init(prob, alg, args...; kwargs...)
     prob = cache.prob
     if cache.retcode == ReturnCode.InitialFailure
