@@ -28,10 +28,10 @@
     ]
 
     function run_nlsolve_oop(f::F, u0, p = 2.0; solver) where {F}
-        return solve(NonlinearProblem{false}(f, u0, p), solver; abstol = 1e-9)
+        return @inferred solve(NonlinearProblem{false}(f, u0, p), solver; abstol = 1e-9)
     end
     function run_nlsolve_iip(f!::F, u0, p = 2.0; solver) where {F}
-        return solve(NonlinearProblem{true}(f!, u0, p), solver; abstol = 1e-9)
+        return @inferred solve(NonlinearProblem{true}(f!, u0, p), solver; abstol = 1e-9)
     end
 end
 

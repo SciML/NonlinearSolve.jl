@@ -158,26 +158,20 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, ::DINoPreparation)
     return J
 end
 
-function compute_jacobian_and_hessian(autodiff, prob, _, x::Number)
+function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
-    fx, J = DI.value_and_derivative(prob.f, autodiff, x, Constant(prob.p))
-    return fx, J, H
+    return H*dir
 end
-function compute_jacobian_and_hessian(autodiff, prob, fx, x)
-    if SciMLBase.isinplace(prob)
-        jac_fn = @closure (u, p) -> begin
+function compute_hvvp(prob, autodiff, fx, x, dir)
+    jvp_fn = if SciMLBase.isinplace(prob)
+        @closure (u, p) -> begin
             du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
-            return DI.jacobian(prob.f, du, autodiff, u, Constant(p))
+            return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
         end
-        J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        return fx, J, H
     else
-        jac_fn = @closure (u, p) -> DI.jacobian(prob.f, autodiff, u, Constant(p))
-        J, H = DI.value_and_jacobian(jac_fn, autodiff, x, Constant(prob.p))
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        return fx, J, H
+        @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
+    only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
 end

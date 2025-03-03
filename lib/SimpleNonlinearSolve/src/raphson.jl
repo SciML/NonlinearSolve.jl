@@ -23,12 +23,21 @@ end
 
 const SimpleGaussNewton = SimpleNewtonRaphson
 
+function configure_autodiff(prob, alg::SimpleNewtonRaphson)
+    autodiff = something(alg.autodiff, AutoForwardDiff())
+    autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
+               NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
+    @set! alg.autodiff = autodiff
+    alg
+end
+
 function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...
 )
+    autodiff = alg.autodiff
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
@@ -38,10 +47,6 @@ function SciMLBase.__solve(
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
-
-    autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
-    @set! alg.autodiff = autodiff
 
     @bb xo = similar(x)
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
