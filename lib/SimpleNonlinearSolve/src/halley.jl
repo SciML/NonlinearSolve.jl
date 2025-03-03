@@ -21,8 +21,10 @@ A low-overhead implementation of Halley's Method.
 end
 
 function configure_autodiff(prob, alg::SimpleHalley)
-    # The way we write the 2nd order derivatives, we know Enzyme won't work there
-    @set! alg.autodiff = something(alg.autodiff, AutoForwardDiff())
+    autodiff = something(alg.autodiff, AutoForwardDiff())
+    autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
+               NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
+    @set! alg.autodiff = autodiff
     alg
 end
 
@@ -45,17 +47,19 @@ function SciMLBase.__solve(
 
     @bb xo = copy(x)
 
+    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
+               NLBUtils.safe_similar(fx) : fx
+    jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
+
     if NLBUtils.can_setindex(x)
-        A = NLBUtils.safe_similar(x, length(x), length(x))
         Aaᵢ = NLBUtils.safe_similar(x, length(x))
         cᵢ = NLBUtils.safe_similar(x)
     else
-        A, Aaᵢ, cᵢ = x, x, x
+        Aaᵢ, cᵢ = x, x, x
     end
 
+    J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
     for _ in 1:maxiters
-        fx, J, H = Utils.compute_jacobian_and_hessian(autodiff, prob, fx, x)
-
         NLBUtils.can_setindex(x) || (A = J)
 
         # Factorize Once and Reuse
@@ -70,13 +74,8 @@ function SciMLBase.__solve(
         end
 
         aᵢ = J_fact \ NLBUtils.safe_vec(fx)
-        A_ = NLBUtils.safe_vec(A)
-        @bb A_ = H × aᵢ
-        A = NLBUtils.restructure(A, A_)
-
-        @bb Aaᵢ = A × aᵢ
-        @bb A .*= -1
-        bᵢ = J_fact \ NLBUtils.safe_vec(Aaᵢ)
+        hvvp = Utils.compute_hvvp(prob, autodiff, fx_cache, x, aᵢ)
+        bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
 
         cᵢ_ = NLBUtils.safe_vec(cᵢ)
         @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
@@ -87,6 +86,9 @@ function SciMLBase.__solve(
 
         @bb @. x += cᵢ
         @bb copyto!(xo, x)
+
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
+        J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
     end
 
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
