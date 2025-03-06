@@ -71,29 +71,29 @@ differentiate the function based on the input types. However, this function has
 `xx = [1.0, 2.0, 3.0, 4.0]` followed by a `xx[1] = var[1] - v_true[1]` where `var` might
 be a Dual number. This causes the error. To fix it:
 
- 1. Specify the `autodiff` to be `AutoFiniteDiff`
+1. Specify the `autodiff` to be `AutoFiniteDiff`
 
-```@example dual_error_faq
-sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff());
-    maxiters = 10000, abstol = 1e-8)
-```
+   ```@example dual_error_faq
+   sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff());
+       maxiters = 10000, abstol = 1e-8)
+   ```
 
-This worked but, Finite Differencing is not the recommended approach in any scenario.
+   This worked but, Finite Differencing is not the recommended approach in any scenario.
 
- 2. Rewrite the function to use
-    [PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
+2. Rewrite the function to use
+   [PreallocationTools.jl](https://github.com/SciML/PreallocationTools.jl) or write it as
 
-```@example dual_error_faq
-function fff_correct(var, p)
-    v_true = [1.0, 0.1, 2.0, 0.5]
-    xx = eltype(var)[1.0, 2.0, 3.0, 4.0]
-    xx[1] = var[1] - v_true[1]
-    return xx - v_true
-end
+   ```@example dual_error_faq
+   function fff_correct(var, p)
+       v_true = [1.0, 0.1, 2.0, 0.5]
+       xx = eltype(var)[1.0, 2.0, 3.0, 4.0]
+       xx[1] = var[1] - v_true[1]
+       return xx - v_true
+   end
 
-prob_oop = NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
-sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
-```
+   prob_oop = NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
+   sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
+   ```
 
 ## I thought NonlinearSolve.jl was type-stable and fast. But it isn't, why?
 
