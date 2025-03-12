@@ -42,6 +42,7 @@ using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, GeneralizedFirstOrderA
 using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton, QuasiNewtonAlgorithm
 using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods, GeneralizedDFSane
 using SimpleNonlinearSolve: SimpleNonlinearSolve
+using SimpleImplicitDiscreteSolve: SimpleIDSolve
 
 const SII = SymbolicIndexingInterface
 
