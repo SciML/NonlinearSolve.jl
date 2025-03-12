@@ -13,8 +13,7 @@ end
 
 function initialize!(integrator, cache::SimpleIDSolveCache)
     cache.state.u .= integrator.u
-    @show integrator.p
-    cache.state.p .= integrator.p
+    cache.state.p = integrator.p
     cache.state.t_next = integrator.t
     f = integrator.f
 
