@@ -18,7 +18,7 @@ beta1_default(alg::SimpleIDSolve, beta2) = 0
 dt_required(alg::SimpleIDSolve) = false
 isdiscretealg(alg::SimpleIDSolve) = true
 
-function DiffEqBase._initialize_dae!(integrator, prob::ImplicitDiscreteProblem,
+function _initialize_dae!(integrator, prob::ImplicitDiscreteProblem,
         alg::DefaultInit, x::Union{Val{true}, Val{false}})
     atol = one(eltype(prob.u0)) * 1e-12
     if SciMLBase.has_initializeprob(prob.f)
