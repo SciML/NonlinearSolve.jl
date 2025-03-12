@@ -48,3 +48,6 @@ using OrdinaryDiffEqSDIRK
 
     @test isapprox(idsol[end], osol[end], atol = 0.01)
 end
+
+@testset "Solve respects initialization" begin
+end
