@@ -110,7 +110,8 @@ end
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
-                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
+                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve,
+                SimpleImplicitDiscreteSolve
 @reexport using LinearSolve
 
 # Poly Algorithms
