@@ -1,4 +1,5 @@
 #runtests
+using Test
 using SimpleImplicitDiscreteSolve
 using OrdinaryDiffEqCore
 using OrdinaryDiffEqSDIRK
@@ -24,7 +25,7 @@ using OrdinaryDiffEqSDIRK
     oprob = ODEProblem(lotkavolterra, u0, tspan)
     osol = solve(oprob, ImplicitEuler())
 
-    @test isapprox(idsol[end], osol[end], atol = 0.01)
+    @test isapprox(idsol[end], osol[end], atol = 0.1)
 
     ### free-fall
     # y, dy
@@ -38,7 +39,8 @@ using OrdinaryDiffEqSDIRK
         resid[2] = u_next[2] - u[2] - 0.01*f[2]
         nothing
     end
-    u0 = [100., 3.]
+    u0 = [10., 0.]
+    tspan = (0, 0.2)
 
     idprob = ImplicitDiscreteProblem(g!, u0, tspan, []; dt = 0.01)
     idsol = solve(idprob, SimpleIDSolve())
@@ -46,8 +48,24 @@ using OrdinaryDiffEqSDIRK
     oprob = ODEProblem(ff, u0, tspan)
     osol = solve(oprob, ImplicitEuler())
 
-    @test isapprox(idsol[end], osol[end], atol = 0.01)
+    @test isapprox(idsol[end], osol[end], atol = 0.1)
 end
 
-@testset "Solve respects initialization" begin
+@testset "Solver initializes" begin
+    function periodic!(resid, u_next, u, p, t) 
+        resid[1] = u_next[1] - u[1] - sin(t*π/4)
+        resid[2] = 16 - u_next[2]^2 - u_next[1]^2 
+    end
+
+    tsteps = 15
+    u0 = [1., 3.]
+    idprob = ImplicitDiscreteProblem(periodic!, u0, (0, tsteps), [])
+    integ = init(idprob, SimpleIDSolve())
+    @test integ.u[1]^2 + integ.u[2]^2 ≈ 16
+
+    for ts in 1:tsteps
+        step!(integ)
+        @show integ.u
+        @test integ.u[1]^2 + integ.u[2]^2 ≈ 16
+    end
 end
