@@ -7,7 +7,7 @@ function perform_step!(integrator, cache::SimpleIDSolveCache, repeat_step = fals
     prob = remake(prob, p = state)
 
     u = solve(prob, SimpleNewtonRaphson())
-    any(isnan, u) && (integrator.sol.retcode = SciMLBase.ReturnCode.Failure)
+    integrator.sol.retcode = u.retcode
     integrator.u = u
 end
 
