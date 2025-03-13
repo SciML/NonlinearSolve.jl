@@ -30,3 +30,52 @@ function initialize!(integrator, cache::SimpleIDSolveCache)
     end
     cache.prob = prob
 end
+
+function _initialize_dae!(integrator, prob::ImplicitDiscreteProblem,
+        alg::DefaultInit, x::Union{Val{true}, Val{false}})
+    atol = one(eltype(prob.u0)) * 1e-12
+    if SciMLBase.has_initializeprob(prob.f)
+        _initialize_dae!(integrator, prob,
+                         OverrideInit(atol), x)
+    else
+        @unpack u, p, t, f = integrator
+        initstate = ImplicitDiscreteState(u, p, t)
+
+        _f = if isinplace(f)
+            (resid, u_next, p) -> f(resid, u_next, p.u, p.p, p.t_next)
+        else
+            (u_next, p) -> f(u_next, p.u, p.p, p.t_next)
+        end
+        prob = NonlinearProblem{isinplace(f)}(_f, u, initstate)
+        sol = solve(prob, SimpleNewtonRaphson())
+        integrator.u = sol
+    end
+end
+
+#### TODO: Implement real algorithm
+function _initialize_dae!(integrator, prob::ImplicitDiscreteProblem, alg::BrownFullBasicInit, isinplace::Val{true}) 
+    @unpack p, t, f = integrator
+    u0 = integrator.u
+    
+    nlequation! = (out, u, p) -> begin 
+        f(out, u, u0, p, t)
+    end
+
+    nlfunc = NonlinearFunction(nlequation!; jac_prototype = f.jac_prototype)
+    nlprob = NonlinearProblem(nlfunc, ifelse.(differential_vars, du, u), p)
+    nlsol = solve(nlprob, nlsolve; abstol = alg.abstol, reltol = integrator.opts.reltol)
+
+    @. du = ifelse(differential_vars, nlsol.u, du)
+    @. u = ifelse(differential_vars, u, nlsol.u)
+
+    recursivecopy!(integrator.uprev, integrator.u)
+    if alg_extrapolates(integrator.alg)
+        recursivecopy!(integrator.uprev2, integrator.uprev)
+    end
+
+    if nlsol.retcode != ReturnCode.Success
+        integrator.sol = SciMLBase.solution_new_retcode(integrator.sol,
+            ReturnCode.InitialFailure)
+    end
+    return
+end
