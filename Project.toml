@@ -153,3 +153,9 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
 test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]
+
+[sources]
+NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
