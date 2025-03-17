@@ -34,6 +34,8 @@ SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 [weakdeps]
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
+Gridap = "56d4f2e9-7ea1-5844-9cf6-b9c51ca7ce8e"
+GridapPETSc = "bcdc36c2-0c3e-11ea-095a-c9dadae499f1"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
@@ -45,9 +47,16 @@ SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
+[sources]
+NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
+
 [extensions]
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
+NonlinearSolveGridapPETScExt = ["Gridap", "GridapPETSc"]
 NonlinearSolveLeastSquaresOptimExt = "LeastSquaresOptim"
 NonlinearSolveMINPACKExt = "MINPACK"
 NonlinearSolveNLSolversExt = "NLSolvers"
@@ -153,9 +162,3 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
 test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]
-
-[sources]
-NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
-NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
-NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
-NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
