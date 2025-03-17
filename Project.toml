@@ -155,4 +155,4 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "Enzyme", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]
 
 [sources]
-ReTestitems = {url = "https://github.com/avik-pal/ReTestItems.jl", rev = "ap/patch_windows"}
+ReTestItems = {url = "https://github.com/avik-pal/ReTestItems.jl", rev = "ap/patch_windows"}
