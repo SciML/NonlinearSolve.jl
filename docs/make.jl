@@ -46,7 +46,8 @@ makedocs(;
     linkcheck = true,
     linkcheck_ignore = [
         "https://twitter.com/ChrisRackauckas/status/1544743542094020615",
-        "https://link.springer.com/article/10.1007/s40096-020-00339-4"
+        "https://link.springer.com/article/10.1007/s40096-020-00339-4",
+        "https://dl.acm.org/doi/10.1145/210089.210111"
     ],
     checkdocs = :exports,
     warnonly = [:missing_docs],
