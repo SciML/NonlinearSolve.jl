@@ -101,8 +101,6 @@ function SciMLBase.__solve(
     end
     show_trace isa Val{true} && push!(petsc_args, "-snes_monitor")
 
-    @show petsc_args
-
     # TODO: We can reuse the cache returned from this function
     sol_u = GridapPETSc.with(args = petsc_args) do
         sol_u = copy(u0)
