@@ -18,7 +18,7 @@ function SciMLBase.__solve(
         show_trace::Val = Val(false), kwargs...
 )
     if !MPI.Initialized()
-        @warn "MPI not initialized. Initializing MPI with MPI.Init()." maxlog = 1
+        @warn "MPI not initialized. Initializing MPI with MPI.Init()." maxlog=1
         MPI.Init()
     end
 
@@ -132,8 +132,7 @@ function SciMLBase.__solve(
     retcode = ifelse(objective ≤ abstol, ReturnCode.Success, ReturnCode.Failure)
     return SciMLBase.build_solution(
         prob, alg, u_res, resid_res;
-        retcode, original = snes,
-        stats = SciMLBase.NLStats(nf[], njac[], -1, -1, -1)
+        retcode, stats = SciMLBase.NLStats(nf[], njac[], -1, -1, -1)
     )
 end
 

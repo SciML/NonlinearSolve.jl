@@ -121,6 +121,6 @@ export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutNL
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
        FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
-export PETScSNES, CMINPACK
+export PETScSNES, GridapPETScSNES, CMINPACK
 
 end
