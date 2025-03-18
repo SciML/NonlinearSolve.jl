@@ -25,8 +25,8 @@ include("pages.jl")
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 interlinks = InterLinks(
-    "ADTypes" => "https://sciml.github.io/ADTypes.jl/stable/",
-    "LineSearch" => "https://sciml.github.io/LineSearch.jl/dev/"
+    "ADTypes" => "https://docs.sciml.ai/ADTypes/dev/",
+    "LineSearch" => "https://docs.sciml.ai/LineSearch/dev/"
 )
 
 makedocs(;
