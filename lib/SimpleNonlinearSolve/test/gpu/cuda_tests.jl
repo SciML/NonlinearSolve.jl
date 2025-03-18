@@ -77,15 +77,10 @@ end
                 SimpleLimitedMemoryBroyden(; linesearch = Val(true))
             )
                 @test begin
-                    try
-                        @cuda kernel_function(prob, alg)
-                        @info "Successfully launched kernel for $(alg)."
-                        true
-                    catch err
-                        @error "Kernel Launch failed for $(alg)."
-                        false
-                    end
-                end broken=(alg isa SimpleHalley && u0 isa StaticArray)
+                    @cuda kernel_function(prob, alg)
+                    @info "Successfully launched kernel for $(alg)."
+                    true
+                end
             end
         end
     end

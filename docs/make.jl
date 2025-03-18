@@ -25,8 +25,8 @@ include("pages.jl")
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 interlinks = InterLinks(
-    "ADTypes" => "https://sciml.github.io/ADTypes.jl/stable/",
-    "LineSearch" => "https://sciml.github.io/LineSearch.jl/dev/"
+    "ADTypes" => "https://docs.sciml.ai/ADTypes/dev/",
+    "LineSearch" => "https://docs.sciml.ai/LineSearch/dev/"
 )
 
 makedocs(;
@@ -46,7 +46,8 @@ makedocs(;
     linkcheck = true,
     linkcheck_ignore = [
         "https://twitter.com/ChrisRackauckas/status/1544743542094020615",
-        "https://link.springer.com/article/10.1007/s40096-020-00339-4"
+        "https://link.springer.com/article/10.1007/s40096-020-00339-4",
+        "https://dl.acm.org/doi/10.1145/210089.210111"
     ],
     checkdocs = :exports,
     warnonly = [:missing_docs],
