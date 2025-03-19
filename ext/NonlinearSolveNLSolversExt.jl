@@ -1,6 +1,5 @@
 module NonlinearSolveNLSolversExt
 
-using ADTypes: ADTypes, AutoFiniteDiff, AutoForwardDiff, AutoPolyesterForwardDiff
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 
