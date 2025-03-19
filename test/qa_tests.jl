@@ -5,7 +5,7 @@
     Aqua.test_ambiguities(NonlinearSolve; recursive = false)
     Aqua.test_piracies(NonlinearSolve,
         treat_as_own = [
-            NonlinearProblem, NonlinearLeastSquaresProblem,
+            NonlinearProblem, NonlinearLeastSquaresProblem, SciMLBase.AbstractNonlinearProblem,
             SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm
         ]
     )
