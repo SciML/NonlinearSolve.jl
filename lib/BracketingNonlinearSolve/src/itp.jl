@@ -95,15 +95,15 @@ function CommonSolve.solve(
     k2 = alg.k2
     k1 = alg.scaled_k1 * abs(right - left)^(1 - k2)
     n0 = alg.n0
-    n_h = ceil(log2(abs(right - left) / (2 * ϵ)))
     mid = (left + right) / 2
     x_f = left + (right - left) * (fl / (fl - fr))
     xt = left
     xp = left
     r = zero(left) # minmax radius
     δ = zero(left) # truncation error
-    σ = 1.0
-    ϵ_s = ϵ * 2^(n_h + n0)
+    σ = one(mid)
+    n_h = exponent(abs(right - left) / (2 * ϵ))
+    ϵ_s = ϵ * exp2(n_h + n0)
 
     i = 1
     while i ≤ maxiters
