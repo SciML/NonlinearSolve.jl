@@ -9,15 +9,12 @@ using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init, solve, solve!
 using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
-using LinearAlgebra: LinearAlgebra, norm
+using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
-using NonlinearSolveBase: NonlinearSolveBase, InternalAPI, AbstractNonlinearSolveAlgorithm,
-                          AbstractNonlinearSolveCache, Utils, L2_NORM,
-                          enable_timer_outputs, disable_timer_outputs,
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           NonlinearSolvePolyAlgorithm, pickchunksize
 
-using Preferences: set_preferences!
-using SciMLBase: SciMLBase, NLStats, ReturnCode, AbstractNonlinearProblem,
+using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
                  NonlinearFunction,
                  NonlinearProblem, NonlinearLeastSquaresProblem, NoSpecialize
 using SymbolicIndexingInterface: SymbolicIndexingInterface
