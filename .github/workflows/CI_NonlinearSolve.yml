@@ -37,6 +37,7 @@ jobs:
           - core
           - downstream
           - wrappers
+          - misc
         version:
           - "1.10"
           - "1"
@@ -95,6 +96,7 @@ jobs:
           - core
           - downstream
           - wrappers
+          - misc
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
