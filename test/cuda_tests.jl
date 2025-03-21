@@ -53,10 +53,9 @@ end
     uprev = cu(rand(4))
     
     const TERMINATION_CONDITIONS = [
-        SteadyStateDiffEqTerminationMode(), SimpleNonlinearSolveTerminationMode(),
-        NormTerminationMode(), RelTerminationMode(), RelNormTerminationMode(),
-        AbsTerminationMode(), AbsNormTerminationMode(), RelSafeTerminationMode(),
-        AbsSafeTerminationMode(), RelSafeBestTerminationMode(), AbsSafeBestTerminationMode()
+        RelTerminationMode, RelNormTerminationMode,
+        AbsTerminationMode, AbsNormTerminationMode, RelNormSafeTerminationMode,
+        AbsNormSafeTerminationMode, RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
     ]
     
     @testset  begin
