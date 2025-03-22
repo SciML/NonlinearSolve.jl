@@ -60,7 +60,8 @@ end
 
     @testset begin
         @testset "Mode: $(tcond)" for tcond in TERMINATION_CONDITIONS
-            @test_nowarn NonlinearSolveBase.check_convergence(tcond, du, u, uprev, 1e-3, 1e-3)
+            @test_nowarn NonlinearSolveBase.check_convergence(
+                tcond, du, u, uprev, 1e-3, 1e-3)
         end
 
         @testset "Mode: $(tcond)" for tcond in NORM_TERMINATION_CONDITIONS
