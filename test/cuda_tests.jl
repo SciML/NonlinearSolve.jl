@@ -65,7 +65,8 @@ end
 
         @testset "Mode: $(tcond)" for tcond in NORM_TERMINATION_CONDITIONS
             for nfn in (Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf))
-                @test_nowarn NonlinearSolveBase.check_convergence(tcond(nfn), du, u, uprev, 1e-3, 1e-3)
+                @test_nowarn NonlinearSolveBase.check_convergence(
+                    tcond(nfn), du, u, uprev, 1e-3, 1e-3)
             end
         end
     end
