@@ -50,7 +50,6 @@ end
     du = cu(rand(4))
     u = cu(rand(4))
     uprev = cu(rand(4))
-    
     const TERMINATION_CONDITIONS = [
         RelTerminationMode, RelNormTerminationMode,
         AbsTerminationMode, AbsNormTerminationMode, RelNormSafeTerminationMode,
