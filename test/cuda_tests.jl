@@ -47,7 +47,6 @@ end
 @testitem "Termination Conditions: Allocations" tags=[:cuda] begin
     using CUDA, NonlinearSolveBase, Test, LinearAlgebra
     CUDA.allowscalar(false)
-    
     du = cu(rand(4))
     u = cu(rand(4))
     uprev = cu(rand(4))
