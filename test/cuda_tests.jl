@@ -51,7 +51,7 @@ end
     u = cu(rand(4))
     uprev = cu(rand(4))
     TERMINATION_CONDITIONS = [
-        RelTerminationMode, RelNormTerminationMode,
+        RelTerminationMode, RelNormTerminationMode
     ]
     NORM_TERMINATION_CONDITIONS = [
         AbsTerminationMode, AbsNormTerminationMode, RelNormSafeTerminationMode,
