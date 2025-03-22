@@ -50,17 +50,22 @@ end
     du = cu(rand(4))
     u = cu(rand(4))
     uprev = cu(rand(4))
-    const TERMINATION_CONDITIONS = [
+    TERMINATION_CONDITIONS = [
         RelTerminationMode, RelNormTerminationMode,
+    ]
+    NORM_TERMINATION_CONDITIONS = [
         AbsTerminationMode, AbsNormTerminationMode, RelNormSafeTerminationMode,
         AbsNormSafeTerminationMode, RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
     ]
 
     @testset begin
         @testset "Mode: $(tcond)" for tcond in TERMINATION_CONDITIONS
+            @test_nowarn NonlinearSolveBase.check_convergence(tcond(), du, u, uprev, 1e-3, 1e-3)
+        end
+
+        @testset "Mode: $(tcond)" for tcond in NORM_TERMINATION_CONDITIONS
             for nfn in (Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf))
-                tcond = NonlinearSolveBase.set_termination_mode_internalnorm(tcond, nfn)
-                @test_nowarn NonlinearSolveBase.check_convergence(tcond, du, u, uprev, 1e-3, 1e-3)
+                @test_nowarn NonlinearSolveBase.check_convergence(tcond(nfn), du, u, uprev, 1e-3, 1e-3)
             end
         end
     end
