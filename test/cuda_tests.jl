@@ -57,8 +57,8 @@ end
         AbsTerminationMode, AbsNormTerminationMode, RelNormSafeTerminationMode,
         AbsNormSafeTerminationMode, RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
     ]
-    
-    @testset  begin
+
+    @testset begin
         @testset "Mode: $(tcond)" for tcond in TERMINATION_CONDITIONS
             for nfn in (Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf))
                 tcond = NonlinearSolveBase.set_termination_mode_internalnorm(tcond, nfn)
