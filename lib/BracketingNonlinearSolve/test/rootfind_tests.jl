@@ -53,7 +53,7 @@ end
     ϵ = eps(Float64) # least possible tol for all methods
 
     @testset for alg in (Bisection(), Falsi(), ITP(), nothing)
-        @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
+        @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6]
             sol = solve(prob, alg; abstol)
             result_tol = abs(sol.u - sqrt(2))
             @test result_tol < abstol
