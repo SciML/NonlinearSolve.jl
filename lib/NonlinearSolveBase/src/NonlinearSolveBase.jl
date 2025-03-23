@@ -19,7 +19,8 @@ using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
                  NonlinearProblem, NonlinearLeastSquaresProblem, StandardNonlinearProblem,
-                 NonlinearFunction, NullParameters, NLStats, LinearProblem, LinearAliasSpecifier
+                 NonlinearFunction, NullParameters, NLStats, LinearProblem,
+                 LinearAliasSpecifier
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
