@@ -32,7 +32,7 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
 [compat]
 ADTypes = "1.9.0"
-AlgebraicMultigrid = "0.5, 0.6"
+AlgebraicMultigrid = "0.5, 0.6, 1"
 ArrayInterface = "6, 7"
 BenchmarkTools = "1"
 BracketingNonlinearSolve = "1"
