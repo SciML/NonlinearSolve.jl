@@ -101,13 +101,13 @@ restructure(y, x) = ArrayInterface.restructure(y, x)
 
 function safe_similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
-    return init_bigfloat_array!!(y)
+    return init_similar_array!!(y)
 end
 
-init_bigfloat_array!!(x) = x
+init_similar_array!!(x) = x
 
-function init_bigfloat_array!!(x::AbstractArray{<:BigFloat})
-    ArrayInterface.can_setindex(x) && fill!(x, BigFloat(0))
+function init_similar_array!!(x::AbstractArray{<:T}) where {T}
+    ArrayInterface.can_setindex(x) && fill!(x, T(0))
     return x
 end
 

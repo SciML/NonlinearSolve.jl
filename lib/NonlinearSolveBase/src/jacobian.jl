@@ -41,7 +41,7 @@ function construct_jacobian_cache(
                           (linsolve === nothing || needs_concrete_A(linsolve)))
     needs_jac = linsolve_needs_jac || concrete_jac(alg)
 
-    @bb fu_cache = similar(fu)
+    fu_cache = Utils.safe_similar(fu)
 
     if !has_analytic_jac && needs_jac
         if autodiff === nothing
@@ -80,9 +80,9 @@ function construct_jacobian_cache(
             end
         else
             if eltype(f.jac_prototype) <: Bool
-                similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
+                Utils.safe_similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
             else
-                similar(f.jac_prototype)
+                Utils.safe_similar(f.jac_prototype)
             end
         end
     end
