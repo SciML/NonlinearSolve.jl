@@ -106,7 +106,7 @@ end
 
 init_similar_array!!(x) = x
 
-function init_similar_array!!(x::AbstractArray{<:T}) where {T}
+function init_similar_array!!(x::AbstractArray{<:T}) where {T <: Number}
     ArrayInterface.can_setindex(x) && fill!(x, T(0))
     return x
 end
