@@ -59,11 +59,13 @@ end
     tsteps = 15
     u0 = [1., 3.]
     idprob = ImplicitDiscreteProblem(periodic!, u0, (0, tsteps), [])
-    integ = init(idprob, SimpleIDSolve())
-    @test integ.u[1]^2 + integ.u[2]^2 ≈ 16
+    initsol, initfail = DiffEqBase.__init(idprob, SimpleIDSolve())
+    @test initsol.u[1]^2 + initsol.u[2]^2 ≈ 16
+
+    idsol = solve(idprob, SimpleIDSolve())
 
     for ts in 1:tsteps
-        step!(integ)
-        @test integ.u[1]^2 + integ.u[2]^2 ≈ 16
+        step = idsol.u[ts]
+        @test step[1]^2 + step[2]^2 ≈ 16
     end
 end
