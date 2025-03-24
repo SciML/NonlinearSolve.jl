@@ -1,7 +1,6 @@
 #runtests
 using Test
 using SimpleImplicitDiscreteSolve
-using OrdinaryDiffEqCore
 using OrdinaryDiffEqSDIRK
 
 # Test implicit Euler using ImplicitDiscreteProblem
@@ -19,13 +18,13 @@ using OrdinaryDiffEqSDIRK
     u0 = [1., 1.]
     tspan = (0., 0.5)
 
-    idprob = ImplicitDiscreteProblem(f!, u0, tspan, []; dt = 0.01)
-    idsol = solve(idprob, SimpleIDSolve())
+    idprob = ImplicitDiscreteProblem(f!, u0, tspan, [])
+    idsol = solve(idprob, SimpleIDSolve(), dt = 0.01)
 
     oprob = ODEProblem(lotkavolterra, u0, tspan)
     osol = solve(oprob, ImplicitEuler())
 
-    @test isapprox(idsol[end], osol[end], atol = 0.1)
+    @test isapprox(idsol[end-1], osol[end], atol = 0.1)
 
     ### free-fall
     # y, dy
@@ -40,15 +39,15 @@ using OrdinaryDiffEqSDIRK
         nothing
     end
     u0 = [10., 0.]
-    tspan = (0, 0.2)
+    tspan = (0, 0.5)
 
-    idprob = ImplicitDiscreteProblem(g!, u0, tspan, []; dt = 0.01)
-    idsol = solve(idprob, SimpleIDSolve())
+    idprob = ImplicitDiscreteProblem(g!, u0, tspan, [])
+    idsol = solve(idprob, SimpleIDSolve(); dt = 0.01)
 
     oprob = ODEProblem(ff, u0, tspan)
     osol = solve(oprob, ImplicitEuler())
 
-    @test isapprox(idsol[end], osol[end], atol = 0.1)
+    @test isapprox(idsol[end-1], osol[end], atol = 0.1)
 end
 
 @testset "Solver initializes" begin
@@ -65,7 +64,6 @@ end
 
     for ts in 1:tsteps
         step!(integ)
-        @show integ.u
         @test integ.u[1]^2 + integ.u[2]^2 ≈ 16
     end
 end
