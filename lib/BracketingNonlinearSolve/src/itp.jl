@@ -70,16 +70,15 @@ function CommonSolve.solve(
         left, abstol, promote_type(eltype(left), eltype(right))
     )
 
-    stats = SciMLBase.NLStats(2,0,0,0,0)
     if iszero(fl)
         return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right, stats
+            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
         )
     end
 
     if iszero(fr)
         return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right, stats
+            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
         )
     end
 
@@ -88,7 +87,7 @@ function CommonSolve.solve(
             @warn "The interval is not an enclosing interval, opposite signs at the \
                    boundaries are required."
         return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right, stats
+            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
         )
     end
 
@@ -103,7 +102,6 @@ function CommonSolve.solve(
 
     i = 1
     while i ≤ maxiters
-        stats.nsteps += 1
         span = right - left
         mid = (left + right) / 2
         r = ϵ_s - (span / 2)
@@ -118,11 +116,10 @@ function CommonSolve.solve(
         xp = ifelse(abs(xt - mid) ≤ r, xt, mid - copysign(r, diff))  # Projection Step
         if span < 2ϵ
             return SciMLBase.build_solution(
-                prob, alg, xt, f(xt); retcode = ReturnCode.Success, left, right, stats
+                prob, alg, xt, f(xt); retcode = ReturnCode.Success, left, right
             )
         end
         yp = f(xp)
-        stats.nf += 1
         yps = yp * sign(fr)
         if yps > T0
             right, fr = xp, yp
@@ -130,7 +127,7 @@ function CommonSolve.solve(
             left, fl = xp, yp
         else
             return SciMLBase.build_solution(
-                prob, alg, xp, yps; retcode = ReturnCode.Success, left, right, stats
+                prob, alg, xp, yps; retcode = ReturnCode.Success, left, right
             )
         end
 
@@ -139,12 +136,12 @@ function CommonSolve.solve(
 
         if nextfloat(left) == right
             return SciMLBase.build_solution(
-                prob, alg, right, fr; retcode = ReturnCode.FloatingPointLimit, left, right, stats
+                prob, alg, right, fr; retcode = ReturnCode.FloatingPointLimit, left, right
             )
         end
     end
 
     return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right, stats
+        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
     )
 end
