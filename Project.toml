@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "4.5.0"
+version = "4.5.1"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -83,7 +83,7 @@ FastClosures = "0.3.2"
 FastLevenbergMarquardt = "0.1"
 FiniteDiff = "2.24"
 FixedPointAcceleration = "0.3, 1"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LeastSquaresOptim = "0.8.5"
