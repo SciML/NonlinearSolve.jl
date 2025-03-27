@@ -120,7 +120,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
         if SciMLBase.isinplace(prob)
             return @closure (du, u, p) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
-                prob.f.vjp(resid, u, p)
+                prob.f(resid, u, p)
                 prob.f.vjp(du, resid, u, p)
                 du .*= 2
                 return nothing
