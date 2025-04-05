@@ -60,7 +60,7 @@ StableRNGs = "1"
 StaticArrays = "1.9.8"
 StaticArraysCore = "1.4.3"
 Test = "1.10"
-Zygote = "0.6.72"
+Zygote = "0.6.72, 0.7"
 julia = "1.10"
 
 [extras]

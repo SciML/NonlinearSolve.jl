@@ -34,7 +34,7 @@ SciMLOperators = "0.3"
 Test = "1.10"
 TestItemRunner = "1"
 Tracker = "0.2.35"
-Zygote = "0.6.70"
+Zygote = "0.6.70, 0.7"
 julia = "1.10"
 
 [extras]
