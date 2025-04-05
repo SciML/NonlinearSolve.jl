@@ -20,8 +20,8 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
 
     xᵢ₊₁, fxᵢ₊₁ = xᵢ₋₂, fxᵢ₋₂
 
-    abstol = NonlinearSolveBase.get_tolerance(
-        xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ)))
+    abstol = abs(NonlinearSolveBase.get_tolerance(
+        xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ))))
 
     for _ ∈ 1:maxiters
         q = (xᵢ - xᵢ₋₁)/(xᵢ₋₁ - xᵢ₋₂)

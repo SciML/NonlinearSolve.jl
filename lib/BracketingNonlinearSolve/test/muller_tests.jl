@@ -53,4 +53,20 @@
 
         @test sol.u ≈ π
     end
+
+    @testset "Complex roots" begin
+        f(u, p) = u^3 - 1
+
+        tspan = (-1.0, 1.0*im)
+        prob = IntervalNonlinearProblem{false}(f, tspan)
+        sol = solve(prob, Muller())
+
+        @test sol.u ≈ (-1 + √3*im)/2
+
+        tspan = (-1.0, -1.0*im)
+        prob = IntervalNonlinearProblem{false}(f, tspan)
+        sol = solve(prob, Muller())
+
+        @test sol.u ≈ (-1 - √3*im)/2
+    end
 end
