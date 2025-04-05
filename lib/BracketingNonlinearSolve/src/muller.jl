@@ -43,7 +43,8 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
         # Termination Check
         if abstol ≥ abs(fxᵢ₊₁)
             return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
-                                            retcode = ReturnCode.Success)
+                                            retcode = ReturnCode.Success,
+                                            left = xᵢ₊₁, right = xᵢ₊₁)
         end
 
         xᵢ₋₂, xᵢ₋₁, xᵢ = xᵢ₋₁, xᵢ, xᵢ₊₁
@@ -51,5 +52,6 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
     end
 
     return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
-                                    retcode = ReturnCode.MaxIters)
+                                    retcode = ReturnCode.MaxIters,
+                                    left = xᵢ₊₁, right = xᵢ₊₁)
 end

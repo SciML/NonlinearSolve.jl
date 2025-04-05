@@ -45,6 +45,6 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export Alefeld, Bisection, Brent, Falsi, Muller, ITP, Ridder
+export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder
 
 end
