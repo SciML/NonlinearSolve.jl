@@ -33,4 +33,4 @@ and then running tests accordingly.
 
 ## Dependency Structure
 
-There is a tree dependency structure to the sublibraries of NonlinearSolve.jl. The core package is NonlinearSolveBase.jl, which is the hard dependcy of all the other subpackages. SimpleNonlinearSolve.jl is a special one which have BracketingNonlinearSolve.jl as dependency. NonlinearSolve.jl as the parent package contains all of the subpackages.
+There is a tree dependency structure to the sublibraries of NonlinearSolve.jl. The core subpackage NonlinearSolveBase.jl is the hard dependency of all the other subpackages. SimpleNonlinearSolve.jl is a special one with BracketingNonlinearSolve.jl as dependency. NonlinearSolve.jl as the parent package contains all of the subpackages.
