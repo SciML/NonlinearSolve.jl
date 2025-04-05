@@ -1,24 +1,27 @@
 """
-    SimpleMuller()
+    Muller()
 
 Muller's method for determining a root of a univariate, scalar function. The
 algorithm, described in Sec. 9.5.2 of
 [Press et al. (2007)](https://numerical.recipes/book.html), requires three
 initial guesses `(xᵢ₋₂, xᵢ₋₁, xᵢ)` for the root.
 """
-struct SimpleMuller <: AbstractSimpleNonlinearSolveAlgorithm end
+struct Muller <: AbstractBracketingAlgorithm end
 
-function SciMLBase.solve(prob::NonlinearProblem, alg::SimpleMuller, args...;
-    abstol = 1e-3, maxiters = 1000, kwargs...)
-    @assert !isinplace(prob) "`SimpleMuller` only supports OOP problems."
-    @assert length(prob.u0) == 3 "`SimpleMuller` requires three initial guesses."
-    xᵢ₋₂, xᵢ₋₁, xᵢ = prob.u0
+function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
+    abstol = nothing, maxiters = 1000, kwargs...)
+    @assert !SciMLBase.isinplace(prob) "`Muller` only supports out-of-place problems."
+    xᵢ₋₂, xᵢ = prob.tspan
+    xᵢ₋₁ = (xᵢ₋₂ + xᵢ) / 2  # Use midpoint for middle guess
     xᵢ₋₂, xᵢ₋₁, xᵢ = promote(xᵢ₋₂, xᵢ₋₁, xᵢ)
     @assert xᵢ₋₂ ≠ xᵢ₋₁ ≠ xᵢ ≠ xᵢ₋₂
     f = Base.Fix2(prob.f, prob.p)
     fxᵢ₋₂, fxᵢ₋₁, fxᵢ = f(xᵢ₋₂), f(xᵢ₋₁), f(xᵢ)
 
     xᵢ₊₁, fxᵢ₊₁ = xᵢ₋₂, fxᵢ₋₂
+
+    abstol = NonlinearSolveBase.get_tolerance(
+        xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ)))
 
     for _ ∈ 1:maxiters
         q = (xᵢ - xᵢ₋₁)/(xᵢ₋₁ - xᵢ₋₂)

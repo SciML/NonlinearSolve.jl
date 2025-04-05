@@ -17,6 +17,7 @@ include("bisection.jl")
 include("brent.jl")
 include("falsi.jl")
 include("itp.jl")
+include("muller.jl")
 include("ridder.jl")
 
 # Default Algorithm
@@ -44,6 +45,6 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export Alefeld, Bisection, Brent, Falsi, ITP, Ridder
+export Alefeld, Bisection, Brent, Falsi, Muller, ITP, Ridder
 
 end
