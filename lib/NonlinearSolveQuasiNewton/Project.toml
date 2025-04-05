@@ -80,3 +80,6 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
 test = ["ADTypes", "Aqua", "BenchmarkTools", "Enzyme", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LineSearch", "LineSearches", "NonlinearProblemLibrary", "Pkg", "ReTestItems", "StableRNGs", "StaticArrays", "Test", "Zygote"]
+
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
