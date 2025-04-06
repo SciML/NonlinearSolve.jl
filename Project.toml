@@ -31,6 +31,14 @@ SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 
+[sources]
+BracketingNonlinearSolve = {path = "lib/BracketingNonlinearSolve"}
+NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
+SimpleNonlinearSolve = {path = "lib/SimpleNonlinearSolve"}
+
 [weakdeps]
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"

@@ -23,6 +23,9 @@ SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+
 [compat]
 ADTypes = "1.9.0"
 Aqua = "0.8"

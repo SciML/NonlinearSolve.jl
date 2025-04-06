@@ -8,8 +8,8 @@ initial guesses `(left, middle, right)` for the root.
 
 ### Keyword Arguments
 
-- `middle`: the initial guess for the middle point. If not provided, the
-  midpoint of the interval `(left, right)` is used.
+  - `middle`: the initial guess for the middle point. If not provided, the
+    midpoint of the interval `(left, right)` is used.
 """
 struct Muller{T} <: AbstractBracketingAlgorithm
     middle::T
@@ -18,7 +18,7 @@ end
 Muller() = Muller(nothing)
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
-    abstol = nothing, maxiters = 1000, kwargs...)
+        abstol = nothing, maxiters = 1000, kwargs...)
     @assert !SciMLBase.isinplace(prob) "`Muller` only supports out-of-place problems."
     xᵢ₋₂, xᵢ = prob.tspan
     xᵢ₋₁ = isnothing(alg.middle) ? (xᵢ₋₂ + xᵢ) / 2 : alg.middle
@@ -32,19 +32,19 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
     abstol = abs(NonlinearSolveBase.get_tolerance(
         xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ))))
 
-    for _ ∈ 1:maxiters
-        q = (xᵢ - xᵢ₋₁)/(xᵢ₋₁ - xᵢ₋₂)
-        A = q*fxᵢ - q*(1 + q)*fxᵢ₋₁ + q^2*fxᵢ₋₂
-        B = (2*q + 1)*fxᵢ - (1 + q)^2*fxᵢ₋₁ + q^2*fxᵢ₋₂
-        C = (1 + q)*fxᵢ
+    for _ in 1:maxiters
+        q = (xᵢ - xᵢ₋₁) / (xᵢ₋₁ - xᵢ₋₂)
+        A = q * fxᵢ - q * (1 + q) * fxᵢ₋₁ + q^2 * fxᵢ₋₂
+        B = (2 * q + 1) * fxᵢ - (1 + q)^2 * fxᵢ₋₁ + q^2 * fxᵢ₋₂
+        C = (1 + q) * fxᵢ
 
-        denom₊ = B + √(B^2 - 4*A*C)
-        denom₋ = B - √(B^2 - 4*A*C)
+        denom₊ = B + √(B^2 - 4 * A * C)
+        denom₋ = B - √(B^2 - 4 * A * C)
 
         if abs(denom₊) ≥ abs(denom₋)
-            xᵢ₊₁ = xᵢ - (xᵢ - xᵢ₋₁)*2*C/denom₊
+            xᵢ₊₁ = xᵢ - (xᵢ - xᵢ₋₁) * 2 * C / denom₊
         else
-            xᵢ₊₁ = xᵢ - (xᵢ - xᵢ₋₁)*2*C/denom₋
+            xᵢ₊₁ = xᵢ - (xᵢ - xᵢ₋₁) * 2 * C / denom₋
         end
 
         fxᵢ₊₁ = f(xᵢ₊₁)
@@ -52,8 +52,8 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
         # Termination Check
         if abstol ≥ abs(fxᵢ₊₁)
             return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
-                                            retcode = ReturnCode.Success,
-                                            left = xᵢ₊₁, right = xᵢ₊₁)
+                retcode = ReturnCode.Success,
+                left = xᵢ₊₁, right = xᵢ₊₁)
         end
 
         xᵢ₋₂, xᵢ₋₁, xᵢ = xᵢ₋₁, xᵢ, xᵢ₊₁
@@ -61,6 +61,6 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
     end
 
     return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
-                                    retcode = ReturnCode.MaxIters,
-                                    left = xᵢ₊₁, right = xᵢ₊₁)
+        retcode = ReturnCode.MaxIters,
+        left = xᵢ₊₁, right = xᵢ₊₁)
 end
