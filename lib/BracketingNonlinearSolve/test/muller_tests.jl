@@ -1,7 +1,7 @@
 @testitem "Muller" begin
     f(u, p) = u^2 - p
     g(u, p) = sin(u)
-    h(u, p) = exp(-u)*sin(u)
+    h(u, p) = exp(-u) * sin(u)
     i(u, p) = u^3 - 1
 
     @testset "Quadratic function" begin
@@ -30,7 +30,7 @@
         prob = IntervalNonlinearProblem{false}(g, tspan)
         sol = solve(prob, Muller())
 
-        @test sol.u ≈ 2*π
+        @test sol.u ≈ 2 * π
     end
 
     @testset "Exponential-sine function" begin
@@ -44,7 +44,7 @@
         prob = IntervalNonlinearProblem{false}(h, tspan)
         sol = solve(prob, Muller())
 
-        @test sol.u ≈ 0 atol = 1e-15
+        @test sol.u≈0 atol=1e-15
 
         tspan = (-1.0, 1.0)
         prob = IntervalNonlinearProblem{false}(h, tspan)
@@ -54,17 +54,17 @@
     end
 
     @testset "Complex roots" begin
-        tspan = (-1.0, 1.0*im)
+        tspan = (-1.0, 1.0 * im)
         prob = IntervalNonlinearProblem{false}(i, tspan)
         sol = solve(prob, Muller())
 
-        @test sol.u ≈ (-1 + √3*im)/2
+        @test sol.u ≈ (-1 + √3 * im) / 2
 
-        tspan = (-1.0, -1.0*im)
+        tspan = (-1.0, -1.0 * im)
         prob = IntervalNonlinearProblem{false}(i, tspan)
         sol = solve(prob, Muller())
 
-        @test sol.u ≈ (-1 - √3*im)/2
+        @test sol.u ≈ (-1 - √3 * im) / 2
     end
 
     @testset "Middle" begin
@@ -87,10 +87,10 @@
 
         @test sol.u ≈ -π
 
-        tspan = (-1.0, 1.0*im)
+        tspan = (-1.0, 1.0 * im)
         prob = IntervalNonlinearProblem{false}(i, tspan)
         sol = solve(prob, Muller(0.0))
 
-        @test sol.u ≈ (-1 + √3*im)/2
+        @test sol.u ≈ (-1 + √3 * im) / 2
     end
 end

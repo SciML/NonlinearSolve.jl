@@ -166,12 +166,13 @@ function compute_hvvp(prob, autodiff, fx, x, dir)
     jvp_fn = if SciMLBase.isinplace(prob)
         @closure (u, p) -> begin
             du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
-            return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
+            return only(DI.pushforward(
+                prob.f, NLBUtils.safe_vec(du), autodiff, u, (dir,), Constant(p)))
         end
     else
         @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
-    only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
+    only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(NLBUtils.safe_vec(prob.p))))
 end
 
 end
