@@ -18,4 +18,5 @@ Bisection
 Falsi
 Ridder
 Brent
+Muller
 ```

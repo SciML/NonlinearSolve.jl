@@ -26,13 +26,14 @@ This gives a robust and fast method, which therefore enjoys considerable popular
 
 ## Full List of Methods
 
-### SimpleNonlinearSolve.jl
+### BracketingNonlinearSolve.jl
 
 These methods are automatically included as part of NonlinearSolve.jl. Though, one can use
-SimpleNonlinearSolve.jl directly to decrease the dependencies and improve load time.
+BracketingNonlinearSolve.jl directly to decrease the dependencies and improve load time.
 
   - [`ITP`](@ref): A non-allocating ITP (Interpolate, Truncate & Project) method
   - [`Falsi`](@ref): A non-allocating regula falsi method
   - [`Bisection`](@ref): A common bisection method
   - [`Ridder`](@ref): A non-allocating Ridder method
   - [`Brent`](@ref): A non-allocating Brent method
+  - [`Muller`](@ref): A non-allocating Muller's method
