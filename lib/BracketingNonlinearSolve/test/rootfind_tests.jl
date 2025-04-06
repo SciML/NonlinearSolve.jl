@@ -7,7 +7,8 @@ end
 @testitem "Interval Nonlinear Problems" setup=[RootfindingTestSnippet] tags=[:core] begin
     using ForwardDiff
 
-    @testset for alg in (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
+    @testset for alg in (
+        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
         tspan = (1.0, 20.0)
 
         function g(p)
@@ -76,7 +77,8 @@ end
 end
 
 @testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTestSnippet] tags=[:core] begin
-    @testset for alg in (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
+    @testset for alg in (
+        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
         f1(u, p) = u * u - p
         f2(u, p) = p - u * u
 
