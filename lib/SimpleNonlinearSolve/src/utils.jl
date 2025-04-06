@@ -172,7 +172,7 @@ function compute_hvvp(prob, autodiff, fx, x, dir)
     else
         @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
-    only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(NLBUtils.safe_vec(prob.p))))
+    only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
 end
