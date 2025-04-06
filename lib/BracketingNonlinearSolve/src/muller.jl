@@ -1,18 +1,27 @@
 """
-    Muller()
+    Muller(; middle = nothing)
 
 Muller's method for determining a root of a univariate, scalar function. The
 algorithm, described in Sec. 9.5.2 of
 [Press et al. (2007)](https://numerical.recipes/book.html), requires three
-initial guesses `(xᵢ₋₂, xᵢ₋₁, xᵢ)` for the root.
+initial guesses `(left, middle, right)` for the root.
+
+### Keyword Arguments
+
+- `middle`: the initial guess for the middle point. If not provided, the
+  midpoint of the interval `(left, right)` is used.
 """
-struct Muller <: AbstractBracketingAlgorithm end
+struct Muller{T} <: AbstractBracketingAlgorithm
+    middle::T
+end
+
+Muller() = Muller(nothing)
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
     abstol = nothing, maxiters = 1000, kwargs...)
     @assert !SciMLBase.isinplace(prob) "`Muller` only supports out-of-place problems."
     xᵢ₋₂, xᵢ = prob.tspan
-    xᵢ₋₁ = (xᵢ₋₂ + xᵢ) / 2  # Use midpoint for middle guess
+    xᵢ₋₁ = isnothing(alg.middle) ? (xᵢ₋₂ + xᵢ) / 2 : alg.middle
     xᵢ₋₂, xᵢ₋₁, xᵢ = promote(xᵢ₋₂, xᵢ₋₁, xᵢ)
     @assert xᵢ₋₂ ≠ xᵢ₋₁ ≠ xᵢ ≠ xᵢ₋₂
     f = Base.Fix2(prob.f, prob.p)
