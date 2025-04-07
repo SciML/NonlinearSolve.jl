@@ -1,7 +1,7 @@
 name = "SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -25,7 +25,7 @@ Enzyme = "0.13.11"
 ExplicitImports = "1.9.0"
 FastClosures = "0.3.2"
 FiniteDiff = "2.24"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
 ReverseDiff = "1.15"

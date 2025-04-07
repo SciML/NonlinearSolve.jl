@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "4.5.0"
+version = "4.5.1"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -30,6 +30,14 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
+
+[sources]
+BracketingNonlinearSolve = {path = "lib/BracketingNonlinearSolve"}
+NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
+SimpleNonlinearSolve = {path = "lib/SimpleNonlinearSolve"}
 
 [weakdeps]
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
@@ -75,7 +83,7 @@ FastClosures = "0.3.2"
 FastLevenbergMarquardt = "0.1"
 FiniteDiff = "2.24"
 FixedPointAcceleration = "0.3, 1"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LeastSquaresOptim = "0.8.5"
