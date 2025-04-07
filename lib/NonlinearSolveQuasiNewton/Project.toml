@@ -1,7 +1,7 @@
 name = "NonlinearSolveQuasiNewton"
 uuid = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.2.0"
+version = "1.2.1"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
@@ -38,7 +38,7 @@ DiffEqBase = "6.158.3"
 Enzyme = "0.13.12"
 ExplicitImports = "1.5"
 FiniteDiff = "2.24"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"

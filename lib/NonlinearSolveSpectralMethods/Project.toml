@@ -1,7 +1,7 @@
 name = "NonlinearSolveSpectralMethods"
 uuid = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.1.0"
+version = "1.1.1"
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -30,7 +30,7 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.158.3"
 ExplicitImports = "1.5"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"
