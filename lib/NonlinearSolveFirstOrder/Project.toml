@@ -1,7 +1,7 @@
 name = "NonlinearSolveFirstOrder"
 uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.3.0"
+version = "1.3.1"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -23,6 +23,9 @@ SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+
 [compat]
 ADTypes = "1.9.0"
 Aqua = "0.8"
@@ -35,7 +38,7 @@ DiffEqBase = "6.158.3"
 Enzyme = "0.13.12"
 ExplicitImports = "1.5"
 FiniteDiff = "2.24"
-ForwardDiff = "0.10.36"
+ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"
@@ -60,7 +63,7 @@ StableRNGs = "1"
 StaticArrays = "1.9.8"
 StaticArraysCore = "1.4.3"
 Test = "1.10"
-Zygote = "0.6.72"
+Zygote = "0.6.72, 0.7"
 julia = "1.10"
 
 [extras]

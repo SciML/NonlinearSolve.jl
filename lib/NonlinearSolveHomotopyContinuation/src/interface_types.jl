@@ -176,7 +176,7 @@ end
 """
     $(TYPEDEF)
 
-A `HomotopyContinuation.AbstractHomotopy` which uses an inital guess ``x_0`` to construct
+A `HomotopyContinuation.AbstractHomotopy` which uses an initial guess ``x_0`` to construct
 the start system for the homotopy. The homotopy is
 
 ```math

@@ -160,7 +160,7 @@ end
 
 function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
-    return H*dir
+    return H * dir
 end
 function compute_hvvp(prob, autodiff, fx, x, dir)
     jvp_fn = if SciMLBase.isinplace(prob)
