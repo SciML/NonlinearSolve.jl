@@ -72,7 +72,6 @@ function FastShortcutNonlinearPolyalg(
             if T <: Complex
                 algs = (
                     Broyden(; autodiff),
-                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...)
                 )
@@ -81,7 +80,6 @@ function FastShortcutNonlinearPolyalg(
                 start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 4 : 1) : 1
                 algs = (
                     Broyden(; autodiff),
-                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
                     NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
