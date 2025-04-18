@@ -74,7 +74,8 @@ function SciMLBase.__solve(
         end
 
         aᵢ = J_fact \ NLBUtils.safe_vec(fx)
-        hvvp = Utils.compute_hvvp(prob, autodiff, fx_cache, x, aᵢ)
+        hvvp = Utils.compute_hvvp(
+            prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ))
         bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
 
         cᵢ_ = NLBUtils.safe_vec(cᵢ)
