@@ -49,11 +49,11 @@ function CommonSolve.init(
 
     if mode isa AbstractSafeNonlinearTerminationMode
         if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
-            initial_objective = Linf_NORM(du)
+            initial_objective = Utils.apply_norm(mode.internalnorm, du)
             u0_norm = nothing
         else
-            initial_objective = Linf_NORM(du) /
-                                (Utils.nonallocating_maximum(+, du, u) + eps(TT))
+            initial_objective = Utils.apply_norm(mode.internalnorm, du) /
+                                (Utils.apply_norm(mode.internalnorm, du, u) + eps(reltol))
             u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
         end
         objectives_trace = Vector{TT}(undef, mode.patience_steps)
@@ -107,10 +107,10 @@ function SciMLBase.reinit!(
 
     if mode isa AbstractSafeNonlinearTerminationMode
         if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
-            cache.initial_objective = Linf_NORM(du)
+            cache.initial_objective = Utils.apply_norm(mode.internalnorm, du)
         else
-            cache.initial_objective = Linf_NORM(du) /
-                                      (Utils.nonallocating_maximum(+, du, u) + eps(TT))
+            cache.initial_objective = Utils.apply_norm(mode.internalnorm, du) /
+                                      (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
             cache.max_stalled_steps !== nothing && (cache.u0_norm = L2_NORM(u))
         end
         cache.best_objective_value = cache.initial_objective
