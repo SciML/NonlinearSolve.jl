@@ -20,7 +20,7 @@ solve process. This is controlled by 3 keyword arguments to `solve`:
 
 All the native NonlinearSolve.jl algorithms come with in-built
 [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl) support. However, this
-is disabled by default and can be enabled via [`NonlinearSolve.enable_timer_outputs`](@ref).
+is disabled by default and can be enabled via [`NonlinearSolveBase.enable_timer_outputs`](@ref).
 
 Note that you will have to restart Julia to disable the timer outputs once enabled.
 

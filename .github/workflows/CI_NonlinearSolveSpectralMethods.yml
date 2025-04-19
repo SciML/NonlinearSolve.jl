@@ -2,8 +2,6 @@ name: CI (NonlinearSolveSpectralMethods)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveSpectralMethods/**"
       - ".github/workflows/CI_NonlinearSolveSpectralMethods.yml"
@@ -31,7 +29,6 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-          - windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

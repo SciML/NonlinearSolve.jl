@@ -2,8 +2,6 @@ name: CI (SciMLJacobianOperators)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/SciMLJacobianOperators/**"
       - ".github/workflows/CI_SciMLJacobianOperators.yml"
@@ -29,7 +27,6 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-          - windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

@@ -4,7 +4,7 @@ using ArrayInterface: ArrayInterface
 
 using CommonSolve: CommonSolve, init, solve!
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
-using SciMLBase: ReturnCode, LinearProblem
+using SciMLBase: ReturnCode, LinearProblem, LinearAliasSpecifier
 
 using LinearAlgebra: ColumnNorm
 
@@ -40,7 +40,7 @@ function (cache::LinearSolveJLCache)(;
                 linprob = LinearProblem(A, b; u0 = linres.u)
                 cache.additional_lincache = init(
                     linprob, QRFactorization(ColumnNorm()); alias_u0 = false,
-                    alias_A = false, alias_b = false
+                    alias = LinearAliasSpecifier(alias_A = false, alias_b = false)
                 )
             else
                 cache.additional_lincache.A = A

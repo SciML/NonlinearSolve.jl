@@ -14,7 +14,7 @@
     jacobian_f(u, p::Number) = one.(u) .* (1 / (2 * √p))
     jacobian_f(u, p::AbstractArray) = diagm(vec(@. 1 / (2 * √p)))
 
-    @testset "#(nameof(typeof(alg)))" for alg in (
+    @testset "$(nameof(typeof(alg)))" for alg in (
         SimpleNewtonRaphson(),
         SimpleTrustRegion(),
         SimpleTrustRegion(; nlsolve_update_rule = Val(true)),

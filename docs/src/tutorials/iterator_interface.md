@@ -20,7 +20,7 @@ to iterate the solver.
 The iterator interface supports:
 
 ```@docs
-step!(nlcache::NonlinearSolve.AbstractNonlinearSolveCache, args...; kwargs...)
+step!(nlcache::NonlinearSolveBase.AbstractNonlinearSolveCache, args...; kwargs...)
 ```
 
 We can perform 10 steps of the Newton-Raphson solver with the following:

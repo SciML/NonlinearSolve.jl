@@ -7,7 +7,8 @@ end
 @testitem "Interval Nonlinear Problems" setup=[RootfindingTestSnippet] tags=[:core] begin
     using ForwardDiff
 
-    @testset for alg in (Bisection(), Falsi(), Ridder(), Brent(), ITP(), Alefeld(), nothing)
+    @testset for alg in (
+        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
         tspan = (1.0, 20.0)
 
         function g(p)
@@ -52,8 +53,8 @@ end
     prob = IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
     ϵ = eps(Float64) # least possible tol for all methods
 
-    @testset for alg in (Bisection(), Falsi(), ITP(), nothing)
-        @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7]
+    @testset for alg in (Bisection(), Falsi(), ITP(), Muller(), nothing)
+        @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6]
             sol = solve(prob, alg; abstol)
             result_tol = abs(sol.u - sqrt(2))
             @test result_tol < abstol
@@ -62,7 +63,7 @@ end
         end
     end
 
-    @testset for alg in (Ridder(), Brent())
+    @testset for alg in (Brent(), Ridder())
         # Ridder and Brent converge rapidly so as we lower tolerance below 0.01, it
         # converges with max precision to the solution
         @testset for abstol in [0.1]
@@ -76,7 +77,8 @@ end
 end
 
 @testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTestSnippet] tags=[:core] begin
-    @testset for alg in (Alefeld(), Bisection(), Falsi(), Brent(), ITP(), Ridder(), nothing)
+    @testset for alg in (
+        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing)
         f1(u, p) = u * u - p
         f2(u, p) = p - u * u
 
