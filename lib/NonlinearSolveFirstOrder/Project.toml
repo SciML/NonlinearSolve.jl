@@ -91,3 +91,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
 test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ForwardDiff", "Enzyme", "ExplicitImports", "Hwloc", "InteractiveUtils", "LineSearch", "LineSearches", "NonlinearProblemLibrary", "Pkg", "Random", "ReTestItems", "SparseArrays", "SparseConnectivityTracer", "SparseMatrixColorings", "StableRNGs", "StaticArrays", "Test", "Zygote"]
+
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+SciMLJacobianOperators = {path = "../SciMLJacobianOperators"}
