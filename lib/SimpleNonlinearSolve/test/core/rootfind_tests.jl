@@ -27,16 +27,22 @@
         AbsNormSafeBestTerminationMode(Base.Fix1(maximum, abs))
     ]
 
-    function run_nlsolve_oop(f::F, u0, p = 2.0; solver) where {F}
-        return @inferred solve(NonlinearProblem{false}(f, u0, p), solver; abstol = 1e-9)
+    function run_nlsolve_oop(f::F, u0, p = 2.0; solver, broken_inferred = false) where {F}
+        prob = NonlinearProblem{false}(f, u0, p)
+        @test @inferred(solve(prob, solver; abstol = 1e-9)) isa
+              SciMLBase.AbstractNonlinearSolution broken=broken_inferred
+        return solve(prob, solver; abstol = 1e-9)
     end
-    function run_nlsolve_iip(f!::F, u0, p = 2.0; solver) where {F}
-        return @inferred solve(NonlinearProblem{true}(f!, u0, p), solver; abstol = 1e-9)
+    function run_nlsolve_iip(f!::F, u0, p = 2.0; solver, broken_inferred = false) where {F}
+        prob = NonlinearProblem{true}(f!, u0, p)
+        @test @inferred(solve(prob, solver; abstol = 1e-9)) isa
+              SciMLBase.AbstractNonlinearSolution broken=broken_inferred
+        return solve(prob, solver; abstol = 1e-9)
     end
 end
 
 @testitem "First Order Methods" setup=[RootfindTestSnippet] tags=[:core] begin
-    for alg in (
+    @testset for alg in (
         SimpleNewtonRaphson,
         SimpleTrustRegion,
         (; kwargs...) -> SimpleTrustRegion(; kwargs..., nlsolve_update_rule = Val(true))
@@ -50,7 +56,10 @@ end
         )
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (
                 [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff))
+                broken_inferred = u0 isa StaticArray && (autodiff isa AutoFiniteDiff ||
+                                   (autodiff isa AutoReverseDiff && VERSION < v"1.11"))
+                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff),
+                    broken_inferred)
                 @test SciMLBase.successful_retcode(sol)
                 @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
             end
@@ -85,7 +94,10 @@ end
         )
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (
                 [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
-                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff))
+                broken_inferred = u0 isa StaticArray && (autodiff isa AutoFiniteDiff ||
+                                   (autodiff isa AutoReverseDiff && VERSION < v"1.11"))
+                sol = run_nlsolve_oop(quadratic_f, u0; solver = alg(; autodiff),
+                    broken_inferred)
                 @test SciMLBase.successful_retcode(sol)
                 @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
             end

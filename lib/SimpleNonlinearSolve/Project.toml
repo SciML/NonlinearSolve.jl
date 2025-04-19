@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "2.2.1"
+version = "2.2.2"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -66,7 +66,7 @@ PrecompileTools = "1.2"
 Random = "1.10"
 Reexport = "1.2"
 ReverseDiff = "1.15"
-SciMLBase = "2.68.1"
+SciMLBase = "2.69"
 Setfield = "1.1.1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4.3"

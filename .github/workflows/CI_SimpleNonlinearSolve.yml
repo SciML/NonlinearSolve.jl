@@ -2,8 +2,6 @@ name: CI (SimpleNonlinearSolve)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/SimpleNonlinearSolve/**"
       - ".github/workflows/CI_SimpleNonlinearSolve.yml"

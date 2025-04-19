@@ -2,8 +2,6 @@ name: CI (SciMLJacobianOperators)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/SciMLJacobianOperators/**"
       - ".github/workflows/CI_SciMLJacobianOperators.yml"

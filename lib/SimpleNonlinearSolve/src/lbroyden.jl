@@ -62,10 +62,11 @@ end
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
-        return SciMLBase.__solve(
+        sol = SciMLBase.__solve(
             prob, SimpleBroyden(; alg.linesearch), args...;
             abstol, reltol, maxiters, termination_condition, kwargs...
         )
+        return Utils.nonlinear_solution_new_alg(sol, alg)
     end
 
     fx = NLBUtils.evaluate_f(prob, x)
