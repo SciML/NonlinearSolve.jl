@@ -2,8 +2,6 @@ name: CI (BracketingNonlinearSolve)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/BracketingNonlinearSolve/**"
       - ".github/workflows/CI_BracketingNonlinearSolve.yml"

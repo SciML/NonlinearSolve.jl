@@ -2,8 +2,6 @@ name: CI (NonlinearSolveFirstOrder)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveFirstOrder/**"
       - ".github/workflows/CI_NonlinearSolveFirstOrder.yml"

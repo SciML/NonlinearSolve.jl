@@ -2,8 +2,6 @@ name: CI (NonlinearSolveQuasiNewton)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveQuasiNewton/**"
       - ".github/workflows/CI_NonlinearSolveQuasiNewton.yml"

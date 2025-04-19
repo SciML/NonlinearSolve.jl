@@ -2,8 +2,6 @@ name: CI (NonlinearSolveSpectralMethods)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveSpectralMethods/**"
       - ".github/workflows/CI_NonlinearSolveSpectralMethods.yml"

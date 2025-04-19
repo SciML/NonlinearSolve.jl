@@ -2,8 +2,6 @@ name: CI (NonlinearSolveBase)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveBase/**"
       - ".github/workflows/CI_NonlinearSolveBase.yml"

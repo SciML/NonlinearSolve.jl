@@ -2,8 +2,6 @@ name: CI (SCCNonlinearSolve)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/SCCNonlinearSolve/**"
       - ".github/workflows/CI_SCCNonlinearSolve.yml"

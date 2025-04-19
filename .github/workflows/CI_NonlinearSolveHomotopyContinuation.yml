@@ -2,8 +2,6 @@ name: CI (NonlinearSolveHomotopyContinuation)
 
 on:
   pull_request:
-    branches:
-      - master
     paths:
       - "lib/NonlinearSolveHomotopyContinuation/**"
       - ".github/workflows/CI_NonlinearSolveHomotopyContinuation.yml"
