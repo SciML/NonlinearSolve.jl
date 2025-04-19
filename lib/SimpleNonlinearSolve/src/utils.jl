@@ -174,4 +174,13 @@ function compute_hvvp(prob, autodiff, fx, x, dir)
     return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
+function nonlinear_solution_new_alg(
+        sol::SciMLBase.NonlinearSolution{T, N, uType, R, P, A, O, uType2, S, Tr}, alg
+) where {T, N, uType, R, P, A, O, uType2, S, Tr}
+    return SciMLBase.NonlinearSolution{T, N, uType, R, P, typeof(alg), O, uType2, S, Tr}(
+        sol.u, sol.resid, sol.prob, alg, sol.retcode, sol.original, sol.left, sol.right,
+        sol.stats, sol.trace
+    )
+end
+
 end
