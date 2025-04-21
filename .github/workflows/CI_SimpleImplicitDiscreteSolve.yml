@@ -1,4 +1,4 @@
-name: CI (SimpleNonlinearSolve)
+name: CI (SimpleImplicitDiscreteSolve)
 
 on:
   pull_request:
