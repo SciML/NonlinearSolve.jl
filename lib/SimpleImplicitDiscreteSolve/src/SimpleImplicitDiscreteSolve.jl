@@ -24,20 +24,20 @@ function DiffEqBase.__init(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve; dt
     sol, (sol.retcode != ReturnCode.Success)
 end
 
-function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve; 
-    dt = 1,
-    save_everystep = true,
-    save_start = true,
-    adaptive = false,
-    dense = false,
-    save_end = true,
-    kwargs...)
-
+function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve;
+        dt = 1,
+        save_everystep = true,
+        save_start = true,
+        adaptive = false,
+        dense = false,
+        save_end = true,
+        kwargs...)
     @assert !adaptive
     @assert !dense
     (initsol, initfail) = DiffEqBase.__init(prob, alg; dt)
     if initfail
-        sol = DiffEqBase.build_solution(prob, alg, prob.tspan[1], u0, k = nothing, stats = nothing, calculate_error = false) 
+        sol = DiffEqBase.build_solution(prob, alg, prob.tspan[1], u0, k = nothing,
+            stats = nothing, calculate_error = false)
         return SciMLBase.solution_new_retcode(sol, ReturnCode.InitialFailure)
     end
 
@@ -66,7 +66,8 @@ function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve;
     for i in 2:length(ts)
         uprev = u
         t = ts[i]
-        nlf = isinplace(f) ? (out, u, p) -> f(out, u, uprev, p, t) : (u, p) -> f(u, uprev, p, t)
+        nlf = isinplace(f) ? (out, u, p) -> f(out, u, uprev, p, t) :
+              (u, p) -> f(u, uprev, p, t)
         nlprob = NonlinearProblem{isinplace(f)}(nlf, uprev, p)
         nlsol = solve(nlprob, SimpleNewtonRaphson())
         u = nlsol.u
@@ -74,7 +75,8 @@ function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve;
         convfail = (nlsol.retcode != ReturnCode.Success)
 
         if convfail
-            sol = DiffEqBase.build_solution(prob, alg, ts[1:i], us[1:i], k = nothing, stats = nothing, calculate_error = false)
+            sol = DiffEqBase.build_solution(prob, alg, ts[1:i], us[1:i], k = nothing,
+                stats = nothing, calculate_error = false)
             sol = SciMLBase.solution_new_retcode(sol, ReturnCode.ConvergenceFailure)
             return sol
         end
@@ -86,7 +88,8 @@ function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve;
         calculate_error = false)
 
     DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true, dense_errors = false)
+        DiffEqBase.calculate_solution_errors!(
+            sol; timeseries_errors = true, dense_errors = false)
     sol
 end
 
