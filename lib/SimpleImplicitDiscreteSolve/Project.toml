@@ -1,5 +1,5 @@
 name = "SimpleImplicitDiscreteSolve"
-uuid = "3263718b-31ed-49cf-8a0f-35a466e8af96"
+uuid = "8b67ef88-54bd-43ff-aca0-8be02588656a"
 authors = ["vyudu <vincent.duyuan@gmail.com>"]
 version = "0.1.0"
 

@@ -67,7 +67,7 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: lib/SimpleNonlinearSolve/src, lib/SimpleNonlinearSolve/ext, lib/SimpleImplicitDiscreteSolve/src
+          directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext,lib/SimpleImplicitDiscreteSolve/src
       - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
@@ -111,7 +111,7 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: lib/SimpleImplicitDiscreteSolve/src, lib/SimpleNonlinearSolve/ext, lib/SimpleNonlinearSolve/src
+          directories: lib/SimpleImplicitDiscreteSolve/src,lib/SimpleNonlinearSolve/ext,lib/SimpleNonlinearSolve/src
       - uses: codecov/codecov-action@v5
         with:
           file: lcov.info
