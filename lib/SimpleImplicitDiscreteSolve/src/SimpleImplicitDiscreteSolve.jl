@@ -3,6 +3,7 @@ module SimpleImplicitDiscreteSolve
 using SciMLBase
 using SimpleNonlinearSolve
 using Reexport
+using StaticArrays
 @reexport using DiffEqBase
 
 """
@@ -49,16 +50,13 @@ function DiffEqBase.solve(prob::ImplicitDiscreteProblem, alg::SimpleIDSolve;
     tf = prob.tspan[2]
     ts = tspan[1]:dt:tspan[2]
 
-    if save_everystep && save_start
-        us = Vector{typeof(u0)}(undef, length(ts))
+    l = save_everystep ? length(ts) - 1 : 1
+    save_start && (l = l + 1)
+    u0type = typeof(u0)
+    us = u0type <: StaticArray ? MVector{l, u0type}(undef) : Vector{u0type}(undef, l)
+
+    if save_start
         us[1] = u0
-    elseif save_everystep
-        us = Vector{typeof(u0)}(undef, length(ts) - 1)
-    elseif save_start
-        us = Vector{typeof(u0)}(undef, 2)
-        us[1] = u0
-    else
-        us = Vector{typeof(u0)}(undef, 1) # for interface compatibility
     end
 
     u = u0
