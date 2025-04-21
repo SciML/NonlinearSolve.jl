@@ -56,7 +56,7 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SimpleImplicitDiscreteSolve", "lib/SimpleNonlinearSolve")
+          for path in ("lib/SimpleNonlinearSolve",)
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
@@ -100,7 +100,7 @@ jobs:
           Pkg.Registry.update()
           # Install packages present in subdirectories
           dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SimpleImplicitDiscreteSolve", "lib/SimpleNonlinearSolve")
+          for path in ("lib/SimpleNonlinearSolve",)
               push!(dev_pks, Pkg.PackageSpec(; path))
           end
           Pkg.develop(dev_pks)
