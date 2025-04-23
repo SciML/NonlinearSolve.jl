@@ -1497,7 +1497,7 @@ version = "1.5.0"
 deps = ["ADTypes", "CommonSolve", "ConcreteStructs", "DifferentiationInterface", "DocStringExtensions", "HomotopyContinuation", "LinearAlgebra", "NonlinearSolveBase", "SciMLBase", "SymbolicIndexingInterface", "TaylorDiff"]
 path = "../lib/NonlinearSolveHomotopyContinuation"
 uuid = "2ac3b008-d579-4536-8c91-a1a5998c2f8b"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.NonlinearSolveQuasiNewton]]
 deps = ["ArrayInterface", "CommonSolve", "ConcreteStructs", "DiffEqBase", "LinearAlgebra", "LinearSolve", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLOperators", "StaticArraysCore"]
