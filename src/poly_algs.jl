@@ -40,7 +40,6 @@ function FastShortcutNonlinearPolyalg(
         else
             algs = (
                 NewtonRaphson(; common_kwargs...),
-                NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
                 TrustRegion(; common_kwargs...),
                 TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
             )
@@ -52,18 +51,15 @@ function FastShortcutNonlinearPolyalg(
             if T <: Complex
                 algs = (
                     SimpleBroyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     SimpleKlement(),
                     NewtonRaphson(; common_kwargs...)
                 )
             else
-                start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 4 : 1) : 1
+                start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 3 : 1) : 1
                 algs = (
                     SimpleBroyden(),
-                    Broyden(; init_jacobian = Val(:true_jacobian), autodiff),
                     SimpleKlement(),
                     NewtonRaphson(; common_kwargs...),
-                    NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
                     TrustRegion(; common_kwargs...),
                     TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
                 )
@@ -77,12 +73,11 @@ function FastShortcutNonlinearPolyalg(
                 )
             else
                 # TODO: This number requires a bit rigorous testing
-                start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 4 : 1) : 1
+                start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 3 : 1) : 1
                 algs = (
                     Broyden(; autodiff),
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
-                    NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
                     TrustRegion(; common_kwargs...),
                     TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
                 )
