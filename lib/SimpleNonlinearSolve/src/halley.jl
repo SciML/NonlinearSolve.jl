@@ -41,7 +41,8 @@ function SciMLBase.__solve(
     iszero(fx) &&
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
-    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+    abstol, reltol,
+    tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 

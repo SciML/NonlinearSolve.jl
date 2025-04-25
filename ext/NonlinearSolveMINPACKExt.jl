@@ -17,7 +17,8 @@ function SciMLBase.__solve(
         termination_condition, alg
     )
 
-    f_wrapped!, u0, resid = NonlinearSolveBase.construct_extension_function_wrapper(
+    f_wrapped!, u0,
+    resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0
     )
     resid_size = size(resid)

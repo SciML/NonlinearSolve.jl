@@ -25,7 +25,8 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
             tp, p_changed, alg, args...; kwargs...)
         u0, p = Tracker.data(tu0), Tracker.data(tp)
         prob = remake(tprob; u0, p)
-        out, ∇internal = solve_adjoint(
+        out,
+        ∇internal = solve_adjoint(
             prob, sensealg, u0, p, TrackerOriginator(), alg, args...; kwargs...)
 
         function ∇simplenonlinearsolve_solve_up(Δ)

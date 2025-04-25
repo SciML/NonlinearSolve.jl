@@ -81,7 +81,8 @@ end
 
 function (f::ComplexDIJacobian{OutOfPlace})(u, U, x, p)
     U_tmp = f.buffers
-    u_tmp, _ = DI.value_and_jacobian!(
+    u_tmp,
+    _ = DI.value_and_jacobian!(
         f.f, U_tmp, f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p))
     copyto!(u, reinterpret(ComplexF64, u_tmp))
     U = reinterpret(Float64, U)
