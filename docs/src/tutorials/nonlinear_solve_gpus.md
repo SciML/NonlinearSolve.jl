@@ -11,15 +11,15 @@ NonlinearSolve.jl supports GPU acceleration on a wide array of devices, such as:
 
 To use NonlinearSolve.jl on GPUs, there are two distinctly different approaches:
 
-1. You can build a `NonlinearProblem` / `NonlinearLeastSquaresProblem` where the elements
-   of the problem, i.e. `u0` and `p`, are defined on GPUs. This will make the evaluations
-   of `f` occur on the GPU, and all internal updates of the solvers will be completely
-   on the GPU as well. This is the optimal form for large systems of nonlinear equations.
-2. You can use SimpleNonlinearSolve.jl as kernels in KernelAbstractions.jl. This will build
-   problem-specific GPU kernels in order to parallelize the solution of the chosen nonlinear
-   system over a large number of inputs. This is useful for cases where you have a small
-   `NonlinearProblem` / `NonlinearLeastSquaresProblem` which you want to solve over a large
-   number of initial guesses or parameters.
+ 1. You can build a `NonlinearProblem` / `NonlinearLeastSquaresProblem` where the elements
+    of the problem, i.e. `u0` and `p`, are defined on GPUs. This will make the evaluations
+    of `f` occur on the GPU, and all internal updates of the solvers will be completely
+    on the GPU as well. This is the optimal form for large systems of nonlinear equations.
+ 2. You can use SimpleNonlinearSolve.jl as kernels in KernelAbstractions.jl. This will build
+    problem-specific GPU kernels in order to parallelize the solution of the chosen nonlinear
+    system over a large number of inputs. This is useful for cases where you have a small
+    `NonlinearProblem` / `NonlinearLeastSquaresProblem` which you want to solve over a large
+    number of initial guesses or parameters.
 
 For a deeper dive into the computational difference between these techniques and why it
 leads to different pros/cons, see the
