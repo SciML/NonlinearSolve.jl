@@ -10,6 +10,7 @@ pages = [
         "tutorials/small_compile.md",
         "tutorials/iterator_interface.md",
         "tutorials/optimizing_parameterized_ode.md",
+        "tutorials/nonlinear_solve_gpus.md",
         "tutorials/snes_ex2.md"
     ],
     "Basics" => Any[
