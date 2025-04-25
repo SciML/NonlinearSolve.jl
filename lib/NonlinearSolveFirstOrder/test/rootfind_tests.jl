@@ -130,8 +130,8 @@ end
                     KrylovJL_GMRES(;
                         precs = (A,
                         p = nothing) -> (
-                        Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
-                    )
+                            Diagonal(randn!(similar(A, size(A, 1)))), LinearAlgebra.I
+                        )
                     )
                 ),
                 (Val(false), \)
