@@ -78,11 +78,11 @@ function brusselator_2d_loop(du, u, p)
         jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
         limit(j - 1, N)
         du[i,
-            j,
-            1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
-                  4u[i, j, 1]) +
-                 B +
-                 u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] + brusselator_f(x, y)
+        j,
+        1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
+              4u[i, j, 1]) +
+             B +
+             u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] + brusselator_f(x, y)
         du[i,
             j,
             2] = alpha * (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
