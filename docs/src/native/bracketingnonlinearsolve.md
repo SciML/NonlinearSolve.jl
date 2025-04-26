@@ -12,11 +12,11 @@ These methods are suited for interval (scalar) root-finding problems,
 i.e. [`IntervalNonlinearProblem`](@ref).
 
 ```@docs
-ITP
 Alefeld
 Bisection
-Falsi
-Ridder
 Brent
+Falsi
+ITP
 Muller
+Ridder
 ```
