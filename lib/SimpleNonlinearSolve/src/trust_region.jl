@@ -22,7 +22,7 @@ scalar and static array problems.
   - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
     compared with a value `r`, which is the actual reduction in the objective function
     divided by the predicted reduction. If `step_threshold > r` the model is not a good
-    approximation, and the step is rejected. Defaults to `0.1`. For more details, see
+    approximation, and the step is rejected. Defaults to `0.0001`. For more details, see
     [Rahpeymaii, F.](https://link.springer.com/article/10.1007/s40096-020-00339-4)
   - `shrink_threshold`: the threshold for shrinking the trust region radius. In every
     iteration, the threshold is compared with a value `r` which is the actual reduction in
@@ -127,6 +127,11 @@ function SciMLBase.__solve(
     @bb δN = copy(x)
     @bb Hδ = copy(x)
     dogleg_cache = (; δsd, δN_δsd, δN)
+
+    solved, retcode, fx_sol, x_sol = Utils.check_termination(
+        tc_cache, fx, x, xo, prob
+    )
+    solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
 
     for _ in 1:maxiters
         # Solve the trust region subproblem.
