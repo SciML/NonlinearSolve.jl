@@ -488,3 +488,16 @@ function PETScSNES(; petsclib = missing, autodiff = nothing, mpi_comm = missing,
     end
     return PETScSNES(petsclib, mpi_comm, autodiff, kwargs)
 end
+
+# TODO: Docs
+@concrete struct GridapPETScSNES <: AbstractNonlinearSolveAlgorithm
+    autodiff
+    snes_options
+end
+
+function GridapPETScSNES(; autodiff = nothing, kwargs...)
+    if Base.get_extension(@__MODULE__, :NonlinearSolveGridapPETScExt) === nothing
+        error("`GridapPETScSNES` requires `GridapPETSc.jl` to be loaded")
+    end
+    return GridapPETScSNES(autodiff, kwargs)
+end

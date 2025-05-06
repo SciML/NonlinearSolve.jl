@@ -17,6 +17,11 @@ function SciMLBase.__solve(
         maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing,
         show_trace::Val = Val(false), kwargs...
 )
+    if !MPI.Initialized()
+        @warn "MPI not initialized. Initializing MPI with MPI.Init()." maxlog=1
+        MPI.Init()
+    end
+
     # XXX: https://petsc.org/release/manualpages/SNES/SNESSetConvergenceTest/
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg; abs_norm_supported = false
@@ -68,8 +73,10 @@ function SciMLBase.__solve(
     PETSc.setfunction!(snes, f!, PETSc.VecSeq(zero(u0)))
 
     njac = Ref{Int}(-1)
-    if alg.autodiff !== missing || prob.f.jac !== nothing
+    # `missing` -> let PETSc compute the Jacobian using finite differences
+    if alg.autodiff !== missing
         autodiff = alg.autodiff === missing ? nothing : alg.autodiff
+
         if prob.u0 isa Number
             jac! = NonlinearSolveBase.construct_extension_jac(
                 prob, alg, prob.u0, prob.u0; autodiff
@@ -125,8 +132,7 @@ function SciMLBase.__solve(
     retcode = ifelse(objective ≤ abstol, ReturnCode.Success, ReturnCode.Failure)
     return SciMLBase.build_solution(
         prob, alg, u_res, resid_res;
-        retcode, original = snes,
-        stats = SciMLBase.NLStats(nf[], njac[], -1, -1, -1)
+        retcode, stats = SciMLBase.NLStats(nf[], njac[], -1, -1, -1)
     )
 end
 
