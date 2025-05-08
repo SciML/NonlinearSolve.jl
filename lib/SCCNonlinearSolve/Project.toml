@@ -1,7 +1,7 @@
 name = "SCCNonlinearSolve"
 uuid = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.1.0"
+version = "1.2.0"
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -38,6 +38,7 @@ ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -47,4 +48,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "BenchmarkTools", "ExplicitImports", "Hwloc", "InteractiveUtils", "NonlinearProblemLibrary", "NonlinearSolveBase", "NonlinearSolveFirstOrder", "Pkg", "ReTestItems", "StableRNGs", "StaticArrays", "Test"]
+test = ["Aqua", "BenchmarkTools", "ExplicitImports", "Hwloc", "InteractiveUtils", "NonlinearProblemLibrary", "NonlinearSolveBase", "NonlinearSolveFirstOrder", "NonlinearSolve", "Pkg", "ReTestItems", "StableRNGs", "StaticArrays", "Test"]
