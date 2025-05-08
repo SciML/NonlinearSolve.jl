@@ -4,6 +4,10 @@ import SciMLBase
 import CommonSolve
 import SymbolicIndexingInterface
 
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem; kwargs...)
+    CommonSolve.solve(prob, nothing; kwargs...)
+end
+
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg; kwargs...)
     numscc = length(prob.probs)
     sols = [SciMLBase.build_solution(

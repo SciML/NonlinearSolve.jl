@@ -62,4 +62,9 @@ end
         SciMLBase.Void{Any}.([explicitfun1, explicitfun2, explicitfun3]))
     scc_sol = solve(sccprob, NewtonRaphson())
     @test sol ≈ manualscc ≈ scc_sol
+
+    import NonlinearSolve # Required for Default
+
+    scc_sol = solve(sccprob)
+    @test sol ≈ manualscc ≈ scc_sol
 end
