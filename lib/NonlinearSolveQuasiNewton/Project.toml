@@ -18,11 +18,11 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SciMLOperators = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
-
 [weakdeps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
 
 [extensions]
 NonlinearSolveQuasiNewtonForwardDiffExt = "ForwardDiff"
@@ -53,7 +53,7 @@ PrecompileTools = "1.2"
 ReTestItems = "1.24"
 Reexport = "1"
 SciMLBase = "2.69"
-SciMLOperators = "0.3.13"
+SciMLOperators = "0.3.13, 0.4"
 StableRNGs = "1"
 StaticArrays = "1.9.8"
 StaticArraysCore = "1.4.3"
