@@ -15,8 +15,8 @@ function NAN_CHECK(x::Union{AbstractVectorOfArray, ArrayPartition})
 end
 
 L2_NORM(u::Union{AbstractFloat, Complex}) = @fastmath abs(u)
-L2_NORM(u::AbstractArray) = @fastmath sqrt(UNITLESS_ABS2(u))
-function L2_NORM(u::AbstractArray{<:Union{AbstractFloat, Complex}})
+L2_NORM(u::Number) = @fastmath sqrt(UNITLESS_ABS2(u))
+function L2_NORM(u::Array{<:Union{AbstractFloat, Complex}})
     if Utils.fast_scalar_indexing(u)
         x = zero(eltype(u))
         @simd for i in eachindex(u)
