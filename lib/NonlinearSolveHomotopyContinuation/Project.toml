@@ -16,15 +16,15 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
 
 [compat]
 ADTypes = "1.11.0"
 Aqua = "0.8"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
-DifferentiationInterface = "0.6.27"
+DifferentiationInterface = "0.6.27, 0.7"
 DocStringExtensions = "0.9.3"
 Enzyme = "0.13"
 HomotopyContinuation = "2.12.0"
