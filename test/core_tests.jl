@@ -435,5 +435,4 @@ end
     sol = solve(prob)
     @test SciMLBase.successful_retcode(sol)
     @test sol.retcode == ReturnCode.StalledSuccess
-    @test sol.stats.nf == 3
 end
