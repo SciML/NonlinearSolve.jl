@@ -219,7 +219,7 @@ function (cache::NonlinearTerminationModeCache)(
         end
         du_norm = L2_NORM(cache.u_diff_cache)
         cache.step_norm_trace[mod1(cache.nsteps, length(cache.step_norm_trace))] = du_norm
-        if cache.nsteps > mode.max_stalled_steps || iszero(du_norm)
+        if cache.nsteps > mode.max_stalled_steps
             max_step_norm = maximum(cache.step_norm_trace)
             if mode isa AbsNormSafeTerminationMode ||
                mode isa AbsNormSafeBestTerminationMode
