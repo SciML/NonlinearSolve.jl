@@ -160,7 +160,10 @@ end
                     InternalAPI.step!($(cache_syms[i]), args...; kwargs...)
                     $(cache_syms[i]).nsteps += 1
                     if !NonlinearSolveBase.not_terminated($(cache_syms[i]))
-                        if SciMLBase.successful_retcode($(cache_syms[i]).retcode)
+                        # If a NonlinearLeastSquaresProblem StalledSuccess, try the next
+                        # solver to see if you get a lower residual
+                        if SciMLBase.successful_retcode($(cache_syms[i]).retcode) && 
+                            $(cache_syms[i]).retcode != ReturnCode.StalledSuccess
                             cache.best = $(i)
                             cache.force_stop = true
                             cache.retcode = $(cache_syms[i]).retcode

@@ -21,6 +21,7 @@ const AbsNormModes = Union{
     step_norm_trace
     max_stalled_steps
     u_diff_cache::uType
+    leastsq::Bool
 end
 
 get_abstol(cache::NonlinearTerminationModeCache) = cache.abstol
@@ -36,7 +37,7 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
 end
 
 function CommonSolve.init(
-        ::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
+        prob::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
         saved_value_prototype...; abstol = nothing, reltol = nothing, kwargs...
 )
     T = promote_type(eltype(du), eltype(u))
@@ -80,10 +81,12 @@ function CommonSolve.init(
 
     length(saved_value_prototype) == 0 && (saved_value_prototype = nothing)
 
+    leastsq = typeof(prob) <: NonlinearLeastSquaresProblem
+
     return NonlinearTerminationModeCache(
         u_unaliased, ReturnCode.Default, abstol, reltol, best_value, mode,
         initial_objective, objectives_trace, 0, saved_value_prototype,
-        u0_norm, step_norm_trace, max_stalled_steps, u_diff_cache
+        u0_norm, step_norm_trace, max_stalled_steps, u_diff_cache, leastsq
     )
 end
 
@@ -146,6 +149,7 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractSafeNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
 )
+
     if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
         objective = Utils.apply_norm(mode.internalnorm, du)
         criteria = abstol
@@ -177,7 +181,7 @@ function (cache::NonlinearTerminationModeCache)(
     end
 
     # Main Termination Criteria
-    if objective ≤ criteria
+    if !cache.leastsq && objective ≤ criteria
         cache.retcode = ReturnCode.Success
         return true
     end
@@ -195,7 +199,13 @@ function (cache::NonlinearTerminationModeCache)(
             min_obj, max_obj = extrema(cache.objectives_trace)
         end
         if min_obj < mode.min_max_factor * max_obj
-            cache.retcode = ReturnCode.Stalled
+            if cache.leastsq
+                # If least squares, found a local minima thus success
+                cache.retcode = ReturnCode.StalledSuccess
+            else
+                # Not a success if f(x)>0 and residual too high
+                cache.retcode = ReturnCode.Stalled
+            end
             return true
         end
     end
@@ -209,7 +219,7 @@ function (cache::NonlinearTerminationModeCache)(
         end
         du_norm = L2_NORM(cache.u_diff_cache)
         cache.step_norm_trace[mod1(cache.nsteps, length(cache.step_norm_trace))] = du_norm
-        if cache.nsteps > mode.max_stalled_steps
+        if cache.nsteps > mode.max_stalled_steps || iszero(du_norm)
             max_step_norm = maximum(cache.step_norm_trace)
             if mode isa AbsNormSafeTerminationMode ||
                mode isa AbsNormSafeBestTerminationMode
@@ -218,7 +228,11 @@ function (cache::NonlinearTerminationModeCache)(
                 stalled_step = max_step_norm ≤ reltol * (max_step_norm + cache.u0_norm)
             end
             if stalled_step
-                cache.retcode = ReturnCode.Stalled
+                if cache.leastsq
+                    cache.retcode = ReturnCode.StalledSuccess
+                else
+                    cache.retcode = ReturnCode.Stalled
+                end
                 return true
             end
         end
