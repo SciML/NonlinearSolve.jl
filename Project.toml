@@ -31,14 +31,6 @@ SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 
-[sources]
-BracketingNonlinearSolve = {path = "lib/BracketingNonlinearSolve"}
-NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
-NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
-NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
-NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
-SimpleNonlinearSolve = {path = "lib/SimpleNonlinearSolve"}
-
 [weakdeps]
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
@@ -52,6 +44,24 @@ PETSc = "ace2c81b-2b5f-4b1e-a30d-d662738edfe0"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
+
+[sources.BracketingNonlinearSolve]
+path = "lib/BracketingNonlinearSolve"
+
+[sources.NonlinearSolveBase]
+path = "lib/NonlinearSolveBase"
+
+[sources.NonlinearSolveFirstOrder]
+path = "lib/NonlinearSolveFirstOrder"
+
+[sources.NonlinearSolveQuasiNewton]
+path = "lib/NonlinearSolveQuasiNewton"
+
+[sources.NonlinearSolveSpectralMethods]
+path = "lib/NonlinearSolveSpectralMethods"
+
+[sources.SimpleNonlinearSolve]
+path = "lib/SimpleNonlinearSolve"
 
 [extensions]
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
@@ -76,7 +86,7 @@ CUDA = "5.5"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.158.3"
-DifferentiationInterface = "0.6.18"
+DifferentiationInterface = "0.6.18, 0.7"
 Enzyme = "0.13.11"
 ExplicitImports = "1.5"
 FastClosures = "0.3.2"
