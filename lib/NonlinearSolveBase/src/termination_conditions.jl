@@ -181,7 +181,7 @@ function (cache::NonlinearTerminationModeCache)(
     end
 
     # Main Termination Criteria
-    if !cache.leastsq && objective ≤ criteria
+    if objective ≤ criteria
         cache.retcode = ReturnCode.Success
         return true
     end
