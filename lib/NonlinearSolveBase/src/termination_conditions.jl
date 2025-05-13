@@ -149,7 +149,6 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractSafeNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
 )
-
     if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
         objective = Utils.apply_norm(mode.internalnorm, du)
         criteria = abstol

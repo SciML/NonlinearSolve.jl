@@ -64,7 +64,8 @@ function SciMLBase.__solve(
         elseif method == :secant
             sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr)
         elseif method == :anderson
-            f_aa, u, _ = NonlinearSolveBase.construct_extension_function_wrapper(
+            f_aa, u,
+            _ = NonlinearSolveBase.construct_extension_function_wrapper(
                 prob; alias_u0, make_fixed_point = Val(true)
             )
             sol = aasol(
@@ -73,7 +74,8 @@ function SciMLBase.__solve(
             )
         end
     else
-        f, u, resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        f, u,
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
             prob; alias_u0, make_fixed_point = Val(method == :anderson)
         )
         N = length(u)

@@ -70,7 +70,8 @@ end
                 @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
             end
 
-            @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+            @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in
+                                                                                                                     TERMINATION_CONDITIONS,
                 u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
                 probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -103,7 +104,8 @@ end
             end
         end
 
-        @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+        @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in
+                                                                                                                 TERMINATION_CONDITIONS,
             u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -135,7 +137,8 @@ end
             @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1e-9
         end
 
-        @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in TERMINATION_CONDITIONS,
+        @testset "Termination Condition: $(nameof(typeof(termination_condition))) u0: $(nameof(typeof(u0)))" for termination_condition in
+                                                                                                                 TERMINATION_CONDITIONS,
             u0 in (1.0, [1.0, 1.0], @SVector[1.0, 1.0])
 
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
@@ -145,8 +148,8 @@ end
 end
 
 @testitem "Newton Fails" setup=[RootfindTestSnippet] tags=[:core] begin
-    u0 = [-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
-    p = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    u0=[-10.0, -1.0, 1.0, 2.0, 3.0, 4.0, 10.0]
+    p=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     @testset "$(nameof(typeof(alg)))" for alg in (
         SimpleDFSane(),
@@ -161,7 +164,7 @@ end
 end
 
 @testitem "Kwargs Propagation" setup=[RootfindTestSnippet] tags=[:core] begin
-    prob = NonlinearProblem(quadratic_f, ones(4), 2.0; maxiters = 2)
-    sol = solve(prob, SimpleNewtonRaphson())
+    prob=NonlinearProblem(quadratic_f, ones(4), 2.0; maxiters = 2)
+    sol=solve(prob, SimpleNewtonRaphson())
     @test sol.retcode === ReturnCode.MaxIters
 end

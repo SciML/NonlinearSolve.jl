@@ -158,15 +158,17 @@ function SciMLBase.__init(
             stats, linsolve, maxiters, internalnorm
         )
 
-        abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
+        abstol, reltol,
+        termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
 
-        inv_workspace, J = Utils.unwrap_val(inverted_jac) ?
-                           Utils.maybe_pinv!!_workspace(J) : (nothing, J)
+        inv_workspace,
+        J = Utils.unwrap_val(inverted_jac) ?
+            Utils.maybe_pinv!!_workspace(J) : (nothing, J)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u;
@@ -352,7 +354,8 @@ function InternalAPI.step!(
             end
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = InternalAPI.solve!(
+                tr_accepted, u_new,
+                fu_new = InternalAPI.solve!(
                     cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
                 )
                 if tr_accepted

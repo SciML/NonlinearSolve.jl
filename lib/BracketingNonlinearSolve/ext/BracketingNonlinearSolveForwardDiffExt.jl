@@ -7,7 +7,9 @@ using SciMLBase: SciMLBase, IntervalNonlinearProblem
 
 using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder
 
-const DualIntervalNonlinearProblem{T, V, P} = IntervalNonlinearProblem{
+const DualIntervalNonlinearProblem{T,
+    V,
+    P} = IntervalNonlinearProblem{
     uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
 } where {uType, iip}
 

@@ -73,7 +73,8 @@ end
 
     U, Vᵀ = init_low_rank_jacobian(x, fx, x isa StaticArray ? alg.threshold : Val(η))
 
-    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+    abstol, reltol,
+    tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -165,7 +166,8 @@ function internal_static_solve(
         init_α = inv(alg.alpha)
     end
 
-    converged, res = internal_unrolled_lbroyden_initial_iterations(
+    converged,
+    res = internal_unrolled_lbroyden_initial_iterations(
         prob, xo, fo, δx, abstol, U, Vᵀ, alg.threshold, ls_cache, init_α)
 
     converged && return SciMLBase.build_solution(

@@ -102,7 +102,8 @@ function SciMLBase.__solve(
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
-    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+    abstol, reltol,
+    tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -158,7 +159,8 @@ function SciMLBase.__solve(
 
         if r ≥ η₁
             # Termination Checks
-            solved, retcode, fx_sol, x_sol = Utils.check_termination(
+            solved, retcode, fx_sol,
+            x_sol = Utils.check_termination(
                 tc_cache, fx, x, xo, prob
             )
             solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
