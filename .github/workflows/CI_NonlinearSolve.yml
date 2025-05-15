@@ -3,7 +3,7 @@ name: CI (NonlinearSolve)
 on:
   pull_request:
     branches:
-      - master
+      - 'v3-backport'
     paths:
       - "src/**"
       - "ext/**"
