@@ -22,7 +22,7 @@ end
     using ExplicitImports
 
     @test check_no_implicit_imports(NonlinearSolve;
-        skip = (NonlinearSolve, Base, Core, SimpleNonlinearSolve, SciMLBase)) === nothing
+        skip = (NonlinearSolve, NonlinearSolve.NonlinearSafeTerminationReturnCode, Base, Core, SimpleNonlinearSolve, SciMLBase)) === nothing
     @test check_no_stale_explicit_imports(NonlinearSolve) === nothing
     @test check_all_qualified_accesses_via_owners(NonlinearSolve) === nothing
 end
