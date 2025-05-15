@@ -1,7 +1,7 @@
 # Defaults
-@inline DEFAULT_NORM(args...) = DiffEqBase.NONLINEARSOLVE_DEFAULT_NORM(args...)
+@inline DEFAULT_NORM(args...) = NONLINEARSOLVE_DEFAULT_NORM(args...)
 @inline DEFAULT_PRECS(W, du, u, p, t, newW, Plprev, Prprev, cachedata) = nothing, nothing
-@inline DEFAULT_TOLERANCE(args...) = DiffEqBase._get_tolerance(args...)
+@inline DEFAULT_TOLERANCE(args...) = _get_tolerance(args...)
 
 # Helper  Functions
 @static if VERSION ≤ v"1.10-"

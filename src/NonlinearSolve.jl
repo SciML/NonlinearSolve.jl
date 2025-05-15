@@ -10,12 +10,9 @@ using PrecompileTools: @compile_workload, @setup_workload
 using ArrayInterface: ArrayInterface, can_setindex, restructure, fast_scalar_indexing,
                       ismutable
 using ConcreteStructs: @concrete
-using DiffEqBase: DiffEqBase, AbstractNonlinearTerminationMode,
-                  AbstractSafeBestNonlinearTerminationMode, AbsNormTerminationMode,
-                  AbsSafeBestTerminationMode, AbsSafeTerminationMode, AbsTerminationMode,
-                  NormTerminationMode, RelNormTerminationMode, RelSafeBestTerminationMode,
-                  RelSafeTerminationMode, RelTerminationMode,
-                  SimpleNonlinearSolveTerminationMode, SteadyStateDiffEqTerminationMode
+using DiffEqBase: DiffEqBase
+using EnumX
+using Markdown
 using FastBroadcast: @..
 using FastClosures: @closure
 using LazyArrays: LazyArrays, ApplyArray, cache
@@ -66,6 +63,8 @@ const DI = DifferentiationInterface
 const True = Val(true)
 const False = Val(false)
 
+include("termination_conditions_deprecated.jl")
+include("termination_conditions.jl")
 include("abstract_types.jl")
 include("timer_outputs.jl")
 include("internal/helpers.jl")
@@ -155,6 +154,15 @@ include("default.jl")
         end
     end
 end
+
+export SteadyStateDiffEqTerminationMode, SimpleNonlinearSolveTerminationMode,
+       NormTerminationMode, RelTerminationMode, RelNormTerminationMode, AbsTerminationMode,
+       AbsNormTerminationMode, RelSafeTerminationMode, AbsSafeTerminationMode,
+       RelSafeBestTerminationMode, AbsSafeBestTerminationMode
+# Deprecated API
+export NLSolveTerminationMode,
+       NLSolveSafeTerminationOptions, NLSolveTerminationCondition,
+       NLSolveSafeTerminationResult
 
 # Core Algorithms
 export NewtonRaphson, PseudoTransient, Klement, Broyden, LimitedMemoryBroyden, DFSane
