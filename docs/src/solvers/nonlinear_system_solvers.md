@@ -33,7 +33,7 @@ solving of very large systems. Meanwhile, [`SimpleNewtonRaphson`](@ref) and
 They are non-allocating on static arrays and thus really well-optimized for small systems,
 thus usually outperforming the other methods when such types are used for `u0`.
 Additionally, these solvers can be used inside GPU kernels. See
-[ParallelParticleSwarms.jl]([[https://github.com/SciML/PSOGPU.jl](https://github.com/SciML/ParallelParticleSwarms.jl)](https://github.com/SciML/ParallelParticleSwarms.jl)) for an example of this.
+[ParallelParticleSwarms.jl](https://github.com/SciML/ParallelParticleSwarms.jl) for an example of this.
 
 ## Full List of Methods
 
