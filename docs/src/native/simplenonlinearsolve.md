@@ -22,7 +22,7 @@ These methods are suited for any general nonlinear root-finding problem, i.e.
 | [`SimpleLimitedMemoryBroyden`](@ref) | ✔️       | ✔️           | ✔️                       | ✔️[^2]                    |
 
 The algorithms which are non-allocating can be used directly inside GPU Kernels[^3].
-See [PSOGPU.jl](https://github.com/SciML/PSOGPU.jl) for more details.
+See [ParallelParticleSwarms.jl](https://github.com/SciML/ParallelParticleSwarms.jl) for more details.
 
 ```@docs
 SimpleNewtonRaphson
