@@ -142,7 +142,7 @@ end
 
 p = @SVector [@SVector(rand(Float32, 4)) for _ in 1:1024]
 u0 = SA[1f0, 2f0, 3f0, 4f0]
-prob = NonlinearSolveBase.ImmutableNonlinearProblem{false}(p2_f, u0, p)
+prob = SciMLBase.ImmutableNonlinearProblem{false}(p2_f, u0, p)
 ```
 
 !!! note
@@ -152,7 +152,7 @@ prob = NonlinearSolveBase.ImmutableNonlinearProblem{false}(p2_f, u0, p)
     In general, this means that you need to avoid any runtime operations in kernel code,
     such as allocating vectors, dynamic dispatch, type instabilities, etc. Thus to make this
     work, your `f` function should be non-allocating, your `u0` function should use
-    StaticArrays, and you must use `NonlinearSolveBase.ImmutableNonlinearProblem`
+    StaticArrays, and you must use `SciMLBase.ImmutableNonlinearProblem`
     (which is exactly the same as NonlinearProblem except it's immutable to satisfy the
     requirements of GPU kernels). Also, it's recommended that for most GPUs you use Float32
     precision because many GPUs are much slower on 64-bit floating point operations.
