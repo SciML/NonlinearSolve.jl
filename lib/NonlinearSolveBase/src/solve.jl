@@ -174,7 +174,7 @@ end
                         $(prob_syms[i]), alg.algs[$(i)], args...;
                         stats, alias_u0, verbose, kwargs...
                     )
-                    if SciMLBase.successful_retcode($(cur_sol)) && cur_sol.retcode !== ReturnCode.StalledSuccess
+                    if SciMLBase.successful_retcode($(cur_sol)) && $(cur_sol).retcode !== ReturnCode.StalledSuccess
                         if alias_u0
                             copyto!(u0, $(cur_sol).u)
                             $(u_result_syms[i]) = u0
