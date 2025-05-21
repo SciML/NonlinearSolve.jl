@@ -24,8 +24,19 @@ include("ridder.jl")
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
     return CommonSolve.solve(prob, ITP(); kwargs...)
 end
+
 function CommonSolve.solve(prob::IntervalNonlinearProblem, nothing, args...; kwargs...)
     return CommonSolve.solve(prob, ITP(), args...; kwargs...)
+end
+
+function CommonSolve.solve(prob::IntervalNonlinearProblem, 
+        alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...)
+    return bracketingnonlinear_solve_up(prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...)
+end
+
+
+function bracketingnonlinear_solve_up(prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...)
+    return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
 @setup_workload begin
