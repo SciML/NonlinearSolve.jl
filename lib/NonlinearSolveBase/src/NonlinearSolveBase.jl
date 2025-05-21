@@ -20,7 +20,7 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  AbstractNonlinearAlgorithm, AbstractNonlinearFunction,
                  NonlinearProblem, NonlinearLeastSquaresProblem, StandardNonlinearProblem,
                  NonlinearFunction, NullParameters, NLStats, LinearProblem,
-                 LinearAliasSpecifier
+                 LinearAliasSpecifier, ImmutableNonlinearProblem
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
@@ -36,8 +36,6 @@ include("public.jl")
 include("utils.jl")
 
 include("abstract_types.jl")
-
-include("immutable_problem.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
 
