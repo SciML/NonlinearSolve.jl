@@ -8,7 +8,7 @@ algorithm 4.1 because, in certain sense, the second algorithm(4.2) is an optimal
 """
 struct Alefeld <: AbstractBracketingAlgorithm end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         maxiters = 1000, abstol = nothing, kwargs...
 )

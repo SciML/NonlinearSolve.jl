@@ -56,7 +56,7 @@ function ITP(; scaled_k1::Real = 0.2, k2::Real = 2, n0::Int = 10)
     return ITP(scaled_k1, k2, n0)
 end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::ITP, args...;
         maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
 )

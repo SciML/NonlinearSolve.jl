@@ -5,7 +5,7 @@ Left non-allocating Brent method.
 """
 struct Brent <: AbstractBracketingAlgorithm end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Brent, args...;
         maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
 )

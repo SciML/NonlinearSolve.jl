@@ -19,7 +19,7 @@ A common bisection method.
     exact_right::Bool = false
 end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Bisection, args...;
         maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
 )
