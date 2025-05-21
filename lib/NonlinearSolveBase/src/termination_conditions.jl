@@ -199,13 +199,8 @@ function (cache::NonlinearTerminationModeCache)(
             min_obj, max_obj = extrema(cache.objectives_trace)
         end
         if min_obj < mode.min_max_factor * max_obj
-            if cache.leastsq
-                # If least squares, found a local minima thus success
-                cache.retcode = ReturnCode.StalledSuccess
-            else
-                # Not a success if f(x)>0 and residual too high
-                cache.retcode = ReturnCode.Stalled
-            end
+            # Not a success if f(x)>0 and residual too high
+            cache.retcode = ReturnCode.Stalled
             return true
         end
     end
