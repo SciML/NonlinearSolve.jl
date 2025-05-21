@@ -19,6 +19,8 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
 [extensions]
 BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
+BracketingNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
+BracketingNonlinearSolveDiffEqBaseExt = "DiffEqBase"
 
 [compat]
 Aqua = "0.8.9"
