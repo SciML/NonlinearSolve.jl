@@ -4,7 +4,7 @@
     ff(u, p) = u^2 .- p[1]
 
     function solve_nlprob(p)
-        prob = IntervalNonlinearProblem{false}(ff, [1.0, 2.0], p)
+        prob = IntervalNonlinearProblem{false}(ff, (1.0, 3.0), p)
         sol = solve(prob, Broyden())
         res = sol isa AbstractArray ? sol : sol.u
         return sum(abs2, res)
