@@ -27,7 +27,7 @@ end
 
 Muller() = Muller(nothing)
 
-function CommonSolve.solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
+function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
         abstol = nothing, maxiters = 1000, kwargs...)
     @assert !SciMLBase.isinplace(prob) "`Muller` only supports out-of-place problems."
     xᵢ₋₂, xᵢ = prob.tspan

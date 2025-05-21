@@ -5,7 +5,7 @@ A non-allocating regula falsi method.
 """
 struct Falsi <: AbstractBracketingAlgorithm end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Falsi, args...;
         maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
 )

@@ -5,7 +5,7 @@ A non-allocating ridder method.
 """
 struct Ridder <: AbstractBracketingAlgorithm end
 
-function CommonSolve.solve(
+function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Ridder, args...;
         maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
 )
