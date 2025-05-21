@@ -39,6 +39,8 @@ function bracketingnonlinear_solve_up(prob::IntervalNonlinearProblem, sensealg, 
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
+is_extension_loaded(::Val) = false
+
 @setup_workload begin
     for T in (Float32, Float64)
         prob_brack = IntervalNonlinearProblem{false}(
