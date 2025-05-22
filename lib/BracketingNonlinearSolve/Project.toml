@@ -25,6 +25,7 @@ BracketingNonlinearSolveChainRulesCoreExt = ["ChainRulesCore", "ForwardDiff"]
 
 [compat]
 Aqua = "0.8.9"
+ChainRulesCore = "1.24"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 ExplicitImports = "1.10.1"
@@ -37,6 +38,7 @@ SciMLBase = "2.69"
 Test = "1.10"
 TestItemRunner = "1"
 julia = "1.10"
+Zygote = "0.6.69, 0.7"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
