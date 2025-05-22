@@ -1,8 +1,8 @@
 module BracketingNonlinearSolveChainRulesCoreExt
 
 using CommonSolve: CommonSolve
-using ForwardDiff: ForwardDiff
-using DiffEqBase
+using ForwardDiff
+using SciMLBase
 
 using BracketingNonlinearSolve: bracketingnonlinear_solve_up, is_extension_loaded
 
@@ -12,8 +12,6 @@ function ChainRulesCore.rrule(
         sensealg, p, alg, args...; kwargs...
 )
     # DiffEqBase is needed for problem/function constructor adjoint
-    !is_extension_loaded(Val(:DiffEqBase)) &&
-        error("Adjoint sensitivity analysis requires `DiffEqBase.jl` to be explicitly loaded.")
     out = solve(prob)
     u = out.u
     f = SciMLBase.unwrapped_f(prob.f)
