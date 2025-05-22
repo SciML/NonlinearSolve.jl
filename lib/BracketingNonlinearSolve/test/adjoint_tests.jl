@@ -1,5 +1,5 @@
 @testitem "Simple Adjoint Test" tags=[:adjoint] begin
-    using ForwardDiff, Zygote, DiffEqBase
+    using ForwardDiff, Zygote, DiffEqBase, BracketingNonlinearSolve
 
     ff(u, p) = u^2 .- p[1]
 
