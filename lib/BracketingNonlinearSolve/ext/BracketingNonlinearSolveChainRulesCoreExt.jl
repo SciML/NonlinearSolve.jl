@@ -12,12 +12,14 @@ function ChainRulesCore.rrule(
         prob::IntervalNonlinearProblem,
         sensealg, p, alg, args...; kwargs...
 )
-    out = solve(prob)
+    out = solve(prob, alg)
     u = out.u
     f = SciMLBase.unwrapped_f(prob.f)
     function ∇bracketingnonlinear_solve_up(Δ)
+        Δ = Δ isa AbstractThunk ? unthunk(Δ) : Δ
         # Δ = dg/du
-        λ = only(ForwardDiff.derivative(u -> f(u, p), only(u)) \ Δ.u)
+        Δ isa Tangent ? delu = Δ.u : delu = Δ
+        λ = only(ForwardDiff.derivative(u -> f(u, p), only(u)) \ delu)
         if p isa Number
             dgdp = -λ * ForwardDiff.derivative(p -> f(u, p), p)
         else
