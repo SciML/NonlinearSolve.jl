@@ -1,11 +1,10 @@
 module BracketingNonlinearSolveChainRulesCoreExt
 
-using CommonSolve: CommonSolve, solve
-using ForwardDiff: ForwardDiff
-using SciMLBase: SciMLBase, IntervalNonlinearProblem
+using BracketingNonlinearSolve: bracketingnonlinear_solve_up, CommonSolve, SciMLBase
+using CommonSolve: solve
+using SciMLBase: IntervalNonlinearProblem
+using ForwardDiff
 using ChainRulesCore: ChainRulesCore, AbstractThunk, NoTangent, Tangent, unthunk
-
-using BracketingNonlinearSolve: bracketingnonlinear_solve_up
 
 function ChainRulesCore.rrule(
         ::typeof(bracketingnonlinear_solve_up),
