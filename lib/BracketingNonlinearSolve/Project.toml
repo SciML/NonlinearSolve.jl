@@ -17,7 +17,7 @@ NonlinearSolveBase = {path = "../NonlinearSolveBase"}
 [weakdeps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 
 [extensions]
 BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
@@ -45,6 +45,7 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "ExplicitImports", "ForwardDiff", "InteractiveUtils", "Test", "TestItemRunner"]
+test = ["Aqua", "ExplicitImports", "ForwardDiff", "InteractiveUtils", "Test", "TestItemRunner", "Zygote"]
