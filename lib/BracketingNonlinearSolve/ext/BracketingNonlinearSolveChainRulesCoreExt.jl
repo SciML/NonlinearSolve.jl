@@ -1,9 +1,9 @@
 module BracketingNonlinearSolveChainRulesCoreExt
 
-using CommonSolve: CommonSolve
+using CommonSolve: CommonSolve, solve
 using ForwardDiff: ForwardDiff
-using SciMLBase
-using ChainRulesCore
+using SciMLBase: SciMLBase, IntervalNonlinearProblem
+using ChainRulesCore: ChainRulesCore, AbstractThunk, NoTangent, Tangent, unthunk
 
 using BracketingNonlinearSolve: bracketingnonlinear_solve_up
 
