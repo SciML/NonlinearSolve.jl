@@ -1,11 +1,11 @@
 @testitem "Simple Adjoint Test" tags=[:adjoint] begin
-    using ForwardDiff, Zygote, DiffEqBase, BracketingNonlinearSolve
+    using ForwardDiff, Zygote, BracketingNonlinearSolve
 
     ff(u, p) = u^2 .- p[1]
 
     function solve_nlprob(p)
         prob = IntervalNonlinearProblem{false}(ff, (1.0, 3.0), p)
-        sol = solve(prob, Broyden())
+        sol = solve(prob, Bisection())
         res = sol isa AbstractArray ? sol : sol.u
         return sum(abs2, res)
     end
