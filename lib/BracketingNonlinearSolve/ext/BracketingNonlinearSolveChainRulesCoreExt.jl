@@ -11,7 +11,6 @@ function ChainRulesCore.rrule(
         prob::IntervalNonlinearProblem,
         sensealg, p, alg, args...; kwargs...
 )
-    # DiffEqBase is needed for problem/function constructor adjoint
     out = solve(prob)
     u = out.u
     f = SciMLBase.unwrapped_f(prob.f)
