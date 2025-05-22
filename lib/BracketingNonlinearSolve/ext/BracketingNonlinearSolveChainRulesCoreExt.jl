@@ -18,7 +18,7 @@ function ChainRulesCore.rrule(
     function ∇bracketingnonlinear_solve_up(Δ)
         # Δ = dg/du
         λ = only(ForwardDiff.derivative(u -> f(u, p), only(u)) \ Δ.u)
-        dgdp = -λ * ForwardDiff.derivative(p -> f(u, p), only(p))
+        dgdp = -λ * ForwardDiff.gradient(p -> f(u, p), p)
         return (NoTangent(), NoTangent(), NoTangent(),
             dgdp, NoTangent(),
             ntuple(_ -> NoTangent(), length(args))...)
