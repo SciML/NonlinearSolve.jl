@@ -5,7 +5,7 @@ using ForwardDiff: ForwardDiff
 using SciMLBase
 using ChainRulesCore
 
-using BracketingNonlinearSolve: bracketingnonlinear_solve_up, is_extension_loaded
+using BracketingNonlinearSolve: bracketingnonlinear_solve_up
 
 function ChainRulesCore.rrule(
         ::typeof(bracketingnonlinear_solve_up),
