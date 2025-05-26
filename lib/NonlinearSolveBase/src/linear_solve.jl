@@ -6,7 +6,6 @@ end
 @concrete mutable struct LinearSolveJLCache <: AbstractLinearSolverCache
     lincache
     linsolve
-    additional_lincache::Any
     stats::NLStats
 end
 
