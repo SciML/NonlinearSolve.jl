@@ -1,7 +1,7 @@
 name = "NonlinearSolveHomotopyContinuation"
 uuid = "2ac3b008-d579-4536-8c91-a1a5998c2f8b"
 authors = ["Aayush Sabharwal <aayush.sabharwal@gmail.com> and contributors"]
-version = "0.1.3"
+version = "0.1.4"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
