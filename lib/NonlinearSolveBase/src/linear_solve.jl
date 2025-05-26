@@ -75,7 +75,7 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
     # unlias here, we will later use these as caches
     lincache = init(
         linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false))
-    return LinearSolveJLCache(lincache, linsolve, nothing, stats)
+    return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
 function (cache::NativeJLLinearSolveCache)(;
