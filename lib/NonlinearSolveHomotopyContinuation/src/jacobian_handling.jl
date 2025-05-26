@@ -118,9 +118,9 @@ function construct_jacobian(f, autodiff, variant, u0, p)
     end
     f = ComplexJacobianWrapper{variant}(f)
     if variant == OutOfPlace
-        prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p))
+        prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p), strict = Val(false))
     else
-        prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p))
+        prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
     end
 
     if variant == Scalar
@@ -182,13 +182,13 @@ Construct an `EnzymeJacobian` function.
 """
 function construct_jacobian(f, autodiff::AutoEnzyme, variant, u0, p)
     if variant == Scalar
-        prep = DI.prepare_derivative(f, autodiff, u0, DI.Constant(p))
+        prep = DI.prepare_derivative(f, autodiff, u0, DI.Constant(p), strict = Val(false))
     else
         tmp = Vector{ComplexF64}(undef, length(u0))
         if variant == Inplace
-            prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p))
+            prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
         else
-            prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p))
+            prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p), strict = Val(false))
         end
     end
     return EnzymeJacobian{variant}(f, prep, autodiff)
