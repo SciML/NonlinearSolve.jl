@@ -1,7 +1,7 @@
 module BracketingNonlinearSolveForwardDiffExt
 
 using CommonSolve: CommonSolve
-using ForwardDiff: ForwardDiff, Dual
+using ForwardDiff: Dual
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearProblem
 
