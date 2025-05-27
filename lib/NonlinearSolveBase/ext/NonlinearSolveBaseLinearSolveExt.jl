@@ -17,15 +17,11 @@ function (cache::LinearSolveJLCache)(;
     cache.stats.nsolve += 1
 
     update_A!(cache, A, reuse_A_if_factorization)
-    b !== nothing && setproperty!(cache.lincache, :b, b)
+    b !== nothing && (cache.lincache.b = b)
     linu !== nothing && NonlinearSolveBase.set_lincache_u!(cache, linu)
 
     linres = solve!(cache.lincache)
-    if linres.retcode === ReturnCode.Failure
-        return LinearSolveResult(; linres.u, success = false)
-    else
-        return LinearSolveResult(; linres.u)
-    end
+    LinearSolveResult(linu, linres.retcode == ReturnCode.Failure)
 end
 
 function NonlinearSolveBase.needs_square_A(linsolve::SciMLLinearSolveAlgorithm, ::Any)

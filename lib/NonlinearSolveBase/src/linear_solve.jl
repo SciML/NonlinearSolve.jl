@@ -1,6 +1,6 @@
-@kwdef @concrete struct LinearSolveResult
+@concrete struct LinearSolveResult
     u
-    success::Bool = true
+    success::Bool
 end
 
 @concrete mutable struct LinearSolveJLCache <: AbstractLinearSolverCache
@@ -93,7 +93,7 @@ function (cache::NativeJLLinearSolveCache)(;
     else
         res = cache.A \ cache.b
     end
-    return LinearSolveResult(; u = res)
+    return LinearSolveResult(res, true)
 end
 
 fix_incompatible_linsolve_arguments(A, b, u) = u
@@ -106,7 +106,7 @@ function fix_incompatible_linsolve_arguments(A, b, u::SArray)
     return MArray(u)
 end
 
-set_lincache_u!(cache, u) = setproperty!(cache.lincache, :u, u)
+set_lincache_u!(cache, u) = cache.lincache.u = u
 function set_lincache_u!(cache, u::SArray)
     cache.lincache.u isa MArray && return set_lincache_u!(cache, MArray(u))
     cache.lincache.u = u
