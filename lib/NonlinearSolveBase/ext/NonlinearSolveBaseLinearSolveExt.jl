@@ -21,7 +21,7 @@ function (cache::LinearSolveJLCache)(;
     linu !== nothing && NonlinearSolveBase.set_lincache_u!(cache, linu)
 
     linres = solve!(cache.lincache)
-    LinearSolveResult(linu, linres.retcode == ReturnCode.Failure)
+    LinearSolveResult(linu, linres.retcode != ReturnCode.Failure)
 end
 
 function NonlinearSolveBase.needs_square_A(linsolve::SciMLLinearSolveAlgorithm, ::Any)
