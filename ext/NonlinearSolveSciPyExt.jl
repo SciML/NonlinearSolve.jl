@@ -12,16 +12,16 @@ using SciMLBase
 using NonlinearSolve
 
 # Re-export algorithm type so that `using NonlinearSolve` brings it in when the
-# extension is loaded.  (Matches convention in other extensions.)
+# extension is loaded.  
 import ..NonlinearSolve: SciPyLeastSquares, SciPyRoot, SciPyRootScalar
 using NonlinearSolveBase: construct_extension_function_wrapper
 
 """ Internal: wrap a Julia residual function into a Python callable """
 function _make_py_residual(f, p)
     return pyfunc(x_py -> begin
-        x = Vector{Float64}(x_py)     # convert NumPy array → Julia Vector
+        x = Vector{Float64}(x_py)     
         r  = f(x, p)
-        return r                      # auto-convert back to NumPy
+        return r                     
     end)
 end
 
@@ -50,7 +50,6 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearLeastSquaresProblem, alg::Sc
         bounds = nothing
     end
 
-    # Call SciPy
     res = scipy_optimize.least_squares(py_f, collect(prob.u0);
                                        method = alg.method,
                                        loss   = alg.loss,
@@ -58,7 +57,6 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearLeastSquaresProblem, alg::Sc
                                        bounds = bounds === nothing ? py_none : bounds,
                                        kwargs...)
 
-    # Extract solution
     u_vec = Vector{Float64}(res.x)
     resid = Vector{Float64}(res.fun)
 
@@ -97,7 +95,7 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
                               kwargs...)
 
     u_vec = Vector{Float64}(res.x)
-    f!(resid, u_vec)  # update residual
+    f!(resid, u_vec)  
 
     u_out = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
 
@@ -137,4 +135,5 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
                                     original = res, stats = stats)
 end
 
-end # module 
+end 
+
