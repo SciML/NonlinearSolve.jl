@@ -3,13 +3,14 @@ module NonlinearSolveSciPy
 using ConcreteStructs: @concrete
 using Reexport: @reexport
 
-using PythonCall: pyimport, pyfunc, py_none
+using PythonCall: pyimport, pyfunc
 const scipy_optimize = try
     pyimport("scipy.optimize")
 catch
     nothing
 end
 const _SCIPY_AVAILABLE = scipy_optimize !== nothing
+const PY_NONE = pyimport("builtins").None
 
 using SciMLBase
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm, construct_extension_function_wrapper
@@ -119,7 +120,7 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearLeastSquaresProblem, alg::Sc
                                        method    = alg.method,
                                        loss      = alg.loss,
                                        max_nfev  = maxiters,
-                                       bounds    = bounds === nothing ? py_none : bounds,
+                                       bounds    = bounds === nothing ? PY_NONE : bounds,
                                        kwargs...)
 
     u_vec = Vector{Float64}(res.x)
