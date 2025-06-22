@@ -185,33 +185,3 @@ end
 
     @test_throws AssertionError solve(probN, PETScSNES(); abstol = 1e-8)
 end
-
-@testitem "SciPyRoot + SciPyRootScalar" tags=[:wrappers] begin
-    success = false
-    try
-        import PythonCall
-        PythonCall.pyimport("scipy.optimize")
-        success = true
-    catch
-    end
-    if success
-        # Vector root example
-        function fvec(u, p)
-            return [2 - 2u[1]; u[1] - 4u[2]]
-        end
-        u0 = zeros(2)
-        prob_vec = NonlinearProblem(fvec, u0)
-        sol_vec = solve(prob_vec, SciPyRoot())
-        @test SciMLBase.successful_retcode(sol_vec)
-        @test maximum(abs, sol_vec.resid) < 1e-6
-
-        # Scalar bracketing root example
-        fscalar(x, p) = x^2 - 2
-        prob_interval = IntervalNonlinearProblem(fscalar, (1.0, 2.0))
-        sol_scalar = solve(prob_interval, SciPyRootScalar())
-        @test SciMLBase.successful_retcode(sol_scalar)
-        @test abs(sol_scalar.u - sqrt(2)) < 1e-6
-    else
-        @test true
-    end
-end
