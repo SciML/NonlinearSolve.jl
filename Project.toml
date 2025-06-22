@@ -44,6 +44,7 @@ PETSc = "ace2c81b-2b5f-4b1e-a30d-d662738edfe0"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
+PythonCall = "9d6bc502-a68f-5bec-b839-aff6a2a0a179"
 
 [sources.BracketingNonlinearSolve]
 path = "lib/BracketingNonlinearSolve"
@@ -74,6 +75,7 @@ NonlinearSolvePETScExt = ["PETSc", "MPI"]
 NonlinearSolveSIAMFANLEquationsExt = "SIAMFANLEquations"
 NonlinearSolveSpeedMappingExt = "SpeedMapping"
 NonlinearSolveSundialsExt = "Sundials"
+NonlinearSolveSciPyExt = "PythonCall"
 
 [compat]
 ADTypes = "1.9"
@@ -135,6 +137,7 @@ SymbolicIndexingInterface = "0.3.36"
 Test = "1.10"
 Zygote = "0.6.69, 0.7"
 julia = "1.10"
+PythonCall = "0.9"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
