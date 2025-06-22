@@ -42,7 +42,6 @@ using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, GeneralizedFirstOrderA
 using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton, QuasiNewtonAlgorithm
 using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods, GeneralizedDFSane
 using SimpleNonlinearSolve: SimpleNonlinearSolve
-using NonlinearSolveSciPy: NonlinearSolveSciPy
 
 const SII = SymbolicIndexingInterface
 
@@ -110,8 +109,7 @@ end
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
-                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve,
-                NonlinearSolveSciPy
+                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
 @reexport using LinearSolve
 
 # Poly Algorithms
@@ -119,9 +117,7 @@ export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutNL
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
-       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL, SciPyLeastSquares,
-       SciPyLeastSquaresTRF, SciPyLeastSquaresDogbox, SciPyLeastSquaresLM,
-       SciPyRoot, SciPyRootScalar
+       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 export PETScSNES, CMINPACK
 
 end
