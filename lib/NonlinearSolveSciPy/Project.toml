@@ -1,0 +1,18 @@
+name = "NonlinearSolveSciPy"
+uuid = "4827a3aa-8a82-4c61-8bd0-3c7d3e464ee5"
+authors = ["SciML"]
+version = "1.0.0"
+
+[deps]
+ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
+PythonCall = "9d6bc502-a68f-5bec-b839-aff6a2a0a179"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+
+[compat]
+ConcreteStructs = "0.2"
+PythonCall = "0.9"
+SciMLBase = "2"
+NonlinearSolveBase = "1"
+julia = "1.10" 

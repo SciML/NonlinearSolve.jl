@@ -42,6 +42,7 @@ using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, GeneralizedFirstOrderA
 using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton, QuasiNewtonAlgorithm
 using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods, GeneralizedDFSane
 using SimpleNonlinearSolve: SimpleNonlinearSolve
+using NonlinearSolveSciPy: NonlinearSolveSciPy
 
 const SII = SymbolicIndexingInterface
 
@@ -109,7 +110,8 @@ end
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
-                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
+                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve,
+                NonlinearSolveSciPy
 @reexport using LinearSolve
 
 # Poly Algorithms
