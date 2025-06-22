@@ -186,3 +186,13 @@ This is a wrapper package for importing solvers from PETSc.jl into the SciML int
     [PETSc.jl](https://github.com/JuliaParallel/PETSc.jl)
 
 For a list of possible solvers see the [PETSc.jl documentation](https://petsc.org/release/manual/snes/)
+
+### SciPy (Python via PythonCall)
+
+These wrappers let you use the algorithms from
+[`scipy.optimize`](https://docs.scipy.org/doc/scipy/reference/optimize.html)
+without leaving Julia.  SciPy is loaded lazily through PythonCall, so these
+methods are available whenever the `scipy` Python package can be imported.
+
+  - [`SciPyRoot()`](@ref): wrapper for `scipy.optimize.root` (vector problems)
+  - [`SciPyRootScalar()`](@ref): wrapper for `scipy.optimize.root_scalar` (scalar/bracketed problems)

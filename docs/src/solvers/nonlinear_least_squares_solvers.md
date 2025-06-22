@@ -79,6 +79,15 @@ Submethod choices for this algorithm include:
   - `:lmdif`: Advanced Levenberg-Marquardt
   - `:hybrd`: Advanced modified version of Powell's algorithm
 
+### SciPy (Python via PythonCall)
+
+A wrapper over `scipy.optimize.least_squares`.  Requires that the Python
+package `scipy` is available to PythonCall.
+
+  - [`SciPyLeastSquares()`](@ref) with convenience constructors
+    `SciPyLeastSquaresTRF()`, `SciPyLeastSquaresDogbox()`, and
+    `SciPyLeastSquaresLM()` for the common method choices.
+
 ### Optimization.jl
 
 `NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem`  and used
