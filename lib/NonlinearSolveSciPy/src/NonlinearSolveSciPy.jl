@@ -3,21 +3,28 @@ module NonlinearSolveSciPy
 using ConcreteStructs: @concrete
 using Reexport: @reexport
 
-using PythonCall: pyimport, pyfunc
-const scipy_optimize = try
-    pyimport("scipy.optimize")
-catch
-    nothing
+using PythonCall: pyimport, pyfunc, Py
+
+const scipy_optimize = Ref{Union{Py, Nothing}}(nothing)
+const PY_NONE = Ref{Union{Py, Nothing}}(nothing)
+const _SCIPY_AVAILABLE = Ref{Bool}(false)
+
+function __init__()
+    try
+        scipy_optimize[] = pyimport("scipy.optimize")
+        PY_NONE[] = pyimport("builtins").None
+        _SCIPY_AVAILABLE[] = true
+    catch
+        
+        _SCIPY_AVAILABLE[] = false
+    end
 end
-const _SCIPY_AVAILABLE = scipy_optimize !== nothing
-const PY_NONE = pyimport("builtins").None
 
 using SciMLBase
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm, construct_extension_function_wrapper
 
 """
     SciPyLeastSquares(; method="trf", loss="linear")
-
 Wrapper over `scipy.optimize.least_squares` (via PythonCall) for solving
 `NonlinearLeastSquaresProblem`s.  The keyword arguments correspond to the
 `method` ("trf", "dogbox", "lm") and the robust loss function ("linear",
@@ -30,7 +37,7 @@ Wrapper over `scipy.optimize.least_squares` (via PythonCall) for solving
 end
 
 function SciPyLeastSquares(; method::String = "trf", loss::String = "linear")
-    _SCIPY_AVAILABLE || error("`SciPyLeastSquares` requires the Python package `scipy` to be available to PythonCall.")
+    _SCIPY_AVAILABLE[] || error("`SciPyLeastSquares` requires the Python package `scipy` to be available to PythonCall.")
     valid_methods = ("trf", "dogbox", "lm")
     valid_losses  = ("linear", "soft_l1", "huber", "cauchy", "arctan")
     method in valid_methods ||
@@ -46,7 +53,6 @@ SciPyLeastSquaresLM()     = SciPyLeastSquares(method = "lm")
 
 """
     SciPyRoot(; method="hybr")
-
 Wrapper over `scipy.optimize.root` for solving `NonlinearProblem`s.  Available
 methods include "hybr" (default), "lm", "broyden1", "broyden2", "anderson",
 "diagbroyden", "linearmixing", "excitingmixing", "krylov", "df-sane" – any
@@ -58,13 +64,12 @@ method accepted by SciPy.
 end
 
 function SciPyRoot(; method::String = "hybr")
-    _SCIPY_AVAILABLE || error("`SciPyRoot` requires the Python package `scipy` to be available to PythonCall.")
+    _SCIPY_AVAILABLE[] || error("`SciPyRoot` requires the Python package `scipy` to be available to PythonCall.")
     return SciPyRoot(method, :SciPyRoot)
 end
 
 """
     SciPyRootScalar(; method="brentq")
-
 Wrapper over `scipy.optimize.root_scalar` for scalar `IntervalNonlinearProblem`s
 (bracketing problems).  The default method uses Brent's algorithm ("brentq").
 Other valid options: "bisect", "brentq", "brenth", "ridder", "toms748",
@@ -76,10 +81,9 @@ Other valid options: "bisect", "brentq", "brenth", "ridder", "toms748",
 end
 
 function SciPyRootScalar(; method::String = "brentq")
-    _SCIPY_AVAILABLE || error("`SciPyRootScalar` requires the Python package `scipy` to be available to PythonCall.")
+    _SCIPY_AVAILABLE[] || error("`SciPyRootScalar` requires the Python package `scipy` to be available to PythonCall.")
     return SciPyRootScalar(method, :SciPyRootScalar)
 end
-
 
 """ Internal: wrap a Julia residual function into a Python callable """
 function _make_py_residual(f, p)
@@ -98,7 +102,6 @@ function _make_py_scalar(f, p)
     end)
 end
 
-
 function SciMLBase.__solve(prob::SciMLBase.NonlinearLeastSquaresProblem, alg::SciPyLeastSquares;
                            abstol = nothing, maxiters = 10_000, alias_u0::Bool = false,
                            kwargs...)
@@ -116,11 +119,11 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearLeastSquaresProblem, alg::Sc
         bounds = nothing
     end
 
-    res = scipy_optimize.least_squares(py_f, collect(prob.u0);
+    res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
                                        method    = alg.method,
                                        loss      = alg.loss,
                                        max_nfev  = maxiters,
-                                       bounds    = bounds === nothing ? PY_NONE : bounds,
+                                       bounds    = bounds === nothing ? PY_NONE[] : bounds,
                                        kwargs...)
 
     u_vec = Vector{Float64}(res.x)
@@ -143,7 +146,7 @@ end
 function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
                            abstol = nothing, maxiters = 10_000, alias_u0::Bool = false,
                            kwargs...)
-  
+
     f!, u0, resid = construct_extension_function_wrapper(prob; alias_u0)
 
     py_f = pyfunc(x_py -> begin
@@ -154,7 +157,7 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
 
     tol = abstol === nothing ? nothing : abstol
 
-    res = scipy_optimize.root(py_f, collect(u0);
+    res = scipy_optimize[].root(py_f, collect(u0);
                               method  = alg.method,
                               tol     = tol,
                               options = Dict("maxiter" => maxiters),
@@ -182,7 +185,7 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
 
     a, b = prob.tspan
 
-    res = scipy_optimize.root_scalar(py_f;
+    res = scipy_optimize[].root_scalar(py_f;
                                      method  = alg.method,
                                      bracket = (a, b),
                                      maxiter = maxiters,
@@ -206,4 +209,5 @@ end
 export SciPyLeastSquares, SciPyLeastSquaresTRF, SciPyLeastSquaresDogbox, SciPyLeastSquaresLM,
        SciPyRoot, SciPyRootScalar
 
-end # module 
+end
+
