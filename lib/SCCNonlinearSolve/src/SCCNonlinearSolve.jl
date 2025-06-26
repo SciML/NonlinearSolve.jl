@@ -12,8 +12,9 @@ Algorithm for solving Strongly Connected Component (SCC) problems containing
 both nonlinear and linear subproblems.
 
 ### Keyword Arguments
-- `nlalg`: Algorithm to use for solving NonlinearProblem components
-- `linalg`: Algorithm to use for solving LinearProblem components
+
+  - `nlalg`: Algorithm to use for solving NonlinearProblem components
+  - `linalg`: Algorithm to use for solving LinearProblem components
 """
 struct SCCAlg{N, L}
     nlalg::N
@@ -34,7 +35,7 @@ iteratively_build_sols(alg, sols; kwargs...) = sols
 function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs...)
     explicitfun(
         SymbolicIndexingInterface.parameter_values(prob), sols)
-    
+
     _sol = if prob isa SciMLBase.LinearProblem
         sol = SciMLBase.solve(prob, alg.linalg; kwargs...)
         SciMLBase.build_linear_solution(
@@ -50,7 +51,8 @@ end
 
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     numscc = length(prob.probs)
-    sols = iteratively_build_sols(alg, (), zip(prob.probs, prob.explicitfuns!)...; kwargs...) 
+    sols = iteratively_build_sols(
+        alg, (), zip(prob.probs, prob.explicitfuns!)...; kwargs...)
 
     # TODO: fix allocations with a lazy concatenation
     u = reduce(vcat, sols)
@@ -65,6 +67,5 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwa
 
     SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
 end
-
 
 end
