@@ -65,6 +65,10 @@ end
     scc_sol=solve(sccprob, scc_alg)
     @test sol ≈ manualscc ≈ scc_sol
 
+    # Backwards compat of alg choice
+    scc_sol=solve(sccprob, NewtonRaphson())
+    @test sol ≈ manualscc ≈ scc_sol
+
     import NonlinearSolve # Required for Default
 
     # Test default interface
