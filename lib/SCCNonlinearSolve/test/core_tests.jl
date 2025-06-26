@@ -47,16 +47,16 @@ end
     b3 = p  # b will be updated by explicitfun3
     prob3 = LinearProblem(A3, b3, zeros(3))
     function explicitfun3(p, sols)
-        p[1] = sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3]
-        p[2] = sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3]
-        p[3] = sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
-               6.0sols[2][3]
+        p[1] = -(sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3])
+        p[2] = -(sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3])
+        p[3] = -(sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
+               6.0sols[2][3])
     end
     explicitfun3(p, [sol1, sol2])
     sol3 = solve(prob3)  # LinearProblem uses default linear solver
-    manualscc = [sol1; sol2; sol3]
+    manualscc = reduce(vcat,(sol1, sol2, sol3))
 
-    sccprob = SciMLBase.SCCNonlinearProblem([prob1, prob2, prob3],
+    sccprob = SciMLBase.SCCNonlinearProblem((prob1, prob2, prob3),
         SciMLBase.Void{Any}.([explicitfun1, explicitfun2, explicitfun3]))
     
     # Test with SCCAlg that handles both nonlinear and linear problems
