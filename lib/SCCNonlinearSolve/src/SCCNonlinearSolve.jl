@@ -27,7 +27,7 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem; kwargs...)
     CommonSolve.solve(prob, SCCAlg(nothing, nothing); kwargs...)
 end
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::AbstractNonlinearAlgorithm; kwargs...)
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SciMLBase.AbstractNonlinearAlgorithm; kwargs...)
     CommonSolve.solve(prob, SCCAlg(alg, nothing); kwargs...)
 end
 
