@@ -50,7 +50,7 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
             prob, nothing, sol.u, sol.resid, retcode = sol.retcode)
     end
 
-    iteratively_build_sols(alg, (sols..., _sol), args...)
+    iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)
 end
 
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
