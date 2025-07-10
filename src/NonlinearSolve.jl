@@ -47,17 +47,17 @@ include("default.jl")
 
 include("forward_diff.jl")
 
-@setup_workload begin
-    nonlinear_functions = (
-        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
-    )
+# @setup_workload begin
+#     nonlinear_functions = (
+#         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
+#         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
+#         (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+#     )
 
-    nonlinear_problems = NonlinearProblem[]
-    for (fn, u0) in nonlinear_functions
-        push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
-    end
+#     nonlinear_problems = NonlinearProblem[]
+#     for (fn, u0) in nonlinear_functions
+#         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
+#     end
 
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
@@ -80,27 +80,27 @@ include("forward_diff.jl")
         )
     )
 
-    nlls_problems = NonlinearLeastSquaresProblem[]
-    for (fn, u0) in nonlinear_functions
-        push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-    end
+#     nlls_problems = NonlinearLeastSquaresProblem[]
+#     for (fn, u0) in nonlinear_functions
+#         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
+#     end
 
-    @compile_workload begin
-        @sync begin
-            for prob in nonlinear_problems
-                Threads.@spawn CommonSolve.solve(
-                    prob, nothing; abstol = 1e-2, verbose = false
-                )
-            end
+#     @compile_workload begin
+#         @sync begin
+#             for prob in nonlinear_problems
+#                 Threads.@spawn CommonSolve.solve(
+#                     prob, nothing; abstol = 1e-2, verbose = true
+#                 )
+#             end
 
-            for prob in nlls_problems
-                Threads.@spawn CommonSolve.solve(
-                    prob, nothing; abstol = 1e-2, verbose = false
-                )
-            end
-        end
-    end
-end
+#             for prob in nlls_problems
+#                 Threads.@spawn CommonSolve.solve(
+#                     prob, nothing; abstol = 1e-2, verbose = true
+#                 )
+#             end
+#         end
+#     end
+# end
 
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
