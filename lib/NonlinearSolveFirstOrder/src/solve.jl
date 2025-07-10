@@ -123,7 +123,7 @@ function SciMLBase.__init(
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm = L2_NORM,
-        linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
+        linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), verbose = NonlinearVerbosity(), kwargs...
 )
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
@@ -166,7 +166,7 @@ function SciMLBase.__init(
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
-            linsolve_kwargs, timer
+            linsolve_kwargs, timer, verbose
         )
         du = SciMLBase.get_du(descent_cache)
 

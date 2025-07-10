@@ -12,7 +12,7 @@ using LineSearch: LiFukushimaLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
-                          AbstractNonlinearSolveAlgorithm
+                          AbstractNonlinearSolveAlgorithm, NonlinearVerbosity
 using SciMLBase: SciMLBase, NonlinearFunction, NonlinearProblem,
                  NonlinearLeastSquaresProblem, ReturnCode, remake
 
@@ -153,7 +153,8 @@ function solve_adjoint_internal end
 
         @compile_workload begin
             @sync for prob in (prob_scalar, prob_iip, prob_oop), alg in algs
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+                Threads.@spawn CommonSolve.solve(
+                    prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
             end
         end
     end

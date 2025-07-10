@@ -10,7 +10,7 @@ using LineSearch: RobustNonMonotoneLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractNonlinearSolveCache, Utils, InternalAPI, get_timer_output,
-                          @static_timeit, update_trace!
+                          @static_timeit, update_trace!, NonlinearVerbosity
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearProblem, NonlinearFunction, NoSpecialize
 
@@ -34,7 +34,8 @@ include("solve.jl")
 
     @compile_workload begin
         @sync for prob in nonlinear_problems, alg in algs
-            Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+            Threads.@spawn CommonSolve.solve(
+                prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
         end
     end
 end

@@ -216,7 +216,8 @@ end
 
     function objective_function!(resid, u0, p)
         odeprob = ODEProblem{true}(ode_func!, u0, (0.0, 100.0), p)
-        sol = solve(odeprob, Tsit5(), abstol = 1e-9, reltol = 1e-9, verbose = false)
+        sol = solve(
+            odeprob, Tsit5(), abstol = 1e-9, reltol = 1e-9, verbose = true)
         resid[1] = sol(0.0)[1]
         resid[2] = sol(100.0)[1] - 1.0
         return nothing
