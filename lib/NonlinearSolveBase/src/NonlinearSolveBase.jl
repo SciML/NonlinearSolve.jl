@@ -28,6 +28,7 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
+using SciMLVerbosity: @match, @SciMLMessage, Verbosity, AbstractVerbositySpecifier
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
 using Setfield: @set!
@@ -53,6 +54,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("verbosity.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -91,6 +93,8 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
        GeodesicAcceleration
 
 export NonlinearSolvePolyAlgorithm
+
+export NonlinearVerbosity, NonlinearPerformanceVerbosity, NonlinearErrorControlVerbosity, NonlinearNumericalVerbosity
 
 export pickchunksize
 
