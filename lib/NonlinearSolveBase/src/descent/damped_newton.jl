@@ -135,6 +135,16 @@ function InternalAPI.init(
         A, b = Utils.maybe_symmetric(J_damped), Utils.safe_vec(Jᵀfu)
         rhs_cache = nothing
     end
+    
+    if !haskey(linsolve_kwargs, :verbose)
+        if kwargs[:verbose].linear_verbosity isa Verbosity.Type
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose = LinearVerbosity(kwargs[:verbose])))
+        else
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose = kwargs[:verbose].linear_verbosity))
+        end
+    end
 
     lincache = construct_linear_solver(
         alg, alg.linsolve, A, b, Utils.safe_vec(u);

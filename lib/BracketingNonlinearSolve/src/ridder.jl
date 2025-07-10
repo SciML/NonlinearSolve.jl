@@ -7,7 +7,7 @@ struct Ridder <: AbstractBracketingAlgorithm end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Ridder, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
+        maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
 )
     @assert !SciMLBase.isinplace(prob) "`Ridder` only supports out-of-place problems."
 

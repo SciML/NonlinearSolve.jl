@@ -224,6 +224,7 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
         kwargs...
 )
+    #Main.@infiltrate
     cache = SciMLBase.__init(prob, alg, args...; kwargs...)
     return CommonSolve.solve!(cache)
 end
@@ -375,7 +376,7 @@ end
 
 @generated function __generated_polysolve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true,
+        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {N}
     sol_syms = [gensym("sol") for _ in 1:N]

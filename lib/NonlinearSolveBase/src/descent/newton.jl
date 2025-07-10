@@ -31,10 +31,22 @@ function InternalAPI.init(
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
 )
+    #Main.@infiltrate
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
         @bb δu_ = similar(u)
     end
+
+    if !haskey(linsolve_kwargs, :verbose)
+        if kwargs[:verbose].linear_verbosity isa Verbosity.Type
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose = LinearVerbosity(kwargs[:verbose])))
+        else
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose = kwargs[:verbose].linear_verbosity))
+        end
+    end
+
     if Utils.unwrap_val(pre_inverted)
         lincache = nothing
     else
@@ -43,6 +55,7 @@ function InternalAPI.init(
             stats, abstol, reltol, linsolve_kwargs...
         )
     end
+    #Main.@infiltrate
     return NewtonDescentCache(
         δu, δus, lincache, nothing, nothing, timer, pre_inverted, Val(false)
     )
@@ -54,6 +67,7 @@ function InternalAPI.init(
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
 )
+    #Main.@infiltrate
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
@@ -61,7 +75,6 @@ function InternalAPI.init(
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
-
     normal_form = needs_square_A(alg.linsolve, u)
     if normal_form
         JᵀJ = transpose(J) * J
@@ -70,6 +83,16 @@ function InternalAPI.init(
     else
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, Utils.safe_vec(fu)
+    end
+
+    if !haskey(linsolve_kwargs, :verbose)
+        if kwargs[:verbose].linear_verbosity isa Verbosity.Type
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose=LinearVerbosity(kwargs[:verbose])))
+        else
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose=kwargs[:verbose].linear_verbosity))
+        end
     end
 
     lincache = construct_linear_solver(
@@ -88,7 +111,6 @@ function InternalAPI.solve!(
 )
     δu = SciMLBase.get_du(cache, idx)
     skip_solve && return DescentResult(; δu)
-
     if preinverted_jacobian(cache) && !normal_form(cache)
         @assert J!==nothing "`J` must be provided when `preinverted_jacobian = Val(true)`."
         @bb δu = J × vec(fu)
