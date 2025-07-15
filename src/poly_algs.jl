@@ -34,6 +34,7 @@ function FastShortcutNonlinearPolyalg(
 ) where {T}
     start_index = 1
     common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs_nocj = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
     if must_use_jacobian isa Val{true}
         if T <: Complex
             algs = (NewtonRaphson(; common_kwargs...),)
@@ -41,7 +42,8 @@ function FastShortcutNonlinearPolyalg(
             algs = (
                 NewtonRaphson(; common_kwargs...),
                 TrustRegion(; common_kwargs...),
-                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
+                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                LevenbergMarquardt(; common_kwargs_nocj...)
             )
         end
     else
@@ -61,7 +63,8 @@ function FastShortcutNonlinearPolyalg(
                     SimpleKlement(),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                    LevenbergMarquardt(; common_kwargs_nocj...)
                 )
             end
         else
@@ -79,7 +82,8 @@ function FastShortcutNonlinearPolyalg(
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin)
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                    LevenbergMarquardt(; common_kwargs_nocj...)
                 )
             end
         end
