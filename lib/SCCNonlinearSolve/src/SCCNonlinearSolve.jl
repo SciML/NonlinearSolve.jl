@@ -41,7 +41,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         SymbolicIndexingInterface.parameter_values(prob), sols)
 
     _sol = if prob isa SciMLBase.LinearProblem
-        sol = SciMLBase.solve(prob, alg.linalg; kwargs...)
+        A = prob.A
+        b = prob.b
+        # `remake` to recalculate `A` and `b` based on updated parameters from `explicitfun`.
+        # Pass `A` and `b` to avoid unnecessarily copying them.
+        sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; kwargs...)
         SciMLBase.build_linear_solution(
             alg.linalg, sol.u, nothing, nothing, retcode = sol.retcode)
     else
