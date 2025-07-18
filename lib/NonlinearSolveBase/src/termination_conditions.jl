@@ -98,9 +98,11 @@ function SciMLBase.reinit!(
     length(saved_value_prototype) != 0 && (cache.saved_values = saved_value_prototype)
 
     mode = cache.mode
-    u_unaliased = mode isa AbstractSafeBestNonlinearTerminationMode ?
-                  (ArrayInterface.can_setindex(u) ? copy(u) : u) : nothing
-    cache.u = u_unaliased
+    if ArrayInterface.can_setindex(u)
+        cache.u .= u
+    else
+        cache.u = u
+    end
     cache.retcode = ReturnCode.Default
 
     cache.abstol = get_tolerance(u, abstol, T)
