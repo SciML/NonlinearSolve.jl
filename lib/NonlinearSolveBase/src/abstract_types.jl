@@ -10,11 +10,11 @@ function reinit! end
 function reinit_self! end
 
 function reinit!(x::Any; kwargs...)
-    @debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
+    #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
     return
 end
 function reinit_self!(x::Any; kwargs...)
-    @debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
+    #@debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
     return
 end
 
