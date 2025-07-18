@@ -98,10 +98,10 @@ function SciMLBase.reinit!(
     length(saved_value_prototype) != 0 && (cache.saved_values = saved_value_prototype)
 
     mode = cache.mode
-    if ArrayInterface.can_setindex(u)
-        cache.u .= u
-    else
+    if u isa Number ||  !ArrayInterface.can_setindex(u)
         cache.u = u
+    else
+        cache.u .= u
     end
     cache.retcode = ReturnCode.Default
 
