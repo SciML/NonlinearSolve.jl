@@ -6,14 +6,15 @@ for the numerical solvers which can make it easy to symbolically modify and gene
 equations to be solved. The basic form of using ModelingToolkit looks as follows:
 
 ```julia
-using ModelingToolkit, NonlinearSolve
+import ModelingToolkit as MTK
+import NonlinearSolve as NLS
 
-@variables x y z
-@parameters σ ρ β
+MTK.@variables x y z
+MTK.@parameters σ ρ β
 
 # Define a nonlinear system
 eqs = [0 ~ σ * (y - x), 0 ~ x * (ρ - z) - y, 0 ~ x * y - β * z]
-@mtkbuild ns = NonlinearSystem(eqs, [x, y, z], [σ, ρ, β])
+MTK.@mtkbuild ns = MTK.NonlinearSystem(eqs, [x, y, z], [σ, ρ, β])
 
 u0 = [x => 1.0, y => 0.0, z => 0.0]
 
@@ -21,8 +22,8 @@ ps = [σ => 10.0
       ρ => 26.0
       β => 8 / 3]
 
-prob = NonlinearProblem(ns, u0, ps)
-sol = solve(prob, NewtonRaphson())
+prob = NLS.NonlinearProblem(ns, u0, ps)
+sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 ## Symbolic Derivations of Extra Functions
@@ -31,21 +32,21 @@ As a symbolic system, ModelingToolkit can be used to represent the equations and
 forms. For example, let's look at the equations:
 
 ```julia
-equations(ns)
+MTK.equations(ns)
 ```
 
 We can ask it what the Jacobian of our system is via `calculate_jacobian`:
 
 ```julia
-calculate_jacobian(ns)
+MTK.calculate_jacobian(ns)
 ```
 
 We can tell MTK to generate a computable form of this analytical Jacobian via `jac = true`
 to help the solver use efficient forms:
 
 ```julia
-prob = NonlinearProblem(ns, u0, ps, jac = true)
-sol = solve(prob, NewtonRaphson())
+prob = NLS.NonlinearProblem(ns, u0, ps, jac = true)
+sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 ## Symbolic Simplification of Nonlinear Systems via Tearing
@@ -55,34 +56,34 @@ the systems. It's very easy to write down a mathematical model that, in theory, 
 solved more simply. Let's take a look at a quick system:
 
 ```julia
-@variables u1 u2 u3 u4 u5
+MTK.@variables u1 u2 u3 u4 u5
 eqs = [0 ~ u1 - sin(u5), 0 ~ u2 - cos(u1), 0 ~ u3 - hypot(u1, u2),
     0 ~ u4 - hypot(u2, u3), 0 ~ u5 - hypot(u4, u1)]
-@named sys = NonlinearSystem(eqs, [u1, u2, u3, u4, u5], [])
+MTK.@named sys = MTK.NonlinearSystem(eqs, [u1, u2, u3, u4, u5], [])
 ```
 
 If we run structural simplification, we receive the following form:
 
 ```julia
-sys = structural_simplify(sys)
+sys = MTK.structural_simplify(sys)
 ```
 
 ```julia
-equations(sys)
+MTK.equations(sys)
 ```
 
 How did it do this? Let's look at the `observed` to see the relationships that it found:
 
 ```julia
-observed(sys)
+MTK.observed(sys)
 ```
 
 Using ModelingToolkit, we can build and solve the simplified system:
 
 ```julia
 u0 = [u5 .=> 1.0]
-prob = NonlinearProblem(sys, u0)
-sol = solve(prob, NewtonRaphson())
+prob = NLS.NonlinearProblem(sys, u0)
+sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 We can then use symbolic indexing to retrieve any variable:

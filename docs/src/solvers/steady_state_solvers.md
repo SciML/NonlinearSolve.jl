@@ -56,11 +56,13 @@ though often computationally more expensive than direct methods.
 Example usage:
 
 ```julia
-using NonlinearSolve, SteadyStateDiffEq, OrdinaryDiffEq
-sol = solve(prob, DynamicSS(Tsit5()))
+import NonlinearSolve as NLS
+import SteadyStateDiffEq as SSDE
+import OrdinaryDiffEq as ODE
+sol = NLS.solve(prob, SSDE.DynamicSS(ODE.Tsit5()))
 
-using Sundials
-sol = solve(prob, DynamicSS(CVODE_BDF()), dt = 1.0)
+import Sundials
+sol = NLS.solve(prob, SSDE.DynamicSS(Sundials.CVODE_BDF()), dt = 1.0)
 ```
 
 !!! note

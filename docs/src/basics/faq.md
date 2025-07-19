@@ -6,7 +6,8 @@ This is addressed in a [Twitter thread with the author of the improved fzero](ht
 On the test example:
 
 ```@example
-using NonlinearSolve, BenchmarkTools
+import NonlinearSolve as NLS
+import BenchmarkTools
 
 const N = 100_000;
 levels = 1.5 .* rand(N);
@@ -15,23 +16,23 @@ myfun(x, lv) = x * sin(x) - lv
 
 function f(out, levels, u0)
     for i in 1:N
-        out[i] = solve(
-            IntervalNonlinearProblem{false}(
-                IntervalNonlinearFunction{false}(myfun), u0, levels[i]),
-            Falsi()).u
+        out[i] = NLS.solve(
+            NLS.IntervalNonlinearProblem{false}(
+                NLS.IntervalNonlinearFunction{false}(myfun), u0, levels[i]),
+            NLS.Falsi()).u
     end
 end
 
 function f2(out, levels, u0)
     for i in 1:N
-        out[i] = solve(
-            NonlinearProblem{false}(NonlinearFunction{false}(myfun), u0, levels[i]),
-            SimpleNewtonRaphson()).u
+        out[i] = NLS.solve(
+            NLS.NonlinearProblem{false}(NLS.NonlinearFunction{false}(myfun), u0, levels[i]),
+            NLS.SimpleNewtonRaphson()).u
     end
 end
 
-@btime f(out, levels, (0.0, 2.0))
-@btime f2(out, levels, 1.0)
+BenchmarkTools.@btime f(out, levels, (0.0, 2.0))
+BenchmarkTools.@btime f2(out, levels, 1.0)
 ```
 
 MATLAB 2022a achieves 1.66s. Try this code yourself: we receive 0.009 seconds, or a 184x
@@ -46,7 +47,8 @@ input types. For example, consider this example taken from
 [this issue](https://github.com/SciML/NonlinearSolve.jl/issues/298)
 
 ```@example dual_error_faq
-using NonlinearSolve, Random
+import NonlinearSolve as NLS
+import Random
 
 function fff_incorrect(var, p)
     v_true = [1.0, 0.1, 2.0, 0.5]
@@ -58,9 +60,9 @@ end
 v_true = [1.0, 0.1, 2.0, 0.5]
 v_init = v_true .+ randn!(similar(v_true)) * 0.1
 
-prob_oop = NonlinearLeastSquaresProblem{false}(fff_incorrect, v_init)
+prob_oop = NLS.NonlinearLeastSquaresProblem{false}(fff_incorrect, v_init)
 try
-    sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
+    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
 catch e
     @error e
 end
@@ -91,8 +93,8 @@ be a Dual number. This causes the error. To fix it:
         return xx - v_true
     end
     
-    prob_oop = NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
-    sol = solve(prob_oop, LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
+    prob_oop = NLS.NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
+    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
     ```
 
 ## I thought NonlinearSolve.jl was type-stable and fast. But it isn't, why?
@@ -106,13 +108,14 @@ static arrays, ForwardDiff will create type unstable code and lead to dynamic di
 internally. See this simple example:
 
 ```@example type_unstable
-using NonlinearSolve, InteractiveUtils
+import NonlinearSolve as NLS
+import InteractiveUtils
 
 f(u, p) = @. u^2 - p
 
-prob = NonlinearProblem{false}(f, 1.0, 2.0)
+prob = NLS.NonlinearProblem{false}(f, 1.0, 2.0)
 
-@code_warntype solve(prob, NewtonRaphson())
+InteractiveUtils.@code_warntype NLS.solve(prob, NLS.NewtonRaphson())
 nothing # hide
 ```
 
@@ -120,11 +123,11 @@ Notice that this was type-stable, since it is a scalar problem. Now what happens
 arrays
 
 ```@example type_unstable
-using StaticArrays
+import StaticArrays
 
-prob = NonlinearProblem{false}(f, @SVector([1.0, 2.0]), 2.0)
+prob = NLS.NonlinearProblem{false}(f, StaticArrays.@SVector([1.0, 2.0]), 2.0)
 
-@code_warntype solve(prob, NewtonRaphson())
+InteractiveUtils.@code_warntype NLS.solve(prob, NLS.NewtonRaphson())
 nothing # hide
 ```
 
@@ -133,7 +136,7 @@ Again Type-Stable! Now let's try using a regular array:
 ```@example type_unstable
 prob = NonlinearProblem(f, [1.0, 2.0], 2.0)
 
-@code_warntype solve(prob, NewtonRaphson())
+InteractiveUtils.@code_warntype NLS.solve(prob, NLS.NewtonRaphson())
 nothing # hide
 ```
 
