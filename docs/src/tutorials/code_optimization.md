@@ -31,21 +31,21 @@ systems.
 Take for example a prototypical small nonlinear solver code in its out-of-place form:
 
 ```@example small_opt
-using NonlinearSolve
+import NonlinearSolve as NLS
 
 f(u, p) = u .* u .- p
 u0 = [1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f, u0, p)
-sol = solve(prob, NewtonRaphson())
+prob = NLS.NonlinearProblem(f, u0, p)
+sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 We can use BenchmarkTools.jl to get more precise timings:
 
 ```@example small_opt
-using BenchmarkTools
+import BenchmarkTools
 
-@benchmark solve(prob, NewtonRaphson())
+BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Note that this way of writing the function is a shorthand for:
@@ -70,8 +70,8 @@ function f(du, u, p)
     return nothing
 end
 
-prob = NonlinearProblem(f, u0, p)
-@benchmark sol = solve(prob, NewtonRaphson())
+prob = NLS.NonlinearProblem(f, u0, p)
+@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Notice how much faster this already runs! We can make this code even simpler by using
@@ -83,7 +83,7 @@ function f(du, u, p)
     return nothing
 end
 
-@benchmark sol = solve(prob, NewtonRaphson())
+@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 ## Further Optimizations for Small Nonlinear Solves with Static Arrays and SimpleNonlinearSolve
@@ -110,9 +110,9 @@ arrays have their length determined at compile-time. They are created using macr
 to normal array expressions, for example:
 
 ```@example small_opt
-using StaticArrays
+import StaticArrays
 
-A = SA[2.0, 3.0, 5.0]
+A = StaticArrays.SA[2.0, 3.0, 5.0]
 typeof(A)
 ```
 
@@ -135,20 +135,20 @@ array. Doing it with broadcasting looks like:
 ```@example small_opt
 f_SA(u, p) = u .* u .- p
 
-u0 = SA[1.0, 1.0]
+u0 = StaticArrays.SA[1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f_SA, u0, p)
+prob = NLS.NonlinearProblem(f_SA, u0, p)
 
-@benchmark solve(prob, NewtonRaphson())
+BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Note that only change here is that `u0` is made into a StaticArray! If we needed to write
 `f` out for a more complex nonlinear case, then we'd simply do the following:
 
 ```@example small_opt
-f_SA(u, p) = SA[u[1] * u[1] - p, u[2] * u[2] - p]
+f_SA(u, p) = StaticArrays.SA[u[1] * u[1] - p, u[2] * u[2] - p]
 
-@benchmark solve(prob, NewtonRaphson())
+BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 However, notice that this did not give us a speedup but rather a slowdown. This is because
@@ -159,7 +159,7 @@ of the methods from SimpleNonlinearSolve.jl which are designed for these small-s
 examples. Let's now use `SimpleNewtonRaphson`:
 
 ```@example small_opt
-@benchmark solve(prob, SimpleNewtonRaphson())
+BenchmarkTools.@benchmark NLS.solve(prob, NLS.SimpleNewtonRaphson())
 ```
 
 And there we go, around `40ns` from our starting point of almost `4μs`!

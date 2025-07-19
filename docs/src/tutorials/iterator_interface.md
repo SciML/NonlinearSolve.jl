@@ -4,13 +4,13 @@ There is an iterator form of the nonlinear solver which somewhat mirrors the Dif
 integrator interface:
 
 ```@example iterator_interface
-using NonlinearSolve
+import NonlinearSolve as NLS
 
 f(u, p) = u .* u .- 2.0
 u0 = 1.5
-probB = NonlinearProblem(f, u0)
+probB = NLS.NonlinearProblem(f, u0)
 
-nlcache = init(probB, NewtonRaphson())
+nlcache = NLS.init(probB, NLS.NewtonRaphson())
 ```
 
 `init` takes the same keyword arguments as [`solve`](@ref solver_options), but it returns a
@@ -27,7 +27,7 @@ We can perform 10 steps of the Newton-Raphson solver with the following:
 
 ```@example iterator_interface
 for i in 1:10
-    step!(nlcache)
+    NLS.step!(nlcache)
 end
 ```
 

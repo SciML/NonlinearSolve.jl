@@ -27,7 +27,7 @@ Note that you will have to restart Julia to disable the timer outputs once enabl
 ## Example Usage
 
 ```@example diagnostics_example
-using NonlinearSolve
+import NonlinearSolve as NLS
 
 function nlfunc(resid, u0, p)
     resid[1] = u0[1] * u0[1] - p
@@ -36,23 +36,23 @@ function nlfunc(resid, u0, p)
     nothing
 end
 
-prob = NonlinearProblem(nlfunc, [1.0, 3.0, 5.0], 2.0)
+prob = NLS.NonlinearProblem(nlfunc, [1.0, 3.0, 5.0], 2.0)
 
-solve(prob)
+NLS.solve(prob)
 ```
 
 This produced the output, but it is hard to diagnose what is going on. We can turn on
 the trace to see what is happening:
 
 ```@example diagnostics_example
-solve(prob; show_trace = Val(true), trace_level = TraceAll(10))
+NLS.solve(prob; show_trace = Val(true), trace_level = NLS.TraceAll(10))
 nothing; # hide
 ```
 
 You can also store the trace in the solution object:
 
 ```@example diagnostics_example
-sol = solve(prob; trace_level = TraceAll(), store_trace = Val(true));
+sol = NLS.solve(prob; trace_level = NLS.TraceAll(), store_trace = Val(true));
 
 sol.trace
 ```
@@ -62,16 +62,16 @@ to use the `init` and `solve!` API for this. The `TimerOutput` will be present i
 `cache.timer`. However, note that for poly-algorithms this is currently not implemented.
 
 ```@example diagnostics_example
-cache = init(prob, NewtonRaphson(); show_trace = Val(true));
-solve!(cache)
+cache = NLS.init(prob, NLS.NewtonRaphson(); show_trace = Val(true));
+NLS.solve!(cache)
 cache.timer
 ```
 
 Let's try for some other solver:
 
 ```@example diagnostics_example
-cache = init(prob, DFSane(); show_trace = Val(true), trace_level = TraceMinimal(50));
-solve!(cache)
+cache = NLS.init(prob, NLS.DFSane(); show_trace = Val(true), trace_level = NLS.TraceMinimal(50));
+NLS.solve!(cache)
 cache.timer
 ```
 

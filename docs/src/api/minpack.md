@@ -5,9 +5,10 @@ these solvers do not come by default, and thus one needs to install the package 
 these solvers:
 
 ```julia
-using Pkg
+import Pkg
 Pkg.add("MINPACK")
-using MINPACK, NonlinearSolve
+import MINPACK
+import NonlinearSolve as NLS
 ```
 
 ## Solver API

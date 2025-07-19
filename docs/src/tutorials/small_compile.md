@@ -8,13 +8,13 @@ NonlinearSolve.jl can be done with SimpleNonlinearSolve.jl. Thus for example, we
 the core tutorial problem with just SimpleNonlinearSolve.jl as follows:
 
 ```@example simple
-using SimpleNonlinearSolve
+import SimpleNonlinearSolve as SNLS
 
 f(u, p) = u .* u .- p
 u0 = [1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f, u0, p)
-sol = solve(prob, SimpleNewtonRaphson())
+prob = SNLS.NonlinearProblem(f, u0, p)
+sol = SNLS.solve(prob, SNLS.SimpleNewtonRaphson())
 ```
 
 However, there are a few downsides to SimpleNonlinearSolve's `SimpleX` style algorithms to
@@ -37,12 +37,12 @@ As such, you can use the code as shown above to have very low startup with good 
 for more scaling and debuggability we recommend the full NonlinearSolve.jl. But that said,
 
 ```@example simple
-using StaticArrays
+import StaticArrays
 
-u0 = SA[1.0, 1.0]
+u0 = StaticArrays.SA[1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f, u0, p)
-sol = solve(prob, SimpleNewtonRaphson())
+prob = SNLS.NonlinearProblem(f, u0, p)
+sol = SNLS.solve(prob, SNLS.SimpleNewtonRaphson())
 ```
 
 using StaticArrays.jl is also the fastest form for small equations, so if you know your

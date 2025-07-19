@@ -31,13 +31,13 @@ the parameters of the system. For example, the following solves the vector
 equation $$f(u) = u^2 - p$$ for a vector of equations:
 
 ```@example 1
-using NonlinearSolve
+import NonlinearSolve as NLS
 
 f(u, p) = u .* u .- p
 u0 = [1.0, 1.0]
 p = 2.0
-prob = NonlinearProblem(f, u0, p)
-sol = solve(prob)
+prob = NLS.NonlinearProblem(f, u0, p)
+sol = NLS.solve(prob)
 ```
 
 where `u0` is the initial condition for the rootfinder. Native NonlinearSolve.jl solvers use
@@ -77,6 +77,7 @@ the general command `SciMLBase.successful_retcode` to check whether the solution
 exited as intended:
 
 ```@example 1
+import SciMLBase
 SciMLBase.successful_retcode(sol)
 ```
 
@@ -92,13 +93,13 @@ For more information on `NonlinearSolution`s, see the
 
 ### Interacting with the Solver Options
 
-While `sol = solve(prob)` worked for our case here, in many situations you may need to
+While `sol = NonlinearSolve.solve(prob)` worked for our case here, in many situations you may need to
 interact more deeply with how the solving process is done. First things first, you can
 specify the solver using the positional arguments. For example, let's set the solver to
 `TrustRegion()`:
 
 ```@example 1
-solve(prob, TrustRegion())
+NLS.solve(prob, NLS.TrustRegion())
 ```
 
 For a complete list of solver choices, see
@@ -108,7 +109,7 @@ Next we can modify the tolerances. Here let's set some really low tolerances to 
 tight solution:
 
 ```@example 1
-solve(prob, TrustRegion(), reltol = 1e-12, abstol = 1e-12)
+NLS.solve(prob, NLS.TrustRegion(), reltol = 1e-12, abstol = 1e-12)
 ```
 
 There are many more options for doing this configuring. Specifically for handling
@@ -124,11 +125,11 @@ condition, you pass a `uspan (a,b)` bracket in which the zero is expected to liv
 example:
 
 ```@example 1
-using NonlinearSolve
+import NonlinearSolve as NLS
 f(u, p) = u * u - 2.0
 uspan = (1.0, 2.0) # brackets
-prob_int = IntervalNonlinearProblem(f, uspan)
-sol = solve(prob_int)
+prob_int = NLS.IntervalNonlinearProblem(f, uspan)
+sol = NLS.solve(prob_int)
 ```
 
 All of the same option handling from before works just as before, now just with different
@@ -136,7 +137,7 @@ solver choices (see the [bracketing solvers](@ref bracketing) page for more deta
 example, let's set the solver to `ITP()` and set a high absolute tolerance:
 
 ```@example 1
-sol = solve(prob_int, ITP(), abstol = 0.01)
+sol = NLS.solve(prob_int, NLS.ITP(), abstol = 0.01)
 ```
 
 ## Problem Type 3: Solving Steady State Problems
@@ -146,26 +147,27 @@ For Steady State Problems, we have a wrapper package
 automates handling SteadyStateProblems with NonlinearSolve and OrdinaryDiffEq.
 
 ```@example 1
-using NonlinearSolve, SteadyStateDiffEq
+import NonlinearSolve as NLS
+import SteadyStateDiffEq as SSDE
 
 f(u, p, t) = [2 - 2u[1]; u[1] - 4u[2]]
 u0 = [0.0, 0.0]
-prob = SteadyStateProblem(f, u0)
+prob = SSDE.SteadyStateProblem(f, u0)
 
-solve(prob, SSRootfind())
+NLS.solve(prob, SSDE.SSRootfind())
 ```
 
 If you don't provide a nonlinear solver to `SSRootfind` it uses a polyalgorithm from
 NonlinearSolve. We can also provide the actual nonlinear solver to use:
 
 ```@example 1
-solve(prob, SSRootfind(Broyden()))
+NLS.solve(prob, SSDE.SSRootfind(NLS.Broyden()))
 ```
 
 ## Problem Type 4: Solving Nonlinear Least Squares Problems
 
 ```@example 1
-using NonlinearSolve
+import NonlinearSolve as NLS
 
 function nlls!(du, u, p)
     du[1] = 2u[1] - 2
@@ -180,16 +182,16 @@ be skipped for out of place problems):
 
 ```@example 1
 u0 = [0.0, 0.0]
-prob = NonlinearLeastSquaresProblem(
-    NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0)
+prob = NLS.NonlinearLeastSquaresProblem(
+    NLS.NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0)
 
-solve(prob)
+NLS.solve(prob)
 ```
 
 Same as before, we can change the solver and tolerances:
 
 ```@example 1
-solve(prob, GaussNewton(), reltol = 1e-12, abstol = 1e-12)
+NLS.solve(prob, NLS.GaussNewton(), reltol = 1e-12, abstol = 1e-12)
 ```
 
 ## Going Beyond the Basics: How to use the Documentation

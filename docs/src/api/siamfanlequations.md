@@ -6,9 +6,10 @@ interface. Note that these solvers do not come by default, and thus one needs to
 the package before using these solvers:
 
 ```julia
-using Pkg
+import Pkg
 Pkg.add("SIAMFANLEquations")
-using SIAMFANLEquations, NonlinearSolve
+import SIAMFANLEquations
+import NonlinearSolve as NLS
 ```
 
 ## Solver API

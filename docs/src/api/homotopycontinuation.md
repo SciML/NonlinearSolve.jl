@@ -5,9 +5,10 @@ HomotopyContinuation.jl. This solver is not included by default and needs
 to be installed separately:
 
 ```julia
-using Pkg
+import Pkg
 Pkg.add("NonlinearSolveHomotopyContinuation")
-using NonlinearSolveHomotopyContinuation, NonlinearSolve
+import NonlinearSolveHomotopyContinuation
+import NonlinearSolve as NLS
 ```
 
 # Solver API

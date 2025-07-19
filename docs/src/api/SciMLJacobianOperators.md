@@ -10,7 +10,7 @@ operator built on top on DifferentiationInterface.jl.
 ```julia
 import Pkg
 Pkg.add("SciMLJacobianOperators")
-using SciMLJacobianOperators
+import SciMLJacobianOperators
 ```
 
 ## Jacobian API
