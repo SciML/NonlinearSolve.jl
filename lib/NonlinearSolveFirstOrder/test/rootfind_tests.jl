@@ -439,8 +439,6 @@ end
 @testitem "Simple Sparse AutoDiff" setup=[CoreRootfindTesting] tags=[:core] begin
     using ADTypes, SparseConnectivityTracer, SparseMatrixColorings
     
-    # Include utility functions for prerelease detection
-    
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoFiniteDiff(), AutoZygote()]
     if isempty(VERSION.prerelease)
