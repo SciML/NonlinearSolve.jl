@@ -87,10 +87,10 @@ end
 function prepare_jacobian(prob, autodiff, fx, x)
     SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
     if SciMLBase.isinplace(prob.f)
-        return DIExtras(DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p)))
+        return DIExtras(DI.prepare_jacobian(prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)))
     else
         x isa SArray && return DINoPreparation()
-        return DIExtras(DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p)))
+        return DIExtras(DI.prepare_jacobian(prob.f, autodiff, x, Constant(prob.p), strict = Val(false)))
     end
 end
 
