@@ -52,9 +52,9 @@ function construct_jacobian_cache(
         end
         autodiff = construct_concrete_adtype(f, autodiff)
         di_extras = if SciMLBase.isinplace(f)
-            DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p))
+            DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
         else
-            DI.prepare_jacobian(f, autodiff, u, Constant(p))
+            DI.prepare_jacobian(f, autodiff, u, Constant(p), strict = Val(false))
         end
     else
         di_extras = nothing
