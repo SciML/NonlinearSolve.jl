@@ -1,6 +1,12 @@
 @testsnippet RootfindTestSnippet begin
     using StaticArrays, Random, LinearAlgebra, ForwardDiff, NonlinearSolveBase, SciMLBase
-    using ADTypes, PolyesterForwardDiff, Enzyme, ReverseDiff
+    using ADTypes, PolyesterForwardDiff, ReverseDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("../test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
     quadratic_f(u, p) = u .* u .- p
     quadratic_f!(du, u, p) = (du .= u .* u .- p)
@@ -47,13 +53,18 @@ end
         SimpleTrustRegion,
         (; kwargs...) -> SimpleTrustRegion(; kwargs..., nlsolve_update_rule = Val(true))
     )
-        @testset for autodiff in (
+        # Filter autodiff backends based on Julia version
+        autodiff_backends = [
             AutoForwardDiff(),
             AutoFiniteDiff(),
             AutoReverseDiff(),
-            AutoEnzyme(),
             nothing
-        )
+        ]
+        if !is_julia_prerelease()
+            push!(autodiff_backends, AutoEnzyme())
+        end
+        
+        @testset for autodiff in autodiff_backends
             @testset "[OOP] u0: $(typeof(u0))" for u0 in (
                 [1.0, 1.0], @SVector[1.0, 1.0], 1.0)
                 broken_inferred = u0 isa StaticArray && (autodiff isa AutoFiniteDiff ||

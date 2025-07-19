@@ -1,23 +1,33 @@
 @testitem "Scalar Ops" begin
     using ADTypes, SciMLBase
-    using Enzyme, Zygote, ForwardDiff, FiniteDiff, ReverseDiff, Tracker
+    using Zygote, ForwardDiff, FiniteDiff, ReverseDiff, Tracker
     using SciMLJacobianOperators
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
     reverse_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Reverse),
         AutoZygote(),
         AutoReverseDiff(),
         AutoTracker(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(reverse_ADs, AutoEnzyme())
+        push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
+    end
 
     forward_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Forward),
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(forward_ADs, AutoEnzyme())
+        push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
+    end
 
     prob = NonlinearProblem(NonlinearFunction{false}((u, p) -> u^2 - p), 1.0, 2.0)
 
@@ -85,22 +95,32 @@ end
 
 @testitem "Inplace Problems" begin
     using ADTypes, SciMLBase
-    using Enzyme, ForwardDiff, FiniteDiff, ReverseDiff
+    using ForwardDiff, FiniteDiff, ReverseDiff
     using SciMLJacobianOperators
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
     reverse_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Reverse),
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(reverse_ADs, AutoEnzyme())
+        push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
+    end
 
     forward_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Forward),
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(forward_ADs, AutoEnzyme())
+        push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
+    end
 
     prob = NonlinearProblem(
         NonlinearFunction{true}((du, u, p) -> du .= u .^ 2 .- p .+ u[2] * u[1]), [1.0, 3.0], 2.0)
@@ -174,24 +194,34 @@ end
 
 @testitem "Out-of-place Problems" begin
     using ADTypes, SciMLBase
-    using Enzyme, ForwardDiff, FiniteDiff, ReverseDiff, Zygote, Tracker
+    using ForwardDiff, FiniteDiff, ReverseDiff, Zygote, Tracker
     using SciMLJacobianOperators
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
     reverse_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Reverse),
         AutoZygote(),
         AutoTracker(),
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(reverse_ADs, AutoEnzyme())
+        push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
+    end
 
     forward_ADs = [
-        AutoEnzyme(),
-        AutoEnzyme(; mode = Enzyme.Forward),
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
+    if !is_julia_prerelease()
+        push!(forward_ADs, AutoEnzyme())
+        push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
+    end
 
     prob = NonlinearProblem(
         NonlinearFunction{false}((u, p) -> u .^ 2 .- p .+ u[2] * u[1]), [1.0, 3.0], 2.0)
