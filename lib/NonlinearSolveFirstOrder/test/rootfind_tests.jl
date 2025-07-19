@@ -12,8 +12,7 @@ end
     using Zygote, ForwardDiff, FiniteDiff
     
     # Conditionally import Enzyme only if not on Julia prerelease
-    include("test_utilities.jl")
-    if !is_julia_prerelease()
+        if isempty(VERSION.prerelease)
         using Enzyme
     end
 
@@ -21,7 +20,7 @@ end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     
@@ -108,8 +107,7 @@ end
     using Zygote, ForwardDiff, FiniteDiff
     
     # Conditionally import Enzyme only if not on Julia prerelease
-    include("test_utilities.jl")
-    if !is_julia_prerelease()
+        if isempty(VERSION.prerelease)
         using Enzyme
     end
 
@@ -120,7 +118,7 @@ end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     
@@ -203,8 +201,7 @@ end
     using Zygote, ForwardDiff, FiniteDiff
     
     # Conditionally import Enzyme only if not on Julia prerelease
-    include("test_utilities.jl")
-    if !is_julia_prerelease()
+        if isempty(VERSION.prerelease)
         using Enzyme
     end
 
@@ -216,7 +213,7 @@ end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     
@@ -335,14 +332,13 @@ end
     using Zygote, ForwardDiff, FiniteDiff
     
     # Conditionally import Enzyme only if not on Julia prerelease
-    include("test_utilities.jl")
-    if !is_julia_prerelease()
+        if isempty(VERSION.prerelease)
         using Enzyme
     end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     
@@ -444,11 +440,10 @@ end
     using ADTypes, SparseConnectivityTracer, SparseMatrixColorings
     
     # Include utility functions for prerelease detection
-    include("test_utilities.jl")
-
+    
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoFiniteDiff(), AutoZygote()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     

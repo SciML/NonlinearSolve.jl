@@ -4,7 +4,6 @@ using SciMLBase: NonlinearSolution
 import NaNMath
 
 # Include utility functions for prerelease detection
-include("test_utilities.jl")
 
 alg = HomotopyContinuationJL{false}(; threading = false)
 
@@ -17,7 +16,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
     
@@ -108,7 +107,7 @@ vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, jac, "oop + jac"),
     (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac")
 ]
-if !is_julia_prerelease()
+if isempty(VERSION.prerelease)
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end
