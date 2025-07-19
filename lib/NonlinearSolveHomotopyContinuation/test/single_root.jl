@@ -3,8 +3,6 @@ using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 import NaNMath
 
-# Include utility functions for prerelease detection
-
 alg = HomotopyContinuationJL{false}(; threading = false)
 
 @testset "scalar u" begin
