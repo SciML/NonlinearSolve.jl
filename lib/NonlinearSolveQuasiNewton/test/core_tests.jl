@@ -98,8 +98,7 @@ end
     using Zygote, ForwardDiff, FiniteDiff
     
     # Conditionally import Enzyme only if not on Julia prerelease
-    include("test_utilities.jl")
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         using Enzyme
     end
 
