@@ -106,7 +106,7 @@ end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if !is_julia_prerelease()
+    if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
     
