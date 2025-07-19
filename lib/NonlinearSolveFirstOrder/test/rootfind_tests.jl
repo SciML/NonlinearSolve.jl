@@ -9,11 +9,22 @@ end
     using LineSearches: LineSearches
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+        if isempty(VERSION.prerelease)
+        using Enzyme
+    end
 
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if isempty(VERSION.prerelease)
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset "$(nameof(typeof(linesearch)))" for linesearch in (
             LineSearchesJL(; method = LineSearches.Static(), autodiff = ad),
             LineSearchesJL(; method = LineSearches.BackTracking(), autodiff = ad),
@@ -93,14 +104,25 @@ end
     using ADTypes, Random, LinearSolve, LinearAlgebra
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+        if isempty(VERSION.prerelease)
+        using Enzyme
+    end
 
     preconditioners = [
         (u0) -> nothing,
         u0 -> ((args...) -> (Diagonal(rand!(similar(u0))), nothing))
     ]
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if isempty(VERSION.prerelease)
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in u0s
@@ -176,7 +198,12 @@ end
     using ADTypes, LinearSolve, LinearAlgebra
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+        if isempty(VERSION.prerelease)
+        using Enzyme
+    end
 
     radius_update_schemes = [
         RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
@@ -184,7 +211,13 @@ end
         RadiusUpdateSchemes.Yuan, RadiusUpdateSchemes.Fan, RadiusUpdateSchemes.Bastin
     ]
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if isempty(VERSION.prerelease)
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset for radius_update_scheme in radius_update_schemes,
             linsolve in (nothing, LUFactorization(), KrylovJL_GMRES(), \)
 
@@ -296,9 +329,20 @@ end
     using ADTypes, LinearSolve, LinearAlgebra
     using BenchmarkTools: @ballocated
     using StaticArrays: SVector, @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+        if isempty(VERSION.prerelease)
+        using Enzyme
+    end
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if isempty(VERSION.prerelease)
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         solver = LevenbergMarquardt(; autodiff = ad)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
@@ -394,8 +438,16 @@ end
 
 @testitem "Simple Sparse AutoDiff" setup=[CoreRootfindTesting] tags=[:core] begin
     using ADTypes, SparseConnectivityTracer, SparseMatrixColorings
-
-    @testset for ad in (AutoForwardDiff(), AutoFiniteDiff(), AutoZygote(), AutoEnzyme())
+    
+    # Include utility functions for prerelease detection
+    
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoFiniteDiff(), AutoZygote()]
+    if isempty(VERSION.prerelease)
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset for u0 in ([1.0, 1.0], 1.0)
             prob = NonlinearProblem(
                 NonlinearFunction(quadratic_f; sparsity = TracerSparsityDetector()), u0, 2.0
