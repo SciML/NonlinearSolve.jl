@@ -9,11 +9,23 @@ end
     using LineSearches: LineSearches
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
     u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if !is_julia_prerelease()
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset "$(nameof(typeof(linesearch)))" for linesearch in (
             # LineSearchesJL(; method = LineSearches.Static(), autodiff = ad),
             # LineSearchesJL(; method = LineSearches.BackTracking(), autodiff = ad),
@@ -84,9 +96,21 @@ end
     using LineSearches: LineSearches
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if !is_julia_prerelease()
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset "$(nameof(typeof(linesearch)))" for linesearch in (
             # LineSearchesJL(; method = LineSearches.Static(), autodiff = ad),
             # LineSearchesJL(; method = LineSearches.BackTracking(), autodiff = ad),
@@ -157,9 +181,21 @@ end
     using LineSearches: LineSearches
     using BenchmarkTools: @ballocated
     using StaticArrays: @SVector
-    using Zygote, Enzyme, ForwardDiff, FiniteDiff
+    using Zygote, ForwardDiff, FiniteDiff
+    
+    # Conditionally import Enzyme only if not on Julia prerelease
+    include("test_utilities.jl")
+    if !is_julia_prerelease()
+        using Enzyme
+    end
 
-    @testset for ad in (AutoForwardDiff(), AutoZygote(), AutoFiniteDiff(), AutoEnzyme())
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    if !is_julia_prerelease()
+        push!(autodiff_backends, AutoEnzyme())
+    end
+    
+    @testset for ad in autodiff_backends
         @testset "$(nameof(typeof(linesearch)))" for linesearch in (
             # LineSearchesJL(; method = LineSearches.Static(), autodiff = ad),
             # LineSearchesJL(; method = LineSearches.BackTracking(), autodiff = ad),

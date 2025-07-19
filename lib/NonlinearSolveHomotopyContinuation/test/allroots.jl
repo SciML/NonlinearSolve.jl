@@ -2,8 +2,13 @@ using NonlinearSolve
 using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 using ADTypes
-using Enzyme
 import NaNMath
+
+# Conditionally import Enzyme only if not on Julia prerelease
+include("test_utilities.jl")
+if !is_julia_prerelease()
+    using Enzyme
+end
 
 alg = HomotopyContinuationJL{true}(; threading = false)
 
@@ -14,9 +19,13 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     jac = function (u, p)
         return 2u - p[1]
     end
-    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in [
-        (AutoForwardDiff(), "no jac - forwarddiff"), (AutoEnzyme(), "no jac - enzyme"), (
-            jac, "jac")]
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
+    if !is_julia_prerelease()
+        push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
+    end
+    
+    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in autodiff_backends
         if jac_or_autodiff isa Function
             jac = jac_or_autodiff
             autodiff = nothing
@@ -107,11 +116,17 @@ fjac = function (u, p)
      2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
 end
 
-@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in [
-    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, AutoEnzyme(), "oop + enzyme"), (
-        f, fjac, "oop + jac"),
-    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, AutoEnzyme(), "iip + enzyme"), (
-        f!, fjac!, "iip + jac")]
+# Filter test cases based on Julia version
+vector_test_cases = [
+    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, fjac, "oop + jac"),
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, fjac!, "iip + jac")
+]
+if !is_julia_prerelease()
+    push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
+    push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
+end
+
+@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in vector_test_cases
     sol = nothing
     if jac_or_autodiff isa Function
         jac = jac_or_autodiff

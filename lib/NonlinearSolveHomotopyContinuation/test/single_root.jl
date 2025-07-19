@@ -3,6 +3,9 @@ using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 import NaNMath
 
+# Include utility functions for prerelease detection
+include("test_utilities.jl")
+
 alg = HomotopyContinuationJL{false}(; threading = false)
 
 @testset "scalar u" begin
@@ -12,9 +15,13 @@ alg = HomotopyContinuationJL{false}(; threading = false)
     jac = function (u, p)
         return 2u - (p + 3)
     end
-    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in [
-        (AutoForwardDiff(), "no jac - forwarddiff"), (AutoEnzyme(), "no jac - enzyme"), (
-            jac, "jac")]
+    # Filter autodiff backends based on Julia version
+    autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
+    if !is_julia_prerelease()
+        push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
+    end
+    
+    @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in autodiff_backends
         if jac_or_autodiff isa Function
             jac = jac_or_autodiff
             autodiff = nothing
@@ -96,11 +103,17 @@ jac = function (u, p)
      2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
 end
 
-@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in [
-    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, AutoEnzyme(), "oop + enzyme"), (
-        f, jac, "oop + jac"),
-    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, AutoEnzyme(), "iip + enzyme"), (
-        f!, jac!, "iip + jac")]
+# Filter test cases based on Julia version
+vector_test_cases = [
+    (f, AutoForwardDiff(), "oop + forwarddiff"), (f, jac, "oop + jac"),
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac")
+]
+if !is_julia_prerelease()
+    push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
+    push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
+end
+
+@testset "vector u - $name" for (rhs, jac_or_autodiff, name) in vector_test_cases
     if jac_or_autodiff isa Function
         jac = jac_or_autodiff
         autodiff = nothing
