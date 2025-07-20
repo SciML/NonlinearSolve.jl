@@ -17,9 +17,6 @@ Note that using this package requires Python and SciPy to be available via Pytho
 
 ```@docs
 NonlinearSolveSciPy.SciPyLeastSquares
-NonlinearSolveSciPy.SciPyLeastSquaresTRF
-NonlinearSolveSciPy.SciPyLeastSquaresDogbox
-NonlinearSolveSciPy.SciPyLeastSquaresLM
 NonlinearSolveSciPy.SciPyRoot
 NonlinearSolveSciPy.SciPyRootScalar
 ```
