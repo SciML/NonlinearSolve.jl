@@ -150,7 +150,7 @@ chunksize:
 InteractiveUtils.@code_warntype NLS.solve(
     prob,
     NLS.NewtonRaphson(;
-        autodiff = ADTypes.AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))
+        autodiff = ADTypes.AutoForwardDiff(; chunksize = NLS.pickchunksize(prob.u0))
     )
 )
 nothing # hide
