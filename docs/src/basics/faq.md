@@ -76,7 +76,8 @@ be a Dual number. This causes the error. To fix it:
  1. Specify the `autodiff` to be `AutoFiniteDiff`
     
     ```@example dual_error_faq
-    sol = solve(prob_oop, LevenbergMarquardt(; autodiff = AutoFiniteDiff());
+    import ADTypes
+    sol = solve(prob_oop, LevenbergMarquardt(; autodiff = ADTypes.AutoFiniteDiff());
         maxiters = 10000, abstol = 1e-8)
     ```
     
@@ -110,6 +111,7 @@ internally. See this simple example:
 ```@example type_unstable
 import NonlinearSolve as NLS
 import InteractiveUtils
+import ADTypes
 
 f(u, p) = @. u^2 - p
 
@@ -134,7 +136,7 @@ nothing # hide
 Again Type-Stable! Now let's try using a regular array:
 
 ```@example type_unstable
-prob = NonlinearProblem(f, [1.0, 2.0], 2.0)
+prob = NLS.NonlinearProblem(f, [1.0, 2.0], 2.0)
 
 InteractiveUtils.@code_warntype NLS.solve(prob, NLS.NewtonRaphson())
 nothing # hide
@@ -145,10 +147,10 @@ it will be dynamic and lead to dynamic dispatch. To fix this, we directly specif
 chunksize:
 
 ```@example type_unstable
-InteractiveUtils.@code_warntype solve(
+InteractiveUtils.@code_warntype NLS.solve(
     prob,
-    NewtonRaphson(;
-        autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))
+    NLS.NewtonRaphson(;
+        autodiff = ADTypes.AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))
     )
 )
 nothing # hide
