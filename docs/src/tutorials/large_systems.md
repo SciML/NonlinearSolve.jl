@@ -148,12 +148,12 @@ prob_brusselator_2d_autosparse = NLS.NonlinearProblem(
 )
 
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12)));
+    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12)));
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12),
+    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12),
         linsolve = LS.KLUFactorization()));
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = AutoForwardDiff(; chunksize = 12),
+    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12),
         linsolve = LS.KrylovJL_GMRES()));
 nothing # hide
 ```
@@ -325,7 +325,7 @@ prob_brusselator_2d_exact_tracer = NLS.NonlinearProblem(
     u0, p; abstol = 1e-10, reltol = 1e-10)
 prob_brusselator_2d_approx_di = NLS.NonlinearProblem(
     NLS.NonlinearFunction(brusselator_2d_loop;
-        sparsity = DifferentiationInterface.DenseSparsityDetector(DifferentiationInterface.AutoForwardDiff(); atol = 1e-4)),
+        sparsity = DifferentiationInterface.DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4)),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_exact_tracer, NLS.NewtonRaphson());
