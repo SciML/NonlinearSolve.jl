@@ -77,7 +77,7 @@ be a Dual number. This causes the error. To fix it:
     
     ```@example dual_error_faq
     import ADTypes
-    sol = solve(prob_oop, NLS.LevenbergMarquardt(; autodiff = ADTypes.AutoFiniteDiff());
+    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(; autodiff = ADTypes.AutoFiniteDiff());
         maxiters = 10000, abstol = 1e-8)
     ```
     
