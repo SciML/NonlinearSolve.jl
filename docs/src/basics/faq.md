@@ -58,7 +58,7 @@ function fff_incorrect(var, p)
 end
 
 v_true = [1.0, 0.1, 2.0, 0.5]
-v_init = v_true .+ randn!(similar(v_true)) * 0.1
+v_init = v_true .+ Random.randn!(similar(v_true)) * 0.1
 
 prob_oop = NLS.NonlinearLeastSquaresProblem{false}(fff_incorrect, v_init)
 try
@@ -145,7 +145,7 @@ it will be dynamic and lead to dynamic dispatch. To fix this, we directly specif
 chunksize:
 
 ```@example type_unstable
-@code_warntype solve(
+InteractiveUtils.@code_warntype solve(
     prob,
     NewtonRaphson(;
         autodiff = AutoForwardDiff(; chunksize = NonlinearSolve.pickchunksize(prob.u0))
