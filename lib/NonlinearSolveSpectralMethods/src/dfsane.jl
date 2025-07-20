@@ -16,7 +16,7 @@ parameters and the algorithm, see [la2006spectral](@citet).
   - `sigma_max`: the maximum value of the spectral coefficient `σₙ` which is related to the
     step size in the algorithm. Defaults to `1e10`.
 
-For other keyword arguments, see [`RobustNonMonotoneLineSearch`](@ref).
+For other keyword arguments, see RobustNonMonotoneLineSearch in LineSearch.jl.
 """
 function DFSane(;
         sigma_min = 1 // 10^10, sigma_max = 1e10, sigma_1 = 1, M::Int = 10,
