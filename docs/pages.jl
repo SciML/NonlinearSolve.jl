@@ -48,6 +48,7 @@ pages = [
         "api/nlsolve.md",
         "api/nlsolvers.md",
         "api/petsc.md",
+        "api/scipy.md",
         "api/siamfanlequations.md",
         "api/speedmapping.md",
         "api/sundials.md",
