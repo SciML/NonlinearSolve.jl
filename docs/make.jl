@@ -5,7 +5,7 @@ using Sundials
 using NonlinearSolveBase, SciMLBase, DiffEqBase
 using SimpleNonlinearSolve, BracketingNonlinearSolve
 using NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods
-using NonlinearSolveHomotopyContinuation
+using NonlinearSolveHomotopyContinuation, NonlinearSolveSciPy
 using SciMLJacobianOperators
 using NonlinearSolve, SteadyStateDiffEq
 
@@ -38,7 +38,7 @@ makedocs(;
         NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods,
         NonlinearSolveHomotopyContinuation,
         Sundials,
-        SciMLJacobianOperators,
+        SciMLJacobianOperators, NonlinearSolveSciPy,
         NonlinearSolve, SteadyStateDiffEq
     ],
     clean = true,
