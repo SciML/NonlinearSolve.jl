@@ -1,7 +1,7 @@
 name = "SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "0.1.6"
+version = "0.1.7"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
