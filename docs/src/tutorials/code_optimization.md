@@ -71,7 +71,7 @@ function f(du, u, p)
 end
 
 prob = NLS.NonlinearProblem(f, u0, p)
-@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
+BenchmarkTools.@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Notice how much faster this already runs! We can make this code even simpler by using
@@ -83,7 +83,7 @@ function f(du, u, p)
     return nothing
 end
 
-@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
+BenchmarkTools.@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 ## Further Optimizations for Small Nonlinear Solves with Static Arrays and SimpleNonlinearSolve
