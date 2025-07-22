@@ -36,12 +36,16 @@ using Setfield: @set!
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
 using Printf: @printf
+using Base.ScopedValues
 
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
 
 include("public.jl")
 include("utils.jl")
+include("verbosity.jl")
+
+const non_linear_verbose = ScopedValue(NonlinearVerbosity())
 
 include("abstract_types.jl")
 include("common_defaults.jl")
@@ -54,7 +58,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
-include("verbosity.jl")
+
 
 include("descent/common.jl")
 include("descent/newton.jl")
