@@ -31,7 +31,6 @@ function InternalAPI.init(
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
 )
-    #Main.@infiltrate
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
         @bb δu_ = similar(u)
