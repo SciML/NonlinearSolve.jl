@@ -1,9 +1,8 @@
-using Base.ScopedValues
-const non_linear_verbose = ScopedValue(NonlinearVerbosity())
-
 mutable struct NonlinearErrorControlVerbosity
     immutable_u0::Verbosity.Type
     non_enclosing_interval::Verbosity.Type
+    non_forward_mode::Verbosity.Type
+    ad_backend_incompatible::Verbosity.Type
 
     function NonlinearErrorControlVerbosity()
         new()
