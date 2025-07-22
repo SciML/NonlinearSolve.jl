@@ -222,11 +222,19 @@ end
 
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        kwargs...
+        verbose = NonlinearVerbosity(), linsolve_kwargs = (;), kwargs...
 )
-    #Main.@infiltrate
-    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
-    return CommonSolve.solve!(cache)
+    if !haskey(linsolve_kwargs, :verbose)
+            linsolve_kwargs = merge(
+                linsolve_kwargs, (; verbose = verbose.linear_verbosity))
+    end
+
+    @with non_linear_verbose => verbose begin
+        cache = SciMLBase.__init(prob, alg, args...; linsolve_kwargs, kwargs...)
+        sol = CommonSolve.solve!(cache)
+    end
+
+    return sol
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
