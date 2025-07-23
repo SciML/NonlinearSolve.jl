@@ -26,7 +26,7 @@ function select_forward_mode_autodiff(
         @warn lazy"The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
        
        @SciMLMessage("The chosen AD backend $(ad) is not a forward mode AD. Use with caution.",
-       nonlinear_verbosity[], :fd_ad_caution, :error_control)
+       nonlinear_verbose[], :fd_ad_caution, :error_control)
        
     end
     if incompatible_backend_and_problem(prob, ad)
@@ -34,7 +34,7 @@ function select_forward_mode_autodiff(
         @warn lazy"The chosen AD backend `$(ad)` does not support the chosen problem. This \
                could be because the backend package for the chosen AD isn't loaded. After \
                running autodiff selection detected `$(adₙ)` as a potential forward mode \
-               backend.", nonlinear_verbosity[], :ad_backend_incompatible, :error_control)
+               backend.", nonlinear_verbose[], :ad_backend_incompatible, :error_control)
         
         return adₙ
     end
@@ -56,14 +56,14 @@ function select_reverse_mode_autodiff(
        !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
        !is_finite_differences_backend(ad)
         @SciMLMessage("The chosen AD backend $(ad) is not a forward mode AD. Use with caution.",
-            nonlinear_verbosity[], :fd_ad_caution, :error_control)
+            nonlinear_verbose[], :fd_ad_caution, :error_control)
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_reverse_mode_autodiff(prob, nothing; warn_check_mode)
         @SciMLMessage("The chosen AD backend `$(ad)` does not support the chosen problem. This \
         could be because the backend package for the chosen AD isn't loaded. After \
         running autodiff selection detected `$(adₙ)` as a potential forward mode \
-        backend.", nonlinear_verbosity[], :ad_backend_incompatible, :error_control)
+        backend.", nonlinear_verbose[], :ad_backend_incompatible, :error_control)
         return adₙ
     end
     return ad
@@ -84,7 +84,7 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractAD
         @SciMLMessage("The chosen AD backend `$(ad)` does not support the chosen problem. This \
         could be because the backend package for the chosen AD isn't loaded. After \
         running autodiff selection detected `$(adₙ)` as a potential forward mode \
-        backend.", nonlinear_verbosity[], :ad_backend_incompatible, :error_control)
+        backend.", nonlinear_verbose[], :ad_backend_incompatible, :error_control)
         return adₙ
     end
     return ad
