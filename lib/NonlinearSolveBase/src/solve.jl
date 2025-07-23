@@ -229,7 +229,7 @@ function SciMLBase.__solve(
                 linsolve_kwargs, (; verbose = verbose.linear_verbosity))
     end
 
-    @with non_linear_verbose => verbose begin
+    @with nonlinear_verbose => verbose begin
         cache = SciMLBase.__init(prob, alg, args...; linsolve_kwargs, kwargs...)
         sol = CommonSolve.solve!(cache)
     end

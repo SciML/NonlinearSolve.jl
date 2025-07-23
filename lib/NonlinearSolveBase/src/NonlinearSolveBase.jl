@@ -45,7 +45,7 @@ include("public.jl")
 include("utils.jl")
 include("verbosity.jl")
 
-const non_linear_verbose = ScopedValue(NonlinearVerbosity())
+const nonlinear_verbose = ScopedValue(NonlinearVerbosity())
 
 include("abstract_types.jl")
 include("common_defaults.jl")
