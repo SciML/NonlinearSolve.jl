@@ -1,3 +1,16 @@
+nonlinear_verbosity_defaults = Dict(
+    :immutable_u0 => Verbosity.Warn(),
+    :non_enclosing_interval => Verbosity.Warn(),
+    :non_forward_mode => Verbosity.Warn(),
+    :fd_ad_caution => Verbosity.Warn(),
+    :ad_backend_incompatible => Verbosity.Warn(),
+    :colorvec_non_sparse => Verbosity.Warn(),
+    :colorvec_no_prototype => Verbosity.Warn(),
+    :sparsity_using_jac_prototype => Verbosity.Warn(),
+    :sparse_matrixcolorings_not_loaded => Verbosity.Warn()
+)
+
+
 mutable struct NonlinearErrorControlVerbosity
     immutable_u0::Verbosity.Type
     non_enclosing_interval::Verbosity.Type
@@ -5,8 +18,12 @@ mutable struct NonlinearErrorControlVerbosity
     fd_ad_caution::Verbosity.Type
     ad_backend_incompatible::Verbosity.Type
 
-    function NonlinearErrorControlVerbosity()
-        new()
+    function NonlinearErrorControlVerbosity(immutable_u0 = nonlinear_verbosity_defaults[:immutable_u0],
+        non_enclosing_interval = nonlinear_verbosity_defaults[:non_enclosing_interval],
+        non_forward_mode = nonlinear_verbosity_defaults[:non_forward_mode],
+        fd_ad_caution = nonlinear_verbosity_defaults[:fd_ad_caution],
+        ad_backend_incompatible = nonlinear_verbosity_defaults[:ad_backend_incompatible])
+        new(immutable_u0, non_enclosing_interval, non_forward_mode, fd_ad_caution, ad_backend_incompatible)
     end
 end
 
@@ -37,8 +54,12 @@ mutable struct NonlinearPerformanceVerbosity
     colorvec_no_prototype::Verbosity.Type
     sparsity_using_jac_prototype::Verbosity.Type
     sparse_matrixcolorings_not_loaded::Verbosity.Type
-    function NonlinearPerformanceVerbosity()
-        new()
+
+    function NonlinearPerformanceVerbosity(colorvec_non_sparse = nonlinear_verbosity_defaults[:colorvec_non_sparse],
+            colorvec_no_prototype = nonlinear_verbosity_defaults[:colorvec_no_prototype],
+            sparsity_using_jac_prototype = nonlinear_verbosity_defaults[:sparsity_using_jac_prototype],
+            sparse_matrixcolorings_not_loaded = nonlinear_verbosity_defaults[:sparse_matrixcolorings_not_loaded])
+        new(colorvec_non_sparse, colorvec_no_prototype, sparsity_using_jac_prototype, sparse_matrixcolorings_not_loaded)
     end
 end
 
@@ -50,7 +71,7 @@ function NonlinearPerformanceVerbosity(verbose::Verbosity.Type)
         Verbosity.Info() => NonlinearPerformanceVerbosity(fill(
             Verbosity.Info(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
 
-        Verbosity.Warn() => NonlinPerformanceVerbosity(fill(
+        Verbosity.Warn() => NonlinearPerformanceVerbosity(fill(
             Verbosity.Warn(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
 
         Verbosity.Error() => NonlinearPerformanceVerbosity(fill(
