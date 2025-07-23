@@ -2,6 +2,7 @@ mutable struct NonlinearErrorControlVerbosity
     immutable_u0::Verbosity.Type
     non_enclosing_interval::Verbosity.Type
     non_forward_mode::Verbosity.Type
+    fd_ad_caution::Verbosity.Type
     ad_backend_incompatible::Verbosity.Type
 
     function NonlinearErrorControlVerbosity()
@@ -32,6 +33,10 @@ function NonlinearErrorControlVerbosity(verbose::Verbosity.Type)
 end
 
 mutable struct NonlinearPerformanceVerbosity
+    colorvec_non_sparse::Verbosity.Type
+    colorvec_no_prototype::Verbosity.Type
+    sparsity_using_jac_prototype::Verbosity.Type
+    sparse_matrixcolorings_not_loaded::Verbosity.Type
     function NonlinearPerformanceVerbosity()
         new()
     end
