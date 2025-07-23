@@ -180,15 +180,15 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
-                @warn "`colorvec` is provided but `sparsity` and `jac_prototype` is not \
-                       specified. `colorvec` will be ignored."
+                @SciMLMessage("`colorvec` is provided but `sparsity` and `jac_prototype` is not \
+                       specified. `colorvec` will be ignored.", nonlinear_verbosity[], :colorvec_no_prototype, :performance )
             end
             return ad # No sparse AD
         else
             if !sparse_or_structured_prototype(f.jac_prototype)
                 if SciMLBase.has_colorvec(f)
-                    @warn "`colorvec` is provided but `jac_prototype` is not a sparse \
-                           or structured matrix. `colorvec` will be ignored."
+                    @SciMLMessage("`colorvec` is provided but `jac_prototype` is not a sparse \
+                           or structured matrix. `colorvec` will be ignored.", nonlinear_verbosity[], :colorvec_non_sparse, :performance)
                 end
                 return ad
             end
@@ -223,8 +223,8 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         sparsity_detector = f.sparsity
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
-                @warn "`colorvec` is provided but `jac_prototype` is not specified. \
-                       `colorvec` will be ignored."
+                @SciMLMessage("`colorvec` is provided but `jac_prototype` is not specified. \
+                       `colorvec` will be ignored.", nonlinear_verbose[], :colorvec_no_prototype, :performance)
             end
             coloring_algorithm = select_fastest_coloring_algorithm(nothing, f, ad)
             coloring_algorithm === nothing && return ad
@@ -232,9 +232,9 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         else
             if sparse_or_structured_prototype(f.jac_prototype)
                 if !(sparsity_detector isa NoSparsityDetector)
-                    @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
+                    @SciMLMessage("`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
                            has also been specified. Ignoring sparsity field and using \
-                           `jac_prototype` sparsity."
+                           `jac_prototype` sparsity.", nonlinear_verbose[], :sparsity_using_jac_prototype, :performance)
                 end
                 sparsity_detector = KnownJacobianSparsityDetector(f.jac_prototype)
             end
@@ -255,8 +255,8 @@ end
 function select_fastest_coloring_algorithm(
         prototype, f::NonlinearFunction, ad::AbstractADType)
     if !Utils.is_extension_loaded(Val(:SparseMatrixColorings))
-        @warn "`SparseMatrixColorings` must be explicitly imported for sparse automatic \
-               differentiation to work. Proceeding with Dense Automatic Differentiation."
+        @SciMLMessage("`SparseMatrixColorings` must be explicitly imported for sparse automatic \
+               differentiation to work. Proceeding with Dense Automatic Differentiation.", :sparse_matrix_colorings_not_loaded, :performance)
         return nothing
     end
     return select_fastest_coloring_algorithm(Val(:SparseMatrixColorings), prototype, f, ad)
