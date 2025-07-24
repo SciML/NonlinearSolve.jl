@@ -40,59 +40,59 @@ include("pseudo_transient.jl")
 include("poly_algs.jl")
 include("forward_diff.jl")
 
-# @setup_workload begin
-#     nonlinear_functions = (
-#         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
-#         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-#         (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
-#     )
+@setup_workload begin
+    nonlinear_functions = (
+        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
+        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
+        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+    )
 
-#     nonlinear_problems = NonlinearProblem[]
-#     for (fn, u0) in nonlinear_functions
-#         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
-#     end
+    nonlinear_problems = NonlinearProblem[]
+    for (fn, u0) in nonlinear_functions
+        push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
+    end
 
-#     nonlinear_functions = (
-#         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
-#         (
-#             NonlinearFunction{false, NoSpecialize}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
-#             [0.1, 0.1]
-#         ),
-#         (
-#             NonlinearFunction{true, NoSpecialize}(
-#                 (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)
-#             ),
-#             [0.1, 0.0]
-#         ),
-#         (
-#             NonlinearFunction{true, NoSpecialize}(
-#                 (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p), resid_prototype = zeros(4)
-#             ),
-#             [0.1, 0.1]
-#         )
-#     )
+    nonlinear_functions = (
+        (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
+        (
+            NonlinearFunction{false, NoSpecialize}((u, p) -> vcat(u .* u .- p, u .* u .- p)),
+            [0.1, 0.1]
+        ),
+        (
+            NonlinearFunction{true, NoSpecialize}(
+                (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)
+            ),
+            [0.1, 0.0]
+        ),
+        (
+            NonlinearFunction{true, NoSpecialize}(
+                (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p), resid_prototype = zeros(4)
+            ),
+            [0.1, 0.1]
+        )
+    )
 
-#     nlls_problems = NonlinearLeastSquaresProblem[]
-#     for (fn, u0) in nonlinear_functions
-#         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
-#     end
+    nlls_problems = NonlinearLeastSquaresProblem[]
+    for (fn, u0) in nonlinear_functions
+        push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
+    end
 
-#     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
-#     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
-#     @compile_workload begin
-#         @sync begin
-#             for prob in nonlinear_problems, alg in nlp_algs
-#                 Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
-#             end
+    @compile_workload begin
+        @sync begin
+            for prob in nonlinear_problems, alg in nlp_algs
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
+            end
 
-#             for prob in nlls_problems, alg in nlls_algs
-#                 Threads.@spawn CommonSolve.solve(
-#                     prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
-#             end
-#         end
-#     end
-# end
+            for prob in nlls_problems, alg in nlls_algs
+                Threads.@spawn CommonSolve.solve(
+                    prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
+            end
+        end
+    end
+end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
