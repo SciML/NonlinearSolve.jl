@@ -22,12 +22,10 @@ function (cache::LinearSolveJLCache)(;
     
     linres = solve!(cache.lincache)
     cache.lincache = linres.cache
-    #Main.@infiltrate
     # Unfortunately LinearSolve.jl doesn't have the most uniform ReturnCode handling
     if linres.retcode === ReturnCode.Failure || linres.retcode === ReturnCode.Stalled
         structured_mat = ArrayInterface.isstructured(cache.lincache.A)
         is_gpuarray = ArrayInterface.device(cache.lincache.A) isa ArrayInterface.GPU
-        #Main.@infiltrate
         if !(cache.linsolve isa QRFactorization{ColumnNorm}) && !is_gpuarray &&
            !structured_mat
             if verbose
