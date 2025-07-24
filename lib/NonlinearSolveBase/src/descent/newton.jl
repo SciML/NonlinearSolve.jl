@@ -55,7 +55,6 @@ function InternalAPI.init(
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
 )
-    #Main.@infiltrate
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
