@@ -36,16 +36,6 @@ function InternalAPI.init(
         @bb δu_ = similar(u)
     end
 
-    if !haskey(linsolve_kwargs, :verbose)
-        if kwargs[:verbose].linear_verbosity isa Verbosity.Type
-            linsolve_kwargs = merge(
-                linsolve_kwargs, (; verbose = LinearVerbosity(kwargs[:verbose])))
-        else
-            linsolve_kwargs = merge(
-                linsolve_kwargs, (; verbose = kwargs[:verbose].linear_verbosity))
-        end
-    end
-
     if Utils.unwrap_val(pre_inverted)
         lincache = nothing
     else
@@ -54,7 +44,6 @@ function InternalAPI.init(
             stats, abstol, reltol, linsolve_kwargs...
         )
     end
-    #Main.@infiltrate
     return NewtonDescentCache(
         δu, δus, lincache, nothing, nothing, timer, pre_inverted, Val(false)
     )
@@ -82,16 +71,6 @@ function InternalAPI.init(
     else
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, Utils.safe_vec(fu)
-    end
-
-    if !haskey(linsolve_kwargs, :verbose)
-        if kwargs[:verbose].linear_verbosity isa Verbosity.Type
-            linsolve_kwargs = merge(
-                linsolve_kwargs, (; verbose=LinearVerbosity(kwargs[:verbose])))
-        else
-            linsolve_kwargs = merge(
-                linsolve_kwargs, (; verbose=kwargs[:verbose].linear_verbosity))
-        end
     end
 
     lincache = construct_linear_solver(
