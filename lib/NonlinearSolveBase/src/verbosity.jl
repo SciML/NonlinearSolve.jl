@@ -11,7 +11,7 @@ nonlinear_verbosity_defaults = Dict(
 )
 
 
-mutable struct NonlinearErrorControlVerbosity
+struct NonlinearErrorControlVerbosity
     immutable_u0::Verbosity.Type
     non_enclosing_interval::Verbosity.Type
     non_forward_mode::Verbosity.Type
@@ -49,7 +49,7 @@ function NonlinearErrorControlVerbosity(verbose::Verbosity.Type)
     end
 end
 
-mutable struct NonlinearPerformanceVerbosity
+struct NonlinearPerformanceVerbosity
     colorvec_non_sparse::Verbosity.Type
     colorvec_no_prototype::Verbosity.Type
     sparsity_using_jac_prototype::Verbosity.Type
@@ -94,16 +94,16 @@ end
 function NonlinearNumericalVerbosity(verbose::Verbosity.Type)
     @match verbose begin
         Verbosity.None() => NonlinearNumericalVerbosity(fill(
-            Verbosity.None(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+            Verbosity.None(), length(fieldnames(NonlinearNumericalVerbosity)))...)
 
         Verbosity.Info() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Info(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+            Verbosity.Info(), length(fieldnames(NonlinearNumericalVerbosity)))...)
 
         Verbosity.Warn() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Warn(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+            Verbosity.Warn(), length(fieldnames(NonlinearNumericalVerbosity)))...)
 
         Verbosity.Error() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Error(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+            Verbosity.Error(), length(fieldnames(NonlinearNumericalVerbosity)))...)
 
         Verbosity.Default() => NonlinearNumericalVerbosity()
 
