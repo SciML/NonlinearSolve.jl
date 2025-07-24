@@ -12,7 +12,7 @@ using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveRes
 
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,
-        reuse_A_if_factorization = false, verbose = NonlinearVerbosity(), kwargs...
+        reuse_A_if_factorization = false, kwargs...
 )
     cache.stats.nsolve += 1
 
