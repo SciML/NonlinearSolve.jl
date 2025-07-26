@@ -39,6 +39,11 @@ function get_tolerance(::Nothing, ::Type{T}) where {T}
     η = real(oneunit(T)) * (eps(real(one(T)))^(4 // 5))
     return get_tolerance(η, T)
 end
+function get_tolerance(::Nothing, ::Type{Float64})
+    # trimming hangs up on the literal_pow to rational numbers here
+    η = real(oneunit(Float64)) * 3e-13
+    return get_tolerance(η, Float64)
+end
 
 get_tolerance(_, η, ::Type{T}) where {T} = get_tolerance(η, T)
 function get_tolerance(::Union{StaticArray, Number}, ::Nothing, ::Type{T}) where {T}
