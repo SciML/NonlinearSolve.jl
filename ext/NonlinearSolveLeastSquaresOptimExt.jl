@@ -6,7 +6,7 @@ using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal
 using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
 
-const ALSO = LeastSquaresOptim
+const LSO = LeastSquaresOptim
 
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::LeastSquaresOptimJL, args...;
@@ -23,32 +23,32 @@ function SciMLBase.__solve(
     reltol = NonlinearSolveBase.get_tolerance(reltol, eltype(u))
 
     if prob.f.jac === nothing && alg.autodiff isa Symbol
-        lsoprob = ALSO.LeastSquaresProblem(;
+        lsoprob = LSO.LeastSquaresProblem(;
             x = u, f!, y = resid, alg.autodiff, J = prob.f.jac_prototype,
             output_length = length(resid)
         )
     else
         g! = NonlinearSolveBase.construct_extension_jac(prob, alg, u, resid; alg.autodiff)
-        lsoprob = ALSO.LeastSquaresProblem(;
+        lsoprob = LSO.LeastSquaresProblem(;
             x = u, f!, y = resid, g!, J = prob.f.jac_prototype,
             output_length = length(resid)
         )
     end
 
-    linsolve = alg.linsolve === :qr ? ALSO.QR() :
-               (alg.linsolve === :cholesky ? ALSO.Cholesky() :
-                (alg.linsolve === :lsmr ? ALSO.LSMR() : nothing))
+    linsolve = alg.linsolve === :qr ? LSO.QR() :
+               (alg.linsolve === :cholesky ? LSO.Cholesky() :
+                (alg.linsolve === :lsmr ? LSO.LSMR() : nothing))
 
     lso_solver = if alg.alg === :lm
-        ALSO.LevenbergMarquardt(linsolve)
+        LSO.LevenbergMarquardt(linsolve)
     elseif alg.alg === :dogleg
-        ALSO.Dogleg(linsolve)
+        LSO.Dogleg(linsolve)
     else
         throw(ArgumentError("Unknown LeastSquaresOptim Algorithm: $(Meta.quot(alg.alg))"))
     end
 
-    allocated_prob = ALSO.LeastSquaresProblemAllocated(lsoprob, lso_solver)
-    res = ALSO.optimize!(
+    allocated_prob = LSO.LeastSquaresProblemAllocated(lsoprob, lso_solver)
+    res = LSO.optimize!(
         allocated_prob;
         x_tol = reltol, f_tol = abstol, g_tol = abstol, iterations = maxiters,
         show_trace = show_trace isa Val{true}, store_trace = store_trace isa Val{true},
