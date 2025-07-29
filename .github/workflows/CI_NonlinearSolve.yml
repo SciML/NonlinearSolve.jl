@@ -100,7 +100,7 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
-      - uses: julia-actions/julia-downgrade-compat@v1
+      - uses: julia-actions/julia-downgrade-compat@v2
         with:
           skip: SciMLJacobianOperators, BracketingNonlinearSolve, NonlinearSolveBase, SimpleNonlinearSolve, NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods, NonlinearSolveQuasiNewton
       - name: "Install Dependencies and Run Tests"
