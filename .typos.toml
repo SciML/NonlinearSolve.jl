@@ -10,3 +10,6 @@ ispcs = "ispcs"
 eqs = "eqs"
 rhs = "rhs"
 MTK = "MTK"
+
+# NonlinearSolve specific terms
+LSO = "LSO"  # Legitimate abbreviation used in optimization contexts
