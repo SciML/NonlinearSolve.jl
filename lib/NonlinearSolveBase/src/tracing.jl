@@ -40,7 +40,7 @@ end
 
 !!! warning
 
-    This is very expensive and makes copyies of the Jacobian, u, f(u), and δu.
+    This is very expensive and makes copies of the Jacobian, u, f(u), and δu.
 
 See also [`TraceMinimal`](@ref) and [`TraceWithJacobianConditionNumber`](@ref).
 """
