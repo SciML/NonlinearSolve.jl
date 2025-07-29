@@ -22,7 +22,8 @@ function SciMLBase.__solve(
         termination_condition, alg; abs_norm_supported = false
     )
 
-    f_wrapped!, u0, resid = NonlinearSolveBase.construct_extension_function_wrapper(
+    f_wrapped!, u0,
+    resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0
     )
     T = eltype(u0)
@@ -48,7 +49,9 @@ function SciMLBase.__solve(
 
     nf = Ref{Int}(0)
 
-    f! = @closure (cfx, cx, user_ctx) -> begin
+    f! = @closure (cfx,
+        cx,
+        user_ctx) -> begin
         nf[] += 1
         fx = cfx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cfx; read = false) : cfx
         x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
@@ -76,7 +79,8 @@ function SciMLBase.__solve(
             )
             J_init = zeros(T, 1, 1)
         else
-            jac!, J_init = NonlinearSolveBase.construct_extension_jac(
+            jac!,
+            J_init = NonlinearSolveBase.construct_extension_jac(
                 prob, alg, u0, resid; autodiff, initial_jacobian = Val(true)
             )
         end
@@ -85,7 +89,10 @@ function SciMLBase.__solve(
 
         if J_init isa AbstractSparseMatrix
             PJ = PETSc.MatSeqAIJ(J_init)
-            jac_fn! = @closure (cx, J, _, user_ctx) -> begin
+            jac_fn! = @closure (cx,
+                J,
+                _,
+                user_ctx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 if J isa PETSc.AbstractMat
@@ -102,7 +109,10 @@ function SciMLBase.__solve(
             snes.user_ctx = (; jacobian = J_init)
         else
             PJ = PETSc.MatSeqDense(J_init)
-            jac_fn! = @closure (cx, J, _, user_ctx) -> begin
+            jac_fn! = @closure (cx,
+                J,
+                _,
+                user_ctx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 jac!(J, x)

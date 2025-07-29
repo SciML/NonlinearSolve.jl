@@ -23,7 +23,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     if isempty(VERSION.prerelease)
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
-    
+
     @testset "`NonlinearProblem` - $name" for (jac_or_autodiff, name) in autodiff_backends
         if jac_or_autodiff isa Function
             jac = jac_or_autodiff

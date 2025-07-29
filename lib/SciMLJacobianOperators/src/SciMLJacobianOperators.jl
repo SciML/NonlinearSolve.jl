@@ -290,7 +290,8 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
-            return @closure (vJ, v, u, p) -> begin
+            return @closure (
+                vJ, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(vJ), jac_cache', vec(v))
                 return
@@ -307,15 +308,22 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         @assert DI.check_inplace(autodiff) "Backend: $(autodiff) doesn't support in-place \
                                             problems."
         fu_cache = copy(fu)
-        di_extras = DI.prepare_pullback(f, fu_cache, autodiff, u, (fu,), Constant(prob.p), strict=Val(false))
-        return @closure (vJ, v, u, p) -> begin
+        di_extras = DI.prepare_pullback(
+            f, fu_cache, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
+        return @closure (vJ,
+            v,
+            u,
+            p) -> begin
             DI.pullback!(f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
                 u, (reshape(v, size(fu_cache)),), Constant(p))
             return
         end
     else
-        di_extras = DI.prepare_pullback(f, autodiff, u, (fu,), Constant(prob.p), strict=Val(false))
-        return @closure (v, u, p) -> begin
+        di_extras = DI.prepare_pullback(
+            f, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
+        return @closure (v,
+            u,
+            p) -> begin
             return only(DI.pullback(
                 f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)))
         end
@@ -336,7 +344,8 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
-            return @closure (Jv, v, u, p) -> begin
+            return @closure (
+                Jv, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(Jv), jac_cache, vec(v))
                 return
@@ -352,15 +361,22 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         @assert DI.check_inplace(autodiff) "Backend: $(autodiff) doesn't support in-place \
                                             problems."
         fu_cache = copy(fu)
-        di_extras = DI.prepare_pushforward(f, fu_cache, autodiff, u, (u,), Constant(prob.p), strict=Val(false))
-        return @closure (Jv, v, u, p) -> begin
+        di_extras = DI.prepare_pushforward(
+            f, fu_cache, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
+        return @closure (Jv,
+            v,
+            u,
+            p) -> begin
             DI.pushforward!(f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
                 autodiff, u, (reshape(v, size(u)),), Constant(p))
             return
         end
     else
-        di_extras = DI.prepare_pushforward(f, autodiff, u, (u,), Constant(prob.p), strict=Val(false))
-        return @closure (v, u, p) -> begin
+        di_extras = DI.prepare_pushforward(
+            f, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
+        return @closure (v,
+            u,
+            p) -> begin
             return only(DI.pushforward(
                 f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)))
         end
@@ -375,7 +391,7 @@ function prepare_scalar_op(::Val{false}, prob::AbstractNonlinearProblem,
 
     @assert autodiff!==nothing "`autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jvp` or `jac`."
-    di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p), strict=Val(false))
+    di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p), strict = Val(false))
     return @closure (v, u, p) -> DI.derivative(f, di_extras, autodiff, u, Constant(p)) * v
 end
 

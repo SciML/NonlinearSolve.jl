@@ -38,7 +38,8 @@ details.
 
 ```@example snes_ex2
 nlfunc_dense = NLS.NonlinearFunction(form_residual!)
-nlfunc_sparse = NLS.NonlinearFunction(form_residual!; sparsity = SparseConnectivityTracer.TracerSparsityDetector())
+nlfunc_sparse = NLS.NonlinearFunction(
+    form_residual!; sparsity = SparseConnectivityTracer.TracerSparsityDetector())
 
 nlprob_dense = NLS.NonlinearProblem(nlfunc_dense, u0)
 nlprob_sparse = NLS.NonlinearProblem(nlfunc_sparse, u0)

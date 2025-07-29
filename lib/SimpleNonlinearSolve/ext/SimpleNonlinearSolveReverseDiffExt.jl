@@ -26,7 +26,8 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
             tp, p_changed, alg, args...; kwargs...)
         u0, p = ReverseDiff.value(tu0), ReverseDiff.value(tp)
         prob = remake(tprob; u0, p)
-        out, ∇internal = solve_adjoint(
+        out,
+        ∇internal = solve_adjoint(
             prob, sensealg, u0, p, ReverseDiffOriginator(), alg, args...; kwargs...)
 
         function ∇simplenonlinearsolve_solve_up(Δ...)

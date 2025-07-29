@@ -47,13 +47,15 @@ end
 
 p_init = zeros(4)
 
-nlls_prob = NLS.NonlinearLeastSquaresProblem(loss_function, p_init, vec(reduce(hcat, sol.u)))
+nlls_prob = NLS.NonlinearLeastSquaresProblem(
+    loss_function, p_init, vec(reduce(hcat, sol.u)))
 ```
 
 Now, we can use any NLLS solver to solve this problem.
 
 ```@example parameterized_ode
-res = NLS.solve(nlls_prob, NLS.LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
+res = NLS.solve(
+    nlls_prob, NLS.LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
     trace_level = NLS.TraceWithJacobianConditionNumber(25))
 nothing # hide
 ```

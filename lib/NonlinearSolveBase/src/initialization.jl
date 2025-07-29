@@ -24,7 +24,8 @@ function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
     if alg === nothing && cache isa AbstractNonlinearSolveCache
         alg = cache.alg
     end
-    u0, p, success = SciMLBase.get_initial_values(
+    u0, p,
+    success = SciMLBase.get_initial_values(
         prob, cache, prob.f, initalg, isinplace; nlsolve_alg = alg,
         abstol = get_abstol(cache), reltol = get_reltol(cache))
     cache = update_initial_values!(cache, u0, p)
