@@ -26,8 +26,8 @@ jobs:
       - uses: julia-actions/julia-downgrade-compat@v2
         with:
           skip: Pkg,TOML
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/julia-buildpkg@v1.7.0
+      - uses: julia-actions/julia-runtest@v1.11.2
         with:
           ALLOW_RERESOLVE: false
         env:

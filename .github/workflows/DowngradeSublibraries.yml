@@ -38,10 +38,10 @@ jobs:
         with:
           project: ${{ matrix.project }}
           skip: Pkg,TOML
-      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-buildpkg@v1.7.0
         with:
           project: ${{ matrix.project }}
-      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/julia-runtest@v1.11.2
         with:
           project: ${{ matrix.project }}
           ALLOW_RERESOLVE: false
