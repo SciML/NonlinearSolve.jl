@@ -123,8 +123,8 @@ function SciMLBase.__init(
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-        verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
-                          immutable (checked using `ArrayInterface.ismutable`)."
+        @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is 
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable, :error_control)
         alias_u0 = false  # If immutable don't care about aliasing
     end
 

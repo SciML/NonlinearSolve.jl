@@ -182,15 +182,15 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
     if f.sparsity === nothing
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
-                @SciMLMessage("`colorvec` is provided but `sparsity` and `jac_prototype` is not \
-                       specified. `colorvec` will be ignored.", nonlinear_verbose[], :colorvec_no_prototype, :performance )
+                @warn "`colorvec` is provided but `sparsity` and `jac_prototype` is not \
+                       specified. `colorvec` will be ignored."
             end
             return ad # No sparse AD
         else
             if !sparse_or_structured_prototype(f.jac_prototype)
                 if SciMLBase.has_colorvec(f)
-                    @SciMLMessage("`colorvec` is provided but `jac_prototype` is not a sparse \
-                           or structured matrix. `colorvec` will be ignored.", nonlinear_verbose[], :colorvec_non_sparse, :performance)
+                    @warn "`colorvec` is provided but `jac_prototype` is not a sparse \
+                           or structured matrix. `colorvec` will be ignored."
                 end
                 return ad
             end

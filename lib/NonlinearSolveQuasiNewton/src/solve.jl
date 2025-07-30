@@ -151,6 +151,7 @@ function SciMLBase.__init(
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
+        verbose = NonlinearVerbosity(),
         kwargs...
 ) where {F}
     timer = get_timer_output()
@@ -233,7 +234,7 @@ function SciMLBase.__init(
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             inv_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
             alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs, initializealg
+            ReturnCode.Default, false, false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -335,10 +336,10 @@ function InternalAPI.step!(
             return
         else
             # Force a reinit because the problem is currently un-solvable
-            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
-                @warn "Linear Solve Failed but Jacobian Information is not current. \
-                       Retrying with reinitialized Approximate Jacobian."
-            end
+            
+            @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent, :error_control)
+
             cache.force_reinit = true
             InternalAPI.step!(cache; recompute_jacobian = true)
             return
