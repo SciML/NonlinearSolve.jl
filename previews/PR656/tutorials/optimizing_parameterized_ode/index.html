@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Optimizing a Parameterized ODE · NonlinearSolve.jl</title><meta name="title" content="Optimizing a Parameterized ODE · NonlinearSolve.jl"/><meta property="og:title" content="Optimizing a Parameterized ODE · NonlinearSolve.jl"/><meta property="twitter:title" content="Optimizing a Parameterized ODE · NonlinearSolve.jl"/><meta name="description" content="Documentation for NonlinearSolve.jl."/><meta property="og:description" content="Documentation for NonlinearSolve.jl."/><meta property="twitter:description" content="Documentation for NonlinearSolve.jl."/><meta property="og:url" content="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/optimizing_parameterized_ode/"/><meta property="twitter:url" content="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/optimizing_parameterized_ode/"/><link rel="canonical" href="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/optimizing_parameterized_ode/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NonlinearSolve.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NonlinearSolve.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NonlinearSolve.jl: High-Performance Unified Nonlinear Solvers</a></li><li><a class="tocitem" href="../getting_started/">Getting Started with Nonlinear Rootfinding in Julia</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../code_optimization/">Code Optimization for Small Nonlinear Systems in Julia</a></li><li><a class="tocitem" href="../large_systems/">Efficiently Solving Large Sparse Ill-Conditioned Nonlinear Systems in Julia</a></li><li><a class="tocitem" href="../modelingtoolkit/">Symbolic Nonlinear System Definition and Acceleration via ModelingToolkit</a></li><li><a class="tocitem" href="../small_compile/">Faster Startup and and Static Compilation</a></li><li><a class="tocitem" href="../iterator_interface/">Nonlinear Solver Iterator Interface</a></li><li class="is-active"><a class="tocitem" href>Optimizing a Parameterized ODE</a></li><li><a class="tocitem" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs</a></li><li><a class="tocitem" href="../snes_ex2/">PETSc SNES Example 2</a></li></ul></li><li><span class="tocitem">Basics</span><ul><li><a class="tocitem" href="../../basics/nonlinear_problem/">Nonlinear Problems</a></li><li><a class="tocitem" href="../../basics/nonlinear_functions/">Nonlinear Functions and Jacobian Types</a></li><li><a class="tocitem" href="../../basics/solve/">Common Solver Options (Solve Keyword Arguments)</a></li><li><a class="tocitem" href="../../basics/nonlinear_solution/">Nonlinear Solutions</a></li><li><a class="tocitem" href="../../basics/autodiff/">Automatic Differentiation Backends</a></li><li><a class="tocitem" href="../../basics/termination_condition/">Termination Conditions</a></li><li><a class="tocitem" href="../../basics/diagnostics_api/">Diagnostics API</a></li><li><a class="tocitem" href="../../basics/sparsity_detection/">(Semi-)Automatic Sparsity Detection</a></li><li><a class="tocitem" href="../../basics/faq/">Frequently Asked Questions</a></li></ul></li><li><span class="tocitem">Solver Summaries and Recommendations</span><ul><li><a class="tocitem" href="../../solvers/nonlinear_system_solvers/">Nonlinear System Solvers</a></li><li><a class="tocitem" href="../../solvers/bracketing_solvers/">Interval Root-Finding Methods (Bracketing Solvers)</a></li><li><a class="tocitem" href="../../solvers/steady_state_solvers/">Steady State Solvers</a></li><li><a class="tocitem" href="../../solvers/nonlinear_least_squares_solvers/">Nonlinear Least Squares Solvers</a></li><li><a class="tocitem" href="../../solvers/fixed_point_solvers/">Fixed Point Solvers</a></li></ul></li><li><span class="tocitem">Native Functionalities</span><ul><li><a class="tocitem" href="../../native/solvers/">NonlinearSolve.jl Solvers</a></li><li><a class="tocitem" href="../../native/simplenonlinearsolve/">SimpleNonlinearSolve.jl</a></li><li><a class="tocitem" href="../../native/bracketingnonlinearsolve/">BracketingNonlinearSolve.jl</a></li><li><a class="tocitem" href="../../native/steadystatediffeq/">SteadyStateDiffEq.jl</a></li><li><a class="tocitem" href="../../native/descent/">Descent Subroutines</a></li><li><a class="tocitem" href="../../native/globalization/">Globalization Subroutines</a></li><li><a class="tocitem" href="../../native/diagnostics/">Diagnostics API</a></li></ul></li><li><span class="tocitem">Wrapped Solver APIs</span><ul><li><a class="tocitem" href="../../api/fastlevenbergmarquardt/">FastLevenbergMarquardt.jl</a></li><li><a class="tocitem" href="../../api/fixedpointacceleration/">FixedPointAcceleration.jl</a></li><li><a class="tocitem" href="../../api/leastsquaresoptim/">LeastSquaresOptim.jl</a></li><li><a class="tocitem" href="../../api/minpack/">MINPACK.jl</a></li><li><a class="tocitem" href="../../api/nlsolve/">NLsolve.jl</a></li><li><a class="tocitem" href="../../api/nlsolvers/">NLSolvers.jl</a></li><li><a class="tocitem" href="../../api/petsc/">PETSc.jl</a></li><li><a class="tocitem" href="../../api/scipy/">SciPy</a></li><li><a class="tocitem" href="../../api/siamfanlequations/">SIAMFANLEquations.jl</a></li><li><a class="tocitem" href="../../api/speedmapping/">SpeedMapping.jl</a></li><li><a class="tocitem" href="../../api/sundials/">Sundials.jl</a></li><li><a class="tocitem" href="../../api/homotopycontinuation/">HomotopyContinuation.jl</a></li></ul></li><li><span class="tocitem">Sub-Packages</span><ul><li><a class="tocitem" href="../../api/SciMLJacobianOperators/">SciMLJacobianOperators.jl</a></li></ul></li><li><span class="tocitem">Development Documentation</span><ul><li><a class="tocitem" href="../../devdocs/internal_interfaces/">Internal Abstract Types</a></li><li><a class="tocitem" href="../../devdocs/linear_solve/">Linear Solve</a></li><li><a class="tocitem" href="../../devdocs/jacobian/">Jacobian Wrappers</a></li><li><a class="tocitem" href="../../devdocs/operators/">Custom SciML Operators</a></li><li><a class="tocitem" href="../../devdocs/algorithm_helpers/">Internal Algorithm Helpers</a></li></ul></li><li><a class="tocitem" href="../../release_notes/">Release Notes</a></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Optimizing a Parameterized ODE</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Optimizing a Parameterized ODE</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NonlinearSolve.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NonlinearSolve.jl/blob/master/docs/src/tutorials/optimizing_parameterized_ode.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="optimizing-parameterized-ode"><a class="docs-heading-anchor" href="#optimizing-parameterized-ode">Optimizing a Parameterized ODE</a><a id="optimizing-parameterized-ode-1"></a><a class="docs-heading-anchor-permalink" href="#optimizing-parameterized-ode" title="Permalink"></a></h1><p>Let us fit a parameterized ODE to some data. We will use the Lotka-Volterra model as an example. We will use Single Shooting to fit the parameters.</p><pre><code class="language-julia hljs">import OrdinaryDiffEqTsit5 as ODE
+import NonlinearSolve as NLS
+import Plots</code></pre><p>Let us simulate some real data from the Lotka-Volterra model.</p><pre><code class="language-julia hljs">function lotka_volterra!(du, u, p, t)
+    x, y = u
+    α, β, δ, γ = p
+    du[1] = dx = α * x - β * x * y
+    du[2] = dy = -δ * y + γ * x * y
+end
+
+# Initial condition
+u0 = [1.0, 1.0]
+
+# Simulation interval and intermediary points
+tspan = (0.0, 2.0)
+tsteps = 0.0:0.1:10.0
+
+# LV equation parameter. p = [α, β, δ, γ]
+p = [1.5, 1.0, 3.0, 1.0]
+
+# Setup the ODE problem, then solve
+prob = ODE.ODEProblem(lotka_volterra!, u0, tspan, p)
+sol = ODE.solve(prob, ODE.Tsit5(); saveat = tsteps)
+
+# Plot the solution
+Plots.plot(sol; linewidth = 3)</code></pre><img src="8dcfc9eb.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
+    sol = ODE.solve(prob, ODE.Tsit5(); p = ode_param, saveat = tsteps)
+    return vec(reduce(hcat, sol.u)) .- data
+end
+
+p_init = zeros(4)
+
+nlls_prob = NLS.NonlinearLeastSquaresProblem(loss_function, p_init, vec(reduce(hcat, sol.u)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_2" style="color:#56b6c2">NonlinearLeastSquaresProblem</span> with uType <span class="sgr38_2" style="color:#56b6c2">Vector{Float64}</span>. In-place: <span class="sgr38_2" style="color:#56b6c2">false</span>
+u0: 4-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.0
+ 0.0</code></pre><p>Now, we can use any NLLS solver to solve this problem.</p><pre><code class="language-julia hljs">res = NLS.solve(nlls_prob, NLS.LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
+    trace_level = NLS.TraceWithJacobianConditionNumber(25))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
+Algorithm: <span class="sgr32"><span class="sgr1">LevenbergMarquardt(</span></span>
+<span class="sgr32"><span class="sgr1">    trustregion = LevenbergMarquardtTrustRegion(</span></span>
+<span class="sgr32"><span class="sgr1">        β_uphill = 1.0</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    descent = GeodesicAcceleration(</span></span>
+<span class="sgr32"><span class="sgr1">        descent = DampedNewtonDescent(</span></span>
+<span class="sgr32"><span class="sgr1">            initial_damping = 1.0,</span></span>
+<span class="sgr32"><span class="sgr1">            damping_fn = LevenbergMarquardtDampingFunction(</span></span>
+<span class="sgr32"><span class="sgr1">                increase_factor = 2.0,</span></span>
+<span class="sgr32"><span class="sgr1">                decrease_factor = 3.0,</span></span>
+<span class="sgr32"><span class="sgr1">                min_damping = 1.0e-8</span></span>
+<span class="sgr32"><span class="sgr1">            )</span></span>
+<span class="sgr32"><span class="sgr1">        ),</span></span>
+<span class="sgr32"><span class="sgr1">        finite_diff_step_geodesic = 0.1,</span></span>
+<span class="sgr32"><span class="sgr1">        α = 0.75</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    autodiff = AutoForwardDiff(),</span></span>
+<span class="sgr32"><span class="sgr1">    vjp_autodiff = AutoFiniteDiff(</span></span>
+<span class="sgr32"><span class="sgr1">        fdtype = Val{:forward}(),</span></span>
+<span class="sgr32"><span class="sgr1">        fdjtype = Val{:forward}(),</span></span>
+<span class="sgr32"><span class="sgr1">        fdhtype = Val{:hcentral}(),</span></span>
+<span class="sgr32"><span class="sgr1">        dir = true</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    jvp_autodiff = AutoForwardDiff(),</span></span>
+<span class="sgr32"><span class="sgr1">    concrete_jac = Val{true}()</span></span>
+<span class="sgr32"><span class="sgr1">)</span></span>
+
+----    	-------------       	-----------         	-------
+Iter    	f(u) 2-norm         	Step 2-norm         	cond(J)
+----    	-------------       	-----------         	-------
+0       	1.46131516e+01      	0.00000000e+00      	2.99618417e+16
+1       	1.46131516e+01      	0.00000000e+00      	2.99618417e+16
+26      	2.72610330e-11      	4.35850194e-10      	2.99618417e+16
+51      	7.54288070e-13      	0.00000000e+00      	2.99618417e+16
+76      	7.17990228e-13      	2.43201875e-16      	2.99618417e+16
+101     	6.97021694e-13      	0.00000000e+00      	2.99618417e+16
+126     	6.57107897e-13      	0.00000000e+00      	2.99618417e+16
+Final   	6.43121349e-13
+----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: StalledSuccess
+u: 4-element Vector{Float64}:
+ 1.5000000000000473
+ 0.999999999999845
+ 2.9999999999991998
+ 0.9999999999997532</code></pre><p>We can also use Trust Region methods.</p><pre><code class="language-julia hljs">res = NLS.solve(nlls_prob, NLS.TrustRegion(); maxiters = 1000, show_trace = Val(true),
+    trace_level = NLS.TraceWithJacobianConditionNumber(25))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
+Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
+<span class="sgr32"><span class="sgr1">    trustregion = GenericTrustRegionScheme(</span></span>
+<span class="sgr32"><span class="sgr1">        method = __Simple(),</span></span>
+<span class="sgr32"><span class="sgr1">        step_threshold = 1//10000,</span></span>
+<span class="sgr32"><span class="sgr1">        shrink_threshold = 1//4,</span></span>
+<span class="sgr32"><span class="sgr1">        shrink_factor = 1//4,</span></span>
+<span class="sgr32"><span class="sgr1">        expand_factor = 2//1,</span></span>
+<span class="sgr32"><span class="sgr1">        expand_threshold = 3//4,</span></span>
+<span class="sgr32"><span class="sgr1">        max_trust_radius = 0//1,</span></span>
+<span class="sgr32"><span class="sgr1">        initial_trust_radius = 0//1</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    descent = Dogleg(</span></span>
+<span class="sgr32"><span class="sgr1">        newton_descent = NewtonDescent(),</span></span>
+<span class="sgr32"><span class="sgr1">        steepest_descent = SteepestDescent()</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    max_shrink_times = 32,</span></span>
+<span class="sgr32"><span class="sgr1">    autodiff = AutoForwardDiff(),</span></span>
+<span class="sgr32"><span class="sgr1">    vjp_autodiff = AutoFiniteDiff(</span></span>
+<span class="sgr32"><span class="sgr1">        fdtype = Val{:forward}(),</span></span>
+<span class="sgr32"><span class="sgr1">        fdjtype = Val{:forward}(),</span></span>
+<span class="sgr32"><span class="sgr1">        fdhtype = Val{:hcentral}(),</span></span>
+<span class="sgr32"><span class="sgr1">        dir = true</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    jvp_autodiff = AutoForwardDiff(),</span></span>
+<span class="sgr32"><span class="sgr1">    concrete_jac = Val{false}()</span></span>
+<span class="sgr32"><span class="sgr1">)</span></span>
+
+----    	-------------       	-----------         	-------
+Iter    	f(u) 2-norm         	Step 2-norm         	cond(J)
+----    	-------------       	-----------         	-------
+0       	1.46131516e+01      	0.00000000e+00      	2.99618417e+16
+1       	1.46131516e+01      	0.00000000e+00      	2.99618417e+16
+Final   	1.90451010e-13
+----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
+u: 4-element Vector{Float64}:
+ 1.4999999999999987
+ 1.0000000000000313
+ 3.0000000000001714
+ 1.0000000000000542</code></pre><p>Let&#39;s plot the solution.</p><pre><code class="language-julia hljs">prob2 = ODE.remake(prob; tspan = (0.0, 10.0))
+sol_fit = ODE.solve(prob2, ODE.Tsit5(); p = res.u)
+sol_true = ODE.solve(prob2, ODE.Tsit5(); p = p)
+Plots.plot(sol_true; linewidth = 3)
+Plots.plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="c721d515.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 30 July 2025 10:24">Wednesday 30 July 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
