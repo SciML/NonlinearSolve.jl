@@ -29,7 +29,6 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
 using Printf: @printf
-using Base.ScopedValues
 
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
@@ -37,8 +36,6 @@ const SII = SymbolicIndexingInterface
 include("public.jl")
 include("utils.jl")
 include("verbosity.jl")
-
-const nonlinear_verbose = ScopedValue{Union{NonlinearVerbosity{true}, NonlinearVerbosity{false}}}()
 
 include("abstract_types.jl")
 include("common_defaults.jl")
