@@ -95,6 +95,8 @@ end
 
     # Initialization
     initializealg
+
+    verbose
 end
 
 function SciMLBase.get_du(cache::QuasiNewtonCache)

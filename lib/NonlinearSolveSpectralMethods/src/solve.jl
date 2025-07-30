@@ -70,6 +70,8 @@ end
     kwargs
 
     initializealg
+
+    verbose
 end
 
 function SciMLBase.get_du(cache::GeneralizedDFSaneCache)
