@@ -224,15 +224,8 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
         verbose = NonlinearVerbosity(), linsolve_kwargs = (;), kwargs...
 )
-    if !haskey(linsolve_kwargs, :verbose)
-            linsolve_kwargs = merge(
-                linsolve_kwargs, (; verbose = verbose.linear_verbosity))
-    end
-
-    @with nonlinear_verbose => verbose begin
-        cache = SciMLBase.__init(prob, alg, args...; linsolve_kwargs, kwargs...)
+        cache = SciMLBase.__init(prob, alg, args...; kwargs...)
         sol = CommonSolve.solve!(cache)
-    end
 
     return sol
 end
@@ -538,6 +531,8 @@ end
     initializealg
 
     retcode::ReturnCode.T
+
+    verbose
 end
 
 function get_abstol(cache::NonlinearSolveNoInitCache)
