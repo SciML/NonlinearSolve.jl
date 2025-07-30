@@ -96,6 +96,8 @@ end
 
     # Initialization
     initializealg
+
+    verbose
 end
 
 function NonlinearSolveBase.get_abstol(cache::QuasiNewtonCache)

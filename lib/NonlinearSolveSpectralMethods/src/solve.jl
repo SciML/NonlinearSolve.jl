@@ -70,6 +70,8 @@ end
     kwargs
 
     initializealg
+
+    verbose
 end
 
 function InternalAPI.reinit_self!(
