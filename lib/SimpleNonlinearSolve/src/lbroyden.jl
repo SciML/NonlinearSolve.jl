@@ -36,7 +36,7 @@ end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
-        args...; termination_condition = nothing, kwargs...)
+        args...; termination_condition = nothing, verbose = NonlinearVerbosity(), kwargs...)
     if prob.u0 isa SArray
         if termination_condition === nothing ||
            termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
@@ -44,10 +44,10 @@ function SciMLBase.__solve(
                 prob, alg, args...; termination_condition, kwargs...
             )
         end
-        @warn "Specifying `termination_condition = $(termination_condition)` for \
+        @SciMLMessage("Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
                either `termination_condition = AbsNormTerminationMode(Base.Fix2(norm, Inf))` \
-               or `termination_condition = nothing`." maxlog=1
+               or `termination_condition = nothing`.", verbose, :termination_condition, :error_control)
     end
     return internal_generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
