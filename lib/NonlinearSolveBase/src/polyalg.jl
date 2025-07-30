@@ -61,6 +61,8 @@ end
     alias_u0::Bool
 
     initializealg
+
+    verbose
 end
 
 function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
