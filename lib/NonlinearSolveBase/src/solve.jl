@@ -221,11 +221,9 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
 end
 
 function SciMLBase.__solve(
-        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        verbose = NonlinearVerbosity(), linsolve_kwargs = (;), kwargs...
-)
-        cache = SciMLBase.__init(prob, alg, args...; kwargs...)
-        sol = CommonSolve.solve!(cache)
+        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
+    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    sol = CommonSolve.solve!(cache)
 
     return sol
 end
@@ -386,8 +384,8 @@ end
     calls = [quote
         current = alg.start_index
         if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-            verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
-                              immutable (checked using `ArrayInterface.ismutable`)."
+            @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable, :error_control)
             alias_u0 = false  # If immutable don't care about aliasing
         end
     end]
@@ -565,11 +563,11 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        initializealg = NonlinearSolveDefaultInit(),
+        initializealg = NonlinearSolveDefaultInit(), verbose = NonlinearVerbosity(),
         kwargs...
 )
     cache = NonlinearSolveNoInitCache(
-        prob, alg, args, kwargs, initializealg, ReturnCode.Default)
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose)
     run_initialization!(cache)
     return cache
 end

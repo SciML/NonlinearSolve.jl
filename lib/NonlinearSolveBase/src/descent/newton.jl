@@ -39,6 +39,10 @@ function InternalAPI.init(
     if Utils.unwrap_val(pre_inverted)
         lincache = nothing
     else
+        if haskey(kwargs, :verbose) 
+            linsolve_kwargs = merge((verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
+        end
+
         lincache = construct_linear_solver(
             alg, alg.linsolve, J, Utils.safe_vec(fu), Utils.safe_vec(u);
             stats, abstol, reltol, linsolve_kwargs...
@@ -70,6 +74,11 @@ function InternalAPI.init(
     else
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, Utils.safe_vec(fu)
+    end
+
+    if haskey(kwargs, :verbose)
+        linsolve_kwargs = merge(
+            (verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
     end
 
     lincache = construct_linear_solver(
