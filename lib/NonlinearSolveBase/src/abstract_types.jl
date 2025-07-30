@@ -280,6 +280,7 @@ the cache:
   - `maxtime`: the maximum time limit for the solver. (Optional)
   - `timer`: the timer for the solver. (Optional)
   - `total_time`: the total time taken by the solver. (Optional)
+  - `verbose`: a verbosity object that contains options determining what log messages are emitted. 
 """
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 

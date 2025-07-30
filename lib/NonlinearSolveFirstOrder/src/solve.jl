@@ -124,7 +124,7 @@ function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
-        termination_condition = nothing, internalnorm = L2_NORM,
+        termination_condition = nothing, internalnorm = L2_NORM, verbose = NonlinearVerbosity(),
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 )
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
@@ -216,7 +216,7 @@ function SciMLBase.__init(
             jac_cache, descent_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
-            initializealg
+            initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -260,10 +260,8 @@ function InternalAPI.step!(
             return
         else
             # Jacobian Information is not current and linear solve failed, recompute it
-            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
-                @warn "Linear Solve Failed but Jacobian Information is not current. \
-                       Retrying with updated Jacobian."
-            end
+            @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent, :error_control)
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
             InternalAPI.step!(cache; recompute_jacobian = true, kwargs...)

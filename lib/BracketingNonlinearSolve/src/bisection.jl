@@ -47,7 +47,7 @@ function SciMLBase.__solve(
     if sign(fl) == sign(fr)
         @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
-        nonlinear_verbose[], :non_enclosing_interval, :error_control)
+        verbose, :non_enclosing_interval, :error_control)
         return SciMLBase.build_solution(
             prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
         )
