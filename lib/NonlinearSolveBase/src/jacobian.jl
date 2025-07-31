@@ -225,8 +225,8 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         sparsity_detector = f.sparsity
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
-                @SciMLMessage("`colorvec` is provided but `jac_prototype` is not specified. \
-                       `colorvec` will be ignored.", nonlinear_verbose[], :colorvec_no_prototype, :performance)
+                @warn "`colorvec` is provided but `jac_prototype` is not specified. \
+                       `colorvec` will be ignored."
             end
             coloring_algorithm = select_fastest_coloring_algorithm(nothing, f, ad)
             coloring_algorithm === nothing && return ad
@@ -234,9 +234,9 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         else
             if sparse_or_structured_prototype(f.jac_prototype)
                 if !(sparsity_detector isa NoSparsityDetector)
-                    @SciMLMessage("`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
+                    @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
                            has also been specified. Ignoring sparsity field and using \
-                           `jac_prototype` sparsity.", nonlinear_verbose[], :sparsity_using_jac_prototype, :performance)
+                           `jac_prototype` sparsity."
                 end
                 sparsity_detector = KnownJacobianSparsityDetector(f.jac_prototype)
             end
@@ -257,8 +257,8 @@ end
 function select_fastest_coloring_algorithm(
         prototype, f::NonlinearFunction, ad::AbstractADType)
     if !Utils.is_extension_loaded(Val(:SparseMatrixColorings))
-        @SciMLMessage("`SparseMatrixColorings` must be explicitly imported for sparse automatic \
-               differentiation to work. Proceeding with Dense Automatic Differentiation.", nonlinear_verbose[], :sparse_matrix_colorings_not_loaded, :performance)
+        @warn "`SparseMatrixColorings` must be explicitly imported for sparse automatic \
+               differentiation to work. Proceeding with Dense Automatic Differentiation."
         return nothing
     end
     return select_fastest_coloring_algorithm(Val(:SparseMatrixColorings), prototype, f, ad)
