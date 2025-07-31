@@ -9,7 +9,7 @@ nonlinear_verbosity_defaults = Dict(
     :sparsity_using_jac_prototype => Verbosity.Warn(),
     :sparse_matrixcolorings_not_loaded => Verbosity.Warn(),
     :alias_u0_immutable => Verbosity.Warn(),
-    :linsovle_failed_noncurrent => Verbosity.Warn(),
+    :linsolve_failed_noncurrent => Verbosity.Warn(),
     :jacobian_free => Verbosity.Warn(),
     :termination_condition => Verbosity.Warn(),
     :threshold_state => Verbosity.Warn(),
@@ -17,7 +17,7 @@ nonlinear_verbosity_defaults = Dict(
 )
 
 
-struct NonlinearErrorControlVerbosity
+mutable struct NonlinearErrorControlVerbosity
     immutable_u0::Verbosity.Type
     non_enclosing_interval::Verbosity.Type
     non_forward_mode::Verbosity.Type
@@ -64,7 +64,7 @@ function NonlinearErrorControlVerbosity(verbose::Verbosity.Type)
     end
 end
 
-struct NonlinearPerformanceVerbosity
+mutable struct NonlinearPerformanceVerbosity
     colorvec_non_sparse::Verbosity.Type
     colorvec_no_prototype::Verbosity.Type
     sparsity_using_jac_prototype::Verbosity.Type
