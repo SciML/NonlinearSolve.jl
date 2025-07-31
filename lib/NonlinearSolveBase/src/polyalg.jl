@@ -143,7 +143,7 @@ function SciMLBase.__init(
         end,
         alg, -1, alg.start_index, 0, stats, 0.0, maxtime,
         ReturnCode.Default, false, maxiters, internalnorm,
-        u0, u0_aliased, alias_u0, initializealg
+        u0, u0_aliased, alias_u0, initializealg, verbose
     )
     run_initialization!(cache)
     return cache
