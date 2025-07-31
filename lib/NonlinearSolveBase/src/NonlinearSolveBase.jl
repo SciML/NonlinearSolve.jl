@@ -17,7 +17,7 @@ using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
-                 AbstractNonlinearAlgorithm, 
+                 AbstractNonlinearAlgorithm,
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
                  LinearAliasSpecifier, ImmutableNonlinearProblem
@@ -71,7 +71,7 @@ include("forward_diff.jl")
 @compat(public, (construct_jacobian_cache,))
 @compat(public,
     (assert_extension_supported_termination_condition,
-        construct_extension_function_wrapper, construct_extension_jac))
+    construct_extension_function_wrapper, construct_extension_jac))
 
 export TraceMinimal, TraceWithJacobianConditionNumber, TraceAll
 

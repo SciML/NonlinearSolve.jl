@@ -15,7 +15,8 @@ function SciMLBase.__solve(
     T = eltype(x)
     fx = NLBUtils.evaluate_f(prob, x)
 
-    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+    abstol, reltol,
+    tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 

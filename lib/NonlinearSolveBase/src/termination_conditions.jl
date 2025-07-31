@@ -98,7 +98,7 @@ function SciMLBase.reinit!(
     length(saved_value_prototype) != 0 && (cache.saved_values = saved_value_prototype)
 
     mode = cache.mode
-    if u isa Number ||  !ArrayInterface.can_setindex(u)
+    if u isa Number || !ArrayInterface.can_setindex(u)
         cache.u = u
     else
         cache.u .= u
@@ -151,7 +151,6 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractSafeNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
 )
-
     if mode isa AbsNormSafeTerminationMode || mode isa AbsNormSafeBestTerminationMode
         objective = Utils.apply_norm(mode.internalnorm, du)
         criteria = abstol

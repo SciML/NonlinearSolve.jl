@@ -153,7 +153,8 @@ function SciMLBase.__init(
 
         linsolve = NonlinearSolveBase.get_linear_solver(alg.descent)
 
-        abstol, reltol, termination_cache = NonlinearSolveBase.init_termination_cache(
+        abstol, reltol,
+        termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
         linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
@@ -288,7 +289,8 @@ function InternalAPI.step!(
             end
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new, fu_new = InternalAPI.solve!(
+                tr_accepted, u_new,
+                fu_new = InternalAPI.solve!(
                     cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
                 )
                 if tr_accepted

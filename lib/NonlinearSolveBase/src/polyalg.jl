@@ -162,8 +162,8 @@ end
                     if !NonlinearSolveBase.not_terminated($(cache_syms[i]))
                         # If a NonlinearLeastSquaresProblem StalledSuccess, try the next
                         # solver to see if you get a lower residual
-                        if SciMLBase.successful_retcode($(cache_syms[i]).retcode) && 
-                            $(cache_syms[i]).retcode != ReturnCode.StalledSuccess
+                        if SciMLBase.successful_retcode($(cache_syms[i]).retcode) &&
+                           $(cache_syms[i]).retcode != ReturnCode.StalledSuccess
                             cache.best = $(i)
                             cache.force_stop = true
                             cache.retcode = $(cache_syms[i]).retcode
