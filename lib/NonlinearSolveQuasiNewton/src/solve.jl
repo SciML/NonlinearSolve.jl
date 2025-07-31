@@ -173,7 +173,7 @@ function SciMLBase.__init(
         termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
-        linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
+        linsolve_kwargs = merge((;verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
 
