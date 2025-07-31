@@ -13,7 +13,8 @@ function ChainRulesCore.rrule(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         sensealg, u0, u0_changed, p, p_changed, alg, args...; kwargs...
 )
-    out, ∇internal = solve_adjoint(
+    out,
+    ∇internal = solve_adjoint(
         prob, sensealg, u0, p, ChainRulesOriginator(), alg, args...; kwargs...
     )
     function ∇simplenonlinearsolve_solve_up(Δ)

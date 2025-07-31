@@ -130,7 +130,8 @@ function SciMLBase.__init(
 
         linesearch_cache = CommonSolve.init(prob, alg.linesearch, fu, u; stats, kwargs...)
 
-        abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+        abstol, reltol,
+        tc_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u_cache, termination_condition, Val(:regular)
         )
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(

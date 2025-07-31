@@ -33,7 +33,8 @@ for algType in EXTENSION_SOLVER_TYPES
     @eval function SciMLBase.__solve(
             prob::DualAbstractNonlinearProblem, alg::$(algType), args...; kwargs...
     )
-        sol, partials = NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
+        sol,
+        partials = NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
             prob, alg, args...; kwargs...
         )
         dual_soln = NonlinearSolveBase.nonlinearsolve_dual_solution(sol.u, partials, prob.p)

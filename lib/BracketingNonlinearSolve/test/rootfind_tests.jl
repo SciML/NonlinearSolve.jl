@@ -18,7 +18,7 @@ end
 
         @testset for p in 1.1:0.1:100.0
             @test g(p)≈sqrt(p) atol=1e-3 rtol=1e-3
-            @test ForwardDiff.derivative(g, p)≈1 / (2 * sqrt(p)) atol=1e-3 rtol=1e-3
+            @test ForwardDiff.derivative(g, p)≈1/(2*sqrt(p)) atol=1e-3 rtol=1e-3
         end
 
         t = (p) -> [sqrt(p[2] / p[1])]
@@ -30,7 +30,7 @@ end
             return [sol.u]
         end
 
-        @test g2(p)≈[sqrt(p[2] / p[1])] atol=1e-3 rtol=1e-3
+        @test g2(p)≈[sqrt(p[2]/p[1])] atol=1e-3 rtol=1e-3
         @test ForwardDiff.jacobian(g2, p)≈ForwardDiff.jacobian(t, p) atol=1e-3 rtol=1e-3
 
         probB = IntervalNonlinearProblem{false}(quadratic_f, (1.0, 2.0), 2.0)
@@ -50,8 +50,8 @@ end
 end
 
 @testitem "Tolerance Tests Interval Methods" setup=[RootfindingTestSnippet] tags=[:core] begin
-    prob = IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
-    ϵ = eps(Float64) # least possible tol for all methods
+    prob=IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
+    ϵ=eps(Float64) # least possible tol for all methods
 
     @testset for alg in (Bisection(), Falsi(), ITP(), Muller(), nothing)
         @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6]

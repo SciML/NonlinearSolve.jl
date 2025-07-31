@@ -12,5 +12,5 @@ const NTHREADS = 1
 ReTestItems.runtests(
     NonlinearSolveSciPy; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
     nworkers = NWORKERS, nworker_threads = NTHREADS,
-    testitem_timeout = 3600,
-) 
+    testitem_timeout = 3600
+)

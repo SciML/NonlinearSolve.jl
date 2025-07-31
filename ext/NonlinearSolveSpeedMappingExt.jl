@@ -16,7 +16,8 @@ function SciMLBase.__solve(
         termination_condition, alg
     )
 
-    m!, u, resid = NonlinearSolveBase.construct_extension_function_wrapper(
+    m!, u,
+    resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, make_fixed_point = Val(true)
     )
     tol = NonlinearSolveBase.get_tolerance(abstol, eltype(u))
