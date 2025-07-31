@@ -31,7 +31,7 @@ using the first form.
 In this tutorial we will highlight both use cases in separate parts.
 
 !!! note
-
+    
     If you're looking for GPU-accelerated neural networks inside of nonlinear solvers,
     check out [DeepEquilibriumNetworks.jl](https://docs.sciml.ai/DeepEquilibriumNetworks/stable/).
 
@@ -59,7 +59,7 @@ f(u, p) = u .* u .- p
 u0 = CUDA.cu(ones(1000))
 p = CUDA.cu(collect(1:1000))
 prob = NLS.NonlinearProblem(f, u0, p)
-sol = NLS.solve(prob, NLS.NewtonRaphson(), abstol=1f-4)
+sol = NLS.solve(prob, NLS.NewtonRaphson(), abstol = 1.0f-4)
 ```
 
 Notice a few things here. One, nothing is different except the input array types. But
@@ -95,7 +95,7 @@ import AMDGPU # For if you have an AMD GPU
 import Metal # For if you have a Mac M-series device and want to use the built-in GPU
 import OneAPI # For if you have an Intel GPU
 
-@KernelAbstractions.kernel function parallel_nonlinearsolve_kernel!(result, @Const(prob), @Const(alg))
+KernelAbstractions.@kernel function parallel_nonlinearsolve_kernel!(result, @Const(prob), @Const(alg))
     i = @index(Global)
     prob_i = SciMLBase.remake(prob; p = prob.p[i])
     sol = NLS.solve(prob_i, alg)
@@ -109,7 +109,7 @@ is saying, "for the ith call, get the i'th parameter set and solve with these pa
 The ith result is then this solution".
 
 !!! note
-
+    
     Because kernel code needs to be able to be compiled to a GPU kernel, it has very strict
     specifications of what's allowed because GPU cores are not as flexible as CPU cores.
     In general, this means that you need to avoid any runtime operations in kernel code,
@@ -140,16 +140,16 @@ Now let's build a nonlinear system to test it on.
     out2 = sqrt(p[2]) * (x[3] - x[4])
     out3 = (x[2] - p[3] * x[3])^2
     out4 = sqrt(p[4]) * (x[1] - x[4]) * (x[1] - x[4])
-    StaticArrays.SA[out1,out2,out3,out4]
+    StaticArrays.SA[out1, out2, out3, out4]
 end
 
 p = StaticArrays.@SVector [StaticArrays.@SVector(rand(Float32, 4)) for _ in 1:1024]
-u0 = StaticArrays.SA[1f0, 2f0, 3f0, 4f0]
+u0 = StaticArrays.SA[1.0f0, 2.0f0, 3.0f0, 4.0f0]
 prob = SciMLBase.ImmutableNonlinearProblem{false}(p2_f, u0, p)
 ```
 
 !!! note
-
+    
     Because the custom kernel is going to need to embed the the code for our nonlinear
     problem into the kernel, it also must be written to be GPU compatible.
     In general, this means that you need to avoid any runtime operations in kernel code,
@@ -176,4 +176,5 @@ vectorized_solve(prob, NLS.SimpleNewtonRaphson(); backend = Metal.MetalBackend()
 ```
 
 !!! warn
+    
     The GPU-based calls will only work on your machine if you have a compatible GPU!

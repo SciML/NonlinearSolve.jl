@@ -14,7 +14,8 @@
         @inbounds for I in CartesianIndices((N, N))
             i, j = Tuple(I)
             x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
-            ip1, im1, jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
+            ip1, im1,
+            jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
             limit(j - 1, N)
             du[i, j, 1] = alpha *
                           (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -

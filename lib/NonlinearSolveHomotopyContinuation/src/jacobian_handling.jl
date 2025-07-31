@@ -81,7 +81,8 @@ end
 
 function (f::ComplexDIJacobian{OutOfPlace})(u, U, x, p)
     U_tmp = f.buffers
-    u_tmp, _ = DI.value_and_jacobian!(
+    u_tmp,
+    _ = DI.value_and_jacobian!(
         f.f, U_tmp, f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p))
     copyto!(u, reinterpret(ComplexF64, u_tmp))
     U = reinterpret(Float64, U)
@@ -120,7 +121,8 @@ function construct_jacobian(f, autodiff, variant, u0, p)
     if variant == OutOfPlace
         prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p), strict = Val(false))
     else
-        prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
+        prep = DI.prepare_jacobian(
+            f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
     end
 
     if variant == Scalar
@@ -186,9 +188,11 @@ function construct_jacobian(f, autodiff::AutoEnzyme, variant, u0, p)
     else
         tmp = Vector{ComplexF64}(undef, length(u0))
         if variant == Inplace
-            prep = DI.prepare_jacobian(f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
+            prep = DI.prepare_jacobian(
+                f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
         else
-            prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p), strict = Val(false))
+            prep = DI.prepare_jacobian(
+                f, autodiff, tmp, DI.Constant(p), strict = Val(false))
         end
     end
     return EnzymeJacobian{variant}(f, prep, autodiff)

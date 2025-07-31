@@ -34,6 +34,7 @@ include("solve.jl")
 
     @compile_workload begin
         @sync for prob in nonlinear_problems, alg in algs
+
             Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
         end
     end

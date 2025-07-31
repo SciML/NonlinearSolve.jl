@@ -118,7 +118,8 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right, fl, fr = Impl.bisection(
+    sol, i, left, right,
+    fl, fr = Impl.bisection(
         left, right, fl, fr, f, abstol, maxiters - i, prob, alg
     )
 

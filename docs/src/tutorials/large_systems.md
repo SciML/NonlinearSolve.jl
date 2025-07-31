@@ -78,7 +78,8 @@ function brusselator_2d_loop(du, u, p)
     @inbounds for I in CartesianIndices((N, N))
         i, j = Tuple(I)
         x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
-        ip1, im1, jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
+        ip1, im1, jp1,
+        jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
         limit(j - 1, N)
         du[i, j, 1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
                        4u[i, j, 1]) +
@@ -279,7 +280,8 @@ which is more automatic. The setup is very similar to before:
 import AlgebraicMultigrid
 
 function algebraicmultigrid(W, p = nothing)
-    return AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(convert(AbstractMatrix, W))), LinearAlgebra.I
+    return AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(convert(AbstractMatrix, W))),
+    LinearAlgebra.I
 end
 
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_sparse,

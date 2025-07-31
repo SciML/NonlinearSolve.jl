@@ -55,7 +55,8 @@ function SciMLBase.__solve(
     @bb δJ⁻¹n = copy(x)
     @bb δJ⁻¹ = copy(J⁻¹)
 
-    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+    abstol, reltol,
+    tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
