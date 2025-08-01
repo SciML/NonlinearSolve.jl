@@ -12,7 +12,7 @@ using LineSearch: LiFukushimaLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
                           nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
-                          AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage
+                          AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage, Verbosity
 using SciMLBase: SciMLBase, NonlinearFunction, NonlinearProblem,
                  NonlinearLeastSquaresProblem, ReturnCode, remake
 
