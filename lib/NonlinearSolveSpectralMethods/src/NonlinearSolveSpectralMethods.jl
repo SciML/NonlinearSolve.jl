@@ -9,7 +9,7 @@ using LineSearch: RobustNonMonotoneLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractNonlinearSolveCache, Utils, InternalAPI, get_timer_output,
-                          @static_timeit, update_trace!, NonlinearVerbosity, @SciMLMessage
+                          @static_timeit, update_trace!, NonlinearVerbosity, @SciMLMessage, Verbosity
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearProblem, NonlinearFunction, NoSpecialize
 

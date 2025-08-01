@@ -22,7 +22,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
                           Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity,
-                          @SciMLMessage, reused_jacobian
+                          @SciMLMessage, Verbosity, reused_jacobian
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearFunction,
                  NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
