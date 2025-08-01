@@ -34,4 +34,4 @@ function minimize(x)
 end
 
 @test successful_retcode(minimize(1.0).retcode)
-@test_opt minimize(1.0) broken=true
+@test_opt minimize(1.0)

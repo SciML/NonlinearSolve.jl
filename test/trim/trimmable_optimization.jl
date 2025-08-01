@@ -1,5 +1,6 @@
 using NonlinearSolveFirstOrder
 using ADTypes: AutoForwardDiff
+using DiffEqBase
 using ForwardDiff
 using LinearAlgebra
 using StaticArrays
@@ -23,6 +24,7 @@ struct MyParams{T, M}
     λ::T
     Σ::M
 end
+DiffEqBase.anyeltypedual(::MyParams) = Any
 
 const autodiff = AutoForwardDiff(; chunksize = 1)
 const alg = TrustRegion(; autodiff, linsolve = LS.CholeskyFactorization())
