@@ -378,6 +378,17 @@ end
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {N}
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
+    end
+    
     sol_syms = [gensym("sol") for _ in 1:N]
     prob_syms = [gensym("prob") for _ in 1:N]
     u_result_syms = [gensym("u_result") for _ in 1:N]

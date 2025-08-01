@@ -44,6 +44,17 @@ function SciMLBase.__solve(
                 prob, alg, args...; termination_condition, kwargs...
             )
         end
+        
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(Verbosity.None())
+            end
+        elseif verbose isa Verbosity.Type
+            verbose = NonlinearVerbosity(verbose)
+        end
+
         @SciMLMessage("Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
                either `termination_condition = AbsNormTerminationMode(Base.Fix2(norm, Inf))` \
