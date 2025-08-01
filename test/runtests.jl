@@ -1,6 +1,4 @@
-using NonlinearSolve, Hwloc, InteractiveUtils, Pkg
-using SafeTestsets
-using ReTestItems
+using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils, Pkg
 
 @info sprint(InteractiveUtils.versioninfo)
 
@@ -32,7 +30,6 @@ const ENZYME_ENABLED = VERSION < v"1.12"
 
 function activate_trim_env!()
     Pkg.activate(abspath(joinpath(dirname(@__FILE__), "trim")))
-    Pkg.develop(PackageSpec(path = dirname(@__DIR__)))
     Pkg.instantiate()
     return nothing
 end
