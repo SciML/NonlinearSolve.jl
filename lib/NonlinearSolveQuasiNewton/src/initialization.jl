@@ -161,6 +161,17 @@ function InternalAPI.init(
             solver, f, fu, u, p; internalnorm, maxiters, kwargs...
         )
     end
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
+    end
+    
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
     α = inv(Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, internalnorm))
     if u isa StaticArray

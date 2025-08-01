@@ -11,6 +11,16 @@ function SciMLBase.__solve(
 )
     @assert !SciMLBase.isinplace(prob) "`False` only supports out-of-place problems."
 
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
+    end
+
     f = Base.Fix2(prob.f, prob.p)
     l, r = prob.tspan # don't reuse these variables
     left, right = prob.tspan

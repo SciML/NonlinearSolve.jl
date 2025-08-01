@@ -128,6 +128,16 @@ function SciMLBase.__init(
         alias_u0 = false  # If immutable don't care about aliasing
     end
 
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
+    end
+
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
