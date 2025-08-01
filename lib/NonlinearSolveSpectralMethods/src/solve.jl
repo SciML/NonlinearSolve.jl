@@ -161,6 +161,16 @@ function SciMLBase.__init(
             σ_n = T(alg.σ_1)
         end
 
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(Verbosity.None())
+            end
+        elseif verbose isa Verbosity.Type
+            verbose = NonlinearVerbosity(verbose)
+        end
+
         cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),

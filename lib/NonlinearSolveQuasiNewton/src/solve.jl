@@ -156,6 +156,17 @@ function SciMLBase.__init(
 ) where {F}
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
+
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(Verbosity.None())
+            end
+        elseif verbose isa Verbosity.Type
+            verbose = NonlinearVerbosity(verbose)
+        end
+        
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
