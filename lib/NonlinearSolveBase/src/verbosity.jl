@@ -28,7 +28,7 @@ mutable struct NonlinearErrorControlVerbosity
     jacobian_free::Verbosity.Type
     termination_condition::Verbosity.Type
 
-    function NonlinearErrorControlVerbosity(immutable_u0 = nonlinear_verbosity_defaults[:immutable_u0],
+    function NonlinearErrorControlVerbosity(;immutable_u0 = nonlinear_verbosity_defaults[:immutable_u0],
         non_enclosing_interval = nonlinear_verbosity_defaults[:non_enclosing_interval],
         non_forward_mode = nonlinear_verbosity_defaults[:non_forward_mode],
         fd_ad_caution = nonlinear_verbosity_defaults[:fd_ad_caution],
@@ -40,21 +40,26 @@ mutable struct NonlinearErrorControlVerbosity
         new(immutable_u0, non_enclosing_interval, non_forward_mode, fd_ad_caution, ad_backend_incompatible,
         alias_u0_immutable, linsolve_failed_noncurrent, jacobian_free, termination_condition)
     end
+
 end
 
 function NonlinearErrorControlVerbosity(verbose::Verbosity.Type)
     @match verbose begin
-        Verbosity.None() => NonlinearErrorControlVerbosity(fill(
-            Verbosity.None(), length(fieldnames(NonlinearErrorControlVerbosity)))...)
+        Verbosity.None() => NonlinearErrorControlVerbosity(;NamedTuple{fieldnames(NonlinearErrorControlVerbosity)}(fill(
+            Verbosity.None(),
+            length(fieldnames(NonlinearErrorControlVerbosity))))...)
 
-        Verbosity.Info() => NonlinearErrorControlVerbosity(fill(
-            Verbosity.Info(), length(fieldnames(NonlinearErrorControlVerbosity)))...)
+        Verbosity.Info() => NonlinearErrorControlVerbosity(;NamedTuple{fieldnames(NonlinearErrorControlVerbosity)}(fill(
+            Verbosity.Info(),
+            length(fieldnames(NonlinearErrorControlVerbosity))))...)
 
-        Verbosity.Warn() => NonlinearErrorControlVerbosity(fill(
-            Verbosity.Warn(), length(fieldnames(NonlinearErrorControlVerbosity)))...)
+        Verbosity.Warn() => NonlinearErrorControlVerbosity(;NamedTuple{fieldnames(NonlinearErrorControlVerbosity)}(fill(
+            Verbosity.Warn(),
+            length(fieldnames(NonlinearErrorControlVerbosity))))...)
 
-        Verbosity.Error() => NonlinearErrorControlVerbosity(fill(
-            Verbosity.Error(), length(fieldnames(NonlinearErrorControlVerbosity)))...)
+        Verbosity.Error() => NonlinearErrorControlVerbosity(;NamedTuple{fieldnames(NonlinearErrorControlVerbosity)}(fill(
+            Verbosity.Error(),
+            length(fieldnames(NonlinearErrorControlVerbosity))))...)
 
         Verbosity.Default() => NonlinearErrorControlVerbosity()
 
@@ -70,27 +75,31 @@ mutable struct NonlinearPerformanceVerbosity
     sparsity_using_jac_prototype::Verbosity.Type
     sparse_matrixcolorings_not_loaded::Verbosity.Type
 
-    function NonlinearPerformanceVerbosity(colorvec_non_sparse = nonlinear_verbosity_defaults[:colorvec_non_sparse],
-            colorvec_no_prototype = nonlinear_verbosity_defaults[:colorvec_no_prototype],
-            sparsity_using_jac_prototype = nonlinear_verbosity_defaults[:sparsity_using_jac_prototype],
-            sparse_matrixcolorings_not_loaded = nonlinear_verbosity_defaults[:sparse_matrixcolorings_not_loaded])
+    function NonlinearPerformanceVerbosity(; colorvec_non_sparse=nonlinear_verbosity_defaults[:colorvec_non_sparse],
+        colorvec_no_prototype=nonlinear_verbosity_defaults[:colorvec_no_prototype],
+        sparsity_using_jac_prototype=nonlinear_verbosity_defaults[:sparsity_using_jac_prototype],
+        sparse_matrixcolorings_not_loaded=nonlinear_verbosity_defaults[:sparse_matrixcolorings_not_loaded])
         new(colorvec_non_sparse, colorvec_no_prototype, sparsity_using_jac_prototype, sparse_matrixcolorings_not_loaded)
     end
 end
 
 function NonlinearPerformanceVerbosity(verbose::Verbosity.Type)
     @match verbose begin
-        Verbosity.None() => NonlinearPerformanceVerbosity(fill(
-            Verbosity.None(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+        Verbosity.None() => NonlinearPerformanceVerbosity(;NamedTuple{fieldnames(NonlinearPerformanceVerbosity)}(fill(
+            Verbosity.None(),
+            length(fieldnames(NonlinearPerformanceVerbosity))))...)
 
-        Verbosity.Info() => NonlinearPerformanceVerbosity(fill(
-            Verbosity.Info(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+        Verbosity.Info() => NonlinearPerformanceVerbosity(;NamedTuple{fieldnames(NonlinearPerformanceVerbosity)}(fill(
+            Verbosity.Info(),
+            length(fieldnames(NonlinearPerformanceVerbosity))))...)
 
-        Verbosity.Warn() => NonlinearPerformanceVerbosity(fill(
-            Verbosity.Warn(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+        Verbosity.Warn() => NonlinearPerformanceVerbosity(;NamedTuple{fieldnames(NonlinearPerformanceVerbosity)}(fill(
+            Verbosity.Warn(),
+            length(fieldnames(NonlinearPerformanceVerbosity))))...)
 
-        Verbosity.Error() => NonlinearPerformanceVerbosity(fill(
-            Verbosity.Error(), length(fieldnames(NonlinearPerformanceVerbosity)))...)
+        Verbosity.Error() => NonlinearPerformanceVerbosity(;NamedTuple{fieldnames(NonlinearPerformanceVerbosity)}(fill(
+            Verbosity.Error(),
+            length(fieldnames(NonlinearPerformanceVerbosity))))...)
 
         Verbosity.Default() => NonlinearPerformanceVerbosity()
 
@@ -103,7 +112,7 @@ end
 mutable struct NonlinearNumericalVerbosity
     threshold_state::Verbosity.Type
     pinv_undefined::Verbosity.Type
-    function NonlinearNumericalVerbosity(
+    function NonlinearNumericalVerbosity(;
         threshold_state = nonlinear_verbosity_defaults[:threshold_state], 
         pinv_undefined = nonlinear_verbosity_defaults[:pinv_undefined])
         new(threshold_state, pinv_undefined)
@@ -112,17 +121,21 @@ end
 
 function NonlinearNumericalVerbosity(verbose::Verbosity.Type)
     @match verbose begin
-        Verbosity.None() => NonlinearNumericalVerbosity(fill(
-            Verbosity.None(), length(fieldnames(NonlinearNumericalVerbosity)))...)
+        Verbosity.None() => NonlinearNumericalVerbosity(;NamedTuple{fieldnames(NonlinearNumericalVerbosity)}(fill(Verbosity.None(), 
+        length(fieldnames(NonlinearNumericalVerbosity))))...)
+            
 
-        Verbosity.Info() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Info(), length(fieldnames(NonlinearNumericalVerbosity)))...)
+        Verbosity.Info() => NonlinearNumericalVerbosity(;NamedTuple{fieldnames(NonlinearNumericalVerbosity)}(fill(
+            Verbosity.Info(),
+            length(fieldnames(NonlinearNumericalVerbosity))))...)
 
-        Verbosity.Warn() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Warn(), length(fieldnames(NonlinearNumericalVerbosity)))...)
+        Verbosity.Warn() => NonlinearNumericalVerbosity(;NamedTuple{fieldnames(NonlinearNumericalVerbosity)}(fill(
+            Verbosity.Warn(),
+            length(fieldnames(NonlinearNumericalVerbosity))))...)
 
-        Verbosity.Error() => NonlinearNumericalVerbosity(fill(
-            Verbosity.Error(), length(fieldnames(NonlinearNumericalVerbosity)))...)
+        Verbosity.Error() => NonlinearNumericalVerbosity(;NamedTuple{fieldnames(NonlinearNumericalVerbosity)}(fill(
+            Verbosity.Error(),
+            length(fieldnames(NonlinearNumericalVerbosity))))...)
 
         Verbosity.Default() => NonlinearNumericalVerbosity()
 
