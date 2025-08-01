@@ -1,4 +1,6 @@
-using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils, Pkg
+using NonlinearSolve, Hwloc, InteractiveUtils, Pkg
+using SafeTestsets
+using ReTestItems
 
 @info sprint(InteractiveUtils.versioninfo)
 
@@ -27,6 +29,13 @@ const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
 # Disable Enzyme on Julia 1.12+ due to compatibility issues
 # To re-enable: change condition to `true` or `VERSION < v"1.13"`
 const ENZYME_ENABLED = VERSION < v"1.12"
+
+function activate_trim_env!()
+    Pkg.activate(abspath(joinpath(dirname(@__FILE__), "trim")))
+    Pkg.develop(PackageSpec(path = dirname(@__DIR__)))
+    Pkg.instantiate()
+    return nothing
+end
 
 const EXTRA_PKGS = Pkg.PackageSpec[]
 if GROUP == "all" || GROUP == "downstream"
@@ -68,8 +77,22 @@ end
 
 @info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
 
-ReTestItems.runtests(
-    NonlinearSolve; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
-    testitem_timeout = 3600
-)
+if GROUP != "trim"
+    ReTestItems.runtests(
+        NonlinearSolve; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
+        nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
+        testitem_timeout = 3600
+    )
+elseif GROUP == "trim" && VERSION >= v"1.12.0-rc1"  # trimming has been introduced in julia 1.12
+    activate_trim_env!()
+    @safetestset "Clean implementation (non-trimmable)" begin
+        using SciMLBase: successful_retcode
+        include("trim/clean_optimization.jl")
+        @test successful_retcode(minimize(1.0).retcode)
+    end
+    @safetestset "Trimmable implementation" begin
+        using SciMLBase: successful_retcode
+        include("trim/trimmable_optimization.jl")
+        @test successful_retcode(minimize(1.0).retcode)
+    end
+end
