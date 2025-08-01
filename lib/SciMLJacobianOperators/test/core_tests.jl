@@ -3,9 +3,19 @@
     using Zygote, ForwardDiff, FiniteDiff, ReverseDiff, Tracker
     using SciMLJacobianOperators
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version and environment setup
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     reverse_ADs = [
@@ -14,7 +24,7 @@
         AutoTracker(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -23,7 +33,7 @@
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end
@@ -101,16 +111,26 @@ end
     using ForwardDiff, FiniteDiff, ReverseDiff
     using SciMLJacobianOperators
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version and environment setup
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     reverse_ADs = [
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -119,7 +139,7 @@ end
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end
@@ -203,9 +223,19 @@ end
     using ForwardDiff, FiniteDiff, ReverseDiff, Zygote, Tracker
     using SciMLJacobianOperators
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version and environment setup
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     reverse_ADs = [
@@ -214,7 +244,7 @@ end
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -223,7 +253,7 @@ end
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end

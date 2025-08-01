@@ -21,7 +21,6 @@ ArrayInterface = "7.16"
 ConcreteStructs = "0.2.3"
 ConstructionBase = "1.5"
 DifferentiationInterface = "0.6.16, 0.7"
-Enzyme = "0.13.11"
 ExplicitImports = "1.9.0"
 FastClosures = "0.3.2"
 FiniteDiff = "2.24"
@@ -39,7 +38,6 @@ julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -51,4 +49,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "Enzyme", "ExplicitImports", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "ReverseDiff", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "ExplicitImports", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "ReverseDiff", "Test", "TestItemRunner", "Tracker", "Zygote"]

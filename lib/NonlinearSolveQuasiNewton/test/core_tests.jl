@@ -11,16 +11,26 @@ end
     using StaticArrays: @SVector
     using Zygote, ForwardDiff, FiniteDiff
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     u0s=([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(autodiff_backends, AutoEnzyme())
     end
 
@@ -99,14 +109,24 @@ end
     using StaticArrays: @SVector
     using Zygote, ForwardDiff, FiniteDiff
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(autodiff_backends, AutoEnzyme())
     end
 
@@ -185,14 +205,24 @@ end
     using StaticArrays: @SVector
     using Zygote, ForwardDiff, FiniteDiff
 
-    # Conditionally import Enzyme only if not on Julia prerelease
+    # Conditionally import Enzyme based on Julia version
+    enzyme_available = false
     if isempty(VERSION.prerelease)
-        using Enzyme
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+        enzyme_available = false
     end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(autodiff_backends, AutoEnzyme())
     end
 

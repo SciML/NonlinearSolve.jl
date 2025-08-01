@@ -3,6 +3,21 @@ using NonlinearSolveHomotopyContinuation
 using SciMLBase: NonlinearSolution
 import NaNMath
 
+# Conditionally import Enzyme based on Julia version
+enzyme_available = false
+if isempty(VERSION.prerelease)
+    try
+        using Enzyme
+        enzyme_available = true
+    catch e
+        @info "Enzyme not available: $e"
+        enzyme_available = false
+    end
+else
+    @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+    enzyme_available = false
+end
+
 alg = HomotopyContinuationJL{false}(; threading = false)
 
 @testset "scalar u" begin
@@ -14,7 +29,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
 
@@ -105,7 +120,7 @@ vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, jac, "oop + jac"),
     (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac")
 ]
-if isempty(VERSION.prerelease)
+if enzyme_available
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end

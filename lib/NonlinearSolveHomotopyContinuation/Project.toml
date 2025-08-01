@@ -26,7 +26,6 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DifferentiationInterface = "0.6.27, 0.7"
 DocStringExtensions = "0.9.3"
-Enzyme = "0.13"
 HomotopyContinuation = "2.12.0"
 LinearAlgebra = "1.10"
 NaNMath = "1.1"
@@ -40,10 +39,9 @@ julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Test", "NonlinearSolve", "Enzyme", "NaNMath"]
+test = ["Aqua", "Test", "NonlinearSolve", "NaNMath"]

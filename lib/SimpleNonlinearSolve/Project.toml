@@ -51,7 +51,6 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DiffEqBase = "6.158.3"
 DifferentiationInterface = "0.6.16, 0.7"
-Enzyme = "0.13.11"
 ExplicitImports = "1.9"
 FastClosures = "0.3.2"
 FiniteDiff = "2.24"
@@ -81,7 +80,6 @@ julia = "1.10"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
-Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
@@ -96,4 +94,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "DiffEqBase", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "DiffEqBase", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]

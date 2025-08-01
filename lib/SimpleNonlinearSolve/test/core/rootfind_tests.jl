@@ -2,9 +2,29 @@
     using StaticArrays, Random, LinearAlgebra, ForwardDiff, NonlinearSolveBase, SciMLBase
     using ADTypes, PolyesterForwardDiff, ReverseDiff
 
-    # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
-        using Enzyme
+    # Conditionally import Enzyme based on Julia version and environment setup
+    # This prevents Enzyme precompilation failures on Julia prerelease versions
+    enzyme_available = false
+    if isempty(VERSION.prerelease) && get(ENV, "ENZYME_AVAILABLE", "false") == "true"
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @warn "Failed to load Enzyme despite environment setup: $e"
+            enzyme_available = false
+        end
+    elseif isempty(VERSION.prerelease)
+        # Fallback: try to load Enzyme directly on stable versions
+        try
+            using Enzyme
+            enzyme_available = true
+        catch e
+            @info "Enzyme not available on stable version: $e"
+            enzyme_available = false
+        end
+    else
+        @info "Skipping Enzyme on Julia prerelease version $(VERSION) to avoid compilation failures"
+        enzyme_available = false
     end
 
     quadratic_f(u, p) = u .* u .- p
@@ -59,7 +79,7 @@ end
             AutoReverseDiff(),
             nothing
         ]
-        if isempty(VERSION.prerelease)
+        if enzyme_available
             push!(autodiff_backends, AutoEnzyme())
         end
 

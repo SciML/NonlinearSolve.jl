@@ -4,9 +4,19 @@ using SciMLBase: NonlinearSolution
 using ADTypes
 import NaNMath
 
-# Conditionally import Enzyme only if not on Julia prerelease
+# Conditionally import Enzyme based on Julia version
+enzyme_available = false
 if isempty(VERSION.prerelease)
-    using Enzyme
+    try
+        using Enzyme
+        enzyme_available = true
+    catch e
+        @info "Enzyme not available: $e"
+        enzyme_available = false
+    end
+else
+    @info "Skipping Enzyme on prerelease Julia $(VERSION)"
+    enzyme_available = false
 end
 
 alg = HomotopyContinuationJL{true}(; threading = false)
@@ -20,7 +30,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if isempty(VERSION.prerelease)
+    if enzyme_available
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
 
@@ -120,7 +130,7 @@ vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, fjac, "oop + jac"),
     (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, fjac!, "iip + jac")
 ]
-if isempty(VERSION.prerelease)
+if enzyme_available
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end
