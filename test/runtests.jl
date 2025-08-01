@@ -41,14 +41,5 @@ if GROUP != "trim"
     )
 elseif GROUP == "trim" && VERSION >= v"1.12.0-rc1"  # trimming has been introduced in julia 1.12
     activate_trim_env!()
-    @safetestset "Clean implementation (non-trimmable)" begin
-        using SciMLBase: successful_retcode
-        include("trim/clean_optimization.jl")
-        @test successful_retcode(minimize(1.0).retcode)
-    end
-    @safetestset "Trimmable implementation" begin
-        using SciMLBase: successful_retcode
-        include("trim/trimmable_optimization.jl")
-        @test successful_retcode(minimize(1.0).retcode)
-    end
+    include("trim/runtests.jl")
 end
