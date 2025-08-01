@@ -5,6 +5,8 @@ using LinearAlgebra
 using StaticArrays
 using LinearSolve
 const LS = LinearSolve
+using SciMLBase: successful_retcode
+using JET
 
 function f(u, p)
     L, U = cholesky(p.Σ)
@@ -30,3 +32,6 @@ function minimize(x)
     sol = solve(prob, alg)
     return sol
 end
+
+@test successful_retcode(minimize(1.0).retcode)
+@test_opt minimize(1.0) broken=true
