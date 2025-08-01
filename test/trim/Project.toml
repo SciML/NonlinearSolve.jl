@@ -13,12 +13,19 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
-ForwardDiff = {rev = "rv/remove-quote-assert-string-interpolation", url = "https://github.com/RomeoV/ForwardDiff.jl"}
-LinearSolve = {rev = "rv/remove-linsolve-forwarddiff-special-path", url = "https://github.com/RomeoV/LinearSolve.jl"}
+# Remove assert that triggers false positive for JET. Tracked at https://github.com/aviatesk/JET.jl/issues/736.
+ForwardDiff = {url = "https://github.com/RomeoV/ForwardDiff.jl", rev="rv/remove-quote-assert-string-interpolation"}
+# Remove special path code path for ForwarDiff of LinearSolve, which uses untrimmable `deepcopy`.
+# Use of `deepcopy` is tracked at https://github.com/SciML/LinearSolve.jl/issues/648.
+LinearSolve = {url = "https://github.com/RomeoV/LinearSolve.jl", rev="rv/remove-linsolve-forwarddiff-special-path"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
-Polyester = {rev = "master", url = "https://github.com/RomeoV/Polyester.jl"}
-PolyesterWeave = {rev = "main", url = "https://github.com/RomeoV/PolyesterWeave.jl"}
-SciMLBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/SciMLBase.jl"}
+# Remove use of CPUSummary which segfaults trimmed binary. Tracked at https://github.com/JuliaSIMD/Polyester.jl/pull/163.
+Polyester = {url = "https://github.com/RomeoV/Polyester.jl", rev="master"}
+# Remove use of CPUSummary which segfaults trimmed binary. Tracked at https://github.com/JuliaSIMD/PolyesterWeave.jl/pull/28
+PolyesterWeave = {url = "https://github.com/RomeoV/PolyesterWeave.jl", rev="main"}
+# Fix a type instability. Tracked at https://github.com/SciML/SciMLBase.jl/pull/1074.
+SciMLBase = {url = "https://github.com/AayushSabharwal/SciMLBase.jl", rev="as/fix-jet-opt"}
+
 
 [compat]
 ADTypes = "1.15.0"
