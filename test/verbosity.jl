@@ -35,6 +35,17 @@
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = Verbosity.Info())))
 
+    @test_logs (:warn,
+        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        prob,
+        verbose = true)
+
+    @test_logs min_level=Logging.Info solve(prob,
+        verbose = NonlinearVerbosity(Verbosity.None()))
+
+    @test_logs min_level=Logging.Info solve(prob,
+        verbose = false)
+
     # Test that caches get correct verbosities
     cache = init(prob, verbose = NonlinearVerbosity(threshold_state = Verbosity.Info()))
 
