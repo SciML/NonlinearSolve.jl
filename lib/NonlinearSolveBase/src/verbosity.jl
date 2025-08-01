@@ -103,7 +103,7 @@ end
 mutable struct NonlinearNumericalVerbosity
     threshold_state::Verbosity.Type
     pinv_undefined::Verbosity.Type
-    function NonlinearNumericalVerbosity(;
+    function NonlinearNumericalVerbosity(
         threshold_state = nonlinear_verbosity_defaults[:threshold_state], 
         pinv_undefined = nonlinear_verbosity_defaults[:pinv_undefined])
         new(threshold_state, pinv_undefined)
