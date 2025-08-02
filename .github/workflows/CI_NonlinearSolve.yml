@@ -36,6 +36,7 @@ jobs:
           - downstream
           - wrappers
           - misc
+          - trim
         version:
           - "1"
           - "lts"
