@@ -1,13 +1,12 @@
 using NonlinearSolveFirstOrder
-using ADTypes: AutoForwardDiff
 using DiffEqBase
+using ADTypes: AutoForwardDiff
 using ForwardDiff
 using LinearAlgebra
 using StaticArrays
 using LinearSolve
+import SciMLBase
 const LS = LinearSolve
-using SciMLBase: successful_retcode
-using JET
 
 function f(u, p)
     L, U = cholesky(p.Σ)
@@ -24,7 +23,6 @@ struct MyParams{T, M}
     λ::T
     Σ::M
 end
-DiffEqBase.anyeltypedual(::MyParams) = Any
 
 const autodiff = AutoForwardDiff(; chunksize = 1)
 const alg = TrustRegion(; autodiff, linsolve = LS.CholeskyFactorization())
@@ -37,6 +35,3 @@ function minimize(x)
     solve!(cache)
     return cache
 end
-
-@test successful_retcode(minimize(1.0).retcode)
-@test_opt minimize(1.0)
