@@ -27,7 +27,11 @@ end
 
 const autodiff = AutoForwardDiff(; chunksize = 1)
 const alg = TrustRegion(; autodiff, linsolve = LS.CholeskyFactorization())
-const prob = NonlinearLeastSquaresProblem{false}(f, rand(2), MyParams(rand(), hermitianpart(rand(2, 2) + 2I)))
+const prob = NonlinearLeastSquaresProblem{false}(
+    f,
+    rand(2),
+    MyParams(rand(), hermitianpart(rand(2, 2) + 2I))
+)
 const cache = init(prob, alg)
 
 function minimize(x)
