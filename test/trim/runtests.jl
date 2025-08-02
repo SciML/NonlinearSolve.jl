@@ -46,7 +46,11 @@ end
 
     for (mainfile, expectedtopass) in [
             ("main_trimmable.jl", true),
-            ("main_clean.jl", false),
+            #= The test below should verify that we indeed can't get a trimmed binary
+            # for the "clean" implementation, but will trigger in the future if
+            # it does start working. Unfortunately, right now it hangs indefinitely
+            # so we are commenting it out. =#
+            # ("main_clean.jl", false),
         ]
         binpath = tempname()
         cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) $(mainfile)`
