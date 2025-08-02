@@ -14,7 +14,7 @@ end
     using JET
     using SciMLBase: successful_retcode
     include("optimization_trimmable.jl")
-    @test successful_retcode(TestModuleClean.minimize(1.0).retcode)
+    @test successful_retcode(TestModuleTrimmable.minimize(1.0).retcode)
     # can't use `@test_opt` macro here because it would try to eval before
     # `using JET` is processed
     test_opt(TestModuleTrimmable.minimize, (typeof(1.0),))
@@ -44,8 +44,10 @@ end
     )
     @test isfile(JULIAC)
 
-    for (mainfile, shouldpass) in [("main_trimmable.jl", true),
-                                   ("main_clean.jl", false)]
+    for (mainfile, expectedtopass) in [
+            ("main_trimmable.jl", true),
+            ("main_clean.jl", false),
+        ]
         binpath = tempname()
         cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) $(mainfile)`
 
@@ -58,12 +60,12 @@ end
         # Instead we use `_execute` to also capture `stdout` and `stderr`.
         # @test success(setenv(cmd, clean_env))
         trimcall = _execute(setenv(cmd, clean_env; dir = @__DIR__))
-        if trimcall.exitcode != 0 && shouldpass
+        if trimcall.exitcode != 0 && expectedtopass
             @show trimcall.stdout
             @show trimcall.stderr
         end
-        @test trimcall.exitcode == 0 broken=!shouldpass
-        @test isfile(binpath) broken=!shouldpass
-        @test success(`$(binpath) 1.0`) broken=!shouldpass
+        @test trimcall.exitcode == 0 broken = !expectedtopass
+        @test isfile(binpath) broken = !expectedtopass
+        @test success(`$(binpath) 1.0`) broken = !expectedtopass
     end
 end
