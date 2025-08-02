@@ -3,21 +3,21 @@ using SafeTestsets
 @safetestset "Clean implementation (non-trimmable)" begin
     using JET
     using SciMLBase: successful_retcode
-    include("clean_optimization.jl")
-    @test successful_retcode(minimize(1.0).retcode)
-    # can't use `@test_opt` macro here because it would eval before `using JET`
-    # is processed
-    test_opt(minimize, (typeof(1.0),))
+    include("optimization_clean.jl")
+    @test successful_retcode(TestModuleClean.minimize(1.0).retcode)
+    # can't use `@test_opt` macro here because it would try to eval before
+    # `using JET` is processed
+    test_opt(TestModuleClean.minimize, (typeof(1.0),))
 end
 
 @safetestset "Trimmable implementation" begin
     using JET
     using SciMLBase: successful_retcode
-    include("trimmable_optimization.jl")
-    @test successful_retcode(minimize(1.0).retcode)
-    # can't use `@test_opt` macro here because it would eval before `using JET`
-    # is processed
-    test_opt(minimize, (typeof(1.0),))
+    include("optimization_trimmable.jl")
+    @test successful_retcode(TestModuleClean.minimize(1.0).retcode)
+    # can't use `@test_opt` macro here because it would try to eval before
+    # `using JET` is processed
+    test_opt(TestModuleTrimmable.minimize, (typeof(1.0),))
 end
 
 @safetestset "Run trim" begin
@@ -43,23 +43,27 @@ end
         )
     )
     @test isfile(JULIAC)
-    binpath = tempname()
-    cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) main.jl`
 
-    # since we are calling Julia from Julia, we first need to clean some
-    # environment variables
-    clean_env = copy(ENV)
-    delete!(clean_env, "JULIA_PROJECT")
-    delete!(clean_env, "JULIA_LOAD_PATH")
-    # We could just check for success, but then failures are hard to debug.
-    # Instead we use `_execute` to also capture `stdout` and `stderr`.
-    # @test success(setenv(cmd, clean_env))
-    trimcall = _execute(setenv(cmd, clean_env; dir = @__DIR__))
-    if trimcall.exitcode != 0
-        @show trimcall.stdout
-        @show trimcall.stderr
+    for (mainfile, shouldpass) in [("main_trimmable.jl", true),
+                                   ("main_clean.jl", false)]
+        binpath = tempname()
+        cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) $(mainfile)`
+
+        # since we are calling Julia from Julia, we first need to clean some
+        # environment variables
+        clean_env = copy(ENV)
+        delete!(clean_env, "JULIA_PROJECT")
+        delete!(clean_env, "JULIA_LOAD_PATH")
+        # We could just check for success, but then failures are hard to debug.
+        # Instead we use `_execute` to also capture `stdout` and `stderr`.
+        # @test success(setenv(cmd, clean_env))
+        trimcall = _execute(setenv(cmd, clean_env; dir = @__DIR__))
+        if trimcall.exitcode != 0 && shouldpass
+            @show trimcall.stdout
+            @show trimcall.stderr
+        end
+        @test trimcall.exitcode == 0 broken=!shouldpass
+        @test isfile(binpath) broken=!shouldpass
+        @test success(`$(binpath) 1.0`) broken=!shouldpass
     end
-    @test trimcall.exitcode == 0
-    @test isfile(binpath)
-    @test success(`$(binpath) 1.0`)
 end

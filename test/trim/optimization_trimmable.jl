@@ -1,9 +1,12 @@
+module TestModuleTrimmable
 using NonlinearSolveFirstOrder
+using DiffEqBase
 using ADTypes: AutoForwardDiff
 using ForwardDiff
 using LinearAlgebra
 using StaticArrays
 using LinearSolve
+import SciMLBase
 const LS = LinearSolve
 
 function f(u, p)
@@ -22,11 +25,15 @@ struct MyParams{T, M}
     Σ::M
 end
 
+const autodiff = AutoForwardDiff(; chunksize = 1)
+const alg = TrustRegion(; autodiff, linsolve = LS.CholeskyFactorization())
+const prob = NonlinearLeastSquaresProblem{false}(f, rand(2), MyParams(rand(), hermitianpart(rand(2, 2) + 2I)))
+const cache = init(prob, alg)
+
 function minimize(x)
-    autodiff = AutoForwardDiff(; chunksize=1)
-    alg = TrustRegion(; autodiff, linsolve=LS.CholeskyFactorization())
-    ps = MyParams(rand(), hermitianpart(rand(2,2)+2I))
-    prob = NonlinearLeastSquaresProblem{false}(f, rand(2), ps)
-    sol = solve(prob, alg)
-    return sol
+    ps = MyParams(x, hermitianpart(rand(2, 2) + 2I))
+    reinit!(cache, rand(2); p = ps)
+    solve!(cache)
+    return cache
+end
 end
