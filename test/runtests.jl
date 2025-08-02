@@ -5,7 +5,7 @@ using ReTestItems, Hwloc, InteractiveUtils, Pkg
 const GROUP = lowercase(get(ENV, "GROUP", "All"))
 
 if GROUP != "trim"
-    using NonlinearSolve  # trimming uses a NonlinearSolve from a custom environment
+    using NonlinearSolve  # trimming uses NonlinearSolve from a custom environment
 
     const EXTRA_PKGS = Pkg.PackageSpec[]
     if GROUP == "all" || GROUP == "downstream"
