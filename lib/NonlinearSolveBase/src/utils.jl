@@ -187,6 +187,8 @@ function evaluate_f!(cache, u, p)
     end
 end
 
+# make_sparse function declaration - implementation provided by SparseArrays extension
+# When SparseArrays is not loaded, this function should not be called
 function make_sparse end
 
 condition_number(J::AbstractMatrix) = cond(J)
