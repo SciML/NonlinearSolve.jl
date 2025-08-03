@@ -31,7 +31,7 @@ using FiniteDiff: FiniteDiff          # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
 # Sparse AD Support: Implemented via extensions
-using SparseArrays: SparseArrays
+# SparseArrays is now a weak dependency loaded via NonlinearSolveSparseArraysExt
 using SparseMatrixColorings: SparseMatrixColorings
 
 # Sub-Packages that are re-exported by NonlinearSolve
