@@ -9,7 +9,8 @@ using NonlinearSolveBase: NonlinearSolveBase, Utils
 @inline function Utils.faster_vcat(B::BandedMatrix, D::Diagonal)
     if !Utils.is_extension_loaded(Val(:SparseArrays))
         @warn "Load `SparseArrays` for an optimized vcat for BandedMatrices."
-        return vcat(B, D)  # Fallback to basic vcat without sparse conversion
+        # Convert BandedMatrix to full Matrix for fallback vcat since direct vcat fails
+        return vcat(Matrix(B), D)
     end
     return vcat(Utils.make_sparse(B), D)  # Use sparse conversion when available
 end

@@ -41,7 +41,6 @@ NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 PETSc = "ace2c81b-2b5f-4b1e-a30d-d662738edfe0"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
@@ -54,7 +53,6 @@ NonlinearSolveNLSolversExt = "NLSolvers"
 NonlinearSolveNLsolveExt = ["NLsolve", "LineSearches"]
 NonlinearSolvePETScExt = ["PETSc", "MPI"]
 NonlinearSolveSIAMFANLEquationsExt = "SIAMFANLEquations"
-NonlinearSolveSparseArraysExt = "SparseArrays"
 NonlinearSolveSpeedMappingExt = "SpeedMapping"
 NonlinearSolveSundialsExt = "Sundials"
 
@@ -106,7 +104,6 @@ Reexport = "1.2.2"
 SIAMFANLEquations = "1.0.1"
 SciMLBase = "2.69"
 SimpleNonlinearSolve = "2.1"
-SparseArrays = "1.10"
 SparseConnectivityTracer = "0.6.5"
 SparseMatrixColorings = "0.4.5"
 SpeedMapping = "0.3"
