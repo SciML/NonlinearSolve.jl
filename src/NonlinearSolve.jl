@@ -30,8 +30,7 @@ using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 using FiniteDiff: FiniteDiff          # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
-# Sparse AD Support: Implemented via extensions
-# SparseArrays is now a weak dependency loaded via NonlinearSolveSparseArraysExt
+# Sparse AD Support: Implemented via extensions in NonlinearSolveBase
 using SparseMatrixColorings: SparseMatrixColorings
 
 # Sub-Packages that are re-exported by NonlinearSolve
