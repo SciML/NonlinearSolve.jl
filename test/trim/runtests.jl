@@ -53,6 +53,7 @@ end
     # it does start working. Unfortunately, right now it hangs indefinitely
     # so we are commenting it out. =#
     # ("main_clean.jl", false),
+        ("main_segfault.jl", false),
     ]
         binpath = tempname()
         cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) $(mainfile)`
