@@ -12,7 +12,7 @@ using LineSearch: BackTracking
 using StaticArraysCore: SArray
 
 using CommonSolve: CommonSolve
-using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
+#using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
 using LinearSolve: LinearSolve  # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
