@@ -8,7 +8,7 @@ using FastClosures: @closure
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init, solve, solve!
-using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
+#using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,

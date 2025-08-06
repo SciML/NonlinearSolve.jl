@@ -1,6 +1,6 @@
 module SimpleNonlinearSolveDiffEqBaseExt
 
-using DiffEqBase: DiffEqBase
+#using DiffEqBase: DiffEqBase
 
 using SimpleNonlinearSolve: SimpleNonlinearSolve
 
