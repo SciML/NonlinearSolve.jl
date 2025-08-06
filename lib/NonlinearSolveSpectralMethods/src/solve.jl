@@ -74,7 +74,7 @@ end
 
 function InternalAPI.reinit_self!(
         cache::GeneralizedDFSaneCache, args...; p = cache.p, u0 = cache.u,
-         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false, 
+        alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false, 
         maxiters = hasproperty(maxiters, :maxiters) ? cache.maxiters : 1000, 
         maxtime = hasproperty(maxtime, :maxtime) ? cache.maxtime : nothing, kwargs...
 )
