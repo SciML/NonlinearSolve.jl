@@ -15,15 +15,17 @@ using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
-using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
+using RecursiveArrayTools: RecursiveArrayTools, AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
                  AbstractNonlinearAlgorithm,
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
-                 LinearAliasSpecifier, ImmutableNonlinearProblem
+                 LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier
+import SciMLBase: solve, init, solve!, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
+import SciMLStructures
 
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
@@ -31,6 +33,11 @@ using Printf: @printf
 
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
+
+# Extension Functions
+eltypedual(x) = false
+promote_u0(::Nothing, p, t0) = nothing
+isdualtype(::Type{T}) where {T} = false
 
 include("public.jl")
 include("utils.jl")
