@@ -29,6 +29,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
@@ -44,6 +45,7 @@ NonlinearSolveBaseLineSearchExt = "LineSearch"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
+NonlinearSolveBaseChainRulesCoreExt = "ChainRulesCore"
 
 [compat]
 ADTypes = "1.9"
@@ -51,6 +53,7 @@ Adapt = "4.1.0"
 Aqua = "0.8.7"
 ArrayInterface = "7.9"
 BandedMatrices = "1.5"
+ChainRulesCore = "1"
 CommonSolve = "0.2.4"
 Compat = "4.15"
 ConcreteStructs = "0.2.3"
