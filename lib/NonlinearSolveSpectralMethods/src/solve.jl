@@ -75,8 +75,8 @@ end
 function InternalAPI.reinit_self!(
         cache::GeneralizedDFSaneCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false, 
-        maxiters = hasproperty(maxiters, :maxiters) ? cache.maxiters : 1000, 
-        maxtime = hasproperty(maxtime, :maxtime) ? cache.maxtime : nothing, kwargs...
+        maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000, 
+        maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
 )
     Utils.reinit_common!(cache, u0, p, alias_u0)
     T = eltype(u0)
