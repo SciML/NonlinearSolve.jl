@@ -195,4 +195,13 @@ NonlinearSolveBase.nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.valu
 @inline NonlinearSolveBase.pickchunksize(x) = pickchunksize(length(x))
 @inline NonlinearSolveBase.pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
 
+eltypedual(x) = eltype(x) <: ForwardDiff.Dual
+isdualtype(::Type{<:ForwardDiff.Dual}) = true
+
+function anyeltypedual(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        ::Type{Val{counter}} = Val{0}) where {counter}
+    anyeltypedual((prob.u0, prob.p))
+end
+
 end
