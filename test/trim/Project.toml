@@ -3,6 +3,7 @@ uuid = "7e54ada7-ece5-4046-aa01-512d530850d8"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
@@ -22,16 +23,13 @@ ForwardDiff = {url = "https://github.com/RomeoV/ForwardDiff.jl", rev="rv/remove-
 # Use of `deepcopy` is tracked at https://github.com/SciML/LinearSolve.jl/issues/648.
 LinearSolve = {url = "https://github.com/RomeoV/LinearSolve.jl", rev="rv/remove-linsolve-forwarddiff-special-path"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
-# Remove use of CPUSummary which segfaults trimmed binary. Tracked at https://github.com/JuliaSIMD/Polyester.jl/pull/163.
-Polyester = {url = "https://github.com/RomeoV/Polyester.jl", rev="master"}
-# Remove use of CPUSummary which segfaults trimmed binary. Tracked at https://github.com/JuliaSIMD/PolyesterWeave.jl/pull/28
-PolyesterWeave = {url = "https://github.com/RomeoV/PolyesterWeave.jl", rev="main"}
 # Fix a type instability. Tracked at https://github.com/SciML/SciMLBase.jl/pull/1074.
 SciMLBase = {url = "https://github.com/AayushSabharwal/SciMLBase.jl", rev="as/fix-jet-opt"}
 
 
 [compat]
 ADTypes = "1.15.0"
+CPUSummary = "0.2.7"
 DiffEqBase = "6.179.0"
 ForwardDiff = "1.0.1"
 LinearAlgebra = "1.12.0"
