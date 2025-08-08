@@ -23,6 +23,7 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  LinearAliasSpecifier, ImmutableNonlinearProblem
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
+using SciMLVerbosity: @match, @SciMLMessage, Verbosity, AbstractVerbositySpecifier
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
@@ -34,6 +35,7 @@ const SII = SymbolicIndexingInterface
 
 include("public.jl")
 include("utils.jl")
+include("verbosity.jl")
 
 include("abstract_types.jl")
 include("common_defaults.jl")
@@ -46,6 +48,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -84,6 +87,8 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
        GeodesicAcceleration
 
 export NonlinearSolvePolyAlgorithm
+
+export NonlinearVerbosity, NonlinearPerformanceVerbosity, NonlinearErrorControlVerbosity, NonlinearNumericalVerbosity
 
 export pickchunksize
 
