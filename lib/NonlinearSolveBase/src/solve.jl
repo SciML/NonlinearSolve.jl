@@ -791,6 +791,69 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
 end
 
+function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
+        kwargs...)
+    alg = extract_alg(args, kwargs, prob.kwargs)
+    if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
+        _prob = get_concrete_problem(prob, !(prob isa DiscreteProblem); u0 = u0,
+            p = p, kwargs...)
+    else
+        _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)
+    end
+
+    if has_kwargs(_prob)
+        if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
+            kwargs_temp = NamedTuple{
+                Base.diff_names(Base._nt_names(values(kwargs)),
+                (:callback,))}(values(kwargs))
+            callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
+                _prob.kwargs[:callback],
+                values(kwargs).callback),))
+            kwargs = merge(kwargs_temp, callbacks)
+        end
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+    end
+
+    if length(args) > 1
+        _concrete_solve_adjoint(_prob, alg, sensealg, u0, p, originator,
+            Base.tail(args)...; kwargs...)
+    else
+        _concrete_solve_adjoint(_prob, alg, sensealg, u0, p, originator; kwargs...)
+    end
+end
+
+function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
+        kwargs...)
+    alg = extract_alg(args, kwargs, prob.kwargs)
+    if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
+        _prob = get_concrete_problem(prob, !(prob isa DiscreteProblem); u0 = u0,
+            p = p, kwargs...)
+    else
+        _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)
+    end
+
+    if has_kwargs(_prob)
+        if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
+            kwargs_temp = NamedTuple{
+                Base.diff_names(Base._nt_names(values(kwargs)),
+                (:callback,))}(values(kwargs))
+            callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
+                _prob.kwargs[:callback],
+                values(kwargs).callback),))
+            kwargs = merge(kwargs_temp, callbacks)
+        end
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+    end
+
+    if length(args) > 1
+        _concrete_solve_forward(_prob, alg, sensealg, u0, p, originator,
+            Base.tail(args)...; kwargs...)
+    else
+        _concrete_solve_forward(_prob, alg, sensealg, u0, p, originator; kwargs...)
+    end
+end
+
+
 function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
