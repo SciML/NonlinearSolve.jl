@@ -38,31 +38,15 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
 end
 
 function SciMLBase.__init(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
-    return SciMLBase.__init(
-        prob,
-        FastShortcutNonlinearPolyalg(
-            eltype(prob.u0); must_use_jacobian, u0_len = length(prob.u0)
-        ),
-        args...;
-        kwargs...
-    )
+    # Convert SteadyStateProblem to NonlinearProblem and use its default
+    nlprob = SciMLBase.NonlinearProblem(prob)
+    return SciMLBase.__init(nlprob, nothing, args...; kwargs...)
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
-    prefer_simplenonlinearsolve = Val(prob.u0 isa StaticArray)
-    return SciMLBase.__solve(
-        prob,
-        FastShortcutNonlinearPolyalg(
-            eltype(prob.u0);
-            must_use_jacobian,
-            prefer_simplenonlinearsolve,
-            u0_len = length(prob.u0)
-        ),
-        args...;
-        kwargs...
-    )
+    # Convert SteadyStateProblem to NonlinearProblem and use its default
+    nlprob = SciMLBase.NonlinearProblem(prob)
+    return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
