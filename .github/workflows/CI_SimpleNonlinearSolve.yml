@@ -35,6 +35,10 @@ jobs:
           - adjoint
           - alloc_check
           - nopre
+          exclude:
+          # Don't run nopre tests on prerelease Julia
+          - group: nopre
+            version: "pre"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
