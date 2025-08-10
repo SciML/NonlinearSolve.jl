@@ -17,7 +17,7 @@
     @test sol1.u ≈ sol2.u
 end
 
-@testitem "Basic PolyAlgorithms" tags=[:core] begin
+@testitem "Basic PolyAlgorithms" tags=[:nopre] begin
     f(u, p) = u .* u .- 2
     u0 = [1.0, 1.0]
 
@@ -60,7 +60,7 @@ end
     end
 end
 
-@testitem "PolyAlgorithms Autodiff" tags=[:core] begin
+@testitem "PolyAlgorithms Autodiff" tags=[:nopre] begin
     cache = zeros(2)
     function f(du, u, p)
         cache .= u .* u
@@ -126,7 +126,7 @@ end
     @test SciMLBase.successful_retcode(sol.retcode)
 end
 
-@testitem "Ensemble Nonlinear Problems" tags=[:core] begin
+@testitem "Ensemble Nonlinear Problems" tags=[:nopre] begin
     prob_func(prob, i, repeat) = remake(prob; u0 = prob.u0[:, i])
 
     prob_nls_oop = NonlinearProblem((u, p) -> u .* u .- p, rand(4, 128), 2.0)
@@ -350,7 +350,7 @@ end
     end
 end
 
-@testitem "Out-of-place Matrix Resizing" tags=[:core] begin
+@testitem "Out-of-place Matrix Resizing" tags=[:nopre] begin
     using StableRNGs
 
     ff(u, p) = u .* u .- p
@@ -368,7 +368,7 @@ end
     end
 end
 
-@testitem "Inplace Matrix Resizing" tags=[:core] begin
+@testitem "Inplace Matrix Resizing" tags=[:nopre] begin
     using StableRNGs
 
     fiip(du, u, p) = (du .= u .* u .- p)
@@ -437,7 +437,7 @@ end
     @test sol.retcode == ReturnCode.StalledSuccess
 end
 
-@testitem "Default Algorithm Singular Handling" tags=[:core] begin
+@testitem "Default Algorithm Singular Handling" tags=[:nopre] begin
     f(u, p) = [u[1]^2 - 2u[1] + 1, sum(u)]
     prob = NonlinearProblem(f, [1.0, 1.0])
     sol = solve(prob)

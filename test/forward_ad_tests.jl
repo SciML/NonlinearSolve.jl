@@ -62,7 +62,7 @@ compatible(::KINSOL, ::Val{:oop_cache}) = false
 export test_f!, test_f, jacobian_f, solve_with, compatible
 end
 
-@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] tags=[:core] begin
+@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] tags=[:nopre] begin
     @testset for alg in (
         NewtonRaphson(),
         TrustRegion(),

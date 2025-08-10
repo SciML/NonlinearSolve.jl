@@ -39,7 +39,7 @@ end
 export test_on_library, problems, dicts
 end
 
-@testitem "23 Test Problems: PolyAlgorithms" setup=[RobustnessTesting] tags=[:core] begin
+@testitem "23 Test Problems: PolyAlgorithms" setup=[RobustnessTesting] tags=[:nopre] begin
     alg_ops=(RobustMultiNewton(), FastShortcutNonlinearPolyalg())
 
     broken_tests=Dict(alg=>Int[] for alg in alg_ops)
