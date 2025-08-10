@@ -9,6 +9,12 @@ if GROUP == "all" || GROUP == "downstream"
     push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
     push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
 end
+if GROUP == "all" || GROUP == "nopre"
+    # Only add Enzyme for nopre group if not on prerelease Julia
+    if isempty(VERSION.prerelease)
+        push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
+    end
+end
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
 const RETESTITEMS_NWORKERS = parse(
