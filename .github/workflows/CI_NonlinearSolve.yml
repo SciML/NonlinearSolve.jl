@@ -78,6 +78,8 @@ jobs:
         shell: julia --color=yes --code-coverage=user --depwarn=yes --project=. {0}
         env:
           GROUP: ${{ matrix.group }}
+          # Wrapper tests run sequentially to avoid parallel initialization issues with external packages
+          RETESTITEMS_NWORKERS: ${{ matrix.group == 'wrappers' && '0' || '' }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SimpleNonlinearSolve/src,lib/NonlinearSolveFirstOrder/src,lib/NonlinearSolveSpectralMethods/src,lib/NonlinearSolveQuasiNewton/src
