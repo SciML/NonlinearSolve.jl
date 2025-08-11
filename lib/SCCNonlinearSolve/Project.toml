@@ -1,7 +1,7 @@
 name = "SCCNonlinearSolve"
 uuid = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.5.0"
+version = "1.4.0"
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
