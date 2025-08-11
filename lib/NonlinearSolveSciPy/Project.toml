@@ -1,7 +1,7 @@
 name = "NonlinearSolveSciPy"
 uuid = "4827a3aa-8a82-4c61-8bd0-3c7d3e464ee5"
 authors = ["SciML"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
@@ -18,7 +18,7 @@ path = "../NonlinearSolveBase"
 ConcreteStructs = "0.2.3"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
-NonlinearSolveBase = "1.4"
+NonlinearSolveBase = "1.15"
 PrecompileTools = "1.2"
 PythonCall = "0.9"
 ReTestItems = "1.24"
