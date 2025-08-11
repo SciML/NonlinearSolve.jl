@@ -12,7 +12,7 @@ using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-                          NonlinearSolvePolyAlgorithm, pickchunksize
+                          NonlinearSolvePolyAlgorithm, pickchunksize, NonlinearVerbosity
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
                  NonlinearFunction,
@@ -89,18 +89,17 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
+    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+
     @compile_workload begin
         @sync begin
-            for prob in nonlinear_problems
-                Threads.@spawn CommonSolve.solve(
-                    prob, nothing; abstol = 1e-2, verbose = false
-                )
+            for prob in nonlinear_problems, alg in nlp_algs
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
             end
 
-            for prob in nlls_problems
-                Threads.@spawn CommonSolve.solve(
-                    prob, nothing; abstol = 1e-2, verbose = false
-                )
+            for prob in nlls_problems, alg in nlls_algs
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
             end
         end
     end
