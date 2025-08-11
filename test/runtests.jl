@@ -21,16 +21,23 @@ length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
     0  # Sequential execution for wrapper tests
 else
-    parse(
-        Int, get(ENV, "RETESTITEMS_NWORKERS",
-            string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-        )
-    )
+    default_workers = try
+        min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)
+    catch
+        # Fallback if Hwloc fails (e.g., on some CI environments)
+        0
+    end
+    parse(Int, get(ENV, "RETESTITEMS_NWORKERS", string(default_workers)))
 end
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
         ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
+        string(try
+            max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)
+        catch
+            # Fallback if Hwloc fails
+            1
+        end)
     )
 )
 
