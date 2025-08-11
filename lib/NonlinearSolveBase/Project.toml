@@ -26,6 +26,9 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
+[sources]
+SciMLJacobianOperators = {path = "../SciMLJacobianOperators"}
+
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
@@ -69,7 +72,7 @@ Preferences = "1.4"
 Printf = "1.10"
 RecursiveArrayTools = "3"
 SciMLBase = "2.92"
-SciMLJacobianOperators = "0.1.1"
+SciMLJacobianOperators = "0.1.8"
 SciMLOperators = "0.4, 1.0"
 SparseArrays = "1.10"
 SparseMatrixColorings = "0.4.5"
