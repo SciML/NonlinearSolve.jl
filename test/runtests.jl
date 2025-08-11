@@ -17,11 +17,16 @@ if GROUP == "all" || GROUP == "nopre"
 end
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
-const RETESTITEMS_NWORKERS = parse(
-    Int, get(ENV, "RETESTITEMS_NWORKERS",
-        string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
+# Use sequential execution for wrapper tests to avoid parallel initialization issues
+const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
+    0  # Sequential execution for wrapper tests
+else
+    parse(
+        Int, get(ENV, "RETESTITEMS_NWORKERS",
+            string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
+        )
     )
-)
+end
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
         ENV, "RETESTITEMS_NWORKER_THREADS",
