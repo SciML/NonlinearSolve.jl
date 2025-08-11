@@ -1200,11 +1200,12 @@ version = "0.2.10"
 
 [[deps.LinearSolve]]
 deps = ["ArrayInterface", "ChainRulesCore", "ConcreteStructs", "DocStringExtensions", "EnumX", "GPUArraysCore", "InteractiveUtils", "Krylov", "LazyArrays", "Libdl", "LinearAlgebra", "MKL_jll", "Markdown", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLOperators", "Setfield", "StaticArraysCore", "UnPack"]
-git-tree-sha1 = "768b03427f67ec35e1376d06c0af074584346832"
+git-tree-sha1 = "1c597eceb5ead73dae17ffa4dcc1160e3e4da1f3"
 uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "3.27.1"
+version = "3.28.0"
 
     [deps.LinearSolve.extensions]
+    LinearSolveAMDGPUExt = "AMDGPU"
     LinearSolveBLISExt = ["blis_jll", "LAPACK_jll"]
     LinearSolveBandedMatricesExt = "BandedMatrices"
     LinearSolveBlockDiagonalsExt = "BlockDiagonals"
@@ -1226,6 +1227,7 @@ version = "3.27.1"
     LinearSolveSparspakExt = ["SparseArrays", "Sparspak"]
 
     [deps.LinearSolve.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
     BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
     BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -2045,9 +2047,9 @@ version = "0.1.8"
 
 [[deps.SciMLOperators]]
 deps = ["Accessors", "ArrayInterface", "DocStringExtensions", "LinearAlgebra", "MacroTools"]
-git-tree-sha1 = "7d3a1519dc4d433a6b20035eaff20bde8be77c66"
+git-tree-sha1 = "aea915a39b547c48a18ee041120db1ae8df5a691"
 uuid = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
-version = "1.4.0"
+version = "1.5.0"
 weakdeps = ["SparseArrays", "StaticArraysCore"]
 
     [deps.SciMLOperators.extensions]
