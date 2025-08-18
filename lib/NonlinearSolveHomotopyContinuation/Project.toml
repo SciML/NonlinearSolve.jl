@@ -16,8 +16,8 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 TaylorDiff = "b36ab563-344f-407b-a36a-4f200bebf99c"
 
-[sources.NonlinearSolveBase]
-path = "../NonlinearSolveBase"
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
 
 [compat]
 ADTypes = "1.11.0"
