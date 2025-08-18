@@ -21,16 +21,27 @@ length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
     0  # Sequential execution for wrapper tests
 else
+    # Ensure we have a valid default value even if Hwloc fails
+    default_workers = try
+        min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)
+    catch
+        1  # Fallback to 1 worker if Hwloc fails
+    end
     parse(
-        Int, get(ENV, "RETESTITEMS_NWORKERS",
-            string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-        )
+        Int, get(ENV, "RETESTITEMS_NWORKERS", string(default_workers))
     )
 end
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
         ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
+        string(max(
+            try
+                Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1)
+            catch
+                1  # Fallback to 1 thread if Hwloc fails
+            end,
+            1
+        ))
     )
 )
 
