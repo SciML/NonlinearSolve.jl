@@ -56,7 +56,6 @@ end
     u
     u_cache
     p
-    du  # Aliased to `get_du(descent_cache)`
     J   # Aliased to `initialization_cache.J` if !inverted_jac
     alg <: QuasiNewtonAlgorithm
     prob <: AbstractNonlinearProblem
@@ -96,6 +95,13 @@ end
 
     # Initialization
     initializealg
+end
+
+function SciMLBase.get_du(cache::QuasiNewtonCache)
+    SciMLBase.get_du(cache.descent_cache)
+end
+function NonlinearSolveBase.set_du!(cache::QuasiNewtonCache, δu)
+    NonlinearSolveBase.set_du!(cache.descent_cache, δu)
 end
 
 function NonlinearSolveBase.get_abstol(cache::QuasiNewtonCache)
@@ -220,7 +226,7 @@ function SciMLBase.__init(
         )
 
         cache = QuasiNewtonCache(
-            fu, u, u_cache, prob.p, du, J, alg, prob, globalization,
+            fu, u, u_cache, prob.p, J, alg, prob, globalization,
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             inv_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
@@ -269,7 +275,7 @@ function InternalAPI.step!(
             elseif recompute_jacobian === nothing
                 # Standard Step
                 reinit = InternalAPI.solve!(
-                    cache.reinit_rule_cache, cache.J, cache.fu, cache.u, cache.du
+                    cache.reinit_rule_cache, cache.J, cache.fu, cache.u, get_du(cache)
                 )
                 reinit && (countable_reinit = true)
             elseif recompute_jacobian
