@@ -19,9 +19,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [sources]
 # Remove assert that triggers false positive for JET. Tracked at https://github.com/aviatesk/JET.jl/issues/736.
 ForwardDiff = {url = "https://github.com/RomeoV/ForwardDiff.jl", rev="rv/remove-quote-assert-string-interpolation"}
-# Remove special path code path for ForwarDiff of LinearSolve, which uses untrimmable `deepcopy`.
-# Use of `deepcopy` is tracked at https://github.com/SciML/LinearSolve.jl/issues/648.
-LinearSolve = {url = "https://github.com/RomeoV/LinearSolve.jl", rev="rv/remove-linsolve-forwarddiff-special-path"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 # Fix a type instability. Tracked at https://github.com/SciML/SciMLBase.jl/pull/1074.
 SciMLBase = {url = "https://github.com/AayushSabharwal/SciMLBase.jl", rev="as/fix-jet-opt"}
