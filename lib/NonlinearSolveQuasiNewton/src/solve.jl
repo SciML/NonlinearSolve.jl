@@ -275,7 +275,7 @@ function InternalAPI.step!(
             elseif recompute_jacobian === nothing
                 # Standard Step
                 reinit = InternalAPI.solve!(
-                    cache.reinit_rule_cache, cache.J, cache.fu, cache.u, get_du(cache)
+                    cache.reinit_rule_cache, cache.J, cache.fu, cache.u, SciMLBase.get_du(cache)
                 )
                 reinit && (countable_reinit = true)
             elseif recompute_jacobian
