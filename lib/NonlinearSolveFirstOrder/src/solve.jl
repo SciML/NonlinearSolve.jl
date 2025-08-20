@@ -124,9 +124,9 @@ function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
-        termination_condition = nothing, internalnorm = L2_NORM,
+        termination_condition = nothing, internalnorm::F = L2_NORM,
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
-)
+) where {F}
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
     @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
