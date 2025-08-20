@@ -117,9 +117,9 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm = L2_NORM, alias_u0 = false, verbose = true,
+        internalnorm::IN = L2_NORM, alias_u0 = false, verbose = true,
         initializealg = NonlinearSolveDefaultInit(), kwargs...
-)
+) where {IN}
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
                           immutable (checked using `ArrayInterface.ismutable`)."
