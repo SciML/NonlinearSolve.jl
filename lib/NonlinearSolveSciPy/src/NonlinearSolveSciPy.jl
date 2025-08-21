@@ -94,7 +94,7 @@ end
 """
 Internal: wrap a Julia residual function into a Python callable
 """
-function _make_py_residual(f, p)
+function _make_py_residual(f::F, p) where F
     return pyfunc(x_py -> begin
         x = Vector{Float64}(x_py)
         r = f(x, p)
@@ -105,7 +105,7 @@ end
 """
 Internal: wrap a Julia scalar function into a Python callable
 """
-function _make_py_scalar(f, p)
+function _make_py_scalar(f::F, p) where F
     return pyfunc(x_py -> begin
         x = Float64(x_py)
         return f(x, p)
