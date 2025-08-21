@@ -193,7 +193,7 @@ function SciMLBase.__solve(
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
 
-function dogleg_method!!(cache, J, f, g, Δ)
+function dogleg_method!!(cache, J, f::F, g, Δ) where F
     (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step
