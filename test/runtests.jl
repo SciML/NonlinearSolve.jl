@@ -23,14 +23,14 @@ const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
 else
     parse(
         Int, get(ENV, "RETESTITEMS_NWORKERS",
-            string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
+            string(min(ifelse(Sys.iswindows(), 0, max(Hwloc.num_physical_cores(), 1)), 4))
         )
     )
 end
 const RETESTITEMS_NWORKER_THREADS = parse(Int,
     get(
         ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
+        string(max(max(Hwloc.num_virtual_cores(), 1) ÷ max(RETESTITEMS_NWORKERS, 1), 1))
     )
 )
 
