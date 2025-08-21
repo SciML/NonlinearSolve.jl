@@ -21,18 +21,15 @@ length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
     0  # Sequential execution for wrapper tests
 else
-    parse(
-        Int, get(ENV, "RETESTITEMS_NWORKERS",
-            string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-        )
-    )
+    tmp = get(ENV, "RETESTITEMS_NWORKERS", "")
+    isempty(tmp) && (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
+    parse(Int, tmp)
 end
-const RETESTITEMS_NWORKER_THREADS = parse(Int,
-    get(
-        ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
-    )
-)
+const RETESTITEMS_NWORKER_THREADS = begin
+    tmp = get(ENV, "RETESTITEMS_NWORKER_THREADS", "")
+    isempty(tmp) && (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
+    parse(Int, tmp)
+end
 
 @info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
 
