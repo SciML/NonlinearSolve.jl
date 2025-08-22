@@ -21,8 +21,8 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
                  LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
-                 promote_u0, anyeltypedual, eval_u0, get_concrete_u0, get_concrete_p,
-                 has_kwargs, extract_alg, get_concrete_problem
+                 promote_u0, get_concrete_u0, get_concrete_p,
+                 has_kwargs, extract_alg, promote_u0
 import SciMLBase: solve, init, solve!, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
@@ -35,11 +35,6 @@ using Printf: @printf
 
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
-
-# Extension Functions
-eltypedual(x) = false
-promote_u0(::Nothing, p, t0) = nothing
-isdualtype(::Type{T}) where {T} = false
 
 include("public.jl")
 include("utils.jl")
