@@ -393,7 +393,7 @@ end
 function init_up(prob::AbstractNonlinearProblem, sensealg, u0, p, args...; kwargs...)
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, !(prob isa DiscreteProblem); u0 = u0,
+        _prob = get_concrete_problem(prob, true; u0 = u0,
             p = p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
@@ -755,9 +755,9 @@ SII.state_values(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob
 
 get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
-has_kwargs(_prob::AbstractNonlinearProblem) = has_kwargs(typeof(_prob))
-Base.@pure __has_kwargs(::Type{T}) where {T} = :kwargs ∈ fieldnames(T)
-has_kwargs(::Type{T}) where {T} = __has_kwargs(T)
+# has_kwargs(_prob::AbstractNonlinearProblem) = has_kwargs(typeof(_prob))
+# Base.@pure __has_kwargs(::Type{T}) where {T} = :kwargs ∈ fieldnames(T)
+# has_kwargs(::Type{T}) where {T} = __has_kwargs(T)
 
 function SciMLBase.reinit!(
         cache::NonlinearSolveNoInitCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
@@ -854,29 +854,29 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
 end
 
 
-function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
-    oldprob = prob
-    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
-    if prob !== oldprob
-        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
-    end
-    p = get_concrete_p(prob, kwargs) 
-    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
-    u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
-end
+# function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
+#     oldprob = prob
+#     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
+#     if prob !== oldprob
+#         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+#     end
+#     p = get_concrete_p(prob, kwargs) 
+#     u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+#     u0 = promote_u0(u0, p, nothing)
+#     remake(prob; u0 = u0, p = p)
+# end
 
-function get_concrete_problem(prob::NonlinearLeastSquaresProblem, isadapt; kwargs...)
-    oldprob = prob
-    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
-    if prob !== oldprob
-        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
-    end
-    p = get_concrete_p(prob, kwargs)
-    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
-    u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
-end
+# function get_concrete_problem(prob::NonlinearLeastSquaresProblem, isadapt; kwargs...)
+#     oldprob = prob
+#     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
+#     if prob !== oldprob
+#         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+#     end
+#     p = get_concrete_p(prob, kwargs)
+#     u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+#     u0 = promote_u0(u0, p, nothing)
+#     remake(prob; u0 = u0, p = p)
+# end
 
 """
 Given the index provider `indp` used to construct the problem `prob` being solved, return
@@ -931,129 +931,129 @@ function build_null_solution(
     SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
 end
 
-@inline function extract_alg(solve_args, solve_kwargs, prob_kwargs)
-    if isempty(solve_args) || isnothing(first(solve_args))
-        if haskey(solve_kwargs, :alg)
-            solve_kwargs[:alg]
-        elseif haskey(prob_kwargs, :alg)
-            prob_kwargs[:alg]
-        else
-            nothing
-        end
-    elseif first(solve_args) isa SciMLBase.AbstractSciMLAlgorithm &&
-           !(first(solve_args) isa SciMLBase.EnsembleAlgorithm)
-        first(solve_args)
-    else
-        nothing
-    end
-end
+# @inline function extract_alg(solve_args, solve_kwargs, prob_kwargs)
+#     if isempty(solve_args) || isnothing(first(solve_args))
+#         if haskey(solve_kwargs, :alg)
+#             solve_kwargs[:alg]
+#         elseif haskey(prob_kwargs, :alg)
+#             prob_kwargs[:alg]
+#         else
+#             nothing
+#         end
+#     elseif first(solve_args) isa SciMLBase.AbstractSciMLAlgorithm &&
+#            !(first(solve_args) isa SciMLBase.EnsembleAlgorithm)
+#         first(solve_args)
+#     else
+#         nothing
+#     end
+# end
 
-function get_concrete_u0(prob, isadapt, t0, kwargs)
-    if eval_u0(prob.u0)
-        u0 = prob.u0(prob.p, t0)
-    elseif haskey(kwargs, :u0)
-        u0 = kwargs[:u0]
-    else
-        u0 = prob.u0
-    end
+# function get_concrete_u0(prob, isadapt, t0, kwargs)
+#     if eval_u0(prob.u0)
+#         u0 = prob.u0(prob.p, t0)
+#     elseif haskey(kwargs, :u0)
+#         u0 = kwargs[:u0]
+#     else
+#         u0 = prob.u0
+#     end
 
-    isadapt && eltype(u0) <: Integer && (u0 = float.(u0))
+#     isadapt && eltype(u0) <: Integer && (u0 = float.(u0))
 
-    _u0 = handle_distribution_u0(u0)
+#     _u0 = handle_distribution_u0(u0)
 
-    if isinplace(prob) && (_u0 isa Number || _u0 isa SArray)
-        throw(IncompatibleInitialConditionError())
-    end
+#     if isinplace(prob) && (_u0 isa Number || _u0 isa SArray)
+#         throw(IncompatibleInitialConditionError())
+#     end
 
-    if _u0 isa Tuple
-        throw(TupleStateError())
-    end
+#     if _u0 isa Tuple
+#         throw(TupleStateError())
+#     end
 
-    _u0
-end
+#     _u0
+# end
 
-function get_concrete_p(prob, kwargs)
-    if haskey(kwargs, :p)
-        p = kwargs[:p]
-    else
-        p = prob.p
-    end
-end
+# function get_concrete_p(prob, kwargs)
+#     if haskey(kwargs, :p)
+#         p = kwargs[:p]
+#     else
+#         p = prob.p
+#     end
+# end
 
-eval_u0(u0::Function) = true
-eval_u0(u0) = false
+# eval_u0(u0::Function) = true
+# eval_u0(u0) = false
 
-handle_distribution_u0(_u0) = _u0
+# handle_distribution_u0(_u0) = _u0
 
-anyeltypedual(x) = anyeltypedual(x, Val{0})
-anyeltypedual(x, counter) = Any
+# anyeltypedual(x) = anyeltypedual(x, Val{0})
+# anyeltypedual(x, counter) = Any
 
-function promote_u0(u0, p, t0)
-    if SciMLStructures.isscimlstructure(p)
-        _p = SciMLStructures.canonicalize(SciMLStructures.Tunable(), p)[1]
-        if !isequal(_p, p)
-            return promote_u0(u0, _p, t0)
-        end
-    end
-    Tu = eltype(u0)
-    if isdualtype(Tu)
-        return u0
-    end
-    Tp = anyeltypedual(p, Val{0})
-    if Tp == Any
-        Tp = Tu
-    end
-    Tt = anyeltypedual(t0, Val{0})
-    if Tt == Any
-        Tt = Tu
-    end
-    Tcommon = promote_type(Tu, Tp, Tt)
-    return if isdualtype(Tcommon)
-        Tcommon.(u0)
-    else
-        u0
-    end
-end
+# function promote_u0(u0, p, t0)
+#     if SciMLStructures.isscimlstructure(p)
+#         _p = SciMLStructures.canonicalize(SciMLStructures.Tunable(), p)[1]
+#         if !isequal(_p, p)
+#             return promote_u0(u0, _p, t0)
+#         end
+#     end
+#     Tu = eltype(u0)
+#     if isdualtype(Tu)
+#         return u0
+#     end
+#     Tp = anyeltypedual(p, Val{0})
+#     if Tp == Any
+#         Tp = Tu
+#     end
+#     Tt = anyeltypedual(t0, Val{0})
+#     if Tt == Any
+#         Tt = Tu
+#     end
+#     Tcommon = promote_type(Tu, Tp, Tt)
+#     return if isdualtype(Tcommon)
+#         Tcommon.(u0)
+#     else
+#         u0
+#     end
+# end
 
-function promote_u0(u0::AbstractArray{<:Complex}, p, t0)
-    if SciMLStructures.isscimlstructure(p)
-        _p = SciMLStructures.canonicalize(SciMLStructures.Tunable(), p)[1]
-        if !isequal(_p, p)
-            return promote_u0(u0, _p, t0)
-        end
-    end
-    Tu = real(eltype(u0))
-    if isdualtype(Tu)
-        return u0
-    end
-    Tp = anyeltypedual(p, Val{0})
-    if Tp == Any
-        Tp = Tu
-    end
-    Tt = anyeltypedual(t0, Val{0})
-    if Tt == Any
-        Tt = Tu
-    end
-    Tcommon = promote_type(eltype(u0), Tp, Tt)
-    return if isdualtype(real(Tcommon))
-        Tcommon.(u0)
-    else
-        u0
-    end
-end
+# function promote_u0(u0::AbstractArray{<:Complex}, p, t0)
+#     if SciMLStructures.isscimlstructure(p)
+#         _p = SciMLStructures.canonicalize(SciMLStructures.Tunable(), p)[1]
+#         if !isequal(_p, p)
+#             return promote_u0(u0, _p, t0)
+#         end
+#     end
+#     Tu = real(eltype(u0))
+#     if isdualtype(Tu)
+#         return u0
+#     end
+#     Tp = anyeltypedual(p, Val{0})
+#     if Tp == Any
+#         Tp = Tu
+#     end
+#     Tt = anyeltypedual(t0, Val{0})
+#     if Tt == Any
+#         Tt = Tu
+#     end
+#     Tcommon = promote_type(eltype(u0), Tp, Tt)
+#     return if isdualtype(real(Tcommon))
+#         Tcommon.(u0)
+#     else
+#         u0
+#     end
+# end
 
-function checkkwargs(kwargshandle; kwargs...)
-    if any(x -> x ∉ allowedkeywords, keys(kwargs))
-        if kwargshandle == KeywordArgError
-            throw(CommonKwargError(kwargs))
-        elseif kwargshandle == KeywordArgWarn
-            @warn KWARGWARN_MESSAGE
-            unrecognized = setdiff(keys(kwargs), allowedkeywords)
-            print("Unrecognized keyword arguments: ")
-            printstyled(unrecognized; bold = true, color = :red)
-            print("\n\n")
-        else
-            @assert kwargshandle == KeywordArgSilent
-        end
-    end
-end
+# function checkkwargs(kwargshandle; kwargs...)
+#     if any(x -> x ∉ allowedkeywords, keys(kwargs))
+#         if kwargshandle == KeywordArgError
+#             throw(CommonKwargError(kwargs))
+#         elseif kwargshandle == KeywordArgWarn
+#             @warn KWARGWARN_MESSAGE
+#             unrecognized = setdiff(keys(kwargs), allowedkeywords)
+#             print("Unrecognized keyword arguments: ")
+#             printstyled(unrecognized; bold = true, color = :red)
+#             print("\n\n")
+#         else
+#             @assert kwargshandle == KeywordArgSilent
+#         end
+#     end
+# end
