@@ -70,11 +70,10 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    linprob = LinearProblem(A, b; u0 = u_cache, kwargs...)
-
+    linprob = LinearProblem(A, b; u0 = u_cache)
     # unlias here, we will later use these as caches
     lincache = init(
-        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false))
+        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...)
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
