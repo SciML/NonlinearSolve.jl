@@ -20,7 +20,9 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  AbstractNonlinearAlgorithm,
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
-                 LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier
+                 LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
+                 promote_u0, anyeltypedual, eval_u0, get_concrete_u0, get_concrete_p,
+                 has_kwargs, extract_alg, get_concrete_problem
 import SciMLBase: solve, init, solve!, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
