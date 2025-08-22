@@ -854,29 +854,37 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
 end
 
 
-# function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
-#     oldprob = prob
-#     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
-#     if prob !== oldprob
-#         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
-#     end
-#     p = get_concrete_p(prob, kwargs) 
-#     u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
-#     u0 = promote_u0(u0, p, nothing)
-#     remake(prob; u0 = u0, p = p)
-# end
+function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
+    oldprob = prob
+    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
+    if prob !== oldprob
+        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+    end
+    p = get_concrete_p(prob, kwargs) 
+    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+    u0 = promote_u0(u0, p, nothing)
+    remake(prob; u0 = u0, p = p)
+end
 
-# function get_concrete_problem(prob::NonlinearLeastSquaresProblem, isadapt; kwargs...)
-#     oldprob = prob
-#     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
-#     if prob !== oldprob
-#         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
-#     end
-#     p = get_concrete_p(prob, kwargs)
-#     u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
-#     u0 = promote_u0(u0, p, nothing)
-#     remake(prob; u0 = u0, p = p)
-# end
+function get_concrete_problem(prob::NonlinearLeastSquaresProblem, isadapt; kwargs...)
+    oldprob = prob
+    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
+    if prob !== oldprob
+        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+    end
+    p = get_concrete_p(prob, kwargs)
+    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+    u0 = promote_u0(u0, p, nothing)
+    remake(prob; u0 = u0, p = p)
+end
+
+function get_concrete_problem(
+    prob::ImmutableNonlinearProblem, isadapt; kwargs...)
+    u0 = DiffEqBase.get_concrete_u0(prob, isadapt, nothing, kwargs)
+    u0 = DiffEqBase.promote_u0(u0, prob.p, nothing)
+    p = DiffEqBase.get_concrete_p(prob, kwargs)
+    return remake(prob; u0 = u0, p = p)
+end
 
 """
 Given the index provider `indp` used to construct the problem `prob` being solved, return
