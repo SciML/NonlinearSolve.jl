@@ -266,7 +266,7 @@ function InternalAPI.step!(
             end
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
-            InternalAPI.step!(cache; recompute_jacobian = true, kwargs...)
+            InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)
             return
         end
     end
