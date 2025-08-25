@@ -8,8 +8,6 @@ using SciMLBase: AbstractSensitivityAlgorithm
 import ChainRulesCore
 import ChainRulesCore: NoTangent
 
-ChainRulesCore.@non_differentiable NonlinearSolveBase.checkkwargs(kwargshandle)
-
 function ChainRulesCore.frule(::typeof(NonlinearSolveBase.solve_up), prob,
         sensealg::Union{Nothing, AbstractSensitivityAlgorithm},
         u0, p, args...; originator = SciMLBase.ChainRulesOriginator(),
