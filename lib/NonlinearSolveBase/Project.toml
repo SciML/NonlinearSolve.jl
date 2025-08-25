@@ -1,5 +1,6 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+version = "1.14.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.14.1"
 
@@ -30,7 +31,6 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
@@ -39,13 +39,12 @@ SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 
 [extensions]
 NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
-NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
+NonlinearSolveBaseChainRulesCoreExt = "ChainRulesCore"
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseLineSearchExt = "LineSearch"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
-NonlinearSolveBaseChainRulesCoreExt = "ChainRulesCore"
 
 [compat]
 ADTypes = "1.9"
