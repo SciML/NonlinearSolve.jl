@@ -1,5 +1,6 @@
 name = "NonlinearSolveQuasiNewton"
 uuid = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+version = "1.8.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.8.1"
 
@@ -7,7 +8,6 @@ version = "1.8.1"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
 ConcreteStructs = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
-DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 MaybeInplace = "bb5d69b7-63fc-4a16-80bd-7e42200c7bdb"
@@ -21,8 +21,8 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 [weakdeps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
-[sources.NonlinearSolveBase]
-path = "../NonlinearSolveBase"
+[sources]
+NonlinearSolveBase = {path = "../NonlinearSolveBase"}
 
 [extensions]
 NonlinearSolveQuasiNewtonForwardDiffExt = "ForwardDiff"
@@ -34,7 +34,6 @@ ArrayInterface = "7.16.0"
 BenchmarkTools = "1.5.0"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
-DiffEqBase = "6.188"
 Enzyme = "0.13.12"
 ExplicitImports = "1.5"
 FiniteDiff = "2.24"
