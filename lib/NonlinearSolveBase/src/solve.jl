@@ -377,6 +377,14 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
     end
 end
 
+function solve_call(prob::SteadyStateProblem,
+        alg::AbstractNonlinearAlgorithm, args...;
+        kwargs...)
+    solve_call(NonlinearProblem(prob),
+        alg, args...;
+        kwargs...)
+end
+
 function init(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
         u0 = nothing, p = nothing, kwargs...)
@@ -420,7 +428,6 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
     kwargshandle = kwargshandle === nothing ? KeywordArgError : kwargshandle
     kwargshandle = has_kwargs(_prob) && haskey(_prob.kwargs, :kwargshandle) ?
                    _prob.kwargs[:kwargshandle] : kwargshandle
-
     if has_kwargs(_prob)
         if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
             kwargs_temp = NamedTuple{
@@ -435,7 +442,6 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
     end
 
     checkkwargs(kwargshandle; kwargs...)
-
     if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
            _prob.f.f isa EvalFunc
         Base.invokelatest(__init, _prob, args...; kwargs...)#::T
@@ -582,6 +588,18 @@ function SciMLBase.__solve(
         throw(NonSolverError())
     else
         __solve(prob, nothing, args...; default_set = false, second_time = true, kwargs...)
+    end
+end
+
+function __init(prob::AbstractNonlinearProblem, args...; default_set = false, second_time = false,
+        kwargs...)
+    if second_time
+        throw(NoDefaultAlgorithmError())
+    elseif length(args) > 0 && !(first(args) isa
+             Union{Nothing, AbstractDEAlgorithm, AbstractNonlinearAlgorithm})
+        throw(NonSolverError())
+    else
+        __init(prob, nothing, args...; default_set = false, second_time = true, kwargs...)
     end
 end
 
@@ -886,6 +904,19 @@ function get_concrete_problem(
     return remake(prob; u0 = u0, p = p)
 end
 
+function get_concrete_problem(prob::SteadyStateProblem, isadapt; kwargs...)
+    oldprob = prob
+    prob = get_updated_symbolic_problem(SciMLBase.get_root_indp(prob), prob; kwargs...)
+    if prob !== oldprob
+        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+    end
+    p = get_concrete_p(prob, kwargs)
+    u0 = get_concrete_u0(prob, isadapt, Inf, kwargs)
+    u0 = promote_u0(u0, p, nothing)
+    remake(prob; u0 = u0, p = p)
+end
+
+
 """
 Given the index provider `indp` used to construct the problem `prob` being solved, return
 an updated `prob` to be used for solving. All implementations should accept arbitrary
@@ -937,6 +968,20 @@ function build_null_solution(
     end
 
     SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
+end
+
+
+function solve(prob::EnsembleProblem, args...; kwargs...)
+    alg = extract_alg(args, kwargs, kwargs)
+    if length(args) > 1
+        __solve(prob, alg, Base.tail(args)...; kwargs...)
+    else
+        __solve(prob, alg; kwargs...)
+    end
+end
+
+function solve(prob::SciMLBase.WeightedEnsembleProblem, args...; kwargs...)
+    SciMLBase.WeightedEnsembleSolution(solve(prob.ensembleprob), prob.weights)
 end
 
 # @inline function extract_alg(solve_args, solve_kwargs, prob_kwargs)
