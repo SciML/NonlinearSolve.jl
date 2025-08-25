@@ -337,15 +337,6 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
                    _prob.kwargs[:kwargshandle] : kwargshandle
 
     if has_kwargs(_prob)
-        # if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
-        #     kwargs_temp = NamedTuple{
-        #         Base.diff_names(Base._nt_names(values(kwargs)),
-        #         (:callback,))}(values(kwargs))
-        #     callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
-        #         _prob.kwargs[:callback],
-        #         values(kwargs).callback),))
-        #     kwargs = merge(kwargs_temp, callbacks)
-        # end
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
@@ -429,15 +420,6 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
     kwargshandle = has_kwargs(_prob) && haskey(_prob.kwargs, :kwargshandle) ?
                    _prob.kwargs[:kwargshandle] : kwargshandle
     if has_kwargs(_prob)
-        # if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
-        #     kwargs_temp = NamedTuple{
-        #         Base.diff_names(Base._nt_names(values(kwargs)),
-        #             (:callback,))}(values(kwargs))
-        #     callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
-        #         _prob.kwargs[:callback],
-        #         values(kwargs).callback),))
-        #     kwargs = merge(kwargs_temp, callbacks)
-        # end
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
@@ -820,15 +802,6 @@ function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callba
     end
 
     if has_kwargs(_prob)
-        # if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
-        #     kwargs_temp = NamedTuple{
-        #         Base.diff_names(Base._nt_names(values(kwargs)),
-        #         (:callback,))}(values(kwargs))
-        #     callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
-        #         _prob.kwargs[:callback],
-        #         values(kwargs).callback),))
-        #     kwargs = merge(kwargs_temp, callbacks)
-        # end
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
@@ -851,15 +824,6 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
     end
 
     if has_kwargs(_prob)
-        # if merge_callbacks && haskey(_prob.kwargs, :callback) && haskey(kwargs, :callback)
-        #     kwargs_temp = NamedTuple{
-        #         Base.diff_names(Base._nt_names(values(kwargs)),
-        #         (:callback,))}(values(kwargs))
-        #     callbacks = NamedTuple{(:callback,)}((DiffEqBase.CallbackSet(
-        #         _prob.kwargs[:callback],
-        #         values(kwargs).callback),))
-        #     kwargs = merge(kwargs_temp, callbacks)
-        # end
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
@@ -969,20 +933,6 @@ function build_null_solution(
 
     SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
 end
-
-#TODO: THIS SHOULD GO IN SCIMLBASE. THIS IS TEMPORARY FOR TESTING PURPOSES. REMOVE
-# function solve(prob::EnsembleProblem, args...; kwargs...)
-#     alg = extract_alg(args, kwargs, kwargs)
-#     if length(args) > 1
-#         __solve(prob, alg, Base.tail(args)...; kwargs...)
-#     else
-#         __solve(prob, alg; kwargs...)
-#     end
-# end
-
-# function solve(prob::WeightedEnsembleProblem, args...; kwargs...)
-#     SciMLBase.WeightedEnsembleSolution(solve(prob.ensembleprob), prob.weights)
-# end
 
 # @inline function extract_alg(solve_args, solve_kwargs, prob_kwargs)
 #     if isempty(solve_args) || isnothing(first(solve_args))
