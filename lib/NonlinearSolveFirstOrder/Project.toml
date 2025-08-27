@@ -1,7 +1,7 @@
 name = "NonlinearSolveFirstOrder"
 uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.7.0"
+version = "1.8.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
