@@ -1,9 +1,9 @@
 function SciMLBase.__solve(
-        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        kwargs...
-)
+        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = SciMLBase.__init(prob, alg, args...; kwargs...)
-    return CommonSolve.solve!(cache)
+    sol = CommonSolve.solve!(cache)
+
+    return sol
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
@@ -129,17 +129,28 @@ end
 
 @generated function __generated_polysolve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true,
+        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {N}
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
+    end
+    
     sol_syms = [gensym("sol") for _ in 1:N]
     prob_syms = [gensym("prob") for _ in 1:N]
     u_result_syms = [gensym("u_result") for _ in 1:N]
     calls = [quote
         current = alg.start_index
         if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-            verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
-                              immutable (checked using `ArrayInterface.ismutable`)."
+            @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable, :error_control)
             alias_u0 = false  # If immutable don't care about aliasing
         end
     end]
@@ -283,6 +294,8 @@ end
     initializealg
 
     retcode::ReturnCode.T
+
+    verbose
 end
 
 function get_abstol(cache::NonlinearSolveNoInitCache)
@@ -311,11 +324,11 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        initializealg = NonlinearSolveDefaultInit(),
+        initializealg = NonlinearSolveDefaultInit(), verbose = NonlinearVerbosity(),
         kwargs...
 )
     cache = NonlinearSolveNoInitCache(
-        prob, alg, args, kwargs, initializealg, ReturnCode.Default)
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose)
     run_initialization!(cache)
     return cache
 end
