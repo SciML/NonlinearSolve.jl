@@ -61,7 +61,7 @@ function construct_jacobian_cache(
     end
 
     J = if !needs_jac
-        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
+        StatefulJacobianOperator(JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff), cache.u, cache.p)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
@@ -87,7 +87,7 @@ function construct_jacobian_cache(
         end
     end
 
-    return JacobianCache(J, f, fu, u, p, stats, autodiff, di_extras)
+    return JacobianCache(J, f, fu, p, stats, autodiff, di_extras)
 end
 
 function construct_jacobian_cache(
@@ -107,45 +107,32 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(fu, f, fu, u, p, stats, autodiff, di_extras)
+    return JacobianCache(fu, f, fu, p, stats, autodiff, di_extras)
 end
 
 @concrete mutable struct JacobianCache <: AbstractJacobianCache
     J
     f <: NonlinearFunction
     fu
-    u
     p
     stats::NLStats
     autodiff
     di_extras
 end
 
-function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, u0 = cache.u, kwargs...)
-    cache.u = u0
+function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
     cache.p = p
 end
 
 # Core Computation
-function (cache::JacobianCache)(u)
-    cache.u = u
-    cache()
-end
-function (cache::JacobianCache{<:JacobianOperator})(::Nothing)
-    return StatefulJacobianOperator(cache.J, cache.u, cache.p)
-end
 (cache::JacobianCache)(::Nothing) = cache.J
-
-## Operator
-function (cache::JacobianCache{<:JacobianOperator})()
-    return StatefulJacobianOperator(cache.J, cache.u, cache.p)
-end
+(cache::JacobianCache{<:Number})(::Nothing) = cache.J
 
 ## Numbers
-function (cache::JacobianCache{<:Number})()
+function (cache::JacobianCache{<:Number})(u)
     cache.stats.njacs += 1
     
-    (; f, J, u, p) = cache
+    (; f, J, p) = cache
     cache.J = if SciMLBase.has_jac(f)
         f.jac(u, p)
     elseif SciMLBase.has_vjp(f)
@@ -159,9 +146,9 @@ function (cache::JacobianCache{<:Number})()
 end
 
 ## Actually Compute the Jacobian
-function (cache::JacobianCache)()
+function (cache::JacobianCache)(u)
     cache.stats.njacs += 1
-    (; f, J, u, p) = cache
+    (; f, J, p) = cache
     if SciMLBase.isinplace(f)
         if SciMLBase.has_jac(f)
             f.jac(J, u, p)
