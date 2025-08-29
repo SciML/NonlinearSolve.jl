@@ -934,6 +934,21 @@ function build_null_solution(
     SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
 end
 
+function hack_null_solution_init(prob::Union{NonlinearProblem, NonlinearLeastSquareProblem, SteadyStateProblem})
+    if SciMLBase.has_initialization_data(prob.f)
+        initializeprob = prob.f.initialization_data.initializeprob
+        nlsol = solve(initializeprob)
+        success = SciMLBase.successful_retcode(nlsol)
+        if prob.f.initialization_data.initializeprobpmap !== nothing
+            @set! prob.p = prob.f.initializeprobpmap(prob, nlsol)
+        end
+    else
+        success = true
+    end
+    return prob, success
+end
+
+
 # @inline function extract_alg(solve_args, solve_kwargs, prob_kwargs)
 #     if isempty(solve_args) || isnothing(first(solve_args))
 #         if haskey(solve_kwargs, :alg)
