@@ -15,15 +15,20 @@ using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
-using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
+using RecursiveArrayTools: RecursiveArrayTools, AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
-                 AbstractNonlinearAlgorithm,
+                 AbstractNonlinearAlgorithm, _concrete_solve_adjoint, _concrete_solve_forward,
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
-                 LinearAliasSpecifier, ImmutableNonlinearProblem
+                 LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
+                 promote_u0, get_concrete_u0, get_concrete_p,
+                 has_kwargs, extract_alg, promote_u0, checkkwargs, SteadyStateProblem
+import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
+import SciMLStructures
+using Setfield: @set!
 
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
