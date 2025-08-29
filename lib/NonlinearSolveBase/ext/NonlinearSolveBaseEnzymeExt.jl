@@ -25,7 +25,7 @@ module NonlinearSolveBaseEnzymeExt
             copy_or_reuse(args[i].val, i + 5)
         end
 
-        res = DiffEqBase._solve_adjoint(
+        res = NonlinearSolveBase._solve_adjoint(
             copy_or_reuse(prob.val, 2), copy_or_reuse(sensealg.val, 3),
             copy_or_reuse(u0.val, 4), copy_or_reuse(p.val, 5),
             SciMLBase.EnzymeOriginator(), ntuple(arg_copy, Val(length(args)))...;

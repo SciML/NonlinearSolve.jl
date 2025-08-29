@@ -4,7 +4,7 @@ using NonlinearSolveBase
 import SciMLBase: value
 import Tracker
 
-function SciMLBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0::Tracker.TrackedArray,
@@ -12,7 +12,7 @@ function SciMLBase.solve_up(prob::SciMLBase.AbstractDEProblem,
     Tracker.track(SciMLBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function SciMLBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0::Tracker.TrackedArray, p, args...;
@@ -20,7 +20,7 @@ function SciMLBase.solve_up(prob::SciMLBase.AbstractDEProblem,
     Tracker.track(SciMLBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function SciMLBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0, p::Tracker.TrackedArray, args...;
@@ -35,7 +35,7 @@ Tracker.@grad function SciMLBase.solve_up(prob,
         u0, p, args...;
         kwargs...)
     sol,
-    pb_f = SciMLBase._solve_adjoint(
+    pb_f = NonlinearSolveBase._solve_adjoint(
         prob, sensealg, Tracker.data(u0), Tracker.data(p),
         SciMLBase.TrackerOriginator(), args...; kwargs...)
 
