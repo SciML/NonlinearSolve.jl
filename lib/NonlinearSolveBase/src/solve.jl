@@ -934,7 +934,7 @@ function build_null_solution(
     SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
 end
 
-function hack_null_solution_init(prob::Union{NonlinearProblem, NonlinearLeastSquareProblem, SteadyStateProblem})
+function hack_null_solution_init(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SteadyStateProblem})
     if SciMLBase.has_initialization_data(prob.f)
         initializeprob = prob.f.initialization_data.initializeprob
         nlsol = solve(initializeprob)
