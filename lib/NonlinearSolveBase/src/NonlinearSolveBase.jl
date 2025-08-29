@@ -28,6 +28,7 @@ using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
+using Setfield: @set!
 
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
 using Markdown: @doc_str
