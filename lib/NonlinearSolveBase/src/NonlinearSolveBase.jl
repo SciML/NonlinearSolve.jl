@@ -17,7 +17,7 @@ using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
 using RecursiveArrayTools: RecursiveArrayTools, AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
-                 AbstractNonlinearAlgorithm,
+                 AbstractNonlinearAlgorithm, _concrete_solve_adjoint, _concrete_solve_forward,
                  NonlinearProblem, NonlinearLeastSquaresProblem,
                  NonlinearFunction, NLStats, LinearProblem,
                  LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
