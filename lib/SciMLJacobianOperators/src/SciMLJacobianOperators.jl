@@ -409,7 +409,7 @@ function Base.copy(J::JacobianOperator)
         J.mode,
         J.jvp_op,
         J.vjp_op,
-        copy(J.size),
+        J.size,
         J.input_cache === nothing ? nothing : copy(J.input_cache),
         J.output_cache === nothing ? nohting : copy(J.output_cache)
     )
