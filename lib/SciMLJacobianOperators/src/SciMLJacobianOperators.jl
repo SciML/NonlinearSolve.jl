@@ -410,24 +410,24 @@ function Base.copy(J::JacobianOperator)
         J.jvp_op,
         J.vjp_op,
         copy(J.size),
-        isnothing(J.input_cache) ? nothing : copy(J.input_cache),
-        isnothing(J.output_cache) ? nohting : copy(J.output_cache)
+        J.input_cache === nothing ? nothing : copy(J.input_cache),
+        J.output_cache === nothing ? nohting : copy(J.output_cache)
     )
 end
 
 function Base.copy(J::StatefulJacobianOperator)
     return StatefulJacobianOperator(
         copy(J.jac_op),
-        isnothing(J.u) ? nothing : copy(J.u),
-        isnothing(J.p) ? nothing : copy(J.p)
+        J.u === nothing ? nothing : copy(J.u),
+        J.p === nothing ? nothing : copy(J.p)
     )
 end
 
 function Base.copy(J::StatefulJacobianNormalFormOperator)
     return StatefulJacobianNormalFormOperator(
-        isnothing(J.vjp_operator) ? nothing : copy(J.vjp_operator),
-        isnothing(J.jvp_operator) ? nothing : copy(J.jvp_operator),
-        isnothing(J.cache) ? nothing : copy(J.cache)
+        J.vjp_operator === nothing ? nothing : copy(J.vjp_operator),
+        J.jvp_operator === nothing ? nothing : copy(J.jvp_operator),
+        J.cache === nothing ? nothing : copy(J.cache)
     )
 
 end
