@@ -404,8 +404,8 @@ function get_dense_ad(ad::AutoSparse)
     return dense_ad
 end
 
-function Base.copy(J::JacobianOperator)
-    return JacobianOperator(
+function Base.copy(J::JacobianOperator{iip, T}) where {iip, T}
+    return JacobianOperator{iip,T}(
         J.mode,
         J.jvp_op,
         J.vjp_op,
@@ -423,8 +423,8 @@ function Base.copy(J::StatefulJacobianOperator)
     )
 end
 
-function Base.copy(J::StatefulJacobianNormalFormOperator)
-    return StatefulJacobianNormalFormOperator(
+function Base.copy(J::StatefulJacobianNormalFormOperator{T}) where {T}
+    return StatefulJacobianNormalFormOperator{T}(
         J.vjp_operator === nothing ? nothing : copy(J.vjp_operator),
         J.jvp_operator === nothing ? nothing : copy(J.jvp_operator),
         J.cache === nothing ? nothing : copy(J.cache)
