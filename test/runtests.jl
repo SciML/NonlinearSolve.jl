@@ -42,8 +42,6 @@ if GROUP == "all" || GROUP == "cuda"
     end
 end
 
-(GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
-
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
 # Use sequential execution for wrapper tests to avoid parallel initialization issues
