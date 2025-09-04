@@ -23,7 +23,7 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
                  LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
                  promote_u0, get_concrete_u0, get_concrete_p,
                  has_kwargs, extract_alg, promote_u0, checkkwargs, SteadyStateProblem,
-                 NoDefaultAlgorithmError, NonSolverError, KeywordArgError
+                 NoDefaultAlgorithmError, NonSolverError, KeywordArgError, AbstractDEAlgorithm
 import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
