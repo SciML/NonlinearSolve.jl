@@ -2,7 +2,7 @@ module NonlinearSolveBaseEnzymeExt
 
 @static if isempty(VERSION.prerelease)
     using NonlinearSolveBase
-    import SciMLBase: value
+    import SciMLBase: SciMLBase, value
     using Enzyme
     import Enzyme: Const
     using ChainRulesCore

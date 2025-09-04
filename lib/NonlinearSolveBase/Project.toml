@@ -32,20 +32,27 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 [weakdeps]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
+Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [extensions]
 NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
 NonlinearSolveBaseChainRulesCoreExt = "ChainRulesCore"
+NonlinearSolveBaseEnzymeExt = ["ChainRulesCore", "Enzyme"]
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseLineSearchExt = "LineSearch"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
+NonlinearSolveBaseReverseDiffExt = "ReverseDiff"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
+NonlinearSolveBaseTrackerExt = "Tracker"
+
 
 [compat]
 ADTypes = "1.9"
@@ -82,6 +89,7 @@ SparseMatrixColorings = "0.4.5"
 StaticArraysCore = "1.4"
 SymbolicIndexingInterface = "0.3.43"
 Test = "1.10"
+Tracker = "0.2.35"
 TimerOutputs = "0.5.23"
 julia = "1.10"
 
