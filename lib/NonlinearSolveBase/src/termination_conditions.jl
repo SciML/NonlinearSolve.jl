@@ -82,7 +82,6 @@ function CommonSolve.init(
     length(saved_value_prototype) == 0 && (saved_value_prototype = nothing)
 
     leastsq = typeof(prob) <: NonlinearLeastSquaresProblem
-    Main.@infiltrate
     return NonlinearTerminationModeCache(
         u_unaliased, ReturnCode.Default, abstol, reltol, best_value, mode,
         initial_objective, objectives_trace, 0, saved_value_prototype,
