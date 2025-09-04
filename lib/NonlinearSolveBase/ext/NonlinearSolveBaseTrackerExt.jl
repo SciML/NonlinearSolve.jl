@@ -1,34 +1,34 @@
 module NonlinearSolveBaseTrackerExt
 
 using NonlinearSolveBase
-import SciMLBase: value
+import SciMLBase: SciMLBase, value
 import Tracker
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0::Tracker.TrackedArray,
         p::Tracker.TrackedArray, args...; kwargs...)
-    Tracker.track(SciMLBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+    Tracker.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0::Tracker.TrackedArray, p, args...;
         kwargs...)
-    Tracker.track(SciMLBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+    Tracker.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.AbstractDEProblem,
+function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
             Nothing}, u0, p::Tracker.TrackedArray, args...;
         kwargs...)
-    Tracker.track(SciMLBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+    Tracker.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-Tracker.@grad function SciMLBase.solve_up(prob,
+Tracker.@grad function NonlinearSolveBase.solve_up(prob,
         sensealg::Union{Nothing,
             SciMLBase.AbstractOverloadingSensitivityAlgorithm
         },
