@@ -33,7 +33,7 @@ jobs:
           - core
           - adjoint
           - alloc_check
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
@@ -49,7 +49,7 @@ jobs:
           - core
           - adjoint
           - alloc_check
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: "1.11"
       project: "lib/SimpleNonlinearSolve"

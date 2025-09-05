@@ -28,7 +28,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
@@ -36,7 +36,7 @@ jobs:
       local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
 
   downgrade:
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: "1.11"
       project: "lib/SCCNonlinearSolve"

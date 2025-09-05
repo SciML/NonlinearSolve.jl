@@ -47,7 +47,7 @@ jobs:
           # Don't run nopre tests on prerelease Julia
           - group: nopre
             version: "pre"
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
@@ -65,7 +65,7 @@ jobs:
           - wrappers
           - misc
           - nopre
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       project: "."
       julia_version: "1.11"
