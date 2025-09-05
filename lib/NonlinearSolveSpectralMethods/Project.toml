@@ -1,7 +1,7 @@
 name = "NonlinearSolveSpectralMethods"
 uuid = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.3.0"
+version = "1.3.1"
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -36,7 +36,7 @@ InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"
 MaybeInplace = "0.1.4"
 NonlinearProblemLibrary = "0.1.2"
-NonlinearSolveBase = "1.4"
+NonlinearSolveBase = "1.14"
 Pkg = "1.10"
 PrecompileTools = "1.2"
 ReTestItems = "1.24"
