@@ -44,24 +44,6 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
-[sources.BracketingNonlinearSolve]
-path = "lib/BracketingNonlinearSolve"
-
-[sources.NonlinearSolveBase]
-path = "lib/NonlinearSolveBase"
-
-[sources.NonlinearSolveFirstOrder]
-path = "lib/NonlinearSolveFirstOrder"
-
-[sources.NonlinearSolveQuasiNewton]
-path = "lib/NonlinearSolveQuasiNewton"
-
-[sources.NonlinearSolveSpectralMethods]
-path = "lib/NonlinearSolveSpectralMethods"
-
-[sources.SimpleNonlinearSolve]
-path = "lib/SimpleNonlinearSolve"
-
 [extensions]
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
@@ -84,7 +66,6 @@ BracketingNonlinearSolve = "1"
 CUDA = "5.5"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
-DiffEqBase = "6.158.3"
 DifferentiationInterface = "0.6.18, 0.7"
 ExplicitImports = "1.5"
 FastClosures = "0.3.2"
@@ -157,6 +138,7 @@ Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
 SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
@@ -165,7 +147,26 @@ StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+[sources.BracketingNonlinearSolve]
+path = "lib/BracketingNonlinearSolve"
+
+[sources.NonlinearSolveBase]
+path = "lib/NonlinearSolveBase"
+
+[sources.NonlinearSolveFirstOrder]
+path = "lib/NonlinearSolveFirstOrder"
+
+[sources.NonlinearSolveQuasiNewton]
+path = "lib/NonlinearSolveQuasiNewton"
+
+[sources.NonlinearSolveSpectralMethods]
+path = "lib/NonlinearSolveSpectralMethods"
+
+[sources.SimpleNonlinearSolve]
+path = "lib/SimpleNonlinearSolve"
+
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote"]
+test = ["Aqua", "BandedMatrices", "BenchmarkTools", "CUDA", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker"]

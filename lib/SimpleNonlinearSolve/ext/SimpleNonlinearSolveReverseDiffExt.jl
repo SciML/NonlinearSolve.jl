@@ -1,12 +1,12 @@
 module SimpleNonlinearSolveReverseDiffExt
 
-using NonlinearSolveBase: ImmutableNonlinearProblem
+using NonlinearSolveBase: ImmutableNonlinearProblem, _solve_adjoint
 using SciMLBase: ReverseDiffOriginator, NonlinearLeastSquaresProblem, remake
 
 using ArrayInterface: ArrayInterface
 using ReverseDiff: ReverseDiff, TrackedArray, TrackedReal
 
-using SimpleNonlinearSolve: SimpleNonlinearSolve, solve_adjoint
+using SimpleNonlinearSolve: SimpleNonlinearSolve
 import SimpleNonlinearSolve: simplenonlinearsolve_solve_up
 
 for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
@@ -27,7 +27,7 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
         u0, p = ReverseDiff.value(tu0), ReverseDiff.value(tp)
         prob = remake(tprob; u0, p)
         out,
-        ∇internal = solve_adjoint(
+        ∇internal = _solve_adjoint(
             prob, sensealg, u0, p, ReverseDiffOriginator(), alg, args...; kwargs...)
 
         function ∇simplenonlinearsolve_solve_up(Δ...)

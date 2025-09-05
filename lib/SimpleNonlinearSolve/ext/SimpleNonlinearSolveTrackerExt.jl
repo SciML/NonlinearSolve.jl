@@ -1,12 +1,12 @@
 module SimpleNonlinearSolveTrackerExt
 
-using NonlinearSolveBase: ImmutableNonlinearProblem
+using NonlinearSolveBase: ImmutableNonlinearProblem, _solve_adjoint
 using SciMLBase: TrackerOriginator, NonlinearLeastSquaresProblem, remake
 
 using ArrayInterface: ArrayInterface
 using Tracker: Tracker, TrackedArray, TrackedReal
 
-using SimpleNonlinearSolve: SimpleNonlinearSolve, solve_adjoint
+using SimpleNonlinearSolve: SimpleNonlinearSolve
 
 for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
     aTypes = (TrackedArray, AbstractArray{<:TrackedReal}, Any)
@@ -26,7 +26,7 @@ for pType in (ImmutableNonlinearProblem, NonlinearLeastSquaresProblem)
         u0, p = Tracker.data(tu0), Tracker.data(tp)
         prob = remake(tprob; u0, p)
         out,
-        ∇internal = solve_adjoint(
+        ∇internal = _solve_adjoint(
             prob, sensealg, u0, p, TrackerOriginator(), alg, args...; kwargs...)
 
         function ∇simplenonlinearsolve_solve_up(Δ)
