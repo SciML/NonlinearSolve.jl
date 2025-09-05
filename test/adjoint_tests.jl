@@ -16,7 +16,7 @@
     ∂p_forwarddiff = ForwardDiff.gradient(solve_nlprob, p)
     ∂p_tracker = Tracker.data(only(Tracker.gradient(solve_nlprob, p)))
     ∂p_reversediff = ReverseDiff.gradient(solve_nlprob, p)
-    ∂p_enzyme = Enzyme.gradient(Enzyme.Reverse, solve_nlprob, p)[1]
+    ∂p_enzyme = Enzyme.gradient(Enzyme.set_runtime_activity(Enzyme.Reverse), solve_nlprob, p)[1]
 
     cache = Mooncake.prepare_gradient_cache(solve_nlprob, p)
     ∂p_mooncake = Mooncake.value_and_gradient!!(cache, solve_nlprob, p)[2][2]
