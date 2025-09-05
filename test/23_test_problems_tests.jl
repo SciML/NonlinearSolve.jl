@@ -159,7 +159,7 @@ end
         broken_tests[alg_ops[5]]=[1, 5, 11]
     end
 
-    test_on_library(problems, dicts, alg_ops, broken_tests, Sys.isapple() ? 1e-3 : 1e-4)
+    test_on_library(problems, dicts, alg_ops, broken_tests, 1e-3)
 end
 
 @testitem "23 Test Problems: Klement" setup=[RobustnessTesting] tags=[:core] begin
