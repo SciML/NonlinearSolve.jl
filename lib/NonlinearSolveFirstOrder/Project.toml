@@ -25,6 +25,7 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
 [sources]
 NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+SciMLJacobianOperators = {path = "../SciMLJacobianOperators"}
 
 [compat]
 ADTypes = "1.9.0"
