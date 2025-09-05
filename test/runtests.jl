@@ -35,6 +35,12 @@ if GROUP == "all" || GROUP == "nopre"
         push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
     end
 end
+if GROUP == "all" || GROUP == "cuda"
+    # Only add CUDA for cuda group if not on prerelease Julia
+    if isempty(VERSION.prerelease)
+        push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA"))
+    end
+end
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
 
 # Use sequential execution for wrapper tests to avoid parallel initialization issues

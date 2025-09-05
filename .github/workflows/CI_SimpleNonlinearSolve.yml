@@ -33,11 +33,6 @@ jobs:
           - core
           - adjoint
           - alloc_check
-          - nopre
-        exclude:
-          # Don't run nopre tests on prerelease Julia
-          - group: nopre
-            version: "pre"
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
     with:
       julia_version: ${{ matrix.version }}
@@ -54,7 +49,6 @@ jobs:
           - core
           - adjoint
           - alloc_check
-          - nopre
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
     with:
       julia_version: "1.11"
