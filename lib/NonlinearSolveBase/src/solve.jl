@@ -389,7 +389,8 @@ function init(
     init_up(prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function init_up(prob::AbstractNonlinearProblem, sensealg, u0, p, args...; kwargs...)
+function init_up(prob::AbstractNonlinearProblem,
+        sensealg, u0, p, args...; kwargs...)
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
         _prob = get_concrete_problem(prob, true; u0 = u0,
