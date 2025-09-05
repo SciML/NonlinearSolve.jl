@@ -419,7 +419,7 @@ function Base.copy(J::StatefulJacobianOperator)
     return StatefulJacobianOperator(
         copy(J.jac_op),
         J.u === nothing ? nothing : copy(J.u),
-        J.p === nothing ? nothing : copy(J.p)
+        applicable(copy, J.p) ? copy(J.p) : J.p
     )
 end
 

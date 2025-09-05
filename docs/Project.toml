@@ -11,8 +11,8 @@ DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
 DocumenterInterLinks = "d12716ef-a0f6-4df4-a9f1-a5a34e75c656"
 IncompleteLU = "40713840-3770-5561-ab4c-a76e7d0d7895"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
@@ -28,9 +28,22 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
+SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
+
+[sources]
+BracketingNonlinearSolve = {path = "../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = ".."}
+NonlinearSolveBase = {path = "../lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../lib/NonlinearSolveFirstOrder"}
+NonlinearSolveHomotopyContinuation = {path = "../lib/NonlinearSolveHomotopyContinuation"}
+NonlinearSolveQuasiNewton = {path = "../lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSciPy = {path = "../lib/NonlinearSolveSciPy"}
+NonlinearSolveSpectralMethods = {path = "../lib/NonlinearSolveSpectralMethods"}
+SciMLJacobianOperators = {path = "../lib/SciMLJacobianOperators"}
+SimpleNonlinearSolve = {path = "../lib/SimpleNonlinearSolve"}
 
 [compat]
 ADTypes = "1.9.0"
@@ -45,8 +58,8 @@ DocumenterCitations = "1"
 DocumenterInterLinks = "1.0.0"
 IncompleteLU = "0.2"
 InteractiveUtils = "<0.0.1, 1"
-LinearSolve = "2, 3"
 LineSearch = "0.1"
+LinearSolve = "2, 3"
 NonlinearSolve = "4"
 NonlinearSolveBase = "1"
 NonlinearSolveFirstOrder = "1"
