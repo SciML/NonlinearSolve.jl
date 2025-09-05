@@ -26,14 +26,14 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
     with:
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
       project: "lib/SciMLJacobianOperators"
 
   downgrade:
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@ap/ci
     with:
       julia_version: "1.11"
       project: "lib/SciMLJacobianOperators"
