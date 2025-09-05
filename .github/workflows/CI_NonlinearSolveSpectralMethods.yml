@@ -41,4 +41,3 @@ jobs:
       julia_version: "1.11"
       project: "lib/NonlinearSolveSpectralMethods"
       downgrade_testing: true
-      local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"

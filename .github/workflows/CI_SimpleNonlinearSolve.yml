@@ -54,5 +54,4 @@ jobs:
       julia_version: "1.11"
       project: "lib/SimpleNonlinearSolve"
       downgrade_testing: true
-      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
       test_args: "GROUP=${{ matrix.group }}"

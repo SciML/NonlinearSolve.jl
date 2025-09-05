@@ -70,5 +70,4 @@ jobs:
       project: "."
       julia_version: "1.11"
       downgrade_testing: true
-      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
       test_args: "GROUP=${{ matrix.group }}"

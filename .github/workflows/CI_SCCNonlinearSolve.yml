@@ -33,7 +33,7 @@ jobs:
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
       project: "lib/SCCNonlinearSolve"
-      local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
+      local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder"
 
   downgrade:
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
@@ -41,4 +41,3 @@ jobs:
       julia_version: "1.11"
       project: "lib/SCCNonlinearSolve"
       downgrade_testing: true
-      local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
