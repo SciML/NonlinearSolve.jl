@@ -33,6 +33,8 @@ if GROUP == "all" || GROUP == "nopre"
     # Only add Enzyme for nopre group if not on prerelease Julia
     if isempty(VERSION.prerelease)
         push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
+        push!(EXTRA_PKGS, Pkg.PackageSpec("Mooncake"))
+        push!(EXTRA_PKGS, Pkg.PackageSpec("SciMLSensitivity"))
     end
 end
 if GROUP == "all" || GROUP == "cuda"
