@@ -795,7 +795,7 @@ function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callba
         kwargs...)
     alg = extract_alg(args, kwargs, prob.kwargs)
     if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, !(prob isa DiscreteProblem); u0 = u0,
+        _prob = get_concrete_problem(prob, true; u0 = u0,
             p = p, kwargs...)
     else
         _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)
@@ -817,7 +817,7 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
         kwargs...)
     alg = extract_alg(args, kwargs, prob.kwargs)
     if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, !(prob isa DiscreteProblem); u0 = u0,
+        _prob = get_concrete_problem(prob, true; u0 = u0,
             p = p, kwargs...)
     else
         _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)

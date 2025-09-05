@@ -1,5 +1,5 @@
-@testitem "Adjoint Tests" tags = [:adjoint] begin
-    using ForwardDiff, ReverseDiff, SciMLSensitivity, Tracker, Zygote, Enzyme
+@testitem "Adjoint Tests" tags = [:nopre] begin
+    using ForwardDiff, ReverseDiff, SciMLSensitivity, Tracker, Zygote, Enzyme, Mooncake
 
     ff(u, p) = u .^ 2 .- p
 
@@ -17,6 +17,11 @@
     ∂p_tracker = Tracker.data(only(Tracker.gradient(solve_nlprob, p)))
     ∂p_reversediff = ReverseDiff.gradient(solve_nlprob, p)
     ∂p_enzyme = Enzyme.gradient(Enzyme.Reverse, solve_nlprob, p)[1]
-    @test ∂p_zygote ≈ ∂p_tracker ≈ ∂p_reversediff ≈ ∂p_enzyme
+
+    cache = Mooncake.prepare_gradient_cache(solve_nlprob, p)
+    ∂p_mooncake = Mooncake.value_and_gradient!!(cache, solve_nlprob, p)[2][2]
+
+    @test ∂p_zygote ≈ ∂p_tracker ≈ ∂p_reversediff ≈ ∂p_enzyme 
     @test ∂p_zygote ≈ ∂p_forwarddiff ≈ ∂p_tracker ≈ ∂p_reversediff ≈ ∂p_enzyme
+    @test_broken ∂p_forwarddiff ≈ ∂p_mooncake
 end
