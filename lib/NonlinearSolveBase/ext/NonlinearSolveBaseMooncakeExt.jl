@@ -1,7 +1,7 @@
 module NonlinearSolveBaseMooncakeExt
 
 using NonlinearSolveBase, Mooncake
-using SciMLBase: ADOriginator, ChainRulesOriginator, MooncakeOriginator
+using SciMLBase: SciMLBase
 import Mooncake: rrule!!, CoDual, zero_fcodual, @is_primitive,
                  @from_rrule, @zero_adjoint, @mooncake_overlay, MinimalCtx,
                  NoPullback
