@@ -37,6 +37,8 @@ jobs:
       - uses: julia-actions/julia-downgrade-compat@v2
         with:
           projects: ${{ matrix.project }}
+          mode: ${{ matrix.downgrade_mode }}
+          julia_version: ${{ matrix.julia-version }}
           skip: Pkg,TOML
       - uses: julia-actions/julia-buildpkg@v1
         with:
