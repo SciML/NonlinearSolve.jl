@@ -20,7 +20,6 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -35,46 +34,31 @@ jobs:
           - adjoint
           - alloc_check
           - nopre
-          exclude:
+        exclude:
           # Don't run nopre tests on prerelease Julia
           - group: nopre
             version: "pre"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: ${{ matrix.version }}
-      - uses: actions/cache@v4
-        env:
-          cache-name: cache-artifacts
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
-      - name: "Install Dependencies and Run Tests"
-        run: |
-          import Pkg
-          Pkg.Registry.update()
-          # Install packages present in subdirectories
-          dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/SciMLJacobianOperators")
-              push!(dev_pks, Pkg.PackageSpec(; path))
-          end
-          Pkg.develop(dev_pks)
-          Pkg.instantiate()
-          Pkg.test(; coverage="user")
-        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=lib/SimpleNonlinearSolve {0}
-        env:
-          GROUP: ${{ matrix.group }}
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: lib/SimpleNonlinearSolve/src,lib/SimpleNonlinearSolve/ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/BracketingNonlinearSolve/ext,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext
-      - uses: codecov/codecov-action@v5
-        with:
-          file: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: false
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
+      project: "lib/SimpleNonlinearSolve"
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  downgrade:
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - adjoint
+          - alloc_check
+          - nopre
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: "1.11"
+      project: "lib/SimpleNonlinearSolve"
+      downgrade_testing: true
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
+      test_args: "GROUP=${{ matrix.group }}"
