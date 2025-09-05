@@ -61,7 +61,7 @@ jobs:
           directories: lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SciMLJacobianOperators/src
       - uses: codecov/codecov-action@v5
         with:
-          file: lcov.info
+          files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           fail_ci_if_error: false
@@ -99,7 +99,7 @@ jobs:
           directories: lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SciMLJacobianOperators/src
       - uses: codecov/codecov-action@v5
         with:
-          file: lcov.info
+          files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           fail_ci_if_error: false
