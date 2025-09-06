@@ -18,22 +18,22 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  # test:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       version:
-  #         - "1.10"
-  #         - "1"
-  #       os:
-  #         - ubuntu-latest
-  #         - macos-latest
-  #   uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
-  #   with:
-  #     julia_version: ${{ matrix.version }}
-  #     os: ${{ matrix.os }}
-  #     project: "lib/NonlinearSolveFirstOrder"
-  #     local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - "1.10"
+          - "1"
+        os:
+          - ubuntu-latest
+          - macos-latest
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
+      project: "lib/NonlinearSolveFirstOrder"
+      local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
 
   downgrade:
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main

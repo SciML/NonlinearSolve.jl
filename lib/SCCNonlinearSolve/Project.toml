@@ -28,7 +28,7 @@ Reexport = "1.2.2"
 SciMLBase = "2.116"
 StableRNGs = "1"
 StaticArrays = "1.9.8"
-SymbolicIndexingInterface = "0.3.36"
+SymbolicIndexingInterface = "0.3.43"
 Test = "1.10"
 julia = "1.10"
 
