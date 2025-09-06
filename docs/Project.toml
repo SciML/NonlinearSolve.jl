@@ -33,17 +33,35 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
-[sources]
-BracketingNonlinearSolve = {path = "../lib/BracketingNonlinearSolve"}
-NonlinearSolve = {path = ".."}
-NonlinearSolveBase = {path = "../lib/NonlinearSolveBase"}
-NonlinearSolveFirstOrder = {path = "../lib/NonlinearSolveFirstOrder"}
-NonlinearSolveHomotopyContinuation = {path = "../lib/NonlinearSolveHomotopyContinuation"}
-NonlinearSolveQuasiNewton = {path = "../lib/NonlinearSolveQuasiNewton"}
-NonlinearSolveSciPy = {path = "../lib/NonlinearSolveSciPy"}
-NonlinearSolveSpectralMethods = {path = "../lib/NonlinearSolveSpectralMethods"}
-SciMLJacobianOperators = {path = "../lib/SciMLJacobianOperators"}
-SimpleNonlinearSolve = {path = "../lib/SimpleNonlinearSolve"}
+[sources.BracketingNonlinearSolve]
+path = "../lib/BracketingNonlinearSolve"
+
+[sources.NonlinearSolve]
+path = ".."
+
+[sources.NonlinearSolveBase]
+path = "../lib/NonlinearSolveBase"
+
+[sources.NonlinearSolveFirstOrder]
+path = "../lib/NonlinearSolveFirstOrder"
+
+[sources.NonlinearSolveHomotopyContinuation]
+path = "../lib/NonlinearSolveHomotopyContinuation"
+
+[sources.NonlinearSolveQuasiNewton]
+path = "../lib/NonlinearSolveQuasiNewton"
+
+[sources.NonlinearSolveSciPy]
+path = "../lib/NonlinearSolveSciPy"
+
+[sources.NonlinearSolveSpectralMethods]
+path = "../lib/NonlinearSolveSpectralMethods"
+
+[sources.SciMLJacobianOperators]
+path = "../lib/SciMLJacobianOperators"
+
+[sources.SimpleNonlinearSolve]
+path = "../lib/SimpleNonlinearSolve"
 
 [compat]
 ADTypes = "1.9.0"
@@ -75,6 +93,7 @@ SciMLBase = "2.116"
 SciMLJacobianOperators = "0.1"
 SimpleNonlinearSolve = "2"
 SparseConnectivityTracer = "1"
+SparseMatrixColorings = "0.4"
 StaticArrays = "1"
 SteadyStateDiffEq = "2"
 Sundials = "4.11"
