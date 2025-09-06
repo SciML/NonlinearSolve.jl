@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - master
-      - 'release-'
-    tags: '*'
+      - "release-"
+    tags: ["*"]
   pull_request:
 
 jobs:
@@ -13,30 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@latest
+      - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.10'
-      - name: Install dependencies
-        run: |
-          import Pkg
-          Pkg.Registry.update()
-          # Install packages present in subdirectories
-          dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", ".", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveBase", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveQuasiNewton", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveHomotopyContinuation")
-              push!(dev_pks, Pkg.PackageSpec(; path))
-          end
-          Pkg.develop(dev_pks)
-          Pkg.instantiate()
-        shell: julia --color=yes --project=docs/ {0}
-      - name: Build and deploy
+          version: "1"
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-docdeploy@v1
         env:
-          JULIA_DEBUG: "Documenter"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
-        run: julia --project=docs/ --code-coverage=user --color=yes docs/make.jl
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         with:
-          file: lcov.info
+          files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false

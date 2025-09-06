@@ -17,7 +17,6 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -27,34 +26,15 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: ${{ matrix.version }}
-      - uses: actions/cache@v4
-        env:
-          cache-name: cache-artifacts
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
-      - name: "Install Dependencies and Run Tests"
-        run: |
-          import Pkg
-          Pkg.Registry.update()
-          Pkg.instantiate()
-          Pkg.test(; coverage="user")
-        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=lib/SciMLJacobianOperators {0}
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: lib/SciMLJacobianOperators/src
-      - uses: codecov/codecov-action@v5
-        with:
-          file: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: false
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
+      project: "lib/SciMLJacobianOperators"
+
+  downgrade:
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: "1.11"
+      project: "lib/SciMLJacobianOperators"
+      downgrade_testing: true
