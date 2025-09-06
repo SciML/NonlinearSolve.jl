@@ -27,7 +27,6 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -48,44 +47,27 @@ jobs:
           # Don't run nopre tests on prerelease Julia
           - group: nopre
             version: "pre"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: ${{ matrix.version }}
-      - uses: actions/cache@v4
-        env:
-          cache-name: cache-artifacts
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
-      - name: "Install Dependencies and Run Tests"
-        run: |
-          import Pkg
-          Pkg.Registry.update()
-          # Install packages present in subdirectories
-          dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveQuasiNewton")
-              push!(dev_pks, Pkg.PackageSpec(; path))
-          end
-          Pkg.develop(dev_pks)
-          Pkg.instantiate()
-          Pkg.test(; coverage="user")
-        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=. {0}
-        env:
-          GROUP: ${{ matrix.group }}
-          # Wrapper tests run sequentially to avoid parallel initialization issues with external packages
-          RETESTITEMS_NWORKERS: ${{ matrix.group == 'wrappers' && '0' || '' }}
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: src,ext,lib/SciMLJacobianOperators/src,lib/BracketingNonlinearSolve/src,lib/NonlinearSolveBase/src,lib/NonlinearSolveBase/ext,lib/SimpleNonlinearSolve/src,lib/NonlinearSolveFirstOrder/src,lib/NonlinearSolveSpectralMethods/src,lib/NonlinearSolveQuasiNewton/src
-      - uses: codecov/codecov-action@v5
-        with:
-          file: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: false
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
+      project: "."
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  downgrade:
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - downstream
+          - wrappers
+          - misc
+          - nopre
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      project: "."
+      julia_version: "1.11"
+      downgrade_testing: true
+      test_args: "GROUP=${{ matrix.group }}"

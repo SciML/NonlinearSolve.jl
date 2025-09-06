@@ -92,10 +92,11 @@ end
 function CommonSolve.solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::AbstractSimpleNonlinearSolveAlgorithm,
-        args...; sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+        args...; sensealg = nothing, u0 = nothing, p = nothing,
+        initializealg = SciMLBase.NoInit(), kwargs...
 )
     alg = configure_autodiff(prob, alg)
-    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    cache = SciMLBase.__init(prob, alg, args...; initializealg, kwargs...)
     prob = cache.prob
     if cache.retcode == ReturnCode.InitialFailure
         return SciMLBase.build_solution(prob, alg, prob.u0,

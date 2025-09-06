@@ -2,7 +2,27 @@ using ReTestItems, NonlinearSolve, Hwloc, InteractiveUtils, Pkg
 
 @info sprint(InteractiveUtils.versioninfo)
 
-const GROUP = lowercase(get(ENV, "GROUP", "All"))
+function parse_test_args()
+    test_args_from_env = @isdefined(TEST_ARGS) ? TEST_ARGS : ARGS
+    test_args = Dict{String, String}()
+    for arg in test_args_from_env
+        if contains(arg, "=")
+            key, value = split(arg, "="; limit = 2)
+            test_args[key] = value
+        end
+    end
+    @info "Parsed test args" test_args
+    return test_args
+end
+
+const PARSED_TEST_ARGS = parse_test_args()
+
+function get_from_test_args_or_env(key, default)
+    haskey(PARSED_TEST_ARGS, key) && return PARSED_TEST_ARGS[key]
+    return get(ENV, key, default)
+end
+
+const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
 
 const EXTRA_PKGS = Pkg.PackageSpec[]
 if GROUP == "all" || GROUP == "downstream"
@@ -13,6 +33,12 @@ if GROUP == "all" || GROUP == "nopre"
     # Only add Enzyme for nopre group if not on prerelease Julia
     if isempty(VERSION.prerelease)
         push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
+    end
+end
+if GROUP == "all" || GROUP == "cuda"
+    # Only add CUDA for cuda group if not on prerelease Julia
+    if isempty(VERSION.prerelease)
+        push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA"))
     end
 end
 length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)

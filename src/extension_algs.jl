@@ -276,7 +276,7 @@ NLSolversJL(; method, autodiff = nothing) = NLSolversJL(method, autodiff)
         orders::Vector{Int} = [3, 3, 2]
     )
 
-Wrapper over [SpeedMapping.jl](https://nicolasl-s.github.io/SpeedMapping.jl/) for solving
+Wrapper over [SpeedMapping.jl](https://github.com/NicolasL-S/SpeedMapping.jl) for solving
 Fixed Point Problems. We allow using this algorithm to solve root finding problems as well.
 
 ### Keyword Arguments
