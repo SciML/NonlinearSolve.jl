@@ -33,4 +33,20 @@ using InteractiveUtils, Test
 
         @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
     end
+
+    @testset "Termination Conditions" begin
+        using NonlinearSolveBase, SciMLBase
+        @testset "reinit! with AbsTerminationMode" begin
+            mode = NonlinearSolveBase.AbsTerminationMode()
+            u_unaliased = nothing
+            T = Float64
+            cache = NonlinearSolveBase.NonlinearTerminationModeCache(
+                u_unaliased, SciMLBase.ReturnCode.Default, 1e-8, 1e-8, Inf, mode,
+                nothing, nothing, 0, nothing, nothing, nothing, nothing, nothing, false
+            )
+            du = [1.0, 1.0]
+            u = [1.1, 1.1]
+            @test_nowarn SciMLBase.reinit!(cache, du, u)
+        end
+    end
 end
