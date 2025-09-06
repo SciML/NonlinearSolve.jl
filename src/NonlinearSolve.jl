@@ -64,7 +64,7 @@ include("forward_diff.jl")
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
             NonlinearFunction{false, NoSpecialize}((
-                u, p) -> vcat(u .* u .- p, u .* u .- p)),
+            u, p) -> vcat(u .* u .- p, u .* u .- p)),
             [0.1, 0.1]
         ),
         (

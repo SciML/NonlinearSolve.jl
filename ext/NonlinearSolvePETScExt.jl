@@ -50,8 +50,8 @@ function SciMLBase.__solve(
     nf = Ref{Int}(0)
 
     f! = @closure (cfx,
-        cx,
-        user_ctx) -> begin
+    cx,
+    user_ctx) -> begin
         nf[] += 1
         fx = cfx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cfx; read = false) : cfx
         x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
@@ -90,9 +90,9 @@ function SciMLBase.__solve(
         if J_init isa AbstractSparseMatrix
             PJ = PETSc.MatSeqAIJ(J_init)
             jac_fn! = @closure (cx,
-                J,
-                _,
-                user_ctx) -> begin
+            J,
+            _,
+            user_ctx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 if J isa PETSc.AbstractMat
@@ -110,9 +110,9 @@ function SciMLBase.__solve(
         else
             PJ = PETSc.MatSeqDense(J_init)
             jac_fn! = @closure (cx,
-                J,
-                _,
-                user_ctx) -> begin
+            J,
+            _,
+            user_ctx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 jac!(J, x)

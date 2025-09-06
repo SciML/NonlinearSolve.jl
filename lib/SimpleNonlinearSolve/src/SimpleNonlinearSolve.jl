@@ -153,7 +153,6 @@ function solve_adjoint_internal end
 
         @compile_workload begin
             @sync for prob in (prob_scalar, prob_iip, prob_oop), alg in algs
-
                 Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
             end
         end

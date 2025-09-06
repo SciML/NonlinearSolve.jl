@@ -291,7 +291,7 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (
-                vJ, v, u, p) -> begin
+            vJ, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(vJ), jac_cache', vec(v))
                 return
@@ -311,9 +311,9 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         di_extras = DI.prepare_pullback(
             f, fu_cache, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
         return @closure (vJ,
-            v,
-            u,
-            p) -> begin
+        v,
+        u,
+        p) -> begin
             DI.pullback!(f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
                 u, (reshape(v, size(fu_cache)),), Constant(p))
             return
@@ -322,8 +322,8 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         di_extras = DI.prepare_pullback(
             f, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
         return @closure (v,
-            u,
-            p) -> begin
+        u,
+        p) -> begin
             return only(DI.pullback(
                 f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)))
         end
@@ -345,7 +345,7 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (
-                Jv, v, u, p) -> begin
+            Jv, v, u, p) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(Jv), jac_cache, vec(v))
                 return
@@ -364,9 +364,9 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         di_extras = DI.prepare_pushforward(
             f, fu_cache, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
         return @closure (Jv,
-            v,
-            u,
-            p) -> begin
+        v,
+        u,
+        p) -> begin
             DI.pushforward!(f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
                 autodiff, u, (reshape(v, size(u)),), Constant(p))
             return
@@ -375,8 +375,8 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         di_extras = DI.prepare_pushforward(
             f, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
         return @closure (v,
-            u,
-            p) -> begin
+        u,
+        p) -> begin
             return only(DI.pushforward(
                 f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)))
         end
@@ -405,7 +405,7 @@ function get_dense_ad(ad::AutoSparse)
 end
 
 function Base.copy(J::JacobianOperator{iip, T}) where {iip, T}
-    return JacobianOperator{iip,T}(
+    return JacobianOperator{iip, T}(
         J.mode,
         J.jvp_op,
         J.vjp_op,
@@ -429,9 +429,7 @@ function Base.copy(J::StatefulJacobianNormalFormOperator{T}) where {T}
         J.jvp_operator === nothing ? nothing : copy(J.jvp_operator),
         J.cache === nothing ? nothing : copy(J.cache)
     )
-
 end
-
 
 export JacobianOperator, VecJacOperator, JacVecOperator
 export StatefulJacobianOperator

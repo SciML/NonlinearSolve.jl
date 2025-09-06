@@ -87,7 +87,6 @@ for name in (:Norm, :RelNorm, :AbsNorm)
 end
 
 for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
-
     struct_name = Symbol(norm_type, safety, :TerminationMode)
     supertype_name = Symbol(:Abstract, safety, :NonlinearTerminationMode)
 

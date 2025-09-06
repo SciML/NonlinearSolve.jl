@@ -119,7 +119,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     if SciMLBase.has_vjp(prob.f)
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+            du, u, p) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
                 prob.f(resid, u, p)
                 prob.f.vjp(du, resid, u, p)
@@ -128,7 +128,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
             end
         else
             return @closure (
-                u, p) -> begin
+            u, p) -> begin
                 resid = prob.f(u, p)
                 return reshape(2 .* prob.f.vjp(resid, u, p), size(u))
             end
@@ -136,7 +136,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     elseif SciMLBase.has_jac(prob.f)
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+            du, u, p) -> begin
                 J = Utils.safe_similar(du, length(sol.resid), length(u))
                 prob.f.jac(J, u, p)
                 resid = Utils.safe_similar(du, length(sol.resid))
@@ -146,7 +146,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
             end
         else
             return @closure (u,
-                p) -> begin
+            p) -> begin
                 return reshape(2 .* vec(prob.f(u, p))' * prob.f.jac(u, p), size(u))
             end
         end
@@ -157,7 +157,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
 
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+            du, u, p) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
                 prob.f(resid, u, p)
                 # Using `Constant` lead to dual ordering issues
@@ -169,7 +169,7 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
             end
         else
             return @closure (u,
-                p) -> begin
+            p) -> begin
                 v = prob.f(u, p)
                 # Using `Constant` lead to dual ordering issues
                 res = only(DI.pullback(Base.Fix2(prob.f, p), autodiff, u, (v,)))
