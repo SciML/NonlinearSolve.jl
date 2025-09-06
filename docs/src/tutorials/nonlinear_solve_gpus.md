@@ -95,7 +95,8 @@ import AMDGPU # For if you have an AMD GPU
 import Metal # For if you have a Mac M-series device and want to use the built-in GPU
 import OneAPI # For if you have an Intel GPU
 
-KernelAbstractions.@kernel function parallel_nonlinearsolve_kernel!(result, @Const(prob), @Const(alg))
+KernelAbstractions.@kernel function parallel_nonlinearsolve_kernel!(
+        result, @Const(prob), @Const(alg))
     i = @index(Global)
     prob_i = SciMLBase.remake(prob; p = prob.p[i])
     sol = NLS.solve(prob_i, alg)

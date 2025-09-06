@@ -56,7 +56,7 @@ include("forward_diff.jl")
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
             NonlinearFunction{false, NoSpecialize}((
-                u, p) -> vcat(u .* u .- p, u .* u .- p)),
+            u, p) -> vcat(u .* u .- p, u .* u .- p)),
             [0.1, 0.1]
         ),
         (
@@ -84,12 +84,10 @@ include("forward_diff.jl")
     @compile_workload begin
         @sync begin
             for prob in nonlinear_problems, alg in nlp_algs
-
                 Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
             end
 
             for prob in nlls_problems, alg in nlls_algs
-
                 Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
             end
         end

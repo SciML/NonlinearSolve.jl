@@ -47,7 +47,8 @@ end
 
 p_init = zeros(4)
 
-nlls_prob = NLS.NonlinearLeastSquaresProblem(loss_function, p_init, vec(reduce(hcat, sol.u)))
+nlls_prob = NLS.NonlinearLeastSquaresProblem(
+    loss_function, p_init, vec(reduce(hcat, sol.u)))
 ```
 
 Now, we can use any NLLS solver to solve this problem.

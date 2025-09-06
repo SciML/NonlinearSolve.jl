@@ -104,6 +104,7 @@ end
             for u0 in us,
                 p in ([2.0, 1.0], [2.0 1.0; 3.0 4.0]),
                 mode in (:iip, :oop, :iip_cache, :oop_cache)
+
                 compatible(u0, p) || continue
                 compatible(u0, alg) || continue
                 compatible(u0, Val(mode)) || continue

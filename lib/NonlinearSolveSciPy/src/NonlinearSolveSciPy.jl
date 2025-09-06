@@ -94,7 +94,7 @@ end
 """
 Internal: wrap a Julia residual function into a Python callable
 """
-function _make_py_residual(f::F, p) where F
+function _make_py_residual(f::F, p) where {F}
     return pyfunc(x_py -> begin
         x = Vector{Float64}(x_py)
         r = f(x, p)
@@ -105,7 +105,7 @@ end
 """
 Internal: wrap a Julia scalar function into a Python callable
 """
-function _make_py_scalar(f::F, p) where F
+function _make_py_scalar(f::F, p) where {F}
     return pyfunc(x_py -> begin
         x = Float64(x_py)
         return f(x, p)
@@ -182,13 +182,11 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     nfev = try
         Int(res.nfev)
     catch
-        ;
         0
     end
     niter = try
         Int(res.nit)
     catch
-        ;
         0
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
@@ -219,13 +217,11 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     nfev = try
         Int(res.function_calls)
     catch
-        ;
         0
     end
     niter = try
         Int(res.iterations)
     catch
-        ;
         0
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)

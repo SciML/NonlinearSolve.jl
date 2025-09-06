@@ -145,7 +145,8 @@ nothing # hide
 import SparseConnectivityTracer
 
 prob_brusselator_2d_autosparse = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
+    NLS.NonlinearFunction(
+        brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
     u0, p; abstol = 1e-10, reltol = 1e-10
 )
 
@@ -186,7 +187,8 @@ import ADTypes
 
 f! = (du, u) -> brusselator_2d_loop(du, u, p)
 du0 = similar(u0)
-jac_sparsity = ADTypes.jacobian_sparsity(f!, du0, u0, SparseConnectivityTracer.TracerSparsityDetector())
+jac_sparsity = ADTypes.jacobian_sparsity(
+    f!, du0, u0, SparseConnectivityTracer.TracerSparsityDetector())
 ```
 
 Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
@@ -207,7 +209,8 @@ Now let's see how the version with sparsity compares to the version without:
 ```@example ill_conditioned_nlprob
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d, NLS.NewtonRaphson());
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_sparse, NLS.NewtonRaphson());
-BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_sparse, NLS.NewtonRaphson(linsolve = LS.KLUFactorization()));
+BenchmarkTools.@btime NLS.solve(
+    prob_brusselator_2d_sparse, NLS.NewtonRaphson(linsolve = LS.KLUFactorization()));
 nothing # hide
 ```
 
@@ -223,7 +226,8 @@ Krylov method. To swap the linear solver out, we use the `linsolve` command and 
 GMRES linear solver.
 
 ```@example ill_conditioned_nlprob
-BenchmarkTools.@btime NLS.solve(prob_brusselator_2d, NLS.NewtonRaphson(linsolve = LS.KrylovJL_GMRES()));
+BenchmarkTools.@btime NLS.solve(
+    prob_brusselator_2d, NLS.NewtonRaphson(linsolve = LS.KrylovJL_GMRES()));
 nothing # hide
 ```
 
@@ -255,7 +259,8 @@ import IncompleteLU
 incompletelu(W, p = nothing) = IncompleteLU.ilu(W, τ = 50.0), LinearAlgebra.I
 
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_sparse,
-    NLS.NewtonRaphson(linsolve = LS.KrylovJL_GMRES(precs = incompletelu), concrete_jac = true)
+    NLS.NewtonRaphson(
+        linsolve = LS.KrylovJL_GMRES(precs = incompletelu), concrete_jac = true)
 );
 nothing # hide
 ```
@@ -280,7 +285,8 @@ which is more automatic. The setup is very similar to before:
 import AlgebraicMultigrid
 
 function algebraicmultigrid(W, p = nothing)
-    return AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(convert(AbstractMatrix, W))),
+    return AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(convert(
+        AbstractMatrix, W))),
     LinearAlgebra.I
 end
 
@@ -324,11 +330,13 @@ import DifferentiationInterface
 import SparseConnectivityTracer
 
 prob_brusselator_2d_exact_tracer = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
+    NLS.NonlinearFunction(
+        brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 prob_brusselator_2d_approx_di = NLS.NonlinearProblem(
     NLS.NonlinearFunction(brusselator_2d_loop;
-        sparsity = DifferentiationInterface.DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4)),
+        sparsity = DifferentiationInterface.DenseSparsityDetector(
+            ADTypes.AutoForwardDiff(); atol = 1e-4)),
     u0, p; abstol = 1e-10, reltol = 1e-10)
 
 BenchmarkTools.@btime NLS.solve(prob_brusselator_2d_exact_tracer, NLS.NewtonRaphson());

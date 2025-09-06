@@ -33,7 +33,6 @@
 
         @testset "Scalar AD" begin
             for p in 1.0:0.1:100.0, u0 in us
-
                 sol = solve(NonlinearProblem{false}(test_f, u0, p), alg)
                 if SciMLBase.successful_retcode(sol)
                     gs = abs.(ForwardDiff.derivative(p) do pᵢ

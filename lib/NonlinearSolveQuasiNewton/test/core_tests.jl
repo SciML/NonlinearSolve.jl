@@ -16,10 +16,10 @@ end
         using Enzyme
     end
 
-    u0s=([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
+    u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
     # Filter autodiff backends based on Julia version
-    autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
     if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
@@ -72,7 +72,7 @@ end
 end
 
 @testitem "Broyden: Iterator Interface" setup=[CoreRootfindTesting] tags=[:core] begin
-    p=range(0.01, 2, length = 200)
+    p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, false, Broyden()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, true, Broyden()) ≈ sqrt.(p)
 end
@@ -80,9 +80,7 @@ end
 @testitem "Broyden Termination Conditions" setup=[CoreRootfindTesting] tags=[:core] begin
     using StaticArrays: @SVector
 
-    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in
-                                                                TERMINATION_CONDITIONS
-
+    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in TERMINATION_CONDITIONS
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, Broyden(); termination_condition)
@@ -105,7 +103,7 @@ end
     end
 
     # Filter autodiff backends based on Julia version
-    autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
     if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
@@ -158,7 +156,7 @@ end
 end
 
 @testitem "Klement: Iterator Interface" setup=[CoreRootfindTesting] tags=[:core] begin
-    p=range(0.01, 2, length = 200)
+    p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, false, Klement()) ≈ sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, true, Klement()) ≈ sqrt.(p)
 end
@@ -166,9 +164,7 @@ end
 @testitem "Klement Termination Conditions" setup=[CoreRootfindTesting] tags=[:core] begin
     using StaticArrays: @SVector
 
-    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in
-                                                                TERMINATION_CONDITIONS
-
+    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in TERMINATION_CONDITIONS
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, Klement(); termination_condition)
@@ -191,7 +187,7 @@ end
     end
 
     # Filter autodiff backends based on Julia version
-    autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
+    autodiff_backends = [AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
     if isempty(VERSION.prerelease)
         push!(autodiff_backends, AutoEnzyme())
     end
@@ -244,7 +240,7 @@ end
 end
 
 @testitem "LimitedMemoryBroyden: Iterator Interface" setup=[CoreRootfindTesting] tags=[:core] begin
-    p=range(0.01, 2, length = 200)
+    p = range(0.01, 2, length = 200)
     @test nlprob_iterator_interface(quadratic_f, p, false, LimitedMemoryBroyden()) ≈
           sqrt.(p)
     @test nlprob_iterator_interface(quadratic_f!, p, true, LimitedMemoryBroyden()) ≈
@@ -254,9 +250,7 @@ end
 @testitem "LimitedMemoryBroyden Termination Conditions" setup=[CoreRootfindTesting] tags=[:core] begin
     using StaticArrays: @SVector
 
-    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in
-                                                                TERMINATION_CONDITIONS
-
+    @testset "TC: $(nameof(typeof(termination_condition)))" for termination_condition in TERMINATION_CONDITIONS
         @testset "u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
             probN = NonlinearProblem(quadratic_f, u0, 2.0)
             sol = solve(probN, LimitedMemoryBroyden(); termination_condition)

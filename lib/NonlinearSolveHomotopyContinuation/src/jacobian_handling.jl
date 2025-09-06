@@ -111,7 +111,7 @@ and `p` the parameter object.
 
 The returned function must have the signature required by `HomotopySystemWrapper`.
 """
-function construct_jacobian(f::F, autodiff, variant, u0, p) where F
+function construct_jacobian(f::F, autodiff, variant, u0, p) where {F}
     if variant == Scalar
         tmp = reinterpret(Float64, Vector{ComplexF64}(undef, 1))
     else
@@ -182,7 +182,7 @@ end
 
 Construct an `EnzymeJacobian` function.
 """
-function construct_jacobian(f::F, autodiff::AutoEnzyme, variant, u0, p) where F
+function construct_jacobian(f::F, autodiff::AutoEnzyme, variant, u0, p) where {F}
     if variant == Scalar
         prep = DI.prepare_derivative(f, autodiff, u0, DI.Constant(p), strict = Val(false))
     else

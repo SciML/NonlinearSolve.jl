@@ -34,7 +34,7 @@ function SciMLBase.__solve(
         )
 
         fj_scalar = @closure (Jx,
-            x) -> begin
+        x) -> begin
             return DifferentiationInterface.value_and_derivative(
                 prob.f, prep, autodiff, x, Constant(prob.p)
             )

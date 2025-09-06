@@ -37,13 +37,15 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     )
 end
 
-function SciMLBase.__init(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
+function SciMLBase.__init(
+        prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
     # Convert SteadyStateProblem to NonlinearProblem and use its default
     nlprob = SciMLBase.NonlinearProblem(prob)
     return SciMLBase.__init(nlprob, nothing, args...; kwargs...)
 end
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
     # Convert SteadyStateProblem to NonlinearProblem and use its default
     nlprob = SciMLBase.NonlinearProblem(prob)
     return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)

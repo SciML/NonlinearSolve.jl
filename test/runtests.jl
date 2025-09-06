@@ -22,12 +22,14 @@ const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
     0  # Sequential execution for wrapper tests
 else
     tmp = get(ENV, "RETESTITEMS_NWORKERS", "")
-    isempty(tmp) && (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
+    isempty(tmp) &&
+        (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
     parse(Int, tmp)
 end
 const RETESTITEMS_NWORKER_THREADS = begin
     tmp = get(ENV, "RETESTITEMS_NWORKER_THREADS", "")
-    isempty(tmp) && (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
+    isempty(tmp) &&
+    (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
     parse(Int, tmp)
 end
 

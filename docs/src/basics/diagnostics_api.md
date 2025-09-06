@@ -70,7 +70,8 @@ cache.timer
 Let's try for some other solver:
 
 ```@example diagnostics_example
-cache = NLS.init(prob, NLS.DFSane(); show_trace = Val(true), trace_level = NLS.TraceMinimal(50));
+cache = NLS.init(
+    prob, NLS.DFSane(); show_trace = Val(true), trace_level = NLS.TraceMinimal(50));
 NLS.solve!(cache)
 cache.timer
 ```

@@ -36,11 +36,9 @@
 
     @testset "AutoDiff" begin
         @testset for jvp_autodiff in forward_ADs, vjp_autodiff in reverse_ADs
-
             jac_op = JacobianOperator(prob, -1.0, 1.0; jvp_autodiff, vjp_autodiff)
 
             @testset for u in rand(4), v in rand(4)
-
                 sop = StatefulJacobianOperator(jac_op, u, prob.p)
                 @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
                 @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -62,7 +60,6 @@
         jac_op = JacobianOperator(prob, -1.0, 1.0)
 
         @testset for u in rand(4), v in rand(4)
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
             @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -82,7 +79,6 @@
         jac_op = JacobianOperator(prob, -1.0, 1.0)
 
         @testset for u in rand(4), v in rand(4)
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈2 * u * v atol=1e-5
             @test (sop' * v)≈2 * u * v atol=1e-5
@@ -137,11 +133,9 @@ end
 
     @testset "AutoDiff" begin
         @testset for jvp_autodiff in forward_ADs, vjp_autodiff in reverse_ADs
-
             jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0; jvp_autodiff, vjp_autodiff)
 
             @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
                 sop = StatefulJacobianOperator(jac_op, u, prob.p)
                 @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
                 @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -163,7 +157,6 @@ end
         jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0)
 
         @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
             @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -184,7 +177,6 @@ end
         jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0)
 
         @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
             @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -237,11 +229,9 @@ end
 
     @testset "AutoDiff" begin
         @testset for jvp_autodiff in forward_ADs, vjp_autodiff in reverse_ADs
-
             jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0; jvp_autodiff, vjp_autodiff)
 
             @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
                 sop = StatefulJacobianOperator(jac_op, u, prob.p)
                 @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
                 @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -263,7 +253,6 @@ end
         jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0)
 
         @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
             @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5
@@ -284,7 +273,6 @@ end
         jac_op = JacobianOperator(prob, [2.0, 3.0], prob.u0)
 
         @testset for u in [rand(2) for _ in 1:4], v in [rand(2) for _ in 1:4]
-
             sop = StatefulJacobianOperator(jac_op, u, prob.p)
             @test (sop * v)≈analytic_jvp(v, u, prob.p) atol=1e-5
             @test (sop' * v)≈analytic_vjp(v, u, prob.p) atol=1e-5

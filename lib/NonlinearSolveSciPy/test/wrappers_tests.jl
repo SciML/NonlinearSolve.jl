@@ -18,8 +18,9 @@
         prob = NonlinearLeastSquaresProblem(residuals, x0_ls)
         sol = solve(prob, SciPyLeastSquaresTRF())
         @test SciMLBase.successful_retcode(sol)
-        prob_bounded = NonlinearLeastSquaresProblem(residuals, x0_ls; lb = [0.0, -2.0], ub = [
-            5.0, 3.0])
+        prob_bounded = NonlinearLeastSquaresProblem(
+            residuals, x0_ls; lb = [0.0, -2.0], ub = [
+                5.0, 3.0])
         sol2 = solve(prob_bounded, SciPyLeastSquares(method = "trf"))
         @test SciMLBase.successful_retcode(sol2)
     else
