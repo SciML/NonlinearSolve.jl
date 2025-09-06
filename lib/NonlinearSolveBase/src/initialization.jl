@@ -1,11 +1,10 @@
 struct NonlinearSolveDefaultInit <: SciMLBase.DAEInitializationAlgorithm end
 
 function run_initialization!(cache, initializealg = cache.initializealg, prob = cache.prob)
-    _run_initialization!(cache, initializealg, prob, Val(SciMLBase.isinplace(cache)))
+    _run_initialization!(cache, initializealg, prob, SciMLBase.isinplace(cache))
 end
 
-function _run_initialization!(
-        cache, ::NonlinearSolveDefaultInit, prob, isinplace::Union{Val{true}, Val{false}})
+function _run_initialization!(cache, ::NonlinearSolveDefaultInit, prob, isinplace::Bool)
     if SciMLBase.has_initialization_data(prob.f) &&
        prob.f.initialization_data isa SciMLBase.OverrideInitData
         return _run_initialization!(cache, SciMLBase.OverrideInit(), prob, isinplace)
@@ -14,7 +13,7 @@ function _run_initialization!(
 end
 
 function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
-        isinplace::Union{Val{true}, Val{false}})
+        isinplace::Bool)
     if cache isa AbstractNonlinearSolveCache && isdefined(cache.alg, :autodiff)
         autodiff = cache.alg.autodiff
     else
@@ -24,9 +23,8 @@ function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
     if alg === nothing && cache isa AbstractNonlinearSolveCache
         alg = cache.alg
     end
-    u0, p,
-    success = SciMLBase.get_initial_values(
-        prob, cache, prob.f, initalg, isinplace; nlsolve_alg = alg,
+    u0, p, success = SciMLBase.get_initial_values(
+        prob, cache, prob.f, initalg, Val(isinplace); nlsolve_alg = alg,
         abstol = get_abstol(cache), reltol = get_reltol(cache))
     cache = update_initial_values!(cache, u0, p)
     if cache isa AbstractNonlinearSolveCache && isdefined(cache, :retcode) && !success
