@@ -14,4 +14,7 @@ using Aqua
     @testset "Single Root" begin
         include("single_root.jl")
     end
+    @testset "Complex Roots" begin
+        include("complex_roots_test.jl")
+    end
 end
