@@ -836,7 +836,6 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
     end
 end
 
-
 function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
