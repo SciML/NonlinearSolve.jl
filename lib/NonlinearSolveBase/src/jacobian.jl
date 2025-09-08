@@ -61,7 +61,7 @@ function construct_jacobian_cache(
     end
 
     J = if !needs_jac
-        StatefulJacobianOperator(JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff), cache.u, cache.p)
+        StatefulJacobianOperator(JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff), u, p)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
