@@ -1,6 +1,5 @@
 name = "NonlinearSolveQuasiNewton"
 uuid = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
-version = "1.8.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.8.1"
 
