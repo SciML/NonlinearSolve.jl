@@ -5,7 +5,6 @@ using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
 
 using CommonSolve: CommonSolve
-#using DiffEqBase: DiffEqBase # Needed for `init` / `solve` dispatches
 using LineSearch: RobustNonMonotoneLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
