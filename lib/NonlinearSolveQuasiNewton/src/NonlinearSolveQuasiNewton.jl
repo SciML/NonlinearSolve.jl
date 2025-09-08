@@ -8,7 +8,6 @@ using ArrayInterface: ArrayInterface
 using StaticArraysCore: StaticArray, Size, MArray
 
 using CommonSolve: CommonSolve
-#using DiffEqBase: DiffEqBase   # Needed for `init` / `solve` dispatches
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diag
 using LinearSolve: LinearSolve # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb

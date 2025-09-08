@@ -124,15 +124,6 @@ function simplenonlinearsolve_solve_up(
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
-# NOTE: This is defined like this so that we don't have to keep have 2 args for the
-# extensions
-# function solve_adjoint(args...; kws...)
-#     is_extension_loaded(Val(:DiffEqBase)) && return solve_adjoint_internal(args...; kws...)
-#     error("Adjoint sensitivity analysis requires `DiffEqBase.jl` to be explicitly loaded.")
-# end
-
-# function solve_adjoint_internal end
-
 @setup_workload begin
     for T in (Float64,)
         prob_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
