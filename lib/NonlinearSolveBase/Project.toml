@@ -1,6 +1,5 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "1.14.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.14.1"
 
