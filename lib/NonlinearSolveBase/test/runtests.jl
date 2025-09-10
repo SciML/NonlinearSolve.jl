@@ -13,13 +13,12 @@ using InteractiveUtils, Test
             NonlinearSolveBase; piracies = false, ambiguities = false, stale_deps = false
         )
         Aqua.test_stale_deps(NonlinearSolveBase; ignore = [:TimerOutputs])
-        #ENSEMBLE PROBLEM SHOULD BE REMOVED, THIS IS TEMPORARY FOR TESTS
         Aqua.test_piracies(NonlinearSolveBase, treat_as_own = [AbstractNonlinearProblem, NonlinearProblem])
         Aqua.test_ambiguities(NonlinearSolveBase; recursive = false)
     end
 
     @testset "Explicit Imports" begin
-        import ForwardDiff, SparseArrays, DiffEqBase
+        import ForwardDiff, SparseArrays
         using ExplicitImports, NonlinearSolveBase
 
         @test check_no_implicit_imports(NonlinearSolveBase; skip = (Base, Core)) === nothing
