@@ -1,8 +1,7 @@
 using Documenter, DocumenterCitations, DocumenterInterLinks
-import DiffEqBase
 
 using Sundials
-using NonlinearSolveBase, SciMLBase, DiffEqBase
+using NonlinearSolveBase, SciMLBase
 using SimpleNonlinearSolve, BracketingNonlinearSolve
 using NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods
 using NonlinearSolveHomotopyContinuation, NonlinearSolveSciPy
@@ -33,7 +32,7 @@ makedocs(;
     sitename = "NonlinearSolve.jl",
     authors = "SciML",
     modules = [
-        NonlinearSolveBase, SciMLBase, DiffEqBase,
+        NonlinearSolveBase, SciMLBase,
         SimpleNonlinearSolve, BracketingNonlinearSolve,
         NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods,
         NonlinearSolveHomotopyContinuation,
