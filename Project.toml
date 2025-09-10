@@ -65,7 +65,6 @@ BracketingNonlinearSolve = "1"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DifferentiationInterface = "0.7.3"
-DiffEqBase = "6.188"
 ExplicitImports = "1.5"
 FastClosures = "0.3.2"
 FastLevenbergMarquardt = "0.1"
@@ -119,7 +118,6 @@ julia = "1.10"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
@@ -168,8 +166,5 @@ path = "lib/NonlinearSolveSpectralMethods"
 [sources.SimpleNonlinearSolve]
 path = "lib/SimpleNonlinearSolve"
 
-[sources]
-DiffEqBase = {url = "https://github.com/jClugstor/DiffEqBase.jl", rev = "remove_nonlinear"}
-
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker", "DiffEqBase"]
+test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker"]
