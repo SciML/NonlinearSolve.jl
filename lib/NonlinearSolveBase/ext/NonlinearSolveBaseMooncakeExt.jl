@@ -9,7 +9,7 @@ import Mooncake: rrule!!, CoDual, zero_fcodual, @is_primitive,
 @from_rrule(MinimalCtx,
     Tuple{
         typeof(NonlinearSolveBase.solve_up),
-        SciMLBase.AbstractDEProblem,
+        SciMLBase.AbstractNonlinearProblem,
         Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm},
         Any,
         Any,
@@ -21,7 +21,7 @@ import Mooncake: rrule!!, CoDual, zero_fcodual, @is_primitive,
 @from_rrule(MinimalCtx,
     Tuple{
         typeof(NonlinearSolveBase.solve_up),
-        SciMLBase.AbstractDEProblem,
+        SciMLBase.AbstractNonlinearProblem,
         Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm},
         Any,
         Any
