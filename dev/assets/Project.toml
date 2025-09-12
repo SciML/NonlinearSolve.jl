@@ -4,7 +4,6 @@ AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
@@ -35,7 +34,7 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
 [sources]
 BracketingNonlinearSolve = {path = "../lib/BracketingNonlinearSolve"}
-NonlinearSolve = {path = "/home/chrisrackauckas/github-runners/deepsea4-18/_work/NonlinearSolve.jl/NonlinearSolve.jl"}
+NonlinearSolve = {path = "/home/runner/work/NonlinearSolve.jl/NonlinearSolve.jl"}
 NonlinearSolveBase = {path = "../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveHomotopyContinuation = {path = "../lib/NonlinearSolveHomotopyContinuation"}
@@ -51,7 +50,6 @@ AlgebraicMultigrid = "0.5, 0.6, 1"
 ArrayInterface = "6, 7"
 BenchmarkTools = "1"
 BracketingNonlinearSolve = "1"
-DiffEqBase = "6.188"
 DifferentiationInterface = "0.7.3"
 Documenter = "1"
 DocumenterCitations = "1"
@@ -61,7 +59,7 @@ InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1"
 LinearSolve = "2, 3"
 NonlinearSolve = "4"
-NonlinearSolveBase = "1"
+NonlinearSolveBase = "1.15"
 NonlinearSolveFirstOrder = "1"
 NonlinearSolveHomotopyContinuation = "0.1"
 NonlinearSolveQuasiNewton = "1"
