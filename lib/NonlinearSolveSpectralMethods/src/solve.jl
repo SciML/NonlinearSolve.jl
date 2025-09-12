@@ -72,6 +72,13 @@ end
     initializealg
 end
 
+function SciMLBase.get_du(cache::GeneralizedDFSaneCache)
+    cache.du
+end
+function NonlinearSolveBase.set_du!(cache::GeneralizedDFSaneCache, δu)
+    cache.du = δu
+end
+
 function InternalAPI.reinit_self!(
         cache::GeneralizedDFSaneCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,

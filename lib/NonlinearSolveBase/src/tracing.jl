@@ -222,12 +222,13 @@ function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
     trace === missing && return nothing
 
     J = Utils.safe_getproperty(cache, Val(:J))
+    du = SciMLBase.get_du(cache)
     if J === missing
         update_trace!(
-            trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, cache.du, α
+            trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, du, α
         )
     else
         J = uses_jac_inverse isa Val{true} ? Utils.Pinv(cache.J) : cache.J
-        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, cache.du, α)
+        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, du, α)
     end
 end

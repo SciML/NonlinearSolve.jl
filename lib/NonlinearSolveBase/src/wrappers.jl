@@ -101,11 +101,8 @@ function construct_extension_jac(
     J_no_scalar = can_handle_scalar isa Val{false} && prob.u0 isa Number ?
                   @closure(u->[Jₚ(u[1])]) : Jₚ
 
-    J_final = if can_handle_oop isa Val{false} && !SciMLBase.isinplace(prob)
-        @closure((J, u)->copyto!(J, J_no_scalar(u)))
-    else
-        J_no_scalar
-    end
+    J_final(J, u) = copyto!(J, J_no_scalar(u))
+    J_final(u) = J_no_scalar(u)
 
     initial_jacobian isa Val{false} && return J_final
 
