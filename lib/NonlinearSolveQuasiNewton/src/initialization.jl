@@ -125,7 +125,7 @@ function InternalAPI.init(
     jac_cache = NonlinearSolveBase.construct_jacobian_cache(
         prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve
     )
-    J = alg.structure(jac_cache(nothing))
+    J = alg.structure(jac_cache(u))
     return InitializedApproximateJacobianCache(
         J, alg.structure, alg, jac_cache, false, internalnorm
     )
