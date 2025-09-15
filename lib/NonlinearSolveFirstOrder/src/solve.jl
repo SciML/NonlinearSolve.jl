@@ -170,7 +170,7 @@ function SciMLBase.__init(
             prob, alg, prob.f, fu, u, prob.p;
             stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
         )
-        J = jac_cache(nothing)
+        J = jac_cache(u)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
@@ -238,7 +238,7 @@ function InternalAPI.step!(
             J = cache.jac_cache(cache.u)
             new_jacobian = true
         else
-            J = cache.jac_cache(nothing)
+            J = cache.jac_cache(cache.u)
             new_jacobian = false
         end
     end

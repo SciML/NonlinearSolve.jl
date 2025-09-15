@@ -61,7 +61,7 @@ function construct_jacobian_cache(
     end
 
     J = if !needs_jac
-        StatefulJacobianOperator(JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff), u, p)
+        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
@@ -96,7 +96,7 @@ function construct_jacobian_cache(
         linsolve = missing
 )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache(u, f, fu, u, p, stats, autodiff, nothing)
+        return JacobianCache(fu, f, fu, p, stats, autodiff, nothing)
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
@@ -124,10 +124,12 @@ function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
     cache.p = p
 end
 
-# Core Computation
-(cache::JacobianCache)(::Nothing) = cache.J
-(cache::JacobianCache{<:Number})(::Nothing) = cache.J
+# Deprecations
+(cache::JacobianCache{<:Number})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache{<:JacobianOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache)(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 
+# Core Computation
 ## Numbers
 function (cache::JacobianCache{<:Number})(u)
     cache.stats.njacs += 1
@@ -166,6 +168,10 @@ function (cache::JacobianCache)(u)
         end
         return cache.J
     end
+end
+
+function (cache::JacobianCache{<:JacobianOperator})(u)
+    return StatefulJacobianOperator(cache.J, u, cache.p)
 end
 
 # Sparse Automatic Differentiation
