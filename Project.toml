@@ -43,6 +43,24 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
+[sources.BracketingNonlinearSolve]
+path = "lib/BracketingNonlinearSolve"
+
+[sources.NonlinearSolveBase]
+path = "lib/NonlinearSolveBase"
+
+[sources.NonlinearSolveFirstOrder]
+path = "lib/NonlinearSolveFirstOrder"
+
+[sources.NonlinearSolveQuasiNewton]
+path = "lib/NonlinearSolveQuasiNewton"
+
+[sources.NonlinearSolveSpectralMethods]
+path = "lib/NonlinearSolveSpectralMethods"
+
+[sources.SimpleNonlinearSolve]
+path = "lib/SimpleNonlinearSolve"
+
 [extensions]
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
 NonlinearSolveFixedPointAccelerationExt = "FixedPointAcceleration"
@@ -108,7 +126,7 @@ SpeedMapping = "0.3"
 StableRNGs = "1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4"
-Sundials = "4.23.1"
+Sundials = "4.23.1, 5"
 SymbolicIndexingInterface = "0.3.43"
 Test = "1.10"
 Zygote = "0.6.69, 0.7"
@@ -147,24 +165,6 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
-
-[sources.BracketingNonlinearSolve]
-path = "lib/BracketingNonlinearSolve"
-
-[sources.NonlinearSolveBase]
-path = "lib/NonlinearSolveBase"
-
-[sources.NonlinearSolveFirstOrder]
-path = "lib/NonlinearSolveFirstOrder"
-
-[sources.NonlinearSolveQuasiNewton]
-path = "lib/NonlinearSolveQuasiNewton"
-
-[sources.NonlinearSolveSpectralMethods]
-path = "lib/NonlinearSolveSpectralMethods"
-
-[sources.SimpleNonlinearSolve]
-path = "lib/SimpleNonlinearSolve"
 
 [targets]
 test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker"]
