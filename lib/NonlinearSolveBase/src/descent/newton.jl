@@ -35,9 +35,14 @@ function InternalAPI.init(
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
         @bb δu_ = similar(u)
     end
+
     if Utils.unwrap_val(pre_inverted)
         lincache = nothing
     else
+        if haskey(kwargs, :verbose) 
+            linsolve_kwargs = merge((verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
+        end
+
         lincache = construct_linear_solver(
             alg, alg.linsolve, J, Utils.safe_vec(fu), Utils.safe_vec(u);
             stats, abstol, reltol, linsolve_kwargs...
@@ -61,7 +66,6 @@ function InternalAPI.init(
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:N) do i
         @bb δu_ = similar(u)
     end
-
     normal_form = needs_square_A(alg.linsolve, u)
     if normal_form
         JᵀJ = transpose(J) * J
@@ -70,6 +74,11 @@ function InternalAPI.init(
     else
         JᵀJ, Jᵀfu = nothing, nothing
         A, b = J, Utils.safe_vec(fu)
+    end
+
+    if haskey(kwargs, :verbose)
+        linsolve_kwargs = merge(
+            (verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
     end
 
     lincache = construct_linear_solver(
@@ -88,7 +97,6 @@ function InternalAPI.solve!(
 )
     δu = SciMLBase.get_du(cache, idx)
     skip_solve && return DescentResult(; δu)
-
     if preinverted_jacobian(cache) && !normal_form(cache)
         @assert J!==nothing "`J` must be provided when `preinverted_jacobian = Val(true)`."
         @bb δu = J × vec(fu)

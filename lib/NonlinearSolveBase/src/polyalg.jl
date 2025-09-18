@@ -61,6 +61,8 @@ end
     alias_u0::Bool
 
     initializealg
+
+    verbose
 end
 
 function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
@@ -117,13 +119,23 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm::IN = L2_NORM, alias_u0 = false, verbose = true,
+        internalnorm::IN = L2_NORM, alias_u0 = false, verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-        verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
-                          immutable (checked using `ArrayInterface.ismutable`)."
+        @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is 
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable, :error_control)
         alias_u0 = false  # If immutable don't care about aliasing
+    end
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(Verbosity.None())
+        end
+    elseif verbose isa Verbosity.Type
+        verbose = NonlinearVerbosity(verbose)
     end
 
     u0 = prob.u0
@@ -141,7 +153,7 @@ function SciMLBase.__init(
         end,
         alg, -1, alg.start_index, 0, stats, 0.0, maxtime,
         ReturnCode.Default, false, maxiters, internalnorm,
-        u0, u0_aliased, alias_u0, initializealg
+        u0, u0_aliased, alias_u0, initializealg, verbose
     )
     run_initialization!(cache)
     return cache
