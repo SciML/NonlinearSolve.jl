@@ -55,8 +55,6 @@ end
     u
     u_cache
     p
-    du  # Aliased to `get_du(descent_cache)`
-    J   # Aliased to `jac_cache.J`
     alg <: GeneralizedFirstOrderAlgorithm
     prob <: AbstractNonlinearProblem
     globalization <: Union{Val{:LineSearch}, Val{:TrustRegion}, Val{:None}}
@@ -89,6 +87,13 @@ end
     kwargs
 
     initializealg
+end
+
+function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
+    SciMLBase.get_du(cache.descent_cache)
+end
+function NonlinearSolveBase.set_du!(cache::GeneralizedFirstOrderAlgorithmCache, δu)
+    NonlinearSolveBase.set_du!(cache.descent_cache, δu)
 end
 
 function InternalAPI.reinit_self!(
@@ -165,7 +170,7 @@ function SciMLBase.__init(
             prob, alg, prob.f, fu, u, prob.p;
             stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
         )
-        J = jac_cache(nothing)
+        J = jac_cache(u)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
@@ -212,7 +217,7 @@ function SciMLBase.__init(
         )
 
         cache = GeneralizedFirstOrderAlgorithmCache(
-            fu, u, u_cache, prob.p, du, J, alg, prob, globalization,
+            fu, u, u_cache, prob.p, alg, prob, globalization,
             jac_cache, descent_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
@@ -233,7 +238,7 @@ function InternalAPI.step!(
             J = cache.jac_cache(cache.u)
             new_jacobian = true
         else
-            J = cache.jac_cache(nothing)
+            J = cache.jac_cache(cache.u)
             new_jacobian = false
         end
     end

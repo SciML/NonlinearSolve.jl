@@ -87,7 +87,7 @@ function construct_jacobian_cache(
         end
     end
 
-    return JacobianCache(J, f, fu, u, p, stats, autodiff, di_extras)
+    return JacobianCache(J, f, fu, p, stats, autodiff, di_extras)
 end
 
 function construct_jacobian_cache(
@@ -96,7 +96,7 @@ function construct_jacobian_cache(
         linsolve = missing
 )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache(u, f, fu, u, p, stats, autodiff, nothing)
+        return JacobianCache(fu, f, fu, p, stats, autodiff, nothing)
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
@@ -107,72 +107,71 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(u, f, fu, u, p, stats, autodiff, di_extras)
+    return JacobianCache(fu, f, fu, p, stats, autodiff, di_extras)
 end
 
 @concrete mutable struct JacobianCache <: AbstractJacobianCache
     J
     f <: NonlinearFunction
     fu
-    u
     p
     stats::NLStats
     autodiff
     di_extras
 end
 
-function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, u0 = cache.u, kwargs...)
-    cache.u = u0
+function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
     cache.p = p
 end
 
+# Deprecations
+(cache::JacobianCache{<:Number})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache{<:JacobianOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache)(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+
 # Core Computation
-(cache::JacobianCache)(u) = cache(cache.J, u, cache.p)
-function (cache::JacobianCache{<:JacobianOperator})(::Nothing)
-    return StatefulJacobianOperator(cache.J, cache.u, cache.p)
-end
-(cache::JacobianCache)(::Nothing) = cache.J
-
-## Operator
-function (cache::JacobianCache{<:JacobianOperator})(J::JacobianOperator, u, p = cache.p)
-    return StatefulJacobianOperator(J, u, p)
-end
-
 ## Numbers
-function (cache::JacobianCache{<:Number})(::Number, u, p = cache.p)
+function (cache::JacobianCache{<:Number})(u)
     cache.stats.njacs += 1
-    cache.J = if SciMLBase.has_jac(cache.f)
-        cache.f.jac(u, p)
-    elseif SciMLBase.has_vjp(cache.f)
-        cache.f.vjp(one(u), u, p)
-    elseif SciMLBase.has_jvp(cache.f)
-        cache.f.jvp(one(u), u, p)
+    
+    (; f, J, p) = cache
+    cache.J = if SciMLBase.has_jac(f)
+        f.jac(u, p)
+    elseif SciMLBase.has_vjp(f)
+        f.vjp(one(u), u, p)
+    elseif SciMLBase.has_jvp(f)
+        f.jvp(one(u), u, p)
     else
-        DI.derivative(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+        DI.derivative(f, cache.di_extras, cache.autodiff, u, Constant(p))
     end
     return cache.J
 end
 
 ## Actually Compute the Jacobian
-function (cache::JacobianCache)(J::Union{AbstractMatrix, Nothing}, u, p = cache.p)
+function (cache::JacobianCache)(u)
     cache.stats.njacs += 1
-    if SciMLBase.isinplace(cache.f)
-        if SciMLBase.has_jac(cache.f)
-            cache.f.jac(J, u, p)
+    (; f, J, p) = cache
+    if SciMLBase.isinplace(f)
+        if SciMLBase.has_jac(f)
+            f.jac(J, u, p)
         else
             DI.jacobian!(
-                cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p)
+                f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p)
             )
         end
         return J
     else
         if SciMLBase.has_jac(cache.f)
-            cache.J = cache.f.jac(u, p)
+            cache.J = f.jac(u, p)
         else
-            cache.J = DI.jacobian(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+            cache.J = DI.jacobian(f, cache.di_extras, cache.autodiff, u, Constant(p))
         end
         return cache.J
     end
+end
+
+function (cache::JacobianCache{<:JacobianOperator})(u)
+    return StatefulJacobianOperator(cache.J, u, cache.p)
 end
 
 # Sparse Automatic Differentiation
