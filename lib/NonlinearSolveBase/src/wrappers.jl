@@ -106,5 +106,5 @@ function construct_extension_jac(
 
     initial_jacobian isa Val{false} && return J_final
 
-    return J_final, J = reused_jacobian(Jₚ, u0)
+    return J_final, reused_jacobian(Jₚ, u0)
 end
