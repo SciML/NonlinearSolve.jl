@@ -170,7 +170,7 @@ function SciMLBase.__init(
             prob, alg, prob.f, fu, u, prob.p;
             stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
         )
-        J = reused_jacobian(cache.jac_cache, cache.u)
+        J = reused_jacobian(jac_cache, cache.u)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u; stats, abstol, reltol, internalnorm,
