@@ -75,7 +75,7 @@ include("forward_diff.jl")
 # public for NonlinearSolve.jl and subpackages to use
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
-@compat(public, (construct_jacobian_cache,))
+@compat(public, (construct_jacobian_cache, reused_jacobian))
 @compat(public,
     (assert_extension_supported_termination_condition,
     construct_extension_function_wrapper, construct_extension_jac))
