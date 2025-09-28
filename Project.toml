@@ -23,6 +23,7 @@ NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+SCCNonlinearSolve = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
@@ -43,23 +44,13 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
-[sources.BracketingNonlinearSolve]
-path = "lib/BracketingNonlinearSolve"
-
-[sources.NonlinearSolveBase]
-path = "lib/NonlinearSolveBase"
-
-[sources.NonlinearSolveFirstOrder]
-path = "lib/NonlinearSolveFirstOrder"
-
-[sources.NonlinearSolveQuasiNewton]
-path = "lib/NonlinearSolveQuasiNewton"
-
-[sources.NonlinearSolveSpectralMethods]
-path = "lib/NonlinearSolveSpectralMethods"
-
-[sources.SimpleNonlinearSolve]
-path = "lib/SimpleNonlinearSolve"
+[sources]
+BracketingNonlinearSolve = {path = "lib/BracketingNonlinearSolve"}
+NonlinearSolveBase = {path = "lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "lib/NonlinearSolveSpectralMethods"}
+SimpleNonlinearSolve = {path = "lib/SimpleNonlinearSolve"}
 
 [extensions]
 NonlinearSolveFastLevenbergMarquardtExt = "FastLevenbergMarquardt"
