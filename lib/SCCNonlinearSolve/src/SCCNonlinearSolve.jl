@@ -47,8 +47,10 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         # `remake` to recalculate `A` and `b` based on updated parameters from `explicitfun`.
         # Pass `A` and `b` to avoid unnecessarily copying them.
         sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; kwargs...)
+        # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
+        resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, nothing, nothing, retcode = sol.retcode)
+            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode)
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
         SciMLBase.build_solution(
