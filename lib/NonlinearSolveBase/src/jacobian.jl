@@ -107,7 +107,7 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(fu, f, fu, p, stats, autodiff, di_extras)
+    return JacobianCache(u, f, fu, p, stats, autodiff, di_extras)
 end
 
 @concrete mutable struct JacobianCache <: AbstractJacobianCache
