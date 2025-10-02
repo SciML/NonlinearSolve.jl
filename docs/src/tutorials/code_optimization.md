@@ -106,8 +106,7 @@ up) is determined at runtime. But there are structures in Julia which are stack-
 `struct`s for example are stack-allocated “value-type”s. `Tuple`s are a stack-allocated
 collection. The most useful data structure for NonlinearSolve though is the `StaticArray`
 from the package [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl). These
-arrays have their length determined at compile-time. They are created using macros attached
-to normal array expressions, for example:
+arrays have their length determined at compile-time. For example:
 
 ```@example small_opt
 import StaticArrays
