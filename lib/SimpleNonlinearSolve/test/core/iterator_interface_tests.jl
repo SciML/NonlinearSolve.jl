@@ -9,19 +9,15 @@
     # Test with various Simple algorithms
     for alg in [SimpleNewtonRaphson(), SimpleBroyden(), SimpleTrustRegion(),
         SimpleDFSane(), SimpleKlement(), SimpleLimitedMemoryBroyden()]
-        @test_throws ErrorException init(prob, alg)
+        # Test that an error is thrown
+        err = @test_throws ErrorException init(prob, alg)
 
         # Verify the error message contains helpful information
-        try
-            init(prob, alg)
-            @test false  # Should not reach here
-        catch e
-            msg = sprint(showerror, e)
-            @test occursin("iterator interface", msg)
-            @test occursin("Simple algorithms", msg)
-            @test occursin("NewtonRaphson()", msg)
-            @test occursin("solve(prob, alg)", msg)
-        end
+        msg = sprint(showerror, err.value)
+        @test occursin("iterator interface", msg)
+        @test occursin("Simple algorithms", msg)
+        @test occursin("NewtonRaphson()", msg)
+        @test occursin("solve(prob, alg)", msg)
     end
 
     # Verify that solve() still works correctly
