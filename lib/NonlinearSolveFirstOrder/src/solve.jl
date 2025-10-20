@@ -278,7 +278,7 @@ function InternalAPI.step!(
         else
             # Jacobian Information is not current and linear solve failed, recompute it
             @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
-                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent, :error_control)
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
             InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)

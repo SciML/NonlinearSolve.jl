@@ -180,7 +180,7 @@ function InternalAPI.init(
         threshold = min(Utils.unwrap_val(alg.threshold), maxiters)
         if threshold > length(u)
             @SciMLMessage("`threshold` is larger than the size of the state, which may cause \
-                   numerical instability. Consider reducing `threshold`.", verbose, :threshold_state, :numerical)
+                   numerical instability. Consider reducing `threshold`.", verbose, :threshold_state)
         end
         J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end

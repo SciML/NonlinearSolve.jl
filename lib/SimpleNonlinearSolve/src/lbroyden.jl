@@ -58,7 +58,7 @@ function SciMLBase.__solve(
         @SciMLMessage("Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
                either `termination_condition = AbsNormTerminationMode(Base.Fix2(norm, Inf))` \
-               or `termination_condition = nothing`.", verbose, :termination_condition, :error_control)
+               or `termination_condition = nothing`.", verbose, :termination_condition)
     end
     return internal_generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
