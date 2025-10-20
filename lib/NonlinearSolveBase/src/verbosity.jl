@@ -1,43 +1,3 @@
-# Group classifications
-const error_control_options = (
-    :immutable_u0, :non_enclosing_interval, :non_forward_mode, :fd_ad_caution,
-    :ad_backend_incompatible, :alias_u0_immutable, :linsolve_failed_noncurrent,
-    :jacobian_free, :termination_condition
-)
-const performance_options = (
-    :colorvec_non_sparse, :colorvec_no_prototype, :sparsity_using_jac_prototype,
-    :sparse_matrixcolorings_not_loaded
-)
-const numerical_options = (:threshold_state, :pinv_undefined)
-
-function option_group(option::Symbol)
-    if option in error_control_options
-        return :error_control
-    elseif option in performance_options
-        return :performance
-    elseif option in numerical_options
-        return :numerical
-    else
-        error("Unknown verbosity option: $option")
-    end
-end
-
-# Get all options in a group
-function group_options(verbosity::NonlinearVerbosity, group::Symbol)
-    if group === :error_control
-        return NamedTuple{error_control_options}(getproperty(verbosity, opt)
-                                                 for opt in error_control_options)
-    elseif group === :performance
-        return NamedTuple{performance_options}(getproperty(verbosity, opt)
-                                               for opt in performance_options)
-    elseif group === :numerical
-        return NamedTuple{numerical_options}(getproperty(verbosity, opt)
-                                             for opt in numerical_options)
-    else
-        error("Unknown group: $group")
-    end
-end
-
 """
     NonlinearVerbosity <: AbstractVerbositySpecifier
 
@@ -67,7 +27,7 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 - `threshold_state`: Messages about threshold state
 - `pinv_undefined`: Messages when pseudoinverse is undefined
 
-## Linear Solver Group
+## Linear Solver
 - `linear_verbosity`: Verbosity configuration for linear solvers
 
 # Constructors
@@ -131,6 +91,46 @@ verbose = NonlinearVerbosity(
     # Numerical
     threshold_state
     pinv_undefined
+end
+
+# Group classifications
+const error_control_options = (
+    :immutable_u0, :non_enclosing_interval, :non_forward_mode, :fd_ad_caution,
+    :ad_backend_incompatible, :alias_u0_immutable, :linsolve_failed_noncurrent,
+    :jacobian_free, :termination_condition
+)
+const performance_options = (
+    :colorvec_non_sparse, :colorvec_no_prototype, :sparsity_using_jac_prototype,
+    :sparse_matrixcolorings_not_loaded
+)
+const numerical_options = (:threshold_state, :pinv_undefined)
+
+function option_group(option::Symbol)
+    if option in error_control_options
+        return :error_control
+    elseif option in performance_options
+        return :performance
+    elseif option in numerical_options
+        return :numerical
+    else
+        error("Unknown verbosity option: $option")
+    end
+end
+
+# Get all options in a group
+function group_options(verbosity::NonlinearVerbosity, group::Symbol)
+    if group === :error_control
+        return NamedTuple{error_control_options}(getproperty(verbosity, opt)
+        for opt in error_control_options)
+    elseif group === :performance
+        return NamedTuple{performance_options}(getproperty(verbosity, opt)
+        for opt in performance_options)
+    elseif group === :numerical
+        return NamedTuple{numerical_options}(getproperty(verbosity, opt)
+        for opt in numerical_options)
+    else
+        error("Unknown group: $group")
+    end
 end
 
 function NonlinearVerbosity(;
