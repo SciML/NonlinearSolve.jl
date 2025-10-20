@@ -396,7 +396,7 @@ end
         current = alg.start_index
         if alias_u0 && !ArrayInterface.ismutable(prob.u0)
             @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
-            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable, :error_control)
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable)
             alias_u0 = false  # If immutable don't care about aliasing
         end
     end]

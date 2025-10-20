@@ -349,7 +349,7 @@ function InternalAPI.step!(
             # Force a reinit because the problem is currently un-solvable
             
             @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
-                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent, :error_control)
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
 
             cache.force_reinit = true
             InternalAPI.step!(cache; recompute_jacobian = true)
