@@ -5,7 +5,7 @@ using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init, solve!
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using SciMLBase: ReturnCode, LinearProblem, LinearAliasSpecifier
-using SciMLVerbosity: @SciMLMessage
+using SciMLLogging: @SciMLMessage
 
 using LinearAlgebra: ColumnNorm
 
