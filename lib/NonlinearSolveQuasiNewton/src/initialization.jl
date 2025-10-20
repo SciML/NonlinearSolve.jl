@@ -166,9 +166,9 @@ function InternalAPI.init(
         if verbose
             verbose = NonlinearVerbosity()
         else
-            verbose = NonlinearVerbosity(Verbosity.None())
+            verbose = NonlinearVerbosity(None())
         end
-    elseif verbose isa Verbosity.Type
+    elseif verbose isa AbstractVerbosityPreset
         verbose = NonlinearVerbosity(verbose)
     end
     

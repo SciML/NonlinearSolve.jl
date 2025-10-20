@@ -19,7 +19,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           AbstractApproximateJacobianUpdateRuleCache,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM, NewtonDescent, NonlinearVerbosity,
-                          @SciMLMessage, Verbosity, reused_jacobian
+                          @SciMLMessage, None, AbstractVerbosityPreset, reused_jacobian
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearProblem, NonlinearFunction, NoSpecialize
 using SciMLOperators: AbstractSciMLOperator
