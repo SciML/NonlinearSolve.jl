@@ -98,7 +98,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
-export NonlinearVerbosity, NonlinearPerformanceVerbosity, NonlinearErrorControlVerbosity, NonlinearNumericalVerbosity
+export NonlinearVerbosity
 
 export pickchunksize
 
