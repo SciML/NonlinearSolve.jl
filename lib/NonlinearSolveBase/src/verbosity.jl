@@ -228,7 +228,7 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
     elseif verbose isa Detailed
         # Detailed: Everything from Standard + debugging/solver behavior
         NonlinearVerbosity(
-            linear_verbosity = Detailed(),
+            linear_verbosity = Minimal(),
             immutable_u0 = WarnLevel(),
             non_enclosing_interval = WarnLevel(),
             non_forward_mode = InfoLevel(),
