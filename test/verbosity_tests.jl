@@ -6,7 +6,6 @@
     using SciMLLogging: SciMLLogging
     using Logging
     using Test
-    using Logging
 
     @testset "NonlinearVerbosity preset constructors" begin
         v_none = NonlinearVerbosity(SciMLLogging.None())
@@ -89,8 +88,8 @@
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.InfoLevel()))
 
-    @test_throws Test.FallbackTestSetException @test_logs (:error,
-        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
+        @test_logs (:error,
+        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel()))
 
