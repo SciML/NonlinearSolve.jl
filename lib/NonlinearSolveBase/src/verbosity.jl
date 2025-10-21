@@ -7,27 +7,15 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 # Fields
 
 ## Error Control Group
-- `immutable_u0`: Messages when u0 is immutable
-- `non_enclosing_interval`: Messages when interval doesn't enclose root
-- `non_forward_mode`: Messages when forward mode AD is not used
-- `fd_ad_caution`: Messages about finite differencing cautions
-- `ad_backend_incompatible`: Messages when AD backend is incompatible
+- `non_enclosing_interval`: Messages when interval doesn't enclose root (bracketing methods)
 - `alias_u0_immutable`: Messages when aliasing u0 with immutable array
 - `linsolve_failed_noncurrent`: Messages when linear solve fails on non-current iteration
-- `jacobian_free`: Messages about jacobian-free methods
 - `termination_condition`: Messages about termination conditions
 
-## Performance Group
-- `colorvec_non_sparse`: Messages when color vector is used with non-sparse matrix
-- `colorvec_no_prototype`: Messages when color vector has no prototype
-- `sparsity_using_jac_prototype`: Messages when using jacobian prototype for sparsity
-- `sparse_matrixcolorings_not_loaded`: Messages when SparseMatrixColorings not loaded
-
 ## Numerical Group
-- `threshold_state`: Messages about threshold state
-- `pinv_undefined`: Messages when pseudoinverse is undefined
+- `threshold_state`: Messages about threshold state in low-rank methods
 
-## Linear Solver
+## Linear Solver Group
 - `linear_verbosity`: Verbosity configuration for linear solvers
 
 # Constructors
@@ -59,14 +47,14 @@ verbose = NonlinearVerbosity(
 
 # Set individual fields
 verbose = NonlinearVerbosity(
-    immutable_u0 = SciMLLogging.WarnLevel(),
+    alias_u0_immutable = SciMLLogging.WarnLevel(),
     threshold_state = SciMLLogging.InfoLevel()
 )
 
 # Mix group and individual settings
 verbose = NonlinearVerbosity(
     numerical = SciMLLogging.InfoLevel(),  # Set all numerical to InfoLevel
-    pinv_undefined = SciMLLogging.ErrorLevel()  # Override specific field
+    threshold_state = SciMLLogging.ErrorLevel()  # Override specific field
 )
 ```
 """
@@ -74,36 +62,21 @@ verbose = NonlinearVerbosity(
     # Linear verbosity
     linear_verbosity
     # Error control
-    immutable_u0
     non_enclosing_interval
-    non_forward_mode
-    fd_ad_caution
-    ad_backend_incompatible
     alias_u0_immutable
     linsolve_failed_noncurrent
-    jacobian_free
     termination_condition
-    # Performance
-    colorvec_non_sparse
-    colorvec_no_prototype
-    sparsity_using_jac_prototype
-    sparse_matrixcolorings_not_loaded
     # Numerical
     threshold_state
-    pinv_undefined
 end
 
 # Group classifications
 const error_control_options = (
-    :immutable_u0, :non_enclosing_interval, :non_forward_mode, :fd_ad_caution,
-    :ad_backend_incompatible, :alias_u0_immutable, :linsolve_failed_noncurrent,
-    :jacobian_free, :termination_condition
+    :non_enclosing_interval, :alias_u0_immutable, :linsolve_failed_noncurrent,
+    :termination_condition
 )
-const performance_options = (
-    :colorvec_non_sparse, :colorvec_no_prototype, :sparsity_using_jac_prototype,
-    :sparse_matrixcolorings_not_loaded
-)
-const numerical_options = (:threshold_state, :pinv_undefined)
+const performance_options = ()
+const numerical_options = (:threshold_state,)
 
 function option_group(option::Symbol)
     if option in error_control_options
@@ -121,13 +94,13 @@ end
 function group_options(verbosity::NonlinearVerbosity, group::Symbol)
     if group === :error_control
         return NamedTuple{error_control_options}(getproperty(verbosity, opt)
-        for opt in error_control_options)
+                                                 for opt in error_control_options)
     elseif group === :performance
         return NamedTuple{performance_options}(getproperty(verbosity, opt)
-        for opt in performance_options)
+                                               for opt in performance_options)
     elseif group === :numerical
         return NamedTuple{numerical_options}(getproperty(verbosity, opt)
-        for opt in numerical_options)
+                                             for opt in numerical_options)
     else
         error("Unknown group: $group")
     end
@@ -161,21 +134,11 @@ function NonlinearVerbosity(;
     # Build arguments using NamedTuple for type stability
     default_args = (
         linear_verbosity = linear_verbosity === nothing ? Minimal() : linear_verbosity,
-        immutable_u0 = WarnLevel(),
         non_enclosing_interval = WarnLevel(),
-        non_forward_mode = WarnLevel(),
-        fd_ad_caution = WarnLevel(),
-        ad_backend_incompatible = WarnLevel(),
         alias_u0_immutable = WarnLevel(),
         linsolve_failed_noncurrent = WarnLevel(),
-        jacobian_free = WarnLevel(),
         termination_condition = WarnLevel(),
-        colorvec_non_sparse = WarnLevel(),
-        colorvec_no_prototype = WarnLevel(),
-        sparsity_using_jac_prototype = WarnLevel(),
-        sparse_matrixcolorings_not_loaded = WarnLevel(),
-        threshold_state = WarnLevel(),
-        pinv_undefined = WarnLevel()
+        threshold_state = WarnLevel()
     )
 
     # Apply group-level settings
@@ -206,21 +169,11 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
         # Minimal: Only fatal errors and critical warnings
         NonlinearVerbosity(
             linear_verbosity = Minimal(),
-            immutable_u0 = WarnLevel(),
             non_enclosing_interval = WarnLevel(),
-            non_forward_mode = Silent(),
-            fd_ad_caution = Silent(),
-            ad_backend_incompatible = WarnLevel(),
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = WarnLevel(),
-            jacobian_free = Silent(),
             termination_condition = Silent(),
-            colorvec_non_sparse = Silent(),
-            colorvec_no_prototype = Silent(),
-            sparsity_using_jac_prototype = Silent(),
-            sparse_matrixcolorings_not_loaded = Silent(),
-            threshold_state = Silent(),
-            pinv_undefined = ErrorLevel()
+            threshold_state = Silent()
         )
     elseif verbose isa Standard
         # Standard: Everything from Minimal + non-fatal warnings
@@ -228,42 +181,22 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
     elseif verbose isa Detailed
         # Detailed: Everything from Standard + debugging/solver behavior
         NonlinearVerbosity(
-            linear_verbosity = Minimal(),
-            immutable_u0 = WarnLevel(),
+            linear_verbosity = Detailed(),
             non_enclosing_interval = WarnLevel(),
-            non_forward_mode = InfoLevel(),
-            fd_ad_caution = WarnLevel(),
-            ad_backend_incompatible = WarnLevel(),
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
-            jacobian_free = InfoLevel(),
             termination_condition = WarnLevel(),
-            colorvec_non_sparse = InfoLevel(),
-            colorvec_no_prototype = InfoLevel(),
-            sparsity_using_jac_prototype = InfoLevel(),
-            sparse_matrixcolorings_not_loaded = InfoLevel(),
-            threshold_state = WarnLevel(),
-            pinv_undefined = WarnLevel()
+            threshold_state = WarnLevel()
         )
     elseif verbose isa All
         # All: Maximum verbosity - every possible logging message at InfoLevel
         NonlinearVerbosity(
-            linear_verbosity = All(),
-            immutable_u0 = WarnLevel(),
+            linear_verbosity = Detailed(),
             non_enclosing_interval = WarnLevel(),
-            non_forward_mode = InfoLevel(),
-            fd_ad_caution = WarnLevel(),
-            ad_backend_incompatible = WarnLevel(),
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
-            jacobian_free = InfoLevel(),
             termination_condition = WarnLevel(),
-            colorvec_non_sparse = InfoLevel(),
-            colorvec_no_prototype = InfoLevel(),
-            sparsity_using_jac_prototype = InfoLevel(),
-            sparse_matrixcolorings_not_loaded = InfoLevel(),
-            threshold_state = InfoLevel(),
-            pinv_undefined = WarnLevel()
+            threshold_state = InfoLevel()
         )
     end
 end
@@ -271,16 +204,6 @@ end
 @inline function NonlinearVerbosity(verbose::None)
     NonlinearVerbosity(
         None(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
         Silent(),
         Silent(),
         Silent(),
@@ -304,4 +227,3 @@ end
         return default_val
     end
 end
-

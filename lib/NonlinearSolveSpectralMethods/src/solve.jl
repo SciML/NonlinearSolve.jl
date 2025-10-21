@@ -188,8 +188,8 @@ function InternalAPI.step!(
         kwargs...
 )
     if recompute_jacobian !== nothing
-        @SciMLMessage("GeneralizedDFSane is a Jacobian-Free Algorithm. Ignoring \
-              `recompute_jacobian`", cache.verbose, :jacobian_free)
+        @warn "GeneralizedDFSane is a Jacobian-Free Algorithm. Ignoring \
+              `recompute_jacobian`"
     end
 
     @static_timeit cache.timer "descent" begin
