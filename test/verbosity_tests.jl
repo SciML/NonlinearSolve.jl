@@ -4,7 +4,6 @@
     using NonlinearSolve: NonlinearVerbosity
     using LinearSolve: LinearVerbosity
     using SciMLLogging: SciMLLogging
-    using Logging
     using Test
 
     @testset "NonlinearVerbosity preset constructors" begin
@@ -107,7 +106,7 @@
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = SciMLLogging.InfoLevel())))
 
-    @test_logs min_level=Logging.Info solve(
+    @test_logs min_level=0 solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Standard()))
 
@@ -117,10 +116,10 @@
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed())
     )
 
-    @test_logs min_level=Logging.Info solve(prob,
+    @test_logs min_level=0 solve(prob,
         verbose = NonlinearVerbosity(SciMLLogging.None()))
 
-    @test_logs min_level=Logging.Info solve(prob,
+    @test_logs min_level=0 solve(prob,
         verbose = false)
 
     # Test that caches get correct verbosities
