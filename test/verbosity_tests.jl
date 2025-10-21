@@ -13,69 +13,60 @@
         v_standard = NonlinearVerbosity(SciMLLogging.Standard())
         v_detailed = NonlinearVerbosity(SciMLLogging.Detailed())
 
-        @test v_none.immutable_u0 isa SciMLLogging.Silent
+        @test v_none.non_enclosing_interval isa SciMLLogging.Silent
         @test v_none.threshold_state isa SciMLLogging.Silent
-        @test v_none.colorvec_non_sparse isa SciMLLogging.Silent
+        @test v_none.alias_u0_immutable isa SciMLLogging.Silent
 
-        @test v_minimal.immutable_u0 isa SciMLLogging.WarnLevel
-        @test v_minimal.colorvec_non_sparse isa SciMLLogging.Silent
-        @test v_minimal.non_forward_mode isa SciMLLogging.Silent
+        @test v_minimal.non_enclosing_interval isa SciMLLogging.WarnLevel
+        @test v_minimal.alias_u0_immutable isa SciMLLogging.Silent
+        @test v_minimal.termination_condition isa SciMLLogging.Silent
 
-        @test v_standard.immutable_u0 isa SciMLLogging.WarnLevel
+        @test v_standard.non_enclosing_interval isa SciMLLogging.WarnLevel
         @test v_standard.threshold_state isa SciMLLogging.WarnLevel
 
-        @test v_detailed.colorvec_non_sparse isa SciMLLogging.InfoLevel
-        @test v_detailed.non_forward_mode isa SciMLLogging.InfoLevel
-        @test v_detailed.jacobian_free isa SciMLLogging.InfoLevel
+        @test v_detailed.alias_u0_immutable isa SciMLLogging.WarnLevel
+        @test v_detailed.termination_condition isa SciMLLogging.WarnLevel
 
-        @test v_all.colorvec_non_sparse isa SciMLLogging.InfoLevel
+        @test v_all.linsolve_failed_noncurrent isa SciMLLogging.WarnLevel
         @test v_all.threshold_state isa SciMLLogging.InfoLevel
     end
 
     @testset "Group-level keyword constructors" begin
         v_error = NonlinearVerbosity(error_control = SciMLLogging.ErrorLevel())
-        @test v_error.immutable_u0 isa SciMLLogging.ErrorLevel
+        @test v_error.alias_u0_immutable isa SciMLLogging.ErrorLevel
         @test v_error.non_enclosing_interval isa SciMLLogging.ErrorLevel
         @test v_error.termination_condition isa SciMLLogging.ErrorLevel
+        @test v_error.linsolve_failed_noncurrent isa SciMLLogging.ErrorLevel
 
         v_numerical = NonlinearVerbosity(numerical = SciMLLogging.Silent())
         @test v_numerical.threshold_state isa SciMLLogging.Silent
-        @test v_numerical.pinv_undefined isa SciMLLogging.Silent
-
-        v_performance = NonlinearVerbosity(performance = SciMLLogging.InfoLevel())
-        @test v_performance.colorvec_non_sparse isa SciMLLogging.InfoLevel
-        @test v_performance.colorvec_no_prototype isa SciMLLogging.InfoLevel
-        @test v_performance.sparsity_using_jac_prototype isa SciMLLogging.InfoLevel
-        @test v_performance.sparse_matrixcolorings_not_loaded isa SciMLLogging.InfoLevel
     end
 
     @testset "Mixed group and individual settings" begin
         v_mixed = NonlinearVerbosity(
             numerical = SciMLLogging.Silent(),
             threshold_state = SciMLLogging.WarnLevel(),
-            performance = SciMLLogging.InfoLevel()
+            error_control = SciMLLogging.InfoLevel()
         )
         # Individual override should take precedence
         @test v_mixed.threshold_state isa SciMLLogging.WarnLevel
-        # Other numerical options should use group setting
-        @test v_mixed.pinv_undefined isa SciMLLogging.Silent
-        # Performance group setting should apply
-        @test v_mixed.colorvec_non_sparse isa SciMLLogging.InfoLevel
-        @test v_mixed.colorvec_no_prototype isa SciMLLogging.InfoLevel
+        # Error control group setting should apply
+        @test v_mixed.alias_u0_immutable isa SciMLLogging.InfoLevel
+        @test v_mixed.linsolve_failed_noncurrent isa SciMLLogging.InfoLevel
     end
 
     @testset "Individual keyword arguments" begin
         v_individual = NonlinearVerbosity(
-            immutable_u0 = SciMLLogging.ErrorLevel(),
+            alias_u0_immutable = SciMLLogging.ErrorLevel(),
             threshold_state = SciMLLogging.InfoLevel(),
-            colorvec_non_sparse = SciMLLogging.Silent()
+            termination_condition = SciMLLogging.Silent()
         )
-        @test v_individual.immutable_u0 isa SciMLLogging.ErrorLevel
+        @test v_individual.alias_u0_immutable isa SciMLLogging.ErrorLevel
         @test v_individual.threshold_state isa SciMLLogging.InfoLevel
-        @test v_individual.colorvec_non_sparse isa SciMLLogging.Silent
+        @test v_individual.termination_condition isa SciMLLogging.Silent
         # Unspecified options should use defaults
         @test v_individual.non_enclosing_interval isa SciMLLogging.WarnLevel
-        @test v_individual.pinv_undefined isa SciMLLogging.WarnLevel
+        @test v_individual.linsolve_failed_noncurrent isa SciMLLogging.WarnLevel
     end
 
     g(u, p) = u^2 - 4
