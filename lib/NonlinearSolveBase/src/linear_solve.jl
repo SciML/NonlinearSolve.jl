@@ -100,7 +100,7 @@ fix_incompatible_linsolve_arguments(A, b, u) = u
 fix_incompatible_linsolve_arguments(::SArray, ::SArray, u::SArray) = u
 function fix_incompatible_linsolve_arguments(A, b, u::SArray)
     (Core.Compiler.return_type(\, Tuple{typeof(A), typeof(b)}) <: typeof(u)) && return u
-    @warn "Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
+    @warn lazy"Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
            properly supported. Converting `x` to a mutable array. Check the return type \
            of the nonlinear function provided for optimal performance." maxlog=1
     return MArray(u)
