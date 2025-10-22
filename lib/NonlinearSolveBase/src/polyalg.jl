@@ -92,12 +92,12 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
     println(io, "NonlinearSolvePolyAlgorithmCache with \
                  $(Utils.unwrap_val(cache.static_length)) algorithms:")
     best_alg = ifelse(cache.best == -1, "nothing", cache.best)
-    println(io, "    Best Algorithm: $(best_alg)")
+    println(io, lazy"    Best Algorithm: $(best_alg)")
     println(
-        io, "    Current Algorithm: [$(cache.current) / $(Utils.unwrap_val(cache.static_length))]"
+        io, lazy"    Current Algorithm: [$(cache.current) / $(Utils.unwrap_val(cache.static_length))]"
     )
-    println(io, "    nsteps: $(cache.nsteps)")
-    println(io, "    retcode: $(cache.retcode)")
+    println(io, lazy"    nsteps: $(cache.nsteps)")
+    println(io, lazy"    retcode: $(cache.retcode)")
     print(io, "    Current Cache: ")
     NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
 end

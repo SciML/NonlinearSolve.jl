@@ -35,7 +35,7 @@ function SciMLBase.__solve(
         end
 
         if petsclibidx === nothing
-            error("No compatible PETSc library found for element type $(T). Pass in a \
+            error(lazy"No compatible PETSc library found for element type $(T). Pass in a \
                    custom `petsclib` via `PETScSNES(; petsclib = <petsclib>, ....)`.")
         end
         petsclib = PETSc.petsclibs[petsclibidx]

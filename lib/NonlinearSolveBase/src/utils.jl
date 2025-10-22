@@ -22,7 +22,7 @@ end
 
 function Base.convert(::Type{AbstractArray}, A::Pinv)
     hasmethod(pinv, Tuple{typeof(A.J)}) && return pinv(A.J)
-    @warn "`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
+    @warn lazy"`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
            tracing." maxlog=1
     return A.J
 end

@@ -234,7 +234,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         else
             if sparse_or_structured_prototype(f.jac_prototype)
                 if !(sparsity_detector isa NoSparsityDetector)
-                    @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
+                    @warn lazy"`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
                            has also been specified. Ignoring sparsity field and using \
                            `jac_prototype` sparsity."
                 end
@@ -248,7 +248,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
 end
 
 function construct_concrete_adtype(::NonlinearFunction, ad::AutoSparse)
-    error("Specifying a sparse AD type for Nonlinear Problems was removed in v4. \
+    error(lazy"Specifying a sparse AD type for Nonlinear Problems was removed in v4. \
            Instead use the `sparsity`, `jac_prototype`, and `colorvec` to specify \
            the right sparsity pattern and coloring algorithm. Ignoring the sparsity \
            detection algorithm and coloring algorithm present in $(ad).")

@@ -4,7 +4,7 @@ function assert_extension_supported_termination_condition(
     no_termination_condition = termination_condition === nothing
     no_termination_condition && return nothing
     abs_norm_supported && termination_condition isa AbsNormTerminationMode && return nothing
-    throw(AssertionError("`$(nameof(typeof(alg)))` does not support termination conditions!"))
+    throw(AssertionError(lazy"`$(nameof(typeof(alg)))` does not support termination conditions!"))
 end
 
 function construct_extension_function_wrapper(
