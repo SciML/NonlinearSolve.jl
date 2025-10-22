@@ -43,9 +43,12 @@ function SciPyLeastSquares(; method::String = "trf", loss::String = "linear")
     valid_methods = ("trf", "dogbox", "lm")
     valid_losses = ("linear", "soft_l1", "huber", "cauchy", "arctan")
     method in valid_methods ||
-        throw(ArgumentError("Invalid method: $method. Valid methods are: $(join(valid_methods, ", "))"))
+        throw(ArgumentError(
+            lazy"Invalid method: $method. Valid methods are: $(join(valid_methods, ", "))"))
     loss in valid_losses ||
-        throw(ArgumentError("Invalid loss: $loss. Valid loss functions are: $(join(valid_losses, ", "))"))
+        throw(ArgumentError(
+            lazy"Invalid loss: $loss. Valid loss functions are: $(join(valid_losses, ",
+            "))"))
     return SciPyLeastSquares(method, loss, :SciPyLeastSquares)
 end
 

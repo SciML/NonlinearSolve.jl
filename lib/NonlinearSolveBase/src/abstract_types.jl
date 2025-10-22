@@ -336,7 +336,7 @@ function Base.show(io::IO, ::MIME"text/plain", cache::AbstractNonlinearSolveCach
 end
 
 function show_nonlinearsolve_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
-    println(io, "$(nameof(typeof(cache)))(")
+    println(io, lazy"$(nameof(typeof(cache)))(")
     show_nonlinearsolve_algorithm(
         io,
         cache.alg,

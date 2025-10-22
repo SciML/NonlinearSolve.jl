@@ -215,7 +215,7 @@ function InternalAPI.solve!(
             end
             b = cache.Jᵀfu_cache
         else
-            error("Unknown Mode: $(cache.mode).")
+            error(lazy"Unknown Mode: $(cache.mode).")
         end
     end
 

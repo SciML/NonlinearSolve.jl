@@ -18,7 +18,7 @@ function siamfanlequations_retcode_mapping(sol)
     elseif sol.errcode == -1
         return ReturnCode.Default
     else
-        error("Unknown SIAMFANLEquations return code: $(sol.errcode)")
+        error(lazy"Unknown SIAMFANLEquations return code: $(sol.errcode)")
     end
 end
 
