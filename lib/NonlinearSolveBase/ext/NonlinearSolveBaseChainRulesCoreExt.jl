@@ -6,7 +6,7 @@ using SciMLBase
 using SciMLBase: AbstractSensitivityAlgorithm
 
 import ChainRulesCore
-import ChainRulesCore: NoTangent
+import ChainRulesCore: NoTangent, Tangent
 
 function ChainRulesCore.frule(::typeof(NonlinearSolveBase.solve_up), prob,
         sensealg::Union{Nothing, AbstractSensitivityAlgorithm},
