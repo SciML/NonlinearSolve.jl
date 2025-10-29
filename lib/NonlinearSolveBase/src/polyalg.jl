@@ -119,9 +119,10 @@ end
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
-        internalnorm::IN = L2_NORM, alias_u0 = false, verbose = NonlinearVerbosity(),
+        internalnorm::IN = L2_NORM, alias = NonlinearAliasSpecifier(alias_u0 = false), verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
+    alias_u0 = alias.alias_u0
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is 
             immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable)
@@ -147,7 +148,7 @@ function SciMLBase.__init(
         map(alg.algs) do solver
             SciMLBase.__init(
                 prob, solver, args...;
-                stats, maxtime, internalnorm, alias_u0, verbose,
+                stats, maxtime, internalnorm, alias, verbose,
                 initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,

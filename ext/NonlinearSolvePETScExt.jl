@@ -14,9 +14,10 @@ using SparseArrays: AbstractSparseMatrix
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::PETScSNES, args...;
         abstol = nothing, reltol = nothing,
-        maxiters = 1000, alias_u0::Bool = false, termination_condition = nothing,
+        maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing,
         show_trace::Val = Val(false), kwargs...
 )
+    alias_u0 = alias.alias_u0
     # XXX: https://petsc.org/release/manualpages/SNES/SNESSetConvergenceTest/
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg; abs_norm_supported = false

@@ -124,11 +124,12 @@ NonlinearSolveBase.@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         abstol = nothing, reltol = nothing, termination_condition = nothing,
         maxtime = nothing, verbose = NonlinearVerbosity(), 
         initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 )
+    alias_u0 = alias.alias_u0
     timer = get_timer_output()
 
     @static_timeit timer "cache construction" begin
