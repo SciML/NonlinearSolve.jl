@@ -63,6 +63,9 @@ function SciMLBase.__solve(
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias = NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
 )
+    if haskey(kwargs, :alias_u0)
+        alias = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)

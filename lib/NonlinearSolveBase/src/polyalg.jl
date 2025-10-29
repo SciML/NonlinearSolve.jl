@@ -122,6 +122,9 @@ function SciMLBase.__init(
         internalnorm::IN = L2_NORM, alias = NonlinearAliasSpecifier(alias_u0 = false), verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
+    if haskey(kwargs, :alias_u0)
+        alias = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     if alias_u0 && !ArrayInterface.ismutable(prob.u0)
         @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is 
