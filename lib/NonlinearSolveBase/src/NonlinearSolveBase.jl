@@ -29,8 +29,7 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
 using SciMLLogging: @SciMLMessage, AbstractVerbositySpecifier, AbstractVerbosityPreset, AbstractMessageLevel, 
-                None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel, ErrorLevel,
-                CustomLevel
+                None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel
 
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
