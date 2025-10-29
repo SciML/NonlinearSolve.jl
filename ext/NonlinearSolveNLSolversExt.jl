@@ -13,9 +13,10 @@ const DI = DifferentiationInterface
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLSolversJL, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, kwargs...
 )
+    alias_u0 = alias.alias_u0
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )

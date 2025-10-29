@@ -35,8 +35,9 @@ function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
+        alias = NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
 )
+    alias_u0 = alias.alias_u0
     autodiff = alg.autodiff
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)

@@ -9,10 +9,11 @@ using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLsolveJL, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, trace_level = TraceMinimal(),
         store_trace::Val = Val(false), show_trace::Val = Val(false), kwargs...
 )
+    alias_u0 = alias.alias_u0
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )

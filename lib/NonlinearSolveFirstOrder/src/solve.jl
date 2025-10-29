@@ -129,11 +129,12 @@ NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm::IN = L2_NORM, verbose = NonlinearVerbosity(),
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
+    alias_u0 = alias.alias_u0
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
     @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&

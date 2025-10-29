@@ -147,13 +147,14 @@ NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::QuasiNewtonAlgorithm, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxtime = nothing,
+        stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = false), maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
         verbose = NonlinearVerbosity(),
         kwargs...
 ) where {F}
+    alias_u0 = alias.alias_u0
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
 

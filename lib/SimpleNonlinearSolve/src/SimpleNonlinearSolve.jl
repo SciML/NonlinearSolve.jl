@@ -15,7 +15,7 @@ using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM
                           AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage,
                           AbstractVerbosityPreset
 using SciMLBase: SciMLBase, NonlinearFunction, NonlinearProblem,
-                 NonlinearLeastSquaresProblem, ReturnCode, remake
+                 NonlinearLeastSquaresProblem, ReturnCode, remake, NonlinearAliasSpecifier
 
 using LinearAlgebra: LinearAlgebra, dot
 
