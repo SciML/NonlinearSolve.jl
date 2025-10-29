@@ -23,5 +23,5 @@
 
     @test ∂p_zygote ≈ ∂p_tracker ≈ ∂p_reversediff ≈ ∂p_enzyme 
     @test ∂p_zygote ≈ ∂p_forwarddiff ≈ ∂p_tracker ≈ ∂p_reversediff ≈ ∂p_enzyme
-    @test_broken ∂p_forwarddiff ≈ ∂p_mooncake
+    @test ∂p_forwarddiff ≈ ∂p_mooncake
 end
