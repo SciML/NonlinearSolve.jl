@@ -65,11 +65,11 @@ end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleDFSane, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias = NonlinearAliasSpecifier(alias_u0 = false),
+        abstol = nothing, reltol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, kwargs...
 )
     if haskey(kwargs, :alias_u0)
-        alias = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
