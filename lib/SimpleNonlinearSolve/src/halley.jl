@@ -31,10 +31,10 @@ end
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleHalley, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias = NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
 )
     if haskey(kwargs, :alias_u0)
-        alias = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
     autodiff = alg.autodiff

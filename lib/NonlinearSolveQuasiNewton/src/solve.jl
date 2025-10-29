@@ -147,7 +147,7 @@ NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::QuasiNewtonAlgorithm, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = false), maxtime = nothing,
+        stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
@@ -155,7 +155,7 @@ function SciMLBase.__init(
         kwargs...
 ) where {F}
     if haskey(kwargs, :alias_u0)
-        alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
     timer = get_timer_output()
