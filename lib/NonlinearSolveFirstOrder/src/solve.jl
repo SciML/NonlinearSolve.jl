@@ -134,6 +134,9 @@ function SciMLBase.__init(
         termination_condition = nothing, internalnorm::IN = L2_NORM, verbose = NonlinearVerbosity(),
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
+    if haskey(kwargs, :alias_u0)
+        alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing

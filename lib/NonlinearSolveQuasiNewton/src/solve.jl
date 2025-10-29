@@ -154,6 +154,9 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(),
         kwargs...
 ) where {F}
+    if haskey(kwargs, :alias_u0)
+        alias = NonlinearSolveBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin

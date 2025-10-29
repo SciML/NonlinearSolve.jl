@@ -42,6 +42,9 @@ function SciMLBase.__solve(
         abstol = nothing, reltol = nothing, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         termination_condition = nothing, show_trace = Val(false), kwargs...
 )
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg

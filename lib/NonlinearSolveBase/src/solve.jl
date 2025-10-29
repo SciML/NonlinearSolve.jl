@@ -71,10 +71,10 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
     elseif haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa Bool
         NonlinearAliasSpecifier(alias = prob.kwargs[:alias])
     elseif haskey(kwargs, :alias_u0)
-        @warn lazy"The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
+        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
         NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     elseif haskey(prob.kwargs, :alias_u0)
-        @warn lazy"The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
+        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
         NonlinearAliasSpecifier(alias_u0 = prob.kwargs[:alias_u0])
     else
         NonlinearAliasSpecifier(alias_u0 = false)

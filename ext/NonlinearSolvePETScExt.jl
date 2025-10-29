@@ -17,6 +17,9 @@ function SciMLBase.__solve(
         maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing,
         show_trace::Val = Val(false), kwargs...
 )
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
     alias_u0 = alias.alias_u0
     # XXX: https://petsc.org/release/manualpages/SNES/SNESSetConvergenceTest/
     NonlinearSolveBase.assert_extension_supported_termination_condition(
