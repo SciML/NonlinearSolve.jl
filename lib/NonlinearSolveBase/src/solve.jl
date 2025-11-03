@@ -45,9 +45,21 @@ problems.
     https://docs.sciml.ai/SciMLSensitivity/stable/
 """
 function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, wrap = Val(true), kwargs...)
+        u0 = nothing, p = nothing, wrap = Val(true), verbose = NonlinearVerbosity(), kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
+    end
+
+    if verbose isa Bool
+        # @warn "Using `true` or `false` for `verbose` is being deprecated. Please use a `NonlinearVerbosity` type to specify verbosity settings.
+        # For details see the verbosity section of the common solver options documentation page."
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
     end
 
     if haskey(prob.kwargs, :alias_u0)
@@ -85,6 +97,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             args...;
             alias_u0 = alias_u0,
             originator = SciMLBase.ChainRulesOriginator(),
+            verbose,
             kwargs...))
     else
         solve_up(prob,
@@ -94,6 +107,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             args...;
             alias_u0 = alias_u0,
             originator = SciMLBase.ChainRulesOriginator(),
+            verbose,
             kwargs...)
     end
 end
@@ -165,15 +179,27 @@ end
 
 function init(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, kwargs...)
+        u0 = nothing, p = nothing, verbose = NonlinearVerbosity(), kwargs...)
     if sensealg === nothing && has_kwargs(prob) && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
+    end
+
+    if verbose isa Bool
+        # @warn "Using `true` or `false` for `verbose` is being deprecated. Please use a `NonlinearVerbosity` type to specify verbosity settings.
+        # For details see the verbosity section of the common solver options documentation page."
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
     end
 
     u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
-    init_up(prob, sensealg, u0, p, args...; kwargs...)
+    init_up(prob, sensealg, u0, p, args...; verbose, kwargs...)
 end
 
 function init_up(prob::AbstractNonlinearProblem,
