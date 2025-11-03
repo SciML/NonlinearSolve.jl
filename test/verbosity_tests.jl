@@ -118,4 +118,83 @@
         prob, verbose = NonlinearVerbosity(threshold_state = SciMLLogging.InfoLevel()))
 
     @test cache.verbose.threshold_state == SciMLLogging.InfoLevel()
+
+    f(u, p) = u .* u .- 2
+    prob = NonlinearProblem(f, [1.0, 1.0])
+
+    @testset "solve with Bool verbose" begin
+        # Test verbose = true works (default verbosity)
+        sol1 = solve(prob, verbose = true)
+        @test sol1.retcode == ReturnCode.Success
+
+        # Test verbose = false silences all output
+        @test_logs min_level=0 sol2=solve(prob, verbose = false)
+    end
+
+    @testset "solve with Preset verbose" begin
+        # Test verbose = SciMLLogging.Standard() works
+        sol1 = solve(prob, verbose = SciMLLogging.Standard())
+        @test sol1.retcode == ReturnCode.Success
+
+        # Test verbose = SciMLLogging.None() silences output
+        @test_logs min_level=0 sol2=solve(prob, verbose = SciMLLogging.None())
+
+        # Test verbose = SciMLLogging.Detailed() works
+        sol3 = solve(prob, verbose = SciMLLogging.Detailed())
+        @test sol3.retcode == ReturnCode.Success
+
+        # Test verbose = SciMLLogging.All() works
+        sol4 = solve(prob, verbose = SciMLLogging.All())
+        @test sol4.retcode == ReturnCode.Success
+
+        # Test verbose = SciMLLogging.Minimal() works
+        sol5 = solve(prob, verbose = SciMLLogging.Minimal())
+        @test sol5.retcode == ReturnCode.Success
+    end
+
+    @testset "init with Bool verbose" begin
+        # Test verbose = true converts to NonlinearVerbosity()
+        cache1 = init(prob, verbose = true)
+        @test cache1.verbose isa NonlinearVerbosity
+        @test cache1.verbose.threshold_state == SciMLLogging.WarnLevel()
+
+        # Test verbose = false converts to NonlinearVerbosity(None())
+        cache2 = init(prob, verbose = false)
+        @test cache2.verbose isa NonlinearVerbosity
+        @test cache2.verbose.threshold_state isa SciMLLogging.Silent
+        @test cache2.verbose.non_enclosing_interval isa SciMLLogging.Silent
+    end
+
+    @testset "init with Preset verbose" begin
+        # Test verbose = SciMLLogging.Standard() converts to NonlinearVerbosity(Standard())
+        cache1 = init(prob, verbose = SciMLLogging.Standard())
+        @test cache1.verbose isa NonlinearVerbosity
+        @test cache1.verbose.threshold_state == SciMLLogging.WarnLevel()
+
+        # Test verbose = SciMLLogging.None() converts to NonlinearVerbosity(None())
+        cache2 = init(prob, verbose = SciMLLogging.None())
+        @test cache2.verbose isa NonlinearVerbosity
+        @test cache2.verbose.threshold_state isa SciMLLogging.Silent
+
+        # Test verbose = SciMLLogging.Detailed()
+        cache3 = init(prob, verbose = SciMLLogging.Detailed())
+        @test cache3.verbose isa NonlinearVerbosity
+        @test cache3.verbose.linear_verbosity isa SciMLLogging.Detailed
+
+        # Test verbose = SciMLLogging.All()
+        cache4 = init(prob, verbose = SciMLLogging.All())
+        @test cache4.verbose isa NonlinearVerbosity
+        @test cache4.verbose.threshold_state == SciMLLogging.InfoLevel()
+
+        # Test verbose = SciMLLogging.Minimal()
+        cache5 = init(prob, verbose = SciMLLogging.Minimal())
+        @test cache5.verbose isa NonlinearVerbosity
+        @test cache5.verbose.alias_u0_immutable isa SciMLLogging.Silent
+    end
+
+    @testset "init then solve with converted verbose" begin
+        # Ensure the converted verbose works through the full solve pipeline
+        cache = init(prob, verbose = false)
+        @test_logs min_level=0 sol=solve!(cache)
+    end
 end
