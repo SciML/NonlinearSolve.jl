@@ -32,7 +32,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">NewtonRaphson(</span></span>
 Iter    	f(u) inf-norm       	Step 2-norm         	cond(J)
 ----    	-------------       	-----------         	-------
 0       	2.30000000e+01      	0.00000000e+00      	5.00000000e+00
-1       	5.29000000e+00      	2.62699660e+00      	5.00000000e+00
+1       	5.29000000e+00      	2.62699660e+00      	-1.00000000e+00
 Final   	4.44089210e-16
 ----------------------</code></pre><p>You can also store the trace in the solution object:</p><pre><code class="language-julia hljs">sol = NLS.solve(prob; trace_level = NLS.TraceAll(), store_trace = Val(true));
 
@@ -40,12 +40,12 @@ sol.trace</code></pre><pre class="documenter-example-output"><code class="nohigh
 Iter    	f(u) inf-norm       	Step 2-norm         	cond(J)             
 ----    	-------------       	-----------         	-------             
 0       	2.30000000e+01      	0.00000000e+00      	5.00000000e+00      
-1       	5.29000000e+00      	2.62699660e+00      	5.00000000e+00      
-2       	9.59674211e-01      	1.05091251e+00      	1.80000000e+00      
-3       	7.77935784e-02      	2.82878317e-01      	1.21437908e+00      
-4       	7.28157132e-04      	2.69957925e-02      	1.01926133e+00      
-5       	6.62524795e-08      	2.57395663e-04      	1.00018202e+00      
-6       	4.44089210e-16      	2.34237884e-08      	1.00000002e+00      
+1       	5.29000000e+00      	2.62699660e+00      	-1.00000000e+00     
+2       	9.59674211e-01      	1.05091251e+00      	-1.00000000e+00     
+3       	7.77935784e-02      	2.82878317e-01      	-1.00000000e+00     
+4       	7.28157132e-04      	2.69957925e-02      	-1.00000000e+00     
+5       	6.62524795e-08      	2.57395663e-04      	-1.00000000e+00     
+6       	4.44089210e-16      	2.34237884e-08      	-1.00000000e+00     
 </code></pre><p>Now, let&#39;s try to investigate the time it took for individual internal steps. We will have to use the <code>init</code> and <code>solve!</code> API for this. The <code>TimerOutput</code> will be present in <code>cache.timer</code>. However, note that for poly-algorithms this is currently not implemented.</p><pre><code class="language-julia hljs">cache = NLS.init(prob, NLS.NewtonRaphson(); show_trace = Val(true));
 NLS.solve!(cache)
 cache.timer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
@@ -85,7 +85,7 @@ Algorithm: <span class="sgr32"><span class="sgr1">DFSane(</span></span>
 <span class="sgr32"><span class="sgr1">        tau_max = 1//2,</span></span>
 <span class="sgr32"><span class="sgr1">        n_exp = 2,</span></span>
 <span class="sgr32"><span class="sgr1">        maxiters = 100,</span></span>
-<span class="sgr32"><span class="sgr1">        η_strategy = #2#4()</span></span>
+<span class="sgr32"><span class="sgr1">        η_strategy = #DFSane##0#DFSane##1()</span></span>
 <span class="sgr32"><span class="sgr1">    ),</span></span>
 <span class="sgr32"><span class="sgr1">    σ_min = 1//10000000000,</span></span>
 <span class="sgr32"><span class="sgr1">    σ_max = 1.0e10</span></span>
@@ -97,4 +97,4 @@ Iter    	f(u) inf-norm       	Step 2-norm
 0       	2.30000000e+01      	0.00000000e+00
 1       	1.07270233e+00      	6.23840488e+00
 Final   	4.44089210e-16
-----------------------</code></pre><div class="admonition is-info" id="Note-9925775b7800a98b"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-9925775b7800a98b" title="Permalink"></a></header><div class="admonition-body"><p>For <code>iteration == 0</code> only the <code>norm(fu, Inf)</code> is guaranteed to be meaningful. The other values being meaningful are solver dependent.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../termination_condition/">« Termination Conditions</a><a class="docs-footer-nextpage" href="../sparsity_detection/">(Semi-)Automatic Sparsity Detection »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Sunday 28 September 2025 23:00">Sunday 28 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+----------------------</code></pre><div class="admonition is-info" id="Note-9925775b7800a98b"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-9925775b7800a98b" title="Permalink"></a></header><div class="admonition-body"><p>For <code>iteration == 0</code> only the <code>norm(fu, Inf)</code> is guaranteed to be meaningful. The other values being meaningful are solver dependent.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../termination_condition/">« Termination Conditions</a><a class="docs-footer-nextpage" href="../sparsity_detection/">(Semi-)Automatic Sparsity Detection »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Tuesday 4 November 2025 21:01">Tuesday 4 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
