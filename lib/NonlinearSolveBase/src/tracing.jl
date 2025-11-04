@@ -204,7 +204,9 @@ function update_trace!(
         entry = if trace.trace_level.trace_mode isa Val{:minimal}
             NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, missing, missing)
         else
-            J = convert(AbstractArray, J)
+            if !isnothing(J)
+                J = convert(AbstractArray, J)
+            end
             if trace.trace_level.trace_mode isa Val{:condition_number}
                 NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, missing)
             else
@@ -220,7 +222,7 @@ end
 function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
     trace = Utils.safe_getproperty(cache, Val(:trace))
     trace === missing && return nothing
-
+    
     J = Utils.safe_getproperty(cache, Val(:J))
     du = SciMLBase.get_du(cache)
     if J === missing
