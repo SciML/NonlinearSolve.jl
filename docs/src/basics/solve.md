@@ -38,26 +38,18 @@ These are exclusively available for native `NonlinearSolve.jl` solvers.
     stored in the solution object. (Defaults to `Val(false)`)
 
 ## Verbosity Controls
-
-NonlinearSolve.jl provides fine-grained control over diagnostic messages, warnings, and errors
-through the `verbose` keyword argument. The verbosity system allows you to control what
-information is displayed during the solve process. See [SciMLLogging.jl](https://docs.sciml.ai/SciMLLogging/dev/) for more details. 
-
-```@docs
-NonlinearVerbosity
-```
-
+  - `verbose::NonlinearVerbosity`: Controls the verbosity of the solver. Determines which messages get logged at what logging level. 
 ### Quick Start
 
 ```julia
 # Use a preset
-solve(prob, alg; verbose = NonlinearVerbosity(SciMLLogging.Standard()))
+solve(prob, alg; verbose = SciMLLogging.Standard())
 
 # Silence all messages
-solve(prob, alg; verbose = NonlinearVerbosity(SciMLLogging.None()))
+solve(prob, alg; verbose = SciMLLogging.None())
 
 # Maximum verbosity
-solve(prob, alg; verbose = NonlinearVerbosity(SciMLLogging.All()))
+solve(prob, alg; verbose = SciMLLogging.All())
 
 # Custom configuration
 solve(prob, alg; verbose = NonlinearVerbosity(
