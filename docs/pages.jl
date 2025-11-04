@@ -22,7 +22,8 @@ pages = [
         "basics/termination_condition.md",
         "basics/diagnostics_api.md",
         "basics/sparsity_detection.md",
-        "basics/faq.md"
+        "basics/faq.md",
+        "basics/verbosity.md"
     ],
     "Solver Summaries and Recommendations" => Any[
         "solvers/nonlinear_system_solvers.md",
