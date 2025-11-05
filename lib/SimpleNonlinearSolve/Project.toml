@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "2.9.0"
+version = "2.10.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -43,7 +43,7 @@ SimpleNonlinearSolveTrackerExt = "Tracker"
 ADTypes = "1.2"
 Aqua = "0.8.7"
 ArrayInterface = "7.16"
-BracketingNonlinearSolve = "1.1"
+BracketingNonlinearSolve = "1.6"
 ChainRulesCore = "1.24"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
