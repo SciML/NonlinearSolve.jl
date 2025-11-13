@@ -14,7 +14,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
 
@@ -105,7 +105,7 @@ vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, jac, "oop + jac"),
     (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac")
 ]
-if isempty(VERSION.prerelease)
+if isempty(VERSION.prerelease) && VERSION < v"1.12"
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end

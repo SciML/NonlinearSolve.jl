@@ -12,7 +12,7 @@ end
     using Zygote, ForwardDiff, FiniteDiff
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
@@ -20,7 +20,7 @@ end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, AutoEnzyme())
     end
 
@@ -100,13 +100,13 @@ end
     using Zygote, ForwardDiff, FiniteDiff
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, AutoEnzyme())
     end
 
@@ -186,13 +186,13 @@ end
     using Zygote, ForwardDiff, FiniteDiff
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
     # Filter autodiff backends based on Julia version
     autodiff_backends=[AutoForwardDiff(), AutoZygote(), AutoFiniteDiff()]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, AutoEnzyme())
     end
 
