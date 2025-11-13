@@ -4,7 +4,7 @@
     using SciMLJacobianOperators
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
@@ -14,7 +14,7 @@
         AutoTracker(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -23,7 +23,7 @@
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end
@@ -102,7 +102,7 @@ end
     using SciMLJacobianOperators
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
@@ -110,7 +110,7 @@ end
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -119,7 +119,7 @@ end
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end
@@ -204,7 +204,7 @@ end
     using SciMLJacobianOperators
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
@@ -214,7 +214,7 @@ end
         AutoReverseDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(reverse_ADs, AutoEnzyme())
         push!(reverse_ADs, AutoEnzyme(; mode = Enzyme.Reverse))
     end
@@ -223,7 +223,7 @@ end
         AutoForwardDiff(),
         AutoFiniteDiff()
     ]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(forward_ADs, AutoEnzyme())
         push!(forward_ADs, AutoEnzyme(; mode = Enzyme.Forward))
     end
