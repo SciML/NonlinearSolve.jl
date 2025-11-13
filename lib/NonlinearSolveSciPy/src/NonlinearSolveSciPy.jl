@@ -135,7 +135,8 @@ function SciMLBase.__solve(
     end
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+    # lb and ub are extracted from prob directly, not passed as kwargs
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose, :lb, :ub))
 
     # Call scipy with conditional bounds argument
     if bounds === nothing
@@ -189,7 +190,8 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     tol = abstol === nothing ? nothing : abstol
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+    # lb and ub are extracted from prob directly, not passed as kwargs
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose, :lb, :ub))
 
     res = scipy_optimize[].root(py_f, collect(u0);
         method = alg.method,
@@ -228,7 +230,8 @@ function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     a, b = prob.tspan
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+    # lb and ub are extracted from prob directly, not passed as kwargs
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose, :lb, :ub))
 
     res = scipy_optimize[].root_scalar(py_f;
         method = alg.method,
