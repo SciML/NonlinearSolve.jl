@@ -136,12 +136,21 @@ function SciMLBase.__solve(
     # Filter out Julia-specific kwargs that scipy doesn't understand
     scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
 
-    res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
-        method = alg.method,
-        loss = alg.loss,
-        max_nfev = maxiters,
-        bounds = bounds === nothing ? PY_NONE[] : bounds,
-        scipy_kwargs...)
+    # Call scipy with conditional bounds argument
+    if bounds === nothing
+        res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
+            method = alg.method,
+            loss = alg.loss,
+            max_nfev = maxiters,
+            scipy_kwargs...)
+    else
+        res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
+            method = alg.method,
+            loss = alg.loss,
+            max_nfev = maxiters,
+            bounds = bounds,
+            scipy_kwargs...)
+    end
 
     u_vec = pyconvert(Vector{Float64}, res.x)
     resid = pyconvert(Vector{Float64}, res.fun)
