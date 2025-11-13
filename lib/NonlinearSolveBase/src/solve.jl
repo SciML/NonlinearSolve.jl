@@ -171,6 +171,42 @@ function solve_call(prob::SteadyStateProblem,
         kwargs...)
 end
 
+function solve_call(prob::NonlinearLeastSquaresProblem, args...;
+        merge_callbacks = true, kwargshandle = nothing, kwargs...)
+    # Use NonlinearKeywordArgError which accepts lb and ub
+    kwargshandle = kwargshandle === nothing ? NonlinearKeywordArgError : kwargshandle
+    kwargshandle = has_kwargs(prob) && haskey(prob.kwargs, :kwargshandle) ?
+                   prob.kwargs[:kwargshandle] : kwargshandle
+
+    if has_kwargs(prob)
+        kwargs = isempty(prob.kwargs) ? kwargs : merge(values(prob.kwargs), kwargs)
+    end
+
+    checkkwargs(kwargshandle; kwargs...)
+    if isdefined(prob, :u0)
+        if prob.u0 isa Array
+            if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(prob.u0))
+                throw(NonConcreteEltypeError(RecursiveArrayTools.recursive_unitless_eltype(prob.u0)))
+            end
+
+            if !(eltype(prob.u0) <: Number) && !(eltype(prob.u0) <: Enum)
+                throw(NonNumberEltypeError(eltype(prob.u0)))
+            end
+        end
+
+        if prob.u0 === nothing
+            return build_null_solution(prob, args...; kwargs...)
+        end
+    end
+
+    if hasfield(typeof(prob), :f) && hasfield(typeof(prob.f), :f) &&
+       prob.f.f isa EvalFunc
+        Base.invokelatest(__solve, prob, args...; kwargs...)
+    else
+        __solve(prob, args...; kwargs...)
+    end
+end
+
 function init(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
         u0 = nothing, p = nothing, verbose = NonlinearVerbosity(), kwargs...)
@@ -255,6 +291,25 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
         Base.invokelatest(__init, _prob, args...; kwargs...)#::T
     else
         __init(_prob, args...; kwargs...)#::T
+    end
+end
+
+function init_call(prob::NonlinearLeastSquaresProblem, args...;
+        merge_callbacks = true, kwargshandle = nothing, kwargs...)
+    # Use NonlinearKeywordArgError which accepts lb and ub
+    kwargshandle = kwargshandle === nothing ? NonlinearKeywordArgError : kwargshandle
+    kwargshandle = has_kwargs(prob) && haskey(prob.kwargs, :kwargshandle) ?
+                   prob.kwargs[:kwargshandle] : kwargshandle
+    if has_kwargs(prob)
+        kwargs = isempty(prob.kwargs) ? kwargs : merge(values(prob.kwargs), kwargs)
+    end
+
+    checkkwargs(kwargshandle; kwargs...)
+    if hasfield(typeof(prob), :f) && hasfield(typeof(prob.f), :f) &&
+           prob.f.f isa EvalFunc
+        Base.invokelatest(__init, prob, args...; kwargs...)
+    else
+        __init(prob, args...; kwargs...)
     end
 end
 
