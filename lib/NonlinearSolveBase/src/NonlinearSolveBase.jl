@@ -42,6 +42,35 @@ using Printf: @printf
 const DI = DifferentiationInterface
 const SII = SymbolicIndexingInterface
 
+# Custom keyword argument handler that extends the standard SciMLBase keywords
+# to include bounds (lb, ub) for NonlinearLeastSquaresProblem
+struct NonlinearKeywordArgError end
+
+function SciMLBase.checkkwargs(::Type{NonlinearKeywordArgError}; kwargs...)
+    keywords = keys(kwargs)
+    allowed_keywords = (:dense, :saveat, :save_idxs, :save_discretes, :tstops, :tspan,
+                       :d_discontinuities, :save_everystep, :save_on, :save_start, :save_end,
+                       :initialize_save, :adaptive, :abstol, :reltol, :dt, :dtmax, :dtmin,
+                       :force_dtmin, :internalnorm, :controller, :gamma, :beta1, :beta2,
+                       :qmax, :qmin, :qsteady_min, :qsteady_max, :qoldinit, :failfactor,
+                       :calck, :alias_u0, :maxiters, :maxtime, :callback, :isoutofdomain,
+                       :unstable_check, :verbose, :merge_callbacks, :progress, :progress_steps,
+                       :progress_name, :progress_message, :progress_id, :timeseries_errors,
+                       :dense_errors, :weak_timeseries_errors, :weak_dense_errors, :wrap,
+                       :calculate_error, :initializealg, :alg, :save_noise, :delta, :seed,
+                       :alg_hints, :kwargshandle, :trajectories, :batch_size, :sensealg,
+                       :advance_to_tstop, :stop_at_next_tstop, :u0, :p, :default_set,
+                       :second_time, :prob_choice, :alias_jump, :alias_noise, :batch,
+                       :nlsolve_kwargs, :odesolve_kwargs, :linsolve_kwargs, :ensemblealg,
+                       :show_trace, :trace_level, :store_trace, :termination_condition,
+                       :alias, :fit_parameters, :lb, :ub)  # Added lb and ub
+    for kw in keywords
+        if kw ∉ allowed_keywords
+            throw(SciMLBase.KeywordArgumentError(kw))
+        end
+    end
+end
+
 include("public.jl")
 include("utils.jl")
 include("verbosity.jl")
