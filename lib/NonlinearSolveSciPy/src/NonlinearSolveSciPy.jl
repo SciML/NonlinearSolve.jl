@@ -3,7 +3,7 @@ module NonlinearSolveSciPy
 using ConcreteStructs: @concrete
 using Reexport: @reexport
 
-using PythonCall: pyimport, pyfunc, Py
+using PythonCall: pyimport, pyfunc, pyconvert, Py
 
 const scipy_optimize = Ref{Union{Py, Nothing}}(nothing)
 const PY_NONE = Ref{Union{Py, Nothing}}(nothing)
@@ -99,7 +99,7 @@ Internal: wrap a Julia residual function into a Python callable
 """
 function _make_py_residual(f::F, p) where F
     return pyfunc(x_py -> begin
-        x = Vector{Float64}(x_py)
+        x = pyconvert(Vector{Float64}, x_py)
         r = f(x, p)
         return r
     end)
@@ -110,7 +110,7 @@ Internal: wrap a Julia scalar function into a Python callable
 """
 function _make_py_scalar(f::F, p) where F
     return pyfunc(x_py -> begin
-        x = Float64(x_py)
+        x = pyconvert(Float64, x_py)
         return f(x, p)
     end)
 end
@@ -134,19 +134,15 @@ function SciMLBase.__solve(
     end
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = filter(kwargs) do (k, v)
-        k ∉ (:alias, :verbose)
-    end
-
     res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
         method = alg.method,
         loss = alg.loss,
         max_nfev = maxiters,
         bounds = bounds === nothing ? PY_NONE[] : bounds,
-        scipy_kwargs...)
+        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
 
-    u_vec = Vector{Float64}(res.x)
-    resid = Vector{Float64}(res.fun)
+    u_vec = pyconvert(Vector{Float64}, res.x)
+    resid = pyconvert(Vector{Float64}, res.fun)
 
     u = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
 
@@ -168,7 +164,7 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     f!, u0, resid = construct_extension_function_wrapper(prob; alias_u0)
 
     py_f = pyfunc(x_py -> begin
-        x = Vector{Float64}(x_py)
+        x = pyconvert(Vector{Float64}, x_py)
         f!(resid, x)
         return resid
     end)
@@ -176,17 +172,13 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     tol = abstol === nothing ? nothing : abstol
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = filter(kwargs) do (k, v)
-        k ∉ (:alias, :verbose)
-    end
-
     res = scipy_optimize[].root(py_f, collect(u0);
         method = alg.method,
         tol = tol,
         options = Dict("maxiter" => maxiters),
-        scipy_kwargs...)
+        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
 
-    u_vec = Vector{Float64}(res.x)
+    u_vec = pyconvert(Vector{Float64}, res.x)
     f!(resid, u_vec)
 
     u_out = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
@@ -219,16 +211,12 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     a, b = prob.tspan
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
-    scipy_kwargs = filter(kwargs) do (k, v)
-        k ∉ (:alias, :verbose)
-    end
-
     res = scipy_optimize[].root_scalar(py_f;
         method = alg.method,
         bracket = (a, b),
         maxiter = maxiters,
         xtol = abstol,
-        scipy_kwargs...)
+        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
 
     u_root = res.root
     resid = f(u_root, p)
