@@ -1,0 +1,8 @@
+# Pin Python to < 3.14 due to stack overflow detection bug in Python 3.14
+# See: https://github.com/JuliaPy/PythonCall.jl/issues/694
+# Python 3.14 introduced a buggy stack overflow detection mechanism that causes
+# false positives with negative memory values when interacting with Julia's task system.
+
+[deps]
+python = ">=3.9,<3.14"
+scipy = ""
