@@ -3,6 +3,7 @@ module NonlinearSolveBase
 using Compat: @compat
 using ConcreteStructs: @concrete
 using FastClosures: @closure
+
 using Preferences: @load_preference, @set_preferences!
 
 using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityDetector,
