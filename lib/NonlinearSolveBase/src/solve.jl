@@ -80,7 +80,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
         NonlinearAliasSpecifier(alias_u0 = false)
     end
 
-    u0 = u0 !== nothing ? u0 : (hasfield(typeof(prob), :u0) ? prob.u0 : nothing)
+    u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
     if wrap isa Val{true}
@@ -208,7 +208,7 @@ function init(
         verbose = NonlinearVerbosity(verbose)
     end
 
-    u0 = u0 !== nothing ? u0 : (hasfield(typeof(prob), :u0) ? prob.u0 : nothing)
+    u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
     init_up(prob, sensealg, u0, p, args...; alias = alias_spec, verbose, kwargs...)

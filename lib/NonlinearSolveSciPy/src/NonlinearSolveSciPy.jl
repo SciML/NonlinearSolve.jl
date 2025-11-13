@@ -19,6 +19,7 @@ function __init__()
     end
 end
 
+using CommonSolve
 using SciMLBase
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
                           construct_extension_function_wrapper
@@ -215,7 +216,7 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
         original = res, stats = stats)
 end
 
-function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyRootScalar;
+function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyRootScalar, args...;
         abstol = nothing, maxiters = 10_000, kwargs...)
     f = prob.f
     p = prob.p
