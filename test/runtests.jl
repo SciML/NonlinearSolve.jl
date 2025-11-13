@@ -24,14 +24,18 @@ end
 
 const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
 
+# Disable Enzyme on Julia 1.12+ due to compatibility issues
+# To re-enable: change condition to `true` or `VERSION < v"1.13"`
+const ENZYME_ENABLED = VERSION < v"1.12"
+
 const EXTRA_PKGS = Pkg.PackageSpec[]
 if GROUP == "all" || GROUP == "downstream"
     push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
     push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
 end
 if GROUP == "all" || GROUP == "nopre"
-    # Only add Enzyme for nopre group if not on prerelease Julia
-    if isempty(VERSION.prerelease)
+    # Only add Enzyme for nopre group if not on prerelease Julia and if enabled
+    if isempty(VERSION.prerelease) && ENZYME_ENABLED
         push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
         push!(EXTRA_PKGS, Pkg.PackageSpec("Mooncake"))
         push!(EXTRA_PKGS, Pkg.PackageSpec("SciMLSensitivity"))
@@ -51,12 +55,14 @@ const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
     0  # Sequential execution for wrapper tests
 else
     tmp = get(ENV, "RETESTITEMS_NWORKERS", "")
-    isempty(tmp) && (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
+    isempty(tmp) &&
+        (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
     parse(Int, tmp)
 end
 const RETESTITEMS_NWORKER_THREADS = begin
     tmp = get(ENV, "RETESTITEMS_NWORKER_THREADS", "")
-    isempty(tmp) && (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
+    isempty(tmp) &&
+        (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
     parse(Int, tmp)
 end
 
