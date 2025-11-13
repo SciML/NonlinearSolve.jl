@@ -159,12 +159,17 @@ function SciMLBase.__solve(
     u = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
 
     ret = pyconvert(Bool, res.success) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
-    njev = try
-        Int(res.njev)
+    nfev = try
+        pyconvert(Int, res.nfev)
     catch
         0
     end
-    stats = SciMLBase.NLStats(res.nfev, njev, 0, 0, res.nfev)
+    njev = try
+        pyconvert(Int, res.njev)
+    catch
+        0
+    end
+    stats = SciMLBase.NLStats(nfev, njev, 0, 0, nfev)
 
     return SciMLBase.build_solution(prob, alg, u, resid; retcode = ret,
         original = res, stats = stats)
@@ -199,15 +204,13 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
 
     ret = pyconvert(Bool, res.success) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
     nfev = try
-        Int(res.nfev)
+        pyconvert(Int, res.nfev)
     catch
-        ;
         0
     end
     niter = try
-        Int(res.nit)
+        pyconvert(Int, res.nit)
     catch
-        ;
         0
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
@@ -234,20 +237,18 @@ function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
         xtol = abstol,
         scipy_kwargs...)
 
-    u_root = res.root
+    u_root = pyconvert(Float64, res.root)
     resid = f(u_root, p)
 
     ret = pyconvert(Bool, res.converged) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
     nfev = try
-        Int(res.function_calls)
+        pyconvert(Int, res.function_calls)
     catch
-        ;
         0
     end
     niter = try
-        Int(res.iterations)
+        pyconvert(Int, res.iterations)
     catch
-        ;
         0
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
