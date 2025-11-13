@@ -133,12 +133,17 @@ function SciMLBase.__solve(
         bounds = nothing
     end
 
+    # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = filter(kwargs) do (k, v)
+        k ∉ (:alias, :verbose)
+    end
+
     res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
         method = alg.method,
         loss = alg.loss,
         max_nfev = maxiters,
         bounds = bounds === nothing ? PY_NONE[] : bounds,
-        kwargs...)
+        scipy_kwargs...)
 
     u_vec = Vector{Float64}(res.x)
     resid = Vector{Float64}(res.fun)
@@ -170,11 +175,16 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
 
     tol = abstol === nothing ? nothing : abstol
 
+    # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = filter(kwargs) do (k, v)
+        k ∉ (:alias, :verbose)
+    end
+
     res = scipy_optimize[].root(py_f, collect(u0);
         method = alg.method,
         tol = tol,
         options = Dict("maxiter" => maxiters),
-        kwargs...)
+        scipy_kwargs...)
 
     u_vec = Vector{Float64}(res.x)
     f!(resid, u_vec)
@@ -208,12 +218,17 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
 
     a, b = prob.tspan
 
+    # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = filter(kwargs) do (k, v)
+        k ∉ (:alias, :verbose)
+    end
+
     res = scipy_optimize[].root_scalar(py_f;
         method = alg.method,
         bracket = (a, b),
         maxiter = maxiters,
         xtol = abstol,
-        kwargs...)
+        scipy_kwargs...)
 
     u_root = res.root
     resid = f(u_root, p)
