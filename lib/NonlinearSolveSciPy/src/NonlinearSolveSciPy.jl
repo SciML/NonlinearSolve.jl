@@ -134,19 +134,21 @@ function SciMLBase.__solve(
     end
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+
     res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
         method = alg.method,
         loss = alg.loss,
         max_nfev = maxiters,
         bounds = bounds === nothing ? PY_NONE[] : bounds,
-        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
+        scipy_kwargs...)
 
     u_vec = pyconvert(Vector{Float64}, res.x)
     resid = pyconvert(Vector{Float64}, res.fun)
 
     u = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
 
-    ret = res.success ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
+    ret = pyconvert(Bool, res.success) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
     njev = try
         Int(res.njev)
     catch
@@ -172,18 +174,20 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     tol = abstol === nothing ? nothing : abstol
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+
     res = scipy_optimize[].root(py_f, collect(u0);
         method = alg.method,
         tol = tol,
         options = Dict("maxiter" => maxiters),
-        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
+        scipy_kwargs...)
 
     u_vec = pyconvert(Vector{Float64}, res.x)
     f!(resid, u_vec)
 
     u_out = prob.u0 isa Number ? u_vec[1] : reshape(u_vec, size(prob.u0))
 
-    ret = res.success ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
+    ret = pyconvert(Bool, res.success) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
     nfev = try
         Int(res.nfev)
     catch
@@ -211,17 +215,19 @@ function SciMLBase.__solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     a, b = prob.tspan
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
+    scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
+
     res = scipy_optimize[].root_scalar(py_f;
         method = alg.method,
         bracket = (a, b),
         maxiter = maxiters,
         xtol = abstol,
-        (k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))...)
+        scipy_kwargs...)
 
     u_root = res.root
     resid = f(u_root, p)
 
-    ret = res.converged ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
+    ret = pyconvert(Bool, res.converged) ? SciMLBase.ReturnCode.Success : SciMLBase.ReturnCode.Failure
     nfev = try
         Int(res.function_calls)
     catch
