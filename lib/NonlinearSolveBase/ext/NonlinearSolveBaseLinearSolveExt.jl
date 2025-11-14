@@ -5,21 +5,22 @@ using ArrayInterface: ArrayInterface
 using CommonSolve: CommonSolve, init, solve!
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using SciMLBase: ReturnCode, LinearProblem, LinearAliasSpecifier
+using SciMLLogging: @SciMLMessage
 
 using LinearAlgebra: ColumnNorm
 
-using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils
+using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity
 
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,
-        reuse_A_if_factorization = false, verbose = true, kwargs...
+        reuse_A_if_factorization = false, kwargs...
 )
     cache.stats.nsolve += 1
 
     update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && setproperty!(cache.lincache, :b, b)
     linu !== nothing && NonlinearSolveBase.set_lincache_u!(cache, linu)
-
+    
     linres = solve!(cache.lincache)
     if linres.retcode === ReturnCode.Failure
         return LinearSolveResult(; linres.u, success = false)

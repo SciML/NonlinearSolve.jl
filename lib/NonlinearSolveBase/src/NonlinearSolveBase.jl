@@ -28,6 +28,9 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
+using SciMLLogging: @SciMLMessage, AbstractVerbositySpecifier, AbstractVerbosityPreset, AbstractMessageLevel, 
+                None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel
+
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
 using Setfield: @set!
@@ -41,6 +44,7 @@ const SII = SymbolicIndexingInterface
 
 include("public.jl")
 include("utils.jl")
+include("verbosity.jl")
 
 include("abstract_types.jl")
 include("common_defaults.jl")
@@ -53,6 +57,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+
 
 include("descent/common.jl")
 include("descent/newton.jl")
@@ -91,6 +96,8 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
        GeodesicAcceleration
 
 export NonlinearSolvePolyAlgorithm
+
+export NonlinearVerbosity
 
 export pickchunksize
 

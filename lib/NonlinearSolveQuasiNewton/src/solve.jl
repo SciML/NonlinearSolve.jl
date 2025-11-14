@@ -95,6 +95,8 @@ end
 
     # Initialization
     initializealg
+
+    verbose
 end
 
 function SciMLBase.get_du(cache::QuasiNewtonCache)
@@ -145,14 +147,30 @@ NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::QuasiNewtonAlgorithm, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxtime = nothing,
+        stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxtime = nothing,
         maxiters = 1000, abstol = nothing, reltol = nothing,
         linsolve_kwargs = (;), termination_condition = nothing,
         internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
+        verbose = NonlinearVerbosity(),
         kwargs...
 ) where {F}
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
+
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(None())
+            end
+        elseif verbose isa AbstractVerbosityPreset
+            verbose = NonlinearVerbosity(verbose)
+        end
+        
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
@@ -170,7 +188,7 @@ function SciMLBase.__init(
         termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
-        linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
+        linsolve_kwargs = merge((;verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
 
@@ -231,7 +249,7 @@ function SciMLBase.__init(
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             inv_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
             alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs, initializealg
+            ReturnCode.Default, false, false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -333,10 +351,10 @@ function InternalAPI.step!(
             return
         else
             # Force a reinit because the problem is currently un-solvable
-            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
-                @warn "Linear Solve Failed but Jacobian Information is not current. \
-                       Retrying with reinitialized Approximate Jacobian."
-            end
+            
+            @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
+
             cache.force_reinit = true
             InternalAPI.step!(cache; recompute_jacobian = true)
             return

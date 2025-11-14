@@ -21,7 +21,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
                           Utils, InternalAPI, get_timer_output, @static_timeit,
                           update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
                           NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-                          Dogleg, NonlinearSolveForwardDiffCache, reused_jacobian
+                          Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity,
+                          @SciMLMessage, None, reused_jacobian, AbstractVerbosityPreset
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
                  NonlinearFunction,
                  NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize

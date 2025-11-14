@@ -36,8 +36,10 @@ jobs:
           - wrappers
           - misc
           - nopre
+          - trim
         version:
           - "1"
+          - "1.11"
           - "lts"
           - "pre"
         os:
@@ -47,6 +49,11 @@ jobs:
           # Don't run nopre tests on prerelease Julia
           - group: nopre
             version: "pre"
+          # Don't run trim tests on Julia versions below 1.12
+          - group: trim
+            version: "1.11"
+          - group: trim
+            version: "lts"
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: ${{ matrix.version }}

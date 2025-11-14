@@ -45,34 +45,40 @@ problems.
     https://docs.sciml.ai/SciMLSensitivity/stable/
 """
 function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, wrap = Val(true), kwargs...)
+        u0 = nothing, p = nothing, wrap = Val(true), verbose = NonlinearVerbosity(), kwargs...)
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
 
-    if haskey(prob.kwargs, :alias_u0)
-        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
-        alias_spec = NonlinearAliasSpecifier(alias_u0 = prob.kwargs[:alias_u0])
+    if verbose isa Bool
+        # @warn "Using `true` or `false` for `verbose` is being deprecated. Please use a `NonlinearVerbosity` type to specify verbosity settings.
+        # For details see the verbosity section of the common solver options documentation page."
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
+
+    alias_spec = if haskey(kwargs, :alias) && kwargs[:alias] isa NonlinearAliasSpecifier
+        kwargs[:alias]
+    elseif haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa NonlinearAliasSpecifier
+        prob.kwargs[:alias]
+    elseif haskey(kwargs, :alias) && kwargs[:alias] isa Bool
+        NonlinearAliasSpecifier(alias = kwargs[:alias])
+    elseif haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa Bool
+        NonlinearAliasSpecifier(alias = prob.kwargs[:alias])
     elseif haskey(kwargs, :alias_u0)
         @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
-        alias_spec = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
-    end
-
-    if haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa Bool
-        alias_spec = NonlinearAliasSpecifier(alias = prob.kwargs[:alias])
-    elseif haskey(kwargs, :alias) && kwargs[:alias] isa Bool
-        alias_spec = NonlinearAliasSpecifier(alias = kwargs[:alias])
-    end
-
-    if haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa NonlinearAliasSpecifier
-        alias_spec = prob.kwargs[:alias]
-    elseif haskey(kwargs, :alias) && kwargs[:alias] isa NonlinearAliasSpecifier
-        alias_spec = kwargs[:alias]
+        NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    elseif haskey(prob.kwargs, :alias_u0)
+        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
+        NonlinearAliasSpecifier(alias_u0 = prob.kwargs[:alias_u0])
     else
-        alias_spec = NonlinearAliasSpecifier(alias_u0 = false)
+        NonlinearAliasSpecifier(alias_u0 = false)
     end
-
-    alias_u0 = alias_spec.alias_u0
 
     u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
@@ -83,8 +89,9 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             u0,
             p,
             args...;
-            alias_u0 = alias_u0,
+            alias = alias_spec,
             originator = SciMLBase.ChainRulesOriginator(),
+            verbose,
             kwargs...))
     else
         solve_up(prob,
@@ -92,8 +99,9 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             u0,
             p,
             args...;
-            alias_u0 = alias_u0,
+            alias = alias_spec,
             originator = SciMLBase.ChainRulesOriginator(),
+            verbose,
             kwargs...)
     end
 end
@@ -128,6 +136,15 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    # Check bounds support for problems with bounds
+    if (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
+       (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
+       (_prob.lb !== nothing || _prob.ub !== nothing) &&
+       length(args) > 0 && !SciMLBase.allowsbounds(args[1])
+        error("Algorithm $(args[1]) does not support bounds. Use an algorithm with allowsbounds(alg) == true.")
+    end
+
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
             if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0))
@@ -165,15 +182,45 @@ end
 
 function init(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, kwargs...)
+        u0 = nothing, p = nothing, verbose = NonlinearVerbosity(), kwargs...)
     if sensealg === nothing && has_kwargs(prob) && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
+    end
+
+    alias_spec = if haskey(kwargs, :alias) && kwargs[:alias] isa NonlinearAliasSpecifier
+        kwargs[:alias]
+    elseif haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa NonlinearAliasSpecifier
+        prob.kwargs[:alias]
+    elseif haskey(kwargs, :alias) && kwargs[:alias] isa Bool
+        NonlinearAliasSpecifier(alias = kwargs[:alias])
+    elseif haskey(prob.kwargs, :alias) && prob.kwargs[:alias] isa Bool
+        NonlinearAliasSpecifier(alias = prob.kwargs[:alias])
+    elseif haskey(kwargs, :alias_u0)
+        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
+        NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    elseif haskey(prob.kwargs, :alias_u0)
+        @warn "The `alias_u0` keyword argument is deprecated. Please use a NonlinearAliasSpecifier, e.g. `alias = NonlinearAliasSpecifier(alias_u0 = true)`."
+        NonlinearAliasSpecifier(alias_u0 = prob.kwargs[:alias_u0])
+    else
+        NonlinearAliasSpecifier(alias_u0 = false)
+    end
+
+    if verbose isa Bool
+        # @warn "Using `true` or `false` for `verbose` is being deprecated. Please use a `NonlinearVerbosity` type to specify verbosity settings.
+        # For details see the verbosity section of the common solver options documentation page."
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
     end
 
     u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
-    init_up(prob, sensealg, u0, p, args...; kwargs...)
+    init_up(prob, sensealg, u0, p, args...; alias = alias_spec, verbose, kwargs...)
 end
 
 function init_up(prob::AbstractNonlinearProblem,
@@ -221,11 +268,11 @@ function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
 end
 
 function SciMLBase.__solve(
-        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        kwargs...
-)
+        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
     cache = SciMLBase.__init(prob, alg, args...; kwargs...)
-    return CommonSolve.solve!(cache)
+    sol = CommonSolve.solve!(cache)
+
+    return sol
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
@@ -375,17 +422,29 @@ end
 
 @generated function __generated_polysolve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, verbose = true,
+        stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearAliasSpecifier(alias_u0 = false), verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
 ) where {N}
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
+    
     sol_syms = [gensym("sol") for _ in 1:N]
     prob_syms = [gensym("prob") for _ in 1:N]
     u_result_syms = [gensym("u_result") for _ in 1:N]
     calls = [quote
+        alias_u0 = alias.alias_u0
         current = alg.start_index
         if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-            verbose && @warn "`alias_u0` has been set to `true`, but `u0` is \
-                              immutable (checked using `ArrayInterface.ismutable`)."
+            @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
+            immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable)
             alias_u0 = false  # If immutable don't care about aliasing
         end
     end]
@@ -529,6 +588,8 @@ end
     initializealg
 
     retcode::ReturnCode.T
+
+    verbose
 end
 
 function get_abstol(cache::NonlinearSolveNoInitCache)
@@ -561,11 +622,11 @@ end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
-        initializealg = NonlinearSolveDefaultInit(),
+        initializealg = NonlinearSolveDefaultInit(), verbose = NonlinearVerbosity(),
         kwargs...
 )
     cache = NonlinearSolveNoInitCache(
-        prob, alg, args, kwargs, initializealg, ReturnCode.Default)
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose)
     run_initialization!(cache)
     return cache
 end

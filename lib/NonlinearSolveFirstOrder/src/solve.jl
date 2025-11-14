@@ -87,6 +87,8 @@ end
     kwargs
 
     initializealg
+
+    verbose
 end
 
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
@@ -127,11 +129,15 @@ NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         abstol = nothing, reltol = nothing, maxtime = nothing,
-        termination_condition = nothing, internalnorm::IN = L2_NORM,
+        termination_condition = nothing, internalnorm::IN = L2_NORM, verbose = NonlinearVerbosity(),
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 ) where {IN}
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
     @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
@@ -152,6 +158,16 @@ function SciMLBase.__init(
         NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
     end
 
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
+
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
@@ -164,7 +180,7 @@ function SciMLBase.__init(
         termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
-        linsolve_kwargs = merge((; abstol, reltol), linsolve_kwargs)
+        linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         jac_cache = NonlinearSolveBase.construct_jacobian_cache(
             prob, alg, prob.f, fu, u, prob.p;
@@ -221,7 +237,7 @@ function SciMLBase.__init(
             jac_cache, descent_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
-            initializealg
+            initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -265,10 +281,8 @@ function InternalAPI.step!(
             return
         else
             # Jacobian Information is not current and linear solve failed, recompute it
-            if !haskey(cache.kwargs, :verbose) || cache.kwargs[:verbose]
-                @warn "Linear Solve Failed but Jacobian Information is not current. \
-                       Retrying with updated Jacobian."
-            end
+            @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
+                Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
             InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)

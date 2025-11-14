@@ -1,6 +1,6 @@
 module NonlinearSolveBaseEnzymeExt
 
-@static if isempty(VERSION.prerelease)
+@static if isempty(VERSION.prerelease) && VERSION < v"1.12"
     using NonlinearSolveBase
     import SciMLBase: SciMLBase, value
     using Enzyme

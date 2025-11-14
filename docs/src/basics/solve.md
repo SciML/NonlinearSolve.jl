@@ -36,3 +36,24 @@ These are exclusively available for native `NonlinearSolve.jl` solvers.
     level of detail of the trace. (Defaults to `TraceMinimal()`)
   - `store_trace`: Must be `Val(true)` or `Val(false)`. This controls whether the trace is
     stored in the solution object. (Defaults to `Val(false)`)
+
+## Verbosity Controls
+  - `verbose::NonlinearVerbosity`: Controls the verbosity of the solver. Determines which messages get logged at what logging level. 
+### Quick Start
+
+```julia
+# Use a preset
+solve(prob, alg; verbose = SciMLLogging.Standard())
+
+# Silence all messages
+solve(prob, alg; verbose = SciMLLogging.None())
+
+# Maximum verbosity
+solve(prob, alg; verbose = SciMLLogging.All())
+
+# Custom configuration
+solve(prob, alg; verbose = NonlinearVerbosity(
+    alias_u0_immutable = SciMLLogging.WarnLevel(),
+    threshold_state = SciMLLogging.InfoLevel()
+))
+```

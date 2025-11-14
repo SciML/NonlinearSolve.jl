@@ -24,10 +24,14 @@ function select_forward_mode_autodiff(
        !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
        !is_finite_differences_backend(ad)
         @warn lazy"The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
+       
+       @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
+       
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_forward_mode_autodiff(prob, nothing; warn_check_mode)
-        @warn lazy"The chosen AD backend `$(ad)` does not support the chosen problem. This \
+
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
                could be because the backend package for the chosen AD isn't loaded. After \
                running autodiff selection detected `$(adₙ)` as a potential forward mode \
                backend."
@@ -50,14 +54,14 @@ function select_reverse_mode_autodiff(
     if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ReverseMode) &&
        !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
        !is_finite_differences_backend(ad)
-        @warn lazy"The chosen AD backend $(ad) is not a reverse mode AD. Use with caution."
+        @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_reverse_mode_autodiff(prob, nothing; warn_check_mode)
-        @warn lazy"The chosen AD backend `$(ad)` does not support the chosen problem. This \
-               could be because the backend package for the chosen AD isn't loaded. After \
-               running autodiff selection detected `$(adₙ)` as a potential reverse mode \
-               backend."
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
+        could be because the backend package for the chosen AD isn't loaded. After \
+        running autodiff selection detected `$(adₙ)` as a potential forward mode \
+        backend."
         return adₙ
     end
     return ad
@@ -75,10 +79,10 @@ end
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractADType)
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_jacobian_autodiff(prob, nothing)
-        @warn lazy"The chosen AD backend `$(ad)` does not support the chosen problem. This \
-               could be because the backend package for the chosen AD isn't loaded. After \
-               running autodiff selection detected `$(adₙ)` as a potential jacobian \
-               backend."
+        @warn "The chosen AD backend `$(ad)` does not support the chosen problem. This \
+        could be because the backend package for the chosen AD isn't loaded. After \
+        running autodiff selection detected `$(adₙ)` as a potential forward mode \
+        backend."
         return adₙ
     end
     return ad

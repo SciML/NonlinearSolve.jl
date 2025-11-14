@@ -70,6 +70,8 @@ end
     kwargs
 
     initializealg
+
+    verbose
 end
 
 function SciMLBase.get_du(cache::GeneralizedDFSaneCache)
@@ -122,10 +124,15 @@ NonlinearSolveBase.@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         abstol = nothing, reltol = nothing, termination_condition = nothing,
-        maxtime = nothing, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
+        maxtime = nothing, verbose = NonlinearVerbosity(), 
+        initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
 )
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     timer = get_timer_output()
 
     @static_timeit timer "cache construction" begin
@@ -158,11 +165,21 @@ function SciMLBase.__init(
             σ_n = T(alg.σ_1)
         end
 
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(None())
+            end
+        elseif verbose isa AbstractVerbosityPreset
+            verbose = NonlinearVerbosity(verbose)
+        end
+
         cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),
             linesearch_cache, stats, 0, maxiters, maxtime, timer, 0.0,
-            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg
+            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -176,7 +193,7 @@ function InternalAPI.step!(
 )
     if recompute_jacobian !== nothing
         @warn "GeneralizedDFSane is a Jacobian-Free Algorithm. Ignoring \
-              `recompute_jacobian`" maxlog=1
+              `recompute_jacobian`"
     end
 
     @static_timeit cache.timer "descent" begin

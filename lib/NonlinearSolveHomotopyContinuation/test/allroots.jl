@@ -5,7 +5,7 @@ using ADTypes
 import NaNMath
 
 # Conditionally import Enzyme only if not on Julia prerelease
-if isempty(VERSION.prerelease)
+if isempty(VERSION.prerelease) && VERSION < v"1.12"
     using Enzyme
 end
 
@@ -20,7 +20,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
 
@@ -120,7 +120,7 @@ vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, fjac, "oop + jac"),
     (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, fjac!, "iip + jac")
 ]
-if isempty(VERSION.prerelease)
+if isempty(VERSION.prerelease) && VERSION < v"1.12"
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end

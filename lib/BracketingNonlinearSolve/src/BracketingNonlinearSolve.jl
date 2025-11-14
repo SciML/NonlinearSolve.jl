@@ -5,7 +5,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 
 using CommonSolve: CommonSolve, solve
-using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage, AbstractVerbosityPreset
 using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
 
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end

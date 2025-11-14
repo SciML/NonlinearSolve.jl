@@ -234,7 +234,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         else
             if sparse_or_structured_prototype(f.jac_prototype)
                 if !(sparsity_detector isa NoSparsityDetector)
-                    @warn lazy"`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
+                    @warn "`jac_prototype` is a sparse matrix but sparsity = $(f.sparsity) \
                            has also been specified. Ignoring sparsity field and using \
                            `jac_prototype` sparsity."
                 end

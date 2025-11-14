@@ -37,6 +37,12 @@ function InternalAPI.init(
         @bb δu_ = similar(u)
     end
     if Utils.unwrap_val(pre_inverted)
+
+        if haskey(kwargs, :verbose)
+            linsolve_kwargs = merge(
+                (verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
+        end
+        
         lincache = construct_linear_solver(
             alg, alg.linsolve, transpose(J), Utils.safe_vec(fu), Utils.safe_vec(u);
             stats, abstol, reltol, linsolve_kwargs...

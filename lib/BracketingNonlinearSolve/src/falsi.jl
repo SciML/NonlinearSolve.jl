@@ -7,9 +7,19 @@ struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Falsi, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
+        maxiters = 1000, abstol = nothing, verbose = NonlinearVerbosity(), kwargs...
 )
     @assert !SciMLBase.isinplace(prob) "`False` only supports out-of-place problems."
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
 
     f = Base.Fix2(prob.f, prob.p)
     l, r = prob.tspan # don't reuse these variables
@@ -32,9 +42,9 @@ function SciMLBase.__solve(
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
+        @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+            verbose, :non_enclosing_interval)
         return SciMLBase.build_solution(
             prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
         )

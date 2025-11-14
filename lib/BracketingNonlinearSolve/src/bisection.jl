@@ -21,7 +21,7 @@ end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Bisection, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
+        maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
 )
     @assert !SciMLBase.isinplace(prob) "`Bisection` only supports out-of-place problems."
 
@@ -45,9 +45,9 @@ function SciMLBase.__solve(
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
+        @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+        verbose, :non_enclosing_interval)
         return SciMLBase.build_solution(
             prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
         )

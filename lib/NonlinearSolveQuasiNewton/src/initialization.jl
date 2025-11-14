@@ -153,7 +153,7 @@ NonlinearSolveBase.jacobian_initialized_preinverted(::BroydenLowRankInitializati
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
         solver, f::F, fu, u, p;
-        internalnorm::IN = L2_NORM, maxiters = 1000, kwargs...
+        internalnorm::IN = L2_NORM, maxiters = 1000, verbose = NonlinearVerbosity(), kwargs...
 ) where {F, IN}
     if u isa Number # Use the standard broyden
         return InternalAPI.init(
@@ -161,6 +161,17 @@ function InternalAPI.init(
             solver, f, fu, u, p; internalnorm, maxiters, kwargs...
         )
     end
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
+    
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
     α = inv(Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, internalnorm))
     if u isa StaticArray
@@ -168,8 +179,8 @@ function InternalAPI.init(
     else
         threshold = min(Utils.unwrap_val(alg.threshold), maxiters)
         if threshold > length(u)
-            @warn "`threshold` is larger than the size of the state, which may cause \
-                   numerical instability. Consider reducing `threshold`."
+            @SciMLMessage("`threshold` is larger than the size of the state, which may cause \
+                   numerical instability. Consider reducing `threshold`.", verbose, :threshold_state)
         end
         J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end

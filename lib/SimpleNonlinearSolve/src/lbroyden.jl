@@ -36,7 +36,7 @@ end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
-        args...; termination_condition = nothing, kwargs...)
+        args...; termination_condition = nothing, verbose = NonlinearVerbosity(), kwargs...)
     if prob.u0 isa SArray
         if termination_condition === nothing ||
            termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
@@ -44,10 +44,21 @@ function SciMLBase.__solve(
                 prob, alg, args...; termination_condition, kwargs...
             )
         end
-        @warn "Specifying `termination_condition = $(termination_condition)` for \
+        
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(None())
+            end
+        elseif verbose isa AbstractVerbosityPreset
+            verbose = NonlinearVerbosity(verbose)
+        end
+
+        @SciMLMessage("Specifying `termination_condition = $(termination_condition)` for \
                `SimpleLimitedMemoryBroyden` with `SArray` is not non-allocating. Use \
                either `termination_condition = AbsNormTerminationMode(Base.Fix2(norm, Inf))` \
-               or `termination_condition = nothing`." maxlog=1
+               or `termination_condition = nothing`.", verbose, :termination_condition)
     end
     return internal_generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
@@ -55,8 +66,12 @@ end
 @views function internal_generic_solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
 )
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     η = min(NLBUtils.unwrap_val(alg.threshold), maxiters)
 

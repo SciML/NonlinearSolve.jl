@@ -3,7 +3,7 @@
     using ADTypes, PolyesterForwardDiff, ReverseDiff
 
     # Conditionally import Enzyme only if not on Julia prerelease
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         using Enzyme
     end
 
@@ -59,7 +59,7 @@ end
             AutoReverseDiff(),
             nothing
         ]
-        if isempty(VERSION.prerelease)
+        if isempty(VERSION.prerelease) && VERSION < v"1.12"
             push!(autodiff_backends, AutoEnzyme())
         end
 
