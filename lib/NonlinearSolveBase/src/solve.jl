@@ -136,6 +136,14 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    # Check bounds support for NonlinearLeastSquaresProblem
+    if _prob isa SciMLBase.NonlinearLeastSquaresProblem &&
+       (_prob.lb !== nothing || _prob.ub !== nothing) &&
+       length(args) > 0 && !SciMLBase.allowsbounds(args[1])
+        error("Algorithm $(args[1]) does not support bounds. Use an algorithm with allowsbounds(alg) == true.")
+    end
+
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
             if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0))
