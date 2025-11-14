@@ -137,8 +137,9 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
 
     checkkwargs(kwargshandle; kwargs...)
 
-    # Check bounds support for NonlinearLeastSquaresProblem
-    if _prob isa SciMLBase.NonlinearLeastSquaresProblem &&
+    # Check bounds support for problems with bounds
+    if (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
+       (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
        (_prob.lb !== nothing || _prob.ub !== nothing) &&
        length(args) > 0 && !SciMLBase.allowsbounds(args[1])
         error("Algorithm $(args[1]) does not support bounds. Use an algorithm with allowsbounds(alg) == true.")
