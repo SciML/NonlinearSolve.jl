@@ -21,6 +21,7 @@ end
 
 using CommonSolve
 using SciMLBase
+using SciMLBase: allowsbounds
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
                           construct_extension_function_wrapper
 
@@ -123,12 +124,10 @@ function SciMLBase.__solve(
     # Construct Python residual
     py_f = _make_py_residual(prob.f, prob.p)
 
-    # Bounds handling (lb/ub may be missing)
-    has_lb = hasproperty(prob, :lb)
-    has_ub = hasproperty(prob, :ub)
-    if has_lb || has_ub
-        lb = has_lb ? getproperty(prob, :lb) : fill(-Inf, length(prob.u0))
-        ub = has_ub ? getproperty(prob, :ub) : fill(Inf, length(prob.u0))
+    # Bounds handling from problem fields
+    if prob.lb !== nothing || prob.ub !== nothing
+        lb = prob.lb !== nothing ? prob.lb : fill(-Inf, length(prob.u0))
+        ub = prob.ub !== nothing ? prob.ub : fill(Inf, length(prob.u0))
         bounds = (lb, ub)
     else
         bounds = nothing
@@ -256,6 +255,11 @@ function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     return SciMLBase.build_solution(prob, alg, u_root, resid; retcode = ret,
         original = res, stats = stats)
 end
+
+# Trait declarations
+SciMLBase.allowsbounds(::SciPyLeastSquares) = true
+SciMLBase.allowsbounds(::SciPyRoot) = false
+SciMLBase.allowsbounds(::SciPyRootScalar) = false
 
 @reexport using SciMLBase, NonlinearSolveBase
 
