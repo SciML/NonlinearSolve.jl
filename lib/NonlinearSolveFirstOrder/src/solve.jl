@@ -25,6 +25,7 @@ order of convergence.
     linesearch
     trustregion
     descent
+    forcing
     max_shrink_times::Int
 
     autodiff
@@ -38,12 +39,12 @@ end
 function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), name::Symbol = :unknown
+        concrete_jac = Val(false), forcing = nothing, name::Symbol = :unknown
 )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
                    (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
     return GeneralizedFirstOrderAlgorithm(
-        linesearch, trustregion, descent, max_shrink_times,
+        linesearch, trustregion, descent, forcing, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac, name
     )
@@ -62,6 +63,7 @@ end
     # Internal Caches
     jac_cache
     descent_cache
+    forcing_cache
     linesearch_cache
     trustregion_cache
 
@@ -125,7 +127,7 @@ function InternalAPI.reinit_self!(
 end
 
 NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
-    :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache)
+    :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache, :forcing_cache)
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
@@ -196,6 +198,7 @@ function SciMLBase.__init(
 
         has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
         has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
+        has_forcing = alg.forcing !== missing && alg.forcing !== nothing
 
         if has_trustregion && has_linesearch
             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
@@ -204,6 +207,7 @@ function SciMLBase.__init(
         globalization = Val(:None)
         linesearch_cache = nothing
         trustregion_cache = nothing
+        forcing_cache = nothing
 
         if has_trustregion
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
@@ -228,13 +232,23 @@ function SciMLBase.__init(
             globalization = Val(:LineSearch)
         end
 
+        if has_forcing
+            forcing_cache = CommonSolve.init(
+                prob, alg.forcing, fu, u; stats, internalnorm,
+                autodiff = ifelse(
+                    provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
+                ),
+                kwargs...
+            )
+        end
+
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du; kwargs...
         )
 
         cache = GeneralizedFirstOrderAlgorithmCache(
             fu, u, u_cache, prob.p, alg, prob, globalization,
-            jac_cache, descent_cache, linesearch_cache, trustregion_cache,
+            jac_cache, descent_cache, forcing_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
@@ -257,6 +271,12 @@ function InternalAPI.step!(
             J = reused_jacobian(cache.jac_cache, cache.u)
             new_jacobian = false
         end
+    end
+
+    has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing
+
+    if has_forcing
+        pre_step_forcing!(cache.forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
     end
 
     @static_timeit cache.timer "descent" begin
@@ -339,6 +359,10 @@ function InternalAPI.step!(
                    are (:LineSearch, :TrustRegion, :None)")
         end
         NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+
+        if has_forcing
+            post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
+        end
     else
         α = false
         cache.make_new_jacobian = false
