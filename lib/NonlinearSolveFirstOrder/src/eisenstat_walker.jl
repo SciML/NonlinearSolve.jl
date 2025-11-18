@@ -1,7 +1,19 @@
 """
-    EisenstatWalkerForcing2(; η₀, γ, α)
+    EisenstatWalkerForcing2(; η₀ = 0.5, ηₘₐₓ = 0.9, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
 
-Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described by formula (2.6).
+Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described by formula (2.6):
+    ηₖ = γ * (||rₖ|| / ||rₖ₋₁||)^α
+
+Here the variables denote:
+    rₖ residual at iteration k
+    η₀   ∈ [0,1) initial value for η
+    ηₘₐₓ ∈ [0,1) maximum value for η
+    γ    ∈ [0,1) correction factor
+    α    ∈ [1,2) correction exponent
+
+Furthermore, the proposed safeguard is implemented:
+    ηₖ = max(ηₖ, γ*ηₖ₋₁^α) if γ*ηₖ₋₁^α > safeguard_threshold
+to prevent ηₖ from shrinking too fast.
 """
 @concrete struct EisenstatWalkerForcing2
     η₀
