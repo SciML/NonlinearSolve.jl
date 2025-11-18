@@ -12,7 +12,7 @@ Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described 
     safeguard_threshold
 end
 
-function EisenstatWalkerForcing2(; η₀ = 0.5, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
+function EisenstatWalkerForcing2(; η₀ = 0.5, ηₘₐₓ = 0.9, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
     EisenstatWalkerForcing2(η₀, ηₘₐₓ, γ, α, safeguard, safeguard_threshold)
 end
 
@@ -32,6 +32,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # On the first iteration we initialize η with the default initial value and stop.
     if iter == 0
         cache.η = cache.p.η₀
+        @SciMLMessage("Eisenstat-Walker initial iteration to η=$(cache.η).", cache.verbosity, :linear_verbosity)
         LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
         return nothing
     end
@@ -56,7 +57,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # Far away from the root we also need to respect η ∈ [0,1)
     cache.η = clamp(cache.η, 0.0, cache.p.ηₘₐₓ)
 
-    @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbosity, :linear_verbosity)
+    @SciMLMessage("Eisenstat-Walker iter $iter update to η=$(cache.η).", cache.verbosity, :linear_verbosity)
 
     # Communicate new relative tolerance to linear solve
     LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
@@ -69,8 +70,9 @@ end
 function post_step_forcing!(cache::EisenstatWalkerForcing2Cache, J, u, fu, δu, iter)
     # Cache previous residual norm
     cache.rnorm_prev = cache.rnorm
-    # And update the current one
     cache.rnorm = cache.internalnorm(fu)
+
+    # @SciMLMessage("Eisenstat-Walker sanity check: $(cache.internalnorm(fu + J*δu)) ≤ $(cache.η * cache.internalnorm(fu)).", cache.verbosity, :linear_verbosity)
 end
 
 
