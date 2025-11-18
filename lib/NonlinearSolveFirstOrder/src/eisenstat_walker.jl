@@ -9,10 +9,11 @@ Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described 
     γ
     α
     safeguard
+    safeguard_threshold
 end
 
-function EisenstatWalkerForcing2(; η₀ = 0.99, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true)
-    EisenstatWalkerForcing2(η₀, γ, α, safeguard)
+function EisenstatWalkerForcing2(; η₀ = 0.99, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
+    EisenstatWalkerForcing2(η₀, ηₘₐₓ, γ, α, safeguard, safeguard_threshold)
 end
 
 
@@ -47,7 +48,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # Safeguard 2 to prevent over-solving
     if cache.p.safeguard
         ηsg = γ*ηprev^α
-        if ηsg > 0.1 && ηsg > cache.η
+        if ηsg > cache.p.safeguard_threshold && ηsg > cache.η
             cache.η = ηsg
         end
     end
@@ -55,7 +56,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # Far away from the root we also need to respect η ∈ [0,1)
     cache.η = clamp(cache.η, 0.0, cache.ηₘₐₓ)
 
-    @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbose, :linear_verbosity)
+    @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbosity, :linear_verbosity)
 
     # Communicate new relative tolerance to linear solve
     LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
