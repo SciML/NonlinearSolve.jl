@@ -97,29 +97,3 @@ function InternalAPI.reinit!(
 )
     cache.p = p
 end
-
-
-
-"""
-    EisenstatWalkerNewtonKrylov(;
-        concrete_jac = nothing, linsolve = nothing, linesearch = missing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-    )
-
-An advanced Newton-Krylov implementation with support for efficient handling of sparse
-matrices via colored automatic differentiation and preconditioned linear solvers. Designed
-for large-scale and numerically-difficult nonlinear systems.
-"""
-function EisenstatWalkerNewtonKrylov(;
-        concrete_jac = nothing, linsolve::LinearSolve.AbstractKrylovSubspaceMethod, linesearch = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing, forcing = EisenstatWalkerForcing2(),
-)
-    return GeneralizedFirstOrderAlgorithm(;
-        linesearch,
-        descent = NewtonDescent(; linsolve),
-        autodiff, vjp_autodiff, jvp_autodiff,
-        concrete_jac,
-        forcing,
-        name = :EisenstatWalkerNewtonKrylov
-    )
-end

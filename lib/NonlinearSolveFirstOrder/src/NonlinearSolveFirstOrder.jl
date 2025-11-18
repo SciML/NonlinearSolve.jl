@@ -100,7 +100,6 @@ end
 @reexport using SciMLBase, NonlinearSolveBase
 
 export NewtonRaphson, PseudoTransient
-export EisenstatWalkerNewtonKrylov
 export GaussNewton, LevenbergMarquardt, TrustRegion
 
 export RadiusUpdateSchemes
