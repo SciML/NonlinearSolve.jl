@@ -5,12 +5,13 @@ Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described 
 """
 @concrete struct EisenstatWalkerForcing2
     η₀
+    ηₘₐₓ
     γ
     α
     safeguard
 end
 
-function EisenstatWalkerForcing2(; η₀ = 0.99, γ = 0.9, α = 2, safeguard = true)
+function EisenstatWalkerForcing2(; η₀ = 0.99, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true)
     EisenstatWalkerForcing2(η₀, γ, α, safeguard)
 end
 
@@ -52,7 +53,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     end
 
     # Far away from the root we also need to respect η ∈ [0,1)
-    cache.η = clamp(cache.η, 0.0, 1-eps(cache.η))
+    cache.η = clamp(cache.η, 0.0, cache.ηₘₐₓ)
 
     @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbose, :linear_verbosity)
 
