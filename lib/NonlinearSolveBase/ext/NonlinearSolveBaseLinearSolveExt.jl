@@ -77,4 +77,8 @@ function set_lincache_A!(lincache, new_A)
     return
 end
 
+function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
+    LinearSolve.update_tolerances!(cache.lincache; kwargs...)
+end
+
 end

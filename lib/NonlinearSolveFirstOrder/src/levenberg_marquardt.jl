@@ -57,7 +57,8 @@ function LevenbergMarquardt(;
         vjp_autodiff,
         jvp_autodiff,
         name = :LevenbergMarquardt,
-        concrete_jac = Val(true)
+        concrete_jac = Val(true),
+
     )
 end
 

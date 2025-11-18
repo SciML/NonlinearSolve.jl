@@ -33,6 +33,7 @@ using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
 include("solve.jl")
 include("raphson.jl")
+include("eisenstat_walker.jl")
 include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
 include("trust_region.jl")
