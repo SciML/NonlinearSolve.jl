@@ -233,8 +233,8 @@ function SciMLBase.__init(
         end
 
         if has_forcing
-            forcing_cache = CommonSolve.init(
-                prob, alg.forcing, fu, u; stats, internalnorm,
+            forcing_cache = InternalAPI.init(
+                prob, alg.forcing, fu, u, u, prob.p; stats, internalnorm,
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
