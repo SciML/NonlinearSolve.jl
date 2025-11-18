@@ -238,6 +238,7 @@ function SciMLBase.__init(
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
+                verbose,
                 kwargs...
             )
         end
