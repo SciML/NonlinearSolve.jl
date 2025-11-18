@@ -54,7 +54,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     end
 
     # Far away from the root we also need to respect η ∈ [0,1)
-    cache.η = clamp(cache.η, 0.0, cache.ηₘₐₓ)
+    cache.η = clamp(cache.η, 0.0, cache.p.ηₘₐₓ)
 
     @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbosity, :linear_verbosity)
 
