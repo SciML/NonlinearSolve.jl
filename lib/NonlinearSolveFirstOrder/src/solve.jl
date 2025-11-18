@@ -314,6 +314,10 @@ function InternalAPI.step!(
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
     if descent_result.success
+        if has_forcing
+            post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
+        end
+
         cache.make_new_jacobian = true
         if cache.globalization isa Val{:LineSearch}
             @static_timeit cache.timer "linesearch" begin
@@ -360,10 +364,6 @@ function InternalAPI.step!(
                    are (:LineSearch, :TrustRegion, :None)")
         end
         NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
-
-        if has_forcing
-            post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
-        end
     else
         α = false
         cache.make_new_jacobian = false
