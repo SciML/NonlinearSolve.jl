@@ -103,13 +103,14 @@ for large-scale and numerically-difficult nonlinear systems.
 """
 function EisenstatWalkerNewtonKrylov(;
         concrete_jac = nothing, linsolve::LinearSolve.AbstractKrylovSubspaceMethod, linesearch = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing, forcing = EisenstatWalkerForcing2(),
 )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
         descent = NewtonDescent(; linsolve),
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac,
+        forcing,
         name = :EisenstatWalkerNewtonKrylov
     )
 end
