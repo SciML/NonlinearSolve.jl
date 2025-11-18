@@ -12,7 +12,7 @@ Algorithm 2 from the classical work by Eisenstat and Walker (1996) as described 
     safeguard_threshold
 end
 
-function EisenstatWalkerForcing2(; η₀ = 0.99, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
+function EisenstatWalkerForcing2(; η₀ = 0.5, ηₘₐₓ = 0.99, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
     EisenstatWalkerForcing2(η₀, ηₘₐₓ, γ, α, safeguard, safeguard_threshold)
 end
 
