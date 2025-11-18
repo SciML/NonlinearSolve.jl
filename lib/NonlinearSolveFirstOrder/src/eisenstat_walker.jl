@@ -82,7 +82,7 @@ function InternalAPI.init(
     fu_norm = internalnorm(fu)
 
     return EisenstatWalkerForcing2Cache(
-        alg, alg.η₀, fu_norm, fu_norm, internalnorm
+        alg, alg.η₀, fu_norm, fu_norm, internalnorm, verbose
     )
 end
 
