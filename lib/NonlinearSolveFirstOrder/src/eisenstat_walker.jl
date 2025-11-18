@@ -29,10 +29,12 @@ end
 
 
 function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::NonlinearSolveBase.NewtonDescentCache, J, u, fu, iter)
+    @SciMLMessage("Eisenstat-Walker forcing residual norm $(cache.rnorm) with rate estimate $(cache.rnorm / cache.rnorm_prev).", cache.verbosity, :forcing)
+
     # On the first iteration we initialize η with the default initial value and stop.
     if iter == 0
         cache.η = cache.p.η₀
-        @SciMLMessage("Eisenstat-Walker initial iteration to η=$(cache.η).", cache.verbosity, :linear_verbosity)
+        @SciMLMessage("Eisenstat-Walker initial iteration to η=$(cache.η).", cache.verbosity, :forcing)
         LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
         return nothing
     end
@@ -57,7 +59,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # Far away from the root we also need to respect η ∈ [0,1)
     cache.η = clamp(cache.η, 0.0, cache.p.ηₘₐₓ)
 
-    @SciMLMessage("Eisenstat-Walker iter $iter update to η=$(cache.η).", cache.verbosity, :linear_verbosity)
+    @SciMLMessage("Eisenstat-Walker iter $iter update to η=$(cache.η).", cache.verbosity, :forcing)
 
     # Communicate new relative tolerance to linear solve
     LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)

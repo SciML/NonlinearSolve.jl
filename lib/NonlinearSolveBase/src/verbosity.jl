@@ -14,6 +14,7 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 
 ## Numerical Group
 - `threshold_state`: Messages about threshold state in low-rank methods
+- `forcing`: Messages about forcing parameter in Newton-Krylov methods
 
 ## Linear Solver Group
 - `linear_verbosity`: Verbosity configuration for linear solvers
@@ -62,7 +63,7 @@ NonlinearVerbosity
 
 @verbosity_specifier NonlinearVerbosity begin
     toggles = (:linear_verbosity, :non_enclosing_interval, :alias_u0_immutable,
-        :linsolve_failed_noncurrent, :termination_condition, :threshold_state)
+        :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing)
 
     presets = (
         None = (
@@ -71,7 +72,8 @@ NonlinearVerbosity
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = Silent(),
             termination_condition = Silent(),
-            threshold_state = Silent()
+            threshold_state = Silent(),
+            forcing = Silent()
         ),
         Minimal = (
             linear_verbosity = None(),
@@ -79,7 +81,8 @@ NonlinearVerbosity
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = Silent(),
-            threshold_state = Silent()
+            threshold_state = Silent(),
+            forcing = Silent()
         ),
         Standard = (
             linear_verbosity = None(),
@@ -87,7 +90,8 @@ NonlinearVerbosity
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
-            threshold_state = WarnLevel()
+            threshold_state = WarnLevel(),
+            forcing = InfoLevel()
         ),
         Detailed = (
             linear_verbosity = Detailed(),
@@ -95,7 +99,8 @@ NonlinearVerbosity
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
-            threshold_state = WarnLevel()
+            threshold_state = WarnLevel(),
+            forcing = InfoLevel()
         ),
         All = (
             linear_verbosity = Detailed(),
@@ -103,13 +108,14 @@ NonlinearVerbosity
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
-            threshold_state = InfoLevel()
+            threshold_state = InfoLevel(),
+            forcing = InfoLevel()
         )
     )
 
     groups = (
         error_control = (:non_enclosing_interval, :alias_u0_immutable,
             :linsolve_failed_noncurrent, :termination_condition),
-        numerical = (:threshold_state,)
+        numerical = (:threshold_state, :forcing)
     )
 end
