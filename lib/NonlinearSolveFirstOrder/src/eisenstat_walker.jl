@@ -21,6 +21,7 @@ end
     rnorm
     rnorm_prev
     internalnorm
+    verbosity
 end
 
 
@@ -53,6 +54,8 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # Far away from the root we also need to respect η ∈ [0,1)
     cache.η = clamp(cache.η, 0.0, 1-eps(cache.η))
 
+    @SciMLMessage("Eisenstat-Walker update to η=$(cache.η).", cache.verbose, :linear_verbosity)
+
     # Communicate new relative tolerance to linear solve
     LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
 
@@ -72,7 +75,7 @@ end
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::EisenstatWalkerForcing2, f, fu, u, p,
-        args...; internalnorm::F = L2_NORM, kwargs...
+        args...; verbose, internalnorm::F = L2_NORM, kwargs...
 ) where {F}
     fu_norm = internalnorm(fu)
 
