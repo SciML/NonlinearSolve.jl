@@ -26,7 +26,7 @@ using NonlinearSolve, StaticArrays
 f(u, p) = u .* u .- 2
 u0 = @SVector[1.0, 1.0]
 prob = NonlinearProblem(f, u0)
-solver = solve(prob)
+sol = solve(prob)
 
 ## Bracketing Methods
 
