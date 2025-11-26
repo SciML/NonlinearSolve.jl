@@ -21,7 +21,7 @@ using StaticArraysCore: StaticArray
 
 # Default Algorithm
 using NonlinearSolveFirstOrder: NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton,
-                                RUS, RobustMultiNewton, EisenstatWalkerNewtonKrylov
+                                RUS, RobustMultiNewton
 using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
