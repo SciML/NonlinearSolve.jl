@@ -133,8 +133,10 @@ function NonlinearVerbosity(;
     end
 
     # Build arguments using NamedTuple for type stability
+    # Use None() for linear_verbosity by default since BLAS errors are not fatal
+    # in the nonlinear solver context (the solver handles singular matrices gracefully)
     default_args = (
-        linear_verbosity = linear_verbosity === nothing ? Minimal() : linear_verbosity,
+        linear_verbosity = linear_verbosity === nothing ? None() : linear_verbosity,
         non_enclosing_interval = WarnLevel(),
         alias_u0_immutable = WarnLevel(),
         linsolve_failed_noncurrent = WarnLevel(),
@@ -169,8 +171,10 @@ end
 function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
     if verbose isa Minimal
         # Minimal: Only fatal errors and critical warnings
+        # Use None() for linear_verbosity since BLAS errors are not fatal
+        # in the nonlinear solver context (the solver handles singular matrices gracefully)
         NonlinearVerbosity(
-            linear_verbosity = Minimal(),
+            linear_verbosity = None(),
             non_enclosing_interval = WarnLevel(),
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = WarnLevel(),
