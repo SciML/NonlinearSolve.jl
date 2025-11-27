@@ -68,6 +68,7 @@ verbose = NonlinearVerbosity(
     termination_condition
     # Numerical
     threshold_state
+    forcing
 end
 
 # Group classifications
@@ -76,7 +77,7 @@ const error_control_options = (
     :termination_condition
 )
 const performance_options = ()
-const numerical_options = (:threshold_state,)
+const numerical_options = (:threshold_state,:forcing)
 
 function option_group(option::Symbol)
     if option in error_control_options
@@ -140,7 +141,8 @@ function NonlinearVerbosity(;
         alias_u0_immutable = WarnLevel(),
         linsolve_failed_noncurrent = WarnLevel(),
         termination_condition = WarnLevel(),
-        threshold_state = WarnLevel()
+        threshold_state = WarnLevel(),
+        forcing = Silent(),
     )
 
     # Apply group-level settings
@@ -177,7 +179,8 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = Silent(),
-            threshold_state = Silent()
+            threshold_state = Silent(),
+            forcing = Silent(),
         )
     elseif verbose isa Standard
         # Standard: Everything from Minimal + non-fatal warnings
@@ -190,7 +193,8 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
-            threshold_state = WarnLevel()
+            threshold_state = WarnLevel(),
+            forcing = InfoLevel(),
         )
     elseif verbose isa All
         # All: Maximum verbosity - every possible logging message at InfoLevel
@@ -200,7 +204,8 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
-            threshold_state = InfoLevel()
+            threshold_state = InfoLevel(),
+            forcing = InfoLevel(),
         )
     end
 end
@@ -212,7 +217,8 @@ end
         Silent(),
         Silent(),
         Silent(),
-        Silent()
+        Silent(),
+        Silent(),
     )
 end
 
