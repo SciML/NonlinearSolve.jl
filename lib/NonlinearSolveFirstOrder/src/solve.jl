@@ -198,7 +198,7 @@ function SciMLBase.__init(
 
         has_linesearch = alg.linesearch !== missing && alg.linesearch !== nothing
         has_trustregion = alg.trustregion !== missing && alg.trustregion !== nothing
-        has_forcing = alg.forcing !== missing && alg.forcing !== nothing
+        has_forcing = alg.forcing !== missing && alg.forcing !== nothing && !(u isa Number) && !(J isa Diagonal)
 
         if has_trustregion && has_linesearch
             error("TrustRegion and LineSearch methods are algorithmically incompatible.")
@@ -274,7 +274,7 @@ function InternalAPI.step!(
         end
     end
 
-    has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing
+    has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
     if has_forcing
         pre_step_forcing!(cache.forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
