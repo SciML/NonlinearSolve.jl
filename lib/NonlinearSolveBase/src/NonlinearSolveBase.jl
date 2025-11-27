@@ -95,8 +95,6 @@ export RelTerminationMode, AbsTerminationMode,
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
        GeodesicAcceleration
 
-export EisenstatWalkerForcing2
-
 export NonlinearSolvePolyAlgorithm
 
 export NonlinearVerbosity
