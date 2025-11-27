@@ -124,6 +124,29 @@ function simplenonlinearsolve_solve_up(
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
+# Iterator Interface Error Handling
+# Simple algorithms do not support the iterator interface (init/step!)
+function SciMLBase.init(
+        prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem},
+        alg::AbstractSimpleNonlinearSolveAlgorithm, args...; kwargs...
+)
+    error("""
+    The Simple algorithms from SimpleNonlinearSolve.jl do not support the iterator interface (init/step!).
+
+    The iterator interface is only available for the full-featured algorithms from NonlinearSolve.jl.
+
+    If you need the iterator interface, please use one of the following algorithms instead:
+    - NewtonRaphson()
+    - TrustRegion()
+    - LevenbergMarquardt()
+    - And other algorithms from NonlinearSolve.jl
+
+    If you want to solve the problem directly, use `solve(prob, alg)` instead of `init(prob, alg)`.
+
+    Algorithm attempted: $(typeof(alg))
+    """)
+end
+
 @setup_workload begin
     for T in (Float64,)
         prob_scalar = NonlinearProblem{false}((u, p) -> u .* u .- p, T(0.1), T(2))
