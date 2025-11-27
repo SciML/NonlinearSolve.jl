@@ -102,6 +102,8 @@ end
 export NewtonRaphson, PseudoTransient
 export GaussNewton, LevenbergMarquardt, TrustRegion
 
+export EisenstatWalkerForcing2
+
 export RadiusUpdateSchemes
 
 export GeneralizedFirstOrderAlgorithm
