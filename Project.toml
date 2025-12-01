@@ -1,7 +1,7 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 authors = ["SciML"]
-version = "4.13.0"
+version = "4.14.0"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -83,7 +83,7 @@ Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LeastSquaresOptim = "0.8.5"
 LineSearch = "0.1.4"
-LineSearches = "7.3"
+LineSearches = "7.3, 8"
 LinearAlgebra = "1.10"
 LinearSolve = "3.46"
 MINPACK = "1.2"
