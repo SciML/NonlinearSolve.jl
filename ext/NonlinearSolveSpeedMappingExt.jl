@@ -29,8 +29,10 @@ function SciMLBase.__solve(
     time_limit = ifelse(maxtime === nothing, 1000, maxtime)
 
     sol = speedmapping(
-        u; m!, tol, Lp = Inf, maps_limit = maxiters, alg.orders,
-        alg.check_obj, store_info = store_trace isa Val{true}, alg.σ_min, alg.stabilize,
+        u; m!, abstol = tol, pnorm = Inf, maps_limit = maxiters,
+        orders = Tuple(alg.orders),
+        initial_learning_rate = alg.σ_min == 0.0 ? 1.0 : alg.σ_min,
+        store_trace = store_trace isa Val{true},
         time_limit
     )
     res = prob.u0 isa Number ? first(sol.minimizer) : sol.minimizer
@@ -39,7 +41,7 @@ function SciMLBase.__solve(
     return SciMLBase.build_solution(
         prob, alg, res, resid;
         original = sol, stats = SciMLBase.NLStats(sol.maps, 0, 0, 0, sol.maps),
-        retcode = ifelse(sol.converged, ReturnCode.Success, ReturnCode.Failure)
+        retcode = ifelse(sol.status == :first_order, ReturnCode.Success, ReturnCode.Failure)
     )
 end
 
