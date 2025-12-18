@@ -74,12 +74,12 @@
     int_prob = IntervalNonlinearProblem(g, (3.0, 5.0))
 
     @test_logs (:info,
-        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.InfoLevel()))
 
-        @test_logs (:error,
-        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
+    @test_logs (:error,
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel()))
 
@@ -88,12 +88,12 @@
     prob = NonlinearProblem(f, [1.0, 1.0])
 
     @test_logs (:warn,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed()))
 
     @test_logs (:info,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = SciMLLogging.InfoLevel())))
 
@@ -102,7 +102,7 @@
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Standard()))
 
     @test_logs (:warn,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed())
     )

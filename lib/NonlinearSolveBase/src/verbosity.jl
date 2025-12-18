@@ -29,7 +29,7 @@ Create a `NonlinearVerbosity` using a preset configuration:
 - `SciMLLogging.Detailed()`: Comprehensive debugging information
 - `SciMLLogging.All()`: Maximum verbosity
 
-    NonlinearVerbosity(; error_control=nothing, performance=nothing, numerical=nothing, linear_verbosity=nothing, kwargs...)
+    NonlinearVerbosity(; error_control=nothing, numerical=nothing, linear_verbosity=nothing, kwargs...)
 
 Create a `NonlinearVerbosity` with group-level or individual field control.
 
@@ -58,143 +58,46 @@ verbose = NonlinearVerbosity(
 )
 ```
 """
-@concrete struct NonlinearVerbosity <: AbstractVerbositySpecifier
-    # Linear verbosity
-    linear_verbosity
-    # Error control
-    non_enclosing_interval
-    alias_u0_immutable
-    linsolve_failed_noncurrent
-    termination_condition
-    # Numerical
-    threshold_state
-end
+NonlinearVerbosity
 
-# Group classifications
-const error_control_options = (
-    :non_enclosing_interval, :alias_u0_immutable, :linsolve_failed_noncurrent,
-    :termination_condition
-)
-const performance_options = ()
-const numerical_options = (:threshold_state,)
+@verbosity_specifier NonlinearVerbosity begin
+    toggles = (:linear_verbosity, :non_enclosing_interval, :alias_u0_immutable,
+        :linsolve_failed_noncurrent, :termination_condition, :threshold_state)
 
-function option_group(option::Symbol)
-    if option in error_control_options
-        return :error_control
-    elseif option in performance_options
-        return :performance
-    elseif option in numerical_options
-        return :numerical
-    else
-        error("Unknown verbosity option: $option")
-    end
-end
-
-# Get all options in a group
-function group_options(verbosity::NonlinearVerbosity, group::Symbol)
-    if group === :error_control
-        return NamedTuple{error_control_options}(getproperty(verbosity, opt)
-                                                 for opt in error_control_options)
-    elseif group === :performance
-        return NamedTuple{performance_options}(getproperty(verbosity, opt)
-                                               for opt in performance_options)
-    elseif group === :numerical
-        return NamedTuple{numerical_options}(getproperty(verbosity, opt)
-                                             for opt in numerical_options)
-    else
-        error("Unknown group: $group")
-    end
-end
-
-function NonlinearVerbosity(;
-        error_control = nothing, performance = nothing, numerical = nothing,
-        linear_verbosity = nothing, kwargs...)
-    # Validate group arguments
-    if error_control !== nothing && !(error_control isa AbstractMessageLevel)
-        throw(ArgumentError("error_control must be a SciMLLogging.AbstractMessageLevel, got $(typeof(error_control))"))
-    end
-    if performance !== nothing && !(performance isa AbstractMessageLevel)
-        throw(ArgumentError("performance must be a SciMLLogging.AbstractMessageLevel, got $(typeof(performance))"))
-    end
-    if numerical !== nothing && !(numerical isa AbstractMessageLevel)
-        throw(ArgumentError("numerical must be a SciMLLogging.AbstractMessageLevel, got $(typeof(numerical))"))
-    end
-
-    # Validate individual kwargs
-    for (key, value) in kwargs
-        if !(key in error_control_options || key in performance_options ||
-             key in numerical_options)
-            throw(ArgumentError("Unknown verbosity option: $key. Valid options are: $(tuple(error_control_options..., performance_options..., numerical_options...))"))
-        end
-        if !(value isa AbstractMessageLevel)
-            throw(ArgumentError("$key must be a SciMLLogging.AbstractMessageLevel, got $(typeof(value))"))
-        end
-    end
-
-    # Build arguments using NamedTuple for type stability
-    # Use None() for linear_verbosity by default since BLAS errors are not fatal
-    # in the nonlinear solver context (the solver handles singular matrices gracefully)
-    default_args = (
-        linear_verbosity = linear_verbosity === nothing ? None() : linear_verbosity,
-        non_enclosing_interval = WarnLevel(),
-        alias_u0_immutable = WarnLevel(),
-        linsolve_failed_noncurrent = WarnLevel(),
-        termination_condition = WarnLevel(),
-        threshold_state = WarnLevel()
-    )
-
-    # Apply group-level settings
-    final_args = if error_control !== nothing || performance !== nothing ||
-                    numerical !== nothing
-        NamedTuple{keys(default_args)}(
-            _resolve_arg_value(
-                key, default_args[key], error_control, performance, numerical)
-        for key in keys(default_args)
-        )
-    else
-        default_args
-    end
-
-    # Apply individual overrides
-    if !isempty(kwargs)
-        final_args = merge(final_args, NamedTuple(kwargs))
-    end
-
-    NonlinearVerbosity(values(final_args)...)
-end
-
-# Constructor for verbosity presets following the hierarchical levels:
-# None < Minimal < Standard < Detailed < All
-# Each level includes all messages from levels below it plus additional ones
-function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
-    if verbose isa Minimal
-        # Minimal: Only fatal errors and critical warnings
-        # Use None() for linear_verbosity since BLAS errors are not fatal
-        # in the nonlinear solver context (the solver handles singular matrices gracefully)
-        NonlinearVerbosity(
+    presets = (
+        None = (
+            linear_verbosity = None(),
+            non_enclosing_interval = Silent(),
+            alias_u0_immutable = Silent(),
+            linsolve_failed_noncurrent = Silent(),
+            termination_condition = Silent(),
+            threshold_state = Silent()
+        ),
+        Minimal = (
             linear_verbosity = None(),
             non_enclosing_interval = WarnLevel(),
             alias_u0_immutable = Silent(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = Silent(),
             threshold_state = Silent()
-        )
-    elseif verbose isa Standard
-        # Standard: Everything from Minimal + non-fatal warnings
-        NonlinearVerbosity()
-    elseif verbose isa Detailed
-        # Detailed: Everything from Standard + debugging/solver behavior
-        NonlinearVerbosity(
+        ),
+        Standard = (
+            linear_verbosity = None(),
+            non_enclosing_interval = WarnLevel(),
+            alias_u0_immutable = WarnLevel(),
+            linsolve_failed_noncurrent = WarnLevel(),
+            termination_condition = WarnLevel(),
+            threshold_state = WarnLevel()
+        ),
+        Detailed = (
             linear_verbosity = Detailed(),
             non_enclosing_interval = WarnLevel(),
             alias_u0_immutable = WarnLevel(),
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel()
-        )
-    elseif verbose isa All
-        # All: Maximum verbosity - every possible logging message at InfoLevel
-        NonlinearVerbosity(
+        ),
+        All = (
             linear_verbosity = Detailed(),
             non_enclosing_interval = WarnLevel(),
             alias_u0_immutable = WarnLevel(),
@@ -202,32 +105,11 @@ function NonlinearVerbosity(verbose::AbstractVerbosityPreset)
             termination_condition = WarnLevel(),
             threshold_state = InfoLevel()
         )
-    end
-end
-
-@inline function NonlinearVerbosity(verbose::None)
-    NonlinearVerbosity(
-        None(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent(),
-        Silent()
     )
-end
 
-# Helper function to resolve argument values based on group membership
-@inline function _resolve_arg_value(
-        key::Symbol, default_val, error_control, performance, numerical)
-    if key === :linear_verbosity
-        return default_val
-    elseif key in error_control_options && error_control !== nothing
-        return error_control
-    elseif key in performance_options && performance !== nothing
-        return performance
-    elseif key in numerical_options && numerical !== nothing
-        return numerical
-    else
-        return default_val
-    end
+    groups = (
+        error_control = (:non_enclosing_interval, :alias_u0_immutable,
+            :linsolve_failed_noncurrent, :termination_condition),
+        numerical = (:threshold_state,)
+    )
 end
