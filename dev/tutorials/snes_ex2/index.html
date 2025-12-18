@@ -49,81 +49,81 @@ u0: 128-element Vector{Float64}:
  0.5</code></pre><p>Now we can solve the problem using <code>PETScSNES</code> or with one of the native <code>NonlinearSolve.jl</code> solvers.</p><pre><code class="language-julia hljs">sol_dense_nr = NLS.solve(nlprob_dense, NLS.NewtonRaphson(); abstol = 1e-8)
 sol_dense_snes = NLS.solve(nlprob_dense, NLS.PETScSNES(); abstol = 1e-8)
 sol_dense_nr .- sol_dense_snes</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128-element Vector{Float64}:
- -3.3683470657097324e-18
- -2.4763537608571504e-17
- -4.615821342767584e-17
- -6.755426567531947e-17
- -8.89520119888576e-17
- -1.1034467610471221e-16
- -1.3174411648414486e-16
- -1.5311645180926536e-16
- -1.7450233966154194e-16
- -1.9591533256813065e-16
+ -5.522508045665029e-19
+  5.589962171669233e-17
+  1.123521441897049e-16
+  1.68803501992415e-16
+  2.252565538610196e-16
+  2.817096057296242e-16
+  3.3816265759822883e-16
+  3.946224857304115e-16
+  4.510823138625941e-16
+  5.075150369404646e-16
   ⋮
- -6.661338147750939e-16
- -6.661338147750939e-16
- -5.551115123125783e-16
- -4.440892098500626e-16
- -3.3306690738754696e-16
- -2.220446049250313e-16
- -1.1102230246251565e-16
- -1.1102230246251565e-16
+  9.992007221626409e-16
+  8.881784197001252e-16
+  7.771561172376096e-16
+  6.661338147750939e-16
+  5.551115123125783e-16
+  3.3306690738754696e-16
+  2.220446049250313e-16
+  1.1102230246251565e-16
   0.0</code></pre><pre><code class="language-julia hljs">sol_sparse_nr = NLS.solve(nlprob_sparse, NLS.NewtonRaphson(); abstol = 1e-8)
 sol_sparse_snes = NLS.solve(nlprob_sparse, NLS.PETScSNES(); abstol = 1e-8)
 sol_sparse_nr .- sol_sparse_snes</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128-element Vector{Float64}:
- -2.0178697886277366e-42
- -1.8943680107105614e-17
- -3.7887783730684854e-17
- -5.683252262897454e-17
- -7.577895559315873e-17
- -9.471861229376488e-17
- -1.1366504525794907e-16
- -1.325979256949772e-16
- -1.5157146371347352e-16
- -1.7049079162334557e-16
+ -1.1350517561031018e-43
+ -1.5183700854243774e-17
+ -3.0367825224961176e-17
+ -4.5550043771547255e-17
+ -6.073565044992235e-17
+ -7.591448086471941e-17
+ -9.110008754309451e-17
+ -1.0627891795789157e-16
+ -1.214306433183765e-16
+ -1.3660947373317356e-16
   ⋮
- -9.992007221626409e-16
- -7.771561172376096e-16
- -6.661338147750939e-16
- -5.551115123125783e-16
- -4.440892098500626e-16
  -3.3306690738754696e-16
  -2.220446049250313e-16
+ -2.220446049250313e-16
+ -2.220446049250313e-16
+ -2.220446049250313e-16
  -1.1102230246251565e-16
-  0.0</code></pre><p>As expected the solutions are the same (upto floating point error). Now let&#39;s compare the runtimes.</p><h2 id="Runtimes"><a class="docs-heading-anchor" href="#Runtimes">Runtimes</a><a id="Runtimes-1"></a><a class="docs-heading-anchor-permalink" href="#Runtimes" title="Permalink"></a></h2><h3 id="Dense-Jacobian"><a class="docs-heading-anchor" href="#Dense-Jacobian">Dense Jacobian</a><a id="Dense-Jacobian-1"></a><a class="docs-heading-anchor-permalink" href="#Dense-Jacobian" title="Permalink"></a></h3><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 5539 samples with 1 evaluation per sample.
- Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">791.449 μs</span></span> … <span class="sgr35"> 34.231 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 96.54%
- Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">811.259 μs               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
- Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">900.347 μs</span></span> ± <span class="sgr32">727.937 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>4.79% ±  7.32%
+ -1.1102230246251565e-16
+ -1.1102230246251565e-16
+  0.0</code></pre><p>As expected the solutions are the same (upto floating point error). Now let&#39;s compare the runtimes.</p><h2 id="Runtimes"><a class="docs-heading-anchor" href="#Runtimes">Runtimes</a><a id="Runtimes-1"></a><a class="docs-heading-anchor-permalink" href="#Runtimes" title="Permalink"></a></h2><h3 id="Dense-Jacobian"><a class="docs-heading-anchor" href="#Dense-Jacobian">Dense Jacobian</a><a id="Dense-Jacobian-1"></a><a class="docs-heading-anchor-permalink" href="#Dense-Jacobian" title="Permalink"></a></h3><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 5270 samples with 1 evaluation per sample.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">845.956 μs</span></span> … <span class="sgr35"> 12.757 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 87.43%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">917.376 μs               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">946.248 μs</span></span> ± <span class="sgr32">389.333 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>2.14% ±  4.79%
 
-  █<span class="sgr34">▅</span>▁ <span class="sgr32"> </span> ▁▃  ▂▄▁                                                 ▁
-  █<span class="sgr34">█</span>█▇<span class="sgr32">▆</span>▅███▅███▅▅▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃ █
-  791 μs<span class="sgr90">        Histogram: <span class="sgr1">log(</span>frequency<span class="sgr1">)</span> by time</span>       2.42 ms <span class="sgr1">&lt;</span>
+                     ▃██<span class="sgr34">▇</span>▄       <span class="sgr32"> </span>                               
+  ▁▁▁▁▁▁▁▂▂▃▃▃▃▃▃▃▄▅▇███<span class="sgr34">█</span>██▆▅▅▃▄▃<span class="sgr32">▂</span>▂▁▁▁▁▁▁▁▁▁▁▁▁▂▂▂▂▁▂▂▃▂▂▂▁▁▁▁▁ ▂
+  846 μs<span class="sgr90">           Histogram: frequency by time</span>         1.04 ms <span class="sgr1">&lt;</span>
 
- Memory estimate<span class="sgr90">: </span><span class="sgr33">741.07 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">180</span>.</code></pre><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 1329 samples with 1 evaluation per sample.
- Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">3.439 ms</span></span> … <span class="sgr35">  8.491 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
- Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">3.758 ms               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
- Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">3.760 ms</span></span> ± <span class="sgr32">314.669 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">354.62 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">167</span>.</code></pre><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 1145 samples with 1 evaluation per sample.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">4.019 ms</span></span> … <span class="sgr35">  6.442 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">4.315 ms               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">4.364 ms</span></span> ± <span class="sgr32">220.147 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
 
-           ▁▂ ▆▅▂            <span class="sgr34">▂</span>▇█              ▁                
-  ▁▁▁▂▄▄▃▂▄██████▄▃▆▆▅▃▄▂▁▂▄▃<span class="sgr34">█</span>██▆▃▃▂▃▂▂▁▂▂▃▄▆██▆▃▄▂▃▂▃▁▁▂▁▁▁▁ ▃
-  3.44 ms<span class="sgr90">         Histogram: frequency by time</span>        4.15 ms <span class="sgr1">&lt;</span>
+         ▁▆█▅<span class="sgr34">▆</span>▃<span class="sgr32">▂</span>                                               
+  ▂▂▃▃▄▅▇████<span class="sgr34">█</span>█<span class="sgr32">█</span>▇▆▅▅▅▅▄▄▃▄▃▃▃▂▂▂▂▂▂▂▁▂▁▁▂▁▁▁▂▁▁▁▁▂▁▁▁▁▁▁▂▁▁▁▂ ▃
+  4.02 ms<span class="sgr90">         Histogram: frequency by time</span>        5.56 ms <span class="sgr1">&lt;</span>
 
  Memory estimate<span class="sgr90">: </span><span class="sgr33">220.95 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">251</span>.</code></pre><h3 id="Sparse-Jacobian"><a class="docs-heading-anchor" href="#Sparse-Jacobian">Sparse Jacobian</a><a id="Sparse-Jacobian-1"></a><a class="docs-heading-anchor-permalink" href="#Sparse-Jacobian" title="Permalink"></a></h3><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_sparse), $(NLS.NewtonRaphson()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 10000 samples with 1 evaluation per sample.
- Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">287.036 μs</span></span> … <span class="sgr35">52.907 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 61.46%
- Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">300.935 μs              </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
- Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">354.391 μs</span></span> ± <span class="sgr32"> 1.000 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>8.85% ±  4.69%
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">322.124 μs</span></span> … <span class="sgr35">59.966 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span> 0.00% … 61.25%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">361.327 μs              </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span> 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">426.983 μs</span></span> ± <span class="sgr32"> 1.120 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>10.96% ±  5.02%
 
-     ▁▆█▆▃▂<span class="sgr34"> </span>                                <span class="sgr32"> </span>                   
-  ▁▂▄██████<span class="sgr34">█</span>▇▅▅▄▃▃▃▃▃▂▃▂▂▂▂▂▃▂▂▂▂▂▂▁▂▂▁▂▂▂▂▁<span class="sgr32">▁</span>▁▁▁▂▂▂▂▂▁▂▂▁▁▁▁▁▁ ▂
-  287 μs<span class="sgr90">          Histogram: frequency by time</span>          383 μs <span class="sgr1">&lt;</span>
+              ▁▁▂▂▃▅▆▇▇<span class="sgr34">▇</span>█▆▅▃▅▄▂▁                          <span class="sgr32"> </span>     
+  ▁▁▂▃▃▄▄▅▆▆▇▇█████████<span class="sgr34">█</span>████████▆▆▅▄▃▃▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁<span class="sgr32">▁</span>▁▁▁ ▄
+  322 μs<span class="sgr90">          Histogram: frequency by time</span>          434 μs <span class="sgr1">&lt;</span>
 
- Memory estimate<span class="sgr90">: </span><span class="sgr33">523.31 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">2672</span>.</code></pre><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 9802 samples with 1 evaluation per sample.
- Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">277.937 μs</span></span> … <span class="sgr35">507.231 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 29.53%
- Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">476.983 μs               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
- Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">549.225 μs</span></span> ± <span class="sgr32">  5.692 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>3.82% ±  0.38%
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">523.33 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">2672</span>.</code></pre><pre><code class="language-julia hljs">BenchmarkTools.@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1e-8)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 9526 samples with 1 evaluation per sample.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">297.410 μs</span></span> … <span class="sgr35">419.041 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 30.06%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">479.433 μs               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">550.889 μs</span></span> ± <span class="sgr32">  4.811 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>3.60% ±  0.43%
 
-   ▆▂▄▂   ▇▄▄▅▄▆▃▆█       ▂▁▁▁ <span class="sgr34"> </span>  ▂▂ ▃▆▅▄▂<span class="sgr32"> </span>       ▂▂             
-  ▅█████▆██████████▆▂▂▁▃▄▆█████<span class="sgr34">█</span>▇█████████<span class="sgr32">█</span>█████▇████▆▃▃▆▇▇▆▇█▇ ▆
-  278 μs<span class="sgr90">           Histogram: frequency by time</span>          692 μs <span class="sgr1">&lt;</span>
+     ▁ ▂▄▇▇██▇█▅▅▂▁       ▁ ▁<span class="sgr34"> </span>  ▁▁▂▃▃▂▁<span class="sgr32"> </span>                         
+  ▃▇███████████████▆▄▃▃▆█████<span class="sgr34">█</span>▇████████<span class="sgr32">█</span>▇██▇▇▇▇███▇▇▅▅▆▅▇▇▇▇▆▅▄ ▆
+  297 μs<span class="sgr90">           Histogram: frequency by time</span>          712 μs <span class="sgr1">&lt;</span>
 
- Memory estimate<span class="sgr90">: </span><span class="sgr33">176.98 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">2199</span>.</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_solve_gpus/">« Accelerated Rootfinding on GPUs</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Thursday 18 December 2025 19:27">Thursday 18 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">176.98 KiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">2199</span>.</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_solve_gpus/">« Accelerated Rootfinding on GPUs</a><a class="docs-footer-nextpage" href="../../basics/nonlinear_problem/">Nonlinear Problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Thursday 18 December 2025 19:32">Thursday 18 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
