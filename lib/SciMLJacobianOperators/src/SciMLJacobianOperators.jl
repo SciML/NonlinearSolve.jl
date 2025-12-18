@@ -404,14 +404,22 @@ function get_dense_ad(ad::AutoSparse)
     return dense_ad
 end
 
+# Helper functions for safe copying of parameters
+# Tuples and NamedTuples are immutable and don't need copying
+# Numbers are immutable as well
+_safe_copy(x::Tuple) = x
+_safe_copy(x::NamedTuple) = x
+_safe_copy(x::Number) = x
+_safe_copy(x) = copy(x)
+
 function Base.copy(J::JacobianOperator{iip, T}) where {iip, T}
-    return JacobianOperator{iip,T}(
+    return JacobianOperator{iip, T}(
         J.mode,
         J.jvp_op,
         J.vjp_op,
         J.size,
         J.input_cache === nothing ? nothing : copy(J.input_cache),
-        J.output_cache === nothing ? nohting : copy(J.output_cache)
+        J.output_cache === nothing ? nothing : copy(J.output_cache)
     )
 end
 
@@ -419,7 +427,7 @@ function Base.copy(J::StatefulJacobianOperator)
     return StatefulJacobianOperator(
         copy(J.jac_op),
         J.u === nothing ? nothing : copy(J.u),
-        applicable(copy, J.p) ? copy(J.p) : J.p
+        _safe_copy(J.p)
     )
 end
 
@@ -429,9 +437,7 @@ function Base.copy(J::StatefulJacobianNormalFormOperator{T}) where {T}
         J.jvp_operator === nothing ? nothing : copy(J.jvp_operator),
         J.cache === nothing ? nothing : copy(J.cache)
     )
-
 end
-
 
 export JacobianOperator, VecJacOperator, JacVecOperator
 export StatefulJacobianOperator
