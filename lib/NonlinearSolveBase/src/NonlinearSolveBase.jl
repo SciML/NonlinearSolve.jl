@@ -28,8 +28,8 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator
-using SciMLLogging: @SciMLMessage, @verbosity_specifier, AbstractVerbositySpecifier,
-                    AbstractVerbosityPreset, AbstractMessageLevel,
+using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
+                    AbstractVerbositySpecifier, AbstractVerbosityPreset,
                     None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel
 
 using SymbolicIndexingInterface: SymbolicIndexingInterface
