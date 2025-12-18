@@ -34,7 +34,7 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 
 [sources]
 BracketingNonlinearSolve = {path = "../lib/BracketingNonlinearSolve"}
-NonlinearSolve = {path = "/home/runner/work/NonlinearSolve.jl/NonlinearSolve.jl"}
+NonlinearSolve = {path = "/home/chrisrackauckas/github-runners/deepsea4-9/_work/NonlinearSolve.jl/NonlinearSolve.jl"}
 NonlinearSolveBase = {path = "../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveHomotopyContinuation = {path = "../lib/NonlinearSolveHomotopyContinuation"}
