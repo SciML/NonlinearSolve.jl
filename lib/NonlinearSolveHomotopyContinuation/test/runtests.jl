@@ -4,9 +4,7 @@ using Aqua
 
 @testset "NonlinearSolveHomotopyContinuation.jl" begin
     @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(NonlinearSolveHomotopyContinuation; persistent_tasks = false)
-        Aqua.test_persistent_tasks(
-            NonlinearSolveHomotopyContinuation; broken = VERSION < v"1.11")
+        Aqua.test_all(NonlinearSolveHomotopyContinuation)
     end
     @testset "AllRoots" begin
         include("allroots.jl")
