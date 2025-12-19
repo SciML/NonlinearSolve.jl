@@ -96,8 +96,13 @@ function SciMLBase.__solve(
     span = right - left
     k1 = alg.scaled_k1 * span^(1 - k2) # k1 > 0
     n0 = alg.n0
-    n_h = exponent(span / (2 * ϵ))
-    ϵ_s = ϵ * exp2(n_h + n0)
+    if span / 2 > ϵ * floatmax(typeof(span))
+        # Workaround for when span / (2 * ϵ) == Inf
+        ϵ_s = span / 2 * exp2(n0)
+    else
+        n_h = exponent(span / (2 * ϵ))
+        ϵ_s = ϵ * exp2(n_h) * exp2(n0)
+    end
     T0 = zero(fl)
 
     i = 1

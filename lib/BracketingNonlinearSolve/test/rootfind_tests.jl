@@ -74,6 +74,16 @@ end
             @test result_tol > ϵ
         end
     end
+
+    # Some solvers support abstol=0.0 and converge to floating point precision
+    @testset for alg in (Bisection(), ITP(), Brent())
+        sol = solve(prob, alg; abstol = 0.0)
+        # Test that solution is to floating point precision
+        @test sol.retcode == ReturnCode.FloatingPointLimit
+        @test quadratic_f(sol.left, 2.0) < 0
+        @test quadratic_f(sol.right, 2.0) > 0
+        @test nextfloat(sol.left) == sol.right
+    end
 end
 
 @testitem "Flipped Signs and Reversed Tspan" setup=[RootfindingTestSnippet] tags=[:core] begin
