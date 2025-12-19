@@ -35,6 +35,10 @@ documentation.
     differencing tricks (without ever constructing the Jacobian). However, if the Jacobian
     is still needed, for example for a preconditioner, `concrete_jac = true` can be passed
     in order to force the construction of the Jacobian.
+  - `forcing`: Adaptive forcing term strategy for Newton-Krylov methods. When using an
+    iterative linear solver (Krylov method), this controls how accurately the linear system
+    is solved at each Newton iteration. Defaults to `nothing` (fixed tolerance). See
+    [Forcing Term Strategies](@ref forcing_strategies) for available options.
 
 ## Nonlinear Solvers
 
@@ -80,4 +84,44 @@ are meant for advanced users and allow building custom solvers.
 QuasiNewtonAlgorithm
 GeneralizedFirstOrderAlgorithm
 GeneralizedDFSane
+```
+
+## [Forcing Term Strategies](@id forcing_strategies)
+
+Forcing term strategies control how accurately the linear system is solved at each Newton
+iteration when using iterative (Krylov) linear solvers. This is the key idea behind
+Newton-Krylov methods: instead of solving ``J \delta u = -f(u)`` exactly, we solve it only
+approximately with a tolerance ``\eta_k`` (the forcing term).
+
+The [eisenstat1996choosing](@citet) paper introduced adaptive strategies for choosing
+``\eta_k`` that can significantly improve convergence, especially for problems where the
+initial guess is far from the solution.
+
+```@docs
+EisenstatWalkerForcing2
+```
+
+### Example Usage
+
+```julia
+using NonlinearSolve, LinearSolve
+
+# Define a large nonlinear problem
+function f!(F, u, p)
+    for i in 2:(length(u) - 1)
+        F[i] = u[i - 1] - 2u[i] + u[i + 1] + sin(u[i])
+    end
+    F[1] = u[1] - 1.0
+    F[end] = u[end]
+end
+
+n = 1000
+u0 = zeros(n)
+prob = NonlinearProblem(f!, u0)
+
+# Use Newton-Raphson with GMRES and Eisenstat-Walker forcing
+sol = solve(prob, NewtonRaphson(
+    linsolve = KrylovJL_GMRES(),
+    forcing = EisenstatWalkerForcing2()
+))
 ```

@@ -14,6 +14,7 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 
 ## Numerical Group
 - `threshold_state`: Messages about threshold state in low-rank methods
+- `forcing`: Messages about forcing parameter in Newton-Krylov methods
 
 ## Sensitivity Group
 - `sensitivity_vjp_choice`: Messages about VJP choice in sensitivity analysis (used by SciMLSensitivity.jl)
@@ -65,7 +66,7 @@ NonlinearVerbosity
 
 @verbosity_specifier NonlinearVerbosity begin
     toggles = (:linear_verbosity, :non_enclosing_interval, :alias_u0_immutable,
-        :linsolve_failed_noncurrent, :termination_condition, :threshold_state,
+        :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing,
         :sensitivity_vjp_choice)
 
     presets = (
@@ -76,6 +77,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = Silent(),
             termination_condition = Silent(),
             threshold_state = Silent(),
+            forcing = Silent(),
             sensitivity_vjp_choice = Silent()
         ),
         Minimal = (
@@ -85,6 +87,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = Silent(),
             threshold_state = Silent(),
+            forcing = Silent(),
             sensitivity_vjp_choice = Silent()
         ),
         Standard = (
@@ -94,6 +97,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         ),
         Detailed = (
@@ -103,6 +107,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         ),
         All = (
@@ -112,6 +117,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = InfoLevel(),
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         )
     )
@@ -119,7 +125,7 @@ NonlinearVerbosity
     groups = (
         error_control = (:non_enclosing_interval, :alias_u0_immutable,
             :linsolve_failed_noncurrent, :termination_condition),
-        numerical = (:threshold_state,),
+        numerical = (:threshold_state, :forcing),
         sensitivity = (:sensitivity_vjp_choice,)
     )
 end
