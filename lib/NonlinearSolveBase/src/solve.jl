@@ -90,7 +90,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             p,
             args...;
             alias = alias_spec,
-            originator = SciMLBase.ChainRulesOriginator(),
+            originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
             verbose,
             kwargs...))
     else
@@ -100,7 +100,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             p,
             args...;
             alias = alias_spec,
-            originator = SciMLBase.ChainRulesOriginator(),
+            originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
             verbose,
             kwargs...)
     end

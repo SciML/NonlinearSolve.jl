@@ -320,6 +320,4 @@ function clean_sprint_struct(x, indent::Int)
     return "$(name)(\n$(spacing)$(join(modifiers, ",\n$(spacing)"))\n$(spacing_last))"
 end
 
-set_mooncakeoriginator_if_mooncake(x::SciMLBase.ADOriginator) = x
-
 end
