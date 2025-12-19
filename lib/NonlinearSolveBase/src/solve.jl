@@ -90,7 +90,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             p,
             args...;
             alias = alias_spec,
-            originator = SciMLBase.ChainRulesOriginator(),
+            originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
             verbose,
             kwargs...))
     else
@@ -100,7 +100,7 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             p,
             args...;
             alias = alias_spec,
-            originator = SciMLBase.ChainRulesOriginator(),
+            originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
             verbose,
             kwargs...)
     end
@@ -111,11 +111,10 @@ function solve_up(prob::AbstractNonlinearProblem, sensealg, u0, p,
         kwargs...)
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, true; u0 = u0,
-            p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         solve_call(_prob, args...; kwargs...)
     else
-        _prob = get_concrete_problem(prob, true; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # use alg for improved inference
         if length(args) > 1
             solve_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -224,8 +223,7 @@ function init_up(prob::AbstractNonlinearProblem,
         sensealg, u0, p, args...; kwargs...)
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, true; u0 = u0,
-            p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
         tstops = get(kwargs, :tstops, nothing)
@@ -236,7 +234,7 @@ function init_up(prob::AbstractNonlinearProblem,
            !SciMLBase.allows_late_binding_tstops(alg)
             throw(LateBindingTstopsNotSupportedError())
         end
-        _prob = get_concrete_problem(prob, true; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # alg for improved inference
         if length(args) > 1
             init_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -640,12 +638,7 @@ end
 function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
         kwargs...)
     alg = extract_alg(args, kwargs, prob.kwargs)
-    if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, true; u0 = u0,
-            p = p, kwargs...)
-    else
-        _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)
-    end
+    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
     if has_kwargs(_prob)
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
@@ -662,12 +655,7 @@ end
 function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
         kwargs...)
     alg = extract_alg(args, kwargs, prob.kwargs)
-    if isnothing(alg) || !(alg isa AbstractDEAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob, true; u0 = u0,
-            p = p, kwargs...)
-    else
-        _prob = get_concrete_problem(prob, isadaptive(alg); u0 = u0, p = p, kwargs...)
-    end
+    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
     if has_kwargs(_prob)
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
@@ -681,46 +669,45 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
     end
 end
 
-function get_concrete_problem(prob::NonlinearProblem, isadapt; kwargs...)
-    oldprob = prob
-    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
-    if prob !== oldprob
-        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
-    end
-    p = get_concrete_p(prob, kwargs) 
-    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
-    u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
-end
-
-function get_concrete_problem(prob::NonlinearLeastSquaresProblem, isadapt; kwargs...)
+function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
     if prob !== oldprob
         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
     end
     p = get_concrete_p(prob, kwargs)
-    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+    u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
     remake(prob; u0 = u0, p = p)
 end
 
-function get_concrete_problem(
-    prob::ImmutableNonlinearProblem, isadapt; kwargs...)
-    u0 = get_concrete_u0(prob, isadapt, nothing, kwargs)
+function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
+    oldprob = prob
+    prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
+    if prob !== oldprob
+        kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
+    end
+    p = get_concrete_p(prob, kwargs)
+    u0 = get_concrete_u0(prob, true, nothing, kwargs)
+    u0 = promote_u0(u0, p, nothing)
+    remake(prob; u0 = u0, p = p)
+end
+
+function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
+    u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, prob.p, nothing)
     p = get_concrete_p(prob, kwargs)
     return remake(prob; u0 = u0, p = p)
 end
 
-function get_concrete_problem(prob::SteadyStateProblem, isadapt; kwargs...)
+function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(SciMLBase.get_root_indp(prob), prob; kwargs...)
     if prob !== oldprob
         kwargs = (; kwargs..., u0 = SII.state_values(prob), p = SII.parameter_values(prob))
     end
     p = get_concrete_p(prob, kwargs)
-    u0 = get_concrete_u0(prob, isadapt, Inf, kwargs)
+    u0 = get_concrete_u0(prob, true, Inf, kwargs)
     u0 = promote_u0(u0, p, nothing)
     remake(prob; u0 = u0, p = p)
 end

@@ -16,19 +16,24 @@
         @test v_none.non_enclosing_interval isa SciMLLogging.Silent
         @test v_none.threshold_state isa SciMLLogging.Silent
         @test v_none.alias_u0_immutable isa SciMLLogging.Silent
+        @test v_none.sensitivity_vjp_choice isa SciMLLogging.Silent
 
         @test v_minimal.non_enclosing_interval isa SciMLLogging.WarnLevel
         @test v_minimal.alias_u0_immutable isa SciMLLogging.Silent
         @test v_minimal.termination_condition isa SciMLLogging.Silent
+        @test v_minimal.sensitivity_vjp_choice isa SciMLLogging.Silent
 
         @test v_standard.non_enclosing_interval isa SciMLLogging.WarnLevel
         @test v_standard.threshold_state isa SciMLLogging.WarnLevel
+        @test v_standard.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
 
         @test v_detailed.alias_u0_immutable isa SciMLLogging.WarnLevel
         @test v_detailed.termination_condition isa SciMLLogging.WarnLevel
+        @test v_detailed.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
 
         @test v_all.linsolve_failed_noncurrent isa SciMLLogging.WarnLevel
         @test v_all.threshold_state isa SciMLLogging.InfoLevel
+        @test v_all.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
     end
 
     @testset "Group-level keyword constructors" begin
@@ -40,6 +45,12 @@
 
         v_numerical = NonlinearVerbosity(numerical = SciMLLogging.Silent())
         @test v_numerical.threshold_state isa SciMLLogging.Silent
+
+        v_sensitivity = NonlinearVerbosity(sensitivity = SciMLLogging.Silent())
+        @test v_sensitivity.sensitivity_vjp_choice isa SciMLLogging.Silent
+
+        v_sensitivity2 = NonlinearVerbosity(sensitivity = SciMLLogging.InfoLevel())
+        @test v_sensitivity2.sensitivity_vjp_choice isa SciMLLogging.InfoLevel
     end
 
     @testset "Mixed group and individual settings" begin
@@ -74,12 +85,12 @@
     int_prob = IntervalNonlinearProblem(g, (3.0, 5.0))
 
     @test_logs (:info,
-        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.InfoLevel()))
 
-        @test_logs (:error,
-        "The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
+    @test_logs (:error,
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
         int_prob,
         ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel()))
 
@@ -88,12 +99,12 @@
     prob = NonlinearProblem(f, [1.0, 1.0])
 
     @test_logs (:warn,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed()))
 
     @test_logs (:info,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = SciMLLogging.InfoLevel())))
 
@@ -102,7 +113,7 @@
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Standard()))
 
     @test_logs (:warn,
-        "LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed())
     )

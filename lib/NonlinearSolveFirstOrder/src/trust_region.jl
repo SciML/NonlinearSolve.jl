@@ -6,7 +6,7 @@
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32,
-        vjp_autodiff = nothing, autodiff = nothing, jvp_autodiff = nothing
+        vjp_autodiff = nothing, autodiff = nothing, jvp_autodiff = nothing,
     )
 
 An advanced TrustRegion implementation with support for efficient handling of sparse
@@ -29,7 +29,7 @@ function TrustRegion(;
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
 )
     descent = Dogleg(; linsolve)
     trustregion = GenericTrustRegionScheme(;

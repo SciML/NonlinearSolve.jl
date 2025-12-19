@@ -50,7 +50,8 @@ sparse/structured matrix support, etc. These methods support the largest set of 
 features, but have a bit of overhead on very small problems.
 
   - [`NewtonRaphson()`](@ref): A Newton-Raphson method with swappable nonlinear solvers and
-    autodiff methods for high performance on large and sparse systems.
+    autodiff methods for high performance on large and sparse systems. Supports Newton-Krylov
+    methods with adaptive forcing via [`EisenstatWalkerForcing2`](@ref).
   - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
   - [`LevenbergMarquardt()`](@ref): An advanced Levenberg-Marquardt implementation with the
