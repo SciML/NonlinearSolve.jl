@@ -10,9 +10,16 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 
+[weakdeps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+
+[extensions]
+SCCNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
+
 [compat]
 Aqua = "0.8"
 BenchmarkTools = "1.5.0"
+ChainRulesCore = "1"
 CommonSolve = "0.2.4"
 ExplicitImports = "1.5"
 Hwloc = "3"

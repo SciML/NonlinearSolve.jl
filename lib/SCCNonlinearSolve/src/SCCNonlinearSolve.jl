@@ -23,13 +23,30 @@ end
 
 SCCAlg(; nlalg = nothing, linalg = nothing) = SCCAlg(nlalg, linalg)
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem; kwargs...)
-    CommonSolve.solve(prob, SCCAlg(nothing, nothing); kwargs...)
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+    CommonSolve.solve(prob, SCCAlg(nothing, nothing); sensealg, u0, p, kwargs...)
 end
 
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem,
-        alg::SciMLBase.AbstractNonlinearAlgorithm; kwargs...)
-    CommonSolve.solve(prob, SCCAlg(alg, nothing); kwargs...)
+        alg::SciMLBase.AbstractNonlinearAlgorithm;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+    CommonSolve.solve(prob, SCCAlg(alg, nothing); sensealg, u0, p, kwargs...)
+end
+
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+    u0 = u0 !== nothing ? u0 : prob.u0
+    p = p !== nothing ? p : prob.p
+    scc_solve_up(prob, sensealg, u0, p, alg; kwargs...)
+end
+
+"""
+Internal solve function that can be hooked by ChainRulesCore for AD.
+"""
+function scc_solve_up(prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
+        kwargs...)
+    _scc_solve(prob, alg; kwargs...)
 end
 
 probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
@@ -60,7 +77,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
     iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)
 end
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
+"""
+Internal solve implementation for SCCNonlinearProblem.
+This is called by scc_solve_up and should NOT be hooked by ChainRulesCore.
+"""
+function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     numscc = length(prob.probs)
     sols = iteratively_build_sols(
         alg, (), zip(prob.probs, prob.explicitfuns!)...; kwargs...)
@@ -78,5 +99,7 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwa
 
     SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
 end
+
+export scc_solve_up
 
 end
