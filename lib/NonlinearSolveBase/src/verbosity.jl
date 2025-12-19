@@ -77,7 +77,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = Silent(),
             termination_condition = Silent(),
             threshold_state = Silent(),
-            forcing = Silent()
+            forcing = Silent(),
             sensitivity_vjp_choice = Silent()
         ),
         Minimal = (
@@ -87,7 +87,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = Silent(),
             threshold_state = Silent(),
-            forcing = Silent()
+            forcing = Silent(),
             sensitivity_vjp_choice = Silent()
         ),
         Standard = (
@@ -97,7 +97,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
-            forcing = InfoLevel()
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         ),
         Detailed = (
@@ -107,7 +107,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
-            forcing = InfoLevel()
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         ),
         All = (
@@ -117,7 +117,7 @@ NonlinearVerbosity
             linsolve_failed_noncurrent = WarnLevel(),
             termination_condition = WarnLevel(),
             threshold_state = InfoLevel(),
-            forcing = InfoLevel()
+            forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel()
         )
     )
@@ -125,7 +125,7 @@ NonlinearVerbosity
     groups = (
         error_control = (:non_enclosing_interval, :alias_u0_immutable,
             :linsolve_failed_noncurrent, :termination_condition),
-        numerical = (:threshold_state, :forcing)
+        numerical = (:threshold_state, :forcing),
         sensitivity = (:sensitivity_vjp_choice,)
     )
 end
