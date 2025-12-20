@@ -76,6 +76,40 @@ end
     @test sol ≈ manualscc ≈ scc_sol_default
 end
 
+@testitem "SCCNonlinearProblem solve without explicit u0 (issue #758)" setup=[CoreRootfindTesting] tags=[:core] begin
+    # Regression test for https://github.com/SciML/NonlinearSolve.jl/issues/758
+    # SCCNonlinearProblem does not have a u0 field, so calling solve() without
+    # explicit u0 should not try to access prob.u0
+    using SCCNonlinearSolve
+    import NonlinearSolve
+
+    # Create simple nonlinear subproblems (OOP style, returning vectors)
+    f1(u, p)=[u[1]^2-2.0]
+    f2(u, p)=[u[1]-1.0]
+
+    prob1=NonlinearProblem(f1, [1.0])
+    prob2=NonlinearProblem(f2, [1.0])
+
+    # Create explicit functions (identity - just pass through)
+    explicitfun1!(p, sols)=nothing
+    explicitfun2!(p, sols)=nothing
+
+    # Create the SCC problem using the same pattern as existing tests
+    scc_prob=SciMLBase.SCCNonlinearProblem(
+        (prob1, prob2),
+        SciMLBase.Void{Any}.([explicitfun1!, explicitfun2!])
+    )
+
+    # This should not throw an error about prob.u0 field
+    sol=SciMLBase.solve(scc_prob)
+
+    @test SciMLBase.successful_retcode(sol)
+    # First subproblem: u^2 = 2 → u = sqrt(2)
+    @test sol.u[1] ≈ sqrt(2.0)
+    # Second subproblem: u = 1
+    @test sol.u[2] ≈ 1.0
+end
+
 @testitem "SCC Residuals Transfer" setup=[CoreRootfindTesting] tags=[:core] begin
     using NonlinearSolveFirstOrder
     using LinearAlgebra
@@ -85,36 +119,36 @@ end
 
     # Nonlinear problem
     function f1(du, u, p)
-        du[1] = u[1]^2 - 2.0
-        du[2] = u[2] - u[1]
+        du[1]=u[1]^2-2.0
+        du[2]=u[2]-u[1]
     end
-    explicitfun1(p, sols) = nothing
-    prob1 = NonlinearProblem(
+    explicitfun1(p, sols)=nothing
+    prob1=NonlinearProblem(
         NonlinearFunction{true, SciMLBase.NoSpecialize}(f1), [1.0, 1.0], nothing)
 
     # Linear problem
-    A2 = [1.0 0.5; 0.5 1.0]
-    b2 = [1.0, 2.0]
-    prob2 = LinearProblem(A2, b2)
-    explicitfun2(p, sols) = nothing
+    A2=[1.0 0.5; 0.5 1.0]
+    b2=[1.0, 2.0]
+    prob2=LinearProblem(A2, b2)
+    explicitfun2(p, sols)=nothing
 
     # Another nonlinear problem
     function f3(du, u, p)
-        du[1] = u[1] + u[2] - 3.0
-        du[2] = u[1] * u[2] - 2.0
+        du[1]=u[1]+u[2]-3.0
+        du[2]=u[1]*u[2]-2.0
     end
-    explicitfun3(p, sols) = nothing
-    prob3 = NonlinearProblem(
+    explicitfun3(p, sols)=nothing
+    prob3=NonlinearProblem(
         NonlinearFunction{true, SciMLBase.NoSpecialize}(f3), [1.0, 2.0], nothing)
 
     # Create SCC problem
-    sccprob = SciMLBase.SCCNonlinearProblem((prob1, prob2, prob3),
+    sccprob=SciMLBase.SCCNonlinearProblem((prob1, prob2, prob3),
         SciMLBase.Void{Any}.([explicitfun1, explicitfun2, explicitfun3]))
 
     # Solve with SCCAlg
     using SCCNonlinearSolve
-    scc_alg = SCCNonlinearSolve.SCCAlg(nlalg = NewtonRaphson(), linalg = nothing)
-    scc_sol = solve(sccprob, scc_alg)
+    scc_alg=SCCNonlinearSolve.SCCAlg(nlalg = NewtonRaphson(), linalg = nothing)
+    scc_sol=solve(sccprob, scc_alg)
 
     # Test that solution was successful
     @test SciMLBase.successful_retcode(scc_sol)
@@ -124,26 +158,26 @@ end
     @test !any(isnothing, scc_sol.resid)
 
     # Test that residuals have the correct length
-    expected_length = length(prob1.u0) + length(prob2.b) + length(prob3.u0)
+    expected_length=length(prob1.u0)+length(prob2.b)+length(prob3.u0)
     @test length(scc_sol.resid) == expected_length
 
     # Test that residuals are small (near zero for converged solution)
     @test norm(scc_sol.resid) < 1e-10
 
     # Manually compute residuals to verify correctness
-    u1 = scc_sol.u[1:2]
-    u2 = scc_sol.u[3:4]
-    u3 = scc_sol.u[5:6]
+    u1=scc_sol.u[1:2]
+    u2=scc_sol.u[3:4]
+    u3=scc_sol.u[5:6]
 
     # Compute residuals for each component
-    resid1 = zeros(2)
+    resid1=zeros(2)
     f1(resid1, u1, nothing)
 
-    resid2 = A2 * u2 - b2
+    resid2=A2*u2-b2
 
-    resid3 = zeros(2)
+    resid3=zeros(2)
     f3(resid3, u3, nothing)
 
-    expected_resid = vcat(resid1, resid2, resid3)
+    expected_resid=vcat(resid1, resid2, resid3)
     @test scc_sol.resid ≈ expected_resid atol=1e-10
 end

@@ -36,7 +36,8 @@ end
 
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg;
         sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
-    u0 = u0 !== nothing ? u0 : prob.u0
+    # Note: SCCNonlinearProblem does not have a u0 field - each subproblem has its own u0.
+    # The u0 parameter here is only used for AD hooks, not for actual solving.
     p = p !== nothing ? p : prob.p
     scc_solve_up(prob, sensealg, u0, p, alg; kwargs...)
 end
