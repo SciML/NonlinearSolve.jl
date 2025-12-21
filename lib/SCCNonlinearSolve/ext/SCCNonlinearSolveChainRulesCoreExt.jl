@@ -1,7 +1,6 @@
 module SCCNonlinearSolveChainRulesCoreExt
 
-using SCCNonlinearSolve
-using SCCNonlinearSolve: SCCAlg, scc_solve_up
+import SCCNonlinearSolve: SCCAlg, scc_solve_up
 using SciMLBase: SCCNonlinearProblem, AbstractSensitivityAlgorithm, ChainRulesOriginator,
     _concrete_solve_adjoint
 

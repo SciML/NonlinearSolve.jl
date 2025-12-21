@@ -1,7 +1,7 @@
 name = "SCCNonlinearSolve"
 uuid = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
-authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.8.0"
+authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -23,8 +23,8 @@ ChainRulesCore = "1"
 CommonSolve = "0.2.4"
 ExplicitImports = "1.5"
 Hwloc = "3"
-LinearAlgebra = "1.10"
 InteractiveUtils = "<0.0.1, 1"
+LinearAlgebra = "1.10"
 NonlinearProblemLibrary = "0.1.2"
 NonlinearSolve = "4.8"
 NonlinearSolveBase = "2.1"
