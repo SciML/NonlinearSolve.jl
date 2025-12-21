@@ -80,6 +80,7 @@ end
     # Regression test for https://github.com/SciML/NonlinearSolve.jl/issues/758
     # SCCNonlinearProblem does not have a u0 field, so calling solve() without
     # explicit u0 should not try to access prob.u0
+    using SciMLBase
     using SCCNonlinearSolve
     import NonlinearSolve
 
