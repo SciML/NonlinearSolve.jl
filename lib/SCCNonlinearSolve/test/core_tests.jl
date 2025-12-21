@@ -180,5 +180,5 @@ end
     f3(resid3, u3, nothing)
 
     expected_resid = vcat(resid1, resid2, resid3)
-    @test scc_sol.resid≈expected_resid atol=1e-10
+    @test scc_sol.resid ≈ expected_resid atol=1e-10
 end
