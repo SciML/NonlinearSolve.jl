@@ -62,19 +62,25 @@ jobs:
       local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
       test_args: "GROUP=${{ matrix.group }}"
 
-  downgrade:
-    strategy:
-      fail-fast: false
-      matrix:
-        group:
-          - core
-          - downstream
-          - wrappers
-          - misc
-          - nopre
-    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
-    with:
-      project: "."
-      julia_version: "1.11"
-      downgrade_testing: true
-      test_args: "GROUP=${{ matrix.group }}"
+  # NOTE: Downgrade tests are temporarily disabled because Resolver.jl
+  # (used by julia-downgrade-compat) doesn't support [sources] packages.
+  # NonlinearSolve uses [sources] to define local packages like SimpleNonlinearSolve,
+  # which causes Resolver.jl to fail with:
+  #   KeyError: key UUID("727e6d20-b764-4bd8-a329-72de5adea6c7") not found
+  # TODO: Re-enable once Resolver.jl supports [sources] packages
+  # downgrade:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group:
+  #         - core
+  #         - downstream
+  #         - wrappers
+  #         - misc
+  #         - nopre
+  #   uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+  #   with:
+  #     project: "."
+  #     julia_version: "1.11"
+  #     downgrade_testing: true
+  #     test_args: "GROUP=${{ matrix.group }}"
