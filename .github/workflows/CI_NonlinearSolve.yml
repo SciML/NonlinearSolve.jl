@@ -62,12 +62,23 @@ jobs:
       local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
       test_args: "GROUP=${{ matrix.group }}"
 
-  # NOTE: Downgrade tests are temporarily disabled because Resolver.jl
-  # (used by julia-downgrade-compat) doesn't support [sources] packages.
-  # NonlinearSolve uses [sources] to define local packages like SimpleNonlinearSolve,
-  # which causes Resolver.jl to fail with:
+  # NOTE: Downgrade tests are temporarily disabled because NonlinearSolve's
+  # [compat] bounds require versions of local packages that aren't registered yet.
+  #
+  # Root cause: NonlinearSolve requires unreleased versions of its subpackages:
+  #   - SimpleNonlinearSolve: requires 2.11, registry has 2.9.0
+  #   - NonlinearSolveFirstOrder: requires 1.11, registry has 1.10.0
+  #   - NonlinearSolveQuasiNewton: requires 1.12, registry has 1.11.0
+  #
+  # Resolver.jl (used by julia-downgrade-compat) only uses registry versions,
+  # ignoring [sources] entries. When it can't find versions satisfying compat
+  # bounds, resolution fails with:
   #   KeyError: key UUID("727e6d20-b764-4bd8-a329-72de5adea6c7") not found
-  # TODO: Re-enable once Resolver.jl supports [sources] packages
+  #
+  # Fix: Register the new versions of subpackages to General registry.
+  # After registration, downgrade tests should work again.
+  #
+  # TODO: Re-enable once subpackage versions are registered
   # downgrade:
   #   strategy:
   #     fail-fast: false
