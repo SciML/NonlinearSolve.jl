@@ -33,24 +33,18 @@ function SciMLBase.__solve(
         left, abstol, promote_type(eltype(left), eltype(right)))
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
         @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
         verbose, :non_enclosing_interval)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
-        )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
     i = 1
@@ -58,16 +52,12 @@ function SciMLBase.__solve(
         mid = (left + right) / 2
 
         if mid == left || mid == right
-            return SciMLBase.build_solution(
-                prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit, left, right
-            )
+            return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
         end
 
         fm = f(mid)
         if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, mid, fm; retcode = ReturnCode.Success, left, right
-            )
+            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
         if iszero(fm)
@@ -93,7 +83,5 @@ function SciMLBase.__solve(
 
     sol !== nothing && return sol
 
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

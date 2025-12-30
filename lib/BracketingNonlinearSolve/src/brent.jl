@@ -31,24 +31,18 @@ function SciMLBase.__solve(
     )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
         @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
             verbose, :non_enclosing_interval)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
-        )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
     if abs(fl) < abs(fr)
@@ -83,10 +77,7 @@ function SciMLBase.__solve(
             # Bisection method
             s = (left + right) / 2
             if s == left || s == right
-                return SciMLBase.build_solution(
-                    prob, alg, left, fl;
-                    retcode = ReturnCode.FloatingPointLimit, left, right
-                )
+                return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
             end
             cond = true
         else
@@ -95,9 +86,7 @@ function SciMLBase.__solve(
 
         fs = f(s)
         if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, s, fs; retcode = ReturnCode.Success, left, right
-            )
+            return build_bracketing_solution(prob, alg, s, fs, left, right, ReturnCode.Success)
         end
 
         if iszero(fs)
@@ -135,7 +124,5 @@ function SciMLBase.__solve(
 
     sol !== nothing && return sol
 
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

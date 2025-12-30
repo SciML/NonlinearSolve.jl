@@ -10,6 +10,7 @@ using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
 
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 
+include("utils.jl")
 include("common.jl")
 
 include("alefeld.jl")
