@@ -20,57 +20,46 @@ function SciMLBase.__solve(
     )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
         @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
             verbose, :non_enclosing_interval)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
-        )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
-    xo = oftype(left, Inf)
     i = 1
     while i ≤ maxiters
         mid = (left + right) / 2
 
         if mid == left || mid == right
-            return SciMLBase.build_solution(
-                prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit, left, right
-            )
+            return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
         end
 
         fm = f(mid)
+        if iszero(fm)
+            return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
+        end
+
         s = sqrt(fm^2 - fl * fr)
         if iszero(s)
-            return SciMLBase.build_solution(
-                prob, alg, left, fl; retcode = ReturnCode.Failure, left, right
-            )
+            return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
         end
 
         x = mid + (mid - left) * sign(fl - fm) * fm / s
         fx = f(x)
-        xo = x
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, mid, fm; retcode = ReturnCode.Success, left, right
-            )
+        if iszero(fx)
+            return build_exact_solution(prob, alg, x, fx, ReturnCode.Success)
         end
 
-        if iszero(fx)
-            right, fr = x, fx
-            break
+        if abs((right - left) / 2) < abstol
+            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
         if sign(fx) != sign(fm)
@@ -90,14 +79,5 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
-
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

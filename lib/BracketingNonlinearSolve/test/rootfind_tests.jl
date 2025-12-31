@@ -1,4 +1,5 @@
 @testsnippet RootfindingTestSnippet begin
+    linear_f(u, p) = u .- p
     quadratic_f(u, p) = u .* u .- p
     quadratic_f!(du, u, p) = (du .= u .* u .- p)
     quadratic_f2(u, p) = @. p[1] * u * u - p[2]
@@ -74,15 +75,27 @@ end
             @test result_tol > ϵ
         end
     end
+end
 
-    # Some solvers support abstol=0.0 and converge to floating point precision
-    @testset for alg in (Bisection(), ITP(), Brent())
+@testitem "Zero-Tolerance Tests Interval Methods" setup=[RootfindingTestSnippet] tags=[:core] begin
+    prob=IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
+    prob_lin=IntervalNonlinearProblem(linear_f, (-1.0, 1.0), 0.0)
+
+    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder(), nothing)
         sol = solve(prob, alg; abstol = 0.0)
         # Test that solution is to floating point precision
         @test sol.retcode == ReturnCode.FloatingPointLimit
         @test quadratic_f(sol.left, 2.0) < 0
         @test quadratic_f(sol.right, 2.0) > 0
         @test nextfloat(sol.left) == sol.right
+
+        # Solve problem with a root representable with floating point
+        sol = solve(prob_lin, alg; abstol = 0.0)
+        # Test that solution is exact
+        @test sol.retcode == ReturnCode.Success
+        @test sol.u == 0.0
+        @test sol.left == 0.0
+        @test sol.right == 0.0
     end
 end
 
@@ -93,14 +106,19 @@ end
         f2(u, p) = p - u * u
 
         for p in 1:4
-            inp1 = IntervalNonlinearProblem(f1, (1.0, 2.0), p)
-            inp2 = IntervalNonlinearProblem(f2, (1.0, 2.0), p)
-            inp3 = IntervalNonlinearProblem(f1, (2.0, 1.0), p)
-            inp4 = IntervalNonlinearProblem(f2, (2.0, 1.0), p)
-            @test abs.(solve(inp1, alg).u) ≈ sqrt.(p)
-            @test abs.(solve(inp2, alg).u) ≈ sqrt.(p)
-            @test abs.(solve(inp3, alg).u) ≈ sqrt.(p)
-            @test abs.(solve(inp4, alg).u) ≈ sqrt.(p)
+            sol1 = solve(IntervalNonlinearProblem(f1, (1.0, 2.0), p), alg)
+            sol2 = solve(IntervalNonlinearProblem(f2, (1.0, 2.0), p), alg)
+            sol3 = solve(IntervalNonlinearProblem(f1, (2.0, 1.0), p), alg)
+            sol4 = solve(IntervalNonlinearProblem(f2, (2.0, 1.0), p), alg)
+            @test abs.(sol1.u) ≈ sqrt.(p)
+            @test abs.(sol2.u) ≈ sqrt.(p)
+            @test abs.(sol3.u) ≈ sqrt.(p)
+            @test abs.(sol4.u) ≈ sqrt.(p)
+            # Test brackets consistency
+            @test sol1.left ≤ sol1.right
+            @test sol2.left ≤ sol2.right
+            @test sol3.left ≥ sol3.right
+            @test sol4.left ≥ sol4.right
         end
     end
 end

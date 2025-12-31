@@ -1,42 +1,5 @@
 module Impl
 
-using SciMLBase: SciMLBase, ReturnCode
-
-function bisection(left, right, fl, fr, f::F, abstol, maxiters, prob, alg) where {F}
-    i = 1
-    sol = nothing
-    while i ≤ maxiters
-        mid = (left + right) / 2
-
-        if mid == left || mid == right
-            sol = SciMLBase.build_solution(
-                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit
-            )
-            break
-        end
-
-        fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            sol = SciMLBase.build_solution(
-                prob, alg, mid, fm; left, right, retcode = ReturnCode.Success
-            )
-            break
-        end
-
-        if iszero(fm)
-            right = mid
-            fr = fm
-        else
-            left = mid
-            fl = fm
-        end
-
-        i += 1
-    end
-
-    return sol, i, left, right, fl, fr
-end
-
 prevfloat_tdir(x, x0, x1) = ifelse(x1 > x0, prevfloat(x), nextfloat(x))
 nextfloat_tdir(x, x0, x1) = ifelse(x1 > x0, nextfloat(x), prevfloat(x))
 max_tdir(a, b, x0, x1) = ifelse(x1 > x0, max(a, b), min(a, b))

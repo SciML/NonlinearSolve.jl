@@ -18,15 +18,11 @@ function SciMLBase.__solve(
 
     fc = f(c)
     if a == c || b == c
-        return SciMLBase.build_solution(
-            prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit, left = a, right = b
-        )
+        return build_bracketing_solution(prob, alg, c, fc, a, b, ReturnCode.FloatingPointLimit)
     end
 
     if iszero(fc)
-        return SciMLBase.build_solution(
-            prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b
-        )
+        return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
     end
 
     a, b, d = Impl.bracket(f, a, b, c)
@@ -46,14 +42,11 @@ function SciMLBase.__solve(
 
         ē, fc = d, f(c)
         if a == c || b == c
-            return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.FloatingPointLimit,
-                left = a, right = b)
+            return build_bracketing_solution(prob, alg, c, fc, a, b, ReturnCode.FloatingPointLimit)
         end
 
         if iszero(fc)
-            return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.Success, left = a, right = b)
+            return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
         end
 
         ā, b̄, d̄ = Impl.bracket(f, a, b, c)
@@ -71,16 +64,11 @@ function SciMLBase.__solve(
         fc = f(c)
 
         if ā == c || b̄ == c
-            return SciMLBase.build_solution(
-                prob, alg, c, fc;
-                retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
-            )
+            return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.FloatingPointLimit)
         end
 
         if iszero(fc)
-            return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
-            )
+            return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
         end
 
         ā, b̄, d̄ = Impl.bracket(f, ā, b̄, c)
@@ -94,16 +82,11 @@ function SciMLBase.__solve(
         fc = f(c)
 
         if ā == c || b̄ == c
-            return SciMLBase.build_solution(
-                prob, alg, c, fc;
-                retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
-            )
+            return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.FloatingPointLimit)
         end
 
         if iszero(fc)
-            return SciMLBase.build_solution(
-                prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
-            )
+            return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
         end
 
         ā, b̄, d = Impl.bracket(f, ā, b̄, c)
@@ -117,15 +100,10 @@ function SciMLBase.__solve(
             fc = f(c)
 
             if ā == c || b̄ == c
-                return SciMLBase.build_solution(
-                    prob, alg, c, fc;
-                    retcode = ReturnCode.FloatingPointLimit, left = ā, right = b̄
-                )
+                return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.FloatingPointLimit)
             end
             if iszero(fc)
-                return SciMLBase.build_solution(
-                    prob, alg, c, fc; retcode = ReturnCode.Success, left = ā, right = b̄
-                )
+                return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
             end
             a, b, d = Impl.bracket(f, ā, b̄, c)
         end
@@ -140,7 +118,5 @@ function SciMLBase.__solve(
     fc = f(c)
 
     # Return solution when run out of max iteration
-    return SciMLBase.build_solution(
-        prob, alg, c, fc; retcode = ReturnCode.MaxIters, left = a, right = b
-    )
+    return build_bracketing_solution(prob, alg, c, fc, a, b, ReturnCode.MaxIters)
 end
