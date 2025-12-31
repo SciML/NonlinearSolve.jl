@@ -81,7 +81,7 @@ end
     prob=IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
     prob_lin=IntervalNonlinearProblem(linear_f, (-1.0, 1.0), 0.0)
 
-    @testset for alg in (ITP(),)
+    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder(), nothing)
         sol = solve(prob, alg; abstol = 0.0)
         # Test that solution is to floating point precision
         @test sol.retcode == ReturnCode.FloatingPointLimit

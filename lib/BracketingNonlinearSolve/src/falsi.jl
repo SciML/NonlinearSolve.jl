@@ -58,6 +58,10 @@ function SciMLBase.__solve(
         (mid == left || mid == right) && break
 
         fm = f(mid)
+        if iszero(fm)
+            return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
+        end
+
         if abs((right - left) / 2) < abstol
             return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
@@ -76,12 +80,6 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
-
-    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
+    # Fallback to bisection solver
+    return internal_bisection(f, left, right, fl, fr, abstol, maxiters - i, prob, alg)
 end

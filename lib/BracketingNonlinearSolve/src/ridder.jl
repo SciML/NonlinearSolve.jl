@@ -34,7 +34,6 @@ function SciMLBase.__solve(
         return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
-    xo = oftype(left, Inf)
     i = 1
     while i ≤ maxiters
         mid = (left + right) / 2
@@ -44,6 +43,10 @@ function SciMLBase.__solve(
         end
 
         fm = f(mid)
+        if iszero(fm)
+            return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
+        end
+
         s = sqrt(fm^2 - fl * fr)
         if iszero(s)
             return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
@@ -51,14 +54,12 @@ function SciMLBase.__solve(
 
         x = mid + (mid - left) * sign(fl - fm) * fm / s
         fx = f(x)
-        xo = x
-        if abs((right - left) / 2) < abstol
-            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
+        if iszero(fx)
+            return build_exact_solution(prob, alg, x, fx, ReturnCode.Success)
         end
 
-        if iszero(fx)
-            right, fr = x, fx
-            break
+        if abs((right - left) / 2) < abstol
+            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
         if sign(fx) != sign(fm)
@@ -77,13 +78,6 @@ function SciMLBase.__solve(
 
         i += 1
     end
-
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
 
     return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end
