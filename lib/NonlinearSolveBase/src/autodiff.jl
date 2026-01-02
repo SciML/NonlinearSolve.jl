@@ -107,9 +107,18 @@ function incompatible_backend_and_problem(
 end
 
 additional_incompatible_backend_check(::AbstractNonlinearProblem, ::AbstractADType) = false
+
+# ForwardDiff and PolyesterForwardDiff require scalar indexing for seeding dual numbers,
+# which is not supported by GPU arrays (arrays where fast_scalar_indexing returns false)
+function additional_incompatible_backend_check(
+        prob::AbstractNonlinearProblem, ::ADTypes.AutoForwardDiff)
+    !ArrayInterface.fast_scalar_indexing(prob.u0) && return true
+    return false
+end
 function additional_incompatible_backend_check(
         prob::AbstractNonlinearProblem, ::ADTypes.AutoPolyesterForwardDiff)
     prob.u0 isa SArray && return true # promotes to a mutable array
+    !ArrayInterface.fast_scalar_indexing(prob.u0) && return true
     return false
 end
 
