@@ -11,11 +11,11 @@ using CommonSolve: CommonSolve, solve, init, solve!
 using LineSearch: LiFukushimaLineSearch
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
-                          nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
-                          AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage,
-                          AbstractVerbosityPreset
+    nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
+    AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage,
+    AbstractVerbosityPreset
 using SciMLBase: SciMLBase, NonlinearFunction, NonlinearProblem,
-                 NonlinearLeastSquaresProblem, ReturnCode, remake
+    NonlinearLeastSquaresProblem, ReturnCode, remake
 using LinearAlgebra: LinearAlgebra, dot
 
 using StaticArraysCore: StaticArray, SArray, SVector, MArray
@@ -30,12 +30,12 @@ const DI = DifferentiationInterface
 
 const DualNonlinearProblem = NonlinearProblem{
     <:Union{Number, <:AbstractArray}, iip,
-    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {iip, T, V, P}
 
 const DualNonlinearLeastSquaresProblem = NonlinearLeastSquaresProblem{
     <:Union{Number, <:AbstractArray}, iip,
-    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
+    <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {iip, T, V, P}
 
 abstract type AbstractSimpleNonlinearSolveAlgorithm <: AbstractNonlinearSolveAlgorithm end
@@ -59,7 +59,7 @@ include("trust_region.jl")
 function CommonSolve.solve(
         prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
         kwargs...
-)
+    )
     prob = convert(ImmutableNonlinearProblem, prob)
     return solve(prob, alg, args...; kwargs...)
 end
@@ -67,7 +67,7 @@ end
 function CommonSolve.solve(
         prob::DualNonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; kwargs...
-)
+    )
     alg = configure_autodiff(prob, alg)
     prob = convert(ImmutableNonlinearProblem, prob)
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
@@ -80,7 +80,7 @@ end
 function CommonSolve.solve(
         prob::DualNonlinearLeastSquaresProblem, alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; kwargs...
-)
+    )
     alg = configure_autodiff(prob, alg)
     sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
     dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
@@ -94,13 +94,15 @@ function CommonSolve.solve(
         alg::AbstractSimpleNonlinearSolveAlgorithm,
         args...; sensealg = nothing, u0 = nothing, p = nothing,
         initializealg = SciMLBase.NoInit(), kwargs...
-)
+    )
     alg = configure_autodiff(prob, alg)
     cache = SciMLBase.__init(prob, alg, args...; initializealg, kwargs...)
     prob = cache.prob
     if cache.retcode == ReturnCode.InitialFailure
-        return SciMLBase.build_solution(prob, alg, prob.u0,
-            NonlinearSolveBase.Utils.evaluate_f(prob, prob.u0); cache.retcode)
+        return SciMLBase.build_solution(
+            prob, alg, prob.u0,
+            NonlinearSolveBase.Utils.evaluate_f(prob, prob.u0); cache.retcode
+        )
     end
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
@@ -119,7 +121,7 @@ end
 function simplenonlinearsolve_solve_up(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem}, sensealg, u0,
         u0_changed, p, p_changed, alg, args...; kwargs...
-)
+    )
     (u0_changed || p_changed) && (prob = remake(prob; u0, p))
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
@@ -146,7 +148,7 @@ end
         @compile_workload begin
             @sync for prob in (prob_scalar, prob_iip, prob_oop), alg in algs
 
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = false)
             end
         end
     end

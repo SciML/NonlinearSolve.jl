@@ -51,11 +51,11 @@ see [la2006spectral](@citet).
 end
 
 function SimpleDFSane(;
-        sigma_min::Real = 1e-10, sigma_max::Real = 1e10, sigma_1::Real = 1.0,
-        M::Union{Int, Val} = Val(10), gamma::Real = 1e-4, tau_min::Real = 0.1,
+        sigma_min::Real = 1.0e-10, sigma_max::Real = 1.0e10, sigma_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), gamma::Real = 1.0e-4, tau_min::Real = 0.1,
         tau_max::Real = 0.5, n_exp::Int = 2,
         eta_strategy::F = (fn_1, n, x_n, f_n) -> fn_1 / n^2
-) where {F}
+    ) where {F}
     M = M isa Int ? Val(M) : M
     return SimpleDFSane(
         sigma_min, sigma_max, sigma_1, gamma, tau_min, tau_max, n_exp,
@@ -67,7 +67,7 @@ function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleDFSane, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -86,7 +86,7 @@ function SciMLBase.__solve(
     τ_max = T(alg.τ_max)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 

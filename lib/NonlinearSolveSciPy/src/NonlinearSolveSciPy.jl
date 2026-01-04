@@ -10,7 +10,7 @@ const PY_NONE = Ref{Union{Py, Nothing}}(nothing)
 const _SCIPY_AVAILABLE = Ref{Bool}(false)
 
 function __init__()
-    try
+    return try
         scipy_optimize[] = pyimport("scipy.optimize")
         PY_NONE[] = pyimport("builtins").None
         _SCIPY_AVAILABLE[] = true
@@ -23,7 +23,7 @@ using CommonSolve
 using SciMLBase
 using SciMLBase: allowsbounds
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
-                          construct_extension_function_wrapper
+    construct_extension_function_wrapper
 
 """
     SciPyLeastSquares(; method="trf", loss="linear")
@@ -45,12 +45,18 @@ function SciPyLeastSquares(; method::String = "trf", loss::String = "linear")
     valid_methods = ("trf", "dogbox", "lm")
     valid_losses = ("linear", "soft_l1", "huber", "cauchy", "arctan")
     method in valid_methods ||
-        throw(ArgumentError(
-            lazy"Invalid method: $method. Valid methods are: $(join(valid_methods, \", \"))"))
+        throw(
+        ArgumentError(
+            lazy"Invalid method: $method. Valid methods are: $(join(valid_methods, \", \"))"
+        )
+    )
     loss in valid_losses ||
-        throw(ArgumentError(
+        throw(
+        ArgumentError(
             lazy"Invalid loss: $loss. Valid loss functions are: $(join(valid_losses, \",
-            \"))"))
+            \"))"
+        )
+    )
     return SciPyLeastSquares(method, loss, :SciPyLeastSquares)
 end
 
@@ -99,28 +105,33 @@ end
 """
 Internal: wrap a Julia residual function into a Python callable
 """
-function _make_py_residual(f::F, p) where F
-    return pyfunc(x_py -> begin
-        x = pyconvert(Vector{Float64}, x_py)
-        r = f(x, p)
-        return r
-    end)
+function _make_py_residual(f::F, p) where {F}
+    return pyfunc(
+        x_py -> begin
+            x = pyconvert(Vector{Float64}, x_py)
+            r = f(x, p)
+            return r
+        end
+    )
 end
 
 """
 Internal: wrap a Julia scalar function into a Python callable
 """
-function _make_py_scalar(f::F, p) where F
-    return pyfunc(x_py -> begin
-        x = pyconvert(Float64, x_py)
-        return f(x, p)
-    end)
+function _make_py_scalar(f::F, p) where {F}
+    return pyfunc(
+        x_py -> begin
+            x = pyconvert(Float64, x_py)
+            return f(x, p)
+        end
+    )
 end
 
 function SciMLBase.__solve(
         prob::SciMLBase.NonlinearLeastSquaresProblem, alg::SciPyLeastSquares;
         abstol = nothing, maxiters = 10_000, alias_u0::Bool = false,
-        kwargs...)
+        kwargs...
+    )
     # Construct Python residual
     py_f = _make_py_residual(prob.f, prob.p)
 
@@ -138,18 +149,22 @@ function SciMLBase.__solve(
 
     # Call scipy with conditional bounds argument
     if bounds === nothing
-        res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
+        res = scipy_optimize[].least_squares(
+            py_f, collect(prob.u0);
             method = alg.method,
             loss = alg.loss,
             max_nfev = maxiters,
-            scipy_kwargs...)
+            scipy_kwargs...
+        )
     else
-        res = scipy_optimize[].least_squares(py_f, collect(prob.u0);
+        res = scipy_optimize[].least_squares(
+            py_f, collect(prob.u0);
             method = alg.method,
             loss = alg.loss,
             max_nfev = maxiters,
             bounds = bounds,
-            scipy_kwargs...)
+            scipy_kwargs...
+        )
     end
 
     u_vec = pyconvert(Vector{Float64}, res.x)
@@ -170,31 +185,39 @@ function SciMLBase.__solve(
     end
     stats = SciMLBase.NLStats(nfev, njev, 0, 0, nfev)
 
-    return SciMLBase.build_solution(prob, alg, u, resid; retcode = ret,
-        original = res, stats = stats)
+    return SciMLBase.build_solution(
+        prob, alg, u, resid; retcode = ret,
+        original = res, stats = stats
+    )
 end
 
-function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
+function SciMLBase.__solve(
+        prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
         abstol = nothing, maxiters = 10_000, alias_u0::Bool = false,
-        kwargs...)
+        kwargs...
+    )
     f!, u0, resid = construct_extension_function_wrapper(prob; alias_u0)
 
-    py_f = pyfunc(x_py -> begin
-        x = pyconvert(Vector{Float64}, x_py)
-        f!(resid, x)
-        return resid
-    end)
+    py_f = pyfunc(
+        x_py -> begin
+            x = pyconvert(Vector{Float64}, x_py)
+            f!(resid, x)
+            return resid
+        end
+    )
 
     tol = abstol === nothing ? nothing : abstol
 
     # Filter out Julia-specific kwargs that scipy doesn't understand
     scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
 
-    res = scipy_optimize[].root(py_f, collect(u0);
+    res = scipy_optimize[].root(
+        py_f, collect(u0);
         method = alg.method,
         tol = tol,
         options = Dict("maxiter" => maxiters),
-        scipy_kwargs...)
+        scipy_kwargs...
+    )
 
     u_vec = pyconvert(Vector{Float64}, res.x)
     f!(resid, u_vec)
@@ -214,12 +237,16 @@ function SciMLBase.__solve(prob::SciMLBase.NonlinearProblem, alg::SciPyRoot;
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
 
-    return SciMLBase.build_solution(prob, alg, u_out, resid; retcode = ret,
-        original = res, stats = stats)
+    return SciMLBase.build_solution(
+        prob, alg, u_out, resid; retcode = ret,
+        original = res, stats = stats
+    )
 end
 
-function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyRootScalar, args...;
-        abstol = nothing, maxiters = 10_000, kwargs...)
+function CommonSolve.solve(
+        prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyRootScalar, args...;
+        abstol = nothing, maxiters = 10_000, kwargs...
+    )
     f = prob.f
     p = prob.p
     py_f = _make_py_scalar(f, p)
@@ -229,12 +256,14 @@ function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     # Filter out Julia-specific kwargs that scipy doesn't understand
     scipy_kwargs = Tuple(k => v for (k, v) in pairs(kwargs) if k ∉ (:alias, :verbose))
 
-    res = scipy_optimize[].root_scalar(py_f;
+    res = scipy_optimize[].root_scalar(
+        py_f;
         method = alg.method,
         bracket = (a, b),
         maxiter = maxiters,
         xtol = abstol,
-        scipy_kwargs...)
+        scipy_kwargs...
+    )
 
     u_root = pyconvert(Float64, res.root)
     resid = f(u_root, p)
@@ -252,8 +281,10 @@ function CommonSolve.solve(prob::SciMLBase.IntervalNonlinearProblem, alg::SciPyR
     end
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
 
-    return SciMLBase.build_solution(prob, alg, u_root, resid; retcode = ret,
-        original = res, stats = stats)
+    return SciMLBase.build_solution(
+        prob, alg, u_root, resid; retcode = ret,
+        original = res, stats = stats
+    )
 end
 
 # Trait declarations
@@ -264,7 +295,7 @@ SciMLBase.allowsbounds(::SciPyRootScalar) = false
 @reexport using SciMLBase, NonlinearSolveBase
 
 export SciPyLeastSquares, SciPyLeastSquaresTRF, SciPyLeastSquaresDogbox,
-       SciPyLeastSquaresLM,
-       SciPyRoot, SciPyRootScalar
+    SciPyLeastSquaresLM,
+    SciPyRoot, SciPyRootScalar
 
 end

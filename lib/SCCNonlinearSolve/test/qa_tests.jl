@@ -1,4 +1,4 @@
-@testitem "Aqua" tags=[:core] begin
+@testitem "Aqua" tags = [:core] begin
     using Aqua, SCCNonlinearSolve
 
     Aqua.test_all(
@@ -6,15 +6,18 @@
         piracies = false, ambiguities = false, stale_deps = false, deps_compat = false
     )
     Aqua.test_stale_deps(
-        SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase])
+        SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]
+    )
     Aqua.test_deps_compat(
-        SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase])
+        SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]
+    )
     Aqua.test_piracies(
-        SCCNonlinearSolve; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve])
+        SCCNonlinearSolve; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve]
+    )
     Aqua.test_ambiguities(SCCNonlinearSolve; recursive = false)
 end
 
-@testitem "Explicit Imports" tags=[:core] begin
+@testitem "Explicit Imports" tags = [:core] begin
     using ExplicitImports, SciMLBase, SCCNonlinearSolve
 
     @test check_no_implicit_imports(

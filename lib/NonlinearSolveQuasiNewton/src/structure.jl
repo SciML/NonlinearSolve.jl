@@ -11,7 +11,7 @@ function NonlinearSolveBase.get_full_jacobian(cache, ::DiagonalStructure, J)
 end
 
 function (::DiagonalStructure)(J::AbstractMatrix; alias::Bool = false)
-    @assert size(J, 1)==size(J, 2) "Diagonal Jacobian Structure must be square!"
+    @assert size(J, 1) == size(J, 2) "Diagonal Jacobian Structure must be square!"
     return LinearAlgebra.diag(J)
 end
 (::DiagonalStructure)(J::AbstractVector; alias::Bool = false) = alias ? J : @bb(copy(J))

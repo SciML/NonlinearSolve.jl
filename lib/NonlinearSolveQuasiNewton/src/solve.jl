@@ -43,7 +43,7 @@ function QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,
         max_shrink_times::Int = typemax(Int), concrete_jac = Val(false)
-)
+    )
     return QuasiNewtonAlgorithm(
         linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
         max_resets, max_shrink_times, concrete_jac, name
@@ -100,17 +100,17 @@ end
 end
 
 function SciMLBase.get_du(cache::QuasiNewtonCache)
-    SciMLBase.get_du(cache.descent_cache)
+    return SciMLBase.get_du(cache.descent_cache)
 end
 function NonlinearSolveBase.set_du!(cache::QuasiNewtonCache, δu)
-    NonlinearSolveBase.set_du!(cache.descent_cache, δu)
+    return NonlinearSolveBase.set_du!(cache.descent_cache, δu)
 end
 
 function NonlinearSolveBase.get_abstol(cache::QuasiNewtonCache)
-    NonlinearSolveBase.get_abstol(cache.termination_cache)
+    return NonlinearSolveBase.get_abstol(cache.termination_cache)
 end
 function NonlinearSolveBase.get_reltol(cache::QuasiNewtonCache)
-    NonlinearSolveBase.get_reltol(cache.termination_cache)
+    return NonlinearSolveBase.get_reltol(cache.termination_cache)
 end
 
 function InternalAPI.reinit_self!(
@@ -118,7 +118,7 @@ function InternalAPI.reinit_self!(
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
-)
+    )
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
@@ -141,9 +141,11 @@ function InternalAPI.reinit_self!(
     return
 end
 
-NonlinearSolveBase.@internal_caches(QuasiNewtonCache,
+NonlinearSolveBase.@internal_caches(
+    QuasiNewtonCache,
     :initialization_cache, :descent_cache, :linesearch_cache, :trustregion_cache,
-    :update_rule_cache, :reinit_rule_cache)
+    :update_rule_cache, :reinit_rule_cache
+)
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::QuasiNewtonAlgorithm, args...;
@@ -153,7 +155,7 @@ function SciMLBase.__init(
         internalnorm::F = L2_NORM, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(),
         verbose = NonlinearVerbosity(),
         kwargs...
-) where {F}
+    ) where {F}
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -170,7 +172,7 @@ function SciMLBase.__init(
         elseif verbose isa AbstractVerbosityPreset
             verbose = NonlinearVerbosity(verbose)
         end
-        
+
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
@@ -185,15 +187,15 @@ function SciMLBase.__init(
         )
 
         abstol, reltol,
-        termination_cache = NonlinearSolveBase.init_termination_cache(
+            termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
-        linsolve_kwargs = merge((;verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
+        linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         J = initialization_cache(nothing)
 
         inv_workspace,
-        J = Utils.unwrap_val(inverted_jac) ?
+            J = Utils.unwrap_val(inverted_jac) ?
             Utils.maybe_pinv!!_workspace(J) : (nothing, J)
 
         descent_cache = InternalAPI.init(
@@ -259,7 +261,7 @@ end
 
 function InternalAPI.step!(
         cache::QuasiNewtonCache; recompute_jacobian::Union{Nothing, Bool} = nothing
-)
+    )
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
         if cache.nsteps == 0  # First Step is special ignore kwargs
@@ -268,16 +270,16 @@ function InternalAPI.step!(
             )
             if Utils.unwrap_val(NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache))
                 if NonlinearSolveBase.jacobian_initialized_preinverted(
-                    cache.initialization_cache.alg
-                )
+                        cache.initialization_cache.alg
+                    )
                     cache.J = J_init
                 else
                     cache.J = Utils.maybe_pinv!!(cache.inv_workspace, J_init)
                 end
             else
                 if NonlinearSolveBase.jacobian_initialized_preinverted(
-                    cache.initialization_cache.alg
-                )
+                        cache.initialization_cache.alg
+                    )
                     cache.J = Utils.maybe_pinv!!(cache.inv_workspace, J_init)
                 else
                     cache.J = J_init
@@ -317,7 +319,7 @@ function InternalAPI.step!(
                     cache.initialization_cache, cache.fu, cache.u, Val(true)
                 )
                 cache.J = Utils.unwrap_val(NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache)) ?
-                          Utils.maybe_pinv!!(cache.inv_workspace, J_init) : J_init
+                    Utils.maybe_pinv!!(cache.inv_workspace, J_init) : J_init
                 J = cache.J
                 cache.steps_since_last_reset = 0
             else
@@ -329,7 +331,7 @@ function InternalAPI.step!(
 
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
-           hasfield(typeof(cache.trustregion_cache), :trust_region)
+                hasfield(typeof(cache.trustregion_cache), :trust_region)
             descent_result = InternalAPI.solve!(
                 cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
                 cache.trustregion_cache.trust_region, cache.kwargs...
@@ -351,7 +353,7 @@ function InternalAPI.step!(
             return
         else
             # Force a reinit because the problem is currently un-solvable
-            
+
             @SciMLMessage("Linear Solve Failed but Jacobian information is not current. Retrying with updated Jacobian. \
                 Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
 
@@ -381,7 +383,7 @@ function InternalAPI.step!(
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new,
-                fu_new = InternalAPI.solve!(
+                    fu_new = InternalAPI.solve!(
                     cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
                 )
                 if tr_accepted
@@ -389,7 +391,7 @@ function InternalAPI.step!(
                     @bb copyto!(cache.fu, fu_new)
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                        cache.trustregion_cache.shrink_counter > cache.max_shrink_times
                     cache.retcode = ReturnCode.ShrinkThresholdExceeded
                     cache.force_stop = true
                 end
@@ -418,8 +420,10 @@ function InternalAPI.step!(
     )
     @bb copyto!(cache.u_cache, cache.u)
 
-    if (cache.force_stop || cache.force_reinit ||
-        (recompute_jacobian !== nothing && !recompute_jacobian))
+    if (
+            cache.force_stop || cache.force_reinit ||
+                (recompute_jacobian !== nothing && !recompute_jacobian)
+        )
         NonlinearSolveBase.callback_into_cache!(cache)
         return nothing
     end

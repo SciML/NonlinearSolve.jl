@@ -8,25 +8,26 @@ const ReverseADs = (
     ADTypes.AutoZygote(),
     ADTypes.AutoTracker(),
     ADTypes.AutoReverseDiff(),
-    ADTypes.AutoFiniteDiff()
+    ADTypes.AutoFiniteDiff(),
 )
 
 const ForwardADs = (
     ADTypes.AutoPolyesterForwardDiff(),
     ADTypes.AutoForwardDiff(),
     ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward),
-    ADTypes.AutoFiniteDiff()
+    ADTypes.AutoFiniteDiff(),
 )
 
 function select_forward_mode_autodiff(
-        prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true)
+        prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true
+    )
     if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ForwardMode) &&
-       !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
-       !is_finite_differences_backend(ad)
+            !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
+            !is_finite_differences_backend(ad)
         @warn lazy"The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
-       
-       @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
-       
+
+        @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
+
     end
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_forward_mode_autodiff(prob, nothing; warn_check_mode)
@@ -40,8 +41,10 @@ function select_forward_mode_autodiff(
     return ad
 end
 
-function select_forward_mode_autodiff(prob::AbstractNonlinearProblem, ::Nothing;
-        warn_check_mode::Bool = true)
+function select_forward_mode_autodiff(
+        prob::AbstractNonlinearProblem, ::Nothing;
+        warn_check_mode::Bool = true
+    )
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
     idx !== nothing && return ForwardADs[idx]
     throw(ArgumentError("No forward mode AD backend is compatible with the chosen problem. \
@@ -50,10 +53,11 @@ function select_forward_mode_autodiff(prob::AbstractNonlinearProblem, ::Nothing;
 end
 
 function select_reverse_mode_autodiff(
-        prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true)
+        prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true
+    )
     if warn_check_mode && !(ADTypes.mode(ad) isa ADTypes.ReverseMode) &&
-       !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
-       !is_finite_differences_backend(ad)
+            !(ADTypes.mode(ad) isa ADTypes.ForwardOrReverseMode) &&
+            !is_finite_differences_backend(ad)
         @warn "The chosen AD backend $(ad) is not a forward mode AD. Use with caution."
     end
     if incompatible_backend_and_problem(prob, ad)
@@ -67,8 +71,10 @@ function select_reverse_mode_autodiff(
     return ad
 end
 
-function select_reverse_mode_autodiff(prob::AbstractNonlinearProblem, ::Nothing;
-        warn_check_mode::Bool = true)
+function select_reverse_mode_autodiff(
+        prob::AbstractNonlinearProblem, ::Nothing;
+        warn_check_mode::Bool = true
+    )
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ReverseADs)
     idx !== nothing && return ReverseADs[idx]
     throw(ArgumentError("No reverse mode AD backend is compatible with the chosen problem. \
@@ -100,7 +106,8 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
 end
 
 function incompatible_backend_and_problem(
-        prob::AbstractNonlinearProblem, ad::AbstractADType)
+        prob::AbstractNonlinearProblem, ad::AbstractADType
+    )
     !DI.check_available(ad) && return true
     SciMLBase.isinplace(prob) && !DI.check_inplace(ad) && return true
     return additional_incompatible_backend_check(prob, ad)
@@ -108,7 +115,8 @@ end
 
 additional_incompatible_backend_check(::AbstractNonlinearProblem, ::AbstractADType) = false
 function additional_incompatible_backend_check(
-        prob::AbstractNonlinearProblem, ::ADTypes.AutoPolyesterForwardDiff)
+        prob::AbstractNonlinearProblem, ::ADTypes.AutoPolyesterForwardDiff
+    )
     prob.u0 isa SArray && return true # promotes to a mutable array
     return false
 end
@@ -120,10 +128,11 @@ is_finite_differences_backend(::ADTypes.AutoFiniteDifferences) = true
 function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     # First check for custom `vjp` then custom `Jacobian` and if nothing is provided use
     # nested autodiff as the last resort
-    if SciMLBase.has_vjp(prob.f)
+    return if SciMLBase.has_vjp(prob.f)
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+                du, u, p,
+            ) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
                 prob.f(resid, u, p)
                 prob.f.vjp(du, resid, u, p)
@@ -132,7 +141,8 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
             end
         else
             return @closure (
-                u, p) -> begin
+                u, p,
+            ) -> begin
                 resid = prob.f(u, p)
                 return reshape(2 .* prob.f.vjp(resid, u, p), size(u))
             end
@@ -140,7 +150,8 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     elseif SciMLBase.has_jac(prob.f)
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+                du, u, p,
+            ) -> begin
                 J = Utils.safe_similar(du, length(sol.resid), length(u))
                 prob.f.jac(J, u, p)
                 resid = Utils.safe_similar(du, length(sol.resid))
@@ -149,19 +160,22 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 return nothing
             end
         else
-            return @closure (u,
-                p) -> begin
+            return @closure (
+                u,
+                p,
+            ) -> begin
                 return reshape(2 .* vec(prob.f(u, p))' * prob.f.jac(u, p), size(u))
             end
         end
     else
         # For small problems, nesting ForwardDiff is actually quite fast
         autodiff = length(uu) + length(sol.resid) ≥ 50 ?
-                   select_reverse_mode_autodiff(prob, nothing) : AutoForwardDiff()
+            select_reverse_mode_autodiff(prob, nothing) : AutoForwardDiff()
 
         if SciMLBase.isinplace(prob)
             return @closure (
-                du, u, p) -> begin
+                du, u, p,
+            ) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
                 prob.f(resid, u, p)
                 # Using `Constant` lead to dual ordering issues
@@ -172,8 +186,10 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 return nothing
             end
         else
-            return @closure (u,
-                p) -> begin
+            return @closure (
+                u,
+                p,
+            ) -> begin
                 v = prob.f(u, p)
                 # Using `Constant` lead to dual ordering issues
                 res = only(DI.pullback(Base.Fix2(prob.f, p), autodiff, u, (v,)))

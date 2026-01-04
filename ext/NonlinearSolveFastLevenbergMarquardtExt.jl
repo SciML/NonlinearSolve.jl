@@ -16,13 +16,13 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::FastLevenbergMarquardtJL, args...;
         alias_u0 = false, abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...
-)
+    )
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )
 
     f_wrapped, u,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, can_handle_oop = Val(prob.u0 isa SArray)
     )
     f = if prob.u0 isa SArray
@@ -46,12 +46,12 @@ function SciMLBase.__solve(
     solver_kwargs = (;
         xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters,
         alg.factor, alg.factoraccept, alg.factorreject, alg.minscale,
-        alg.maxscale, alg.factorupdate, alg.minfactor, alg.maxfactor
+        alg.maxscale, alg.factorupdate, alg.minfactor, alg.maxfactor,
     )
 
     if prob.u0 isa SArray
         res, fx, info, iter, nfev,
-        njev = FastLM.lmsolve(
+            njev = FastLM.lmsolve(
             f, jac_fn, prob.u0; solver_kwargs...
         )
         LM, solver = nothing, nothing
@@ -71,7 +71,7 @@ function SciMLBase.__solve(
         LM = FastLM.LMWorkspace(u, resid, J)
 
         res, fx, info, iter, nfev, njev,
-        LM, solver = FastLM.lmsolve!(
+            LM, solver = FastLM.lmsolve!(
             f, jac_fn, LM; solver, solver_kwargs...
         )
     end

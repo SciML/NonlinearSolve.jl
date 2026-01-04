@@ -19,7 +19,7 @@ end
 
 function SimpleBroyden(;
         linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
-)
+    )
     linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
     return SimpleBroyden(linesearch, alpha)
 end
@@ -28,7 +28,7 @@ function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...
-)
+    )
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
@@ -44,7 +44,7 @@ function SciMLBase.__solve(
     if alg.alpha === nothing
         fx_norm = L2_NORM(fx)
         x_norm = L2_NORM(x)
-        init_α = ifelse(fx_norm ≥ 1e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
+        init_α = ifelse(fx_norm ≥ 1.0e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
     else
         init_α = inv(alg.alpha)
     end
@@ -56,7 +56,7 @@ function SciMLBase.__solve(
     @bb δJ⁻¹ = copy(J⁻¹)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 

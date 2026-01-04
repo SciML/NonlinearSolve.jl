@@ -1,4 +1,4 @@
-@testitem "Nonlinear Verbosity" tags=[:verbosity] begin
+@testitem "Nonlinear Verbosity" tags = [:verbosity] begin
     using NonlinearSolve
     using BracketingNonlinearSolve
     using NonlinearSolve: NonlinearVerbosity
@@ -84,49 +84,69 @@
 
     int_prob = IntervalNonlinearProblem(g, (3.0, 5.0))
 
-    @test_logs (:info,
-        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") solve(
+    @test_logs (
+        :info,
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.",
+    ) solve(
         int_prob,
-        ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.InfoLevel()))
+        ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.InfoLevel())
+    )
 
-    @test_logs (:error,
-        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.") @test_throws ErrorException solve(
+    @test_logs (
+        :error,
+        r"The interval is not an enclosing interval, opposite signs at the boundaries are required.",
+    ) @test_throws ErrorException solve(
         int_prob,
-        ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel()))
+        ITP(), verbose = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel())
+    )
 
     # Test that the linear verbosity is passed to the linear solve
     f(u, p) = [u[1]^2 - 2u[1] + 1, sum(u)]
     prob = NonlinearProblem(f, [1.0, 1.0])
 
-    @test_logs (:warn,
-        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
-        prob,
-        verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed()))
-
-    @test_logs (:info,
-        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
-        prob,
-        verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = SciMLLogging.InfoLevel())))
-
-    @test_logs min_level=0 solve(
-        prob,
-        verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Standard()))
-
-    @test_logs (:warn,
-        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.") match_mode=:any solve(
+    @test_logs (
+        :warn,
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.",
+    ) match_mode = :any solve(
         prob,
         verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed())
     )
 
-    @test_logs min_level=0 solve(prob,
-        verbose = NonlinearVerbosity(SciMLLogging.None()))
+    @test_logs (
+        :info,
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.",
+    ) match_mode = :any solve(
+        prob,
+        verbose = NonlinearVerbosity(linear_verbosity = LinearVerbosity(default_lu_fallback = SciMLLogging.InfoLevel()))
+    )
 
-    @test_logs min_level=0 solve(prob,
-        verbose = false)
+    @test_logs min_level = 0 solve(
+        prob,
+        verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Standard())
+    )
+
+    @test_logs (
+        :warn,
+        r"LU factorization failed, falling back to QR factorization. `A` is potentially rank-deficient.",
+    ) match_mode = :any solve(
+        prob,
+        verbose = NonlinearVerbosity(linear_verbosity = SciMLLogging.Detailed())
+    )
+
+    @test_logs min_level = 0 solve(
+        prob,
+        verbose = NonlinearVerbosity(SciMLLogging.None())
+    )
+
+    @test_logs min_level = 0 solve(
+        prob,
+        verbose = false
+    )
 
     # Test that caches get correct verbosities
     cache = init(
-        prob, verbose = NonlinearVerbosity(threshold_state = SciMLLogging.InfoLevel()))
+        prob, verbose = NonlinearVerbosity(threshold_state = SciMLLogging.InfoLevel())
+    )
 
     @test cache.verbose.threshold_state == SciMLLogging.InfoLevel()
 
@@ -139,7 +159,7 @@
         @test sol1.retcode == ReturnCode.Success
 
         # Test verbose = false silences all output
-        @test_logs min_level=0 sol2=solve(prob, verbose = false)
+        @test_logs min_level = 0 sol2 = solve(prob, verbose = false)
     end
 
     @testset "solve with Preset verbose" begin
@@ -148,7 +168,7 @@
         @test sol1.retcode == ReturnCode.Success
 
         # Test verbose = SciMLLogging.None() silences output
-        @test_logs min_level=0 sol2=solve(prob, verbose = SciMLLogging.None())
+        @test_logs min_level = 0 sol2 = solve(prob, verbose = SciMLLogging.None())
 
         # Test verbose = SciMLLogging.Detailed() works
         sol3 = solve(prob, verbose = SciMLLogging.Detailed())
@@ -206,6 +226,6 @@
     @testset "init then solve with converted verbose" begin
         # Ensure the converted verbose works through the full solve pipeline
         cache = init(prob, verbose = false)
-        @test_logs min_level=0 sol=solve!(cache)
+        @test_logs min_level = 0 sol = solve!(cache)
     end
 end

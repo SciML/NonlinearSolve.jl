@@ -1,19 +1,21 @@
 struct NonlinearSolveDefaultInit <: SciMLBase.DAEInitializationAlgorithm end
 
 function run_initialization!(cache, initializealg = cache.initializealg, prob = cache.prob)
-    _run_initialization!(cache, initializealg, prob, SciMLBase.isinplace(cache))
+    return _run_initialization!(cache, initializealg, prob, SciMLBase.isinplace(cache))
 end
 
 function _run_initialization!(cache, ::NonlinearSolveDefaultInit, prob, isinplace::Bool)
     if SciMLBase.has_initialization_data(prob.f) &&
-       prob.f.initialization_data isa SciMLBase.OverrideInitData
+            prob.f.initialization_data isa SciMLBase.OverrideInitData
         return _run_initialization!(cache, SciMLBase.OverrideInit(), prob, isinplace)
     end
     return cache, true
 end
 
-function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
-        isinplace::Bool)
+function _run_initialization!(
+        cache, initalg::SciMLBase.OverrideInit, prob,
+        isinplace::Bool
+    )
     if cache isa AbstractNonlinearSolveCache && isdefined(cache.alg, :autodiff)
         autodiff = cache.alg.autodiff
     else
@@ -25,7 +27,8 @@ function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
     end
     u0, p, success = SciMLBase.get_initial_values(
         prob, cache, prob.f, initalg, Val(isinplace); nlsolve_alg = alg,
-        abstol = get_abstol(cache), reltol = get_reltol(cache))
+        abstol = get_abstol(cache), reltol = get_reltol(cache)
+    )
     cache = update_initial_values!(cache, u0, p)
     if cache isa AbstractNonlinearSolveCache && isdefined(cache, :retcode) && !success
         cache.retcode = ReturnCode.InitialFailure
@@ -35,10 +38,10 @@ function _run_initialization!(cache, initalg::SciMLBase.OverrideInit, prob,
 end
 
 function get_abstol(prob::AbstractNonlinearProblem)
-    get_tolerance(get(prob.kwargs, :abstol, nothing), eltype(SII.state_values(prob)))
+    return get_tolerance(get(prob.kwargs, :abstol, nothing), eltype(SII.state_values(prob)))
 end
 function get_reltol(prob::AbstractNonlinearProblem)
-    get_tolerance(get(prob.kwargs, :reltol, nothing), eltype(SII.state_values(prob)))
+    return get_tolerance(get(prob.kwargs, :reltol, nothing), eltype(SII.state_values(prob)))
 end
 
 initialization_alg(initprob, autodiff) = nothing
@@ -54,6 +57,7 @@ function update_initial_values!(prob::AbstractNonlinearProblem, u0, p)
 end
 
 function _run_initialization!(
-        cache::AbstractNonlinearSolveCache, ::SciMLBase.NoInit, prob, isinplace)
+        cache::AbstractNonlinearSolveCache, ::SciMLBase.NoInit, prob, isinplace
+    )
     return cache, true
 end

@@ -11,8 +11,10 @@ module NonlinearSolveBaseEnzymeExt
             config::Enzyme.EnzymeRules.RevConfigWidth{1},
             func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{Duplicated{RT}}, prob,
             sensealg::Union{
-                Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm}},
-            u0, p, args...; kwargs...) where {RT}
+                Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
+            },
+            u0, p, args...; kwargs...
+        ) where {RT}
         @inline function copy_or_reuse(val, idx)
             if Enzyme.EnzymeRules.overwritten(config)[idx] && ismutable(val)
                 return deepcopy(val)
@@ -29,18 +31,22 @@ module NonlinearSolveBaseEnzymeExt
             copy_or_reuse(prob.val, 2), copy_or_reuse(sensealg.val, 3),
             copy_or_reuse(u0.val, 4), copy_or_reuse(p.val, 5),
             SciMLBase.EnzymeOriginator(), ntuple(arg_copy, Val(length(args)))...;
-            kwargs...)
+            kwargs...
+        )
 
         dres = Enzyme.make_zero(res[1])::RT
         tup = (dres, res[2])
         return Enzyme.EnzymeRules.AugmentedReturn{RT, RT, Any}(res[1], dres, tup::Any)
     end
 
-    function Enzyme.EnzymeRules.reverse(config::Enzyme.EnzymeRules.RevConfigWidth{1},
+    function Enzyme.EnzymeRules.reverse(
+            config::Enzyme.EnzymeRules.RevConfigWidth{1},
             func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{Duplicated{RT}}, tape, prob,
             sensealg::Union{
-                Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm}},
-            u0, p, args...; kwargs...) where {RT}
+                Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
+            },
+            u0, p, args...; kwargs...
+        ) where {RT}
         dres, clos = tape
         dres = dres::RT
         dargs = clos(dres)

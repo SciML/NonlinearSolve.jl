@@ -1,44 +1,44 @@
-@testitem "Simple Scalar Problem" tags=[:wrappers] begin
+@testitem "Simple Scalar Problem" tags = [:wrappers] begin
     import SpeedMapping, SIAMFANLEquations, NLsolve, FixedPointAcceleration
 
     f1(x, p) = cos(x) - x
     prob = NonlinearProblem(f1, 1.1)
 
     for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
-        @test abs(solve(prob, FixedPointAccelerationJL(; algorithm = alg)).resid) ≤ 1e-10
+        @test abs(solve(prob, FixedPointAccelerationJL(; algorithm = alg)).resid) ≤ 1.0e-10
     end
 
-    @test abs(solve(prob, SpeedMappingJL()).resid) ≤ 1e-10
-    @test abs(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid) ≤ 1e-10
-    @test abs(solve(prob, SpeedMappingJL(; stabilize = true)).resid) ≤ 1e-10
+    @test abs(solve(prob, SpeedMappingJL()).resid) ≤ 1.0e-10
+    @test abs(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid) ≤ 1.0e-10
+    @test abs(solve(prob, SpeedMappingJL(; stabilize = true)).resid) ≤ 1.0e-10
 
-    @test abs(solve(prob, NLsolveJL(; method = :anderson)).resid) ≤ 1e-10
-    @test abs(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid) ≤ 1e-10
+    @test abs(solve(prob, NLsolveJL(; method = :anderson)).resid) ≤ 1.0e-10
+    @test abs(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid) ≤ 1.0e-10
 end
 
 # Simple Vector Problem
-@testitem "Simple Vector Problem" tags=[:wrappers] begin
+@testitem "Simple Vector Problem" tags = [:wrappers] begin
     import SpeedMapping, SIAMFANLEquations, NLsolve, FixedPointAcceleration
 
     f2(x, p) = cos.(x) .- x
     prob = NonlinearProblem(f2, [1.1, 1.1])
 
     for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
-        @test maximum(abs.(solve(prob, FixedPointAccelerationJL()).resid)) ≤ 1e-10
+        @test maximum(abs.(solve(prob, FixedPointAccelerationJL()).resid)) ≤ 1.0e-10
     end
 
-    @test maximum(abs.(solve(prob, SpeedMappingJL()).resid)) ≤ 1e-10
-    @test maximum(abs.(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid)) ≤ 1e-10
-    @test maximum(abs.(solve(prob, SpeedMappingJL(; stabilize = true)).resid)) ≤ 1e-10
+    @test maximum(abs.(solve(prob, SpeedMappingJL()).resid)) ≤ 1.0e-10
+    @test maximum(abs.(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid)) ≤ 1.0e-10
+    @test maximum(abs.(solve(prob, SpeedMappingJL(; stabilize = true)).resid)) ≤ 1.0e-10
     @test maximum(abs.(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid)) ≤
-          1e-10
+        1.0e-10
 
-    @test_broken maximum(abs.(solve(prob, NLsolveJL(; method = :anderson)).resid)) ≤ 1e-10
+    @test_broken maximum(abs.(solve(prob, NLsolveJL(; method = :anderson)).resid)) ≤ 1.0e-10
 end
 
 # Fixed Point for Power Method
 # Taken from https://github.com/NicolasL-S/SpeedMapping.jl/blob/95951db8f8a4457093090e18802ad382db1c76da/test/runtests.jl
-@testitem "Power Method" tags=[:wrappers] begin
+@testitem "Power Method" tags = [:wrappers] begin
     using LinearAlgebra
     import SpeedMapping, SIAMFANLEquations, NLsolve, FixedPointAcceleration
 

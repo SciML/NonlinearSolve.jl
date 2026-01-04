@@ -62,7 +62,7 @@ function SciMLBase.__solve(
         alg::SimpleTrustRegion, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -95,19 +95,19 @@ function SciMLBase.__solve(
     max_shrink_times = alg.max_shrink_times
 
     autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+        NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
 
     fx = NLBUtils.evaluate_f(prob, x)
     norm_fx = L2_NORM(fx)
 
     @bb xo = copy(x)
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               NLBUtils.safe_similar(fx) : fx
+        NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -158,13 +158,14 @@ function SciMLBase.__solve(
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded)
+                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded
+            )
         end
 
         if r ≥ η₁
             # Termination Checks
             solved, retcode, fx_sol,
-            x_sol = Utils.check_termination(
+                x_sol = Utils.check_termination(
                 tc_cache, fx, x, xo, prob
             )
             solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
@@ -197,7 +198,7 @@ function SciMLBase.__solve(
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
 
-function dogleg_method!!(cache, J, f::F, g, Δ) where F
+function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step

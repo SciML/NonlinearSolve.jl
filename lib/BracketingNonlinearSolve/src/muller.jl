@@ -27,8 +27,10 @@ end
 
 Muller() = Muller(nothing)
 
-function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
-        abstol = nothing, maxiters = 1000, kwargs...)
+function SciMLBase.__solve(
+        prob::IntervalNonlinearProblem, alg::Muller, args...;
+        abstol = nothing, maxiters = 1000, kwargs...
+    )
     @assert !SciMLBase.isinplace(prob) "`Muller` only supports out-of-place problems."
     xᵢ₋₂, xᵢ = prob.tspan
     xᵢ₋₁ = isnothing(alg.middle) ? (xᵢ₋₂ + xᵢ) / 2 : alg.middle
@@ -39,8 +41,11 @@ function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
 
     xᵢ₊₁, fxᵢ₊₁ = xᵢ₋₂, fxᵢ₋₂
 
-    abstol = abs(NonlinearSolveBase.get_tolerance(
-        xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ))))
+    abstol = abs(
+        NonlinearSolveBase.get_tolerance(
+            xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ))
+        )
+    )
 
     for _ in 1:maxiters
         q = (xᵢ - xᵢ₋₁) / (xᵢ₋₁ - xᵢ₋₂)
@@ -61,16 +66,20 @@ function SciMLBase.__solve(prob::IntervalNonlinearProblem, alg::Muller, args...;
 
         # Termination Check
         if abstol ≥ abs(fxᵢ₊₁)
-            return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
+            return SciMLBase.build_solution(
+                prob, alg, xᵢ₊₁, fxᵢ₊₁;
                 retcode = ReturnCode.Success,
-                left = xᵢ₊₁, right = xᵢ₊₁)
+                left = xᵢ₊₁, right = xᵢ₊₁
+            )
         end
 
         xᵢ₋₂, xᵢ₋₁, xᵢ = xᵢ₋₁, xᵢ, xᵢ₊₁
         fxᵢ₋₂, fxᵢ₋₁, fxᵢ = fxᵢ₋₁, fxᵢ, fxᵢ₊₁
     end
 
-    return SciMLBase.build_solution(prob, alg, xᵢ₊₁, fxᵢ₊₁;
+    return SciMLBase.build_solution(
+        prob, alg, xᵢ₊₁, fxᵢ₊₁;
         retcode = ReturnCode.MaxIters,
-        left = xᵢ₊₁, right = xᵢ₊₁)
+        left = xᵢ₊₁, right = xᵢ₊₁
+    )
 end

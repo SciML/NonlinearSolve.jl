@@ -23,16 +23,20 @@ end
 function Base.convert(::Type{AbstractArray}, A::Pinv)
     hasmethod(pinv, Tuple{typeof(A.J)}) && return pinv(A.J)
     @warn lazy"`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
-           tracing." maxlog=1
+           tracing." maxlog = 1
     return A.J
 end
 
-function nonallocating_isapprox(x::Number, y::Number; atol = false,
-        rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y)))))
+function nonallocating_isapprox(
+        x::Number, y::Number; atol = false,
+        rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y))))
+    )
     return isapprox(x, y; atol, rtol)
 end
-function nonallocating_isapprox(x::AbstractArray, y::AbstractArray; atol = false,
-        rtol = atol > 0 ? false : sqrt(eps(eltype(x))))
+function nonallocating_isapprox(
+        x::AbstractArray, y::AbstractArray; atol = false,
+        rtol = atol > 0 ? false : sqrt(eps(eltype(x)))
+    )
     length(x) == length(y) || return false
     d = nonallocating_maximum(-, x, y)
     return d ≤ max(atol, rtol * max(maximum(abs, x), maximum(abs, y)))
@@ -40,18 +44,22 @@ end
 
 function nonallocating_maximum(f::F, x, y) where {F}
     if fast_scalar_indexing(x, y)
-        return maximum(@closure((xᵢyᵢ)->begin
-                xᵢ, yᵢ = xᵢyᵢ
-                return abs(f(xᵢ, yᵢ))
-            end), zip(x, y))
+        return maximum(
+            @closure(
+                (xᵢyᵢ) -> begin
+                    xᵢ, yᵢ = xᵢyᵢ
+                    return abs(f(xᵢ, yᵢ))
+                end
+            ), zip(x, y)
+        )
     else
-        return mapreduce(@closure((xᵢ, yᵢ)->abs(f(xᵢ, yᵢ))), max, x, y)
+        return mapreduce(@closure((xᵢ, yᵢ) -> abs(f(xᵢ, yᵢ))), max, x, y)
     end
 end
 
 function abs2_and_sum(x, y)
     return reduce(Base.add_sum, x, init = zero(real(value(eltype(x))))) +
-           reduce(Base.add_sum, y, init = zero(real(value(eltype(y)))))
+        reduce(Base.add_sum, y, init = zero(real(value(eltype(y)))))
 end
 
 children(x::AbstractVectorOfArray) = x.u
@@ -72,12 +80,18 @@ standardize_norm(f::F) where {F} = f
 norm_op(norm::N, op::OP, x, y) where {N, OP} = norm(op.(x, y))
 function norm_op(::typeof(L2_NORM), op::OP, x, y) where {OP}
     if fast_scalar_indexing(x, y)
-        return sqrt(sum(@closure((xᵢyᵢ)->begin
-                xᵢ, yᵢ = xᵢyᵢ
-                return op(xᵢ, yᵢ)^2
-            end), zip(x, y)))
+        return sqrt(
+            sum(
+                @closure(
+                    (xᵢyᵢ) -> begin
+                        xᵢ, yᵢ = xᵢyᵢ
+                        return op(xᵢ, yᵢ)^2
+                    end
+                ), zip(x, y)
+            )
+        )
     else
-        return sqrt(mapreduce(@closure((xᵢ, yᵢ)->op(xᵢ, yᵢ)^2), +, x, y))
+        return sqrt(mapreduce(@closure((xᵢ, yᵢ) -> op(xᵢ, yᵢ)^2), +, x, y))
     end
 end
 function norm_op(::typeof(Linf_NORM), op::OP, x, y) where {OP}
@@ -93,8 +107,8 @@ convert_real(::Type{T}, x) where {T} = real(T(x))
 restructure(::Number, x::Number) = x
 function restructure(
         y::T1, x::T2
-) where {T1 <: AbstractSciMLOperator, T2 <: AbstractSciMLOperator}
-    @assert size(y)==size(x) "cannot restructure operators. ensure their sizes match."
+    ) where {T1 <: AbstractSciMLOperator, T2 <: AbstractSciMLOperator}
+    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
     return x
 end
 restructure(y, x) = ArrayInterface.restructure(y, x)
@@ -170,7 +184,7 @@ end
 function evaluate_f(prob::AbstractNonlinearProblem, u)
     if SciMLBase.isinplace(prob)
         fu = prob.f.resid_prototype === nothing ? similar(u) :
-             similar(prob.f.resid_prototype)
+            similar(prob.f.resid_prototype)
         prob.f(fu, u, prob.p)
     else
         fu = prob.f(u, prob.p)
@@ -180,7 +194,7 @@ end
 
 function evaluate_f!(cache, u, p)
     cache.stats.nf += 1
-    if SciMLBase.isinplace(cache)
+    return if SciMLBase.isinplace(cache)
         cache.prob.f(NonlinearSolveBase.get_fu(cache), u, p)
     else
         NonlinearSolveBase.set_fu!(cache, cache.prob.f(u, p))
@@ -237,7 +251,7 @@ function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
 end
 function initial_jacobian_scaling_alpha(::Nothing, u, fu, internalnorm::F) where {F}
     fu_norm = internalnorm(fu)
-    fu_norm < 1e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
+    fu_norm < 1.0e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
     return (2 * fu_norm) / max(L2_NORM(u), true)
 end
 
@@ -274,7 +288,7 @@ function reinit_common!(cache, u0, p, alias_u0::Bool)
         cache.u = maybe_unaliased(u0, alias_u0)
         NonlinearSolveBase.set_fu!(cache, cache.prob.f(u0, p))
     end
-    cache.p = p
+    return cache.p = p
 end
 
 function clean_sprint_struct(x)

@@ -23,31 +23,39 @@ end
 
 SCCAlg(; nlalg = nothing, linalg = nothing) = SCCAlg(nlalg, linalg)
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem;
-        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
-    CommonSolve.solve(prob, SCCAlg(nothing, nothing); sensealg, u0, p, kwargs...)
+function CommonSolve.solve(
+        prob::SciMLBase.SCCNonlinearProblem;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
+    return CommonSolve.solve(prob, SCCAlg(nothing, nothing); sensealg, u0, p, kwargs...)
 end
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem,
+function CommonSolve.solve(
+        prob::SciMLBase.SCCNonlinearProblem,
         alg::SciMLBase.AbstractNonlinearAlgorithm;
-        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
-    CommonSolve.solve(prob, SCCAlg(alg, nothing); sensealg, u0, p, kwargs...)
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
+    return CommonSolve.solve(prob, SCCAlg(alg, nothing); sensealg, u0, p, kwargs...)
 end
 
-function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg;
-        sensealg = nothing, u0 = nothing, p = nothing, kwargs...)
+function CommonSolve.solve(
+        prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
     # Note: SCCNonlinearProblem does not have a u0 field - each subproblem has its own u0.
     # The u0 parameter here is only used for AD hooks, not for actual solving.
     p = p !== nothing ? p : prob.p
-    scc_solve_up(prob, sensealg, u0, p, alg; kwargs...)
+    return scc_solve_up(prob, sensealg, u0, p, alg; kwargs...)
 end
 
 """
 Internal solve function that can be hooked by ChainRulesCore for AD.
 """
-function scc_solve_up(prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
-        kwargs...)
-    _scc_solve(prob, alg; kwargs...)
+function scc_solve_up(
+        prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
+        kwargs...
+    )
+    return _scc_solve(prob, alg; kwargs...)
 end
 
 probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
@@ -57,7 +65,8 @@ iteratively_build_sols(alg, sols; kwargs...) = sols
 
 function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs...)
     explicitfun(
-        SymbolicIndexingInterface.parameter_values(prob), sols)
+        SymbolicIndexingInterface.parameter_values(prob), sols
+    )
 
     _sol = if prob isa SciMLBase.LinearProblem
         A = prob.A
@@ -68,14 +77,16 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode)
+            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode
+        )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
         SciMLBase.build_solution(
-            prob, nothing, sol.u, sol.resid, retcode = sol.retcode)
+            prob, nothing, sol.u, sol.resid, retcode = sol.retcode
+        )
     end
 
-    iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)
+    return iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)
 end
 
 """
@@ -85,7 +96,8 @@ This is called by scc_solve_up and should NOT be hooked by ChainRulesCore.
 function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     numscc = length(prob.probs)
     sols = iteratively_build_sols(
-        alg, (), zip(prob.probs, prob.explicitfuns!)...; kwargs...)
+        alg, (), zip(prob.probs, prob.explicitfuns!)...; kwargs...
+    )
 
     # TODO: fix allocations with a lazy concatenation
     u = reduce(vcat, sols)
@@ -98,7 +110,7 @@ function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
         SciMLBase.ReturnCode.Success
     end
 
-    SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
+    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
 end
 
 export scc_solve_up

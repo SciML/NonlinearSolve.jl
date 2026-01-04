@@ -1,4 +1,4 @@
-@testitem "SciPyLeastSquares" tags=[:wrappers] begin
+@testitem "SciPyLeastSquares" tags = [:wrappers] begin
     using SciMLBase, NonlinearSolveSciPy
     success = false
     try
@@ -18,8 +18,11 @@
         prob = NonlinearLeastSquaresProblem(residuals, x0_ls)
         sol = solve(prob, SciPyLeastSquaresTRF())
         @test SciMLBase.successful_retcode(sol)
-        prob_bounded = NonlinearLeastSquaresProblem(residuals, x0_ls; lb = [0.0, -2.0], ub = [
-            5.0, 3.0])
+        prob_bounded = NonlinearLeastSquaresProblem(
+            residuals, x0_ls; lb = [0.0, -2.0], ub = [
+                5.0, 3.0,
+            ]
+        )
         sol2 = solve(prob_bounded, SciPyLeastSquares(method = "trf"))
         @test SciMLBase.successful_retcode(sol2)
     else
@@ -27,7 +30,7 @@
     end
 end
 
-@testitem "SciPyRoot + SciPyRootScalar" tags=[:wrappers] begin
+@testitem "SciPyRoot + SciPyRootScalar" tags = [:wrappers] begin
     using SciMLBase, NonlinearSolveSciPy
     success = false
     try
@@ -43,13 +46,13 @@ end
         prob_vec = NonlinearProblem(fvec, zeros(2))
         sol_vec = solve(prob_vec, SciPyRoot())
         @test SciMLBase.successful_retcode(sol_vec)
-        @test maximum(abs, sol_vec.resid) < 1e-6
+        @test maximum(abs, sol_vec.resid) < 1.0e-6
 
         fscalar(x, p) = x^2 - 2
         prob_interval = IntervalNonlinearProblem(fscalar, (1.0, 2.0))
         sol_scalar = solve(prob_interval, SciPyRootScalar())
         @test SciMLBase.successful_retcode(sol_scalar)
-        @test abs(sol_scalar.u - sqrt(2)) < 1e-6
+        @test abs(sol_scalar.u - sqrt(2)) < 1.0e-6
     else
         @test true
     end

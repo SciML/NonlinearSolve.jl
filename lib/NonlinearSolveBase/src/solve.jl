@@ -44,8 +44,10 @@ problems.
     For more information, see the documentation for SciMLSensitivity:
     https://docs.sciml.ai/SciMLSensitivity/stable/
 """
-function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, wrap = Val(true), verbose = NonlinearVerbosity(), kwargs...)
+function solve(
+        prob::AbstractNonlinearProblem, args...; sensealg = nothing,
+        u0 = nothing, p = nothing, wrap = Val(true), verbose = NonlinearVerbosity(), kwargs...
+    )
     if sensealg === nothing && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
@@ -83,18 +85,23 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
     u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
-    if wrap isa Val{true}
-        wrap_sol(solve_up(prob,
-            sensealg,
-            u0,
-            p,
-            args...;
-            alias = alias_spec,
-            originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
-            verbose,
-            kwargs...))
+    return if wrap isa Val{true}
+        wrap_sol(
+            solve_up(
+                prob,
+                sensealg,
+                u0,
+                p,
+                args...;
+                alias = alias_spec,
+                originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
+                verbose,
+                kwargs...
+            )
+        )
     else
-        solve_up(prob,
+        solve_up(
+            prob,
             sensealg,
             u0,
             p,
@@ -102,15 +109,18 @@ function solve(prob::AbstractNonlinearProblem, args...; sensealg = nothing,
             alias = alias_spec,
             originator = SciMLBase.set_mooncakeoriginator_if_mooncake(SciMLBase.ChainRulesOriginator()),
             verbose,
-            kwargs...)
+            kwargs...
+        )
     end
 end
 
-function solve_up(prob::AbstractNonlinearProblem, sensealg, u0, p,
+function solve_up(
+        prob::AbstractNonlinearProblem, sensealg, u0, p,
         args...; originator = SciMLBase.ChainRulesOriginator(),
-        kwargs...)
+        kwargs...
+    )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
-    if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
+    return if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
         _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         solve_call(_prob, args...; kwargs...)
     else
@@ -124,11 +134,13 @@ function solve_up(prob::AbstractNonlinearProblem, sensealg, u0, p,
     end
 end
 
-function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothing,
-        kwargs...)
+function solve_call(
+        _prob, args...; merge_callbacks = true, kwargshandle = nothing,
+        kwargs...
+    )
     kwargshandle = kwargshandle === nothing ? KeywordArgError : kwargshandle
     kwargshandle = has_kwargs(_prob) && haskey(_prob.kwargs, :kwargshandle) ?
-                   _prob.kwargs[:kwargshandle] : kwargshandle
+        _prob.kwargs[:kwargshandle] : kwargshandle
 
     if has_kwargs(_prob)
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
@@ -138,9 +150,9 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
 
     # Check bounds support for problems with bounds
     if (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
-       (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
-       (_prob.lb !== nothing || _prob.ub !== nothing) &&
-       length(args) > 0 && !SciMLBase.allowsbounds(args[1])
+            (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
+            (_prob.lb !== nothing || _prob.ub !== nothing) &&
+            length(args) > 0 && !SciMLBase.allowsbounds(args[1])
         error("Algorithm $(args[1]) does not support bounds. Use an algorithm with allowsbounds(alg) == true.")
     end
 
@@ -160,25 +172,30 @@ function solve_call(_prob, args...; merge_callbacks = true, kwargshandle = nothi
         end
     end
 
-    if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
-       _prob.f.f isa EvalFunc
-        Base.invokelatest(__solve, _prob, args...; kwargs...)#::T
+    return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
+            _prob.f.f isa EvalFunc
+        Base.invokelatest(__solve, _prob, args...; kwargs...) #::T
     else
-        __solve(_prob, args...; kwargs...)#::T
+        __solve(_prob, args...; kwargs...) #::T
     end
 end
 
-function solve_call(prob::SteadyStateProblem,
+function solve_call(
+        prob::SteadyStateProblem,
         alg::AbstractNonlinearAlgorithm, args...;
-        kwargs...)
-    solve_call(NonlinearProblem(prob),
+        kwargs...
+    )
+    return solve_call(
+        NonlinearProblem(prob),
         alg, args...;
-        kwargs...)
+        kwargs...
+    )
 end
 
 function init(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
-        u0 = nothing, p = nothing, verbose = NonlinearVerbosity(), kwargs...)
+        u0 = nothing, p = nothing, verbose = NonlinearVerbosity(), kwargs...
+    )
     if sensealg === nothing && has_kwargs(prob) && haskey(prob.kwargs, :sensealg)
         sensealg = prob.kwargs[:sensealg]
     end
@@ -216,13 +233,15 @@ function init(
     u0 = u0 !== nothing ? u0 : prob.u0
     p = p !== nothing ? p : prob.p
 
-    init_up(prob, sensealg, u0, p, args...; alias = alias_spec, verbose, kwargs...)
+    return init_up(prob, sensealg, u0, p, args...; alias = alias_spec, verbose, kwargs...)
 end
 
-function init_up(prob::AbstractNonlinearProblem,
-        sensealg, u0, p, args...; kwargs...)
+function init_up(
+        prob::AbstractNonlinearProblem,
+        sensealg, u0, p, args...; kwargs...
+    )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
-    if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
+    return if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
         _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
@@ -231,7 +250,7 @@ function init_up(prob::AbstractNonlinearProblem,
             tstops = get(prob.kwargs, :tstops, nothing)
         end
         if !(tstops isa Union{Nothing, AbstractArray, Tuple, Real}) &&
-           !SciMLBase.allows_late_binding_tstops(alg)
+                !SciMLBase.allows_late_binding_tstops(alg)
             throw(LateBindingTstopsNotSupportedError())
         end
         _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
@@ -244,26 +263,29 @@ function init_up(prob::AbstractNonlinearProblem,
     end
 end
 
-function init_call(_prob, args...; merge_callbacks=true, kwargshandle=nothing,
-    kwargs...)
+function init_call(
+        _prob, args...; merge_callbacks = true, kwargshandle = nothing,
+        kwargs...
+    )
     kwargshandle = kwargshandle === nothing ? KeywordArgError : kwargshandle
     kwargshandle = has_kwargs(_prob) && haskey(_prob.kwargs, :kwargshandle) ?
-                   _prob.kwargs[:kwargshandle] : kwargshandle
+        _prob.kwargs[:kwargshandle] : kwargshandle
     if has_kwargs(_prob)
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
     checkkwargs(kwargshandle; kwargs...)
-    if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
-           _prob.f.f isa EvalFunc
-        Base.invokelatest(__init, _prob, args...; kwargs...)#::T
+    return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
+            _prob.f.f isa EvalFunc
+        Base.invokelatest(__init, _prob, args...; kwargs...) #::T
     else
-        __init(_prob, args...; kwargs...)#::T
+        __init(_prob, args...; kwargs...) #::T
     end
 end
 
 function SciMLBase.__solve(
-        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...)
+        prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...
+    )
     cache = SciMLBase.__init(prob, alg, args...; kwargs...)
     sol = CommonSolve.solve!(cache)
 
@@ -303,15 +325,18 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
 end
 
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
-    calls = [quote
-        1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
-    end]
+    calls = [
+        quote
+            1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
+        end,
+    ]
 
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
 
-    push!(calls,
+    push!(
+        calls,
         quote
             if cache.retcode == ReturnCode.InitialFailure
                 u = $(SII.state_values)(cache)
@@ -320,10 +345,12 @@ end
                     retcode = cache.retcode
                 )
             end
-        end)
+        end
+    )
 
     for i in 1:N
-        push!(calls,
+        push!(
+            calls,
             quote
                 $(cache_syms[i]) = cache.caches[$(i)]
                 if $(i) == cache.current
@@ -349,27 +376,33 @@ end
                     end
                     cache.current = $(i + 1)
                 end
-            end)
+            end
+        )
     end
 
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
     for (sym, resid) in zip(cache_syms, resids)
         push!(calls, :($(resid) = @isdefined($(sym)) ? $(sym).resid : nothing))
     end
-    push!(calls, quote
-        fus = tuple($(Tuple(resids)...))
-        minfu, idx = findmin_caches(cache.prob, fus)
-    end)
+    push!(
+        calls, quote
+            fus = tuple($(Tuple(resids)...))
+            minfu, idx = findmin_caches(cache.prob, fus)
+        end
+    )
     for i in 1:N
-        push!(calls,
+        push!(
+            calls,
             quote
                 if idx == $(i)
                     u = cache.alias_u0 ? $(u_result_syms[i]) :
                         NonlinearSolveBase.get_u(cache.caches[$(i)])
                 end
-            end)
+            end
+        )
     end
-    push!(calls,
+    push!(
+        calls,
         quote
             retcode = cache.caches[idx].retcode
             if cache.alias_u0
@@ -380,21 +413,24 @@ end
                 cache.prob, cache.alg, u, fus[idx];
                 retcode, cache.stats, cache.caches[idx].trace
             )
-        end)
+        end
+    )
 
     return Expr(:block, calls...)
 end
 
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm,
-        args...; kwargs...)
-    __generated_polysolve(prob, alg, args...; kwargs...)
+        args...; kwargs...
+    )
+    return __generated_polysolve(prob, alg, args...; kwargs...)
 end
 
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, args...; default_set = false, second_time = false,
-        kwargs...)
-    if second_time
+        kwargs...
+    )
+    return if second_time
         throw(NoDefaultAlgorithmError())
     elseif length(args) > 0 && !(first(args) isa AbstractNonlinearAlgorithm)
         throw(NonSolverError())
@@ -403,12 +439,16 @@ function SciMLBase.__solve(
     end
 end
 
-function __init(prob::AbstractNonlinearProblem, args...; default_set = false, second_time = false,
-        kwargs...)
-    if second_time
+function __init(
+        prob::AbstractNonlinearProblem, args...; default_set = false, second_time = false,
+        kwargs...
+    )
+    return if second_time
         throw(NoDefaultAlgorithmError())
-    elseif length(args) > 0 && !(first(args) isa
-             Union{Nothing, AbstractDEAlgorithm, AbstractNonlinearAlgorithm})
+    elseif length(args) > 0 && !(
+            first(args) isa
+                Union{Nothing, AbstractDEAlgorithm, AbstractNonlinearAlgorithm}
+        )
         throw(NonSolverError())
     else
         __init(prob, nothing, args...; default_set = false, second_time = true, kwargs...)
@@ -419,7 +459,7 @@ end
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias = NonlinearAliasSpecifier(alias_u0 = false), verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
-) where {N}
+    ) where {N}
 
     if verbose isa Bool
         if verbose
@@ -430,38 +470,46 @@ end
     elseif verbose isa AbstractVerbosityPreset
         verbose = NonlinearVerbosity(verbose)
     end
-    
+
     sol_syms = [gensym("sol") for _ in 1:N]
     prob_syms = [gensym("prob") for _ in 1:N]
     u_result_syms = [gensym("u_result") for _ in 1:N]
-    calls = [quote
-        alias_u0 = alias.alias_u0
-        current = alg.start_index
-        if alias_u0 && !ArrayInterface.ismutable(prob.u0)
-            @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
+    calls = [
+        quote
+            alias_u0 = alias.alias_u0
+            current = alg.start_index
+            if alias_u0 && !ArrayInterface.ismutable(prob.u0)
+                @SciMLMessage("`alias_u0` has been set to `true`, but `u0` is
             immutable (checked using `ArrayInterface.ismutable``).", verbose, :alias_u0_immutable)
-            alias_u0 = false  # If immutable don't care about aliasing
-        end
-    end]
+                alias_u0 = false  # If immutable don't care about aliasing
+            end
+        end,
+    ]
 
-    push!(calls,
+    push!(
+        calls,
         quote
             prob, success = $(run_initialization!)(prob, initializealg, prob)
             if !success
                 u = $(SII.state_values)(prob)
                 return build_solution_less_specialize(
                     prob, alg, u, $(Utils.evaluate_f)(prob, u);
-                    retcode = $(ReturnCode.InitialFailure))
+                    retcode = $(ReturnCode.InitialFailure)
+                )
             end
-        end)
+        end
+    )
 
-    push!(calls, quote
-        u0 = prob.u0
-        u0_aliased = alias_u0 ? zero(u0) : u0
-    end)
+    push!(
+        calls, quote
+            u0 = prob.u0
+            u0_aliased = alias_u0 ? zero(u0) : u0
+        end
+    )
     for i in 1:N
         cur_sol = sol_syms[i]
-        push!(calls,
+        push!(
+            calls,
             quote
                 if current == $(i)
                     if alias_u0
@@ -475,7 +523,7 @@ end
                         stats, alias_u0, verbose, kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
-                       $(cur_sol).retcode !== ReturnCode.StalledSuccess
+                            $(cur_sol).retcode !== ReturnCode.StalledSuccess
                         if alias_u0
                             copyto!(u0, $(cur_sol).u)
                             $(u_result_syms[i]) = u0
@@ -493,7 +541,8 @@ end
                     end
                     current = $(i + 1)
                 end
-            end)
+            end
+        )
     end
 
     resids = map(Base.Fix2(Symbol, :resid), sol_syms)
@@ -501,13 +550,16 @@ end
         push!(calls, :($(resid) = @isdefined($(sym)) ? $(sym).resid : nothing))
     end
 
-    push!(calls, quote
-        resids = tuple($(Tuple(resids)...))
-        minfu, idx = findmin_resids(prob, resids)
-    end)
+    push!(
+        calls, quote
+            resids = tuple($(Tuple(resids)...))
+            minfu, idx = findmin_resids(prob, resids)
+        end
+    )
 
     for i in 1:N
-        push!(calls,
+        push!(
+            calls,
             quote
                 if idx == $(i)
                     if alias_u0
@@ -522,7 +574,8 @@ end
                         $(sol_syms[i]).trace, original = $(sol_syms[i])
                     )
                 end
-            end)
+            end
+        )
     end
     push!(calls, :(error("Current choices shouldn't get here!")))
 
@@ -561,7 +614,7 @@ function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs..
         cache.total_time += time() - time_start
 
         if !cache.force_stop && cache.retcode == ReturnCode.Default &&
-           cache.total_time ≥ cache.maxtime
+                cache.total_time ≥ cache.maxtime
             cache.retcode = ReturnCode.MaxTime
             cache.force_stop = true
         end
@@ -588,10 +641,10 @@ end
 end
 
 function get_abstol(cache::NonlinearSolveNoInitCache)
-    get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
+    return get(cache.kwargs, :abstol, get_tolerance(nothing, eltype(cache.prob.u0)))
 end
 function get_reltol(cache::NonlinearSolveNoInitCache)
-    get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
+    return get(cache.kwargs, :reltol, get_tolerance(nothing, eltype(cache.prob.u0)))
 end
 
 SII.parameter_values(cache::NonlinearSolveNoInitCache) = SII.parameter_values(cache.prob)
@@ -605,23 +658,24 @@ get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 
 function SciMLBase.reinit!(
         cache::NonlinearSolveNoInitCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
-)
+    )
     cache.prob = SciMLBase.remake(cache.prob; u0, p)
     cache.kwargs = merge(cache.kwargs, kwargs)
     return cache
 end
 
 function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolveNoInitCache)
-    print(io, "NonlinearSolveNoInitCache(alg = $(cache.alg))")
+    return print(io, "NonlinearSolveNoInitCache(alg = $(cache.alg))")
 end
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...;
         initializealg = NonlinearSolveDefaultInit(), verbose = NonlinearVerbosity(),
         kwargs...
-)
+    )
     cache = NonlinearSolveNoInitCache(
-        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose)
+        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose
+    )
     run_initialization!(cache)
     return cache
 end
@@ -630,13 +684,16 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
     if cache.retcode == ReturnCode.InitialFailure
         u = SII.state_values(cache)
         return SciMLBase.build_solution(
-            cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode)
+            cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
+        )
     end
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
 end
 
-function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
-        kwargs...)
+function _solve_adjoint(
+        prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
+        kwargs...
+    )
     alg = extract_alg(args, kwargs, prob.kwargs)
     _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
@@ -644,16 +701,20 @@ function _solve_adjoint(prob, sensealg, u0, p, originator, args...; merge_callba
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
-    if length(args) > 1
-        _concrete_solve_adjoint(_prob, alg, sensealg, u0, p, originator,
-            Base.tail(args)...; kwargs...)
+    return if length(args) > 1
+        _concrete_solve_adjoint(
+            _prob, alg, sensealg, u0, p, originator,
+            Base.tail(args)...; kwargs...
+        )
     else
         _concrete_solve_adjoint(_prob, alg, sensealg, u0, p, originator; kwargs...)
     end
 end
 
-function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
-        kwargs...)
+function _solve_forward(
+        prob, sensealg, u0, p, originator, args...; merge_callbacks = true,
+        kwargs...
+    )
     alg = extract_alg(args, kwargs, prob.kwargs)
     _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
@@ -661,9 +722,11 @@ function _solve_forward(prob, sensealg, u0, p, originator, args...; merge_callba
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
 
-    if length(args) > 1
-        _concrete_solve_forward(_prob, alg, sensealg, u0, p, originator,
-            Base.tail(args)...; kwargs...)
+    return if length(args) > 1
+        _concrete_solve_forward(
+            _prob, alg, sensealg, u0, p, originator,
+            Base.tail(args)...; kwargs...
+        )
     else
         _concrete_solve_forward(_prob, alg, sensealg, u0, p, originator; kwargs...)
     end
@@ -678,7 +741,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
+    return remake(prob; u0 = u0, p = p)
 end
 
 function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
@@ -690,7 +753,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
+    return remake(prob; u0 = u0, p = p)
 end
 
 function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
@@ -709,7 +772,7 @@ function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, Inf, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    remake(prob; u0 = u0, p = p)
+    return remake(prob; u0 = u0, p = p)
 end
 
 
@@ -738,17 +801,19 @@ function build_null_solution(
         save_everystep = true,
         save_on = true,
         save_start = save_everystep || isempty(saveat) ||
-                         saveat isa Number || prob.tspan[1] in saveat,
+            saveat isa Number || prob.tspan[1] in saveat,
         save_end = true,
-        kwargs...)
+        kwargs...
+    )
     prob, success = hack_null_solution_init(prob)
     retcode = success ? ReturnCode.Success : ReturnCode.InitialFailure
-    SciMLBase.build_solution(prob, nothing, Float64[], nothing; retcode)
+    return SciMLBase.build_solution(prob, nothing, Float64[], nothing; retcode)
 end
 
 function build_null_solution(
         prob::NonlinearLeastSquaresProblem,
-        args...; abstol = 1e-6, kwargs...)
+        args...; abstol = 1.0e-6, kwargs...
+    )
     prob, success = hack_null_solution_init(prob)
     retcode = success ? ReturnCode.Success : ReturnCode.InitialFailure
 
@@ -763,7 +828,7 @@ function build_null_solution(
         retcode = norm(resid) < abstol ? ReturnCode.Success : ReturnCode.Failure
     end
 
-    SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
+    return SciMLBase.build_solution(prob, nothing, Float64[], resid; retcode)
 end
 
 function hack_null_solution_init(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SteadyStateProblem})

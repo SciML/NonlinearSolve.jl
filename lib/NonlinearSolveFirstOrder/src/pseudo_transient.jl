@@ -18,10 +18,10 @@ This implementation specifically uses "switched evolution relaxation"
     you are going to need more iterations to converge but it can be more stable.
 """
 function PseudoTransient(;
-        concrete_jac = nothing, linesearch = missing, alpha_initial = 1e-3,
+        concrete_jac = nothing, linesearch = missing, alpha_initial = 1.0e-3,
         linsolve = nothing,
         autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing
-)
+    )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
         descent = DampedNewtonDescent(;
@@ -55,13 +55,19 @@ Cache for the [`SwitchedEvolutionRelaxation`](@ref) method.
     internalnorm
 end
 
-function NonlinearSolveBase.requires_normal_form_jacobian(::Union{
-        SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache})
+function NonlinearSolveBase.requires_normal_form_jacobian(
+        ::Union{
+            SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache,
+        }
+    )
     return false
 end
 
-function NonlinearSolveBase.requires_normal_form_rhs(::Union{
-        SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache})
+function NonlinearSolveBase.requires_normal_form_rhs(
+        ::Union{
+            SwitchedEvolutionRelaxation, SwitchedEvolutionRelaxationCache,
+        }
+    )
     return false
 end
 
@@ -69,7 +75,7 @@ function InternalAPI.init(
         prob::AbstractNonlinearProblem, f::SwitchedEvolutionRelaxation,
         initial_damping, J, fu, u, args...;
         internalnorm::F = L2_NORM, kwargs...
-) where {F}
+    ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     return SwitchedEvolutionRelaxationCache(
         internalnorm(fu), T(inv(initial_damping)), internalnorm
@@ -80,7 +86,7 @@ end
 
 function InternalAPI.solve!(
         damping::SwitchedEvolutionRelaxationCache, J, fu, args...; kwargs...
-)
+    )
     res_norm = damping.internalnorm(fu)
     damping.α⁻¹ *= res_norm / damping.res_norm
     damping.res_norm = res_norm

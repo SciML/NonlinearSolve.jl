@@ -10,7 +10,7 @@ function ChainRulesCore.rrule(
         ::typeof(bracketingnonlinear_solve_up),
         prob::IntervalNonlinearProblem,
         sensealg, p, alg, args...; kwargs...
-)
+    )
     out = solve(prob, alg)
     u = out.u
     f = unwrapped_f(prob.f)
@@ -24,9 +24,11 @@ function ChainRulesCore.rrule(
         else
             dgdp = -λ * gradient(p -> f(u, p), p)
         end
-        return (NoTangent(), NoTangent(), NoTangent(),
+        return (
+            NoTangent(), NoTangent(), NoTangent(),
             dgdp, NoTangent(),
-            ntuple(_ -> NoTangent(), length(args))...)
+            ntuple(_ -> NoTangent(), length(args))...,
+        )
     end
     return out, ∇bracketingnonlinear_solve_up
 end

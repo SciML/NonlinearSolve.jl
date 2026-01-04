@@ -14,13 +14,13 @@ using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveRes
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,
         reuse_A_if_factorization = false, kwargs...
-)
+    )
     cache.stats.nsolve += 1
 
     update_A!(cache, A, reuse_A_if_factorization)
     b !== nothing && setproperty!(cache.lincache, :b, b)
     linu !== nothing && NonlinearSolveBase.set_lincache_u!(cache, linu)
-    
+
     linres = solve!(cache.lincache)
     if linres.retcode === ReturnCode.Failure
         return LinearSolveResult(; linres.u, success = false)
@@ -53,9 +53,10 @@ function update_A!(cache::LinearSolveJLCache, ::LinearSolve.AbstractFactorizatio
     return cache
 end
 function update_A!(
-        cache::LinearSolveJLCache, alg::LinearSolve.DefaultLinearSolver, A, reuse)
+        cache::LinearSolveJLCache, alg::LinearSolve.DefaultLinearSolver, A, reuse
+    )
     if alg ==
-       LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)
+            LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)
         # Force a reset of the cache. This is not properly handled in LinearSolve.jl
         set_lincache_A!(cache.lincache, A)
         return cache
@@ -68,7 +69,7 @@ end
 
 function set_lincache_A!(lincache, new_A)
     if !LinearSolve.default_alias_A(lincache.alg, new_A, lincache.b) &&
-       ArrayInterface.can_setindex(lincache.A)
+            ArrayInterface.can_setindex(lincache.A)
         copyto!(lincache.A, new_A)
         lincache.A = lincache.A # important!! triggers special code in `setproperty!`
         return
@@ -78,7 +79,7 @@ function set_lincache_A!(lincache, new_A)
 end
 
 function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
-    LinearSolve.update_tolerances!(cache.lincache; kwargs...)
+    return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
 end
 
 end

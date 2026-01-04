@@ -48,13 +48,13 @@ function InternalAPI.init(
         timer = get_timer_output(),
         alias_J::Bool = true, shared::Val = Val(1),
         kwargs...
-)
+    )
     length(fu) != length(u) &&
         @assert pre_inverted isa Val{false} "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-        @bb δu_ = similar(u)
+            @bb δu_ = similar(u)
     end
 
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
@@ -150,7 +150,7 @@ end
 function InternalAPI.solve!(
         cache::DampedNewtonDescentCache, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...
-)
+    )
     δu = SciMLBase.get_du(cache, idx)
     skip_solve && return DescentResult(; δu)
 

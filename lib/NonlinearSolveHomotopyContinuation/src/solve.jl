@@ -5,7 +5,8 @@ Create and return the appropriate `HomotopySystemWrapper` to use for solving the
 `prob` with `alg`.
 """
 function homotopy_continuation_preprocessing(
-        prob::NonlinearProblem, alg::HomotopyContinuationJL)
+        prob::NonlinearProblem, alg::HomotopyContinuationJL
+    )
     # cast to a `HomotopyNonlinearFunction`
     f = if prob.f isa HomotopyNonlinearFunction
         prob.f
@@ -41,7 +42,7 @@ function homotopy_continuation_preprocessing(
     elseif iip
         (
             [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))],
-            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))]
+            [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))],
         )
     else
         [TaylorScalar(ntuple(Returns(0.0), 4)) for _ in 1:(2length(u0))]
@@ -49,13 +50,16 @@ function homotopy_continuation_preprocessing(
 
     # HC-compatible system
     hcsys = HomotopySystemWrapper{variant}(
-        f.f.f, jac, p, vars, taylorvars)
+        f.f.f, jac, p, vars, taylorvars
+    )
 
     return f, hcsys
 end
 
-function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{true};
-        denominator_abstol = 1e-7, kwargs...)
+function CommonSolve.solve(
+        prob::NonlinearProblem, alg::HomotopyContinuationJL{true};
+        denominator_abstol = 1.0e-7, kwargs...
+    )
     f, hcsys = homotopy_continuation_preprocessing(prob, alg)
 
     u0 = state_values(prob)
@@ -107,8 +111,10 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{t
     return SciMLBase.EnsembleSolution(nlsols, 0.0, true, nothing)
 end
 
-function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{false};
-        denominator_abstol = 1e-7, kwargs...)
+function CommonSolve.solve(
+        prob::NonlinearProblem, alg::HomotopyContinuationJL{false};
+        denominator_abstol = 1.0e-7, kwargs...
+    )
     f, hcsys = homotopy_continuation_preprocessing(prob, alg)
 
     u0 = state_values(prob)
@@ -119,7 +125,8 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
 
     homotopy = GuessHomotopy(hcsys, fu0)
     orig_sol = HC.solve(
-        homotopy, u0_p isa Number ? [[u0_p]] : [u0_p]; alg.kwargs..., kwargs...)
+        homotopy, u0_p isa Number ? [[u0_p]] : [u0_p]; alg.kwargs..., kwargs...
+    )
     realsols = map(res -> res.solution, HC.results(orig_sol; only_real = true))
     if u0 isa Number
         realsols = map(only, realsols)
@@ -127,7 +134,7 @@ function CommonSolve.solve(prob::NonlinearProblem, alg::HomotopyContinuationJL{f
 
     # no real solutions or infeasible solution
     if isempty(realsols) ||
-       any(<=(denominator_abstol), map(abs, f.denominator(real.(only(realsols)), p)))
+            any(<=(denominator_abstol), map(abs, f.denominator(real.(only(realsols)), p)))
         retcode = if isempty(realsols)
             SciMLBase.ReturnCode.ConvergenceFailure
         else

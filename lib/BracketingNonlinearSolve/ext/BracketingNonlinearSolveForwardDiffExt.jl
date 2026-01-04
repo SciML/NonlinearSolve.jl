@@ -7,17 +7,19 @@ using SciMLBase: SciMLBase, IntervalNonlinearProblem
 
 using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder
 
-const DualIntervalNonlinearProblem{T,
+const DualIntervalNonlinearProblem{
+    T,
     V,
-    P} = IntervalNonlinearProblem{
-    uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}}
+    P,
+} = IntervalNonlinearProblem{
+    uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {uType, iip}
 
 for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
     @eval function CommonSolve.solve(
             prob::DualIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
-    ) where {T, V, P}
+        ) where {T, V, P}
         sol, partials = nonlinearsolve_forwarddiff_solve(prob, alg, args...; kwargs...)
         dual_soln = nonlinearsolve_dual_solution(sol.u, partials, prob.p)
         return SciMLBase.build_solution(

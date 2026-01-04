@@ -3,8 +3,10 @@ function UNITLESS_ABS2(x::AbstractArray)
     return mapreduce(UNITLESS_ABS2, Utils.abs2_and_sum, x; init = Utils.zero_init(x))
 end
 function UNITLESS_ABS2(x::Union{AbstractVectorOfArray, ArrayPartition})
-    return mapreduce(UNITLESS_ABS2, Utils.abs2_and_sum,
-        Utils.get_internal_array(x); init = Utils.zero_init(x))
+    return mapreduce(
+        UNITLESS_ABS2, Utils.abs2_and_sum,
+        Utils.get_internal_array(x); init = Utils.zero_init(x)
+    )
 end
 
 NAN_CHECK(x::Number) = isnan(x)
@@ -41,7 +43,7 @@ function get_tolerance(::Nothing, ::Type{T}) where {T}
 end
 function get_tolerance(::Nothing, ::Type{Float64})
     # trimming hangs up on the literal_pow to rational numbers here
-    η = real(oneunit(Float64)) * 3e-13
+    η = real(oneunit(Float64)) * 3.0e-13
     return get_tolerance(η, Float64)
 end
 

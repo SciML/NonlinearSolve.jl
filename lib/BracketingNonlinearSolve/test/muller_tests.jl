@@ -44,7 +44,7 @@
         prob = IntervalNonlinearProblem{false}(h, tspan)
         sol = solve(prob, Muller())
 
-        @test sol.u≈0 atol=1e-15
+        @test sol.u ≈ 0 atol = 1.0e-15
 
         tspan = (-1.0, 1.0)
         prob = IntervalNonlinearProblem{false}(h, tspan)

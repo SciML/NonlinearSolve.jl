@@ -12,16 +12,16 @@ using LinearAlgebra: LinearAlgebra, Diagonal, dot, diag
 using LinearSolve: LinearSolve # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-                          AbstractNonlinearSolveCache, AbstractResetCondition,
-                          AbstractResetConditionCache, AbstractApproximateJacobianStructure,
-                          AbstractJacobianCache, AbstractJacobianInitialization,
-                          AbstractApproximateJacobianUpdateRule, AbstractDescentDirection,
-                          AbstractApproximateJacobianUpdateRuleCache,
-                          Utils, InternalAPI, get_timer_output, @static_timeit,
-                          update_trace!, L2_NORM, NewtonDescent, NonlinearVerbosity,
-                          @SciMLMessage, None, AbstractVerbosityPreset, reused_jacobian
+    AbstractNonlinearSolveCache, AbstractResetCondition,
+    AbstractResetConditionCache, AbstractApproximateJacobianStructure,
+    AbstractJacobianCache, AbstractJacobianInitialization,
+    AbstractApproximateJacobianUpdateRule, AbstractDescentDirection,
+    AbstractApproximateJacobianUpdateRuleCache,
+    Utils, InternalAPI, get_timer_output, @static_timeit,
+    update_trace!, L2_NORM, NewtonDescent, NonlinearVerbosity,
+    @SciMLMessage, None, AbstractVerbosityPreset, reused_jacobian
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
-                 NonlinearProblem, NonlinearFunction, NoSpecialize
+    NonlinearProblem, NonlinearFunction, NoSpecialize
 using SciMLOperators: AbstractSciMLOperator
 
 include("reset_conditions.jl")
@@ -38,7 +38,7 @@ include("solve.jl")
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1]),
     )
 
     nonlinear_problems = NonlinearProblem[]
@@ -51,7 +51,7 @@ include("solve.jl")
     @compile_workload begin
         @sync for prob in nonlinear_problems, alg in algs
 
-            Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+            Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = false)
         end
     end
 end

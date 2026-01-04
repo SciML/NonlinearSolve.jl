@@ -13,7 +13,8 @@ of ``f``, except if ``f`` is scalar (in which case it acts like an in-place func
 end
 
 function (cjw::ComplexJacobianWrapper{Inplace})(
-        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
+        u::AbstractVector{T}, x::AbstractVector{T}, p
+    ) where {T}
     x = reinterpret(Complex{T}, x)
     u = reinterpret(Complex{T}, u)
     cjw.f(u, x, p)
@@ -29,7 +30,8 @@ function (cjw::ComplexJacobianWrapper{OutOfPlace})(x::AbstractVector{T}, p) wher
 end
 
 function (cjw::ComplexJacobianWrapper{Scalar})(
-        u::AbstractVector{T}, x::AbstractVector{T}, p) where {T}
+        u::AbstractVector{T}, x::AbstractVector{T}, p
+    ) where {T}
     x = reinterpret(Complex{T}, x)
     u_tmp = cjw.f(x[1], p)
     u[1] = real(u_tmp)
@@ -68,10 +70,12 @@ end
 
 function (f::ComplexDIJacobian{Inplace})(u, U, x, p)
     U_tmp = f.buffers
-    DI.value_and_jacobian!(f.f, reinterpret(Float64, u), reinterpret(Float64, U_tmp),
-        f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p))
+    DI.value_and_jacobian!(
+        f.f, reinterpret(Float64, u), reinterpret(Float64, U_tmp),
+        f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p)
+    )
     U = reinterpret(Float64, U)
-    @inbounds for j in axes(U, 2)
+    return @inbounds for j in axes(U, 2)
         jj = 2j - 1
         for i in axes(U, 1)
             U[i, j] = U_tmp[i, jj]
@@ -82,11 +86,12 @@ end
 function (f::ComplexDIJacobian{OutOfPlace})(u, U, x, p)
     U_tmp = f.buffers
     u_tmp,
-    _ = DI.value_and_jacobian!(
-        f.f, U_tmp, f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p))
+        _ = DI.value_and_jacobian!(
+        f.f, U_tmp, f.prep, f.autodiff, reinterpret(Float64, x), DI.Constant(p)
+    )
     copyto!(u, reinterpret(ComplexF64, u_tmp))
     U = reinterpret(Float64, U)
-    @inbounds for j in axes(U, 2)
+    return @inbounds for j in axes(U, 2)
         jj = 2j - 1
         for i in axes(U, 1)
             U[i, j] = U_tmp[i, jj]
@@ -96,8 +101,10 @@ end
 
 function (f::ComplexDIJacobian{Scalar})(u, U, x, p)
     U_tmp = f.buffers
-    DI.value_and_jacobian!(f.f, reinterpret(Float64, u), U_tmp, f.prep,
-        f.autodiff, reinterpret(Float64, x), DI.Constant(p))
+    DI.value_and_jacobian!(
+        f.f, reinterpret(Float64, u), U_tmp, f.prep,
+        f.autodiff, reinterpret(Float64, x), DI.Constant(p)
+    )
     U[1] = U_tmp[1, 1] + im * U_tmp[2, 1]
     return nothing
 end
@@ -111,7 +118,7 @@ and `p` the parameter object.
 
 The returned function must have the signature required by `HomotopySystemWrapper`.
 """
-function construct_jacobian(f::F, autodiff, variant, u0, p) where F
+function construct_jacobian(f::F, autodiff, variant, u0, p) where {F}
     if variant == Scalar
         tmp = reinterpret(Float64, Vector{ComplexF64}(undef, 1))
     else
@@ -122,7 +129,8 @@ function construct_jacobian(f::F, autodiff, variant, u0, p) where F
         prep = DI.prepare_jacobian(f, autodiff, tmp, DI.Constant(p), strict = Val(false))
     else
         prep = DI.prepare_jacobian(
-            f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
+            f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false)
+        )
     end
 
     if variant == Scalar
@@ -182,17 +190,19 @@ end
 
 Construct an `EnzymeJacobian` function.
 """
-function construct_jacobian(f::F, autodiff::AutoEnzyme, variant, u0, p) where F
+function construct_jacobian(f::F, autodiff::AutoEnzyme, variant, u0, p) where {F}
     if variant == Scalar
         prep = DI.prepare_derivative(f, autodiff, u0, DI.Constant(p), strict = Val(false))
     else
         tmp = Vector{ComplexF64}(undef, length(u0))
         if variant == Inplace
             prep = DI.prepare_jacobian(
-                f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false))
+                f, tmp, autodiff, copy(tmp), DI.Constant(p), strict = Val(false)
+            )
         else
             prep = DI.prepare_jacobian(
-                f, autodiff, tmp, DI.Constant(p), strict = Val(false))
+                f, autodiff, tmp, DI.Constant(p), strict = Val(false)
+            )
         end
     end
     return EnzymeJacobian{variant}(f, prep, autodiff)

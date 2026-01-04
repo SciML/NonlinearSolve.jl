@@ -1,6 +1,6 @@
 function assert_extension_supported_termination_condition(
         termination_condition, alg; abs_norm_supported = true
-)
+    )
     no_termination_condition = termination_condition === nothing
     no_termination_condition && return nothing
     abs_norm_supported && termination_condition isa AbsNormTerminationMode && return nothing
@@ -11,14 +11,14 @@ function construct_extension_function_wrapper(
         prob::AbstractNonlinearProblem; alias_u0::Bool = false,
         can_handle_oop::Val = Val(false), can_handle_scalar::Val = Val(false),
         make_fixed_point::Val = Val(false), force_oop::Val = Val(false)
-)
+    )
     if can_handle_oop isa Val{false} && can_handle_scalar isa Val{true}
         error("Incorrect Specification: OOP not supported but scalar supported.")
     end
 
     resid = Utils.evaluate_f(prob, prob.u0)
     u0 = can_handle_scalar isa Val{true} || !(prob.u0 isa Number) ?
-         Utils.maybe_unaliased(prob.u0, alias_u0) : [prob.u0]
+        Utils.maybe_unaliased(prob.u0, alias_u0) : [prob.u0]
 
     fₚ = if make_fixed_point isa Val{true}
         if SciMLBase.isinplace(prob)
@@ -90,7 +90,7 @@ function construct_extension_jac(
         prob, alg, u0, fu;
         can_handle_oop::Val = Val(false), can_handle_scalar::Val = Val(false),
         autodiff = nothing, initial_jacobian = Val(false), kwargs...
-)
+    )
     autodiff = select_jacobian_autodiff(prob, autodiff)
 
     Jₚ = construct_jacobian_cache(
@@ -99,7 +99,7 @@ function construct_extension_jac(
     )
 
     J_no_scalar = can_handle_scalar isa Val{false} && prob.u0 isa Number ?
-                  @closure(u->[Jₚ(u[1])]) : Jₚ
+        @closure(u -> [Jₚ(u[1])]) : Jₚ
 
     J_final(J, u) = copyto!(J, J_no_scalar(u))
     J_final(u) = J_no_scalar(u)

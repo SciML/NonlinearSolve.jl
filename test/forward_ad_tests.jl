@@ -62,21 +62,21 @@ compatible(::KINSOL, ::Val{:oop_cache}) = false
 export test_f!, test_f, jacobian_f, solve_with, compatible
 end
 
-@testitem "ForwardDiff.jl Integration" setup=[ForwardADTesting] tags=[:nopre] begin
+@testitem "ForwardDiff.jl Integration" setup = [ForwardADTesting] tags = [:nopre] begin
     @testset for alg in (
-        NewtonRaphson(),
-        TrustRegion(),
-        LevenbergMarquardt(),
-        PseudoTransient(; alpha_initial = 10.0),
-        Broyden(),
-        Klement(),
-        DFSane(),
-        FastShortcutNonlinearPolyalg(),
-        nothing,
-        NLsolveJL(),
-        CMINPACK(),
-        KINSOL(; globalization_strategy = :LineSearch)
-    )
+            NewtonRaphson(),
+            TrustRegion(),
+            LevenbergMarquardt(),
+            PseudoTransient(; alpha_initial = 10.0),
+            Broyden(),
+            Klement(),
+            DFSane(),
+            FastShortcutNonlinearPolyalg(),
+            nothing,
+            NLsolveJL(),
+            CMINPACK(),
+            KINSOL(; globalization_strategy = :LineSearch),
+        )
         us = (2.0, @SVector[1.0, 1.0], [1.0, 1.0], ones(2, 2), @SArray ones(2, 2))
 
         alg isa CMINPACK && Sys.isapple() && continue
@@ -91,10 +91,10 @@ end
                 if SciMLBase.successful_retcode(sol)
                     gs = abs.(ForwardDiff.derivative(solve_with(Val{mode}(), u0, alg), p))
                     gs_true = abs.(jacobian_f(u0, p))
-                    if !(isapprox(gs, gs_true, atol = 1e-5))
-                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_gradient=gs true_gradient=gs_true
+                    if !(isapprox(gs, gs_true, atol = 1.0e-5))
+                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_gradient = gs true_gradient = gs_true
                     else
-                        @test abs.(gs)≈abs.(gs_true) atol=1e-5
+                        @test abs.(gs) ≈ abs.(gs_true) atol = 1.0e-5
                     end
                 end
             end
@@ -102,8 +102,8 @@ end
 
         @testset "Jacobian" begin
             for u0 in us,
-                p in ([2.0, 1.0], [2.0 1.0; 3.0 4.0]),
-                mode in (:iip, :oop, :iip_cache, :oop_cache)
+                    p in ([2.0, 1.0], [2.0 1.0; 3.0 4.0]),
+                    mode in (:iip, :oop, :iip_cache, :oop_cache)
                 compatible(u0, p) || continue
                 compatible(u0, alg) || continue
                 compatible(u0, Val(mode)) || continue
@@ -113,11 +113,11 @@ end
                 if SciMLBase.successful_retcode(sol)
                     gs = abs.(ForwardDiff.jacobian(solve_with(Val{mode}(), u0, alg), p))
                     gs_true = abs.(jacobian_f(u0, p))
-                    if !(isapprox(gs, gs_true, atol = 1e-5))
+                    if !(isapprox(gs, gs_true, atol = 1.0e-5))
                         @show sol.retcode, sol.u
-                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_jacobian=gs true_jacobian=gs_true
+                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_jacobian = gs true_jacobian = gs_true
                     else
-                        @test abs.(gs)≈abs.(gs_true) atol=1e-5
+                        @test abs.(gs) ≈ abs.(gs_true) atol = 1.0e-5
                     end
                 end
             end
@@ -125,7 +125,7 @@ end
     end
 end
 
-@testitem "NLLS Hessian SciML/NonlinearSolve.jl#445" tags=[:core] begin
+@testitem "NLLS Hessian SciML/NonlinearSolve.jl#445" tags = [:core] begin
     using ForwardDiff, FiniteDiff
 
     function objfn(F, init, params)
@@ -150,33 +150,41 @@ end
         )
         resu = solve(
             prob,
-            reltol = 1e-12, abstol = 1e-12
+            reltol = 1.0e-12, abstol = 1.0e-12
         )
         th1, th2 = resu.u
         cable1_base = [-90; 0; 0]
         cable2_base = [-150; 0; 0]
         cable3_base = [150; 0; 0]
         cable1_top = [l1 * cos(th1) / 2; l1 * sin(th1) / 2; 0]
-        cable23_top = [l1 * cos(th1) + l2 * cos(th1 + th2) / 2;
-                       l1 * sin(th1) + l2 * sin(th1 + th2) / 2; 0]
-        c1_length = sqrt((cable1_top[1] - cable1_base[1])^2 +
-                         (cable1_top[2] - cable1_base[2])^2)
-        c2_length = sqrt((cable23_top[1] - cable2_base[1])^2 +
-                         (cable23_top[2] - cable2_base[2])^2)
-        c3_length = sqrt((cable23_top[1] - cable3_base[1])^2 +
-                         (cable23_top[2] - cable3_base[2])^2)
+        cable23_top = [
+            l1 * cos(th1) + l2 * cos(th1 + th2) / 2;
+            l1 * sin(th1) + l2 * sin(th1 + th2) / 2; 0
+        ]
+        c1_length = sqrt(
+            (cable1_top[1] - cable1_base[1])^2 +
+                (cable1_top[2] - cable1_base[2])^2
+        )
+        c2_length = sqrt(
+            (cable23_top[1] - cable2_base[1])^2 +
+                (cable23_top[2] - cable2_base[2])^2
+        )
+        c3_length = sqrt(
+            (cable23_top[1] - cable3_base[1])^2 +
+                (cable23_top[2] - cable3_base[2])^2
+        )
         return c1_length + c2_length + c3_length
     end
 
     grad1 = ForwardDiff.gradient(solve_nlprob, [34.0, 87.0])
     grad2 = FiniteDiff.finite_difference_gradient(solve_nlprob, [34.0, 87.0])
 
-    @test grad1≈grad2 atol=1e-3
+    @test grad1 ≈ grad2 atol = 1.0e-3
 
     hess1 = ForwardDiff.hessian(solve_nlprob, [34.0, 87.0])
     hess2 = FiniteDiff.finite_difference_hessian(solve_nlprob, [34.0, 87.0])
 
-    @test hess1≈hess2 atol=1e-3
+    @test hess1 ≈ hess2 atol = 1.0e-3
 
     function solve_nlprob_with_cache(pxpy)
         px, py = pxpy
@@ -190,36 +198,44 @@ end
             NonlinearFunction(objfn, resid_prototype = zeros(2)),
             initial_guess, p
         )
-        cache = init(prob; reltol = 1e-12, abstol = 1e-12)
+        cache = init(prob; reltol = 1.0e-12, abstol = 1.0e-12)
         resu = solve!(cache)
         th1, th2 = resu.u
         cable1_base = [-90; 0; 0]
         cable2_base = [-150; 0; 0]
         cable3_base = [150; 0; 0]
         cable1_top = [l1 * cos(th1) / 2; l1 * sin(th1) / 2; 0]
-        cable23_top = [l1 * cos(th1) + l2 * cos(th1 + th2) / 2;
-                       l1 * sin(th1) + l2 * sin(th1 + th2) / 2; 0]
-        c1_length = sqrt((cable1_top[1] - cable1_base[1])^2 +
-                         (cable1_top[2] - cable1_base[2])^2)
-        c2_length = sqrt((cable23_top[1] - cable2_base[1])^2 +
-                         (cable23_top[2] - cable2_base[2])^2)
-        c3_length = sqrt((cable23_top[1] - cable3_base[1])^2 +
-                         (cable23_top[2] - cable3_base[2])^2)
+        cable23_top = [
+            l1 * cos(th1) + l2 * cos(th1 + th2) / 2;
+            l1 * sin(th1) + l2 * sin(th1 + th2) / 2; 0
+        ]
+        c1_length = sqrt(
+            (cable1_top[1] - cable1_base[1])^2 +
+                (cable1_top[2] - cable1_base[2])^2
+        )
+        c2_length = sqrt(
+            (cable23_top[1] - cable2_base[1])^2 +
+                (cable23_top[2] - cable2_base[2])^2
+        )
+        c3_length = sqrt(
+            (cable23_top[1] - cable3_base[1])^2 +
+                (cable23_top[2] - cable3_base[2])^2
+        )
         return c1_length + c2_length + c3_length
     end
 
     grad1 = ForwardDiff.gradient(solve_nlprob_with_cache, [34.0, 87.0])
     grad2 = FiniteDiff.finite_difference_gradient(solve_nlprob_with_cache, [34.0, 87.0])
 
-    @test grad1≈grad2 atol=1e-3
+    @test grad1 ≈ grad2 atol = 1.0e-3
 
     hess1 = ForwardDiff.hessian(solve_nlprob_with_cache, [34.0, 87.0])
     hess2 = FiniteDiff.finite_difference_hessian(solve_nlprob_with_cache, [34.0, 87.0])
 
-    @test hess1≈hess2 atol=1e-3
+    @test hess1 ≈ hess2 atol = 1.0e-3
 end
 
-@testitem "reinit! on ForwardDiff cache SciML/NonlinearSolve.jl#391" tags=[:core] begin
+@testitem "reinit! on ForwardDiff cache SciML/NonlinearSolve.jl#391" tags = [:core] begin
     using ForwardDiff
 
     function multiple_solves(ps::Vector)
@@ -247,5 +263,5 @@ end
     ps = collect(1.0:5.0)
 
     @test ForwardDiff.gradient(multiple_solves, ps) ≈
-          ForwardDiff.gradient(multiple_solves_cached, ps)
+        ForwardDiff.gradient(multiple_solves_cached, ps)
 end

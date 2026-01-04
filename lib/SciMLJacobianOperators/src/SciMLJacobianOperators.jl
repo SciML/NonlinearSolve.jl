@@ -19,8 +19,8 @@ abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
 ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
 function ArrayInterface.restructure(
         y::AbstractJacobianOperator, x::AbstractJacobianOperator
-)
-    @assert size(y)==size(x) "cannot restructure operators. ensure their sizes match."
+    )
+    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
     return x
 end
 
@@ -108,12 +108,15 @@ for op in (:adjoint, :transpose)
     @eval function Base.$(op)(operator::JacobianOperator{iip, T}) where {iip, T}
         return JacobianOperator{iip, T}(
             flip_mode(operator.mode), operator.jvp_op, operator.vjp_op,
-            reverse(operator.size), operator.input_cache, operator.output_cache)
+            reverse(operator.size), operator.input_cache, operator.output_cache
+        )
     end
 end
 
-function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
-        vjp_autodiff = nothing, skip_vjp::Val = False, skip_jvp::Val = False)
+function JacobianOperator(
+        prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
+        vjp_autodiff = nothing, skip_vjp::Val = False, skip_jvp::Val = False
+    )
     @assert !(skip_vjp === True && skip_jvp === True) "Cannot skip both vjp and jvp \
                                                        construction."
     f = prob.f
@@ -130,7 +133,8 @@ function JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = 
     input_cache = u isa Number ? T(u) : similar(u, T)
 
     return JacobianOperator{iip, T}(
-        JVP(), jvp_op, vjp_op, (length(fu), length(u)), output_cache, input_cache)
+        JVP(), jvp_op, vjp_op, (length(fu), length(u)), output_cache, input_cache
+    )
 end
 
 function (op::JacobianOperator)(v, u, p)
@@ -199,7 +203,7 @@ Wrapper over a [`JacobianOperator`](@ref) which stores the input `u` and `p` and
 `mul!` and `*` for computing VJPs and JVPs.
 """
 @concrete struct StatefulJacobianOperator{M <: AbstractMode, T} <:
-                 AbstractJacobianOperator{T}
+    AbstractJacobianOperator{T}
     mode::M
     jac_op <: JacobianOperator
     u
@@ -207,8 +211,10 @@ Wrapper over a [`JacobianOperator`](@ref) which stores the input `u` and `p` and
 
     function StatefulJacobianOperator(jac_op::JacobianOperator, u, p)
         return new{
-            typeof(jac_op.mode), eltype(jac_op), typeof(jac_op), typeof(u), typeof(p)}(
-            jac_op.mode, jac_op, u, p)
+            typeof(jac_op.mode), eltype(jac_op), typeof(jac_op), typeof(u), typeof(p),
+        }(
+            jac_op.mode, jac_op, u, p
+        )
     end
 end
 
@@ -225,7 +231,8 @@ Base.:*(J::StatefulJacobianOperator, v::AbstractArray) = J.jac_op(v, J.u, J.p)
 Base.:*(J::StatefulJacobianOperator, v::Number) = J.jac_op(v, J.u, J.p)
 
 function LinearAlgebra.mul!(
-        Jv::AbstractArray, J::StatefulJacobianOperator, v::AbstractArray)
+        Jv::AbstractArray, J::StatefulJacobianOperator, v::AbstractArray
+    )
     J.jac_op(Jv, v, J.u, J.p)
     return Jv
 end
@@ -238,7 +245,7 @@ corresponding to `JᵀJ` where `J` is the Jacobian Operator. This is not meant t
 constructed, rather it is constructed with `*` on two [`StatefulJacobianOperator`](@ref)s.
 """
 @concrete mutable struct StatefulJacobianNormalFormOperator{T} <:
-                         AbstractJacobianOperator{T}
+    AbstractJacobianOperator{T}
     vjp_operator <: StatefulJacobianOperator{VJP}
     jvp_operator <: StatefulJacobianOperator{JVP}
     cache
@@ -254,8 +261,10 @@ function Base.:*(J1::StatefulJacobianOperator{VJP}, J2::StatefulJacobianOperator
     return StatefulJacobianNormalFormOperator{T}(J1, J2, cache)
 end
 
-function LinearAlgebra.mul!(C::StatefulJacobianNormalFormOperator,
-        A::StatefulJacobianOperator{VJP}, B::StatefulJacobianOperator{JVP})
+function LinearAlgebra.mul!(
+        C::StatefulJacobianNormalFormOperator,
+        A::StatefulJacobianOperator{VJP}, B::StatefulJacobianOperator{JVP}
+    )
     C.vjp_operator = A
     C.jvp_operator = B
     return C
@@ -269,7 +278,8 @@ function Base.:*(JᵀJ::StatefulJacobianNormalFormOperator, x::Number)
 end
 
 function LinearAlgebra.mul!(
-        JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray)
+        JᵀJx::AbstractArray, JᵀJ::StatefulJacobianNormalFormOperator, x::AbstractArray
+    )
     LinearAlgebra.mul!(JᵀJ.cache, JᵀJ.jvp_operator, x)
     LinearAlgebra.mul!(JᵀJx, JᵀJ.vjp_operator, JᵀJ.cache)
     return JᵀJx
@@ -278,20 +288,25 @@ end
 # Helper Functions
 prepare_vjp(::Val{true}, args...; kwargs...) = nothing
 
-function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
-        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing)
+function prepare_vjp(
+        ::Val{false}, prob::AbstractNonlinearProblem,
+        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing
+    )
     return prepare_scalar_op(Val(false), prob, f, u, fu; autodiff)
 end
 
-function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
-        f::AbstractNonlinearFunction, u, fu; autodiff = nothing)
+function prepare_vjp(
+        ::Val{false}, prob::AbstractNonlinearProblem,
+        f::AbstractNonlinearFunction, u, fu; autodiff = nothing
+    )
     SciMLBase.has_vjp(f) && return f.vjp
 
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (
-                vJ, v, u, p) -> begin
+                vJ, v, u, p,
+            ) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(vJ), jac_cache', vec(v))
                 return
@@ -302,50 +317,66 @@ function prepare_vjp(::Val{false}, prob::AbstractNonlinearProblem,
         end
     end
 
-    @assert autodiff!==nothing "`vjp_autodiff` must be provided if `f` doesn't have \
+    @assert autodiff !== nothing "`vjp_autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jac`."
     if SciMLBase.isinplace(f)
         @assert DI.check_inplace(autodiff) "Backend: $(autodiff) doesn't support in-place \
                                             problems."
         fu_cache = copy(fu)
         di_extras = DI.prepare_pullback(
-            f, fu_cache, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
-        return @closure (vJ,
+            f, fu_cache, autodiff, u, (fu,), Constant(prob.p), strict = Val(false)
+        )
+        return @closure (
+            vJ,
             v,
             u,
-            p) -> begin
-            DI.pullback!(f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
-                u, (reshape(v, size(fu_cache)),), Constant(p))
+            p,
+        ) -> begin
+            DI.pullback!(
+                f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
+                u, (reshape(v, size(fu_cache)),), Constant(p)
+            )
             return
         end
     else
         di_extras = DI.prepare_pullback(
-            f, autodiff, u, (fu,), Constant(prob.p), strict = Val(false))
-        return @closure (v,
+            f, autodiff, u, (fu,), Constant(prob.p), strict = Val(false)
+        )
+        return @closure (
+            v,
             u,
-            p) -> begin
-            return only(DI.pullback(
-                f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)))
+            p,
+        ) -> begin
+            return only(
+                DI.pullback(
+                    f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)
+                )
+            )
         end
     end
 end
 
 prepare_jvp(skip::Val{true}, args...; kwargs...) = nothing
 
-function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
-        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing)
+function prepare_jvp(
+        ::Val{false}, prob::AbstractNonlinearProblem,
+        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing
+    )
     return prepare_scalar_op(Val(false), prob, f, u, fu; autodiff)
 end
 
-function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
-        f::AbstractNonlinearFunction, u, fu; autodiff = nothing)
+function prepare_jvp(
+        ::Val{false}, prob::AbstractNonlinearProblem,
+        f::AbstractNonlinearFunction, u, fu; autodiff = nothing
+    )
     SciMLBase.has_jvp(f) && return f.jvp
 
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
             jac_cache = similar(u, eltype(fu), length(fu), length(u))
             return @closure (
-                Jv, v, u, p) -> begin
+                Jv, v, u, p,
+            ) -> begin
                 f.jac(jac_cache, u, p)
                 LinearAlgebra.mul!(vec(Jv), jac_cache, vec(v))
                 return
@@ -355,41 +386,54 @@ function prepare_jvp(::Val{false}, prob::AbstractNonlinearProblem,
         end
     end
 
-    @assert autodiff!==nothing "`jvp_autodiff` must be provided if `f` doesn't have \
+    @assert autodiff !== nothing "`jvp_autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jac`."
     if SciMLBase.isinplace(f)
         @assert DI.check_inplace(autodiff) "Backend: $(autodiff) doesn't support in-place \
                                             problems."
         fu_cache = copy(fu)
         di_extras = DI.prepare_pushforward(
-            f, fu_cache, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
-        return @closure (Jv,
+            f, fu_cache, autodiff, u, (u,), Constant(prob.p), strict = Val(false)
+        )
+        return @closure (
+            Jv,
             v,
             u,
-            p) -> begin
-            DI.pushforward!(f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
-                autodiff, u, (reshape(v, size(u)),), Constant(p))
+            p,
+        ) -> begin
+            DI.pushforward!(
+                f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
+                autodiff, u, (reshape(v, size(u)),), Constant(p)
+            )
             return
         end
     else
         di_extras = DI.prepare_pushforward(
-            f, autodiff, u, (u,), Constant(prob.p), strict = Val(false))
-        return @closure (v,
+            f, autodiff, u, (u,), Constant(prob.p), strict = Val(false)
+        )
+        return @closure (
+            v,
             u,
-            p) -> begin
-            return only(DI.pushforward(
-                f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)))
+            p,
+        ) -> begin
+            return only(
+                DI.pushforward(
+                    f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)
+                )
+            )
         end
     end
 end
 
-function prepare_scalar_op(::Val{false}, prob::AbstractNonlinearProblem,
-        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing)
+function prepare_scalar_op(
+        ::Val{false}, prob::AbstractNonlinearProblem,
+        f::AbstractNonlinearFunction, u::Number, fu::Number; autodiff = nothing
+    )
     SciMLBase.has_vjp(f) && return f.vjp
     SciMLBase.has_jvp(f) && return f.jvp
-    SciMLBase.has_jac(f) && return @closure((v, u, p)->f.jac(u, p) * v)
+    SciMLBase.has_jac(f) && return @closure((v, u, p) -> f.jac(u, p) * v)
 
-    @assert autodiff!==nothing "`autodiff` must be provided if `f` doesn't have \
+    @assert autodiff !== nothing "`autodiff` must be provided if `f` doesn't have \
                                 analytic `vjp` or `jvp` or `jac`."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p), strict = Val(false))
     return @closure (v, u, p) -> DI.derivative(f, di_extras, autodiff, u, Constant(p)) * v

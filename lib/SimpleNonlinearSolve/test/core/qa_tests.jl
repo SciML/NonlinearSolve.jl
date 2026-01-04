@@ -1,4 +1,4 @@
-@testitem "Aqua" tags=[:core] begin
+@testitem "Aqua" tags = [:core] begin
     using Aqua, SimpleNonlinearSolve
 
     Aqua.test_all(
@@ -7,15 +7,16 @@
     )
     Aqua.test_stale_deps(SimpleNonlinearSolve; ignore = [:SciMLJacobianOperators])
     Aqua.test_deps_compat(SimpleNonlinearSolve; ignore = [:SciMLJacobianOperators])
-    Aqua.test_piracies(SimpleNonlinearSolve;
+    Aqua.test_piracies(
+        SimpleNonlinearSolve;
         treat_as_own = [
-            NonlinearProblem, NonlinearLeastSquaresProblem, IntervalNonlinearProblem
+            NonlinearProblem, NonlinearLeastSquaresProblem, IntervalNonlinearProblem,
         ]
     )
     Aqua.test_ambiguities(SimpleNonlinearSolve; recursive = false)
 end
 
-@testitem "Explicit Imports" tags=[:core] begin
+@testitem "Explicit Imports" tags = [:core] begin
     import ReverseDiff, Tracker, StaticArrays, Zygote
     using ExplicitImports, SimpleNonlinearSolve
 

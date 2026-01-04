@@ -6,61 +6,83 @@ import ReverseDiff
 import ArrayInterface
 
 # `ReverseDiff.TrackedArray`
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing}, u0::ReverseDiff.TrackedArray,
-        p::ReverseDiff.TrackedArray, args...; kwargs...)
-    ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+            Nothing,
+        }, u0::ReverseDiff.TrackedArray,
+        p::ReverseDiff.TrackedArray, args...; kwargs...
+    )
+    return ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing}, u0, p::ReverseDiff.TrackedArray,
-        args...; kwargs...)
-    ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+            Nothing,
+        }, u0, p::ReverseDiff.TrackedArray,
+        args...; kwargs...
+    )
+    return ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing}, u0::ReverseDiff.TrackedArray, p,
-        args...; kwargs...)
-    ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
+            Nothing,
+        }, u0::ReverseDiff.TrackedArray, p,
+        args...; kwargs...
+    )
+    return ReverseDiff.track(NonlinearSolveBase.solve_up, prob, sensealg, u0, p, args...; kwargs...)
 end
 
 # `AbstractArray{<:ReverseDiff.TrackedReal}`
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing},
+            Nothing,
+        },
         u0::AbstractArray{<:ReverseDiff.TrackedReal},
         p::AbstractArray{<:ReverseDiff.TrackedReal}, args...;
-        kwargs...)
-    NonlinearSolveBase.solve_up(prob, sensealg, ArrayInterface.aos_to_soa(u0),
+        kwargs...
+    )
+    return NonlinearSolveBase.solve_up(
+        prob, sensealg, ArrayInterface.aos_to_soa(u0),
         ArrayInterface.aos_to_soa(p), args...;
-        kwargs...)
+        kwargs...
+    )
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing}, u0,
+            Nothing,
+        }, u0,
         p::AbstractArray{<:ReverseDiff.TrackedReal},
-        args...; kwargs...)
-    NonlinearSolveBase.solve_up(
-        prob, sensealg, u0, ArrayInterface.aos_to_soa(p), args...; kwargs...)
+        args...; kwargs...
+    )
+    return NonlinearSolveBase.solve_up(
+        prob, sensealg, u0, ArrayInterface.aos_to_soa(p), args...; kwargs...
+    )
 end
 
-function NonlinearSolveBase.solve_up(prob::SciMLBase.NonlinearProblem,
+function NonlinearSolveBase.solve_up(
+        prob::SciMLBase.NonlinearProblem,
         sensealg::Union{
             SciMLBase.AbstractOverloadingSensitivityAlgorithm,
-            Nothing}, u0::ReverseDiff.TrackedArray,
+            Nothing,
+        }, u0::ReverseDiff.TrackedArray,
         p::AbstractArray{<:ReverseDiff.TrackedReal},
-        args...; kwargs...)
-    NonlinearSolveBase.solve_up(
-        prob, sensealg, u0, ArrayInterface.aos_to_soa(p), args...; kwargs...)
+        args...; kwargs...
+    )
+    return NonlinearSolveBase.solve_up(
+        prob, sensealg, u0, ArrayInterface.aos_to_soa(p), args...; kwargs...
+    )
 end
 
 # function NonlinearSolveBase.solve_up(prob::SciMLBase.DEProblem,
@@ -86,9 +108,11 @@ end
 # Required becase ReverseDiff.@grad function SciMLBase.solve_up is not supported!
 import NonlinearSolveBase: solve_up
 ReverseDiff.@grad function solve_up(prob, sensealg, u0, p, args...; kwargs...)
-    out = NonlinearSolveBase._solve_adjoint(prob, sensealg, ReverseDiff.value(u0),
+    out = NonlinearSolveBase._solve_adjoint(
+        prob, sensealg, ReverseDiff.value(u0),
         ReverseDiff.value(p),
-        SciMLBase.ReverseDiffOriginator(), args...; kwargs...)
+        SciMLBase.ReverseDiffOriginator(), args...; kwargs...
+    )
     function actual_adjoint(_args...)
         original_adjoint = out[2](_args...)
         if isempty(args) # alg is missing

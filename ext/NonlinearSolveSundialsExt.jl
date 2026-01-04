@@ -4,7 +4,7 @@ using Sundials: KINSOL
 
 using CommonSolve: CommonSolve
 using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
-                          nonlinearsolve_dual_solution
+    nonlinearsolve_dual_solution
 using NonlinearSolve: NonlinearSolve, DualNonlinearProblem
 using SciMLBase: SciMLBase
 

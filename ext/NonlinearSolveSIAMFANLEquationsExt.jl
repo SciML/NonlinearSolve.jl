@@ -2,7 +2,7 @@ module NonlinearSolveSIAMFANLEquationsExt
 
 using FastClosures: @closure
 using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, ptcsoli,
-                         ptcsolsc, secant
+    ptcsolsc, secant
 
 using NonlinearSolveBase: NonlinearSolveBase
 using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
@@ -41,7 +41,7 @@ function SciMLBase.__solve(
         prob::NonlinearProblem, alg::SIAMFANLEquationsJL, args...;
         abstol = nothing, reltol = nothing, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         termination_condition = nothing, show_trace = Val(false), kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -69,7 +69,7 @@ function SciMLBase.__solve(
             sol = secant(f, prob.u0; maxit = maxiters, atol, rtol, printerr)
         elseif method == :anderson
             f_aa, u,
-            _ = NonlinearSolveBase.construct_extension_function_wrapper(
+                _ = NonlinearSolveBase.construct_extension_function_wrapper(
                 prob; alias_u0, make_fixed_point = Val(true)
             )
             sol = aasol(
@@ -79,7 +79,7 @@ function SciMLBase.__solve(
         end
     else
         f, u,
-        resid = NonlinearSolveBase.construct_extension_function_wrapper(
+            resid = NonlinearSolveBase.construct_extension_function_wrapper(
             prob; alias_u0, make_fixed_point = Val(method == :anderson)
         )
         N = length(u)
@@ -122,7 +122,7 @@ function SciMLBase.__solve(
             else
                 autodiff = alg.autodiff === missing ? nothing : alg.autodiff
                 FPS = prob.f.jac_prototype !== nothing ? zero(prob.f.jac_prototype) :
-                      zeros_like(u, N, N)
+                    zeros_like(u, N, N)
                 jac = NonlinearSolveBase.construct_extension_jac(
                     prob, alg, u, resid; autodiff
                 )

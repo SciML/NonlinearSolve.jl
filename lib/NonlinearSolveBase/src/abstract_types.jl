@@ -1,30 +1,30 @@
 module InternalAPI
 
-using SciMLBase: NLStats
+    using SciMLBase: NLStats
 
-function init end
-function solve! end
-function step! end
+    function init end
+    function solve! end
+    function step! end
 
-function reinit! end
-function reinit_self! end
+    function reinit! end
+    function reinit_self! end
 
-function reinit!(x::Any; kwargs...)
-    #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
-    return
-end
-function reinit_self!(x::Any; kwargs...)
-    #@debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
-    return
-end
+    function reinit!(x::Any; kwargs...)
+        #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
+        return
+    end
+    function reinit_self!(x::Any; kwargs...)
+        #@debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
+        return
+    end
 
-function reinit!(stats::NLStats)
-    stats.nf = 0
-    stats.nsteps = 0
-    stats.nfactors = 0
-    stats.njacs = 0
-    stats.nsolve = 0
-end
+    function reinit!(stats::NLStats)
+        stats.nf = 0
+        stats.nsteps = 0
+        stats.nfactors = 0
+        stats.njacs = 0
+        return stats.nsolve = 0
+    end
 
 end
 
@@ -236,9 +236,9 @@ end
 
 function show_nonlinearsolve_algorithm(
         io::IO, alg::AbstractNonlinearSolveAlgorithm, name, indent::Int = 0
-)
+    )
     print(io, name)
-    print(io, Utils.clean_sprint_struct(alg, indent))
+    return print(io, Utils.clean_sprint_struct(alg, indent))
 end
 
 """
@@ -308,10 +308,10 @@ end
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
 
 function get_abstol(cache::AbstractNonlinearSolveCache)
-    get_abstol(cache.termination_cache)
+    return get_abstol(cache.termination_cache)
 end
 function get_reltol(cache::AbstractNonlinearSolveCache)
-    get_reltol(cache.termination_cache)
+    return get_reltol(cache.termination_cache)
 end
 
 ## SII Interface
@@ -358,7 +358,7 @@ function show_nonlinearsolve_cache(io::IO, cache::AbstractNonlinearSolveCache, i
 
     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
-    print(io, " "^(indent) * ")")
+    return print(io, " "^(indent) * ")")
 end
 
 """
@@ -575,23 +575,25 @@ macro internal_caches(cType, internal_cache_names...)
             $(InternalAPI.reinit!)(getproperty(cache, $(name)), args...; kwargs...)
         end
     end
-    return esc(quote
-        function NonlinearSolveBase.callback_into_cache!(
-                cache, internalcache::$(cType), args...
-        )
-            $(callback_caches...)
-            return
+    return esc(
+        quote
+            function NonlinearSolveBase.callback_into_cache!(
+                    cache, internalcache::$(cType), args...
+                )
+                $(callback_caches...)
+                return
+            end
+            function NonlinearSolveBase.callback_into_cache!(cache::$(cType))
+                $(callbacks_self...)
+                return
+            end
+            function NonlinearSolveBase.InternalAPI.reinit!(
+                    cache::$(cType), args...; kwargs...
+                )
+                $(reinit_caches...)
+                $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
+                return
+            end
         end
-        function NonlinearSolveBase.callback_into_cache!(cache::$(cType))
-            $(callbacks_self...)
-            return
-        end
-        function NonlinearSolveBase.InternalAPI.reinit!(
-                cache::$(cType), args...; kwargs...
-        )
-            $(reinit_caches...)
-            $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
-            return
-        end
-    end)
+    )
 end

@@ -27,8 +27,10 @@ If the threshold is larger than the problem size, then this method will use `Sim
     alpha
 end
 
-function SimpleLimitedMemoryBroyden(; threshold::Union{Val, Int} = Val(27),
-        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing)
+function SimpleLimitedMemoryBroyden(;
+        threshold::Union{Val, Int} = Val(27),
+        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
+    )
     linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
     threshold = threshold isa Int ? Val(threshold) : threshold
     return SimpleLimitedMemoryBroyden(linesearch, threshold, alpha)
@@ -36,15 +38,16 @@ end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
-        args...; termination_condition = nothing, verbose = NonlinearVerbosity(), kwargs...)
+        args...; termination_condition = nothing, verbose = NonlinearVerbosity(), kwargs...
+    )
     if prob.u0 isa SArray
         if termination_condition === nothing ||
-           termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
+                termination_condition isa NonlinearSolveBase.AbsNormTerminationMode
             return internal_static_solve(
                 prob, alg, args...; termination_condition, kwargs...
             )
         end
-        
+
         if verbose isa Bool
             if verbose
                 verbose = NonlinearVerbosity()
@@ -67,7 +70,7 @@ end
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -89,7 +92,7 @@ end
     U, Vᵀ = init_low_rank_jacobian(x, fx, x isa StaticArray ? alg.threshold : Val(η))
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -155,7 +158,7 @@ end
 function internal_static_solve(
         prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden, args...;
         abstol = nothing, maxiters = 1000, kwargs...
-)
+    )
     x = prob.u0
     fx = NLBUtils.evaluate_f(prob, x)
 
@@ -176,17 +179,19 @@ function internal_static_solve(
     if alg.alpha === nothing
         fx_norm = L2_NORM(fx)
         x_norm = L2_NORM(x)
-        init_α = ifelse(fx_norm ≥ 1e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
+        init_α = ifelse(fx_norm ≥ 1.0e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
     else
         init_α = inv(alg.alpha)
     end
 
     converged,
-    res = internal_unrolled_lbroyden_initial_iterations(
-        prob, xo, fo, δx, abstol, U, Vᵀ, alg.threshold, ls_cache, init_α)
+        res = internal_unrolled_lbroyden_initial_iterations(
+        prob, xo, fo, δx, abstol, U, Vᵀ, alg.threshold, ls_cache, init_α
+    )
 
     converged && return SciMLBase.build_solution(
-        prob, alg, res.x, res.fx; retcode = ReturnCode.Success)
+        prob, alg, res.x, res.fx; retcode = ReturnCode.Success
+    )
 
     xo, fo, δx = res.x, res.fx, res.δx
 
@@ -224,48 +229,52 @@ end
 
 @generated function internal_unrolled_lbroyden_initial_iterations(
         prob, xo, fo, δx, abstol, U, Vᵀ, ::Val{threshold}, ls_cache, init_α
-) where {threshold}
+    ) where {threshold}
     calls = []
     for i in 1:threshold
         static_idx, static_idx_p1 = Val(i - 1), Val(i)
-        push!(calls, quote
-            if ls_cache === nothing
-                α = true
-            else
-                ls_sol = solve!(ls_cache, xo, δx)
-                α = ls_sol.step_size # Ignores the return code for now
-            end
-            x = xo .+ α .* δx
-            fx = prob.f(x, prob.p)
-            δf = fx - fo
+        push!(
+            calls, quote
+                if ls_cache === nothing
+                    α = true
+                else
+                    ls_sol = solve!(ls_cache, xo, δx)
+                    α = ls_sol.step_size # Ignores the return code for now
+                end
+                x = xo .+ α .* δx
+                fx = prob.f(x, prob.p)
+                δf = fx - fo
 
+                maximum(abs, fx) ≤ abstol && return true, (; x, fx, δx)
+
+                Uₚ = first_n_getindex(U, $(static_idx))
+                Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx))
+
+                vᵀ = NLBUtils.restructure(x, rmatvec!!(Uₚ, Vᵀₚ, vec(δx), init_α))
+                mvec = NLBUtils.restructure(x, matvec!!(Uₚ, Vᵀₚ, vec(δf), init_α))
+
+                d = dot(vᵀ, δf)
+                δx = @. (δx - mvec) / d
+
+                U = Base.setindex(U, vec(δx), $(i))
+                Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), $(i))
+
+                Uₚ = first_n_getindex(U, $(static_idx_p1))
+                Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx_p1))
+                δx = -NLBUtils.restructure(fx, matvec!!(Uₚ, Vᵀₚ, vec(fx), init_α))
+
+                x0, fo = x, fx
+            end
+        )
+    end
+    push!(
+        calls, quote
+            # Termination Check
             maximum(abs, fx) ≤ abstol && return true, (; x, fx, δx)
 
-            Uₚ = first_n_getindex(U, $(static_idx))
-            Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx))
-
-            vᵀ = NLBUtils.restructure(x, rmatvec!!(Uₚ, Vᵀₚ, vec(δx), init_α))
-            mvec = NLBUtils.restructure(x, matvec!!(Uₚ, Vᵀₚ, vec(δf), init_α))
-
-            d = dot(vᵀ, δf)
-            δx = @. (δx - mvec) / d
-
-            U = Base.setindex(U, vec(δx), $(i))
-            Vᵀ = Base.setindex(Vᵀ, vec(vᵀ), $(i))
-
-            Uₚ = first_n_getindex(U, $(static_idx_p1))
-            Vᵀₚ = first_n_getindex(Vᵀ, $(static_idx_p1))
-            δx = -NLBUtils.restructure(fx, matvec!!(Uₚ, Vᵀₚ, vec(fx), init_α))
-
-            x0, fo = x, fx
-        end)
-    end
-    push!(calls, quote
-        # Termination Check
-        maximum(abs, fx) ≤ abstol && return true, (; x, fx, δx)
-
-        return false, (; x, fx, δx)
-    end)
+            return false, (; x, fx, δx)
+        end
+    )
     return Expr(:block, calls...)
 end
 
@@ -310,7 +319,7 @@ function fast_mapdot(x::SVector{S1}, Y::SVector{S2, <:SVector{S1}}) where {S1, S
 end
 @generated function fast_mapTdot(
         x::SVector{S1}, Y::SVector{S1, <:SVector{S2}}
-) where {S1, S2}
+    ) where {S1, S2}
     calls = []
     syms = [gensym("m$(i)") for i in 1:S1]
     for i in 1:S1
@@ -337,7 +346,7 @@ lbroyden_threshold_cache(::SArray, ::Val{threshold}) where {threshold} = nothing
 
 function init_low_rank_jacobian(
         u::StaticArray{S1, T1}, fu::StaticArray{S2, T2}, ::Val{threshold}
-) where {S1, S2, T1, T2, threshold}
+    ) where {S1, S2, T1, T2, threshold}
     T = promote_type(T1, T2)
     fuSize, uSize = Size(fu), Size(u)
     Vᵀ = MArray{Tuple{threshold, prod(uSize)}, T}(undef)
@@ -346,7 +355,7 @@ function init_low_rank_jacobian(
 end
 @generated function init_low_rank_jacobian(
         u::SVector{Lu, T1}, fu::SVector{Lfu, T2}, ::Val{threshold}
-) where {Lu, Lfu, T1, T2, threshold}
+    ) where {Lu, Lfu, T1, T2, threshold}
     T = promote_type(T1, T2)
     inner_inits_Vᵀ = [:(zeros(SVector{$Lu, $T})) for i in 1:threshold]
     inner_inits_U = [:(zeros(SVector{$Lfu, $T})) for i in 1:threshold]

@@ -30,9 +30,11 @@ function Klement(;
         max_resets = 100, linsolve = nothing, linesearch = nothing,
         alpha = nothing, init_jacobian::Val = Val(:identity),
         autodiff = nothing
-)
-    concrete_jac = Val(init_jacobian isa Val{:true_jacobian} ||
-                       init_jacobian isa Val{:true_jacobian_diagonal})
+    )
+    concrete_jac = Val(
+        init_jacobian isa Val{:true_jacobian} ||
+            init_jacobian isa Val{:true_jacobian_diagonal}
+    )
     return QuasiNewtonAlgorithm(;
         linesearch,
         descent = NewtonDescent(; linsolve),
@@ -74,7 +76,7 @@ end
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::KlementUpdateRule,
         J, fu, u, du, args...; kwargs...
-)
+    )
     @bb Jdu = similar(fu)
     if J isa Diagonal || J isa Number
         J_cache, J_cache_2, Jdu_cache = nothing, nothing, nothing
@@ -88,7 +90,7 @@ function InternalAPI.init(
 end
 
 @concrete mutable struct KlementUpdateRuleCache <:
-                         AbstractApproximateJacobianUpdateRuleCache
+    AbstractApproximateJacobianUpdateRuleCache
     Jdu
     J_cache
     J_cache_2
@@ -99,35 +101,37 @@ end
 
 function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::Number, fu, u, du; kwargs...
-)
+    )
     Jdu = J^2 * du^2
-    J = J + ((fu - cache.fu_cache - J * du) / ifelse(iszero(Jdu), 1e-5, Jdu)) * du * J^2
+    J = J + ((fu - cache.fu_cache - J * du) / ifelse(iszero(Jdu), 1.0e-5, Jdu)) * du * J^2
     cache.fu_cache = fu
     return J
 end
 
 function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::Diagonal, fu, u, du; kwargs...
-)
+    )
     T = eltype(u)
     J = Utils.restructure(u, diag(J))
     @bb @. cache.Jdu = (J^2) * (du^2)
-    @bb @. J += ((fu - cache.fu_cache - J * du) /
-                 ifelse(iszero(cache.Jdu), T(1e-5), cache.Jdu)) * du * (J^2)
+    @bb @. J += (
+        (fu - cache.fu_cache - J * du) /
+            ifelse(iszero(cache.Jdu), T(1.0e-5), cache.Jdu)
+    ) * du * (J^2)
     @bb copyto!(cache.fu_cache, fu)
     return Diagonal(vec(J))
 end
 
 function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::AbstractMatrix, fu, u, du; kwargs...
-)
+    )
     T = eltype(u)
     @bb @. cache.J_cache = J'^2
     @bb @. cache.Jdu = du^2
     @bb cache.Jdu_cache = cache.J_cache × vec(cache.Jdu)
     @bb cache.Jdu = J × vec(du)
     @bb @. cache.fu_cache = (fu - cache.fu_cache - cache.Jdu) /
-                            ifelse(iszero(cache.Jdu_cache), T(1e-5), cache.Jdu_cache)
+        ifelse(iszero(cache.Jdu_cache), T(1.0e-5), cache.Jdu_cache)
     @bb cache.J_cache = vec(cache.fu_cache) × transpose(Utils.safe_vec(du))
     @bb @. cache.J_cache *= J
     @bb cache.J_cache_2 = cache.J_cache × J

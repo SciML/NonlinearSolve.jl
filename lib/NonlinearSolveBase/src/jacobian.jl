@@ -1,4 +1,3 @@
-
 """
     construct_jacobian_cache(
         prob, alg, f, fu, u = prob.u0, p = prob.p;
@@ -35,10 +34,12 @@ function construct_jacobian_cache(
         prob, alg, f::NonlinearFunction, fu, u = prob.u0, p = prob.p; stats,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
-)
+    )
     has_analytic_jac = SciMLBase.has_jac(f)
-    linsolve_needs_jac = !concrete_jac(alg) && (linsolve === missing ||
-                          (linsolve === nothing || needs_concrete_A(linsolve)))
+    linsolve_needs_jac = !concrete_jac(alg) && (
+        linsolve === missing ||
+            (linsolve === nothing || needs_concrete_A(linsolve))
+    )
     needs_jac = linsolve_needs_jac || concrete_jac(alg)
 
     fu_cache = Utils.safe_similar(fu)
@@ -94,7 +95,7 @@ function construct_jacobian_cache(
         prob, alg, f::NonlinearFunction, fu::Number, u::Number = prob.u0, p = prob.p; stats,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
-)
+    )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
         return JacobianCache(fu, f, fu, p, stats, autodiff, nothing)
     end
@@ -121,7 +122,7 @@ end
 end
 
 function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
-    cache.p = p
+    return cache.p = p
 end
 
 # Deprecations
@@ -136,7 +137,7 @@ reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianO
 ## Numbers
 function (cache::JacobianCache{<:Number})(u)
     cache.stats.njacs += 1
-    
+
     (; f, J, p) = cache
     cache.J = if SciMLBase.has_jac(f)
         f.jac(u, p)
@@ -179,7 +180,7 @@ end
 
 # Sparse Automatic Differentiation
 function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
-    if f.sparsity === nothing
+    return if f.sparsity === nothing
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
                 @warn "`colorvec` is provided but `sparsity` and `jac_prototype` is not \
@@ -206,7 +207,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         if f.sparsity isa AbstractMatrix
             if f.jac_prototype !== f.sparsity
                 if f.jac_prototype !== nothing &&
-                   sparse_or_structured_prototype(f.jac_prototype)
+                        sparse_or_structured_prototype(f.jac_prototype)
                     throw(ArgumentError("`sparsity::AbstractMatrix` and a sparse or \
                                          structured `jac_prototype` cannot be both \
                                          provided. Pass only `jac_prototype`."))
@@ -255,7 +256,8 @@ function construct_concrete_adtype(::NonlinearFunction, ad::AutoSparse)
 end
 
 function select_fastest_coloring_algorithm(
-        prototype, f::NonlinearFunction, ad::AbstractADType)
+        prototype, f::NonlinearFunction, ad::AbstractADType
+    )
     if !Utils.is_extension_loaded(Val(:SparseMatrixColorings))
         @warn "`SparseMatrixColorings` must be explicitly imported for sparse automatic \
                differentiation to work. Proceeding with Dense Automatic Differentiation."

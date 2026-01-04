@@ -1,4 +1,4 @@
-@testitem "Aqua" tags=[:core] begin
+@testitem "Aqua" tags = [:core] begin
     using Aqua, NonlinearSolveQuasiNewton
 
     Aqua.test_all(
@@ -11,7 +11,7 @@
     Aqua.test_ambiguities(NonlinearSolveQuasiNewton; recursive = false)
 end
 
-@testitem "Explicit Imports" tags=[:core] begin
+@testitem "Explicit Imports" tags = [:core] begin
     using ExplicitImports, NonlinearSolveQuasiNewton
 
     @test check_no_implicit_imports(

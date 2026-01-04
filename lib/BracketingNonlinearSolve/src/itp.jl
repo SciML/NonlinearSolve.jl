@@ -59,7 +59,7 @@ end
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::ITP, args...;
         maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
-)
+    )
     @assert !SciMLBase.isinplace(prob) "`ITP` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -79,9 +79,11 @@ function SciMLBase.__solve(
     end
 
     if sign(fl) == sign(fr)
-        @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
-            verbose, :non_enclosing_interval)
+            verbose, :non_enclosing_interval
+        )
         return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 

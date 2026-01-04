@@ -35,7 +35,7 @@ function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
         update_rule = Val(:good_broyden)
-)
+    )
     return QuasiNewtonAlgorithm(;
         linesearch,
         descent = NewtonDescent(),
@@ -52,7 +52,7 @@ function broyden_init(::Val{:identity}, ::Val{:diagonal}, autodiff, alpha)
     return IdentityInitialization(alpha, DiagonalStructure())
 end
 function broyden_init(::Val{:identity}, ::Val, autodiff, alpha)
-    IdentityInitialization(alpha, FullStructure())
+    return IdentityInitialization(alpha, FullStructure())
 end
 function broyden_init(::Val{:true_jacobian}, ::Val, autodiff, alpha)
     return TrueJacobianInitialization(FullStructure(), autodiff)
@@ -95,7 +95,7 @@ function InternalAPI.init(
         prob::AbstractNonlinearProblem,
         alg::Union{BadBroydenUpdateRule, GoodBroydenUpdateRule},
         J, fu, u, du, args...; internalnorm::F = L2_NORM, kwargs...
-) where {F}
+    ) where {F}
     @bb J⁻¹dfu = similar(u)
     @bb dfu = copy(fu)
     if alg isa GoodBroydenUpdateRule || J isa Diagonal
@@ -112,7 +112,7 @@ function InternalAPI.init(
 end
 
 @concrete mutable struct BroydenUpdateRuleCache <:
-                         AbstractApproximateJacobianUpdateRuleCache
+    AbstractApproximateJacobianUpdateRuleCache
     J⁻¹dfu
     dfu
     u_cache
@@ -123,7 +123,7 @@ end
 
 function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹, fu, u, du; kwargs...
-)
+    )
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu
     @bb cache.J⁻¹dfu = J⁻¹ × vec(cache.dfu)
@@ -135,7 +135,7 @@ function InternalAPI.solve!(
         denom = cache.internalnorm(cache.dfu)^2
         rmul = transpose(Utils.safe_vec(cache.dfu))
     end
-    @bb @. cache.du_cache = (du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1e-5), denom)
+    @bb @. cache.du_cache = (du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1.0e-5), denom)
     @bb J⁻¹ += vec(cache.du_cache) × rmul
     @bb copyto!(cache.dfu, fu)
     return J⁻¹
@@ -143,7 +143,7 @@ end
 
 function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹::Diagonal, fu, u, du; kwargs...
-)
+    )
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu
     J⁻¹_diag = Utils.restructure(cache.dfu, diag(J⁻¹))
@@ -151,11 +151,11 @@ function InternalAPI.solve!(
         @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu * du
         denom = sum(cache.J⁻¹dfu)
         @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * du * J⁻¹_diag /
-                           ifelse(iszero(denom), T(1e-5), denom)
+            ifelse(iszero(denom), T(1.0e-5), denom)
     else
         denom = cache.internalnorm(cache.dfu)^2
         @bb @. J⁻¹_diag += (du - J⁻¹_diag * cache.dfu) * cache.dfu /
-                           ifelse(iszero(denom), T(1e-5), denom)
+            ifelse(iszero(denom), T(1.0e-5), denom)
     end
     @bb copyto!(cache.dfu, fu)
     return Diagonal(vec(J⁻¹_diag))

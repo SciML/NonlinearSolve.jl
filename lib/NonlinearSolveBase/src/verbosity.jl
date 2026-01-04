@@ -65,9 +65,11 @@ verbose = NonlinearVerbosity(
 NonlinearVerbosity
 
 @verbosity_specifier NonlinearVerbosity begin
-    toggles = (:linear_verbosity, :non_enclosing_interval, :alias_u0_immutable,
+    toggles = (
+        :linear_verbosity, :non_enclosing_interval, :alias_u0_immutable,
         :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing,
-        :sensitivity_vjp_choice)
+        :sensitivity_vjp_choice,
+    )
 
     presets = (
         None = (
@@ -78,7 +80,7 @@ NonlinearVerbosity
             termination_condition = Silent(),
             threshold_state = Silent(),
             forcing = Silent(),
-            sensitivity_vjp_choice = Silent()
+            sensitivity_vjp_choice = Silent(),
         ),
         Minimal = (
             linear_verbosity = None(),
@@ -88,7 +90,7 @@ NonlinearVerbosity
             termination_condition = Silent(),
             threshold_state = Silent(),
             forcing = Silent(),
-            sensitivity_vjp_choice = Silent()
+            sensitivity_vjp_choice = Silent(),
         ),
         Standard = (
             linear_verbosity = None(),
@@ -98,7 +100,7 @@ NonlinearVerbosity
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
             forcing = InfoLevel(),
-            sensitivity_vjp_choice = WarnLevel()
+            sensitivity_vjp_choice = WarnLevel(),
         ),
         Detailed = (
             linear_verbosity = Detailed(),
@@ -108,7 +110,7 @@ NonlinearVerbosity
             termination_condition = WarnLevel(),
             threshold_state = WarnLevel(),
             forcing = InfoLevel(),
-            sensitivity_vjp_choice = WarnLevel()
+            sensitivity_vjp_choice = WarnLevel(),
         ),
         All = (
             linear_verbosity = Detailed(),
@@ -118,14 +120,16 @@ NonlinearVerbosity
             termination_condition = WarnLevel(),
             threshold_state = InfoLevel(),
             forcing = InfoLevel(),
-            sensitivity_vjp_choice = WarnLevel()
-        )
+            sensitivity_vjp_choice = WarnLevel(),
+        ),
     )
 
     groups = (
-        error_control = (:non_enclosing_interval, :alias_u0_immutable,
-            :linsolve_failed_noncurrent, :termination_condition),
+        error_control = (
+            :non_enclosing_interval, :alias_u0_immutable,
+            :linsolve_failed_noncurrent, :termination_condition,
+        ),
         numerical = (:threshold_state, :forcing),
-        sensitivity = (:sensitivity_vjp_choice,)
+        sensitivity = (:sensitivity_vjp_choice,),
     )
 end
