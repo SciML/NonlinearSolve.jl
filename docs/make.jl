@@ -38,7 +38,7 @@ makedocs(;
         NonlinearSolveHomotopyContinuation,
         Sundials, LineSearch,
         SciMLJacobianOperators, NonlinearSolveSciPy,
-        NonlinearSolve, SteadyStateDiffEq
+        NonlinearSolve, SteadyStateDiffEq,
     ],
     clean = true,
     doctest = false,
@@ -50,7 +50,7 @@ makedocs(;
         "https://www.sciencedirect.com/science/article/abs/pii/S0045782523007156",
         "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd.c",
         "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrj.c",
-        "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c"
+        "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c",
     ],
     checkdocs = :exports,
     warnonly = [:missing_docs],

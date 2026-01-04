@@ -30,14 +30,18 @@ function CommonSolve.solve(prob::IntervalNonlinearProblem, nothing, args...; kwa
     return CommonSolve.solve(prob, ITP(), args...; kwargs...)
 end
 
-function CommonSolve.solve(prob::IntervalNonlinearProblem,
-        alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...)
+function CommonSolve.solve(
+        prob::IntervalNonlinearProblem,
+        alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...
+    )
     return bracketingnonlinear_solve_up(
-        prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...)
+        prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...
+    )
 end
 
 function bracketingnonlinear_solve_up(
-        prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...)
+        prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...
+    )
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
@@ -50,7 +54,7 @@ end
 
         @compile_workload begin
             @sync for alg in algs
-                Threads.@spawn CommonSolve.solve(prob_brack, alg; abstol = 1e-6)
+                Threads.@spawn CommonSolve.solve(prob_brack, alg; abstol = 1.0e-6)
             end
         end
     end

@@ -8,7 +8,7 @@ struct Brent <: AbstractBracketingAlgorithm end
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Brent, args...;
         maxiters = 1000, abstol = nothing, verbose = NonlinearVerbosity(), kwargs...
-)
+    )
     @assert !SciMLBase.isinplace(prob) "`Brent` only supports out-of-place problems."
 
     if verbose isa Bool
@@ -39,9 +39,11 @@ function SciMLBase.__solve(
     end
 
     if sign(fl) == sign(fr)
-        @SciMLMessage("The interval is not an enclosing interval, opposite signs at the \
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
-            verbose, :non_enclosing_interval)
+            verbose, :non_enclosing_interval
+        )
         return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
@@ -68,12 +70,14 @@ function SciMLBase.__solve(
             s = right - fr * (right - left) / (fr - fl)
         end
 
-        if (s < min((3 * left + right) / 4, right) ||
-            s > max((3 * left + right) / 4, right)) ||
-           (cond && abs(s - right) ≥ abs(right - c) / 2) ||
-           (!cond && abs(s - right) ≥ abs(c - d) / 2) ||
-           (cond && abs(right - c) ≤ ϵ) ||
-           (!cond && abs(c - d) ≤ ϵ)
+        if (
+                s < min((3 * left + right) / 4, right) ||
+                    s > max((3 * left + right) / 4, right)
+            ) ||
+                (cond && abs(s - right) ≥ abs(right - c) / 2) ||
+                (!cond && abs(s - right) ≥ abs(c - d) / 2) ||
+                (cond && abs(right - c) ≤ ϵ) ||
+                (!cond && abs(c - d) ≤ ϵ)
             # Bisection method
             s = (left + right) / 2
             if s == left || s == right

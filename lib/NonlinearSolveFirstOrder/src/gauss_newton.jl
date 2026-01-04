@@ -11,7 +11,7 @@ for large-scale and numerically-difficult nonlinear systems.
 function GaussNewton(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-)
+    )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
         descent = NewtonDescent(; linsolve),

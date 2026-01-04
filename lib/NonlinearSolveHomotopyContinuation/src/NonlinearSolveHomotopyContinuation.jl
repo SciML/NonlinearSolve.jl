@@ -46,7 +46,7 @@ HomotopyContinuation.jl requires the taylor series of the polynomial system for 
 root method. This is automatically computed using TaylorSeries.jl.
 """
 @concrete struct HomotopyContinuationJL{AllRoots} <:
-                 NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
+    NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
     autodiff
     kwargs
 end
@@ -55,13 +55,13 @@ function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {A
     if autodiff isa Bool
         autodiff = autodiff ? AutoForwardDiff() : AutoFiniteDiff()
     end
-    HomotopyContinuationJL{AllRoots}(autodiff, kwargs)
+    return HomotopyContinuationJL{AllRoots}(autodiff, kwargs)
 end
 
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
 function HomotopyContinuationJL(alg::HomotopyContinuationJL{R}; kwargs...) where {R}
-    HomotopyContinuationJL{R}(; autodiff = alg.autodiff, alg.kwargs..., kwargs...)
+    return HomotopyContinuationJL{R}(; autodiff = alg.autodiff, alg.kwargs..., kwargs...)
 end
 
 include("interface_types.jl")

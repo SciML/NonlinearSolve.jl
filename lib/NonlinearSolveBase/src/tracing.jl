@@ -68,7 +68,7 @@ function Base.getproperty(entry::NonlinearSolveTraceEntry, sym::Symbol)
 end
 
 function print_top_level(io::IO, entry::NonlinearSolveTraceEntry)
-    if entry.condJ === nothing
+    return if entry.condJ === nothing
         @printf io "%-8s\t%-20s\t%-20s\n" "----" "-------------" "-----------"
         if entry.norm_type === :L2
             @printf io "%-8s\t%-20s\t%-20s\n" "Iter" "f(u) 2-norm" "Step 2-norm"
@@ -89,7 +89,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", entry::NonlinearSolveTraceEntry)
     entry.iteration == 0 && print_top_level(io, entry)
-    if entry.iteration < 0 # Special case for final entry
+    return if entry.iteration < 0 # Special case for final entry
         @printf io "%-8s\t%-20.8e\n" "Final" entry.fnorm
         @printf io "%-28s\n" "----------------------"
     elseif entry.condJ === nothing
@@ -110,7 +110,7 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
             u = ArrayInterface.ismutable(u) ? copy(u) : u,
             fu = ArrayInterface.ismutable(fu) ? copy(fu) : fu,
             δu = ArrayInterface.ismutable(δu) ? copy(δu) : δu,
-            J = ArrayInterface.ismutable(J) ? copy(J) : J
+            J = ArrayInterface.ismutable(J) ? copy(J) : J,
         )
     end
     return NonlinearSolveTraceEntry(
@@ -131,7 +131,7 @@ reset!(::Nothing) = nothing
 reset!(history::Vector) = empty!(history)
 
 function Base.show(io::IO, ::MIME"text/plain", trace::NonlinearSolveTrace)
-    if trace.history !== nothing
+    return if trace.history !== nothing
         foreach(trace.history) do entry
             show(io, MIME"text/plain"(), entry)
         end
@@ -144,7 +144,7 @@ function init_nonlinearsolve_trace(
         prob, alg, u, fu, J, δu; show_trace::Val = Val(false),
         trace_level::NonlinearSolveTracing = TraceMinimal(), store_trace::Val = Val(false),
         uses_jac_inverse = Val(false), kwargs...
-)
+    )
     return init_nonlinearsolve_trace(
         prob, alg, show_trace, trace_level, store_trace, u, fu, J, δu, uses_jac_inverse
     )
@@ -154,7 +154,7 @@ function init_nonlinearsolve_trace(
         prob::AbstractNonlinearProblem, alg, show_trace::Val,
         trace_level::NonlinearSolveTracing, store_trace::Val, u, fu, J, δu,
         uses_jac_inverse::Val
-)
+    )
     if show_trace isa Val{true}
         print("\nAlgorithm: ")
         str = Utils.clean_sprint_struct(alg, 0)
@@ -169,7 +169,7 @@ end
 function init_trace_history(
         prob::AbstractNonlinearProblem, show_trace::Val, trace_level,
         store_trace::Val, u, fu, J, δu
-)
+    )
     store_trace isa Val{false} && show_trace isa Val{false} && return nothing
     entry = if trace_level.trace_mode isa Val{:minimal}
         NonlinearSolveTraceEntry(prob, 0, fu, δu, missing, missing)
@@ -185,7 +185,7 @@ end
 
 function update_trace!(
         trace::NonlinearSolveTrace, iter, u, fu, J, δu, α = true; last::Val = Val(false)
-)
+    )
     trace.store_trace isa Val{false} && trace.show_trace isa Val{false} && return nothing
 
     if last isa Val{true}
@@ -197,9 +197,9 @@ function update_trace!(
     end
 
     show_now = trace.show_trace isa Val{true} &&
-               (mod1(iter, trace.trace_level.print_frequency) == 1)
+        (mod1(iter, trace.trace_level.print_frequency) == 1)
     store_now = trace.store_trace isa Val{true} &&
-                (mod1(iter, trace.trace_level.store_frequency) == 1)
+        (mod1(iter, trace.trace_level.store_frequency) == 1)
     if show_now || store_now
         entry = if trace.trace_level.trace_mode isa Val{:minimal}
             NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, missing, missing)
@@ -222,10 +222,10 @@ end
 function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
     trace = Utils.safe_getproperty(cache, Val(:trace))
     trace === missing && return nothing
-    
+
     J = Utils.safe_getproperty(cache, Val(:J))
     du = SciMLBase.get_du(cache)
-    if J === missing
+    return if J === missing
         update_trace!(
             trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, du, α
         )

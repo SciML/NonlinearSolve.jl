@@ -11,7 +11,7 @@ function SciMLBase.__solve(
         abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         maxtime = nothing, store_trace::Val = Val(false),
         termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -21,7 +21,7 @@ function SciMLBase.__solve(
     )
 
     m!, u,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, make_fixed_point = Val(true)
     )
     tol = NonlinearSolveBase.get_tolerance(abstol, eltype(u))

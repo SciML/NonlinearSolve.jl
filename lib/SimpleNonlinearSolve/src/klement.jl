@@ -10,13 +10,13 @@ function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleKlement, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias_u0 = false, termination_condition = nothing, kwargs...
-)
+    )
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     T = eltype(x)
     fx = NLBUtils.evaluate_f(prob, x)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -42,7 +42,7 @@ function SciMLBase.__solve(
 
         @bb δx .*= -1
         @bb @. δx² = δx^2 * J^2
-        @bb @. J += (fx - fprev - J * δx) / ifelse(iszero(δx²), T(1e-5), δx²) * δx * (J^2)
+        @bb @. J += (fx - fprev - J * δx) / ifelse(iszero(δx²), T(1.0e-5), δx²) * δx * (J^2)
 
         @bb copyto!(fprev, fx)
         @bb copyto!(xo, x)

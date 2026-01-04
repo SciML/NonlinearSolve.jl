@@ -1,6 +1,6 @@
-@testitem "Brusselator 2D" tags=[:core] begin
+@testitem "Brusselator 2D" tags = [:core] begin
     using LinearAlgebra, SparseArrays, SparseConnectivityTracer, ADTypes,
-          SparseMatrixColorings
+        SparseMatrixColorings
 
     const N = 32
     const xyd_brusselator = range(0, stop = 1, length = N)
@@ -15,17 +15,21 @@
             i, j = Tuple(I)
             x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
             ip1, im1,
-            jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
-            limit(j - 1, N)
+                jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
+                limit(j - 1, N)
             du[i, j, 1] = alpha *
-                          (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
-                           4u[i, j, 1]) +
-                          B +
-                          u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
-                          brusselator_f(x, y)
+                (
+                u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
+                    4u[i, j, 1]
+            ) +
+                B +
+                u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
+                brusselator_f(x, y)
             du[i, j, 2] = alpha *
-                          (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
-                           4u[i, j, 2]) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
+                (
+                u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
+                    4u[i, j, 2]
+            ) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
         end
     end
 
@@ -45,15 +49,15 @@
 
     u0 = init_brusselator_2d(xyd_brusselator)
     prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
-    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1.0e-8)
+    @test norm(sol.resid, Inf) < 1.0e-8
 
     prob_brusselator_2d_sparse = NonlinearProblem(
         NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
         u0, p
     )
-    sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1.0e-8)
+    @test norm(sol.resid, Inf) < 1.0e-8
 
     f! = (du, u) -> brusselator_2d_loop(du, u, p)
     du0 = similar(u0)
@@ -62,18 +66,19 @@
     ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
     prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)
 
-    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1e-8)
-    @test norm(sol.resid, Inf) < 1e-8
+    sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1.0e-8)
+    @test norm(sol.resid, Inf) < 1.0e-8
 
-    sol = solve(prob_brusselator_2d,
-        NewtonRaphson(autodiff = AutoFiniteDiff()); abstol = 1e-8
+    sol = solve(
+        prob_brusselator_2d,
+        NewtonRaphson(autodiff = AutoFiniteDiff()); abstol = 1.0e-8
     )
-    @test norm(sol.resid, Inf) < 1e-8
+    @test norm(sol.resid, Inf) < 1.0e-8
 end
 
-@testitem "Structured Jacobians" tags=[:core] begin
+@testitem "Structured Jacobians" tags = [:core] begin
     using SparseConnectivityTracer, BandedMatrices, LinearAlgebra, SparseArrays,
-          SparseMatrixColorings
+        SparseMatrixColorings
 
     N = 16
     p = rand(N)
@@ -98,7 +103,7 @@ end
         @testset "Dense AD" begin
             nlprob = NonlinearProblem(NonlinearFunction(nlf), u0, p)
 
-            cache = init(nlprob, NewtonRaphson(); abstol = 1e-9)
+            cache = init(nlprob, NewtonRaphson(); abstol = 1.0e-9)
             @test cache.jac_cache.J isa Matrix
             sol = solve!(cache)
             @test SciMLBase.successful_retcode(sol)
@@ -107,9 +112,10 @@ end
         @testset "Unstructured Sparse AD" begin
             nlprob_autosparse = NonlinearProblem(
                 NonlinearFunction(nlf; sparsity = TracerSparsityDetector()),
-                u0, p)
+                u0, p
+            )
 
-            cache = init(nlprob_autosparse, NewtonRaphson(); abstol = 1e-9)
+            cache = init(nlprob_autosparse, NewtonRaphson(); abstol = 1.0e-9)
             @test cache.jac_cache.J isa SparseMatrixCSC
             sol = solve!(cache)
             @test SciMLBase.successful_retcode(sol)
@@ -118,9 +124,10 @@ end
         @testset "Structured Sparse AD: Banded Jacobian" begin
             jac_prototype = BandedMatrix(-1 => ones(N - 1), 0 => ones(N), 1 => ones(N - 1))
             nlprob_sparse_structured = NonlinearProblem(
-                NonlinearFunction(nlf; jac_prototype), u0, p)
+                NonlinearFunction(nlf; jac_prototype), u0, p
+            )
 
-            cache = init(nlprob_sparse_structured, NewtonRaphson(); abstol = 1e-9)
+            cache = init(nlprob_sparse_structured, NewtonRaphson(); abstol = 1.0e-9)
             @test cache.jac_cache.J isa BandedMatrix
             sol = solve!(cache)
             @test SciMLBase.successful_retcode(sol)
@@ -129,9 +136,10 @@ end
         @testset "Structured Sparse AD: Tridiagonal Jacobian" begin
             jac_prototype = Tridiagonal(ones(N - 1), ones(N), ones(N - 1))
             nlprob_sparse_structured = NonlinearProblem(
-                NonlinearFunction(nlf; jac_prototype), u0, p)
+                NonlinearFunction(nlf; jac_prototype), u0, p
+            )
 
-            cache = init(nlprob_sparse_structured, NewtonRaphson(); abstol = 1e-9)
+            cache = init(nlprob_sparse_structured, NewtonRaphson(); abstol = 1.0e-9)
             @test cache.jac_cache.J isa Tridiagonal
             sol = solve!(cache)
             @test SciMLBase.successful_retcode(sol)

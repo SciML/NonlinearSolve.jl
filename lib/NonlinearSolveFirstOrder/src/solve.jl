@@ -40,9 +40,9 @@ function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
         concrete_jac = Val(false), forcing = nothing, name::Symbol = :unknown
-)
+    )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
-                   (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
+        (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
     return GeneralizedFirstOrderAlgorithm(
         linesearch, trustregion, descent, forcing, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
@@ -94,10 +94,10 @@ end
 end
 
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
-    SciMLBase.get_du(cache.descent_cache)
+    return SciMLBase.get_du(cache.descent_cache)
 end
 function NonlinearSolveBase.set_du!(cache::GeneralizedFirstOrderAlgorithmCache, δu)
-    NonlinearSolveBase.set_du!(cache.descent_cache, δu)
+    return NonlinearSolveBase.set_du!(cache.descent_cache, δu)
 end
 
 function InternalAPI.reinit_self!(
@@ -105,7 +105,7 @@ function InternalAPI.reinit_self!(
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
-)
+    )
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
@@ -126,8 +126,10 @@ function InternalAPI.reinit_self!(
     return
 end
 
-NonlinearSolveBase.@internal_caches(GeneralizedFirstOrderAlgorithmCache,
-    :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache, :forcing_cache)
+NonlinearSolveBase.@internal_caches(
+    GeneralizedFirstOrderAlgorithmCache,
+    :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache, :forcing_cache
+)
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
@@ -135,7 +137,7 @@ function SciMLBase.__init(
         abstol = nothing, reltol = nothing, maxtime = nothing,
         termination_condition = nothing, internalnorm::IN = L2_NORM, verbose = NonlinearVerbosity(),
         linsolve_kwargs = (;), initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
-) where {IN}
+    ) where {IN}
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -143,18 +145,22 @@ function SciMLBase.__init(
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
     @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
-                                (ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
-                                 ADTypes.mode(alg.autodiff) isa
-                                 ADTypes.ForwardOrReverseMode)
+            (
+            ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
+                ADTypes.mode(alg.autodiff) isa
+                ADTypes.ForwardOrReverseMode
+        )
         NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.autodiff)
     else
         NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.jvp_autodiff)
     end
     provided_vjp_autodiff = alg.vjp_autodiff !== nothing
     @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
-                                (ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
-                                 ADTypes.mode(alg.autodiff) isa
-                                 ADTypes.ForwardOrReverseMode)
+            (
+            ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+                ADTypes.mode(alg.autodiff) isa
+                ADTypes.ForwardOrReverseMode
+        )
         NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.autodiff)
     else
         NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
@@ -179,7 +185,7 @@ function SciMLBase.__init(
         linsolve = NonlinearSolveBase.get_linear_solver(alg.descent)
 
         abstol, reltol,
-        termination_cache = NonlinearSolveBase.init_termination_cache(
+            termination_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
         )
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
@@ -263,7 +269,7 @@ end
 function InternalAPI.step!(
         cache::GeneralizedFirstOrderAlgorithmCache;
         recompute_jacobian::Union{Nothing, Bool} = nothing
-)
+    )
     @static_timeit cache.timer "jacobian" begin
         if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
             J = cache.jac_cache(cache.u)
@@ -282,7 +288,7 @@ function InternalAPI.step!(
 
     @static_timeit cache.timer "descent" begin
         if cache.trustregion_cache !== nothing &&
-           hasfield(typeof(cache.trustregion_cache), :trust_region)
+                hasfield(typeof(cache.trustregion_cache), :trust_region)
             descent_result = InternalAPI.solve!(
                 cache.descent_cache, J, cache.fu, cache.u;
                 new_jacobian, cache.trustregion_cache.trust_region, cache.kwargs...
@@ -336,7 +342,7 @@ function InternalAPI.step!(
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new,
-                fu_new = InternalAPI.solve!(
+                    fu_new = InternalAPI.solve!(
                     cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
                 )
                 if tr_accepted
@@ -348,7 +354,7 @@ function InternalAPI.step!(
                     cache.make_new_jacobian = false
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                   cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                        cache.trustregion_cache.shrink_counter > cache.max_shrink_times
                     cache.retcode = ReturnCode.ShrinkThresholdExceeded
                     cache.force_stop = true
                 end

@@ -1,4 +1,4 @@
-@testitem "CUDA Tests" tags=[:cuda] skip=:(!isempty(VERSION.prerelease)) begin
+@testitem "CUDA Tests" tags = [:cuda] skip = :(!isempty(VERSION.prerelease)) begin
     using CUDA, NonlinearSolve, LinearSolve, StableRNGs
 
     if CUDA.functional()
@@ -23,7 +23,7 @@
             DFSane(),
             TrustRegion(; linsolve = QRFactorization()),
             TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
-            nothing
+            nothing,
         )
 
         @testset "[IIP] GPU Solvers" begin
@@ -44,7 +44,7 @@
     end
 end
 
-@testitem "Termination Conditions: Allocations" tags=[:cuda] skip=:(!isempty(VERSION.prerelease)) begin
+@testitem "Termination Conditions: Allocations" tags = [:cuda] skip = :(!isempty(VERSION.prerelease)) begin
     using CUDA, NonlinearSolveBase, Test, LinearAlgebra
 
     if CUDA.functional()
@@ -53,25 +53,27 @@ end
         u = cu(rand(4))
         uprev = cu(rand(4))
         TERMINATION_CONDITIONS = [
-            RelTerminationMode, AbsTerminationMode
+            RelTerminationMode, AbsTerminationMode,
         ]
         NORM_TERMINATION_CONDITIONS = [
             AbsNormTerminationMode, RelNormTerminationMode, RelNormSafeTerminationMode,
-            AbsNormSafeTerminationMode, RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
+            AbsNormSafeTerminationMode, RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode,
         ]
 
         @testset begin
             @testset "Mode: $(tcond)" for tcond in TERMINATION_CONDITIONS
                 @test_nowarn NonlinearSolveBase.check_convergence(
-                    tcond(), du, u, uprev, 1e-3, 1e-3)
+                    tcond(), du, u, uprev, 1.0e-3, 1.0e-3
+                )
             end
 
             @testset "Mode: $(tcond)" for tcond in NORM_TERMINATION_CONDITIONS
                 for nfn in (
-                    Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf)
-                )
+                        Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf),
+                    )
                     @test_nowarn NonlinearSolveBase.check_convergence(
-                        tcond(nfn), du, u, uprev, 1e-3, 1e-3)
+                        tcond(nfn), du, u, uprev, 1.0e-3, 1.0e-3
+                    )
                 end
             end
         end

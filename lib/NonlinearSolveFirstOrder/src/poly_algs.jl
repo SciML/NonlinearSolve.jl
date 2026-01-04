@@ -24,7 +24,7 @@ function RobustMultiNewton(
         concrete_jac = nothing,
         linsolve = nothing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-) where {T}
+    ) where {T}
     common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
     if T <: Complex # Let's atleast have something here for complex numbers
         algs = (
@@ -37,7 +37,7 @@ function RobustMultiNewton(
             NewtonRaphson(; common_kwargs...),
             NewtonRaphson(; common_kwargs..., linesearch = BackTracking()),
             TrustRegion(; common_kwargs..., radius_update_scheme = RUS.NLsolve),
-            TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan)
+            TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
         )
     end
     return NonlinearSolvePolyAlgorithm(algs)

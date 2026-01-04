@@ -11,17 +11,17 @@ using CommonSolve: CommonSolve, init, solve, solve!
 using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-                          NonlinearSolvePolyAlgorithm, pickchunksize, NonlinearVerbosity
+    NonlinearSolvePolyAlgorithm, pickchunksize, NonlinearVerbosity
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
-                 NonlinearFunction,
-                 NonlinearProblem, NonlinearLeastSquaresProblem, NoSpecialize
+    NonlinearFunction,
+    NonlinearProblem, NonlinearLeastSquaresProblem, NoSpecialize
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 using StaticArraysCore: StaticArray
 
 # Default Algorithm
 using NonlinearSolveFirstOrder: NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton,
-                                RUS, RobustMultiNewton
+    RUS, RobustMultiNewton
 using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
@@ -51,7 +51,7 @@ include("forward_diff.jl")
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1]),
     )
 
     nonlinear_problems = NonlinearProblem[]
@@ -62,22 +62,25 @@ include("forward_diff.jl")
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
-            NonlinearFunction{false, NoSpecialize}((
-                u, p) -> vcat(u .* u .- p, u .* u .- p)),
-            [0.1, 0.1]
+            NonlinearFunction{false, NoSpecialize}(
+                (
+                    u, p,
+                ) -> vcat(u .* u .- p, u .* u .- p)
+            ),
+            [0.1, 0.1],
         ),
         (
             NonlinearFunction{true, NoSpecialize}(
                 (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)
             ),
-            [0.1, 0.0]
+            [0.1, 0.0],
         ),
         (
             NonlinearFunction{true, NoSpecialize}(
                 (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p), resid_prototype = zeros(4)
             ),
-            [0.1, 0.1]
-        )
+            [0.1, 0.1],
+        ),
     )
 
     nlls_problems = NonlinearLeastSquaresProblem[]
@@ -91,11 +94,11 @@ include("forward_diff.jl")
     @compile_workload begin
         @sync begin
             for prob in nonlinear_problems, alg in nlp_algs
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = NonlinearVerbosity())
             end
 
             for prob in nlls_problems, alg in nlls_algs
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = NonlinearVerbosity())
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = NonlinearVerbosity())
             end
         end
     end
@@ -104,7 +107,7 @@ end
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
-                NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
+    NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
 @reexport using LinearSolve
 
 # Poly Algorithms
@@ -112,7 +115,7 @@ export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutNL
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
-       FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
+    FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 export PETScSNES, CMINPACK
 
 end

@@ -31,8 +31,8 @@ function newton_quadratic(f::F, a, b, d, k) where {F}
 
     for _ in 1:k
         rᵢ = rᵢ₋₁ -
-             (f(a) + B * (rᵢ₋₁ - a) + A * (rᵢ₋₁ - a) * (rᵢ₋₁ - b)) /
-             (B + A * (2 * rᵢ₋₁ - a - b))
+            (f(a) + B * (rᵢ₋₁ - a) + A * (rᵢ₋₁ - a) * (rᵢ₋₁ - b)) /
+            (B + A * (2 * rᵢ₋₁ - a - b))
         rᵢ₋₁ = rᵢ
     end
 

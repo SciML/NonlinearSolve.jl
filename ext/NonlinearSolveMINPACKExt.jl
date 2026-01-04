@@ -12,13 +12,13 @@ function SciMLBase.__solve(
         abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
         show_trace::Val = Val(false), store_trace::Val = Val(false),
         termination_condition = nothing, kwargs...
-)
+    )
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )
 
     f_wrapped!, u0,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0
     )
     resid_size = size(resid)

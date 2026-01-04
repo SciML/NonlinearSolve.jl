@@ -1,4 +1,4 @@
-@testitem "Correct Best Solution: #565" tags=[:core] begin
+@testitem "Correct Best Solution: #565" tags = [:core] begin
     using NonlinearSolve, StableRNGs
 
     x = collect(0:0.1:10)

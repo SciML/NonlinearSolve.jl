@@ -73,12 +73,14 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
     linprob = LinearProblem(A, b; u0 = u_cache)
     # unlias here, we will later use these as caches
     lincache = init(
-        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...)
+        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...
+    )
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
 function (cache::NativeJLLinearSolveCache)(;
-        A = nothing, b = nothing, linu = nothing, kwargs...)
+        A = nothing, b = nothing, linu = nothing, kwargs...
+    )
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
 
@@ -86,7 +88,7 @@ function (cache::NativeJLLinearSolveCache)(;
     b === nothing || (cache.b = b)
 
     if linu !== nothing && ArrayInterface.can_setindex(linu) &&
-       applicable(ldiv!, linu, cache.A, cache.b) && applicable(ldiv!, cache.A, linu)
+            applicable(ldiv!, linu, cache.A, cache.b) && applicable(ldiv!, cache.A, linu)
         ldiv!(linu, cache.A, cache.b)
         res = linu
     else
@@ -101,14 +103,14 @@ function fix_incompatible_linsolve_arguments(A, b, u::SArray)
     (Core.Compiler.return_type(\, Tuple{typeof(A), typeof(b)}) <: typeof(u)) && return u
     @warn lazy"Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
            properly supported. Converting `x` to a mutable array. Check the return type \
-           of the nonlinear function provided for optimal performance." maxlog=1
+           of the nonlinear function provided for optimal performance." maxlog = 1
     return MArray(u)
 end
 
 set_lincache_u!(cache, u) = setproperty!(cache.lincache, :u, u)
 function set_lincache_u!(cache, u::SArray)
     cache.lincache.u isa MArray && return set_lincache_u!(cache, MArray(u))
-    cache.lincache.u = u
+    return cache.lincache.u = u
 end
 
 function wrap_preconditioners(Pl, Pr, u)

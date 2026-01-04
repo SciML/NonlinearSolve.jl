@@ -30,16 +30,16 @@ function InternalAPI.init(
         shared = Val(1), pre_inverted::Val = Val(false), linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
-)
+    )
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-        @bb δu_ = similar(u)
+            @bb δu_ = similar(u)
     end
 
     if Utils.unwrap_val(pre_inverted)
         lincache = nothing
     else
-        if haskey(kwargs, :verbose) 
+        if haskey(kwargs, :verbose)
             linsolve_kwargs = merge((verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
         end
 
@@ -58,13 +58,13 @@ function InternalAPI.init(
         shared = Val(1), pre_inverted::Val = Val(false), linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
-)
+    )
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:N) do i
-        @bb δu_ = similar(u)
+            @bb δu_ = similar(u)
     end
     normal_form = needs_square_A(alg.linsolve, u)
     if normal_form
@@ -78,7 +78,8 @@ function InternalAPI.init(
 
     if haskey(kwargs, :verbose)
         linsolve_kwargs = merge(
-            (verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs)
+            (verbose = kwargs[:verbose].linear_verbosity,), linsolve_kwargs
+        )
     end
 
     lincache = construct_linear_solver(
@@ -94,11 +95,11 @@ end
 function InternalAPI.solve!(
         cache::NewtonDescentCache, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, new_jacobian::Bool = true, kwargs...
-)
+    )
     δu = SciMLBase.get_du(cache, idx)
     skip_solve && return DescentResult(; δu)
     if preinverted_jacobian(cache) && !normal_form(cache)
-        @assert J!==nothing "`J` must be provided when `preinverted_jacobian = Val(true)`."
+        @assert J !== nothing "`J` must be provided when `preinverted_jacobian = Val(true)`."
         @bb δu = J × vec(fu)
     else
         if normal_form(cache)

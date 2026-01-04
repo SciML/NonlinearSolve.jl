@@ -1,4 +1,4 @@
-@testitem "Solving on CUDA" tags=[:cuda] begin
+@testitem "Solving on CUDA" tags = [:cuda] begin
     using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
 
     if CUDA.functional()
@@ -8,18 +8,19 @@
         f!(du, u, p) = (du .= u .* u .- 2)
 
         @testset "$(nameof(typeof(alg)))" for alg in (
-            SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
-            SimpleDFSane(),
-            SimpleTrustRegion(; autodiff = AutoForwardDiff()),
-            SimpleTrustRegion(;
-                nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()),
-            SimpleBroyden(),
-            SimpleLimitedMemoryBroyden(),
-            SimpleKlement(),
-            SimpleHalley(; autodiff = AutoForwardDiff()),
-            SimpleBroyden(; linesearch = Val(true)),
-            SimpleLimitedMemoryBroyden(; linesearch = Val(true))
-        )
+                SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
+                SimpleDFSane(),
+                SimpleTrustRegion(; autodiff = AutoForwardDiff()),
+                SimpleTrustRegion(;
+                    nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()
+                ),
+                SimpleBroyden(),
+                SimpleLimitedMemoryBroyden(),
+                SimpleKlement(),
+                SimpleHalley(; autodiff = AutoForwardDiff()),
+                SimpleBroyden(; linesearch = Val(true)),
+                SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+            )
             # Static Arrays
             u0 = @SVector[1.0f0, 1.0f0]
             probN = NonlinearProblem{false}(f, u0)
@@ -46,7 +47,7 @@
     end
 end
 
-@testitem "CUDA Kernel Launch Test" tags=[:cuda] begin
+@testitem "CUDA Kernel Launch Test" tags = [:cuda] begin
     using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
     using NonlinearSolveBase: ImmutableNonlinearProblem
 
@@ -64,18 +65,19 @@ end
             prob = convert(ImmutableNonlinearProblem, NonlinearProblem{false}(f, u0, 2.0f0))
 
             @testset "$(nameof(typeof(alg)))" for alg in (
-                SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
-                SimpleDFSane(),
-                SimpleTrustRegion(; autodiff = AutoForwardDiff()),
-                SimpleTrustRegion(;
-                    nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()),
-                SimpleBroyden(),
-                SimpleLimitedMemoryBroyden(),
-                SimpleKlement(),
-                SimpleHalley(; autodiff = AutoForwardDiff()),
-                SimpleBroyden(; linesearch = Val(true)),
-                SimpleLimitedMemoryBroyden(; linesearch = Val(true))
-            )
+                    SimpleNewtonRaphson(; autodiff = AutoForwardDiff()),
+                    SimpleDFSane(),
+                    SimpleTrustRegion(; autodiff = AutoForwardDiff()),
+                    SimpleTrustRegion(;
+                        nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()
+                    ),
+                    SimpleBroyden(),
+                    SimpleLimitedMemoryBroyden(),
+                    SimpleKlement(),
+                    SimpleHalley(; autodiff = AutoForwardDiff()),
+                    SimpleBroyden(; linesearch = Val(true)),
+                    SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+                )
                 @test begin
                     @cuda kernel_function(prob, alg)
                     @info "Successfully launched kernel for $(alg)."

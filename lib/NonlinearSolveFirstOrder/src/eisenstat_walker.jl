@@ -25,7 +25,7 @@ to prevent ηₖ from shrinking too fast.
 end
 
 function EisenstatWalkerForcing2(; η₀ = 0.5, ηₘₐₓ = 0.9, γ = 0.9, α = 2, safeguard = true, safeguard_threshold = 0.1)
-    EisenstatWalkerForcing2(η₀, ηₘₐₓ, γ, α, safeguard, safeguard_threshold)
+    return EisenstatWalkerForcing2(η₀, ηₘₐₓ, γ, α, safeguard, safeguard_threshold)
 end
 
 
@@ -39,7 +39,6 @@ end
 end
 
 
-
 function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::NonlinearSolveBase.NewtonDescentCache, J, u, fu, iter)
     @SciMLMessage("Eisenstat-Walker forcing residual norm $(cache.rnorm) with rate estimate $(cache.rnorm / cache.rnorm_prev).", cache.verbosity, :forcing)
 
@@ -47,7 +46,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     if iter == 0
         cache.η = cache.p.η₀
         @SciMLMessage("Eisenstat-Walker initial iteration to η=$(cache.η).", cache.verbosity, :forcing)
-        LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
+        LinearSolve.update_tolerances!(descend_cache.lincache; reltol = cache.η)
         return nothing
     end
 
@@ -62,7 +61,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
 
     # Safeguard 2 to prevent over-solving
     if cache.p.safeguard
-        ηsg = γ*ηprev^α
+        ηsg = γ * ηprev^α
         if ηsg > cache.p.safeguard_threshold && ηsg > cache.η
             cache.η = ηsg
         end
@@ -74,27 +73,25 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     @SciMLMessage("Eisenstat-Walker iter $iter update to η=$(cache.η).", cache.verbosity, :forcing)
 
     # Communicate new relative tolerance to linear solve
-    LinearSolve.update_tolerances!(descend_cache.lincache; reltol=cache.η)
+    LinearSolve.update_tolerances!(descend_cache.lincache; reltol = cache.η)
 
     return nothing
 end
 
 
-
 function post_step_forcing!(cache::EisenstatWalkerForcing2Cache, J, u, fu, δu, iter)
     # Cache previous residual norm
     cache.rnorm_prev = cache.rnorm
-    cache.rnorm = cache.internalnorm(fu)
+    return cache.rnorm = cache.internalnorm(fu)
 
     # @SciMLMessage("Eisenstat-Walker sanity check: $(cache.internalnorm(fu + J*δu)) ≤ $(cache.η * cache.internalnorm(fu)).", cache.verbosity, :linear_verbosity)
 end
 
 
-
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::EisenstatWalkerForcing2, f, fu, u, p,
         args...; verbose, internalnorm::F = L2_NORM, kwargs...
-) where {F}
+    ) where {F}
     fu_norm = internalnorm(fu)
 
     return EisenstatWalkerForcing2Cache(
@@ -103,9 +100,8 @@ function InternalAPI.init(
 end
 
 
-
 function InternalAPI.reinit!(
         cache::EisenstatWalkerForcing2Cache; p = cache.p, kwargs...
-)
-    cache.p = p
+    )
+    return cache.p = p
 end

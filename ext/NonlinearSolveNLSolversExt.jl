@@ -15,7 +15,7 @@ function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLSolversJL, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -37,8 +37,10 @@ function SciMLBase.__solve(
             prob.f, autodiff, prob.u0, Constant(prob.p)
         )
 
-        fj_scalar = @closure (Jx,
-            x) -> begin
+        fj_scalar = @closure (
+            Jx,
+            x,
+        ) -> begin
             return DifferentiationInterface.value_and_derivative(
                 prob.f, prep, autodiff, x, Constant(prob.p)
             )

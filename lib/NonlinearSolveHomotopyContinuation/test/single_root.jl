@@ -32,7 +32,7 @@ alg = HomotopyContinuationJL{false}(; threading = false)
         sol = solve(prob, _alg)
 
         @test sol isa NonlinearSolution
-        @test sol.u≈2.0 atol=1e-10
+        @test sol.u ≈ 2.0 atol = 1.0e-10
 
         @testset "no real solutions" begin
             prob = NonlinearProblem(1.0, 1.0) do u, p
@@ -54,13 +54,14 @@ alg = HomotopyContinuationJL{false}(; threading = false)
             return [asin(u)]
         end
         fn = HomotopyNonlinearFunction(;
-            denominator, polynomialize, unpolynomialize) do u, p
+            denominator, polynomialize, unpolynomialize
+        ) do u, p
             return (u - p[1]) * (u - p[2])
         end
         prob = NonlinearProblem(fn, 0.0, [0.5, 0.7])
 
         sol = solve(prob, alg)
-        @test sin(sol.u[1])≈0.5 atol=1e-10
+        @test sin(sol.u[1]) ≈ 0.5 atol = 1.0e-10
 
         @testset "no valid solutions" begin
             prob2 = remake(prob; p = [0.7, 0.9])
@@ -71,39 +72,41 @@ alg = HomotopyContinuationJL{false}(; threading = false)
         @testset "closest root" begin
             prob3 = remake(prob; p = [0.5, 0.6], u0 = asin(0.4))
             sol3 = solve(prob3, alg)
-            @test sin(sol3.u)≈0.5 atol=1e-10
+            @test sin(sol3.u) ≈ 0.5 atol = 1.0e-10
             prob4 = remake(prob3; u0 = asin(0.7))
             sol4 = solve(prob4, alg)
-            @test sin(sol4.u)≈0.6 atol=1e-10
+            @test sin(sol4.u) ≈ 0.6 atol = 1.0e-10
         end
     end
 end
 
 f! = function (du, u, p)
     du[1] = u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1
-    du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    return du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
 end
 
 f = function (u, p)
-    [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
+    return [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
 end
 
 jac! = function (j, u, p)
     j[1, 1] = 2u[1]
     j[1, 2] = -p[1] + 3 * u[2]^2
     j[2, 1] = 2 * p[2] * u[2]
-    j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    return j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
 end
 
 jac = function (u, p)
-    [2u[1] -p[1]+3 * u[2]^2;
-     2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
+    return [
+        2u[1] -p[1] + 3 * u[2]^2;
+        2 * p[2] * u[2] 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    ]
 end
 
 # Filter test cases based on Julia version
 vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, jac, "oop + jac"),
-    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac")
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, jac!, "iip + jac"),
 ]
 if isempty(VERSION.prerelease) && VERSION < v"1.12"
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
@@ -124,7 +127,7 @@ end
         prob = NonlinearProblem(fn, [1.0, 2.0], [2.0, 3.0])
         sol = solve(prob, _alg)
         @test SciMLBase.successful_retcode(sol)
-        @test f(sol.u, prob.p)≈[0.0, 0.0] atol=1e-10
+        @test f(sol.u, prob.p) ≈ [0.0, 0.0] atol = 1.0e-10
 
         @testset "no real solutions" begin
             prob2 = remake(prob; p = zeros(2))
@@ -148,7 +151,7 @@ end
         prob = NonlinearProblem(fn, [1.0, 1.0], [2.0, 3.0, 4.0, 5.0])
         sol = solve(prob, _alg)
         @test SciMLBase.successful_retcode(sol)
-        @test f(polynomialize(sol.u, prob.p), prob.p)≈zeros(2) atol=1e-10
+        @test f(polynomialize(sol.u, prob.p), prob.p) ≈ zeros(2) atol = 1.0e-10
 
         @testset "some invalid solutions" begin
             prob2 = remake(prob; p = [2.0, 3.0, polynomialize(sol.u, prob.p)...])
@@ -169,7 +172,8 @@ end
         return u^2 + u - 1
     end
     prob = NonlinearProblem(
-        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0)
+        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0
+    )
     sol = solve(prob, alg)
     @test !SciMLBase.successful_retcode(sol)
 end

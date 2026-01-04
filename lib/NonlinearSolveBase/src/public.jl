@@ -25,7 +25,7 @@ function pickchunksize end
 abstract type AbstractNonlinearTerminationMode end
 abstract type AbstractSafeNonlinearTerminationMode <: AbstractNonlinearTerminationMode end
 abstract type AbstractSafeBestNonlinearTerminationMode <:
-              AbstractSafeNonlinearTerminationMode end
+AbstractSafeNonlinearTerminationMode end
 
 #! format: off
 const TERM_DOCS = Dict(
@@ -92,10 +92,10 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
     supertype_name = Symbol(:Abstract, safety, :NonlinearTerminationMode)
 
     doctring = safety == :Safe ?
-               "Essentially [`$(norm_type)TerminationMode`](@ref) + terminate if there \
+        "Essentially [`$(norm_type)TerminationMode`](@ref) + terminate if there \
                 has been no improvement for the last `patience_steps` + terminate if the \
                 solution blows up (diverges)." :
-               "Essentially [`$(norm_type)SafeTerminationMode`](@ref), but caches the best\
+        "Essentially [`$(norm_type)SafeTerminationMode`](@ref), but caches the best\
                 solution found so far."
 
     @eval begin
@@ -122,15 +122,20 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
             min_max_factor
             max_stalled_steps <: Union{Nothing, Int}
 
-            function $(struct_name)(internalnorm::F; protective_threshold = nothing,
+            function $(struct_name)(
+                    internalnorm::F; protective_threshold = nothing,
                     patience_steps = 100, patience_objective_multiplier = 3,
-                    min_max_factor = 1.3, max_stalled_steps = nothing) where {F}
+                    min_max_factor = 1.3, max_stalled_steps = nothing
+                ) where {F}
                 norm = Utils.standardize_norm(internalnorm)
-                return new{typeof(norm), typeof(protective_threshold),
+                return new{
+                    typeof(norm), typeof(protective_threshold),
                     typeof(patience_objective_multiplier),
-                    typeof(min_max_factor), typeof(max_stalled_steps)}(
+                    typeof(min_max_factor), typeof(max_stalled_steps),
+                }(
                     norm, protective_threshold, patience_steps,
-                    patience_objective_multiplier, min_max_factor, max_stalled_steps)
+                    patience_objective_multiplier, min_max_factor, max_stalled_steps
+                )
             end
         end
     end

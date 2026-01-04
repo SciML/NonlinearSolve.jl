@@ -31,7 +31,7 @@ function NewtonRaphson(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         forcing = nothing,
-)
+    )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
         descent = NewtonDescent(; linsolve),

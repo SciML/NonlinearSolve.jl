@@ -1,4 +1,4 @@
-@testitem "NLLS Analytic Jacobian" tags=[:core] begin
+@testitem "NLLS Analytic Jacobian" tags = [:core] begin
     dataIn = 1:10
     f(x, p) = x[1] * dataIn .^ 2 .+ x[2] * dataIn .+ x[3]
     dataOut = f([1, 2, 3], nothing) + 0.1 * randn(10, 1)
@@ -17,7 +17,7 @@
     @test sol1.u ≈ sol2.u
 end
 
-@testitem "Basic PolyAlgorithms" tags=[:nopre] begin
+@testitem "Basic PolyAlgorithms" tags = [:nopre] begin
     f(u, p) = u .* u .- 2
     u0 = [1.0, 1.0]
 
@@ -25,23 +25,23 @@ end
 
     polyalgs = (
         RobustMultiNewton(), FastShortcutNonlinearPolyalg(), nothing, missing,
-        NonlinearSolvePolyAlgorithm((Broyden(), LimitedMemoryBroyden()))
+        NonlinearSolvePolyAlgorithm((Broyden(), LimitedMemoryBroyden())),
     )
 
     @testset "Direct Solve" begin
         @testset for alg in polyalgs
             alg = alg === missing ? () : (alg,)
-            sol = solve(prob, alg...; abstol = 1e-9)
+            sol = solve(prob, alg...; abstol = 1.0e-9)
             @test SciMLBase.successful_retcode(sol)
             err = maximum(abs, f(sol.u, 2.0))
-            @test err < 1e-9
+            @test err < 1.0e-9
         end
     end
 
     @testset "Caching Interface" begin
         @testset for alg in polyalgs
             alg = alg === missing ? () : (alg,)
-            cache = init(prob, alg...; abstol = 1e-9)
+            cache = init(prob, alg...; abstol = 1.0e-9)
             solver = solve!(cache)
             @test SciMLBase.successful_retcode(solver)
         end
@@ -50,7 +50,7 @@ end
     @testset "Step Interface" begin
         @testset for alg in polyalgs
             alg = alg === missing ? () : (alg,)
-            cache = init(prob, alg...; abstol = 1e-9)
+            cache = init(prob, alg...; abstol = 1.0e-9)
             for i in 1:10000
                 step!(cache)
                 cache.force_stop && break
@@ -60,7 +60,7 @@ end
     end
 end
 
-@testitem "PolyAlgorithms Autodiff" tags=[:nopre] begin
+@testitem "PolyAlgorithms Autodiff" tags = [:nopre] begin
     cache = zeros(2)
     function f(du, u, p)
         cache .= u .* u
@@ -69,19 +69,21 @@ end
     u0 = [1.0, 1.0]
     probN = NonlinearProblem{true}(f, u0)
 
-    custom_polyalg = NonlinearSolvePolyAlgorithm((
-        Broyden(; autodiff = AutoFiniteDiff()), LimitedMemoryBroyden())
+    custom_polyalg = NonlinearSolvePolyAlgorithm(
+        (
+            Broyden(; autodiff = AutoFiniteDiff()), LimitedMemoryBroyden(),
+        )
     )
 
     # Uses the `__solve` function
-    @test_throws MethodError solve(probN; abstol = 1e-9)
+    @test_throws MethodError solve(probN; abstol = 1.0e-9)
     @test_throws MethodError solve(probN, RobustMultiNewton())
 
     sol = solve(probN, RobustMultiNewton(; autodiff = AutoFiniteDiff()))
     @test SciMLBase.successful_retcode(sol)
 
     sol = solve(
-        probN, FastShortcutNonlinearPolyalg(; autodiff = AutoFiniteDiff()); abstol = 1e-9
+        probN, FastShortcutNonlinearPolyalg(; autodiff = AutoFiniteDiff()); abstol = 1.0e-9
     )
     @test SciMLBase.successful_retcode(sol)
 
@@ -96,7 +98,7 @@ end
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testitem "PolyAlgorithm Aliasing" tags=[:core] begin
+@testitem "PolyAlgorithm Aliasing" tags = [:core] begin
     using NonlinearProblemLibrary
 
     # Use a problem that the initial solvers cannot solve and cause the initial value to
@@ -107,7 +109,7 @@ end
 
     # If aliasing is not handled properly this will diverge
     sol = solve(
-        prob; abstol = 1e-6, alias_u0 = true,
+        prob; abstol = 1.0e-6, alias_u0 = true,
         termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
     )
 
@@ -117,7 +119,7 @@ end
     prob = remake(prob; u0 = copy(u0))
 
     cache = init(
-        prob; abstol = 1e-6, alias_u0 = true,
+        prob; abstol = 1.0e-6, alias_u0 = true,
         termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
     )
     sol = solve!(cache)
@@ -126,7 +128,7 @@ end
     @test SciMLBase.successful_retcode(sol.retcode)
 end
 
-@testitem "Ensemble Nonlinear Problems" tags=[:nopre] begin
+@testitem "Ensemble Nonlinear Problems" tags = [:nopre] begin
     prob_func(prob, i, repeat) = remake(prob; u0 = prob.u0[:, i])
 
     prob_nls_oop = NonlinearProblem((u, p) -> u .* u .- p, rand(4, 128), 2.0)
@@ -147,7 +149,7 @@ end
     end
 end
 
-@testitem "BigFloat Support" tags=[:core] begin
+@testitem "BigFloat Support" tags = [:core] begin
     using LinearAlgebra
 
     fn_iip = NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p)
@@ -159,16 +161,16 @@ end
 
     for alg in (NewtonRaphson(), Broyden(), Klement(), DFSane(), TrustRegion())
         sol = solve(prob_oop_bf, alg)
-        @test norm(sol.resid, Inf) < 1e-6
+        @test norm(sol.resid, Inf) < 1.0e-6
         @test SciMLBase.successful_retcode(sol.retcode)
 
         sol = solve(prob_iip_bf, alg)
-        @test norm(sol.resid, Inf) < 1e-6
+        @test norm(sol.resid, Inf) < 1.0e-6
         @test SciMLBase.successful_retcode(sol.retcode)
     end
 end
 
-@testitem "Singular Exception: Issue #153" tags=[:core] begin
+@testitem "Singular Exception: Issue #153" tags = [:core] begin
     function f(du, u, p)
         s1, s1s2, s2 = u
         k1, c1, Δt = p
@@ -179,11 +181,11 @@ end
     end
 
     prob = NonlinearProblem(f, [2.0, 2.0, 2.0], [1.0, 2.0, 2.5])
-    sol = solve(prob; abstol = 1e-9)
+    sol = solve(prob; abstol = 1.0e-9)
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testitem "Simple Scalar Problem: Issue #187" tags=[:core] begin
+@testitem "Simple Scalar Problem: Issue #187" tags = [:core] begin
     using NaNMath
 
     # https://github.com/SciML/NonlinearSolve.jl/issues/187
@@ -192,20 +194,20 @@ end
 
     uspan = (0.02, 0.1)
     prob = IntervalNonlinearProblem(ff_interval, uspan)
-    sol = solve(prob; abstol = 1e-9)
+    sol = solve(prob; abstol = 1.0e-9)
     @test SciMLBase.successful_retcode(sol)
 
     u0 = 0.06
     p = 2.0
     prob = NonlinearProblem(ff_interval, u0, p)
-    sol = solve(prob; abstol = 1e-9)
+    sol = solve(prob; abstol = 1.0e-9)
     @test SciMLBase.successful_retcode(sol)
 end
 
 # Shooting Problem: Taken from BoundaryValueDiffEq.jl
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
-@testitem "Complex Valued Problems: Single-Shooting" tags=[:core] begin
+@testitem "Complex Valued Problems: Single-Shooting" tags = [:core] begin
     using OrdinaryDiffEqTsit5
 
     function ode_func!(du, u, p, t)
@@ -217,24 +219,25 @@ end
     function objective_function!(resid, u0, p)
         odeprob = ODEProblem{true}(ode_func!, u0, (0.0, 100.0), p)
         sol = solve(
-            odeprob, Tsit5(), abstol = 1e-9, reltol = 1e-9, verbose = true)
+            odeprob, Tsit5(), abstol = 1.0e-9, reltol = 1.0e-9, verbose = true
+        )
         resid[1] = sol(0.0)[1]
         resid[2] = sol(100.0)[1] - 1.0
         return nothing
     end
 
     prob = NonlinearProblem{true}(objective_function!, [0.0, 1.0] .+ 1im)
-    sol = solve(prob; abstol = 1e-10)
+    sol = solve(prob; abstol = 1.0e-10)
     @test SciMLBase.successful_retcode(sol)
     # This test is not meant to return success but test that all the default solvers can handle
     # complex valued problems
-    @test_nowarn solve(prob; abstol = 1e-19, maxiters = 10)
+    @test_nowarn solve(prob; abstol = 1.0e-19, maxiters = 10)
     @test_nowarn solve(
-        prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1e-19, maxiters = 10
+        prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1.0e-19, maxiters = 10
     )
 end
 
-@testitem "No AD" tags=[:core] begin
+@testitem "No AD" tags = [:core] begin
     no_ad_fast = FastShortcutNonlinearPolyalg(autodiff = AutoFiniteDiff())
     no_ad_robust = RobustMultiNewton(autodiff = AutoFiniteDiff())
     no_ad_algs = Set([no_ad_fast, no_ad_robust, no_ad_fast.algs..., no_ad_robust.algs...])
@@ -262,7 +265,7 @@ end
     end
 end
 
-@testitem "Infeasible" tags=[:core] begin
+@testitem "Infeasible" tags = [:core] begin
     using LinearAlgebra, StaticArrays
 
     # this is infeasible
@@ -281,7 +284,7 @@ end
         i = acos(h[3] / norm(h))
         e = norm(ev)
         a = 1 / (2 / norm(r) - (norm(v)^2 / μ))
-        out .= [a - 42.0e6, e - 1e-5, i - 1e-5]
+        out .= [a - 42.0e6, e - 1.0e-5, i - 1.0e-5]
         return nothing
     end
 
@@ -300,7 +303,7 @@ end
         i = acos(h[3] / norm(h))
         e = norm(ev)
         a = 1 / (2 / norm(r) - (norm(v)^2 / μ))
-        return [a - 42.0e6, e - 1e-5, i - 1e-5]
+        return [a - 42.0e6, e - 1.0e-5, i - 1.0e-5]
     end
 
     u0 = [0.0, 0.0, 0.0]
@@ -327,11 +330,11 @@ end
     @test !SciMLBase.successful_retcode(sol.retcode)
 end
 
-@testitem "NoInit Caching" tags=[:core] begin
+@testitem "NoInit Caching" tags = [:core] begin
     using LinearAlgebra
 
     solvers = [
-        SimpleNewtonRaphson(), SimpleTrustRegion(), SimpleDFSane()
+        SimpleNewtonRaphson(), SimpleTrustRegion(), SimpleDFSane(),
     ]
 
     prob = NonlinearProblem((u, p) -> u .^ 2 .- p, [0.1, 0.3], 2.0)
@@ -340,18 +343,18 @@ end
         cache = init(prob, alg)
         sol = solve!(cache)
         @test SciMLBase.successful_retcode(sol)
-        @test norm(sol.resid, Inf) ≤ 1e-6
+        @test norm(sol.resid, Inf) ≤ 1.0e-6
 
         reinit!(cache; p = 5.0)
         @test cache.prob.p == 5.0
         sol = solve!(cache)
         @test SciMLBase.successful_retcode(sol)
-        @test norm(sol.resid, Inf) ≤ 1e-6
-        @test norm(sol.u .^ 2 .- 5.0, Inf) ≤ 1e-6
+        @test norm(sol.resid, Inf) ≤ 1.0e-6
+        @test norm(sol.u .^ 2 .- 5.0, Inf) ≤ 1.0e-6
     end
 end
 
-@testitem "Out-of-place Matrix Resizing" tags=[:nopre] begin
+@testitem "Out-of-place Matrix Resizing" tags = [:nopre] begin
     using StableRNGs
 
     ff(u, p) = u .* u .- p
@@ -361,15 +364,15 @@ end
     prob = NonlinearProblem(ff, u0, p)
 
     for alg in (
-        NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-        PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
-        Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2)
-    )
+            NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
+            PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
+            Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2),
+        )
         @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
     end
 end
 
-@testitem "Inplace Matrix Resizing" tags=[:nopre] begin
+@testitem "Inplace Matrix Resizing" tags = [:nopre] begin
     using StableRNGs
 
     fiip(du, u, p) = (du .= u .* u .- p)
@@ -379,15 +382,15 @@ end
     prob = NonlinearProblem(fiip, u0, p)
 
     for alg in (
-        NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
-        PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
-        Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2)
-    )
+            NewtonRaphson(), TrustRegion(), LevenbergMarquardt(),
+            PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
+            Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2),
+        )
         @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
     end
 end
 
-@testitem "Singular Systems -- Auto Linear Solve Switching" tags=[:core] begin
+@testitem "Singular Systems -- Auto Linear Solve Switching" tags = [:core] begin
     using LinearAlgebra
 
     function f!(du, u, p)
@@ -400,7 +403,7 @@ end
     prob = NonlinearProblem(f!, u0)
 
     sol = solve(prob) # This doesn't have a root so let's just test the switching
-    @test sol.u≈[1.0, 0.25] atol=1e-3 rtol=1e-3
+    @test sol.u ≈ [1.0, 0.25] atol = 1.0e-3 rtol = 1.0e-3
 
     function nlls!(du, u, p)
         du[1] = 2u[1] - 2
@@ -413,10 +416,10 @@ end
     prob = NonlinearProblem(NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0)
 
     solve(prob)
-    @test sol.u≈[1.0, 0.25] atol=1e-3 rtol=1e-3
+    @test sol.u ≈ [1.0, 0.25] atol = 1.0e-3 rtol = 1.0e-3
 end
 
-@testitem "No PolyesterForwardDiff for SArray" tags=[:core] begin
+@testitem "No PolyesterForwardDiff for SArray" tags = [:core] begin
     using StaticArrays, PolyesterForwardDiff
 
     f_oop(u, p) = u .* u .- p
@@ -429,7 +432,7 @@ end
     @test !(solve(nlprob, NewtonRaphson()).alg.autodiff isa AutoPolyesterForwardDiff)
 end
 
-@testitem "NonlinearLeastSquares ReturnCode" tags=[:core] begin
+@testitem "NonlinearLeastSquares ReturnCode" tags = [:core] begin
     f(u, p) = [1.0]
     nlf = NonlinearFunction(f; resid_prototype = zeros(1))
     prob = NonlinearLeastSquaresProblem(nlf, [1.0])
@@ -438,16 +441,16 @@ end
     @test sol.retcode == ReturnCode.StalledSuccess
 end
 
-@testitem "Default Algorithm Singular Handling" tags=[:nopre] begin
+@testitem "Default Algorithm Singular Handling" tags = [:nopre] begin
     f(u, p) = [u[1]^2 - 2u[1] + 1, sum(u)]
     prob = NonlinearProblem(f, [1.0, 1.0])
     sol = solve(prob)
     @test SciMLBase.successful_retcode(sol)
 end
 
-@testitem "NonNumberEltype error" tags=[:core] begin
+@testitem "NonNumberEltype error" tags = [:core] begin
     u0_broken = [rand(2), rand(2)]
-    f(u,p) = u
+    f(u, p) = u
     prob = NonlinearProblem(f, u0_broken)
     @test_throws SciMLBase.NonNumberEltypeError solve(prob)
 end

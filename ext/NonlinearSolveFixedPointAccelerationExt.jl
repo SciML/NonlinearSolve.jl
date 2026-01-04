@@ -10,7 +10,7 @@ function SciMLBase.__solve(
         prob::NonlinearProblem, alg::FixedPointAccelerationJL, args...;
         abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         show_trace::Val = Val(false), termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -20,7 +20,7 @@ function SciMLBase.__solve(
     )
 
     f, u0,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, make_fixed_point = Val(true), force_oop = Val(true)
     )
 
@@ -41,7 +41,7 @@ function SciMLBase.__solve(
         converged = false
     else
         res = prob.u0 isa Number ? first(sol.FixedPoint_) :
-              reshape(sol.FixedPoint_, size(prob.u0))
+            reshape(sol.FixedPoint_, size(prob.u0))
         resid = NonlinearSolveBase.Utils.evaluate_f(prob, res)
         converged = maximum(abs, resid) ≤ tol
     end

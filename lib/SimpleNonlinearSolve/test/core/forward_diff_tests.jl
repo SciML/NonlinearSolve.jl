@@ -1,7 +1,7 @@
-@testitem "ForwardDiff.jl Integration: NonlinearProblem" tags=[:core] begin
+@testitem "ForwardDiff.jl Integration: NonlinearProblem" tags = [:core] begin
     using ArrayInterface
     using ForwardDiff, FiniteDiff, SimpleNonlinearSolve, StaticArrays, LinearAlgebra,
-          Zygote, ReverseDiff, SciMLBase
+        Zygote, ReverseDiff, SciMLBase
     using DifferentiationInterface
 
     const DI = DifferentiationInterface
@@ -15,20 +15,20 @@
     jacobian_f(u, p::AbstractArray) = diagm(vec(@. 1 / (2 * √p)))
 
     @testset "$(nameof(typeof(alg)))" for alg in (
-        SimpleNewtonRaphson(),
-        SimpleTrustRegion(),
-        SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
-        SimpleHalley(),
-        SimpleBroyden(),
-        SimpleKlement(),
-        SimpleDFSane()
-    )
+            SimpleNewtonRaphson(),
+            SimpleTrustRegion(),
+            SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+            SimpleHalley(),
+            SimpleBroyden(),
+            SimpleKlement(),
+            SimpleDFSane(),
+        )
         us = (
             2.0,
             @SVector([1.0, 1.0]),
             [1.0, 1.0],
             ones(2, 2),
-            @SArray(ones(2, 2))
+            @SArray(ones(2, 2)),
         )
 
         @testset "Scalar AD" begin
@@ -36,16 +36,18 @@
 
                 sol = solve(NonlinearProblem{false}(test_f, u0, p), alg)
                 if SciMLBase.successful_retcode(sol)
-                    gs = abs.(ForwardDiff.derivative(p) do pᵢ
-                        solve(NonlinearProblem{false}(test_f, u0, pᵢ), alg).u
-                    end)
+                    gs = abs.(
+                        ForwardDiff.derivative(p) do pᵢ
+                            solve(NonlinearProblem{false}(test_f, u0, pᵢ), alg).u
+                        end
+                    )
                     gs_true = abs.(jacobian_f(u0, p))
 
-                    if !(isapprox(gs, gs_true, atol = 1e-5))
+                    if !(isapprox(gs, gs_true, atol = 1.0e-5))
                         @show sol.retcode, sol.u
-                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_gradient=gs true_gradient=gs_true
+                        @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_gradient = gs true_gradient = gs_true
                     else
-                        @test abs.(gs)≈abs.(gs_true) atol=1e-5
+                        @test abs.(gs) ≈ abs.(gs_true) atol = 1.0e-5
                     end
                 end
             end
@@ -53,7 +55,7 @@
 
         @testset "Jacobian" begin
             @testset "$(typeof(u0))" for u0 in us[2:end],
-                p in ([2.0, 1.0], [2.0 1.0; 3.0 4.0])
+                    p in ([2.0, 1.0], [2.0 1.0; 3.0 4.0])
 
                 if u0 isa AbstractArray && p isa AbstractArray
                     size(u0) != size(p) && continue
@@ -64,16 +66,18 @@
 
                     sol = solve(NonlinearProblem{iip}(fn, u0, p), alg)
                     if SciMLBase.successful_retcode(sol)
-                        gs = abs.(ForwardDiff.jacobian(p) do pᵢ
-                            solve(NonlinearProblem{iip}(fn, u0, pᵢ), alg).u
-                        end)
+                        gs = abs.(
+                            ForwardDiff.jacobian(p) do pᵢ
+                                solve(NonlinearProblem{iip}(fn, u0, pᵢ), alg).u
+                            end
+                        )
                         gs_true = abs.(jacobian_f(u0, p))
 
-                        if !(isapprox(gs, gs_true, atol = 1e-5))
+                        if !(isapprox(gs, gs_true, atol = 1.0e-5))
                             @show sol.retcode, sol.u
-                            @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_jacobian=gs true_jacobian=gs_true
+                            @error "ForwardDiff Failed for u0=$(u0) and p=$(p) with $(alg)" forwardiff_jacobian = gs true_jacobian = gs_true
                         else
-                            @test abs.(gs)≈abs.(gs_true) atol=1e-5
+                            @test abs.(gs) ≈ abs.(gs_true) atol = 1.0e-5
                         end
                     end
                 end
@@ -82,9 +86,9 @@
     end
 end
 
-@testitem "ForwardDiff.jl Integration NonlinearLeastSquaresProblem" tags=[:core] begin
+@testitem "ForwardDiff.jl Integration NonlinearLeastSquaresProblem" tags = [:core] begin
     using ForwardDiff, FiniteDiff, SimpleNonlinearSolve, StaticArrays, LinearAlgebra,
-          Zygote, ReverseDiff
+        Zygote, ReverseDiff
     using DifferentiationInterface
 
     const DI = DifferentiationInterface
@@ -120,11 +124,11 @@ end
     θ_init = θ_true .+ 0.1
 
     for alg in (
-        SimpleGaussNewton(),
-        SimpleGaussNewton(; autodiff = AutoForwardDiff()),
-        SimpleGaussNewton(; autodiff = AutoFiniteDiff()),
-        SimpleGaussNewton(; autodiff = AutoReverseDiff())
-    )
+            SimpleGaussNewton(),
+            SimpleGaussNewton(; autodiff = AutoForwardDiff()),
+            SimpleGaussNewton(; autodiff = AutoFiniteDiff()),
+            SimpleGaussNewton(; autodiff = AutoReverseDiff()),
+        )
         function obj_1(p)
             prob_oop = NonlinearLeastSquaresProblem{false}(loss_function, θ_init, p)
             sol = solve(prob_oop, alg)
@@ -133,7 +137,8 @@ end
 
         function obj_2(p)
             ff = NonlinearFunction{false}(
-                loss_function; resid_prototype = zeros(length(y_target)))
+                loss_function; resid_prototype = zeros(length(y_target))
+            )
             prob_oop = NonlinearLeastSquaresProblem{false}(ff, θ_init, p)
             sol = solve(prob_oop, alg)
             return sum(abs2, sol.u)
@@ -152,17 +157,19 @@ end
         fdiff2 = DI.gradient(obj_2, AutoForwardDiff(), x)
         fdiff3 = DI.gradient(obj_3, AutoForwardDiff(), x)
 
-        @test finitediff≈fdiff1 atol=1e-5
-        @test finitediff≈fdiff2 atol=1e-5
-        @test finitediff≈fdiff3 atol=1e-5
+        @test finitediff ≈ fdiff1 atol = 1.0e-5
+        @test finitediff ≈ fdiff2 atol = 1.0e-5
+        @test finitediff ≈ fdiff3 atol = 1.0e-5
         @test fdiff1 ≈ fdiff2 ≈ fdiff3
 
         function obj_4(p)
             prob_iip = NonlinearLeastSquaresProblem(
                 NonlinearFunction{true}(
-                    loss_function!; resid_prototype = zeros(length(y_target))),
+                    loss_function!; resid_prototype = zeros(length(y_target))
+                ),
                 θ_init,
-                p)
+                p
+            )
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
         end
@@ -170,7 +177,8 @@ end
         function obj_5(p)
             ff = NonlinearFunction{true}(
                 loss_function!; resid_prototype = zeros(length(y_target)),
-                jac = loss_function_jac!)
+                jac = loss_function_jac!
+            )
             prob_iip = NonlinearLeastSquaresProblem(ff, θ_init, p)
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
@@ -179,7 +187,8 @@ end
         function obj_6(p)
             ff = NonlinearFunction{true}(
                 loss_function!; resid_prototype = zeros(length(y_target)),
-                vjp = loss_function_vjp!)
+                vjp = loss_function_vjp!
+            )
             prob_iip = NonlinearLeastSquaresProblem(ff, θ_init, p)
             sol = solve(prob_iip, alg)
             return sum(abs2, sol.u)
@@ -191,9 +200,9 @@ end
         fdiff5 = DI.gradient(obj_5, AutoForwardDiff(), x)
         fdiff6 = DI.gradient(obj_6, AutoForwardDiff(), x)
 
-        @test finitediff≈fdiff4 atol=1e-5
-        @test finitediff≈fdiff5 atol=1e-5
-        @test finitediff≈fdiff6 atol=1e-5
+        @test finitediff ≈ fdiff4 atol = 1.0e-5
+        @test finitediff ≈ fdiff5 atol = 1.0e-5
+        @test finitediff ≈ fdiff6 atol = 1.0e-5
         @test fdiff4 ≈ fdiff5 ≈ fdiff6
     end
 end

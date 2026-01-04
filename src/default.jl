@@ -57,15 +57,15 @@ end
 
 function SciMLBase.__solve(
         prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...
-)
+    )
     return SciMLBase.__solve(
         prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
     )
 end
 
 function NonlinearSolveBase.initialization_alg(::AbstractNonlinearProblem, autodiff)
-    FastShortcutNonlinearPolyalg(; autodiff)
+    return FastShortcutNonlinearPolyalg(; autodiff)
 end
 function NonlinearSolveBase.initialization_alg(::NonlinearLeastSquaresProblem, autodiff)
-    FastShortcutNLLSPolyalg(; autodiff)
+    return FastShortcutNLLSPolyalg(; autodiff)
 end

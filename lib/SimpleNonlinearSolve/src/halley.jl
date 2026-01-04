@@ -23,16 +23,16 @@ end
 function configure_autodiff(prob, alg::SimpleHalley)
     autodiff = something(alg.autodiff, AutoForwardDiff())
     autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
+        NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
     @set! alg.autodiff = autodiff
-    alg
+    return alg
 end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleHalley, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -46,14 +46,14 @@ function SciMLBase.__solve(
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
     @bb xo = copy(x)
 
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               NLBUtils.safe_similar(fx) : fx
+        NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
 
     if NLBUtils.can_setindex(x)
@@ -80,7 +80,8 @@ function SciMLBase.__solve(
 
         aᵢ = J_fact \ NLBUtils.safe_vec(fx)
         hvvp = Utils.compute_hvvp(
-            prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ))
+            prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ)
+        )
         bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
 
         cᵢ_ = NLBUtils.safe_vec(cᵢ)

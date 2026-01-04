@@ -51,7 +51,7 @@ end
 
 function InternalAPI.reinit_self!(cache::GeodesicAccelerationCache; p = cache.p, kwargs...)
     cache.p = p
-    cache.last_step_accepted = false
+    return cache.last_step_accepted = false
 end
 
 @internal_caches GeodesicAccelerationCache :descent_cache
@@ -74,11 +74,11 @@ function InternalAPI.init(
         shared::Val = Val(1), pre_inverted::Val = Val(false), linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing,
         internalnorm::F = L2_NORM, kwargs...
-) where {F}
+    ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     @bb δu = similar(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-        @bb δu_ = similar(u)
+            @bb δu_ = similar(u)
     end
     descent_cache = InternalAPI.init(
         prob, alg.descent, J, fu, u;
@@ -98,7 +98,7 @@ end
 function InternalAPI.solve!(
         cache::GeodesicAccelerationCache, J, fu, u, idx::Val = Val(1);
         skip_solve::Bool = false, kwargs...
-)
+    )
     a = get_acceleration(cache, idx)
     v = get_velocity(cache, idx)
     δu = SciMLBase.get_du(cache, idx)
@@ -112,7 +112,7 @@ function InternalAPI.solve!(
     @bb @. cache.u_cache = u + cache.h * v
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
 
-    J !== nothing && @bb(cache.Jv=J × vec(v))
+    J !== nothing && @bb(cache.Jv = J × vec(v))
     Jv = Utils.restructure(cache.fu_cache, cache.Jv)
     @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
 

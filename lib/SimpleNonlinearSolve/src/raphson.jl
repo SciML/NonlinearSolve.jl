@@ -26,9 +26,9 @@ const SimpleGaussNewton = SimpleNewtonRaphson
 function configure_autodiff(prob, alg::SimpleNewtonRaphson)
     autodiff = something(alg.autodiff, AutoForwardDiff())
     autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
+        NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
     @set! alg.autodiff = autodiff
-    alg
+    return alg
 end
 
 function SciMLBase.__solve(
@@ -36,7 +36,7 @@ function SciMLBase.__solve(
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -49,13 +49,13 @@ function SciMLBase.__solve(
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
     @bb xo = similar(x)
     fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               NLBUtils.safe_similar(fx) : fx
+        NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 

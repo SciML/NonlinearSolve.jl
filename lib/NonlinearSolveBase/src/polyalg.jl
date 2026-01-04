@@ -74,20 +74,20 @@ function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
 end
 
 function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
-    NonlinearSolveBase.get_abstol(cache.caches[cache.current])
+    return NonlinearSolveBase.get_abstol(cache.caches[cache.current])
 end
 function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
-    NonlinearSolveBase.get_reltol(cache.caches[cache.current])
+    return NonlinearSolveBase.get_reltol(cache.caches[cache.current])
 end
 
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
     return cache.caches[cache.current]
 end
 function SII.state_values(cache::NonlinearSolvePolyAlgorithmCache)
-    SII.state_values(SII.symbolic_container(cache))
+    return SII.state_values(SII.symbolic_container(cache))
 end
 function SII.parameter_values(cache::NonlinearSolvePolyAlgorithmCache)
-    SII.parameter_values(SII.symbolic_container(cache))
+    return SII.parameter_values(SII.symbolic_container(cache))
 end
 
 function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorithmCache)
@@ -101,19 +101,19 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
     println(io, lazy"    nsteps: $(cache.nsteps)")
     println(io, lazy"    retcode: $(cache.retcode)")
     print(io, "    Current Cache: ")
-    NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
+    return NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
 end
 
 function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.p, u0 = cache.u0
-)
+    )
     foreach(cache.caches) do cache
         InternalAPI.reinit!(cache, args...; p, u0)
     end
     cache.current = cache.alg.start_index
     InternalAPI.reinit!(cache.stats)
     cache.nsteps = 0
-    cache.total_time = 0.0
+    return cache.total_time = 0.0
 end
 
 function SciMLBase.__init(
@@ -121,7 +121,7 @@ function SciMLBase.__init(
         stats = NLStats(0, 0, 0, 0, 0), maxtime = nothing, maxiters = 1000,
         internalnorm::IN = L2_NORM, alias = NonlinearAliasSpecifier(alias_u0 = false), verbose = NonlinearVerbosity(),
         initializealg = NonlinearSolveDefaultInit(), kwargs...
-) where {IN}
+    ) where {IN}
     if haskey(kwargs, :alias_u0)
         alias = NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -165,11 +165,12 @@ end
 
 @generated function InternalAPI.step!(
         cache::NonlinearSolvePolyAlgorithmCache{Val{N}}, args...; kwargs...
-) where {N}
+    ) where {N}
     calls = []
     cache_syms = [gensym("cache") for i in 1:N]
     for i in 1:N
-        push!(calls,
+        push!(
+            calls,
             quote
                 $(cache_syms[i]) = cache.caches[$(i)]
                 if $(i) == cache.current
@@ -179,7 +180,7 @@ end
                         # If a NonlinearLeastSquaresProblem StalledSuccess, try the next
                         # solver to see if you get a lower residual
                         if SciMLBase.successful_retcode($(cache_syms[i]).retcode) &&
-                           $(cache_syms[i]).retcode != ReturnCode.StalledSuccess
+                                $(cache_syms[i]).retcode != ReturnCode.StalledSuccess
                             cache.best = $(i)
                             cache.force_stop = true
                             cache.retcode = $(cache_syms[i]).retcode
@@ -189,18 +190,21 @@ end
                     end
                     return
                 end
-            end)
+            end
+        )
     end
 
-    push!(calls, quote
-        if !(1 ≤ cache.current ≤ length(cache.caches))
-            minfu, idx = findmin_caches(cache.prob, cache.caches)
-            cache.best = idx
-            cache.retcode = cache.caches[idx].retcode
-            cache.force_stop = true
-            return
+    push!(
+        calls, quote
+            if !(1 ≤ cache.current ≤ length(cache.caches))
+                minfu, idx = findmin_caches(cache.prob, cache.caches)
+                cache.best = idx
+                cache.retcode = cache.caches[idx].retcode
+                cache.force_stop = true
+                return
+            end
         end
-    end)
+    )
 
     return Expr(:block, calls...)
 end
@@ -211,10 +215,10 @@ function build_solution_less_specialize(
         prob::AbstractNonlinearProblem, alg, u, resid;
         retcode = ReturnCode.Default, original = nothing, left = nothing,
         right = nothing, stats = nothing, trace = nothing, kwargs...
-)
+    )
     return SciMLBase.NonlinearSolution{
         eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Any, typeof(left), typeof(stats), typeof(trace)
+        typeof(alg), Any, typeof(left), typeof(stats), typeof(trace),
     }(
         u, resid, prob, alg, retcode, original, left, right, stats, trace
     )
@@ -230,7 +234,7 @@ end
 
 @views function findmin_resids(prob::AbstractNonlinearProblem, caches)
     norm_fn = prob isa NonlinearLeastSquaresProblem ? Base.Fix2(norm, 2) :
-              Base.Fix2(norm, Inf)
+        Base.Fix2(norm, Inf)
     idx = findfirst(Base.Fix2(!==, nothing), caches)
     # This is an internal function so we assume that inputs are consistent and there is
     # atleast one non-`nothing` value

@@ -12,7 +12,7 @@ function SciMLBase.__solve(
         abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, trace_level = TraceMinimal(),
         store_trace::Val = Val(false), show_trace::Val = Val(false), kwargs...
-)
+    )
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
@@ -56,7 +56,7 @@ function SciMLBase.__solve(
     resid = prob.u0 isa Number ? resid[1] : resid
 
     retcode = original.x_converged || original.f_converged ? ReturnCode.Success :
-              ReturnCode.Failure
+        ReturnCode.Failure
     stats = SciMLBase.NLStats(
         original.f_calls, original.g_calls, original.g_calls,
         original.g_calls, original.iterations

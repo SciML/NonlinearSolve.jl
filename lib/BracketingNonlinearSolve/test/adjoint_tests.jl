@@ -1,4 +1,4 @@
-@testitem "Simple Adjoint Test" tags=[:adjoint] begin
+@testitem "Simple Adjoint Test" tags = [:adjoint] begin
     using ForwardDiff, Zygote, BracketingNonlinearSolve
 
     ff(u, p) = u^2 .- p[1]

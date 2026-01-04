@@ -39,8 +39,8 @@ Enable `TimerOutput` for all `NonlinearSolve` algorithms. This is useful for deb
 but has some overhead, so it is disabled by default.
 """
 function enable_timer_outputs()
-    @set_preferences!("enable_timer_outputs"=>true)
-    @info "Timer Outputs Enabled. Restart the Julia session for this to take effect."
+    @set_preferences!("enable_timer_outputs" => true)
+    return @info "Timer Outputs Enabled. Restart the Julia session for this to take effect."
 end
 
 """
@@ -50,6 +50,6 @@ Disable `TimerOutput` for all `NonlinearSolve` algorithms. This should be used w
 `NonlinearSolve` is being used in performance-critical code.
 """
 function disable_timer_outputs()
-    @set_preferences!("enable_timer_outputs"=>false)
-    @info "Timer Outputs Disabled. Restart the Julia session for this to take effect."
+    @set_preferences!("enable_timer_outputs" => false)
+    return @info "Timer Outputs Disabled. Restart the Julia session for this to take effect."
 end

@@ -11,7 +11,7 @@ struct Alefeld <: AbstractBracketingAlgorithm end
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Alefeld, args...;
         maxiters = 1000, abstol = nothing, kwargs...
-)
+    )
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
     c = a - (b - a) / (f(b) - f(a)) * f(a)
