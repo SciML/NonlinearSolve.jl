@@ -30,6 +30,10 @@ function CommonSolve.solve(
     return CommonSolve.solve(prob, SCCAlg(nothing, nothing); sensealg, u0, p, kwargs...)
 end
 
+function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, ::Nothing; kwargs...)
+    return CommonSolve.solve(prob; kwargs...)
+end
+
 function CommonSolve.solve(
         prob::SciMLBase.SCCNonlinearProblem,
         alg::SciMLBase.AbstractNonlinearAlgorithm;
