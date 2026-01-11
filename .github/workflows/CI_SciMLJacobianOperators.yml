@@ -33,7 +33,10 @@ jobs:
       os: ${{ matrix.os }}
       project: "lib/SciMLJacobianOperators"
 
+  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
+  # with [sources] in Project.toml. See issue #774 for tracking.
   downgrade:
+    if: false
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
       julia_version: "1.11"
