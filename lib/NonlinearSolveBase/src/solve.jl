@@ -382,7 +382,8 @@ end
 
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
     for (sym, resid) in zip(cache_syms, resids)
-        push!(calls, :($(resid) = @isdefined($(sym)) ? $(sym).resid : nothing))
+        # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
+        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
     end
     push!(
         calls, quote
