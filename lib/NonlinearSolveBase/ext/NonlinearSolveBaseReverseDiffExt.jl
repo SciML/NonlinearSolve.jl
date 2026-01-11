@@ -105,7 +105,7 @@ end
 #         prob, sensealg, ArrayInterface.aos_to_soa(u0), p, args...; kwargs...)
 # end
 
-# Required becase ReverseDiff.@grad function SciMLBase.solve_up is not supported!
+# Required because ReverseDiff.@grad function SciMLBase.solve_up is not supported!
 import NonlinearSolveBase: solve_up
 ReverseDiff.@grad function solve_up(prob, sensealg, u0, p, args...; kwargs...)
     out = NonlinearSolveBase._solve_adjoint(
