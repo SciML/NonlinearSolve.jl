@@ -41,14 +41,10 @@ jobs:
           - "1"
           - "1.11"
           - "lts"
-          - "pre"
         os:
           - ubuntu-latest
           - macos-latest
         exclude:
-          # Don't run nopre tests on prerelease Julia
-          - group: nopre
-            version: "pre"
           # Don't run trim tests on Julia versions below 1.12
           - group: trim
             version: "1.11"
@@ -62,7 +58,34 @@ jobs:
       local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
       test_args: "GROUP=${{ matrix.group }}"
 
+  # NOTE: Pre (Julia 1.13) tests are temporarily skipped due to ReTestItems incompatibility
+  # with Julia 1.13 ScopedValues API changes. See issue #776 for tracking.
+  test-pre:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - downstream
+          - wrappers
+          - misc
+          - trim
+        os:
+          - ubuntu-latest
+          - macos-latest
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: "pre"
+      os: ${{ matrix.os }}
+      project: "."
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
+  # with [sources] in Project.toml. See issue #774 for tracking.
   downgrade:
+    if: false
     strategy:
       fail-fast: false
       matrix:

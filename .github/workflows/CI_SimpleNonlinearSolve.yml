@@ -42,7 +42,10 @@ jobs:
       local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
       test_args: "GROUP=${{ matrix.group }}"
 
+  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
+  # with [sources] in Project.toml. See issue #774 for tracking.
   downgrade:
+    if: false
     strategy:
       fail-fast: false
       matrix:
