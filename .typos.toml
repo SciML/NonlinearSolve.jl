@@ -13,3 +13,4 @@ MTK = "MTK"
 
 # NonlinearSolve specific terms
 LSO = "LSO"  # Legitimate abbreviation used in optimization contexts
+clos = "clos"  # Variable name for closure in Enzyme extension
