@@ -388,7 +388,8 @@ end
     push!(
         calls, quote
             fus = tuple($(Tuple(resids)...))
-            minfu, idx = findmin_caches(cache.prob, fus)
+            # Use findmin_resids directly since fus already contains residual vectors from get_fu
+            minfu, idx = findmin_resids(cache.prob, fus)
         end
     )
     for i in 1:N
