@@ -21,7 +21,6 @@ end
 
 using CommonSolve
 using SciMLBase
-using SciMLBase: allowsbounds
 using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
     construct_extension_function_wrapper
 
