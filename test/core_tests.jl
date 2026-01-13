@@ -44,6 +44,7 @@ end
             cache = init(prob, alg...; abstol = 1.0e-9)
             solver = solve!(cache)
             @test SciMLBase.successful_retcode(solver)
+            SciMLBase.reinit!(cache, u0)
         end
     end
 

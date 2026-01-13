@@ -105,7 +105,7 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
 end
 
 function InternalAPI.reinit!(
-        cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.p, u0 = cache.u0
+        cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0
     )
     foreach(cache.caches) do cache
         InternalAPI.reinit!(cache, args...; p, u0)
