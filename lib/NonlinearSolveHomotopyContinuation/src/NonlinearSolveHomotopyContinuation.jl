@@ -1,6 +1,5 @@
 module NonlinearSolveHomotopyContinuation
 
-using SciMLBase: AbstractNonlinearProblem
 using SciMLBase
 using NonlinearSolveBase
 using SymbolicIndexingInterface

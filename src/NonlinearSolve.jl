@@ -3,7 +3,6 @@ module NonlinearSolve
 using ConcreteStructs: @concrete
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
-using FastClosures: @closure
 
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
