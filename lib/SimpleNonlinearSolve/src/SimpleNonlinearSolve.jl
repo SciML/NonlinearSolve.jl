@@ -1,7 +1,6 @@
 module SimpleNonlinearSolve
 
 using ConcreteStructs: @concrete
-using FastClosures: @closure
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 using Setfield: @set!
