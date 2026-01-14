@@ -999,9 +999,9 @@ version = "1.7.1"
 
 [[deps.JSON]]
 deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "5b6bb73f555bc753a6153deec3717b8904f5551c"
+git-tree-sha1 = "b3ad4a0255688dcb895a52fafbaae3023b588a90"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.3.0"
+version = "1.4.0"
 
     [deps.JSON.extensions]
     JSONArrowExt = ["ArrowTypes"]
@@ -1209,9 +1209,9 @@ weakdeps = ["LineSearches"]
 
 [[deps.LineSearches]]
 deps = ["LinearAlgebra", "NLSolversBase", "NaNMath", "Printf"]
-git-tree-sha1 = "9ea3422d03222c6de679934d1c08f0a99405aa03"
+git-tree-sha1 = "738bdcacfef25b3a9e4a39c28613717a6b23751e"
 uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
-version = "7.5.1"
+version = "7.6.0"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
@@ -1489,10 +1489,10 @@ uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 version = "1.6.7"
 
 [[deps.NLSolversBase]]
-deps = ["ADTypes", "DifferentiationInterface", "Distributed", "FiniteDiff", "ForwardDiff"]
-git-tree-sha1 = "25a6638571a902ecfb1ae2a18fc1575f86b1d4df"
+deps = ["ADTypes", "DifferentiationInterface", "FiniteDiff", "LinearAlgebra"]
+git-tree-sha1 = "b3f76b463c7998473062992b246045e6961a074e"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.10.0"
+version = "8.0.0"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1668,10 +1668,10 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.6+0"
 
 [[deps.Optim]]
-deps = ["Compat", "EnumX", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "48968edaf014f67e58fe4c8a4ce72d392aed3294"
+deps = ["ADTypes", "EnumX", "FillArrays", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "PositiveFactorizations", "Printf", "SparseArrays", "Statistics"]
+git-tree-sha1 = "e4f98846b70ef55e111ac8c40add135256c0cc47"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "1.13.3"
+version = "2.0.0"
 
     [deps.Optim.extensions]
     OptimMOIExt = "MathOptInterface"
@@ -2228,9 +2228,9 @@ version = "1.2.0"
 
 [[deps.SimpleGraphs]]
 deps = ["AbstractLattices", "Combinatorics", "DataStructures", "IterTools", "LightXML", "LinearAlgebra", "LinearAlgebraX", "Optim", "Primes", "Random", "RingLists", "SimplePartitions", "SimplePolynomials", "SimpleRandom", "SparseArrays", "Statistics"]
-git-tree-sha1 = "5415585dfac38ace09c0641595155b82ff579d9a"
+git-tree-sha1 = "7f3923e6a7e617893ac3fac97668283065752e6a"
 uuid = "55797a34-41de-5266-9ec1-32ac4eb504d3"
-version = "0.8.7"
+version = "0.8.8"
 
 [[deps.SimpleNonlinearSolve]]
 deps = ["ADTypes", "ArrayInterface", "BracketingNonlinearSolve", "CommonSolve", "ConcreteStructs", "DifferentiationInterface", "FastClosures", "FiniteDiff", "ForwardDiff", "LineSearch", "LinearAlgebra", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "Setfield", "StaticArraysCore"]
@@ -2461,9 +2461,9 @@ version = "1.11.0"
 
 [[deps.StructUtils]]
 deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "b0290a55d9e047841d7f5c472edbdc39c72cd0ce"
+git-tree-sha1 = "9297459be9e338e546f5c4bedb59b3b5674da7f1"
 uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.6.1"
+version = "2.6.2"
 
     [deps.StructUtils.extensions]
     StructUtilsMeasurementsExt = ["Measurements"]
@@ -2546,9 +2546,9 @@ version = "4.11.0"
 
 [[deps.Symbolics]]
 deps = ["ADTypes", "AbstractPlutoDingetjes", "ArrayInterface", "Bijections", "CommonWorldInvalidations", "ConstructionBase", "DataStructures", "DiffRules", "DocStringExtensions", "DomainSets", "DynamicPolynomials", "Libdl", "LinearAlgebra", "LogExpFunctions", "MacroTools", "Markdown", "Moshi", "MultivariatePolynomials", "MutableArithmetics", "NaNMath", "PrecompileTools", "Preferences", "Primes", "RecipesBase", "Reexport", "RuntimeGeneratedFunctions", "SciMLPublic", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "SymbolicIndexingInterface", "SymbolicLimits", "SymbolicUtils", "TermInterface"]
-git-tree-sha1 = "d455b1839c5aaab7c51404e7fb5f12c0386b7f65"
+git-tree-sha1 = "c56ad42bb70837a84078d23421cc89b54c5ef0c8"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "7.5.0"
+version = "7.5.1"
 
     [deps.Symbolics.extensions]
     SymbolicsD3TreesExt = "D3Trees"
