@@ -136,9 +136,11 @@ function SciMLBase.__solve(
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
     )
-    solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+    @trace if solved
+        return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+    end
 
-    for _ in 1:maxiters
+    @trace for _ in 1:maxiters
         # Solve the trust region subproblem.
         δ = dogleg_method!!(dogleg_cache, J, fx, g, Δ)
         @bb @. x = xo + δ
@@ -152,23 +154,27 @@ function SciMLBase.__solve(
         r = (fₖ₊₁ - fₖ) / (dot(δ, g) + (dot(δ, Hδ) / T(2)))
 
         # Update the trust region radius.
-        if r ≥ η₂
+        @trace if r ≥ η₂
             shrink_counter = 0
         else
             Δ = t₁ * Δ
             shrink_counter += 1
-            shrink_counter > max_shrink_times && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded
-            )
+            @trace if shrink_counter > max_shrink_times
+                return SciMLBase.build_solution(
+                    prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded
+                )
+            end
         end
 
-        if r ≥ η₁
+        @trace if r ≥ η₁
             # Termination Checks
             solved, retcode, fx_sol,
                 x_sol = Utils.check_termination(
                 tc_cache, fx, x, xo, prob
             )
-            solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+            @trace if solved
+                return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+            end
 
             # Take the step.
             @bb copyto!(xo, x)
@@ -177,7 +183,7 @@ function SciMLBase.__solve(
             fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
             # Update the trust region radius.
-            if !NLBUtils.unwrap_val(alg.nlsolve_update_rule) && r > η₃
+            @trace if !NLBUtils.unwrap_val(alg.nlsolve_update_rule) && r > η₃
                 Δ = min(t₂ * Δ, Δₘₐₓ)
             end
             fₖ = fₖ₊₁
@@ -187,7 +193,7 @@ function SciMLBase.__solve(
         end
 
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
-            if r > η₃
+            @trace if r > η₃
                 Δ = t₂ * L2_NORM(δ)
             elseif r > 0.5
                 Δ = max(Δ, t₂ * L2_NORM(δ))

@@ -113,7 +113,7 @@ end
         ls_cache = nothing
     end
 
-    for i in 1:maxiters
+    @trace for i in 1:maxiters
         if ls_cache === nothing
             α = true
         else
@@ -127,7 +127,9 @@ end
 
         # Termination Checks
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        @trace if solved
+            return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        end
 
         Uₚ = selectdim(U, 2, 1:min(η, i - 1))
         Vᵀₚ = selectdim(Vᵀ, 1, 1:min(η, i - 1))

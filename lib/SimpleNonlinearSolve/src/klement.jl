@@ -28,8 +28,10 @@ function SciMLBase.__solve(
     J = one.(x)
     @bb δx² = similar(x)
 
-    for _ in 1:maxiters
-        any(iszero, J) && (J = Utils.identity_jacobian!!(J))
+    @trace for _ in 1:maxiters
+        @trace if any(iszero, J)
+            J = Utils.identity_jacobian!!(J)
+        end
 
         @bb @. δx = fprev / J
 
@@ -38,7 +40,9 @@ function SciMLBase.__solve(
 
         # Termination Checks
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        @trace if solved
+            return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        end
 
         @bb δx .*= -1
         @bb @. δx² = δx^2 * J^2

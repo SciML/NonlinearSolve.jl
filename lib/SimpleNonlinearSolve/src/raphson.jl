@@ -45,8 +45,9 @@ function SciMLBase.__solve(
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
-    iszero(fx) &&
+    @trace if iszero(fx)
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -59,13 +60,15 @@ function SciMLBase.__solve(
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
-    for _ in 1:maxiters
+    @trace for _ in 1:maxiters
         @bb copyto!(xo, x)
         δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
         @bb x .-= δx
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        @trace if solved
+            return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        end
 
         fx = NLBUtils.evaluate_f!!(prob, fx, x)
         J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)

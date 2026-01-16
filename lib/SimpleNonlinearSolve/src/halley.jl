@@ -42,8 +42,9 @@ function SciMLBase.__solve(
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
-    iszero(fx) &&
+    @trace if iszero(fx)
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -64,7 +65,7 @@ function SciMLBase.__solve(
     end
 
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
-    for _ in 1:maxiters
+    @trace for _ in 1:maxiters
         NLBUtils.can_setindex(x) || (A = J)
 
         # Factorize Once and Reuse
@@ -72,9 +73,11 @@ function SciMLBase.__solve(
             J
         else
             fact = LinearAlgebra.lu(J; check = false)
-            !LinearAlgebra.issuccess(fact) && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.Unstable
-            )
+            @trace if !LinearAlgebra.issuccess(fact)
+                return SciMLBase.build_solution(
+                    prob, alg, x, fx; retcode = ReturnCode.Unstable
+                )
+            end
             fact
         end
 
@@ -89,7 +92,9 @@ function SciMLBase.__solve(
         cᵢ = NLBUtils.restructure(cᵢ, cᵢ_)
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        @trace if solved
+            return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        end
 
         @bb @. x += cᵢ
         @bb copyto!(xo, x)
