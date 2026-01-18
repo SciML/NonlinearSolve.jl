@@ -293,19 +293,19 @@ function SciMLBase.__solve(
 end
 
 function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
-    if cache.retcode == ReturnCode.InitialFailure
+    @trace if cache.retcode == ReturnCode.InitialFailure
         return SciMLBase.build_solution(
             cache.prob, cache.alg, get_u(cache), get_fu(cache);
             cache.retcode, cache.stats, cache.trace
         )
     end
 
-    while not_terminated(cache)
+    @trace while not_terminated(cache)
         CommonSolve.step!(cache)
     end
 
     # The solver might have set a different `retcode`
-    if cache.retcode == ReturnCode.Default
+    @trace if cache.retcode == ReturnCode.Default
         cache.retcode = ifelse(
             cache.nsteps ≥ cache.maxiters, ReturnCode.MaxIters, ReturnCode.Success
         )

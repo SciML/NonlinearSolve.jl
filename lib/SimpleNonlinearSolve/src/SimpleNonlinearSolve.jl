@@ -2,6 +2,7 @@ module SimpleNonlinearSolve
 
 using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using ReactantCore: @trace
 using Reexport: @reexport
 using Setfield: @set!
 

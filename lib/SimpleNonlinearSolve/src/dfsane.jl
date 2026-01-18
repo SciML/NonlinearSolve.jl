@@ -104,7 +104,7 @@ function SciMLBase.__solve(
     @bb δf = copy(fx)
 
     k = 0
-    while k < maxiters
+    @trace while k < maxiters
         # Spectral parameter range check
         σ_k = sign(σ_k) * clamp(abs(σ_k), σ_min, σ_max)
 
@@ -121,8 +121,10 @@ function SciMLBase.__solve(
         fx = NLBUtils.evaluate_f!!(prob, fx, x_cache)
         fx_norm_new = L2_NORM(fx)^nexp
 
-        while k < maxiters
-            (fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm)) && break
+        @trace while k < maxiters
+            @trace if fx_norm_new ≤ (f_bar + η - γ * α_p^2 * fx_norm)
+                break
+            end
 
             α_tp = α_p^2 * fx_norm / (fx_norm_new + (T(2) * α_p - T(1)) * fx_norm)
             @bb @. x_cache = x - α_m * d
@@ -130,7 +132,9 @@ function SciMLBase.__solve(
             fx = NLBUtils.evaluate_f!!(prob, fx, x_cache)
             fx_norm_new = L2_NORM(fx)^nexp
 
-            (fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm)) && break
+            @trace if fx_norm_new ≤ (f_bar + η - γ * α_m^2 * fx_norm)
+                break
+            end
 
             α_tm = α_m^2 * fx_norm / (fx_norm_new + (T(2) * α_m - T(1)) * fx_norm)
             α_p = clamp(α_tp, τ_min * α_p, τ_max * α_p)
@@ -146,7 +150,9 @@ function SciMLBase.__solve(
         @bb copyto!(x, x_cache)
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        @trace if solved
+            return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        end
 
         # Update spectral parameter
         @bb @. δx = x - xo
