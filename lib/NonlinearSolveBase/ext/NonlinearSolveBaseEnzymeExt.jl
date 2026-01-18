@@ -23,7 +23,7 @@ function Enzyme.EnzymeRules.augmented_primal(
     end
 
     @inline function arg_copy(i)
-        copy_or_reuse(args[i].val, i + 5)
+        return copy_or_reuse(args[i].val, i + 5)
     end
 
     res = NonlinearSolveBase._solve_adjoint(
