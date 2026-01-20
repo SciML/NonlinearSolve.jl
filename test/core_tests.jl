@@ -474,7 +474,7 @@ end
         return LinearAlgebra.I, LinearAlgebra.I
     end
     precs = DummyPreconditioners(0, 0)
-    iter = init(prob, NewtonRaphson(linsolve = KrylovJL_GMRES(precs = precs), concrete_jac = true))
+    iter = init(prob, NewtonRaphson(linsolve = KrylovJL_GMRES(precs = precs), concrete_jac = false))
     iinit = precs.i
     solve!(iter)
     @test precs.i > 0
