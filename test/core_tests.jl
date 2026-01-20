@@ -457,6 +457,7 @@ end
 end
 
 @testitem "LinearSolve Preconditioner Interface" tags = [:core] begin
+    using LinearAlgebra
     f(u, p) = -(u .- 0.1) .^ 3
     prob = NonlinearProblem(f, [0.0, 0.0], 0)
     mutable struct DummyPreconditioners
