@@ -457,8 +457,8 @@ end
 end
 
 @testitem "LinearSolve Preconditioner Interface" tags = [:core] begin
-    f(u,p) = -(u .- 0.1).^3
-    prob = NonlinearProblem(f, [0.0,0.0], 0)
+    f(u, p) = -(u .- 0.1) .^ 3
+    prob = NonlinearProblem(f, [0.0, 0.0], 0)
     mutable struct DummyPreconditioners
         i::Int
         reinit_check::Int
@@ -468,7 +468,7 @@ end
         # LinearSolve into the preconditioner constructor.
         @test p isa NonlinearSolveBase.LinearSolveParameters
         @test p.p == precs.reinit_check # p.p is the p of the nonlinear problem
-        # By incrementing this variable we make sure that this funciton has been called at least once.
+        # By incrementing this variable we make sure that this function has been called at least once.
         precs.i += 1
         return LinearAlgebra.I, LinearAlgebra.I
     end

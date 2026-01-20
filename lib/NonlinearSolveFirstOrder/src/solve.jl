@@ -108,7 +108,7 @@ function InternalAPI.reinit_self!(
     )
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
-    InternalAPI.reinit!(cache.descent_cache; u=u0, p=p)
+    InternalAPI.reinit!(cache.descent_cache; u = u0, p = p)
 
     InternalAPI.reinit!(cache.stats)
     cache.nsteps = 0
