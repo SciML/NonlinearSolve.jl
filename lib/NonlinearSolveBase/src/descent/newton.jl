@@ -44,7 +44,7 @@ function InternalAPI.init(
         end
 
         lincache = construct_linear_solver(
-            alg, alg.linsolve, J, Utils.safe_vec(fu), Utils.safe_vec(u);
+            alg, alg.linsolve, J, Utils.safe_vec(fu), Utils.safe_vec(u), prob.p;
             stats, abstol, reltol, linsolve_kwargs...
         )
     end
@@ -83,7 +83,7 @@ function InternalAPI.init(
     end
 
     lincache = construct_linear_solver(
-        alg, alg.linsolve, A, b, Utils.safe_vec(u);
+        alg, alg.linsolve, A, b, Utils.safe_vec(u), prob.p;
         stats, abstol, reltol, linsolve_kwargs...
     )
 

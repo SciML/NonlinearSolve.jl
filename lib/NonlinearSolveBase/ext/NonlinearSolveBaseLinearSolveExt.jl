@@ -4,12 +4,12 @@ using ArrayInterface: ArrayInterface
 
 using CommonSolve: CommonSolve, init, solve!
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
-using SciMLBase: ReturnCode, LinearProblem, LinearAliasSpecifier
+using SciMLBase: SciMLBase, ReturnCode, LinearProblem, LinearAliasSpecifier
 using SciMLLogging: @SciMLMessage
 
 using LinearAlgebra: ColumnNorm
 
-using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity
+using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity, InternalAPI, LinearSolveParameters
 
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,
@@ -80,6 +80,10 @@ end
 
 function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
     return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
+end
+
+function InternalAPI.reinit!(cache::LinearSolveJLCache; u = nothing, p = nothing, kwargs...)
+    SciMLBase.reinit!(cache.lincache; p = LinearSolveParameters(u, p))
 end
 
 end
