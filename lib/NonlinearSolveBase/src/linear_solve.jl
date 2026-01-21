@@ -1,3 +1,8 @@
+@kwdef @concrete struct LinearSolveParameters
+    u
+    p
+end
+
 @kwdef @concrete struct LinearSolveResult
     u
     success::Bool = true
@@ -15,8 +20,10 @@ end
     stats::NLStats
 end
 
+SciMLBase.reinit!(::NativeJLLinearSolveCache; kwargs...) = nothing
+
 """
-    construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
+    construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
 
 Construct a cache for solving linear systems of the form `A * u = b`. Following cases are
 handled:
@@ -57,7 +64,7 @@ One distinct feature of this compared to the cache from LinearSolve is that it r
 aliasing arguments even after cache construction, i.e., if we passed in an `A` that `A` is
 not mutated, we do this by copying over `A` to a preconstructed cache.
 """
-function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
+function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve isa typeof(\)
@@ -70,7 +77,7 @@ function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    linprob = LinearProblem(A, b; u0 = u_cache)
+    linprob = LinearProblem(A, b, LinearSolveParameters(u, p); u0 = u_cache)
     # unlias here, we will later use these as caches
     lincache = init(
         linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...
