@@ -295,6 +295,7 @@ function InternalAPI.reinit!(
         u0_norm = cache.internalnorm(u0)
     end
     cache.last_step_accepted = false
+    cache.trust_region = cache.initial_trust_radius
     return cache.shrink_counter = 0
 end
 
