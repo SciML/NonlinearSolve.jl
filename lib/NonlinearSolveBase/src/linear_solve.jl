@@ -77,7 +77,7 @@ function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    linprob = LinearProblem(A, b, LinearSolveParameters(u, p); u0 = u_cache)
+    linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
     # unlias here, we will later use these as caches
     lincache = init(
         linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...

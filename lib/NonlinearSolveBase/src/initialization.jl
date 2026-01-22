@@ -47,7 +47,7 @@ end
 initialization_alg(initprob, autodiff) = nothing
 
 function update_initial_values!(cache::AbstractNonlinearSolveCache, u0, p)
-    InternalAPI.reinit!(cache; u0, p)
+    InternalAPI.reinit!(cache; u = get_u(cache), u0, p)
     cache.prob = SciMLBase.remake(cache.prob; u0, p)
     return cache
 end
