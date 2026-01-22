@@ -104,11 +104,17 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
     return NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
 end
 
+function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache; kwargs...)
+    return InternalAPI.reinit!(cache; kwargs...)
+end
+function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, u0; kwargs...)
+    return InternalAPI.reinit!(cache; u0, kwargs...)
+end
 function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0
     )
     foreach(cache.caches) do cache
-        InternalAPI.reinit!(cache, args...; p, u0)
+        InternalAPI.reinit!(cache, args...; u = get_u(cache), p, u0)
     end
     cache.current = cache.alg.start_index
     InternalAPI.reinit!(cache.stats)
