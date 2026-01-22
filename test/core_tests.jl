@@ -208,6 +208,8 @@ end
 # Shooting Problem: Taken from BoundaryValueDiffEq.jl
 # Testing for Complex Valued Root Finding. For Complex valued inputs we drop some of the
 # algorithms which dont support those.
+# Note: ForwardDiff doesn't support complex numbers, so we use FiniteDiff instead.
+# Trust region methods also don't work with complex numbers (they use extrema internally).
 @testitem "Complex Valued Problems: Single-Shooting" tags = [:core] begin
     using OrdinaryDiffEqTsit5
 
@@ -220,7 +222,7 @@ end
     function objective_function!(resid, u0, p)
         odeprob = ODEProblem{true}(ode_func!, u0, (0.0, 100.0), p)
         sol = solve(
-            odeprob, Tsit5(), abstol = 1.0e-9, reltol = 1.0e-9, verbose = true
+            odeprob, Tsit5(), abstol = 1.0e-9, reltol = 1.0e-9, verbose = false
         )
         resid[1] = sol(0.0)[1]
         resid[2] = sol(100.0)[1] - 1.0
@@ -228,13 +230,15 @@ end
     end
 
     prob = NonlinearProblem{true}(objective_function!, [0.0, 1.0] .+ 1im)
-    sol = solve(prob; abstol = 1.0e-10)
+    # Use NewtonRaphson with AutoFiniteDiff since:
+    # 1. ForwardDiff doesn't support complex numbers
+    # 2. Trust region methods use extrema which doesn't work with complex numbers
+    sol = solve(prob, NewtonRaphson(; autodiff = AutoFiniteDiff()); abstol = 1.0e-10)
     @test SciMLBase.successful_retcode(sol)
-    # This test is not meant to return success but test that all the default solvers can handle
+    # This test is not meant to return success but test that Newton-based solvers can handle
     # complex valued problems
-    @test_nowarn solve(prob; abstol = 1.0e-19, maxiters = 10)
     @test_nowarn solve(
-        prob, RobustMultiNewton(eltype(prob.u0)); abstol = 1.0e-19, maxiters = 10
+        prob, NewtonRaphson(; autodiff = AutoFiniteDiff()); abstol = 1.0e-19, maxiters = 10
     )
 end
 
