@@ -17,8 +17,6 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
-# Remove assert that triggers false positive for JET. Tracked at https://github.com/aviatesk/JET.jl/issues/736.
-ForwardDiff = {url = "https://github.com/RomeoV/ForwardDiff.jl", rev="rv/remove-quote-assert-string-interpolation"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 
 
