@@ -82,8 +82,8 @@ function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
     return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
 end
 
-function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u0 = nothing, p = nothing, kwargs...)
-    return SciMLBase.reinit!(cache.lincache; p = LinearSolveParameters(u0, p))
+function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p = missing, kwargs...)
+    return SciMLBase.reinit!(cache.lincache; p = LinearSolveParameters(u, p))
 end
 
 end

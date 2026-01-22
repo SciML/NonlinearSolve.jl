@@ -299,10 +299,10 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
 end
 
 function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; kwargs...)
-    return InternalAPI.reinit!(cache; kwargs...)
+    return InternalAPI.reinit!(cache; u = get_u(cache), kwargs...)
 end
 function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
-    return InternalAPI.reinit!(cache; u0, kwargs...)
+    return InternalAPI.reinit!(cache; u0, u = get_u(cache), kwargs...)
 end
 
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
