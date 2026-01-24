@@ -25,7 +25,7 @@ using InteractiveUtils, Test
         # Ignore SciMLLogging types used by @verbosity_specifier macro (ExplicitImports can't track macro usage)
         @test check_no_stale_explicit_imports(
             NonlinearSolveBase;
-            ignore = (:AbstractVerbositySpecifier, :All, :Detailed, :Minimal, :None, :Standard, :SciMLLogging)
+            ignore = (:AbstractMessageLevel, :AbstractVerbositySpecifier, :All, :Detailed, :Minimal, :None, :Standard, :SciMLLogging)
         ) === nothing
         @test check_all_qualified_accesses_via_owners(NonlinearSolveBase) === nothing
     end
