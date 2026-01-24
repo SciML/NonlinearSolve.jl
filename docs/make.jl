@@ -54,7 +54,7 @@ makedocs(;
         "https://net-informations.com/faq/net/stack-heap.htm",  # Unreliable external site
     ],
     checkdocs = :exports,
-    warnonly = [:missing_docs, :linkcheck],
+    warnonly = [:missing_docs],
     plugins = [bib, interlinks],
     format = Documenter.HTML(
         assets = ["assets/favicon.ico", "assets/citations.css"],
