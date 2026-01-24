@@ -144,7 +144,7 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
     )
-    if check_convergence(mode, du, u, uprev, abstol, reltol)
+    @trace if check_convergence(mode, du, u, uprev, abstol, reltol)
         cache.retcode = ReturnCode.Success
         return true
     end
@@ -164,20 +164,20 @@ function (cache::NonlinearTerminationModeCache)(
     end
 
     # Protective Break
-    if !isfinite(objective)
+    @trace if !isfinite(objective)
         cache.retcode = ReturnCode.Unstable
         return true
     end
 
     # By default we turn this off since it have potential for false positives
-    if mode.protective_threshold !== nothing &&
+    @trace if mode.protective_threshold !== nothing &&
             (objective > cache.initial_objective * mode.protective_threshold * length(du))
         cache.retcode = ReturnCode.Unstable
         return true
     end
 
     # Check if it is the best solution
-    if mode isa AbstractSafeBestNonlinearTerminationMode &&
+    @trace if mode isa AbstractSafeBestNonlinearTerminationMode &&
             objective < cache.best_objective_value
         cache.best_objective_value = objective
         update_u!!(cache, u)
@@ -185,24 +185,26 @@ function (cache::NonlinearTerminationModeCache)(
     end
 
     # Main Termination Criteria
-    if objective ≤ criteria
+    @trace if objective ≤ criteria
         cache.retcode = ReturnCode.Success
         return true
     end
 
     # Terminate if we haven't improved for the last `patience_steps`
     cache.nsteps += 1
-    cache.nsteps == 1 && (cache.initial_objective = objective)
+    @trace if cache.nsteps == 1
+        cache.initial_objective = objective
+    end
     cache.objectives_trace[mod1(cache.nsteps, length(cache.objectives_trace))] = objective
 
-    if objective ≤ mode.patience_objective_multiplier * criteria &&
+    @trace if objective ≤ mode.patience_objective_multiplier * criteria &&
             cache.nsteps > mode.patience_steps
         if cache.nsteps < length(cache.objectives_trace)
             min_obj, max_obj = extrema(@view(cache.objectives_trace[1:(cache.nsteps)]))
         else
             min_obj, max_obj = extrema(cache.objectives_trace)
         end
-        if min_obj < mode.min_max_factor * max_obj
+        @trace if min_obj < mode.min_max_factor * max_obj
             if cache.leastsq
                 # If least squares, found a local minima thus success
                 cache.retcode = ReturnCode.StalledSuccess
@@ -223,7 +225,7 @@ function (cache::NonlinearTerminationModeCache)(
         end
         du_norm = L2_NORM(cache.u_diff_cache)
         cache.step_norm_trace[mod1(cache.nsteps, length(cache.step_norm_trace))] = du_norm
-        if cache.nsteps > mode.max_stalled_steps
+        @trace if cache.nsteps > mode.max_stalled_steps
             max_step_norm = maximum(cache.step_norm_trace)
             if mode isa AbsNormSafeTerminationMode ||
                     mode isa AbsNormSafeBestTerminationMode
@@ -231,7 +233,7 @@ function (cache::NonlinearTerminationModeCache)(
             else
                 stalled_step = max_step_norm ≤ reltol * (max_step_norm + cache.u0_norm)
             end
-            if stalled_step
+            @trace if stalled_step
                 if cache.leastsq
                     cache.retcode = ReturnCode.StalledSuccess
                 else
@@ -329,11 +331,12 @@ function check_and_update!(cache, fu, u, uprev)
 end
 
 function check_and_update!(tc_cache, cache, fu, u, uprev, mode)
-    return if tc_cache(fu, u, uprev)
+    @trace if tc_cache(fu, u, uprev)
         cache.retcode = tc_cache.retcode
         update_from_termination_cache!(tc_cache, cache, mode, u)
         cache.force_stop = true
     end
+    return nothing
 end
 
 function update_from_termination_cache!(tc_cache, cache, u = get_u(cache))
