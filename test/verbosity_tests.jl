@@ -228,4 +228,17 @@
         cache = init(prob, verbose = false)
         @test_logs min_level = 0 sol = solve!(cache)
     end
+
+    @testset "NonlinearVerbosity with keyword message levels (issue #796)" begin
+        # Regression test: constructing NonlinearVerbosity with keyword arguments
+        # that are AbstractMessageLevel subtypes should not throw UndefVarError
+        verb = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel())
+        @test verb.non_enclosing_interval isa SciMLLogging.ErrorLevel
+
+        # Test with the full solve pipeline from the issue MWE
+        f_interval(x, p) = x^2 - p
+        prob_interval = IntervalNonlinearProblem(f_interval, (1.0, 3.0), 4.0)
+        sol = solve(prob_interval, verbose = verb)
+        @test sol.retcode == ReturnCode.Success
+    end
 end
