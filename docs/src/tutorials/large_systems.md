@@ -231,7 +231,7 @@ Notice that this acceleration does not require the definition of a sparsity patt
 thus be an easier way to scale for large problems. For more information on linear solver
 choices, see the
 [linear solver documentation](https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear).
-`linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
+`linsolve` choices are any valid [LinearSolve.jl](https://docs.sciml.ai/LinearSolve/dev/) solver.
 
 !!! note
 
