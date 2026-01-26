@@ -53,18 +53,15 @@ function SciMLBase.__solve(
 
     nf = Ref{Int}(0)
 
-    f! = @closure (
-        cfx,
-        cx,
-        user_ctx,
-    ) -> begin
+    # PETSc 0.4 callback signature: f!(fx, snes, x) returning PetscInt(0) for success
+    f! = @closure (cfx, snes_arg, cx) -> begin
         nf[] += 1
         fx = cfx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cfx; read = false) : cfx
         x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
         f_wrapped!(fx, x)
         Base.finalize(fx)
         Base.finalize(x)
-        return
+        return PETSc.LibPETSc.PetscInt(0)
     end
 
     snes = PETSc.SNES{T}(
@@ -74,7 +71,7 @@ function SciMLBase.__solve(
         snes_atol = abstol, snes_max_it = maxiters
     )
 
-    PETSc.setfunction!(snes, f!, PETSc.VecSeq(zero(u0)))
+    PETSc.setfunction!(snes, f!, PETSc.VecSeq(petsclib, MPI.COMM_SELF, zero(u0)))
 
     njac = Ref{Int}(-1)
     if alg.autodiff !== missing || prob.f.jac !== nothing
@@ -94,41 +91,33 @@ function SciMLBase.__solve(
         njac = Ref{Int}(0)
 
         if J_init isa AbstractSparseMatrix
-            PJ = PETSc.MatSeqAIJ(J_init)
-            jac_fn! = @closure (
-                cx,
-                J,
-                _,
-                user_ctx,
-            ) -> begin
+            PJ = PETSc.MatSeqAIJ(petsclib, J_init)
+            # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
+            jac_fn! = @closure (J, snes_arg, cx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 if J isa PETSc.AbstractMat
-                    jac!(user_ctx.jacobian, x)
-                    copyto!(J, user_ctx.jacobian)
-                    PETSc.assemble(J)
+                    jac!(snes_arg.user_ctx.jacobian, x)
+                    copyto!(J, snes_arg.user_ctx.jacobian)
+                    PETSc.assemble!(J)
                 else
                     jac!(J, x)
                 end
                 Base.finalize(x)
-                return
+                return PETSc.LibPETSc.PetscInt(0)
             end
             PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
             snes.user_ctx = (; jacobian = J_init)
         else
-            PJ = PETSc.MatSeqDense(J_init)
-            jac_fn! = @closure (
-                cx,
-                J,
-                _,
-                user_ctx,
-            ) -> begin
+            PJ = PETSc.MatSeqDense(petsclib, J_init)
+            # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
+            jac_fn! = @closure (J, snes_arg, cx) -> begin
                 njac[] += 1
                 x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
                 jac!(J, x)
                 Base.finalize(x)
-                J isa PETSc.AbstractMat && PETSc.assemble(J)
-                return
+                J isa PETSc.AbstractMat && PETSc.assemble!(J)
+                return PETSc.LibPETSc.PetscInt(0)
             end
             PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
         end
