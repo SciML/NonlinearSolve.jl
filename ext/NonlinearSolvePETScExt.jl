@@ -1,7 +1,5 @@
 module NonlinearSolvePETScExt
 
-using FastClosures: @closure
-
 using MPI: MPI
 using PETSc: PETSc
 
@@ -9,7 +7,32 @@ using NonlinearSolveBase: NonlinearSolveBase
 using NonlinearSolve: NonlinearSolve, PETScSNES
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 
-using SparseArrays: AbstractSparseMatrix
+using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC, sparse, rowvals, nonzeros, nzrange
+
+# Helper function to copy a Julia matrix to a PETSc matrix
+function copy_to_petsc_mat!(J_petsc, J_julia::AbstractMatrix)
+    m, n = size(J_julia)
+    for j in 1:n
+        for i in 1:m
+            J_petsc[i, j] = J_julia[i, j]
+        end
+    end
+    return nothing
+end
+
+# For sparse matrices, iterate over non-zero values
+function copy_to_petsc_mat!(J_petsc, J_julia::SparseMatrixCSC)
+    rows = rowvals(J_julia)
+    vals = nonzeros(J_julia)
+    m, n = size(J_julia)
+    for j in 1:n
+        for ii in nzrange(J_julia, j)
+            i = rows[ii]
+            J_petsc[i, j] = vals[ii]
+        end
+    end
+    return nothing
+end
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::PETScSNES, args...;
@@ -53,17 +76,18 @@ function SciMLBase.__solve(
     nf = Ref{Int}(0)
 
     # PETSc 0.4 callback signature: f!(fx, snes, x) returning PetscInt(0) for success
-    f! = @closure (cfx, snes_arg, cx) -> begin
+    # PETSc 0.4.2 passes PetscVec objects to callbacks
+    function f!(cfx, snes_arg, cx)
         nf[] += 1
-        fx = cfx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cfx; read = false) : cfx
-        x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
-        f_wrapped!(fx, x)
-        Base.finalize(fx)
-        Base.finalize(x)
+        # Use withlocalarray! with multiple vectors to get Julia array views
+        # cx: read-only, cfx: write-only
+        PETSc.withlocalarray!(cx, cfx; read = (true, false), write = (false, true)) do x_arr, fx_arr
+            f_wrapped!(fx_arr, x_arr)
+        end
         return PETSc.LibPETSc.PetscInt(0)
     end
 
-    snes = PETSc.SNES{T}(
+    snes = PETSc.SNES(
         petsclib,
         alg.mpi_comm === missing ? MPI.COMM_SELF : alg.mpi_comm;
         alg.snes_options..., snes_monitor = show_trace isa Val{true}, snes_rtol = reltol,
@@ -89,40 +113,37 @@ function SciMLBase.__solve(
 
         njac = Ref{Int}(0)
 
+        mpi_comm = alg.mpi_comm === missing ? MPI.COMM_SELF : alg.mpi_comm
         if J_init isa AbstractSparseMatrix
-            PJ = PETSc.MatSeqAIJ(petsclib, J_init)
-            # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
-            jac_fn! = @closure (J, snes_arg, cx) -> begin
-                njac[] += 1
-                x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
-                if J isa PETSc.AbstractMat
-                    jac!(snes_arg.user_ctx.jacobian, x)
-                    copyto!(J, snes_arg.user_ctx.jacobian)
-                    PETSc.assemble!(J)
-                else
-                    jac!(J, x)
-                end
-                Base.finalize(x)
-                return PETSc.LibPETSc.PetscInt(0)
-            end
-            PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
-            snes.user_ctx = (; jacobian = J_init)
+            PJ = PETSc.MatCreateSeqAIJ(petsclib, mpi_comm, J_init)
         else
             PJ = PETSc.MatSeqDense(petsclib, J_init)
-            # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
-            jac_fn! = @closure (J, snes_arg, cx) -> begin
-                njac[] += 1
-                x = cx isa Ptr{Nothing} ? PETSc.unsafe_localarray(T, cx; write = false) : cx
-                jac!(J, x)
-                Base.finalize(x)
-                J isa PETSc.AbstractMat && PETSc.assemble!(J)
-                return PETSc.LibPETSc.PetscInt(0)
-            end
-            PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
         end
+
+        # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
+        # Use J_init as intermediate storage for the Julia Jacobian
+        function jac_fn!(J, snes_arg, cx)
+            njac[] += 1
+            PETSc.withlocalarray!(cx; read = true, write = false) do x_arr
+                jac!(snes_arg.user_ctx.jacobian, x_arr)
+                copy_to_petsc_mat!(J, snes_arg.user_ctx.jacobian)
+                PETSc.assemble!(J)
+            end
+            return PETSc.LibPETSc.PetscInt(0)
+        end
+        PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
+        snes.user_ctx = (; jacobian = J_init)
     end
 
-    res = PETSc.solve!(u0, snes)
+    # Create PETSc vector for solution and solve
+    x_petsc = PETSc.VecSeq(petsclib, MPI.COMM_SELF, copy(u0))
+    PETSc.solve!(x_petsc, snes)
+
+    # Copy solution back to Julia array
+    res = similar(u0)
+    PETSc.withlocalarray!(x_petsc; read = true) do x_arr
+        copyto!(res, x_arr)
+    end
 
     f_wrapped!(resid, res)
     u_res = prob.u0 isa Number ? res[1] : res
