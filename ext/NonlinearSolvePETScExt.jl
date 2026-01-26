@@ -31,7 +31,6 @@ function SciMLBase.__solve(
         prob; alias_u0
     )
     T = eltype(u0)
-    @assert T ∈ PETSc.scalar_types
 
     if alg.petsclib === missing
         petsclibidx = findfirst(PETSc.petsclibs) do petsclib
