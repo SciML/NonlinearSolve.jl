@@ -7,7 +7,7 @@
     @parameters p d
     @variables X(t)
     eqs = [0 ~ sin(X + p) - d * sqrt(X + 1)]
-    @mtkbuild nlsys = NonlinearSystem(eqs, [X], [p, d])
+    @mtkcompile nlsys = System(eqs, [X], [p, d])
 
     # Creates an integrator.
     nlprob = NonlinearProblem(nlsys, [X => 1.0], [p => 2.0, d => 3.0])
