@@ -13,9 +13,9 @@ jobs:
   test:
     name: ${{ matrix.package.repo }}/${{ matrix.package.group }}/${{ matrix.julia-version }}
     runs-on: ${{ matrix.os }}
-    # Downstream tests are informational only - failures here indicate issues
-    # in downstream packages, not in NonlinearSolve itself. See issues #806, #807.
-    continue-on-error: true
+    # Known downstream failures are marked continue-on-error per entry.
+    # See issues #806 (BoundaryValueDiffEq BVPSOL) and #807 (OrdinaryDiffEq PSOS).
+    continue-on-error: ${{ matrix.package.allow_failure || false }}
     env:
       GROUP: ${{ matrix.package.group }}
     strategy:
@@ -28,8 +28,8 @@ jobs:
           - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceII}
           - {user: SciML, repo: ModelingToolkit.jl, group: Initialization}
           - {user: SciML, repo: OrdinaryDiffEq.jl, group: Interface}
-          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression}
-          - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression, allow_failure: true}
+          - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All, allow_failure: true}
           - {user: SciML, repo: DiffEqCallbacks.jl, group: Core}
     steps:
       - uses: actions/checkout@v6
