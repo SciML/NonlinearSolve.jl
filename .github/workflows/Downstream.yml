@@ -13,6 +13,9 @@ jobs:
   test:
     name: ${{ matrix.package.repo }}/${{ matrix.package.group }}/${{ matrix.julia-version }}
     runs-on: ${{ matrix.os }}
+    # Downstream tests are informational only - failures here indicate issues
+    # in downstream packages, not in NonlinearSolve itself. See issues #777, #778.
+    continue-on-error: true
     env:
       GROUP: ${{ matrix.package.group }}
     strategy:
