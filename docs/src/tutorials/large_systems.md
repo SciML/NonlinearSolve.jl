@@ -2,8 +2,8 @@
 
 This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving
 ill-conditioned nonlinear systems requires specializing the linear solver on properties of
-the Jacobian in order to cut down on the `\mathcal{O}(n^3)` linear solve and the
-`\mathcal{O}(n^2)` back-solves. This tutorial is designed to explain the advanced usage of
+the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` linear solve and the
+``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of
 NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential
 equation (BRUSS) using NonlinearSolve.jl.
 
@@ -17,8 +17,8 @@ The Brusselator PDE is defined as follows:
 
 ```math
 \begin{align}
-0 &= 1 + u^2v - 4.4u + \alpha(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}) + f(x, y, t)\\
-0 &= 3.4u - u^2v + \alpha(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2})
+0 &= 1 + u^2v - 4.4u + \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) + f(x, y, t)\\
+0 &= 3.4u - u^2v + \alpha\left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right)
 \end{align}
 ```
 
