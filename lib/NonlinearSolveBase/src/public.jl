@@ -30,9 +30,9 @@ AbstractSafeNonlinearTerminationMode end
 #! format: off
 const TERM_DOCS = Dict(
     :Norm => doc"``\| \Delta u \| \leq reltol \times \| \Delta u + u \|`` or ``\| \Delta u \| \leq abstol``.",
-    :Rel => doc"``all \left(| \Delta u | \leq reltol \times | u | \right)``.",
+    :Rel => doc"``\mathrm{all} \left(| \Delta u | \leq reltol \times | u | \right)``.",
     :RelNorm => doc"``\| \Delta u \| \leq reltol \times \| \Delta u + u \|``.",
-    :Abs => doc"``all \left( | \Delta u | \leq abstol \right)``.",
+    :Abs => doc"``\mathrm{all} \left( | \Delta u | \leq abstol \right)``.",
     :AbsNorm => doc"``\| \Delta u \| \leq abstol``."
 )
 

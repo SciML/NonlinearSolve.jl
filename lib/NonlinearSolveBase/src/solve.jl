@@ -32,6 +32,8 @@ problems.
 * `abstol`: Absolute tolerance.
 * `reltol`: Relative tolerance.
 
+These tolerances are interpreted by the termination condition.
+
 ### Miscellaneous
 
 * `maxiters`: Maximum number of iterations before stopping. Defaults to 1e5.
@@ -40,9 +42,10 @@ problems.
 
 ### Sensitivity Algorithms (`sensealg`)
 
-`sensealg` is used for choosing the way the automatic differentiation is performed.
-    For more information, see the documentation for SciMLSensitivity:
-    https://docs.sciml.ai/SciMLSensitivity/stable/
+`sensealg` is used for choosing the way the automatic differentiation is performed. For
+ more information, see the documentation for
+[SciMLSensitivity](https://docs.sciml.ai/SciMLSensitivity/stable/)
+
 """
 function solve(
         prob::AbstractNonlinearProblem, args...; sensealg = nothing,
