@@ -181,14 +181,14 @@ function evaluate_f!!(f::NonlinearFunction, fu, u, p)
     return f(u, p)
 end
 
-function evaluate_f(prob::AbstractNonlinearProblem, u)
-    if SciMLBase.isinplace(prob)
-        fu = prob.f.resid_prototype === nothing ? similar(u) :
-            similar(prob.f.resid_prototype)
-        prob.f(fu, u, prob.p)
-    else
-        fu = prob.f(u, prob.p)
-    end
+function evaluate_f(prob::AbstractNonlinearProblem{uType, false}, u) where {uType}
+    return prob.f(u, prob.p)
+end
+
+function evaluate_f(prob::AbstractNonlinearProblem{uType, true}, u) where {uType}
+    fu = prob.f.resid_prototype === nothing ? similar(u) :
+        similar(prob.f.resid_prototype)
+    prob.f(fu, u, prob.p)
     return fu
 end
 
