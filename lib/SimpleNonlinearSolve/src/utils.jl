@@ -13,6 +13,19 @@ using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 const DI = DifferentiationInterface
 const NLBUtils = NonlinearSolveBase.Utils
 
+# GPU-compatible helper to extract alias_u0 from NonlinearAliasSpecifier
+@inline function get_alias_u0(alias::SciMLBase.NonlinearAliasSpecifier, fallback::Bool)
+    return something(alias.alias_u0, fallback)
+end
+
+# GPU-compatible helper to check if fx should be cached
+@generated function should_cache_fx(prob::SciMLBase.AbstractNonlinearProblem, f)
+    iip = prob <: SciMLBase.AbstractNonlinearProblem{<:Any, true}
+    return quote
+        $iip && !SciMLBase.has_jac(f)
+    end
+end
+
 function identity_jacobian(u::Number, fu::Number, α = true)
     return convert(promote_type(eltype(u), eltype(fu)), α)
 end
@@ -84,21 +97,28 @@ function prepare_jacobian(prob, autodiff, _, x::Number)
     end
     return DINoPreparation()
 end
-function prepare_jacobian(prob, autodiff, fx, x)
-    SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
-    if SciMLBase.isinplace(prob.f)
-        return DIExtras(
-            DI.prepare_jacobian(
-                prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)
+
+@generated function prepare_jacobian(prob, autodiff, fx, x)
+    iip = prob <: SciMLBase.AbstractNonlinearProblem{<:Any, true}
+    if iip
+        return quote
+            SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
+            return DIExtras(
+                DI.prepare_jacobian(
+                    prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)
+                )
             )
-        )
+        end
     else
-        x isa SArray && return DINoPreparation()
-        return DIExtras(
-            DI.prepare_jacobian(
-                prob.f, autodiff, x, Constant(prob.p), strict = Val(false)
+        return quote
+            SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
+            x isa SArray && return DINoPreparation()
+            return DIExtras(
+                DI.prepare_jacobian(
+                    prob.f, autodiff, x, Constant(prob.p), strict = Val(false)
+                )
             )
-        )
+        end
     end
 end
 
@@ -156,7 +176,8 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
     return J
 end
 function compute_jacobian!!(J, prob, autodiff, fx, x, ::DINoPreparation)
-    @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
+    # Assertion removed for GPU compatibility - DINoPreparation only used for out-of-place
+    # @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
     J === nothing && return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
     if ArrayInterface.can_setindex(J)
         DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
@@ -170,19 +191,23 @@ function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
     return H * dir
 end
-function compute_hvvp(prob, autodiff, fx, x, dir)
-    jvp_fn = if SciMLBase.isinplace(prob)
-        @closure (
-            u,
-            p,
-        ) -> begin
-            du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
-            return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
+
+@generated function compute_hvvp(prob, autodiff, fx, x, dir)
+    iip = prob <: SciMLBase.AbstractNonlinearProblem{<:Any, true}
+    if iip
+        return quote
+            jvp_fn = @closure (u, p) -> begin
+                du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
+                return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
+            end
+            return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
         end
     else
-        @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
+        return quote
+            jvp_fn = @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
+            return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
+        end
     end
-    return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
 function nonlinear_solution_new_alg(
