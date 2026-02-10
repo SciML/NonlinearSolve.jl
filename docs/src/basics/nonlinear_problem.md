@@ -15,18 +15,18 @@ NonlinearSolve.jl tackles four related types of nonlinear systems:
 
 The first is for solving scalar rootfinding problems, i.e., finding a single number, and
 requires that a bracketing interval is known. For a bracketing interval, one must have that
-the sign of `f(t_0)` is opposite the sign of `f(t_f)`, thus guaranteeing a root in the
+the sign of ``f(t_0)`` is opposite the sign of ``f(t_f)``, thus guaranteeing a root in the
 interval.
 
 !!! note
-    
-    Interval rootfinding problems allow for `f` to return an array, in which case the
-    interval rootfinding problem is interpreted as finding the first `t` such that any of
+
+    Interval rootfinding problems allow for ``f`` to return an array, in which case the
+    interval rootfinding problem is interpreted as finding the first ``t`` such that any of
     the components of the array hit zero.
 
 The second type of nonlinear system can be multidimensional, and thus no ordering nor
-boundaries are assumed to be known. For a system of nonlinear equations, `f` can return
-an array, and the solver seeks the value of `u` for which all outputs of `f` are
+boundaries are assumed to be known. For a system of nonlinear equations, ``f`` can return
+an array, and the solver seeks the value of ``u`` for which all outputs of ``f`` are
 simultaneously zero.
 
 The third type is equivalent to a nonlinear system, but with the extra interpretation of
@@ -41,7 +41,7 @@ convenient to minimize the Euclidean norm, as it is continuously differentiable 
 original function is.
 
 !!! warning
-    
+
     Most solvers for `SteadyStateProblem` do not guarantee the preferred solution and
     instead will solve for some `u` in the set of solutions. The documentation of the
     nonlinear solvers will note if they return the preferred solution.
