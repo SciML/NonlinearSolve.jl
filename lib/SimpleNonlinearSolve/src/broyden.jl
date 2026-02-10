@@ -27,9 +27,13 @@ end
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
     )
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 

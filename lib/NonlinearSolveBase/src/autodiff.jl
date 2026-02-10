@@ -105,12 +105,22 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
                          or the loaded backends don't support the problem."))
 end
 
-function incompatible_backend_and_problem(
+@generated function incompatible_backend_and_problem(
         prob::AbstractNonlinearProblem, ad::AbstractADType
     )
-    !DI.check_available(ad) && return true
-    SciMLBase.isinplace(prob) && !DI.check_inplace(ad) && return true
-    return additional_incompatible_backend_check(prob, ad)
+    iip = prob <: AbstractNonlinearProblem{<:Any, true}
+    if iip
+        return quote
+            !DI.check_available(ad) && return true
+            !DI.check_inplace(ad) && return true
+            return additional_incompatible_backend_check(prob, ad)
+        end
+    else
+        return quote
+            !DI.check_available(ad) && return true
+            return additional_incompatible_backend_check(prob, ad)
+        end
+    end
 end
 
 additional_incompatible_backend_check(::AbstractNonlinearProblem, ::AbstractADType) = false

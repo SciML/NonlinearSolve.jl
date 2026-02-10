@@ -35,14 +35,14 @@ function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
     )
-    if haskey(kwargs, :alias_u0)
-        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
-    end
-    alias_u0 = alias.alias_u0
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
     autodiff = alg.autodiff
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
     iszero(fx) &&
@@ -54,7 +54,7 @@ function SciMLBase.__solve(
     )
 
     @bb xo = similar(x)
-    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
+    fx_cache = Utils.should_cache_fx(prob, prob.f) ?
         NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
