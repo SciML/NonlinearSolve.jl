@@ -26,7 +26,6 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
           dirs:
-            - src
             - ext
     agents:
       queue: "juliagpu"
