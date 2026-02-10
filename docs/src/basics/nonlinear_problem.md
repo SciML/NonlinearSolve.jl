@@ -19,7 +19,6 @@ the sign of ``f(t_0)`` is opposite the sign of ``f(t_f)``, thus guaranteeing a r
 interval.
 
 !!! note
-
     Interval rootfinding problems allow for ``f`` to return an array, in which case the
     interval rootfinding problem is interpreted as finding the first ``t`` such that any of
     the components of the array hit zero.
