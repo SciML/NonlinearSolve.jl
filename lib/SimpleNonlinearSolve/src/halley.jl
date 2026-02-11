@@ -31,14 +31,14 @@ end
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleHalley, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
-        alias_u0 = false,
-        termination_condition = nothing, kwargs...
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
     )
-    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
-    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     autodiff = alg.autodiff
-    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
@@ -52,7 +52,7 @@ function SciMLBase.__solve(
 
     @bb xo = copy(x)
 
-    fx_cache = Utils.should_cache_fx(prob, prob.f) ?
+    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
         NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
 
