@@ -192,22 +192,19 @@ function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     return H * dir
 end
 
-@generated function compute_hvvp(prob, autodiff, fx, x, dir)
-    iip = prob <: SciMLBase.AbstractNonlinearProblem{<:Any, true}
-    if iip
-        return quote
-            jvp_fn = @closure (u, p) -> begin
-                du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
-                return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
-            end
-            return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
+function compute_hvvp(prob, autodiff, fx, x, dir)
+    jvp_fn = if SciMLBase.isinplace(prob)
+        @closure (
+            u,
+            p,
+        ) -> begin
+            du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
+            return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
         end
     else
-        return quote
-            jvp_fn = @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
-            return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
-        end
+        @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
+    return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
 function nonlinear_solution_new_alg(
