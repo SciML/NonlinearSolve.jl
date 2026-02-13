@@ -32,11 +32,14 @@ using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
     AbstractVerbositySpecifier, AbstractVerbosityPreset, AbstractMessageLevel,
     None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel
 
+using PreallocationTools: FixedSizeDiffCache, get_tmp
+
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
-using Setfield: @set!
+using Setfield: @set!, @set
 
 using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
+using LogExpFunctions: logistic, logit
 using Markdown: @doc_str
 using Printf: @printf
 
@@ -68,6 +71,7 @@ include("descent/dogleg.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
+include("bounds_transform.jl")
 include("solve.jl")
 
 include("forward_diff.jl")
