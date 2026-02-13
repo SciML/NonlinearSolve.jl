@@ -151,12 +151,15 @@ function solve_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
-    # Check bounds support for problems with bounds
-    if (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
-            (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
-            (_prob.lb !== nothing || _prob.ub !== nothing) &&
-            length(args) > 0 && !SciMLBase.allowsbounds(args[1])
-        error("Algorithm $(args[1]) does not support bounds. Use an algorithm with allowsbounds(alg) == true.")
+    # Handle bounds: if the algorithm doesn't natively support bounds, apply a variable
+    # transformation so the solver operates in unconstrained space.
+    transform_bounds = (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
+        (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
+        (_prob.lb !== nothing || _prob.ub !== nothing) &&
+        length(args) > 0 && !SciMLBase.allowsbounds(args[1])
+    bounds_original_prob = _prob
+    if transform_bounds
+        _prob = transform_bounded_problem(_prob)
     end
 
     if isdefined(_prob, :u0)
@@ -175,12 +178,19 @@ function solve_call(
         end
     end
 
-    return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
+    sol = if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
             _prob.f.f isa EvalFunc
         Base.invokelatest(__solve, _prob, args...; kwargs...) #::T
     else
         __solve(_prob, args...; kwargs...) #::T
     end
+
+    if transform_bounds
+        sol.u .= _from_unbounded.(sol.u, _prob.f.f.lb, _prob.f.f.ub)
+        @set! sol.prob = bounds_original_prob
+    end
+
+    return sol
 end
 
 function solve_call(
@@ -746,7 +756,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p)
+    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
 end
 
 function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
@@ -758,7 +768,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p)
+    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
 end
 
 function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
