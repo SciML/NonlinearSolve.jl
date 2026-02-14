@@ -5,7 +5,7 @@ using ForwardDiff: Dual
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearProblem
 
-using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder
+using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB
 
 const DualIntervalNonlinearProblem{
     T,
@@ -15,7 +15,7 @@ const DualIntervalNonlinearProblem{
     uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {uType, iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
     @eval function CommonSolve.solve(
             prob::DualIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
