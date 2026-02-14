@@ -1,4 +1,4 @@
-@testitem "Bounds: NonlinearLeastSquaresProblem" tags = [:core] begin
+@testitem "Bounds: NonlinearLeastSquaresProblem" tags = [:core, :bounds] begin
     using SciMLBase
 
     # Test out-of-place version
@@ -46,7 +46,7 @@
     @test sol.prob.ub == ub
 end
 
-@testitem "Bounds: one-sided" tags = [:core] begin
+@testitem "Bounds: one-sided" tags = [:core, :bounds] begin
     using SciMLBase
 
     f(u, p) = u .- p
@@ -77,44 +77,48 @@ end
     end
 end
 
-@testitem "Bounds: nonlinear model" tags = [:core] begin
+@testitem "Bounds: nonlinear model" tags = [:core, :bounds, :nopre] begin
     using SciMLBase
+    using Enzyme
+    using ADTypes: AutoForwardDiff, AutoEnzyme
 
-    # A more realistic test: fit y = a*exp(b*x) with bounds on parameters
-    true_a, true_b = 2.0, -0.5
-    x = collect(range(0.0, 3.0; length = 20))
-    y = true_a .* exp.(true_b .* x)
+    for autodiff in (AutoEnzyme(; function_annotation=Enzyme.Duplicated), AutoForwardDiff())
+        # A more realistic test: fit y = a*exp(b*x) with bounds on parameters
+        true_a, true_b = 2.0, -0.5
+        x = collect(range(0.0, 3.0; length = 20))
+        y = true_a .* exp.(true_b .* x)
 
-    model(u, p) = u[1] .* exp.(u[2] .* p) .- y
-    nf = NonlinearFunction(model; resid_prototype = zeros(20))
-    u0 = [1.0, -1.0]
-    alg = LevenbergMarquardt()
-    @test !SciMLBase.allowsbounds(alg)
+        model(u, p) = u[1] .* exp.(u[2] .* p) .- y
+        nf = NonlinearFunction(model; resid_prototype = zeros(20))
+        u0 = [1.0, -1.0]
+        alg = LevenbergMarquardt(; autodiff)
+        @test !SciMLBase.allowsbounds(alg)
 
-    @testset "unconstrained finds true params" begin
-        prob = NonlinearLeastSquaresProblem(nf, u0, x)
-        sol = solve(prob, alg)
-        @test SciMLBase.successful_retcode(sol)
-        @test sol.u ≈ [true_a, true_b] atol = 1.0e-6
-    end
+        @testset "unconstrained finds true params" begin
+            prob = NonlinearLeastSquaresProblem(nf, u0, x)
+            sol = solve(prob, alg)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ [true_a, true_b] atol = 1.0e-6
+        end
 
-    @testset "bounded finds true params when in range" begin
-        prob = NonlinearLeastSquaresProblem(
-            nf, u0, x; lb = [0.0, -2.0], ub = [5.0, 0.0]
-        )
-        sol = solve(prob, alg)
-        @test SciMLBase.successful_retcode(sol)
-        @test sol.u ≈ [true_a, true_b] atol = 1.0e-6
-    end
+        @testset "bounded finds true params when in range" begin
+            prob = NonlinearLeastSquaresProblem(
+                nf, u0, x; lb = [0.0, -2.0], ub = [5.0, 0.0]
+            )
+            sol = solve(prob, alg)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ [true_a, true_b] atol = 1.0e-6
+        end
 
-    @testset "bounds constrain the solution" begin
-        prob = NonlinearLeastSquaresProblem(
-            nf, u0, x; lb = [3.0, -2.0], ub = [5.0, -0.1]
-        )
-        sol = solve(prob, alg)
-        @test sol.u[1] >= 3.0
-        @test sol.u[2] >= -2.0
-        @test sol.u[1] <= 5.0
-        @test sol.u[2] <= -0.1
+        @testset "bounds constrain the solution" begin
+            prob = NonlinearLeastSquaresProblem(
+                nf, u0, x; lb = [3.0, -2.0], ub = [5.0, -0.1]
+            )
+            sol = solve(prob, alg)
+            @test sol.u[1] >= 3.0
+            @test sol.u[2] >= -2.0
+            @test sol.u[1] <= 5.0
+            @test sol.u[2] <= -0.1
+        end
     end
 end
