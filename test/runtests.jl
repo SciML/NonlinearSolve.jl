@@ -26,7 +26,7 @@ const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
 
 # Disable Enzyme on Julia 1.12+ due to compatibility issues
 # To re-enable: change condition to `true` or `VERSION < v"1.13"`
-const ENZYME_ENABLED = VERSION < v"1.12"
+const ENZYME_ENABLED = VERSION < v"1.13"
 
 if GROUP != "trim"
     using NonlinearSolve  # trimming uses NonlinearSolve from a custom environment
@@ -38,6 +38,7 @@ if GROUP != "trim"
     end
     if GROUP == "all" || GROUP == "nopre"
         # Only add Enzyme for nopre group if not on prerelease Julia and if enabled
+        # Only add Enzyme for specific groups if not on prerelease Julia and if enabled
         if isempty(VERSION.prerelease) && ENZYME_ENABLED
             push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
             push!(EXTRA_PKGS, Pkg.PackageSpec("Mooncake"))

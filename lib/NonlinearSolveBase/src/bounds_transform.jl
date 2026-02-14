@@ -1,17 +1,17 @@
 # Element-wise scalar transforms between bounded and unbounded spaces.
 # Each function handles 4 cases based on finiteness of lb/ub.
 
-function _to_unbounded(p, lb, ub)
+function _to_unbounded(u, lb, ub)
     has_lb = isfinite(lb)
     has_ub = isfinite(ub)
     if has_lb && has_ub
-        return logit((p - lb) / (ub - lb))
+        return logit((u - lb) / (ub - lb))
     elseif has_lb
-        return log(p - lb)
+        return log(u - lb)
     elseif has_ub
-        return log(ub - p)
+        return log(ub - u)
     else
-        return p
+        return u
     end
 end
 
@@ -36,21 +36,21 @@ end
 # We use sqrt(eps) (~1.5e-8 for Float64) as the relative nudge factor. Plain eps
 # (~2.2e-16) is so small that nudged values can round back to the boundary, while
 # sqrt(eps) gives comfortable room without meaningfully changing the starting point.
-function _clamp_to_bounds(p, lb, ub)
+function _clamp_to_bounds(u, lb, ub)
     has_lb = isfinite(lb)
     has_ub = isfinite(ub)
-    eps_frac = sqrt(eps(typeof(p)))
+    eps_frac = sqrt(eps(typeof(u)))
     if has_lb && has_ub
         # Margin scales with interval width
         margin = (ub - lb) * eps_frac
-        return clamp(p, lb + margin, ub - margin)
+        return clamp(u, lb + margin, ub - margin)
     elseif has_lb
         # max(abs(lb), 1) provides a scale factor so the nudge isn't zero when lb == 0
-        return max(p, lb + eps_frac * max(abs(lb), one(lb)))
+        return max(u, lb + eps_frac * max(abs(lb), one(lb)))
     elseif has_ub
-        return min(p, ub - eps_frac * max(abs(ub), one(ub)))
+        return min(u, ub - eps_frac * max(abs(ub), one(ub)))
     else
-        return p
+        return u
     end
 end
 
@@ -82,15 +82,22 @@ end
     u_cache
 end
 
+function _transform_u(w::BoundedWrapper, u)
+    return if isnothing(w.u_cache)
+        _from_unbounded.(u, w.lb, w.ub)
+    else
+        tmp = get_tmp(w.u_cache, u)
+        tmp .= _from_unbounded.(u, w.lb, w.ub)
+    end
+end
+
 function (w::BoundedWrapper{false})(u, p)
-    transformed_u = get_tmp(w.u_cache, u)
-    transformed_u .= _from_unbounded.(u, w.lb, w.ub)
+    transformed_u = _transform_u(w, u)
     return w.f(transformed_u, p)
 end
 
 function (w::BoundedWrapper{true})(resid, u, p)
-    transformed_u = get_tmp(w.u_cache, u)
-    transformed_u .= _from_unbounded.(u, w.lb, w.ub)
+    transformed_u = _transform_u(w, u)
     w.f(resid, transformed_u, p)
     return resid
 end
@@ -101,7 +108,7 @@ SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
 # nutshell, we transform a parameter `p` with bounds `lb` and `ub` into an
 # unbounded parameter `t` using the logistic function to map all values of `t`
 # into the interval (lb, ub).
-function transform_bounded_problem(prob)
+function transform_bounded_problem(prob, alg)
     lb, ub = _normalize_bounds(prob.lb, prob.ub, prob.u0)
 
     # Clamp u0 into the interior of the bounds so that _to_unbounded doesn't hit log(0)
@@ -109,8 +116,16 @@ function transform_bounded_problem(prob)
     u0_clamped = _clamp_to_bounds.(prob.u0, lb, ub)
     u0_transformed = _to_unbounded.(u0_clamped, lb, ub)
 
+    # PreallocationTools is only supported by ForwardDiff so don't do any caching
+    # if we're not using ForwardDiff.
+    u_cache = if isnothing(alg) || alg.autodiff isa AutoForwardDiff
+        FixedSizeDiffCache(prob.u0)
+    else
+        nothing
+    end
+
     orig_f = prob.f
-    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(orig_f, lb, ub, FixedSizeDiffCache(prob.u0))
+    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(orig_f, lb, ub, u_cache)
 
     new_f = if orig_f isa NonlinearFunction
         @set orig_f.f = wrapped

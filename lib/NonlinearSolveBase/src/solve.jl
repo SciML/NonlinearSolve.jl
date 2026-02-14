@@ -153,13 +153,14 @@ function solve_call(
 
     # Handle bounds: if the algorithm doesn't natively support bounds, apply a variable
     # transformation so the solver operates in unconstrained space.
+    alg = length(args) > 0 ? args[1] : nothing
     transform_bounds = (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
         (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
         (_prob.lb !== nothing || _prob.ub !== nothing) &&
-        length(args) > 0 && !SciMLBase.allowsbounds(args[1])
+        !isnothing(alg) && !SciMLBase.allowsbounds(alg)
     bounds_original_prob = _prob
     if transform_bounds
-        _prob = transform_bounded_problem(_prob)
+        _prob = transform_bounded_problem(_prob, alg)
     end
 
     if isdefined(_prob, :u0)
