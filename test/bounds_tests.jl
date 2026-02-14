@@ -77,7 +77,7 @@ end
     end
 end
 
-@testitem "Bounds: nonlinear model" tags = [:core, :bounds, :nopre] begin
+@testitem "Bounds: nonlinear model" tags = [:bounds, :nopre] begin
     using SciMLBase
     using Enzyme
     using ADTypes: AutoForwardDiff, AutoEnzyme
