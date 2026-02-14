@@ -47,7 +47,7 @@ function SciMLBase.__solve(
     bisecting = true
     side = 0 # tracks the side that has moved at the previous iteration
     ϵ = abstol
-    N = -floor(Int, log2(max(ϵ, nextfloat(zero(y1))))/2)+1
+    N = -exponent(max(ϵ, nextfloat(zero(y1))))/2+1
     x0 = x1
     i = 1
     while i < maxiters
@@ -95,11 +95,13 @@ function SciMLBase.__solve(
             return build_bracketing_solution(prob, alg, x2, y2, x1, x2, ReturnCode.FloatingPointLimit)
         end
         i += 1
-        if i % N == 0 #taking longer than expected
+        if i >= N #taking longer than expected
             bisecting = true
             side =0
+            maxiters -= N
+            i -= N
         end
     end
 
-    return build_bracketing_solution(prob, alg, x1, fl, x1, x2, ReturnCode.MaxIters)
+    return build_bracketing_solution(prob, alg, x1, y1, x1, x2, ReturnCode.MaxIters)
 end
