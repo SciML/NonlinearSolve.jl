@@ -43,11 +43,11 @@ function SciMLBase.__solve(
         )
         return build_bracketing_solution(prob, alg, x1, y1, x1, x2, ReturnCode.InitialFailure)
     end
-    
+
     bisecting = true
     side = 0 # tracks the side that has moved at the previous iteration
     ϵ = abstol
-    N = -exponent(max(ϵ, nextfloat(zero(y1))))/2+1
+    N = -exponent(max(ϵ, nextfloat(zero(y1)))) / 2 + 1
     x0 = x1
     i = 1
     while i < maxiters
@@ -63,7 +63,7 @@ function SciMLBase.__solve(
             end
         else
             # Falsi
-            x3 = (x1*y2 - y1*x2) / (y2 - y1)
+            x3 = (x1 * y2 - y1 * x2) / (y2 - y1)
             y3 = f(x3)
         end
 
@@ -74,11 +74,11 @@ function SciMLBase.__solve(
         end
         x0 = x3
         if side == 1
-            m = 1 - y3/y1
-            y2 *= m <= 0 ? inv(2*one(y1)) : m
+            m = 1 - y3 / y1
+            y2 *= m <= 0 ? inv(2 * one(y1)) : m
         elseif side == 2 # Apply Anderson-Bjork modification for side 2
-            m = 1 - y3/y2
-            y1 *= m <= 0 ? inv(2*one(y1)) : m
+            m = 1 - y3 / y2
+            y1 *= m <= 0 ? inv(2 * one(y1)) : m
         end
         if sign(y1) == sign(y3)
             if !bisecting

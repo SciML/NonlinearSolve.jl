@@ -82,7 +82,7 @@ end
     using Enzyme
     using ADTypes: AutoForwardDiff, AutoEnzyme
 
-    for autodiff in (AutoEnzyme(; function_annotation=Enzyme.Duplicated), AutoForwardDiff())
+    for autodiff in (AutoEnzyme(; function_annotation = Enzyme.Duplicated), AutoForwardDiff())
         # A more realistic test: fit y = a*exp(b*x) with bounds on parameters
         true_a, true_b = 2.0, -0.5
         x = collect(range(0.0, 3.0; length = 20))
