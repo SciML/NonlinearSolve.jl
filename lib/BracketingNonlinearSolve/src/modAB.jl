@@ -75,10 +75,10 @@ function SciMLBase.__solve(
         x0 = x3
         if side == 1
             m = 1 - y3/y1
-            y2 *= m <= 0 ? .5 : m
+            y2 *= m <= 0 ? inv(2*one(y1)) : m
         elseif side == 2 # Apply Anderson-Bjork modification for side 2
             m = 1 - y3/y2
-            y1 *= m <= 0 ? .5 : m
+            y1 *= m <= 0 ? inv(2*one(y1)) : m
         end
         if sign(y1) == sign(y3)
             if !bisecting
@@ -97,7 +97,7 @@ function SciMLBase.__solve(
         i += 1
         if i >= N #taking longer than expected
             bisecting = true
-            side =0
+            side = 0
             maxiters -= N
             i -= N
         end
