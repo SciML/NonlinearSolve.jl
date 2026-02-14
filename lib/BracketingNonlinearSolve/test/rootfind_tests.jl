@@ -82,7 +82,7 @@ end
     prob = IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
     prob_lin = IntervalNonlinearProblem(linear_f, (-1.0, 1.0), 0.0)
 
-    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder() ModAB(), nothing)
+    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder(), ModAB(), nothing)
         sol = solve(prob, alg; abstol = 0.0)
         # Test that solution is to floating point precision
         @test sol.retcode == ReturnCode.FloatingPointLimit
@@ -102,7 +102,7 @@ end
 
 @testitem "Flipped Signs and Reversed Tspan" setup = [RootfindingTestSnippet] tags = [:core] begin
     @testset for alg in (
-            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB() nothing,
+            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB(), nothing,
         )
         f1(u, p) = u * u - p
         f2(u, p) = p - u * u
