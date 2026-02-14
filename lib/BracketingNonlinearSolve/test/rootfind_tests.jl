@@ -9,7 +9,7 @@ end
     using ForwardDiff
 
     @testset for alg in (
-            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing,
+            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB(), nothing,
         )
         tspan = (1.0, 20.0)
 
@@ -55,7 +55,7 @@ end
     prob = IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
     ϵ = eps(Float64) # least possible tol for all methods
 
-    @testset for alg in (Bisection(), Falsi(), ITP(), Muller(), nothing)
+    @testset for alg in (Bisection(), Falsi(), ITP(), Muller(), ModAB(), nothing)
         @testset for abstol in [0.1, 0.01, 0.001, 0.0001, 1.0e-5, 1.0e-6]
             sol = solve(prob, alg; abstol)
             result_tol = abs(sol.u - sqrt(2))
@@ -82,7 +82,7 @@ end
     prob = IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0)
     prob_lin = IntervalNonlinearProblem(linear_f, (-1.0, 1.0), 0.0)
 
-    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder(), nothing)
+    @testset for alg in (Alefeld(), Bisection(), Brent(), ITP(), Ridder() ModAB(), nothing)
         sol = solve(prob, alg; abstol = 0.0)
         # Test that solution is to floating point precision
         @test sol.retcode == ReturnCode.FloatingPointLimit
@@ -102,7 +102,7 @@ end
 
 @testitem "Flipped Signs and Reversed Tspan" setup = [RootfindingTestSnippet] tags = [:core] begin
     @testset for alg in (
-            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), nothing,
+            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB() nothing,
         )
         f1(u, p) = u * u - p
         f2(u, p) = p - u * u

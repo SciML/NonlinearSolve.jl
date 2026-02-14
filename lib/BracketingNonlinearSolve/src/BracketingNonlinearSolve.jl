@@ -20,6 +20,7 @@ include("falsi.jl")
 include("itp.jl")
 include("muller.jl")
 include("ridder.jl")
+include("modAB.jl")
 
 # Default Algorithm
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
@@ -62,6 +63,6 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder
+export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder, ModAB
 
 end
