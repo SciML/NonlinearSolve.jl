@@ -59,7 +59,7 @@ function SciMLBase.__solve(
             # Ordinate of chord at midpoint
             ym = (y1 + y2) / 2
             if 4abs(ym - y3) < abs(ym) + abs(y3)
-                bisection = false
+                bisecting = false
             end
         else
             # Falsi
