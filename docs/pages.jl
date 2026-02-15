@@ -4,6 +4,7 @@ pages = [
     "index.md",
     "Getting Started with Nonlinear Rootfinding in Julia" => "tutorials/getting_started.md",
     "Tutorials" => Any[
+        "tutorials/bound_constraints.md",
         "tutorials/code_optimization.md",
         "tutorials/large_systems.md",
         "tutorials/modelingtoolkit.md",
