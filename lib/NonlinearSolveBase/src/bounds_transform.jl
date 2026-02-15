@@ -33,13 +33,13 @@ end
 # doesn't receive 0 or 1, which would give ±Inf. Only applied once to u0 before
 # the initial transform — it's a no-op if u0 is already in the interval.
 #
-# We use sqrt(eps) (~1.5e-8 for Float64) as the relative nudge factor. Plain eps
+# We use eps^(3/4) (~1.8e-12 for Float64) as the relative nudge factor. Plain eps
 # (~2.2e-16) is so small that nudged values can round back to the boundary, while
-# sqrt(eps) gives comfortable room without meaningfully changing the starting point.
+# eps^(3/4) gives comfortable room without meaningfully changing the starting point.
 function _clamp_to_bounds(u, lb, ub)
     has_lb = isfinite(lb)
     has_ub = isfinite(ub)
-    eps_frac = sqrt(eps(typeof(u)))
+    eps_frac = eps(typeof(u))^(3/4)
     if has_lb && has_ub
         # Margin scales with interval width
         margin = (ub - lb) * eps_frac
@@ -83,12 +83,9 @@ end
 end
 
 function _transform_u(w::BoundedWrapper, u)
-    return if isnothing(w.u_cache)
-        _from_unbounded.(u, w.lb, w.ub)
-    else
-        tmp = get_tmp(w.u_cache, u)
-        tmp .= _from_unbounded.(u, w.lb, w.ub)
-    end
+    tmp = w.u_cache isa FixedSizeDiffCache ? get_tmp(w.u_cache, u) : w.u_cache
+    tmp .= _from_unbounded.(u, w.lb, w.ub)
+    return tmp
 end
 
 function (w::BoundedWrapper{false})(u, p)
@@ -118,10 +115,10 @@ function transform_bounded_problem(prob, alg)
 
     # PreallocationTools is only supported by ForwardDiff so don't do any caching
     # if we're not using ForwardDiff.
-    u_cache = if isnothing(alg) || alg.autodiff isa AutoForwardDiff
+    u_cache = if isnothing(alg) || isnothing(alg.autodiff) || alg.autodiff isa AutoForwardDiff
         FixedSizeDiffCache(prob.u0)
     else
-        nothing
+        similar(prob.u0)
     end
 
     orig_f = prob.f

@@ -136,15 +136,16 @@ InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
 LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
-MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
 OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
 PETSc = "ace2c81b-2b5f-4b1e-a30d-d662738edfe0"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+PreallocationTools = "d236fae5-4411-538c-8e31-a6e3d9e00b46"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
@@ -162,4 +163,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "MPI", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "Random", "ReTestItems", "SafeTestsets", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker", "SciMLLogging"]
+test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "MPI", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "OrdinaryDiffEqTsit5", "PETSc", "Pkg", "PolyesterForwardDiff", "PreallocationTools", "Random", "ReTestItems", "SafeTestsets", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker", "SciMLLogging"]

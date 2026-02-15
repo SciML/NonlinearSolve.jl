@@ -80,7 +80,28 @@ end
 @testitem "Bounds: nonlinear model" tags = [:bounds, :nopre] begin
     using SciMLBase
     using Enzyme
+    using NonlinearSolveBase: transform_bounded_problem, BoundedWrapper
+    using PreallocationTools: FixedSizeDiffCache
     using ADTypes: AutoForwardDiff, AutoEnzyme
+
+    # Test that the right cache type is chosen for the different autodiff backends
+    let prob = NonlinearLeastSquaresProblem(Returns(42), [1.0, 1.0], 1:10)
+        # Default to ForwardDiff
+        unbounded_prob = transform_bounded_problem(prob, nothing)
+        wrapper = unbounded_prob.f.f
+        @test wrapper isa BoundedWrapper
+        @test wrapper.u_cache isa FixedSizeDiffCache
+
+        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt())
+        @test unbounded_prob.f.f.u_cache isa FixedSizeDiffCache
+
+        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff=AutoForwardDiff()))
+        @test unbounded_prob.f.f.u_cache isa FixedSizeDiffCache
+
+        # Test Enzyme
+        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff=AutoEnzyme()))
+        @test unbounded_prob.f.f.u_cache isa typeof(prob.u0)
+    end
 
     for autodiff in (AutoEnzyme(; function_annotation = Enzyme.Duplicated), AutoForwardDiff())
         # A more realistic test: fit y = a*exp(b*x) with bounds on parameters
