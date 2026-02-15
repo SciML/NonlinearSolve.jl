@@ -39,7 +39,7 @@ end
 function _clamp_to_bounds(u, lb, ub)
     has_lb = isfinite(lb)
     has_ub = isfinite(ub)
-    eps_frac = eps(typeof(u))^(3/4)
+    eps_frac = eps(typeof(u))^(3 / 4)
     if has_lb && has_ub
         # Margin scales with interval width
         margin = (ub - lb) * eps_frac
