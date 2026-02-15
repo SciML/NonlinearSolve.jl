@@ -382,21 +382,3 @@ function InternalAPI.step!(
 
     return nothing
 end
-
-function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
-    return SciMLBase.__init(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
-    )
-end
-
-function SciMLBase.__solve(
-        prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...
-    )
-    return SciMLBase.__solve(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
-    )
-end
-
-function NonlinearSolveBase.initialization_alg(::NonlinearLeastSquaresProblem, autodiff)
-    return FastShortcutNLLSPolyalg(; autodiff)
-end
