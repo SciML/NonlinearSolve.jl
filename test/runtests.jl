@@ -36,8 +36,7 @@ if GROUP != "trim"
         push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
         push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
     end
-    if GROUP == "all" || GROUP == "nopre"
-        # Only add Enzyme for nopre group if not on prerelease Julia and if enabled
+    if GROUP in ("all", "nopre", "bounds")
         # Only add Enzyme for specific groups if not on prerelease Julia and if enabled
         if isempty(VERSION.prerelease) && ENZYME_ENABLED
             push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
