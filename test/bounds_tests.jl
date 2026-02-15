@@ -95,11 +95,11 @@ end
         unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt())
         @test unbounded_prob.f.f.u_cache isa FixedSizeDiffCache
 
-        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff=AutoForwardDiff()))
+        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff = AutoForwardDiff()))
         @test unbounded_prob.f.f.u_cache isa FixedSizeDiffCache
 
         # Test Enzyme
-        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff=AutoEnzyme()))
+        unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff = AutoEnzyme()))
         @test unbounded_prob.f.f.u_cache isa typeof(prob.u0)
     end
 
