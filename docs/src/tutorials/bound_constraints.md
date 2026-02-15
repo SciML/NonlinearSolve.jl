@@ -151,4 +151,3 @@ sol.prob.lb, sol.prob.ub
     one-sided bounds, a simple $$\log$$/$$\exp$$ transform is used.
   - **Initial guess.** If `u0` is exactly on a bound, it is automatically nudged into the
     strict interior to avoid numerical issues.
-  - **Autodiff.** The transformation works with both ForwardDiff and Enzyme backends.
