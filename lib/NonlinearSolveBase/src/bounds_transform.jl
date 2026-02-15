@@ -113,8 +113,8 @@ function transform_bounded_problem(prob, alg)
     u0_clamped = _clamp_to_bounds.(prob.u0, lb, ub)
     u0_transformed = _to_unbounded.(u0_clamped, lb, ub)
 
-    # PreallocationTools is only supported by ForwardDiff so don't do any caching
-    # if we're not using ForwardDiff.
+    # PreallocationTools is only supported by ForwardDiff so we only use
+    # FixedSizeDiffCache if we're using ForwardDiff.
     u_cache = if isnothing(alg) || isnothing(alg.autodiff) || alg.autodiff isa AutoForwardDiff
         FixedSizeDiffCache(prob.u0)
     else
