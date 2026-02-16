@@ -145,7 +145,7 @@ function InternalAPI.solve!(
     elseif ArrayInterface.can_setindex(cache.J_diag_cache)
         sum!(abs2, Utils.safe_vec(cache.J_diag_cache), J')
     else
-        cache.J_diag_cache = dropdims(sum(abs2, J'; dims = 1); dims = 1)
+        cache.J_diag_cache = vec(sum(abs2, J; dims = 1))
     end
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(
         cache.DᵀD, Utils.safe_vec(cache.J_diag_cache)
