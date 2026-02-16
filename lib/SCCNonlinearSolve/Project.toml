@@ -13,6 +13,15 @@ SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 
+[sources.NonlinearSolve]
+path = "../.."
+
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
+
+[sources.NonlinearSolveFirstOrder]
+path = "../NonlinearSolveFirstOrder"
+
 [extensions]
 SCCNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
 
@@ -28,7 +37,7 @@ LinearAlgebra = "1.10"
 NonlinearProblemLibrary = "0.1.2"
 NonlinearSolve = "4.8"
 NonlinearSolveBase = "2.1"
-NonlinearSolveFirstOrder = "1"
+NonlinearSolveFirstOrder = "1, 2"
 Pkg = "1.10"
 PrecompileTools = "1.2"
 ReTestItems = "1.24"
@@ -39,11 +48,6 @@ StaticArrays = "1.9.8"
 SymbolicIndexingInterface = "0.3.43"
 Test = "1.10"
 julia = "1.10"
-
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
-NonlinearSolveFirstOrder = {path = "../NonlinearSolveFirstOrder"}
-NonlinearSolve = {path = "../.."}
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
