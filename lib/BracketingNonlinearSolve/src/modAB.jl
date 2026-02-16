@@ -59,17 +59,16 @@ function SciMLBase.__solve(
             # Ordinate of chord at midpoint
             ym = (y1 + y2) / 2
             if 4abs(ym - y3) < abs(ym) + abs(y3)
-                bisection = false
+                bisecting = false
             end
         else
             # Falsi
             x3 = (x1 * y2 - y1 * x2) / (y2 - y1)
             y3 = f(x3)
         end
-
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
-        elseif abs(y3) < ϵ
+        elseif (x2-x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
         x0 = x3
@@ -92,7 +91,7 @@ function SciMLBase.__solve(
             x2, y2 = x3, y3
         end
         if nextfloat(x1) == x2
-            return build_bracketing_solution(prob, alg, x2, y2, x1, x2, ReturnCode.FloatingPointLimit)
+            return build_bracketing_solution(prob, alg, x2, f(x2), x1, x2, ReturnCode.FloatingPointLimit)
         end
         i += 1
         if i >= N #taking longer than expected
