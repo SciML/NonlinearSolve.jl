@@ -24,11 +24,11 @@ include("modAB.jl")
 
 # Default Algorithm
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
-    return CommonSolve.solve(prob, ITP(); kwargs...)
+    return CommonSolve.solve(prob, ModAB(); kwargs...)
 end
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, nothing, args...; kwargs...)
-    return CommonSolve.solve(prob, ITP(), args...; kwargs...)
+    return CommonSolve.solve(prob, ModAB(), args...; kwargs...)
 end
 
 function CommonSolve.solve(
