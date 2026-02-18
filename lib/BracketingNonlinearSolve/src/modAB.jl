@@ -1,7 +1,7 @@
 """
-    ModAB(; k1::Real = 0.007, k2::Real = 1.5, n0::Int = 10)
+    ModAB()
 
-ModAB (Interpolate Truncate & Project)
+ModAB (Modified Anderson-Bjork)
 
 Use the [ModAB method](https://iopscience.iop.org/article/10.1088/1757-899X/1276/1/012010/) to find a root of a bracketed
 function, with a convergence rate between 1 and 1.62.
