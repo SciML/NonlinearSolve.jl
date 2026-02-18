@@ -68,7 +68,7 @@ function SciMLBase.__solve(
         end
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
-        elseif (x2-x1) < 2ϵ
+        elseif (x2 - x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
         x0 = x3
