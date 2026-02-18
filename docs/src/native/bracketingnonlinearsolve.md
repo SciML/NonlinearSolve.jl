@@ -17,6 +17,7 @@ Bisection
 Brent
 Falsi
 ITP
+ModAB
 Muller
 Ridder
 ```
