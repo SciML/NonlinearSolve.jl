@@ -69,7 +69,7 @@ iteratively_build_sols(alg, sols; kwargs...) = sols
 
 function solve_single_scc(alg, prob, explicitfun; kwargs...)
     explicitfun(
-        SymbolicIndexingInterface.parameter_values(prob), sols
+        prob.p, sols
     )
 
     _sol = if prob isa SciMLBase.LinearProblem
