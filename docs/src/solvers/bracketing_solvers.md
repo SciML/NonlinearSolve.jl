@@ -9,7 +9,10 @@ algorithm is given, a default algorithm will be chosen.
 
 ## Recommended Methods
 
-[`modAB`](@ref) (Modified Anderson-Bjork) is the recommended method for the scalar interval root-finding problems. It combines Bisection with Anderson-Bjork steps to achieve superlinear convergence 0.7 ÷ 0.8, providing optimal convergence rate for poorly behaved functions. According to our benchmarks, it outperforms the other methods in most cases.
+[`modAB`](@ref) (Modified Anderson-Bjork) is the recommended method for the scalar interval 
+root-finding problems. It combines Bisection with Anderson-Bjork steps to achieve superlinear 
+convergence 1.7–1.8, providing optimal convergence rate for poorly behaved functions. 
+According to our benchmarks, it outperforms the other methods in most cases.
 
 [`ITP`](@ref) is particularly well-suited for cases where the function is smooth and well-behaved; and
 achieved superlinear convergence while retaining the optimal worst-case performance of the
