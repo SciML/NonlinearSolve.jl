@@ -85,19 +85,25 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
-        SciMLBase.build_solution(
+        SciMLBase.strip_solution(SciMLBase.build_solution(
             prob, nothing, sol.u, sol.resid, retcode = sol.retcode
-        )
+        ))
     end
 
     return _sol
 end
 
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
-    T = Core.Compiler.return_type(
-        solve_single_scc, Tuple{typeof(alg), eltype(probs), eltype(explicitfuns), Tuple{}}
-    )
-    sols = Vector{T}(undef, length(probs))
+    # Compute the stripped solution type deterministically from the first problem.
+    # After strip_solution, all NonlinearSolutions have a predictable concrete type
+    # regardless of the original problem/algorithm types.
+    prob1 = first(probs)
+    uType = typeof(probvec(prob1))
+    T = eltype(uType)
+    rType = uType  # resid has same type as u for nonlinear problems
+    ST = SciMLBase.NonlinearSolution{T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing}
+    sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:i-1); kwargs...)
     end
