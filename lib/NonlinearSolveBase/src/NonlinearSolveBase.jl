@@ -10,6 +10,8 @@ using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityD
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
+using FunctionWrappers: FunctionWrappers
+import FunctionWrappersWrappers
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
 using CommonSolve: CommonSolve, init
@@ -54,6 +56,7 @@ include("abstract_types.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
 
+include("autospecialize.jl")
 include("autodiff.jl")
 include("jacobian.jl")
 include("linear_solve.jl")
@@ -79,6 +82,13 @@ include("forward_diff.jl")
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
+@compat(
+    public,
+    (
+        NonlinearSolveTag, wrapfun_iip, wrapfun_oop, unwrap_fw,
+        maybe_wrap_nonlinear_f, standardize_forwarddiff_tag,
+    )
+)
 @compat(
     public,
     (select_forward_mode_autodiff, select_reverse_mode_autodiff, select_jacobian_autodiff)
