@@ -748,13 +748,6 @@ function _solve_forward(
     end
 end
 
-function maybe_wrap_f(prob::AbstractNonlinearProblem)
-    wrapped_f = maybe_wrap_nonlinear_f(prob)
-    wrapped_f === prob.f.f && return prob
-    @set! prob.f.f = EvalFunc(wrapped_f)
-    return prob
-end
-
 function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
