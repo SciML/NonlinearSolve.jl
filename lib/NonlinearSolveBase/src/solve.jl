@@ -764,8 +764,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
-    return maybe_wrap_f(prob)
+    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
 end
 
 function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
@@ -777,8 +776,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
-    return maybe_wrap_f(prob)
+    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
 end
 
 function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
