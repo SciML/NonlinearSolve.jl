@@ -170,7 +170,8 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     else
         # For small problems, nesting ForwardDiff is actually quite fast
         autodiff = length(uu) + length(sol.resid) ≥ 50 ?
-            select_reverse_mode_autodiff(prob, nothing) : AutoForwardDiff()
+            select_reverse_mode_autodiff(prob, nothing) :
+            standardize_forwarddiff_tag(AutoForwardDiff(), prob)
 
         if SciMLBase.isinplace(prob)
             return @closure (
