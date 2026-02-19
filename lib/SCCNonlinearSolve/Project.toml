@@ -26,10 +26,12 @@ path = "../NonlinearSolveFirstOrder"
 SCCNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
 
 [compat]
+ADTypes = "1"
 Aqua = "0.8"
 BenchmarkTools = "1.5.0"
 ChainRulesCore = "1"
 CommonSolve = "0.2.4"
+FunctionWrappers = "1"
 ExplicitImports = "1.5"
 Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
@@ -50,8 +52,10 @@ Test = "1.10"
 julia = "1.10"
 
 [extras]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+FunctionWrappers = "069b7b12-0de2-55c6-9aab-29f3d0a68a2e"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -67,4 +71,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "BenchmarkTools", "ExplicitImports", "Hwloc", "InteractiveUtils", "LinearAlgebra", "NonlinearProblemLibrary", "NonlinearSolveBase", "NonlinearSolveFirstOrder", "NonlinearSolve", "Pkg", "ReTestItems", "StableRNGs", "StaticArrays", "Test"]
+test = ["ADTypes", "Aqua", "BenchmarkTools", "ExplicitImports", "FunctionWrappers", "Hwloc", "InteractiveUtils", "LinearAlgebra", "NonlinearProblemLibrary", "NonlinearSolveBase", "NonlinearSolveFirstOrder", "NonlinearSolve", "Pkg", "ReTestItems", "StableRNGs", "StaticArrays", "Test"]

@@ -67,7 +67,7 @@ probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
 
-function solve_single_scc(alg, prob, explicitfun; kwargs...)
+function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     explicitfun(
         prob.p, sols
     )
@@ -89,23 +89,26 @@ function solve_single_scc(alg, prob, explicitfun; kwargs...)
             prob, nothing, sol.u, sol.resid, retcode = sol.retcode
         )
     end
-    
+
     return _sol
 end
 
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
-    solver = let alg = alg, probs = probs, explicitfuns = explicitfuns, kwargs = kwargs
-        function _solver(i::Integer)
-            return solve_single_scc(alg, probs[i], explicitfuns[i]; kwargs...)
-        end
+    T = Core.Compiler.return_type(
+        solve_single_scc, Tuple{typeof(alg), eltype(probs), eltype(explicitfuns), Tuple{}}
+    )
+    sols = Vector{T}(undef, length(probs))
+    for i in eachindex(probs)
+        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:i-1); kwargs...)
     end
-    return map(solver, eachindex(probs))
+    return sols
 end
 
 @generated function iteratively_build_sols(alg, probs::Tuple, explicitfuns::Tuple, ::Val{N}; kwargs...) where {N}
     return quote
         Base.Cartesian.@nexprs $N i -> begin
-            prob_i = solve_single_scc(alg, probs[i], explicitfuns[i]; kwargs...)
+            prob_i = solve_single_scc(alg, probs[i], explicitfuns[i],
+                Base.Cartesian.@ntuple((i - 1), j -> prob_j); kwargs...)
         end
         return Base.Cartesian.@ntuple $N i -> prob_i
     end
@@ -144,7 +147,7 @@ This is called by scc_solve_up and should NOT be hooked by ChainRulesCore.
 function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     numscc = length(prob.probs)
     if prob.probs isa Tuple
-        sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!, Val(numscc); kwargs...)
+        sols = iteratively_build_sols(alg, prob.probs, Tuple(prob.explicitfuns!), Val(numscc); kwargs...)
     else
         sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!; kwargs...)
     end
