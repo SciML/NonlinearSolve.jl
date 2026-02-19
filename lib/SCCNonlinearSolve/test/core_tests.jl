@@ -297,7 +297,9 @@ end
     ref_sol = solve(ref_prob, NewtonRaphson())
     @test scc_sol.u ≈ ref_sol.u atol = 1.0e-10
 
-    # Second solve should not trigger recompilation
-    stats = @timed solve(sccprob, scc_alg)
-    @test stats.compile_time == 0.0
+    # Second solve should not trigger recompilation (compile_time requires Julia 1.11+)
+    if VERSION >= v"1.11"
+        stats = @timed solve(sccprob, scc_alg)
+        @test stats.compile_time == 0.0
+    end
 end
