@@ -51,7 +51,6 @@ function construct_jacobian_cache(
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
-        autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
         di_extras = if SciMLBase.isinplace(f)
             DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
