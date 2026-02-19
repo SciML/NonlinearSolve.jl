@@ -245,11 +245,13 @@ end
         return nothing
     end
 
-    # Wrap explicitfuns with FunctionWrapper for type unification (instead of Void{Any}).
-    # The signature is (p::Vector{Float64}, sols) -> Nothing.
-    # Use Any for the sols argument since its concrete type (SubArray of solution vectors)
-    # depends on the solver and is not known in advance.
-    EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, Any}}
+    # Wrap explicitfuns with FunctionWrapper for type unification.
+    # The stripped solution type is deterministic — compute it from u0 type.
+    uType = Vector{Float64}
+    SSol = SciMLBase.NonlinearSolution{Float64, 1, uType, uType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing}
+    SolsView = SubArray{SSol, 1, Vector{SSol}, Tuple{UnitRange{Int64}}, true}
+    EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, SolsView}}
     ef1_wrapped = EFW(explicitfun1_raw)
     ef2_wrapped = EFW(explicitfun2_raw)
 
