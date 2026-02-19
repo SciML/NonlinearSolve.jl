@@ -100,6 +100,35 @@ end
     end
 end
 
+@testitem "ForwardDiff with Duals in tspan" tags = [:core] begin
+    using ForwardDiff: ForwardDiff, Dual, partials
+
+    # When Duals are only in tspan (bracket endpoints), the derivative of the root
+    # w.r.t. the boundary point is zero. The extension strips the Duals, solves with
+    # plain floats, and returns zero partials.
+    @testset for alg in (
+            Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder(), ModAB(), nothing,
+        )
+        @testset for p_val in [0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+            p = Dual{Nothing}(p_val, 1.0)
+            exact_root = sqrt(2 / p_val)
+
+            cond(t, _ = nothing) = 1 - p / 2 * t^2
+
+            t_left = Dual{Nothing}(0.0, 0.0)
+            t_right = Dual{Nothing}(exact_root + 0.5, 0.0)
+
+            prob = IntervalNonlinearProblem{false}(cond, (t_left, t_right))
+            sol = solve(prob, alg; abstol = 0.0, reltol = 0.0)
+
+            @test ForwardDiff.value(sol.u) ≈ exact_root atol = 1.0e-10
+            @test partials(sol.u, 1) == 0.0
+            @test partials(sol.left, 1) == 0.0
+            @test partials(sol.right, 1) == 0.0
+        end
+    end
+end
+
 @testitem "Flipped Signs and Reversed Tspan" setup = [RootfindingTestSnippet] tags = [:core] begin
     @testset for alg in (
             Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB(), nothing,
