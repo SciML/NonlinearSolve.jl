@@ -59,6 +59,9 @@ function CommonSolve.solve(
         prob::NonlinearProblem, alg::AbstractSimpleNonlinearSolveAlgorithm, args...;
         kwargs...
     )
+    if prob.u0 === nothing
+        return NonlinearSolveBase.build_null_solution(prob, args...; kwargs...)
+    end
     prob = convert(ImmutableNonlinearProblem, prob)
     return solve(prob, alg, args...; kwargs...)
 end
@@ -94,6 +97,9 @@ function CommonSolve.solve(
         args...; sensealg = nothing, u0 = nothing, p = nothing,
         initializealg = SciMLBase.NoInit(), kwargs...
     )
+    if prob.u0 === nothing
+        return NonlinearSolveBase.build_null_solution(prob, args...; kwargs...)
+    end
     alg = configure_autodiff(prob, alg)
     cache = SciMLBase.__init(prob, alg, args...; initializealg, kwargs...)
     prob = cache.prob
