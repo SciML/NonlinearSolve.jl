@@ -1,7 +1,7 @@
 name = "BracketingNonlinearSolve"
 uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.9.0"
+authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -11,16 +11,16 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 
+[weakdeps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+
 [sources]
 NonlinearSolveBase = {path = "../NonlinearSolveBase"}
 
-[weakdeps]
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-
 [extensions]
-BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
 BracketingNonlinearSolveChainRulesCoreExt = ["ChainRulesCore", "ForwardDiff"]
+BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
 
 [compat]
 Aqua = "0.8.9"
@@ -36,8 +36,8 @@ Reexport = "1.2.2"
 SciMLBase = "2.116"
 Test = "1.10"
 TestItemRunner = "1"
-julia = "1.10"
 Zygote = "0.7"
+julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"

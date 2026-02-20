@@ -1,11 +1,13 @@
 module BracketingNonlinearSolveForwardDiffExt
 
 using CommonSolve: CommonSolve
-using ForwardDiff: ForwardDiff, Dual, Partials
+using ForwardDiff: ForwardDiff, Dual, Partials, Tag
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearProblem
 
 using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB
+
+struct BracketingNonlinearSolveTag end
 
 const DualIntervalNonlinearProblem{
     T,
@@ -68,7 +70,9 @@ end
 # f=0, independent of bracket position). However, f's closure may capture
 # Dual-valued state (e.g. from an ODE integrator), making this a mixed case where
 # dt*/dθ = -(∂f/∂θ)/(∂f/∂t) is nonzero via the implicit function theorem.
-# We use finite differences for ∂f/∂t to avoid nested Dual tag conflicts.
+# We use a package-specific ForwardDiff tag (BracketingNonlinearSolveTag) to compute
+# ∂f/∂t, which gives the tag system a well-defined ordering relative to the
+# closure's existing tag.
 
 const DualTspanIntervalNonlinearProblem{
     T,
@@ -96,10 +100,14 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
 
         if f_at_root isa Dual
             # Implicit function theorem: dt*/dθ = -(∂f/∂θ) / (∂f/∂t)
-            # ∂f/∂t via central finite differences (avoids nested Dual tags)
-            h = cbrt(eps(typeof(root))) * max(one(root), abs(root))
-            dfdt = (f_stripped(root + h, prob.p) - f_stripped(root - h, prob.p)) / (2 * h)
-            dfdθ = ForwardDiff.partials(f_at_root)
+            # Use a package-specific tag to differentiate f w.r.t. t.
+            # This produces a nested Dual; the outer partials give ∂f/∂t and
+            # the inner partials give ∂f/∂θ.
+            TagType = typeof(Tag(BracketingNonlinearSolveTag(), V))
+            root_dual = Dual{TagType}(root, Partials((one(V),)))
+            nested = prob.f(root_dual, prob.p)
+            dfdt = ForwardDiff.value(ForwardDiff.partials(nested)[1])
+            dfdθ = ForwardDiff.partials(ForwardDiff.value(nested))
             partials = -dfdθ / dfdt
         else
             # Pure tspan-Dual case: derivative w.r.t. boundary is zero
