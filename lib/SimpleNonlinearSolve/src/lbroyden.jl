@@ -69,13 +69,13 @@ end
 @views function internal_generic_solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing, kwargs...
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
     )
-    if haskey(kwargs, :alias_u0)
-        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
-    end
-    alias_u0 = alias.alias_u0
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     η = min(NLBUtils.unwrap_val(alg.threshold), maxiters)
 
     # For scalar problems / if the threshold is larger than problem size just use Broyden
