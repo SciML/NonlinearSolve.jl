@@ -3,12 +3,12 @@ module NonlinearSolveBaseEnzymeExt
 using NonlinearSolveBase
 import SciMLBase: SciMLBase, value
 using Enzyme
-import Enzyme: Const
+import Enzyme: Const, MixedDuplicated
 using ChainRulesCore
 
 function Enzyme.EnzymeRules.augmented_primal(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
-        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{Duplicated{RT}}, prob,
+        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Union{Type{Duplicated{RT}}, Type{MixedDuplicated{RT}}}, prob,
         sensealg::Union{
             Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
         },
@@ -40,7 +40,7 @@ end
 
 function Enzyme.EnzymeRules.reverse(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
-        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{Duplicated{RT}}, tape, prob,
+        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Union{Type{Duplicated{RT}}, Type{MixedDuplicated{RT}}}, tape, prob,
         sensealg::Union{
             Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
         },
@@ -56,7 +56,11 @@ function Enzyme.EnzymeRules.reverse(
         if darg == ChainRulesCore.NoTangent()
             continue
         end
-        ptr.dval .+= darg
+        if ptr isa MixedDuplicated
+            ptr.dval[] .+= darg
+        else
+            ptr.dval .+= darg
+        end
     end
     Enzyme.make_zero!(dres.u)
     return ntuple(_ -> nothing, Val(length(args) + 4))
