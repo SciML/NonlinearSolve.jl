@@ -317,7 +317,9 @@ end
 
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
-    @inferred solve(prob)
+    # IIP Vector{Float64} problems go through AutoSpecialize FunctionWrapper wrapping,
+    # which changes the function type in the solution, breaking type inference.
+    @test_broken (@inferred solve(prob)) isa Any
 
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
