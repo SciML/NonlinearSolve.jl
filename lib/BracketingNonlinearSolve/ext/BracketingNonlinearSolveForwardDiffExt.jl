@@ -65,8 +65,10 @@ end
 # IntervalNonlinearProblem.
 #
 # The derivative of the root w.r.t. the boundary point is zero (the root is where
-# f=0, independent of bracket position), so we strip Duals, solve with plain floats,
-# and return zero partials.
+# f=0, independent of bracket position). However, f's closure may capture
+# Dual-valued state (e.g. from an ODE integrator), making this a mixed case where
+# dt*/dθ = -(∂f/∂θ)/(∂f/∂t) is nonzero via the implicit function theorem.
+# We use finite differences for ∂f/∂t to avoid nested Dual tag conflicts.
 
 const DualTspanIntervalNonlinearProblem{
     T,
@@ -88,7 +90,22 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
         newprob = IntervalNonlinearProblem{false}(f_stripped, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
 
-        partials = Partials{P, V}(ntuple(_ -> zero(V), Val(P)))
+        # Check if f returns Duals (mixed case: closure captures Dual-valued state)
+        root = sol.u
+        f_at_root = prob.f(root, prob.p)
+
+        if f_at_root isa Dual
+            # Implicit function theorem: dt*/dθ = -(∂f/∂θ) / (∂f/∂t)
+            # ∂f/∂t via central finite differences (avoids nested Dual tags)
+            h = cbrt(eps(typeof(root))) * max(one(root), abs(root))
+            dfdt = (f_stripped(root + h, prob.p) - f_stripped(root - h, prob.p)) / (2 * h)
+            dfdθ = ForwardDiff.partials(f_at_root)
+            partials = -dfdθ / dfdt
+        else
+            # Pure tspan-Dual case: derivative w.r.t. boundary is zero
+            partials = Partials{P, V}(ntuple(_ -> zero(V), Val(P)))
+        end
+
         dual_u = Dual{T, V, P}(sol.u, partials)
         left = Dual{T, V, P}(sol.left, partials)
         right = Dual{T, V, P}(sol.right, partials)
