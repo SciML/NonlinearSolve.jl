@@ -13,7 +13,7 @@ using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
 
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
-    NonlinearSolveTag
+    NonlinearSolveTag, is_fw_wrapped
 
 import NonlinearSolveBase: wrapfun_iip, wrapfun_oop, standardize_forwarddiff_tag
 
@@ -28,19 +28,36 @@ dualgen(::Type{T}) where {T} = ForwardDiff.Dual{
     ForwardDiff.Tag{NonlinearSolveTag, T}, T, 1,
 }
 
+# Helper: build the canonical AutoForwardDiff for wrapped functions (chunksize=1 + tag).
+function _wrapped_forwarddiff_ad()
+    tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
+    return AutoForwardDiff{1, typeof(tag)}(tag)
+end
+
 # Stamp AutoForwardDiff with NonlinearSolveTag so duals match FunctionWrapper signatures.
-# When the function has been wrapped via AutoSpecialize (EvalFunc wrapper present),
-# also force chunksize=1 to match the precompiled N=1 dual type in the wrappers.
+# When the function has been wrapped via AutoSpecialize, also force chunksize=1 to match
+# the precompiled N=1 dual type in the wrappers.
 function standardize_forwarddiff_tag(
         ad::AutoForwardDiff{CS, Nothing}, prob::AbstractNonlinearProblem
     ) where {CS}
     prob.u0 isa Vector{Float64} || return ad
-    tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
-    if prob.f.f isa NonlinearSolveBase.EvalFunc
-        # Function is wrapped: force chunksize=1 to match wrapper dual signatures
-        return AutoForwardDiff{1, typeof(tag)}(tag)
+    if is_fw_wrapped(prob.f.f)
+        return _wrapped_forwarddiff_ad()
     end
+    tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
     return AutoForwardDiff{CS, typeof(tag)}(tag)
+end
+
+# AutoPolyesterForwardDiff doesn't support custom tags. When the function is wrapped,
+# replace it with AutoForwardDiff (chunksize=1, NonlinearSolveTag) so duals match wrappers.
+function standardize_forwarddiff_tag(
+        ad::AutoPolyesterForwardDiff, prob::AbstractNonlinearProblem
+    )
+    prob.u0 isa Vector{Float64} || return ad
+    if is_fw_wrapped(prob.f.f)
+        return _wrapped_forwarddiff_ad()
+    end
+    return ad
 end
 
 # Supported argument types for the norecompile pathway.
@@ -236,6 +253,16 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
     return sol, partials
 end
 
+# Check if a NonlinearFunction has an AutoSpecialize-wrapped callable.
+# Wrapping is only active for Vector{Float64} state/params, so the Number code paths
+# (derivative, gradient) never encounter it — only the jacobian paths need configs.
+_is_wrapped_nlf(f) = false
+function _is_wrapped_nlf(f::SciMLBase.NonlinearFunction)
+    return is_fw_wrapped(f.f)
+end
+
+const _nls_tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
+
 function NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
         f2 = @closure p -> begin
@@ -251,17 +278,33 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     elseif u isa Number
         return Utils.safe_reshape(ForwardDiff.gradient(f2, p), 1, :)
     else
+        if _is_wrapped_nlf(f)
+            cfg = ForwardDiff.JacobianConfig(f2, p, ForwardDiff.Chunk{1}(), _nls_tag)
+            return ForwardDiff.jacobian(f2, p, cfg)
+        end
         return ForwardDiff.jacobian(f2, p)
     end
 end
 
 function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
-        return ForwardDiff.jacobian(
-            @closure((du, u) -> f(du, u, p)), Utils.safe_similar(u), u
-        )
+        jac_f = @closure((du, u) -> f(du, u, p))
+        du_cache = Utils.safe_similar(u)
+        if _is_wrapped_nlf(f)
+            cfg = ForwardDiff.JacobianConfig(
+                jac_f, du_cache, u, ForwardDiff.Chunk{1}(), _nls_tag
+            )
+            return ForwardDiff.jacobian(jac_f, du_cache, u, cfg)
+        end
+        return ForwardDiff.jacobian(jac_f, du_cache, u)
     end
     u isa Number && return ForwardDiff.derivative(Base.Fix2(f, p), u)
+    if _is_wrapped_nlf(f)
+        cfg = ForwardDiff.JacobianConfig(
+            Base.Fix2(f, p), u, ForwardDiff.Chunk{1}(), _nls_tag
+        )
+        return ForwardDiff.jacobian(Base.Fix2(f, p), u, cfg)
+    end
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
 end
 

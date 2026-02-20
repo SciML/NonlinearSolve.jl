@@ -172,14 +172,18 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
         autodiff = length(uu) + length(sol.resid) ≥ 50 ?
             select_reverse_mode_autodiff(prob, nothing) : AutoForwardDiff()
 
+        # Use raw (unwrapped) function for nested differentiation to avoid
+        # FunctionWrapper type mismatches with nested duals
+        raw_f = get_raw_f(prob.f.f)
+
         if SciMLBase.isinplace(prob)
             return @closure (
                 du, u, p,
             ) -> begin
                 resid = Utils.safe_similar(du, length(sol.resid))
-                prob.f(resid, u, p)
+                raw_f(resid, u, p)
                 # Using `Constant` lead to dual ordering issues
-                ff = @closure (du, u) -> prob.f(du, u, p)
+                ff = @closure (du, u) -> raw_f(du, u, p)
                 resid2 = copy(resid)
                 DI.pullback!(ff, resid2, (du,), autodiff, u, (resid,))
                 @. du *= 2
@@ -190,9 +194,9 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 u,
                 p,
             ) -> begin
-                v = prob.f(u, p)
+                v = raw_f(u, p)
                 # Using `Constant` lead to dual ordering issues
-                res = only(DI.pullback(Base.Fix2(prob.f, p), autodiff, u, (v,)))
+                res = only(DI.pullback(Base.Fix2(raw_f, p), autodiff, u, (v,)))
                 ArrayInterface.can_setindex(res) || return 2 .* res
                 @. res *= 2
                 return res
