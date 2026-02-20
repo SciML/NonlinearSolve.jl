@@ -1,6 +1,6 @@
 name = "BracketingNonlinearSolve"
 uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-version = "1.9.1"
+version = "1.10.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
