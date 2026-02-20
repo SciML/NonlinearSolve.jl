@@ -1,5 +1,5 @@
 @testitem "Bounds: NonlinearLeastSquaresProblem" tags = [:core, :bounds] begin
-    using SciMLBase
+    using SciMLBase, NonlinearSolveBase
 
     # Test out-of-place version
     f(u, p) = u .- p
@@ -40,8 +40,8 @@
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ [1.0, 2.0] atol = 1.0e-6
 
-    # Test that the original problem is preserved
-    @test sol.prob.f.f === f!
+    # Test that the original problem is preserved (function may be wrapped by AutoSpecialize)
+    @test NonlinearSolveBase.get_raw_f(sol.prob.f.f) === f!
     @test sol.prob.lb == lb
     @test sol.prob.ub == ub
 end

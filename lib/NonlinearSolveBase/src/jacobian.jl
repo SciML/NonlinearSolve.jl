@@ -51,6 +51,7 @@ function construct_jacobian_cache(
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
+        autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
         di_extras = if SciMLBase.isinplace(f)
             DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
@@ -62,7 +63,10 @@ function construct_jacobian_cache(
     end
 
     J = if !needs_jac
-        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
+        # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
+        _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
+        _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
+        JacobianOperator(prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
