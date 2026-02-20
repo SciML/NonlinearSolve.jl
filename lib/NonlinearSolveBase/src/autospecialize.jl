@@ -111,7 +111,15 @@ Attempt to wrap the problem function with `FunctionWrappersWrapper` for the nore
 `Vector{Float64}` state and `Vector{Float64}` or `NullParameters` parameters), otherwise
 returns the original function.
 """
+# Task-local flag to disable AutoSpecialize wrapping. Set to `true` in reverse-mode AD
+# code paths (rrule/adjoint) where the FunctionWrapper internals (llvmcall) are
+# incompatible with AD backends like Zygote, Mooncake, and Enzyme.
+const _DISABLE_AUTOSPECIALIZE = Ref(false)
+
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
+    # Skip wrapping when inside a reverse-mode AD context (adjoint path)
+    _DISABLE_AUTOSPECIALIZE[] && return prob.f.f
+
     u0 = prob.u0
     p = prob.p
 
