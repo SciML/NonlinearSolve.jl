@@ -83,12 +83,6 @@ function wrapfun_iip(ff, inputs::Tuple)
     )
 end
 
-function wrapfun_oop(ff, inputs::Tuple)
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        ff, (typeof(inputs),), (typeof(inputs[1]),)
-    )
-end
-
 """
     standardize_forwarddiff_tag(ad, prob)
 
@@ -105,12 +99,12 @@ standardize_forwarddiff_tag(ad, prob) = ad
 """
     maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
 
-Attempt to wrap the problem function with `FunctionWrappersWrapper` for the norecompile
-(AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both the
-`FunctionWrappersWrapper` and the original function if the state is concrete
-`Vector{Float64}`, otherwise returns the original function. The precompiled wrappers
-cover `Vector{Float64}` and `NullParameters` parameter types, but any parameter type
-is accepted — mismatches fall back through the `AutoSpecializeCallable` try-catch path.
+Attempt to wrap an in-place problem function with `FunctionWrappersWrapper` for the
+norecompile (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both
+the `FunctionWrappersWrapper` and the original function if the problem is IIP with
+`Vector{Float64}` state, otherwise returns the original function unchanged.
+
+OOP functions are not wrapped because guessing the return type is unreliable.
 """
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
@@ -122,18 +116,11 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f
 
+    # Only wrap IIP functions. OOP wrapping requires guessing the return type,
+    # which doesn't always work (see DiffEqBase for precedent).
+    SciMLBase.isinplace(prob) || return prob.f.f
+
     orig = prob.f.f
-    if SciMLBase.isinplace(prob)
-        inputs = (u0, u0, p)
-        return AutoSpecializeCallable(wrapfun_iip(orig, inputs), orig)
-    else
-        # OOP NonlinearLeastSquaresProblem: the return type (residual) may differ from u0
-        # (e.g. Matrix, or Vector of different length). Skip wrapping since the
-        # FunctionWrappersWrapper return type is based on typeof(u0).
-        if prob isa SciMLBase.NonlinearLeastSquaresProblem
-            return prob.f.f
-        end
-        inputs = (u0, p)
-        return AutoSpecializeCallable(wrapfun_oop(orig, inputs), orig)
-    end
+    inputs = (u0, u0, p)
+    return AutoSpecializeCallable(wrapfun_iip(orig, inputs), orig)
 end
