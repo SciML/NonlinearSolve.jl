@@ -58,6 +58,19 @@ include("forward_diff.jl")
         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
     end
 
+    # IIP with Vector{Float64} params — exercises the AutoSpecialize FunctionWrapper path
+    # so the precompiled wrappers match user code that passes Vector{Float64} parameters.
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, NoSpecialize}(
+                (du, u, p) -> du .= u .* u .- p
+            ),
+            [0.1],
+            [2.0],
+        ),
+    )
+
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
