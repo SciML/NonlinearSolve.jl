@@ -101,6 +101,15 @@ end
 
 SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
 
+# Check if bounds transform is needed for a given problem and algorithm.
+function needs_bounds_transform(_prob, alg)
+    return (_prob isa SciMLBase.NonlinearProblem ||
+            _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
+        (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
+        (_prob.lb !== nothing || _prob.ub !== nothing) &&
+        (isnothing(alg) || !SciMLBase.allowsbounds(alg))
+end
+
 # Wrap a problem function with bounds into a BoundedWrapper with no bounds. In a
 # nutshell, we transform a parameter `p` with bounds `lb` and `ub` into an
 # unbounded parameter `t` using the logistic function to map all values of `t`
