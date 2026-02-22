@@ -25,6 +25,12 @@
         sol = solve(prob, alg)
         @test all(sol.u .>= 3.0)
         @test all(sol.u .<= 10.0)
+
+        # Test init + solve! path
+        cache = init(prob, alg)
+        sol = solve!(cache)
+        @test all(sol.u .>= 3.0)
+        @test all(sol.u .<= 10.0)
     end
 
     # Test in-place version
@@ -44,6 +50,7 @@
     @test sol.prob.f.f === f!
     @test sol.prob.lb == lb
     @test sol.prob.ub == ub
+    @test sol.prob.u0 == prob.u0
 end
 
 @testitem "Bounds: one-sided" tags = [:core, :bounds] begin

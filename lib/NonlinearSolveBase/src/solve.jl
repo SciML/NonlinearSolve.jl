@@ -151,18 +151,6 @@ function solve_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
-    # Handle bounds: if the algorithm doesn't natively support bounds, apply a variable
-    # transformation so the solver operates in unconstrained space.
-    alg = length(args) > 0 ? args[1] : nothing
-    transform_bounds = (_prob isa SciMLBase.NonlinearProblem || _prob isa SciMLBase.NonlinearLeastSquaresProblem) &&
-        (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
-        (_prob.lb !== nothing || _prob.ub !== nothing) &&
-        !isnothing(alg) && !SciMLBase.allowsbounds(alg)
-    bounds_original_prob = _prob
-    if transform_bounds
-        _prob = transform_bounded_problem(_prob, alg)
-    end
-
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
             if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0))
@@ -184,11 +172,6 @@ function solve_call(
         Base.invokelatest(__solve, _prob, args...; kwargs...) #::T
     else
         __solve(_prob, args...; kwargs...) #::T
-    end
-
-    if transform_bounds
-        sol.u .= _from_unbounded.(sol.u, _prob.f.f.lb, _prob.f.f.ub)
-        @set! sol.prob = bounds_original_prob
     end
 
     return sol
@@ -289,6 +272,14 @@ function init_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    # Forward bounds transform: if the algorithm doesn't natively support bounds,
+    # apply a variable transformation so the solver operates in unconstrained space.
+    alg = length(args) > 0 ? args[1] : nothing
+    if needs_bounds_transform(_prob, alg)
+        _prob = transform_bounded_problem(_prob, alg)
+    end
+
     return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
             _prob.f.f isa EvalFunc
         Base.invokelatest(__init, _prob, args...; kwargs...) #::T
@@ -300,7 +291,12 @@ end
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...
     )
-    cache = SciMLBase.__init(prob, alg, args...; kwargs...)
+    _prob = if needs_bounds_transform(prob, alg)
+        transform_bounded_problem(prob, alg)
+    else
+        prob
+    end
+    cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
     sol = CommonSolve.solve!(cache)
 
     return sol
@@ -332,10 +328,25 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
         last = Val(true)
     )
 
-    return SciMLBase.build_solution(
+    sol = SciMLBase.build_solution(
         cache.prob, cache.alg, get_u(cache), get_fu(cache);
         cache.retcode, cache.stats, cache.trace
     )
+
+    # Inverse bounds transform: if the problem function was wrapped with a
+    # BoundedWrapper, map the solution back from unbounded to bounded space.
+    if hasfield(typeof(cache.prob), :f) &&
+            hasfield(typeof(cache.prob.f), :f) &&
+            cache.prob.f.f isa BoundedWrapper
+        bw = cache.prob.f.f
+        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+
+        # Reset the problem to the original fields that were overwritten
+        @set! sol.prob = remake(sol.prob; f = bw.f, lb = bw.lb, ub = bw.ub)
+        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+    end
+
+    return sol
 end
 
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
