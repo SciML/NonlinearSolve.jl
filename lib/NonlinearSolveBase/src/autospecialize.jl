@@ -40,22 +40,29 @@ struct AutoSpecializeCallable{FW} <: Function
     orig::Any  # type-erased: all wrapped functions share the same Julia type
 end
 
-# FunctionWrappersWrapper throws NoFunctionWrapperFoundError (or ErrorException
-# in older versions) when no signature matches. Fall back to the original function
-# for unsupported argument types (e.g., external packages like LeastSquaresOptim
-# doing their own ForwardDiff with different tags/chunksizes, or JVP paths that
-# bypass tag standardization).
-function (f::AutoSpecializeCallable)(args...)
-    try
-        return f.fw(args...)
-    catch e
-        if e isa FunctionWrappersWrappers.NoFunctionWrapperFoundError ||
-                (e isa ErrorException && contains(e.msg, "No matching function wrapper"))
-            return f.orig(args...)
-        end
-        rethrow()
-    end
+# Fast-path dispatch for IIP calls with Vector{Float64} arguments.
+# These call directly through the FunctionWrappersWrapper for zero-allocation dispatch.
+# The ForwardDiff extension adds analogous methods for dual-number argument types.
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{Float64}, u::Vector{Float64}, p::Vector{Float64},
+    )
+    return f.fw(du, u, p)
 end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{Float64}, u::Vector{Float64}, p::Float64,
+    )
+    return f.fw(du, u, p)
+end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{Float64}, u::Vector{Float64}, p::SciMLBase.NullParameters,
+    )
+    return f.fw(du, u, p)
+end
+
+# Fallback: call original function for unsupported argument types (e.g., external
+# packages like LeastSquaresOptim doing their own ForwardDiff with different
+# tags/chunksizes, or JVP paths that bypass tag standardization).
+@inline (f::AutoSpecializeCallable)(args...) = f.orig(args...)
 
 """
     is_fw_wrapped(f) -> Bool
