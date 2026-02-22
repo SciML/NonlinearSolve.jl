@@ -15,7 +15,7 @@ using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, 
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
     NonlinearSolveTag, is_fw_wrapped
 
-import NonlinearSolveBase: wrapfun_iip, wrapfun_oop, standardize_forwarddiff_tag
+import NonlinearSolveBase: wrapfun_iip, standardize_forwarddiff_tag
 
 const DI = DifferentiationInterface
 
@@ -62,7 +62,6 @@ end
 
 # Supported argument types for the norecompile pathway.
 # NonlinearSolve IIP signature: f(du, u, p) -> Nothing
-# NonlinearSolve OOP signature: f(u, p) -> result
 
 const NORECOMPILE_IIP_SUPPORTED_ARGS = Union{
     Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}},
@@ -72,34 +71,6 @@ const NORECOMPILE_IIP_SUPPORTED_ARGS = Union{
     Tuple{Vector{dualT}, Vector{dualT}, Vector{dualT}},
     Tuple{Vector{dualT}, Vector{Float64}, Vector{dualT}},
 }
-
-const NORECOMPILE_OOP_SUPPORTED_ARGS = Union{
-    Tuple{Vector{Float64}, Vector{Float64}},
-    Tuple{Vector{Float64}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{Float64}},
-    Tuple{Vector{dualT}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}},
-    Tuple{Vector{Float64}, Vector{dualT}},
-}
-
-# Out-of-place argument and return type lists
-const oop_arglists = (
-    Tuple{Vector{Float64}, Vector{Float64}},
-    Tuple{Vector{Float64}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{Float64}},
-    Tuple{Vector{dualT}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}},
-    Tuple{Vector{Float64}, Vector{dualT}},
-)
-
-const oop_returnlists = (
-    Vector{Float64},
-    Vector{Float64},
-    Vector{dualT},
-    Vector{dualT},
-    Vector{dualT},
-    Vector{dualT},
-)
 
 # In-place argument and return type lists
 const iip_arglists_default = (
@@ -149,43 +120,6 @@ end
     iip_returnlists = (Nothing, Nothing, Nothing, Nothing)
     return FunctionWrappersWrappers.FunctionWrappersWrapper(
         SciMLBase.Void(ff), iip_arglists, iip_returnlists
-    )
-end
-
-# OOP wrapfun: wraps f(u, p) with dual-aware type combinations.
-# For Vector{Float64} state and Vector{Float64} params, uses the precomputed default lists.
-@inline function wrapfun_oop(
-        ff, inputs::Tuple{Vector{Float64}, Vector{Float64}}
-    )
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        ff, oop_arglists, oop_returnlists
-    )
-end
-
-@inline function wrapfun_oop(
-        ff, inputs::Tuple{Vector{Float64}, SciMLBase.NullParameters}
-    )
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        ff, oop_arglists, oop_returnlists
-    )
-end
-
-# Generic typed method: generates dual arglists from actual input element types.
-@inline function wrapfun_oop(
-        ff, inputs::Tuple{T1, T2}
-    ) where {T1 <: AbstractVector, T2}
-    T = eltype(T1)
-    dT = dualgen(T)
-    VdT = Vector{dT}
-    oop_arglists_gen = (
-        Tuple{T1, T2},
-        Tuple{VdT, T2},
-        Tuple{VdT, VdT},
-        Tuple{T1, VdT},
-    )
-    oop_returnlists_gen = (T1, VdT, VdT, VdT)
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        ff, oop_arglists_gen, oop_returnlists_gen
     )
 end
 
