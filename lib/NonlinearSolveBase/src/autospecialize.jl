@@ -107,25 +107,20 @@ standardize_forwarddiff_tag(ad, prob) = ad
 
 Attempt to wrap the problem function with `FunctionWrappersWrapper` for the norecompile
 (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both the
-`FunctionWrappersWrapper` and the original function if conditions are met (concrete
-`Vector{Float64}` state and `Vector{Float64}` or `NullParameters` parameters), otherwise
-returns the original function.
+`FunctionWrappersWrapper` and the original function if the state is concrete
+`Vector{Float64}`, otherwise returns the original function. The precompiled wrappers
+cover `Vector{Float64}` and `NullParameters` parameter types, but any parameter type
+is accepted — mismatches fall back through the `AutoSpecializeCallable` try-catch path.
 """
-# Task-local flag to disable AutoSpecialize wrapping. Set to `true` in reverse-mode AD
-# code paths (rrule/adjoint) where the FunctionWrapper internals (llvmcall) are
-# incompatible with AD backends like Zygote, Mooncake, and Enzyme.
-const _DISABLE_AUTOSPECIALIZE = Ref(false)
-
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
-    # Skip wrapping when inside a reverse-mode AD context (adjoint path)
-    _DISABLE_AUTOSPECIALIZE[] && return prob.f.f
-
     u0 = prob.u0
     p = prob.p
 
-    # Only wrap for standard types
+    # Only wrap for Vector{Float64} state
     u0 isa Vector{Float64} || return prob.f.f
-    (p isa Vector{Float64} || p isa SciMLBase.NullParameters) || return prob.f.f
+
+    # Already wrapped — idempotent
+    is_fw_wrapped(prob.f.f) && return prob.f.f
 
     orig = prob.f.f
     if SciMLBase.isinplace(prob)
