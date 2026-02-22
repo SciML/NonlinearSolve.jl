@@ -84,15 +84,6 @@ include("forward_diff.jl")
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
 @compat(
     public,
-    (
-        NonlinearSolveTag, AutoSpecializeCallable,
-        wrapfun_iip, wrapfun_oop, unwrap_fw,
-        is_fw_wrapped, get_raw_f,
-        maybe_wrap_nonlinear_f, standardize_forwarddiff_tag,
-    )
-)
-@compat(
-    public,
     (select_forward_mode_autodiff, select_reverse_mode_autodiff, select_jacobian_autodiff)
 )
 
