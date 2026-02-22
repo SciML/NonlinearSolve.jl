@@ -2,9 +2,10 @@ module NonlinearSolveBaseChainRulesCoreExt
 
 using NonlinearSolveBase
 using NonlinearSolveBase: AbstractNonlinearProblem, AutoSpecializeCallable,
-    _DISABLE_AUTOSPECIALIZE
+    is_fw_wrapped, get_raw_f
 using SciMLBase
 using SciMLBase: AbstractSensitivityAlgorithm
+using Setfield: @set
 
 import ChainRulesCore
 import ChainRulesCore: NoTangent, Tangent
@@ -39,21 +40,17 @@ function ChainRulesCore.rrule(
         u0, p, args...; originator = SciMLBase.ChainRulesOriginator(),
         kwargs...
     )
-    # Disable AutoSpecialize wrapping for the entire adjoint code path.
-    # Reverse-mode AD backends cannot differentiate through FunctionWrapper (llvmcall).
-    # Mooncake in particular compiles tangent rules for ALL types in the forward pass,
-    # so wrapping must be disabled before the forward solve runs.
-    old = _DISABLE_AUTOSPECIALIZE[]
-    _DISABLE_AUTOSPECIALIZE[] = true
-    primal, inner_thunking_pb = try
-        NonlinearSolveBase._solve_adjoint(
-            prob, sensealg, u0, p,
-            originator, args...;
-            kwargs...
-        )
-    finally
-        _DISABLE_AUTOSPECIALIZE[] = old
+    # Unwrap AutoSpecialize so that reverse-mode AD backends (Zygote, Mooncake, Enzyme)
+    # never see FunctionWrapper types (whose llvmcall internals are not AD-compatible).
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
     end
+
+    primal, inner_thunking_pb = NonlinearSolveBase._solve_adjoint(
+        prob, sensealg, u0, p,
+        originator, args...;
+        kwargs...
+    )
 
     # when using mooncake ∂sol would be a NamedTuple Tangent with cotangents of all the solution struct's fields.
     # However the pullback for this rule - "steadystatebackpass" as defined in SciMLSensitivity/src/concrete_solve.jl/
