@@ -317,7 +317,7 @@ end
 
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
-    @inferred solve(prob)
+    @test (@inferred solve(prob)) isa Any
 
     u0 = [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)
@@ -325,7 +325,7 @@ end
 
     @test all(!isnan, sol.u)
     @test !SciMLBase.successful_retcode(sol.retcode)
-    @inferred solve(prob)
+    @test (@inferred solve(prob)) isa Any
 
     u0 = @SVector [0.0, 0.0, 0.0]
     prob = NonlinearProblem(f1_infeasible, u0)

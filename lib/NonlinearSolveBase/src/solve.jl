@@ -759,6 +759,14 @@ function _solve_forward(
     end
 end
 
+function maybe_wrap_f(prob::AbstractNonlinearProblem)
+    wrapped_f = maybe_wrap_nonlinear_f(prob)
+    wrapped_f === prob.f.f && return prob
+    @set! prob.f.f = wrapped_f
+    return prob
+end
+
+
 function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
@@ -768,7 +776,8 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    return maybe_wrap_f(prob)
 end
 
 function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
@@ -780,7 +789,8 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    return maybe_wrap_f(prob)
 end
 
 function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
