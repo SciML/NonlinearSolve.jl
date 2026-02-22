@@ -13,7 +13,7 @@ using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
 
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
-    NonlinearSolveTag, is_fw_wrapped
+    NonlinearSolveTag, AutoSpecializeCallable, is_fw_wrapped
 
 import NonlinearSolveBase: wrapfun_iip, standardize_forwarddiff_tag
 
@@ -27,6 +27,35 @@ const dualT = ForwardDiff.Dual{
 dualgen(::Type{T}) where {T} = ForwardDiff.Dual{
     ForwardDiff.Tag{NonlinearSolveTag, T}, T, 1,
 }
+
+# Fast-path dispatch for IIP calls with NonlinearSolveTag duals.
+# These bypass the generic fallback path, calling directly into FunctionWrappersWrapper
+# for zero-allocation dispatch.
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{dualT}, u::Vector{dualT}, p::Vector{Float64},
+    )
+    return f.fw(du, u, p)
+end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{dualT}, u::Vector{dualT}, p::SciMLBase.NullParameters,
+    )
+    return f.fw(du, u, p)
+end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{dualT}, u::Vector{dualT}, p::Vector{dualT},
+    )
+    return f.fw(du, u, p)
+end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{dualT}, u::Vector{Float64}, p::Vector{dualT},
+    )
+    return f.fw(du, u, p)
+end
+@inline function (f::AutoSpecializeCallable)(
+        du::Vector{dualT}, u::Vector{dualT}, p::Float64,
+    )
+    return f.fw(du, u, p)
+end
 
 # Helper: build the canonical AutoForwardDiff for wrapped functions (chunksize=1 + tag).
 function _wrapped_forwarddiff_ad()
