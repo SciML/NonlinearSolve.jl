@@ -60,7 +60,7 @@ function SciMLBase.__solve(
             y1a = abs(y1)
             y2a = abs(y2)
             r = 1 - min(y1a, y2a) / max(y1a, y2a) # Symmetry factor
-            k = 1 - 0.75r*r # Factor for linearity check
+            k = 1 - r*r*3/4 # Factor for linearity check
             # Check if the function is close enough to linear
             if abs(ym - y3) < k*(abs(ym) + abs(y3))
                 bisecting = false
