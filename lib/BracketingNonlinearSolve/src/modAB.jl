@@ -4,7 +4,7 @@
 ModAB (Modified Anderson-Bjork)
 
 Use the [ModAB method](https://iopscience.iop.org/article/10.1088/1757-899X/1276/1/012010/) to find a root of a bracketed
-function, with a convergence rate between 1 and 1.62.
+function, with a convergence rate between 1.7 and 1.8.
 
 This method was introduced in the paper "Modified Anderson-Bjork’s method for solving non-linear equations 
 in structural mechanics" (https://doi.org/10.1088/1757-899X/1276/1/012010) by
