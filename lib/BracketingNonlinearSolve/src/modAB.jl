@@ -47,7 +47,6 @@ function SciMLBase.__solve(
     bisecting = true
     side = 0 # tracks the side that has moved at the previous iteration
     ϵ = abstol
-    x0 = x1
     i = 1
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
     C = 16 # safety factor for threshold corresponding to 4 iterations = 2^4
