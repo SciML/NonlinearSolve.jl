@@ -47,46 +47,54 @@ function SciMLBase.__solve(
     bisecting = true
     side = 0 # tracks the side that has moved at the previous iteration
     ϵ = abstol
-    N = -exponent(max(ϵ, nextfloat(zero(y1)))) / 2 + 1
     x0 = x1
     i = 1
+    threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
+    C = 16 # safetly factor for threshold corresponding to 4 iterations = 2^4
     while i < maxiters
         local x3, y3
-        if bisecting
-            # Bisection
+        if bisecting # Bisection method is used
             x3 = (x1 + x2) / 2
-            y3 = f(x3)
-            # Ordinate of chord at midpoint
-            ym = (y1 + y2) / 2
-            if 4abs(ym - y3) < abs(ym) + abs(y3)
-                bisecting = false
+            y3 = f(x3) # Function value at midpoint
+            ym = (y1 + y2) / 2 # Ordinate of chord at midpoint
+            # calculate k on each bisection step with account for local function properties and symmetry
+            y1a = abs(y1)
+            y2a = abs(y2)
+            r = max(y1a, y2a)
+            if r > 0
+                r = 1 - min(y1a, y2a) / r # Symmetry factor
             end
-        else
-            # Falsi
+            k = 1 - 0.75r*r # Factor for linearity check
+            # Check if the function is close enough to linear
+            if abs(ym - y3) < k*(abs(ym) + abs(y3))
+                bisecting = false
+                threshold = (x2 - x1) * C
+            end
+        else # Anderson-Bjork method is used
             x3 = (x1 * y2 - y1 * x2) / (y2 - y1)
             y3 = f(x3)
+            threshold /= 2
         end
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
-        elseif (x2 - x1) < 2ϵ
+        elseif abs(x3 - x0) <= ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
         x0 = x3
-        if side == 1
-            m = 1 - y3 / y1
-            y2 *= m <= 0 ? inv(2 * one(y1)) : m
-        elseif side == 2 # Apply Anderson-Bjork modification for side 2
-            m = 1 - y3 / y2
-            y1 *= m <= 0 ? inv(2 * one(y1)) : m
-        end
         if sign(y1) == sign(y3)
-            if !bisecting
+            if side == 1  # Apply Anderson-Bjork correction on the right side
+                m = 1 - y3 / y1
+                y2 *= m <= 0 ? inv(2 * one(y1)) : m
+            elseif !bisecting
                 side = 1
             end
             x1, y1 = x3, y3
         else
-            if !bisecting
-                side = 2
+            if side == -1  # Apply Anderson-Bjork correction on the lsft side
+                m = 1 - y3 / y2
+                y1 *= m <= 0 ? inv(2 * one(y1)) : m
+            elseif !bisecting
+                side = -1
             end
             x2, y2 = x3, y3
         end
@@ -94,13 +102,10 @@ function SciMLBase.__solve(
             return build_bracketing_solution(prob, alg, x2, f(x2), x1, x2, ReturnCode.FloatingPointLimit)
         end
         i += 1
-        if i >= N #taking longer than expected
-            bisecting = true
+        if x2 - x1 > threshold # Ff AB fails to shrink the interval enough
+            bisecting = true   # reset to bisection
             side = 0
-            maxiters -= N
-            i -= N
         end
     end
-
     return build_bracketing_solution(prob, alg, x1, y1, x1, x2, ReturnCode.MaxIters)
 end
