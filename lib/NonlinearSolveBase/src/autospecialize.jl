@@ -92,6 +92,24 @@ _uses_enzyme_ad(::ADTypes.AutoEnzyme) = true
 _uses_enzyme_ad(ad::AutoSparse) = _uses_enzyme_ad(ADTypes.dense_ad(ad))
 _uses_enzyme_ad(_) = false
 
+"""
+    maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
+
+If the problem function is wrapped by AutoSpecialize and any of the given AD backends
+use Enzyme, return a copy of `prob` with the unwrapped raw function. Otherwise return
+`prob` unchanged.
+
+This should be called early in `__init` so that all downstream AD-related constructions
+(Jacobian cache, trust region operators, linesearch, forcing) receive the unwrapped problem.
+"""
+function maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
+    is_fw_wrapped(prob.f.f) || return prob
+    for ad in autodiffs
+        _uses_enzyme_ad(ad) && return @set prob.f.f = get_raw_f(prob.f.f)
+    end
+    return prob
+end
+
 # Default dispatch assumes no ForwardDiff loaded.
 # The ForwardDiff extension overrides these with dual-aware versions.
 
