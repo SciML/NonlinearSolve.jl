@@ -223,11 +223,20 @@ function InternalAPI.init(
     p1, p2, p3, p4 = get_parameters(T, alg.method)
     ϵ = T(1.0e-8)
 
+    # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+    # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+    _ad_prob = prob
+    if NonlinearSolveBase.is_fw_wrapped(prob.f.f) &&
+            (NonlinearSolveBase._uses_enzyme_ad(vjp_autodiff) ||
+                NonlinearSolveBase._uses_enzyme_ad(jvp_autodiff))
+        @set! _ad_prob.f.f = NonlinearSolveBase.get_raw_f(prob.f.f)
+    end
+
     vjp_operator = alg.method isa RUS.__Yuan || alg.method isa RUS.__Bastin ?
-        VecJacOperator(prob, fu, u; autodiff = vjp_autodiff) : nothing
+        VecJacOperator(_ad_prob, fu, u; autodiff = vjp_autodiff) : nothing
 
     jvp_operator = alg.method isa RUS.__Bastin ?
-        JacVecOperator(prob, fu, u; autodiff = jvp_autodiff) : nothing
+        JacVecOperator(_ad_prob, fu, u; autodiff = jvp_autodiff) : nothing
 
     if alg.method isa RUS.__Yuan
         Jᵀfu_cache = StatefulJacobianOperator(vjp_operator, u, prob.p) * Utils.safe_vec(fu)
