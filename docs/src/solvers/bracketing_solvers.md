@@ -8,10 +8,12 @@ Solves for ``f(t) = 0`` in the problem defined by `prob` using the algorithm `al
 algorithm is given, a default algorithm will be chosen.
 
 ## Recommended Methods
+[`modAB`](@ref) (Modified Anderson-Bjork) is the recommended method for the scalar interval 
+root-finding problems. It combines Bisection with Anderson-Bjork steps to achieve superlinear 
+convergence 1.7–1.8, providing optimal convergence rate for poorly behaved functions. 
+According to our benchmarks, it outperforms the other methods in most cases.
 
-[`ITP`](@ref) is the recommended method for the scalar interval root-finding problems. It is
-particularly well-suited for cases where the function is smooth and well-behaved; and
-achieved superlinear convergence while retaining the optimal worst-case performance of the
+[`ITP`](@ref) is particularly well-suited for cases where the function is smooth and well-behaved; and achieved superlinear convergence while retaining the optimal worst-case performance of the
 Bisection method. For more details, consult the detailed solver API docs.
 
 [`Ridder`](@ref) is a hybrid method that uses the value of function at the midpoint of the
@@ -36,5 +38,6 @@ BracketingNonlinearSolve.jl directly to decrease the dependencies and improve lo
   - [`Brent`](@ref): A non-allocating Brent method
   - [`Falsi`](@ref): A non-allocating regula falsi method
   - [`ITP`](@ref): A non-allocating ITP (Interpolate, Truncate & Project) method
+  - [`ModAB`](@ref): A non-allocating Modified Anderson-Bjork's method
   - [`Muller`](@ref): A non-allocating Muller's method
   - [`Ridder`](@ref): A non-allocating Ridder method
