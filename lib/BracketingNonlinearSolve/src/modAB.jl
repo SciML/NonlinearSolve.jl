@@ -50,7 +50,7 @@ function SciMLBase.__solve(
     x0 = x1
     i = 1
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
-    C = 16 # safetly factor for threshold corresponding to 4 iterations = 2^4
+    C = 16 # safety factor for threshold corresponding to 4 iterations = 2^4
     while i < maxiters
         local x3, y3
         if bisecting # Bisection method is used
@@ -77,7 +77,7 @@ function SciMLBase.__solve(
         end
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
-        elseif abs(x3 - x0) <= ϵ
+        elseif (x2 - x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
         x0 = x3
