@@ -176,6 +176,12 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(verbose)
     end
 
+    # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+    # Create unwrapped prob for all AD-related constructions when using Enzyme.
+    _ad_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
+        prob, alg.autodiff, alg.jvp_autodiff, alg.vjp_autodiff
+    )
+
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
@@ -191,7 +197,7 @@ function SciMLBase.__init(
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         jac_cache = NonlinearSolveBase.construct_jacobian_cache(
-            prob, alg, prob.f, fu, u, prob.p;
+            _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
             stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
         )
         J = reused_jacobian(jac_cache, u)
@@ -219,7 +225,7 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
                 error("Trust Region not supported by $(alg.descent).")
             trustregion_cache = InternalAPI.init(
-                prob, alg.trustregion, prob.f, fu, u, prob.p;
+                _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
                 alg.vjp_autodiff, alg.jvp_autodiff, stats, internalnorm, kwargs...
             )
             globalization = Val(:TrustRegion)
@@ -229,7 +235,7 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_line_search(alg.descent) ||
                 error("Line Search not supported by $(alg.descent).")
             linesearch_cache = CommonSolve.init(
-                prob, alg.linesearch, fu, u; stats, internalnorm,
+                _ad_prob, alg.linesearch, fu, u; stats, internalnorm,
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
@@ -240,7 +246,7 @@ function SciMLBase.__init(
 
         if has_forcing
             forcing_cache = InternalAPI.init(
-                prob, alg.forcing, fu, u, u, prob.p; stats, internalnorm,
+                _ad_prob, alg.forcing, fu, u, u, _ad_prob.p; stats, internalnorm,
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
