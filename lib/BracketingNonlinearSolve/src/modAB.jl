@@ -59,10 +59,7 @@ function SciMLBase.__solve(
             # calculate k on each bisection step with account for local function properties and symmetry
             y1a = abs(y1)
             y2a = abs(y2)
-            r = max(y1a, y2a)
-            if r > 0
-                r = 1 - min(y1a, y2a) / r # Symmetry factor
-            end
+            r = 1 - min(y1a, y2a) / max(y1a, y2a) # Symmetry factor
             k = 1 - 0.75r*r # Factor for linearity check
             # Check if the function is close enough to linear
             if abs(ym - y3) < k*(abs(ym) + abs(y3))
@@ -89,7 +86,7 @@ function SciMLBase.__solve(
             end
             x1, y1 = x3, y3
         else
-            if side == -1  # Apply Anderson-Bjork correction on the lsft side
+            if side == -1  # Apply Anderson-Bjork correction on the left side
                 m = 1 - y3 / y2
                 y1 *= m <= 0 ? inv(2 * one(y1)) : m
             elseif !bisecting
