@@ -85,9 +85,11 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
-        SciMLBase.strip_solution(SciMLBase.build_solution(
-            prob, nothing, sol.u, sol.resid, retcode = sol.retcode
-        ))
+        SciMLBase.strip_solution(
+            SciMLBase.build_solution(
+                prob, nothing, sol.u, sol.resid, retcode = sol.retcode
+            )
+        )
     end
 
     return _sol
@@ -101,11 +103,13 @@ function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::Abstra
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing}
+    ST = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
-        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:i-1); kwargs...)
+        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)
     end
     return sols
 end
@@ -113,8 +117,10 @@ end
 @generated function iteratively_build_sols(alg, probs::Tuple, explicitfuns::Tuple, ::Val{N}; kwargs...) where {N}
     return quote
         Base.Cartesian.@nexprs $N i -> begin
-            prob_i = solve_single_scc(alg, probs[i], explicitfuns[i],
-                Base.Cartesian.@ntuple((i - 1), j -> prob_j); kwargs...)
+            prob_i = solve_single_scc(
+                alg, probs[i], explicitfuns[i],
+                Base.Cartesian.@ntuple((i - 1), j -> prob_j); kwargs...
+            )
         end
         return Base.Cartesian.@ntuple $N i -> prob_i
     end

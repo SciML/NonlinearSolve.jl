@@ -81,6 +81,17 @@ Otherwise return `f` unchanged.
 get_raw_f(f) = f
 get_raw_f(f::AutoSpecializeCallable) = f.orig
 
+"""
+    _uses_enzyme_ad(ad) -> Bool
+
+Return `true` if `ad` is an Enzyme-based AD backend (possibly wrapped in `AutoSparse`).
+Enzyme cannot differentiate through FunctionWrappers' `llvmcall`, so
+`AutoSpecializeCallable` must be unwrapped before passing to DI with Enzyme.
+"""
+_uses_enzyme_ad(::ADTypes.AutoEnzyme) = true
+_uses_enzyme_ad(ad::AutoSparse) = _uses_enzyme_ad(ADTypes.dense_ad(ad))
+_uses_enzyme_ad(_) = false
+
 # Default dispatch assumes no ForwardDiff loaded.
 # The ForwardDiff extension overrides these with dual-aware versions.
 
