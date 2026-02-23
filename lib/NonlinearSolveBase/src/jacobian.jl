@@ -53,6 +53,11 @@ function construct_jacobian_cache(
         end
         autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+        if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
+            f = @set f.f = get_raw_f(f.f)
+        end
         di_extras = if SciMLBase.isinplace(f)
             DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
         else
