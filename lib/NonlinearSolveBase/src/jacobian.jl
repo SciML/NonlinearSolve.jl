@@ -71,7 +71,15 @@ function construct_jacobian_cache(
         # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
         _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
         _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
-        JacobianOperator(prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+        _prob = if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(_jvp_ad) || _uses_enzyme_ad(_vjp_ad))
+            @set prob.f.f = get_raw_f(f.f)
+        else
+            prob
+        end
+        JacobianOperator(_prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
