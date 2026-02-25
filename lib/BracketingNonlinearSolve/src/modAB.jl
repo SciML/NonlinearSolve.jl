@@ -57,10 +57,8 @@ function SciMLBase.__solve(
             y3 = f(x3) # Function value at midpoint
             ym = (y1 + y2) / 2 # Ordinate of chord at midpoint
             # calculate k on each bisection step with account for local function properties and symmetry
-            y1a = abs(y1)
-            y2a = abs(y2)
-            r = 1 - min(y1a, y2a) / max(y1a, y2a) # Symmetry factor
-            k = 1 - r*r*3/4 # Factor for linearity check
+            r = 1 - abs(ym / (y2 - y1)) # Symmetry factor
+            k = r * r # Deviation factor
             # Check if the function is close enough to linear
             if abs(ym - y3) < k*(abs(ym) + abs(y3))
                 bisecting = false
