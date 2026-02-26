@@ -7,7 +7,7 @@ using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagin
 using MaybeInplace: @bb
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition, recursivecopy!
 using SciMLOperators: AbstractSciMLOperator
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction, AbstractNonlinearFunction
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
 using StaticArraysCore: StaticArray, SArray, SMatrix
 
 using ..NonlinearSolveBase: NonlinearSolveBase, L2_NORM, Linf_NORM
@@ -174,33 +174,22 @@ function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
     return evaluate_f!!(prob.f, fu, u, p)
 end
 
-@generated function evaluate_f!!(f::NonlinearFunction, fu, u, p)
-    iip = f <: AbstractNonlinearFunction{true}
-    if iip
-        return quote
-            f(fu, u, p)
-            return fu
-        end
-    else
-        return quote
-            return f(u, p)
-        end
+function evaluate_f!!(f::NonlinearFunction, fu, u, p)
+    if SciMLBase.isinplace(f)
+        f(fu, u, p)
+        return fu
     end
+    return f(u, p)
 end
 
-@generated function evaluate_f(prob::AbstractNonlinearProblem, u)
-    iip = prob <: AbstractNonlinearProblem{<:Any, true}
-    if iip
-        return quote
-            fu = prob.f.resid_prototype === nothing ? similar(u) :
-                similar(prob.f.resid_prototype)
-            prob.f(fu, u, prob.p)
-            return fu
-        end
+function evaluate_f(prob::AbstractNonlinearProblem, u)
+    if SciMLBase.isinplace(prob)
+        fu = prob.f.resid_prototype === nothing ? similar(u) :
+            similar(prob.f.resid_prototype)
+        prob.f(fu, u, prob.p)
+        return fu
     else
-        return quote
-            return prob.f(u, prob.p)
-        end
+        return prob.f(u, prob.p)
     end
 end
 
