@@ -21,7 +21,14 @@ function _run_initialization!(
     else
         autodiff = ADTypes.AutoForwardDiff()
     end
-    alg = initialization_alg(prob.f.initialization_data.initializeprob, autodiff)
+    # Use invokelatest to prevent the compiler from caching the dispatch of the
+    # generic fallback `initialization_alg(::Any, ::Any) = nothing`. Without this,
+    # downstream packages (NonlinearSolve, NonlinearSolveFirstOrder) that add more
+    # specific methods invalidate all precompiled MIs that inferred through the
+    # generic fallback, causing ~218 cascading invalidations.
+    alg = Base.invokelatest(
+        initialization_alg, prob.f.initialization_data.initializeprob, autodiff
+    )
     if alg === nothing && cache isa AbstractNonlinearSolveCache
         alg = cache.alg
     end
