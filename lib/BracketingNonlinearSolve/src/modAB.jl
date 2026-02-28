@@ -60,7 +60,7 @@ function SciMLBase.__solve(
             r = 1 - abs(ym / (y2 - y1)) # Symmetry factor
             k = r * r # Deviation factor
             # Check if the function is close enough to linear
-            if abs(ym - y3) < k*(abs(ym) + abs(y3))
+            if abs(ym - y3) < k * (abs(ym) + abs(y3))
                 bisecting = false
                 threshold = (x2 - x1) * C
             end
