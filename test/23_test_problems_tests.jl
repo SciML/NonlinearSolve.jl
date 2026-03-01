@@ -57,7 +57,6 @@ end
     )
 
     broken_tests = Dict(alg => Int[] for alg in alg_ops)
-    broken_tests[alg_ops[1]] = [1]
 
     test_on_library(problems, dicts, alg_ops, broken_tests)
 end
