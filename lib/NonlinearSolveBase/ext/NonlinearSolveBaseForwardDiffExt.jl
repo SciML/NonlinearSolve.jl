@@ -9,6 +9,7 @@ using ForwardDiff: ForwardDiff, Dual, pickchunksize
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
     NonlinearProblem, NonlinearLeastSquaresProblem, remake
 
+using LinearAlgebra: LinearAlgebra, dot, norm
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache
 
@@ -195,5 +196,157 @@ NonlinearSolveBase.nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.valu
 
 @inline NonlinearSolveBase.pickchunksize(x) = pickchunksize(length(x))
 @inline NonlinearSolveBase.pickchunksize(x::Int) = ForwardDiff.pickchunksize(x)
+
+# Precompile common Dual number operations to reduce first-solve latency.
+# Nonlinear solvers compute Jacobians via ForwardDiff, triggering compilation of
+# Dual arithmetic, broadcast, and SubArray patterns at runtime. Exercising these
+# patterns here moves that overhead to precompile time.
+struct NonlinearSolveTag end
+const dualT = Dual{ForwardDiff.Tag{NonlinearSolveTag, Float64}, Float64, 1}
+
+import PrecompileTools
+PrecompileTools.@compile_workload begin
+    # Scalar operations on Dual numbers (arithmetic, math functions, comparisons)
+    d1 = dualT(1.0, ForwardDiff.Partials((0.5,)))
+    d2 = dualT(2.0, ForwardDiff.Partials((1.0,)))
+    s = 3.14
+
+    # Arithmetic: Dual-Dual and Dual-scalar
+    d1 + d2
+    d1 - d2
+    d1 * d2
+    d1 / d2
+    d1 + s
+    s + d1
+    d1 - s
+    s - d1
+    d1 * s
+    s * d1
+    d1 / s
+    s / d1
+    -d1
+    abs(d1)
+
+    # Powers and roots
+    d1^2
+    d1^3
+    d2^0.5
+    sqrt(d2)
+    cbrt(d2)
+
+    # Transcendental functions
+    exp(d1)
+    log(d2)
+    sin(d1)
+    cos(d1)
+    tan(d1)
+    asin(dualT(0.5, ForwardDiff.Partials((1.0,))))
+    acos(dualT(0.5, ForwardDiff.Partials((1.0,))))
+    atan(d1)
+    atan(d1, d2)
+    sinh(d1)
+    cosh(d1)
+    tanh(d1)
+
+    # Comparisons and predicates
+    d1 < d2
+    d1 > d2
+    d1 <= d2
+    d1 >= d2
+    d1 == d2
+    isnan(d1)
+    isinf(d1)
+    isfinite(d1)
+
+    # min/max (used in convergence checks, damping)
+    min(d1, d2)
+    max(d1, d2)
+    min(d1, s)
+    max(d1, s)
+
+    # Conversion and promotion
+    zero(dualT)
+    one(dualT)
+    float(d1)
+    ForwardDiff.value(d1)
+    ForwardDiff.partials(d1)
+
+    # Array operations on Vector{dualT}
+    v1 = [d1, d2, dualT(0.0, ForwardDiff.Partials((0.0,)))]
+    v2 = [d2, d1, dualT(1.0, ForwardDiff.Partials((0.1,)))]
+
+    # Basic array ops
+    v1 + v2
+    v1 - v2
+    v1 .* v2
+    v1 ./ v2
+    s .* v1
+    v1 .+ s
+    v1 .- s
+    v1 .^ 2
+    v1 .^ 0.5
+
+    # In-place array operations
+    out = similar(v1)
+    out .= v1 .+ v2
+    out .= v1 .- v2
+    out .= v1 .* v2
+    out .= s .* v1
+    out .= v1 .* s .+ v2
+    out .= v1 .* s .- v2 .* s
+
+    # Reductions (used in norm calculations, convergence checks)
+    sum(v1)
+    sum(abs2, v1)
+    maximum(abs, v1)
+
+    # LinearAlgebra operations
+    dot(v1, v2)
+    norm(v1)
+    norm(v1, Inf)
+    norm(v1, 1)
+
+    # copy / fill
+    copy(v1)
+    fill!(out, zero(dualT))
+
+    # SubArray broadcast operations for Float64 and Dual types.
+    # Nonlinear functions that use @view with broadcast (e.g. residual computations
+    # on subsets of state) trigger compilation of deeply-nested Broadcasted types
+    # for SubArray at runtime. Exercising common patterns here moves that
+    # compilation from first-solve to precompile time.
+    for T in (Float64, dualT)
+        x = zeros(T, 6)
+        dx = zeros(T, 6)
+        sv1 = @view x[1:2]
+        sv2 = @view x[3:4]
+        sv3 = @view x[5:6]
+        dsv1 = @view dx[1:2]
+        dsv2 = @view dx[3:4]
+        dsv3 = @view dx[5:6]
+        k = 0.04
+
+        # Common broadcast patterns from nonlinear residual functions
+        # Pattern 1a: dst .= -k .* src1 .+ k .* src2 .* src3
+        dsv1 .= .-k .* sv1 .+ k .* sv2 .* sv3
+        # Pattern 1b: dst .= k .* src1 .+ k .* src2 .* src3
+        dsv1 .= k .* sv1 .+ k .* sv2 .* sv3
+        # Pattern 2: dst .= k .* src1 .- k .* src2 .^ 2 .- k .* src2 .* src3
+        dsv2 .= k .* sv1 .- k .* sv2 .^ 2 .- k .* sv2 .* sv3
+        # Pattern 3: dst .= k .* src .^ 2
+        dsv3 .= k .* sv2 .^ 2
+
+        # Additional SubArray patterns
+        # Simple assignment and scaling
+        dsv1 .= sv1
+        dsv1 .= k .* sv1
+        dsv1 .= sv1 .+ sv2
+        dsv1 .= sv1 .- sv2
+        dsv1 .= sv1 .* sv2
+        # Negation patterns
+        dsv1 .= .-sv1
+        dsv1 .= .-sv1 .+ sv2
+    end
+end
 
 end
