@@ -13,6 +13,16 @@ using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 const DI = DifferentiationInterface
 const NLBUtils = NonlinearSolveBase.Utils
 
+# GPU-compatible helper to extract alias_u0 from NonlinearAliasSpecifier
+@inline function get_alias_u0(alias::SciMLBase.NonlinearAliasSpecifier, fallback::Bool)
+    return something(alias.alias_u0, fallback)
+end
+
+# GPU-compatible helper to check if fx should be cached
+@inline function should_cache_fx(prob::SciMLBase.AbstractNonlinearProblem, f)
+    return SciMLBase.isinplace(prob) && !SciMLBase.has_jac(f)
+end
+
 function identity_jacobian(u::Number, fu::Number, α = true)
     return convert(promote_type(eltype(u), eltype(fu)), α)
 end
@@ -84,6 +94,7 @@ function prepare_jacobian(prob, autodiff, _, x::Number)
     end
     return DINoPreparation()
 end
+
 function prepare_jacobian(prob, autodiff, fx, x)
     SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
     if SciMLBase.isinplace(prob.f)
@@ -156,7 +167,8 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
     return J
 end
 function compute_jacobian!!(J, prob, autodiff, fx, x, ::DINoPreparation)
-    @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
+    # Assertion removed for GPU compatibility - DINoPreparation only used for out-of-place
+    # @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
     J === nothing && return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
     if ArrayInterface.can_setindex(J)
         DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
@@ -170,6 +182,7 @@ function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
     return H * dir
 end
+
 function compute_hvvp(prob, autodiff, fx, x, dir)
     jvp_fn = if SciMLBase.isinplace(prob)
         @closure (

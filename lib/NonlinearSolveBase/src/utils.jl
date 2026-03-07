@@ -173,6 +173,7 @@ can_setindex(::Number) = false
 function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
     return evaluate_f!!(prob.f, fu, u, p)
 end
+
 function evaluate_f!!(f::NonlinearFunction, fu, u, p)
     if SciMLBase.isinplace(f)
         f(fu, u, p)
@@ -186,10 +187,10 @@ function evaluate_f(prob::AbstractNonlinearProblem, u)
         fu = prob.f.resid_prototype === nothing ? similar(u) :
             similar(prob.f.resid_prototype)
         prob.f(fu, u, prob.p)
+        return fu
     else
-        fu = prob.f(u, prob.p)
+        return prob.f(u, prob.p)
     end
-    return fu
 end
 
 function evaluate_f!(cache, u, p)
