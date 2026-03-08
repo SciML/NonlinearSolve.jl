@@ -10,6 +10,8 @@ using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityD
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
+using FunctionWrappers: FunctionWrappers
+import FunctionWrappersWrappers
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
 using CommonSolve: CommonSolve, init
@@ -54,6 +56,7 @@ include("abstract_types.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
 
+include("autospecialize.jl")
 include("autodiff.jl")
 include("jacobian.jl")
 include("linear_solve.jl")
