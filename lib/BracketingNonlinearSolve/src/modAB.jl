@@ -66,6 +66,7 @@ function SciMLBase.__solve(
             end
         else # Anderson-Bjork method is used
             x3 = (x1 * y2 - y1 * x2) / (y2 - y1)
+            x3 = clamp(x3, nextfloat(x1), prevfloat(x2)) 
             y3 = f(x3)
             threshold /= 2
         end
