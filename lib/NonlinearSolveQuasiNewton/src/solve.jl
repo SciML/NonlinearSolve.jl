@@ -160,6 +160,24 @@ function SciMLBase.__init(
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
+    # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+    # QuasiNewton doesn't have alg.autodiff fields; autodiff may come through kwargs
+    # or from the linesearch/trustregion algorithm's own autodiff field.
+    _ad_autodiffs = Any[
+        get(kwargs, :autodiff, nothing),
+        get(kwargs, :jvp_autodiff, nothing),
+        get(kwargs, :vjp_autodiff, nothing),
+    ]
+    if alg.linesearch !== missing && alg.linesearch !== nothing &&
+            hasfield(typeof(alg.linesearch), :autodiff)
+        push!(_ad_autodiffs, alg.linesearch.autodiff)
+    end
+    if alg.trustregion !== missing && alg.trustregion !== nothing &&
+            hasfield(typeof(alg.trustregion), :autodiff)
+        push!(_ad_autodiffs, alg.trustregion.autodiff)
+    end
+    _ad_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(prob, _ad_autodiffs...)
+
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
 
@@ -222,7 +240,7 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
                 error("Trust Region not supported by $(alg.descent).")
             trustregion_cache = InternalAPI.init(
-                prob, alg.trustregion, fu, u, p; stats, internalnorm, kwargs...
+                _ad_prob, alg.trustregion, fu, u, _ad_prob.p; stats, internalnorm, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
@@ -231,7 +249,7 @@ function SciMLBase.__init(
             NonlinearSolveBase.supports_line_search(alg.descent) ||
                 error("Line Search not supported by $(alg.descent).")
             linesearch_cache = CommonSolve.init(
-                prob, alg.linesearch, fu, u; stats, internalnorm, kwargs...
+                _ad_prob, alg.linesearch, fu, u; stats, internalnorm, kwargs...
             )
             globalization = Val(:LineSearch)
         end

@@ -51,7 +51,13 @@ function construct_jacobian_cache(
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
+        autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+        if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
+            f = @set f.f = get_raw_f(f.f)
+        end
         di_extras = if SciMLBase.isinplace(f)
             DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
         else
@@ -62,7 +68,18 @@ function construct_jacobian_cache(
     end
 
     J = if !needs_jac
-        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
+        # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
+        _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
+        _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+        _prob = if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(_jvp_ad) || _uses_enzyme_ad(_vjp_ad))
+            @set prob.f.f = get_raw_f(f.f)
+        else
+            prob
+        end
+        JacobianOperator(_prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
