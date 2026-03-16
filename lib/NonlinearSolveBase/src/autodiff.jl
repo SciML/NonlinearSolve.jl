@@ -113,6 +113,10 @@ function incompatible_backend_and_problem(
     return additional_incompatible_backend_check(prob, ad)
 end
 
+incompatible_backend_and_problem(::AbstractNonlinearProblem, ::ADTypes.AutoForwardDiff) = false
+incompatible_backend_and_problem(::AbstractNonlinearProblem, ::ADTypes.AutoFiniteDiff) = false
+incompatible_backend_and_problem(::AbstractNonlinearProblem, ::ADTypes.AutoEnzyme) = false
+
 additional_incompatible_backend_check(::AbstractNonlinearProblem, ::AbstractADType) = false
 function additional_incompatible_backend_check(
         prob::AbstractNonlinearProblem, ::ADTypes.AutoPolyesterForwardDiff

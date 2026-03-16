@@ -174,25 +174,24 @@ function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
     return evaluate_f!!(prob.f, fu, u, p)
 end
 
-function evaluate_f!!(f::NonlinearFunction, fu, u, p)
-    if SciMLBase.isinplace(f)
-        f(fu, u, p)
+@inline function evaluate_f!!(f::NonlinearFunction, fu, u, p)
+    if f isa NonlinearFunction{true}
+        f.f(fu, u, p)
         return fu
     end
-    return f(u, p)
+    return f.f(u, p)
 end
 
-function evaluate_f(prob::AbstractNonlinearProblem, u)
-    if SciMLBase.isinplace(prob)
+@inline function evaluate_f(prob::AbstractNonlinearProblem, u)
+    if prob.f isa NonlinearFunction{true}
         fu = prob.f.resid_prototype === nothing ? similar(u) :
             similar(prob.f.resid_prototype)
-        prob.f(fu, u, prob.p)
+        prob.f.f(fu, u, prob.p)
         return fu
     else
-        return prob.f(u, prob.p)
+        return prob.f.f(u, prob.p)
     end
 end
-
 function evaluate_f!(cache, u, p)
     cache.stats.nf += 1
     return if SciMLBase.isinplace(cache)

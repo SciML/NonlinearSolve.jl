@@ -20,7 +20,7 @@ end
 
 # GPU-compatible helper to check if fx should be cached
 @inline function should_cache_fx(prob::SciMLBase.AbstractNonlinearProblem, f)
-    return SciMLBase.isinplace(prob) && !SciMLBase.has_jac(f)
+    return (prob.f isa SciMLBase.NonlinearFunction{true}) && !SciMLBase.has_jac(f)
 end
 
 function identity_jacobian(u::Number, fu::Number, α = true)
@@ -97,7 +97,7 @@ end
 
 function prepare_jacobian(prob, autodiff, fx, x)
     SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
-    if SciMLBase.isinplace(prob.f)
+    if prob.f isa SciMLBase.NonlinearFunction{true}
         return DIExtras(
             DI.prepare_jacobian(
                 prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)
@@ -131,7 +131,7 @@ end
 
 function compute_jacobian!!(J, prob, autodiff, fx, x, ::AnalyticJacobian)
     if J === nothing
-        if SciMLBase.isinplace(prob.f)
+        if prob.f isa SciMLBase.NonlinearFunction{true}
             J = NLBUtils.safe_similar(fx, length(fx), length(x))
             prob.f.jac(J, x, prob.p)
             return J
@@ -139,7 +139,7 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, ::AnalyticJacobian)
             return prob.f.jac(x, prob.p)
         end
     end
-    if SciMLBase.isinplace(prob.f)
+    if prob.f isa SciMLBase.NonlinearFunction{true}
         prob.f.jac(J, x, prob.p)
         return J
     else
@@ -149,13 +149,13 @@ end
 
 function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
     if J === nothing
-        if SciMLBase.isinplace(prob.f)
+        if prob.f isa SciMLBase.NonlinearFunction{true}
             return DI.jacobian(prob.f, fx, extras.prep, autodiff, x, Constant(prob.p))
         else
             return DI.jacobian(prob.f, extras.prep, autodiff, x, Constant(prob.p))
         end
     end
-    if SciMLBase.isinplace(prob.f)
+    if prob.f isa SciMLBase.NonlinearFunction{true}
         DI.jacobian!(prob.f, fx, J, extras.prep, autodiff, x, Constant(prob.p))
     else
         if ArrayInterface.can_setindex(J)
@@ -184,7 +184,7 @@ function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
 end
 
 function compute_hvvp(prob, autodiff, fx, x, dir)
-    jvp_fn = if SciMLBase.isinplace(prob)
+    jvp_fn = if prob.f isa SciMLBase.NonlinearFunction{true}
         @closure (
             u,
             p,
