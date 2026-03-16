@@ -60,12 +60,13 @@ function SciMLBase.__solve(
             r = 1 - abs(ym / (y2 - y1)) # Symmetry factor
             k = r * r # Deviation factor
             # Check if the function is close enough to linear
-            if abs(ym - y3) < k*(abs(ym) + abs(y3))
+            if abs(ym - y3) < k * (abs(ym) + abs(y3))
                 bisecting = false
                 threshold = (x2 - x1) * C
             end
         else # Anderson-Bjork method is used
             x3 = (x1 * y2 - y1 * x2) / (y2 - y1)
+            x3 = clamp(x3, nextfloat(x1), prevfloat(x2)) 
             y3 = f(x3)
             threshold /= 2
         end
