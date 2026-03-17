@@ -408,12 +408,6 @@ end
         solver = LevenbergMarquardt(; autodiff = ad)
 
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], 1.0, @SVector([1.0, 1.0]))
-            if ad isa ADTypes.AutoZygote && u0 isa SVector
-                # Zygote converts SVector to a Matrix that triggers a bug upstream
-                @test_broken solve_oop(quadratic_f, u0; solver)
-                continue
-            end
-
             sol = solve_oop(quadratic_f, u0; solver)
             @test SciMLBase.successful_retcode(sol)
             err = maximum(abs, quadratic_f(sol.u, 2.0))
