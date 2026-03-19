@@ -27,7 +27,6 @@
             DFSane(),
             TrustRegion(; linsolve = QRFactorization(), autodiff = fd_autodiff),
             TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true, autodiff = fd_autodiff),  # Needed if Zygote not loaded
-            nothing,
         )
 
         @testset "[IIP] GPU Solvers" begin
