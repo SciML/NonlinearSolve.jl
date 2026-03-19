@@ -1,5 +1,5 @@
 @testitem "CUDA Tests" tags = [:cuda] skip = :(!isempty(VERSION.prerelease)) begin
-    using CUDA, NonlinearSolve, LinearSolve, StableRNGs
+    using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes
 
     if CUDA.functional()
         CUDA.allowscalar(false)
@@ -12,17 +12,21 @@
 
         prob = NonlinearProblem(linear_f, u0)
 
+        # ForwardDiff uses scalar indexing which doesn't work on GPU
+        # Use AutoFiniteDiff for GPU-compatible Jacobian computation
+        fd_autodiff = AutoFiniteDiff()
+
         SOLVERS = (
-            NewtonRaphson(),
-            LevenbergMarquardt(; linsolve = QRFactorization()),
-            LevenbergMarquardt(; linsolve = KrylovJL_GMRES()),
-            PseudoTransient(),
+            NewtonRaphson(; autodiff = fd_autodiff),
+            LevenbergMarquardt(; linsolve = QRFactorization(), autodiff = fd_autodiff),
+            LevenbergMarquardt(; linsolve = KrylovJL_GMRES(), autodiff = fd_autodiff),
+            PseudoTransient(; autodiff = fd_autodiff),
             Klement(),
             Broyden(; linesearch = LiFukushimaLineSearch()),
             LimitedMemoryBroyden(; threshold = 2, linesearch = LiFukushimaLineSearch()),
             DFSane(),
-            TrustRegion(; linsolve = QRFactorization()),
-            TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true),  # Needed if Zygote not loaded
+            TrustRegion(; linsolve = QRFactorization(), autodiff = fd_autodiff),
+            TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true, autodiff = fd_autodiff),  # Needed if Zygote not loaded
             nothing,
         )
 
