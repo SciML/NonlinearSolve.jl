@@ -24,7 +24,8 @@ end
 
 const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
 
-(GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
+# Add CUDA and JLL packages for LocalPreferences.toml to work on V100 runners
+(GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA", "CUDA_Driver_jll", "CUDA_Runtime_jll"])
 (GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
 (GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
 
