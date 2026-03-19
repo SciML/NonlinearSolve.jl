@@ -21,7 +21,7 @@ concurrency:
 jobs:
   nonlinearsolve-cuda:
     name: "NonlinearSolve CUDA"
-    runs-on: [self-hosted, Linux, X64, gpu]
+    runs-on: [self-hosted, Linux, X64, gpu-t4]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
@@ -43,7 +43,7 @@ jobs:
 
   simplenonlinearsolve-cuda:
     name: "SimpleNonlinearSolve CUDA"
-    runs-on: [self-hosted, Linux, X64, gpu]
+    runs-on: [self-hosted, Linux, X64, gpu-t4]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
