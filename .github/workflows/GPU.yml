@@ -43,6 +43,7 @@ jobs:
 
   simplenonlinearsolve-cuda:
     name: "SimpleNonlinearSolve CUDA"
+    needs: nonlinearsolve-cuda
     runs-on: [self-hosted, gpu-v100]
     timeout-minutes: 60
     steps:
