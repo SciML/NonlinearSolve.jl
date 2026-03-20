@@ -54,10 +54,6 @@ end
     if CUDA.functional()
         CUDA.allowscalar(false)
 
-        # Reclaim GPU memory from previous test items to avoid OOM on shared runners
-        GC.gc()
-        CUDA.reclaim()
-
         f(u, p) = u .* u .- p
 
         function kernel_function(prob, alg)
