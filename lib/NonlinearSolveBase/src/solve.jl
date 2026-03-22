@@ -367,7 +367,8 @@ end
                 u = $(SII.state_values)(cache)
                 return build_solution_less_specialize(
                     cache.prob, cache.alg, u, $(Utils.evaluate_f)(cache.prob, u);
-                    retcode = cache.retcode
+                    retcode = cache.retcode, stats = cache.stats,
+                    trace = cache.caches[1].trace
                 )
             end
         end
