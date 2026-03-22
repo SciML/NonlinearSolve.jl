@@ -129,8 +129,13 @@ function JacobianOperator(
     jvp_autodiff = get_dense_ad(jvp_autodiff)
     jvp_op = prepare_jvp(skip_jvp, prob, f, u, fu; autodiff = jvp_autodiff)
 
-    output_cache = fu isa Number ? T(fu) : similar(fu, T)
-    input_cache = u isa Number ? T(u) : similar(u, T)
+    if iip
+        output_cache = fu isa Number ? T(fu) : similar(fu, T)
+        input_cache = u isa Number ? T(u) : similar(u, T)
+    else
+        output_cache = nothing
+        input_cache = u isa Number ? T(u) : T.(u)
+    end
 
     return JacobianOperator{iip, T}(
         JVP(), jvp_op, vjp_op, (length(fu), length(u)), output_cache, input_cache
