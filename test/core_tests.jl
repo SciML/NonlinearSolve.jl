@@ -87,39 +87,19 @@ end
     end
 
     @testset "solve!() inference" begin
-        # Julia 1.10 compiler can't fully infer the return type of the @generated
-        # solve!(::NonlinearSolvePolyAlgorithmCache), so these are broken on lts.
-        broken_inferred = VERSION < v"1.11"
-
         # Default algorithm (polyalgorithm)
         cache = init(prob_oop)
-        if broken_inferred
-            @test_broken (@inferred solve!(cache)) isa Any
-        else
-            @test_nowarn @inferred solve!(cache)
-        end
+        @test_nowarn @inferred solve!(cache)
 
         cache = init(prob_iip)
-        if broken_inferred
-            @test_broken (@inferred solve!(cache)) isa Any
-        else
-            @test_nowarn @inferred solve!(cache)
-        end
+        @test_nowarn @inferred solve!(cache)
 
         @testset for alg in polyalgs
             cache = init(prob_oop, alg)
-            if broken_inferred
-                @test_broken (@inferred solve!(cache)) isa Any
-            else
-                @test_nowarn @inferred solve!(cache)
-            end
+            @test_nowarn @inferred solve!(cache)
 
             cache = init(prob_iip, alg)
-            if broken_inferred
-                @test_broken (@inferred solve!(cache)) isa Any
-            else
-                @test_nowarn @inferred solve!(cache)
-            end
+            @test_nowarn @inferred solve!(cache)
         end
     end
 end
