@@ -133,8 +133,8 @@ function JacobianOperator(
         output_cache = fu isa Number ? T(fu) : similar(fu, T)
         input_cache = u isa Number ? T(u) : similar(u, T)
     else
-        output_cache = nothing
-        input_cache = u isa Number ? T(u) : T.(u)
+        output_cache = fu isa Number ? T(fu) : one(T)*copy(fu)
+        input_cache = u isa Number ? T(u) : one(T)*copy(u)
     end
 
     return JacobianOperator{iip, T}(
