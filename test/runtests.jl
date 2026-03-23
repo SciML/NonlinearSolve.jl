@@ -48,9 +48,6 @@ if GROUP != "trim"
         # Only add CUDA for cuda group if not on prerelease Julia
         if isempty(VERSION.prerelease)
             push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA"))
-            # Add JLL packages for LocalPreferences.toml to work on V100 runners
-            push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA_Driver_jll"))
-            push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA_Runtime_jll"))
         end
     end
     length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
