@@ -75,7 +75,6 @@ function SciMLBase.__solve(
         elseif (x2 - x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
-        x0 = x3
         if sign(y1) == sign(y3)
             if side == 1  # Apply Anderson-Bjork correction on the right side
                 m = 1 - y3 / y1
