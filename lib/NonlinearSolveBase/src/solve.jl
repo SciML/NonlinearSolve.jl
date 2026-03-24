@@ -353,6 +353,10 @@ end
     calls = [
         quote
             1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
+            # Compute concrete types for u and resid from the cache to help inference
+            # on Julia 1.10 where the compiler can't track them across branches.
+            _uType = typeof(cache.u0)
+            _fuType = typeof(NonlinearSolveBase.get_fu(cache.caches[1]))
         end,
     ]
 
@@ -364,9 +368,10 @@ end
         calls,
         quote
             if cache.retcode == ReturnCode.InitialFailure
-                u = $(SII.state_values)(cache)
+                u = $(SII.state_values)(cache)::_uType
                 return build_solution_less_specialize(
-                    cache.prob, cache.alg, u, $(Utils.evaluate_f)(cache.prob, u);
+                    cache.prob, cache.alg, u,
+                    $(Utils.evaluate_f)(cache.prob, u)::_fuType;
                     retcode = cache.retcode, stats = cache.stats,
                     trace = cache.caches[1].trace
                 )
@@ -386,11 +391,11 @@ end
                         stats = $(sol_syms[i]).stats
                         if cache.alias_u0
                             copyto!(cache.u0, $(sol_syms[i]).u)
-                            $(u_result_syms[i]) = cache.u0
+                            $(u_result_syms[i]) = cache.u0::_uType
                         else
-                            $(u_result_syms[i]) = $(sol_syms[i]).u
+                            $(u_result_syms[i]) = $(sol_syms[i]).u::_uType
                         end
-                        fu = NonlinearSolveBase.get_fu($(cache_syms[i]))
+                        fu = NonlinearSolveBase.get_fu($(cache_syms[i]))::_fuType
                         return build_solution_less_specialize(
                             cache.prob, cache.alg, $(u_result_syms[i]), fu;
                             retcode = $(sol_syms[i]).retcode, stats,
@@ -438,7 +443,7 @@ end
                 u = cache.u0
             end
             return build_solution_less_specialize(
-                cache.prob, cache.alg, u, fus[idx];
+                cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
                 retcode, cache.stats, cache.caches[idx].trace
             )
         end
