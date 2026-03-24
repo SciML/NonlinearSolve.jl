@@ -353,10 +353,11 @@ end
     calls = [
         quote
             1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
-            # Compute concrete types for u and resid from the cache to help inference
-            # on Julia 1.10 where the compiler can't track them across branches.
+            # Compute concrete types from the cache to help inference on Julia 1.10
+            # where the compiler can't track them across branches.
             _uType = typeof(cache.u0)
             _fuType = typeof(NonlinearSolveBase.get_fu(cache.caches[1]))
+            _traceType = typeof(cache.caches[1].trace)
         end,
     ]
 
@@ -373,7 +374,7 @@ end
                     cache.prob, cache.alg, u,
                     $(Utils.evaluate_f)(cache.prob, u)::_fuType;
                     retcode = cache.retcode, stats = cache.stats,
-                    trace = cache.caches[1].trace
+                    trace = (cache.caches[1].trace::_traceType)
                 )
             end
         end
@@ -399,7 +400,7 @@ end
                         return build_solution_less_specialize(
                             cache.prob, cache.alg, $(u_result_syms[i]), fu;
                             retcode = $(sol_syms[i]).retcode, stats,
-                            original = $(sol_syms[i]), trace = $(sol_syms[i]).trace
+                            original = $(sol_syms[i]), trace = ($(sol_syms[i]).trace::_traceType)
                         )
                     elseif cache.alias_u0
                         # For safety we need to maintain a copy of the solution
@@ -442,9 +443,10 @@ end
                 copyto!(cache.u0, u)
                 u = cache.u0
             end
+            _trace = cache.caches[idx].trace::_traceType
             return build_solution_less_specialize(
                 cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
-                retcode, cache.stats, cache.caches[idx].trace
+                retcode, cache.stats, trace = _trace
             )
         end
     )
