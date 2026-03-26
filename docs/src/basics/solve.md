@@ -22,7 +22,7 @@ solve(::NonlinearProblem, args...; kwargs...)
   - `reltol::Number`: The relative tolerance. Defaults to
     `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `termination_condition`: Termination Condition from NonlinearSolveBase. Defaults to
-    `AbsSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsTerminateMode()` for
+    `AbsNormSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsNormTerminationMode()` for
     `SimpleNonlinearSolve.jl`.
 
 ## Tracing Controls
