@@ -8,7 +8,7 @@ Provides a API to specify termination conditions for [`NonlinearProblem`](@ref) 
 The termination condition is constructed as:
 
 ```julia
-cache = init(du, u, AbsSafeBestTerminationMode(); abstol = 1e-9, reltol = 1e-9)
+cache = init(du, u, AbsNormSafeBestTerminationMode(); abstol = 1e-9, reltol = 1e-9)
 ```
 
 If `abstol` and `reltol` are not supplied, then we choose a default based on the element

@@ -36,7 +36,7 @@ These tolerances are interpreted by the termination condition.
 
 ### Miscellaneous
 
-* `maxiters`: Maximum number of iterations before stopping. Defaults to 1e5.
+* `maxiters`: Maximum number of iterations before stopping. Defaults to 1000.
 * `verbose`: Toggles whether warnings are thrown when the solver exits early.
   Defaults to true.
 
