@@ -5,6 +5,39 @@ import SciMLBase: SciMLBase, value
 using Enzyme
 import Enzyme: Const, MixedDuplicated
 using ChainRulesCore
+import SciMLStructures
+
+# Accumulate a tangent `darg` into a shadow `dval`.
+# When `dval` is a SciMLStructure (e.g. MTKParameters), `darg` may be:
+#   - A tunable gradient vector (from SciMLSensitivity's EnzymeOriginator path)
+#   - Another SciMLStructure
+#   - A broadcastable array
+# In all cases, accumulation goes through the SciMLStructures interface.
+function _accum_tangent!(dval, darg)
+    if SciMLStructures.isscimlstructure(dval) && !(dval isa AbstractArray)
+        shadow_tunables, _, _ = SciMLStructures.canonicalize(
+            SciMLStructures.Tunable(), dval,
+        )
+        if SciMLStructures.isscimlstructure(darg)
+            darg_tunables, _, _ = SciMLStructures.canonicalize(
+                SciMLStructures.Tunable(), darg,
+            )
+            shadow_tunables .+= darg_tunables
+        elseif darg isa AbstractVector && length(darg) == length(shadow_tunables)
+            # Tunable gradient vector (returned by SciMLSensitivity for
+            # EnzymeOriginator when p is a SciMLStructure)
+            shadow_tunables .+= darg
+        else
+            # Fallback: try direct broadcast (may error for incompatible types)
+            dval .+= darg
+            return nothing
+        end
+        SciMLStructures.replace!(SciMLStructures.Tunable(), dval, shadow_tunables)
+    else
+        dval .+= darg
+    end
+    return nothing
+end
 
 function Enzyme.EnzymeRules.augmented_primal(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
@@ -57,9 +90,9 @@ function Enzyme.EnzymeRules.reverse(
             continue
         end
         if ptr isa MixedDuplicated
-            ptr.dval[] .+= darg
+            _accum_tangent!(ptr.dval[], darg)
         else
-            ptr.dval .+= darg
+            _accum_tangent!(ptr.dval, darg)
         end
     end
     Enzyme.make_zero!(dres.u)
