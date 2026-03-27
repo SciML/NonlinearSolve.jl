@@ -70,6 +70,16 @@ end
     scc_alg = SCCNonlinearSolve.SCCAlg(nlalg = NewtonRaphson(), linalg = nothing)
     scc_sol = solve(sccprob, scc_alg)
     @test sol ≈ manualscc ≈ scc_sol
+    @test scc_sol.original === nothing  # default: store_original = Val(false)
+
+    # Test store_original = Val(true) for debugging
+    scc_alg_debug = SCCNonlinearSolve.SCCAlg(
+        nlalg = NewtonRaphson(), linalg = nothing, store_original = Val(true),
+    )
+    scc_sol_debug = solve(sccprob, scc_alg_debug)
+    @test sol ≈ manualscc ≈ scc_sol_debug
+    @test scc_sol_debug.original !== nothing
+    @test length(scc_sol_debug.original) == 3  # 3 sub-problems
 
     # Backwards compat of alg choice
     scc_sol = solve(sccprob, NewtonRaphson())
@@ -277,9 +287,20 @@ end
     scc_sol = solve(sccprob, scc_alg)
     @test SciMLBase.successful_retcode(scc_sol)
 
-    # Verify the solution vector is properly typed (not Vector{Any})
-    @test eltype(scc_sol.original) !== Any
-    @test isconcretetype(eltype(scc_sol.original))
+    # Default: original is nothing (store_original = Val(false))
+    @test scc_sol.original === nothing
+
+    # With store_original = Val(true): original contains sub-solutions
+    scc_alg_debug = SCCNonlinearSolve.SCCAlg(
+        nlalg = NewtonRaphson(; autodiff = AutoFiniteDiff()),
+        linalg = nothing,
+        store_original = Val(true),
+    )
+    scc_sol_debug = solve(sccprob, scc_alg_debug)
+    @test SciMLBase.successful_retcode(scc_sol_debug)
+    @test scc_sol_debug.original !== nothing
+    @test eltype(scc_sol_debug.original) !== Any
+    @test isconcretetype(eltype(scc_sol_debug.original))
 
     # Verify correctness against a reference full-system solve.
     # The coupled system is:
