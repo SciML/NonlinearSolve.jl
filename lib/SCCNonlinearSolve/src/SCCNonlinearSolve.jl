@@ -6,7 +6,7 @@ import SymbolicIndexingInterface
 import SciMLBase: NonlinearProblem, NonlinearLeastSquaresProblem, LinearProblem
 
 """
-    SCCAlg(; nlalg = nothing, linalg = nothing)
+    SCCAlg(; nlalg = nothing, linalg = nothing, store_original = Val(false))
 
 Algorithm for solving Strongly Connected Component (SCC) problems containing
 both nonlinear and linear subproblems.
@@ -15,19 +15,26 @@ both nonlinear and linear subproblems.
 
   - `nlalg`: Algorithm to use for solving NonlinearProblem components
   - `linalg`: Algorithm to use for solving LinearProblem components
+  - `store_original`: Whether to store the individual sub-solutions in the
+    `original` field of the returned solution. Default `Val(false)` to keep
+    the return type simple (required for Enzyme AD compatibility). Set to
+    `Val(true)` for debugging to inspect individual sub-solutions.
 """
-struct SCCAlg{N, L}
+struct SCCAlg{N, L, S <: Val}
     nlalg::N
     linalg::L
+    store_original::S
 end
 
-SCCAlg(; nlalg = nothing, linalg = nothing) = SCCAlg(nlalg, linalg)
+function SCCAlg(; nlalg = nothing, linalg = nothing, store_original = Val(false))
+    return SCCAlg(nlalg, linalg, store_original)
+end
 
 function CommonSolve.solve(
         prob::SciMLBase.SCCNonlinearProblem;
         sensealg = nothing, u0 = nothing, p = nothing, kwargs...
     )
-    return CommonSolve.solve(prob, SCCAlg(nothing, nothing); sensealg, u0, p, kwargs...)
+    return CommonSolve.solve(prob, SCCAlg(); sensealg, u0, p, kwargs...)
 end
 
 function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, ::Nothing; kwargs...)
@@ -39,7 +46,7 @@ function CommonSolve.solve(
         alg::SciMLBase.AbstractNonlinearAlgorithm;
         sensealg = nothing, u0 = nothing, p = nothing, kwargs...
     )
-    return CommonSolve.solve(prob, SCCAlg(alg, nothing); sensealg, u0, p, kwargs...)
+    return CommonSolve.solve(prob, SCCAlg(; nlalg = alg); sensealg, u0, p, kwargs...)
 end
 
 function CommonSolve.solve(
@@ -164,18 +171,26 @@ function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
         sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!; kwargs...)
     end
 
-    # TODO: fix allocations with a lazy concatenation
-    u = reduce(vcat, sols)
-    resid = reduce(vcat, getproperty.(sols, :resid))
+    # Use splatted vcat instead of reduce (reduce over tuples infers Any,
+    # which exceeds Enzyme's type analysis limits).
+    u = vcat(map(s -> s.u, sols)...)
+    resid = vcat(map(s -> s.resid, sols)...)
 
-    retcode = if !all(SciMLBase.successful_retcode, sols)
-        idx = findfirst(!SciMLBase.successful_retcode, sols)
-        sols[idx].retcode
-    else
-        SciMLBase.ReturnCode.Success
+    # Simple loop instead of all/findfirst (higher-order functions over
+    # tuples can confuse Enzyme's activity analysis).
+    retcode = SciMLBase.ReturnCode.Success
+    for s in sols
+        if !SciMLBase.successful_retcode(s)
+            retcode = s.retcode
+            break
+        end
     end
 
-    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
+    # Only store sub-solutions in `original` when requested (Val(true)).
+    # The sub-solutions tuple nested in the kwargs NamedTuple exceeds
+    # Enzyme's type analysis depth, so it's off by default.
+    original = alg.store_original isa Val{true} ? sols : nothing
+    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original)
 end
 
 export scc_solve_up
