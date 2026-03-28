@@ -365,8 +365,7 @@ NonlinearSolveBase.nodual_value(x::AbstractArray{<:Dual}) = map(ForwardDiff.valu
 # Nonlinear solvers compute Jacobians via ForwardDiff, triggering compilation of
 # Dual arithmetic, broadcast, and SubArray patterns at runtime. Exercising these
 # patterns here moves that overhead to precompile time.
-struct NonlinearSolveTag end
-const dualT = Dual{ForwardDiff.Tag{NonlinearSolveTag, Float64}, Float64, 1}
+# NonlinearSolveTag and dualT are already defined at the top of this extension.
 
 import PrecompileTools
 PrecompileTools.@compile_workload begin
