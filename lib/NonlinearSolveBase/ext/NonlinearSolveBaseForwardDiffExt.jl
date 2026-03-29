@@ -29,35 +29,6 @@ dualgen(::Type{T}) where {T} = ForwardDiff.Dual{
     ForwardDiff.Tag{NonlinearSolveTag, T}, T, 1,
 }
 
-# Fast-path dispatch for IIP calls with NonlinearSolveTag duals.
-# These bypass the generic fallback path, calling directly into FunctionWrappersWrapper
-# for zero-allocation dispatch.
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{dualT}, u::Vector{dualT}, p::Vector{Float64},
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{dualT}, u::Vector{dualT}, p::SciMLBase.NullParameters,
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{dualT}, u::Vector{dualT}, p::Vector{dualT},
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{dualT}, u::Vector{Float64}, p::Vector{dualT},
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{dualT}, u::Vector{dualT}, p::Float64,
-    )
-    return f.fw(du, u, p)
-end
-
 # Helper: build the canonical AutoForwardDiff for wrapped functions (chunksize=1 + tag).
 function _wrapped_forwarddiff_ad()
     tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
@@ -117,24 +88,6 @@ const iip_returnlists_default = (
 )
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
-# For Vector{Float64} state and Vector{Float64} params, uses the precomputed default lists.
-@inline function wrapfun_iip(
-        ff, inputs::Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}}
-    )
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), iip_arglists_default, iip_returnlists_default
-    )
-end
-
-@inline function wrapfun_iip(
-        ff, inputs::Tuple{Vector{Float64}, Vector{Float64}, SciMLBase.NullParameters}
-    )
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), iip_arglists_default, iip_returnlists_default
-    )
-end
-
-# Generic typed method: generates dual arglists from actual input element types.
 @inline function wrapfun_iip(
         ff, inputs::Tuple{T1, T2, T3}
     ) where {T1 <: AbstractVector, T2 <: AbstractVector, T3}

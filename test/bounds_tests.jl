@@ -46,8 +46,14 @@
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ [1.0, 2.0] atol = 1.0e-6
 
-    # Test that the original problem is preserved (function may be wrapped by AutoSpecialize)
-    @test NonlinearSolveBase.get_raw_f(sol.prob.f.f) === f!
+    # Default (FullSpecialize) preserves function identity
+    @test sol.prob.f.f === f!
+
+    # AutoSpecialize with bounds errors — user should use FullSpecialize
+    prob_as = NonlinearLeastSquaresProblem(
+        NonlinearFunction{true, SciMLBase.AutoSpecialize}(f!), u0, p; lb, ub
+    )
+    @test_throws Exception solve(prob_as, alg)
     @test sol.prob.lb == lb
     @test sol.prob.ub == ub
     @test sol.prob.u0 == prob.u0
