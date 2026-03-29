@@ -61,32 +61,6 @@ function standardize_forwarddiff_tag(
     return ad
 end
 
-# Supported argument types for the norecompile pathway.
-# NonlinearSolve IIP signature: f(du, u, p) -> Nothing
-
-const NORECOMPILE_IIP_SUPPORTED_ARGS = Union{
-    Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}},
-    Tuple{Vector{Float64}, Vector{Float64}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}, Vector{Float64}},
-    Tuple{Vector{dualT}, Vector{dualT}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}, Vector{dualT}},
-    Tuple{Vector{dualT}, Vector{Float64}, Vector{dualT}},
-}
-
-# In-place argument and return type lists
-const iip_arglists_default = (
-    Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}},
-    Tuple{Vector{Float64}, Vector{Float64}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}, Vector{Float64}},
-    Tuple{Vector{dualT}, Vector{dualT}, SciMLBase.NullParameters},
-    Tuple{Vector{dualT}, Vector{dualT}, Vector{dualT}},
-    Tuple{Vector{dualT}, Vector{Float64}, Vector{dualT}},
-)
-
-const iip_returnlists_default = (
-    Nothing, Nothing, Nothing, Nothing, Nothing, Nothing,
-)
-
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
 @inline function wrapfun_iip(
         ff, inputs::Tuple{T1, T2, T3}
