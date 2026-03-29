@@ -137,8 +137,8 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # which doesn't always work (see DiffEqBase for precedent).
     SciMLBase.isinplace(prob) || return prob.f.f
 
-    # Only wrap when AutoSpecialize is requested (opt-in).
-    # FullSpecialize (the default) keeps the exact function type for specialization.
+    # Only wrap when AutoSpecialize is active (the default).
+    # FullSpecialize opts out of wrapping, keeping the exact function type.
     SciMLBase.specialization(prob.f) === SciMLBase.AutoSpecialize || return prob.f.f
 
     orig = prob.f.f
