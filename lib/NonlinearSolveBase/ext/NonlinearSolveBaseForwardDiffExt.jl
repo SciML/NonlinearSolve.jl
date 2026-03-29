@@ -76,7 +76,7 @@ end
     )
     iip_returnlists = (Nothing, Nothing, Nothing, Nothing)
     return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), iip_arglists, iip_returnlists
+        SciMLBase.Void(ff), iip_arglists, iip_returnlists, Val{true}()
     )
 end
 
