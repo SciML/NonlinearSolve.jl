@@ -58,12 +58,35 @@ include("forward_diff.jl")
         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
     end
 
-    # IIP with Vector{Float64} params — exercises the AutoSpecialize FunctionWrapper path
-    # so the precompiled wrappers match user code that passes Vector{Float64} parameters.
+    # IIP with Vector{Float64} params
     push!(
         nonlinear_problems,
         NonlinearProblem(
             NonlinearFunction{true, NoSpecialize}(
+                (du, u, p) -> du .= u .* u .- p
+            ),
+            [0.1],
+            [2.0],
+        ),
+    )
+
+    # AutoSpecialize workloads: exercise the FunctionWrapper + ForwardDiff dual paths
+    # at precompile time so user code with new functions hits precompiled wrappers.
+    # NullParameters (no p)
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
+                (du, u, p) -> du .= u .* u .- 2.0
+            ),
+            [0.1],
+        ),
+    )
+    # Vector{Float64} params
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
                 (du, u, p) -> du .= u .* u .- p
             ),
             [0.1],
