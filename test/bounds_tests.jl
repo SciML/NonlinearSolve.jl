@@ -33,11 +33,11 @@
         @test all(sol.u .<= 10.0)
     end
 
-    # Test in-place version
+    # Test in-place version — use FullSpecialize for bounds compatibility
     f!(resid, u, p) = resid .= u .- p
     u0 = [5.0, 5.0]
     p = [1.0, 2.0]
-    nf = NonlinearFunction(f!)
+    nf = NonlinearFunction{true, SciMLBase.FullSpecialize}(f!)
     lb = [0.0, 0.0]
     ub = [10.0, 10.0]
 
@@ -46,13 +46,11 @@
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ [1.0, 2.0] atol = 1.0e-6
 
-    # Default (FullSpecialize) preserves function identity
+    # FullSpecialize preserves function identity
     @test sol.prob.f.f === f!
 
-    # AutoSpecialize with bounds errors — user should use FullSpecialize
-    prob_as = NonlinearLeastSquaresProblem(
-        NonlinearFunction{true, SciMLBase.AutoSpecialize}(f!), u0, p; lb, ub
-    )
+    # Default (AutoSpecialize) with bounds errors — user should use FullSpecialize
+    prob_as = NonlinearLeastSquaresProblem(NonlinearFunction(f!), u0, p; lb, ub)
     @test_throws Exception solve(prob_as, alg)
     @test sol.prob.lb == lb
     @test sol.prob.ub == ub

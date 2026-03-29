@@ -70,15 +70,13 @@ include("forward_diff.jl")
         ),
     )
 
-    # AutoSpecialize workloads: exercise the FunctionWrapper + ForwardDiff dual paths
-    # at precompile time so user code with new functions hits precompiled wrappers.
+    # AutoSpecialize (now the default) workloads: exercise the FunctionWrapper +
+    # ForwardDiff dual paths at precompile time.
     # NullParameters (no p)
     push!(
         nonlinear_problems,
         NonlinearProblem(
-            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-                (du, u, p) -> du .= u .* u .- 2.0
-            ),
+            NonlinearFunction{true}((du, u, p) -> du .= u .* u .- 2.0),
             [0.1],
         ),
     )
@@ -86,9 +84,7 @@ include("forward_diff.jl")
     push!(
         nonlinear_problems,
         NonlinearProblem(
-            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-                (du, u, p) -> du .= u .* u .- p
-            ),
+            NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p),
             [0.1],
             [2.0],
         ),
@@ -123,11 +119,11 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
-    # AutoSpecialize NLLS workloads with Vector{Float64} params
+    # AutoSpecialize NLLS workload with Vector{Float64} params
     push!(
         nlls_problems,
         NonlinearLeastSquaresProblem(
-            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
+            NonlinearFunction{true}(
                 (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
                 resid_prototype = zeros(4),
             ),
