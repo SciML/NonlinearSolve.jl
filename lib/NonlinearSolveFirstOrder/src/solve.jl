@@ -224,9 +224,18 @@ function SciMLBase.__init(
         if has_trustregion
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
                 error("Trust Region not supported by $(alg.descent).")
+            # Standardize AD tags so VecJac/JacVec operators use NonlinearSolveTag
+            # when the function is wrapped by AutoSpecialize.
+            _tr_vjp_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
+                alg.vjp_autodiff, _ad_prob
+            )
+            _tr_jvp_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
+                alg.jvp_autodiff, _ad_prob
+            )
             trustregion_cache = InternalAPI.init(
                 _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
-                alg.vjp_autodiff, alg.jvp_autodiff, stats, internalnorm, kwargs...
+                vjp_autodiff = _tr_vjp_ad, jvp_autodiff = _tr_jvp_ad,
+                stats, internalnorm, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
