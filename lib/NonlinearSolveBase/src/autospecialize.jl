@@ -40,9 +40,10 @@ struct AutoSpecializeCallable{FW}
     orig::Any  # type-erased: all wrapped functions share the same Julia type
 end
 
-# Call through FunctionWrappersWrapper. If the argument types match a precompiled
-# wrapper signature, this is zero-allocation. If not, FunctionWrappersWrapper throws
-# NoFunctionWrapperFoundError — the user should use `SciMLBase.FullSpecialize()`.
+# Call through FunctionWrappersWrapper. For supported argument types this is
+# zero-allocation precompiled dispatch. For unsupported types (e.g., external
+# packages with different dual tags/chunksizes, scalar parameters) the
+# FunctionWrappersWrapper falls back to the original function via its fallback mode.
 @inline (f::AutoSpecializeCallable)(args...) = f.fw(args...)
 
 """
@@ -96,7 +97,7 @@ end
 
 function wrapfun_iip(ff, inputs::Tuple)
     return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), (typeof(inputs),), (Nothing,)
+        SciMLBase.Void(ff), (typeof(inputs),), (Nothing,), Val{true}()
     )
 end
 
