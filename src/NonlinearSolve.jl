@@ -14,7 +14,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
     NonlinearFunction,
-    NonlinearProblem, NonlinearLeastSquaresProblem, NoSpecialize
+    NonlinearProblem, NonlinearLeastSquaresProblem
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 using StaticArraysCore: StaticArray
 
@@ -48,9 +48,9 @@ include("forward_diff.jl")
 
 @setup_workload begin
     nonlinear_functions = (
-        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
-        (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1]),
+        (NonlinearFunction{false}((u, p) -> u .* u .- p), 0.1),
+        (NonlinearFunction{false}((u, p) -> u .* u .- p), [0.1]),
+        (NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p), [0.1]),
     )
 
     nonlinear_problems = NonlinearProblem[]
@@ -62,17 +62,13 @@ include("forward_diff.jl")
     push!(
         nonlinear_problems,
         NonlinearProblem(
-            NonlinearFunction{true, NoSpecialize}(
-                (du, u, p) -> du .= u .* u .- p
-            ),
+            NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p),
             [0.1],
             [2.0],
         ),
     )
 
-    # AutoSpecialize (now the default) workloads: exercise the FunctionWrapper +
-    # ForwardDiff dual paths at precompile time.
-    # NullParameters (no p)
+    # IIP with NullParameters (no p)
     push!(
         nonlinear_problems,
         NonlinearProblem(
@@ -80,35 +76,25 @@ include("forward_diff.jl")
             [0.1],
         ),
     )
-    # Vector{Float64} params
-    push!(
-        nonlinear_problems,
-        NonlinearProblem(
-            NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p),
-            [0.1],
-            [2.0],
-        ),
-    )
 
     nonlinear_functions = (
-        (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
+        (NonlinearFunction{false}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
-            NonlinearFunction{false, NoSpecialize}(
-                (
-                    u, p,
-                ) -> vcat(u .* u .- p, u .* u .- p)
+            NonlinearFunction{false}(
+                (u, p) -> vcat(u .* u .- p, u .* u .- p)
             ),
             [0.1, 0.1],
         ),
         (
-            NonlinearFunction{true, NoSpecialize}(
+            NonlinearFunction{true}(
                 (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)
             ),
             [0.1, 0.0],
         ),
         (
-            NonlinearFunction{true, NoSpecialize}(
-                (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p), resid_prototype = zeros(4)
+            NonlinearFunction{true}(
+                (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+                resid_prototype = zeros(4)
             ),
             [0.1, 0.1],
         ),
@@ -119,7 +105,7 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
-    # AutoSpecialize NLLS workload with Vector{Float64} params
+    # NLLS with Vector{Float64} params
     push!(
         nlls_problems,
         NonlinearLeastSquaresProblem(
