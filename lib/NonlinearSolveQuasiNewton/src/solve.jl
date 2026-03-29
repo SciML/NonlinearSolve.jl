@@ -163,20 +163,28 @@ function SciMLBase.__init(
     # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
     # QuasiNewton doesn't have alg.autodiff fields; autodiff may come through kwargs
     # or from the linesearch/trustregion algorithm's own autodiff field.
-    _ad_autodiffs = Any[
-        get(kwargs, :autodiff, nothing),
-        get(kwargs, :jvp_autodiff, nothing),
-        get(kwargs, :vjp_autodiff, nothing),
-    ]
-    if alg.linesearch !== missing && alg.linesearch !== nothing &&
-            hasfield(typeof(alg.linesearch), :autodiff)
-        push!(_ad_autodiffs, alg.linesearch.autodiff)
+    _ad_prob = let _p = prob
+        _ls_ad = if alg.linesearch !== missing && alg.linesearch !== nothing &&
+                hasfield(typeof(alg.linesearch), :autodiff)
+            alg.linesearch.autodiff
+        else
+            nothing
+        end
+        _tr_ad = if alg.trustregion !== missing && alg.trustregion !== nothing &&
+                hasfield(typeof(alg.trustregion), :autodiff)
+            alg.trustregion.autodiff
+        else
+            nothing
+        end
+        NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
+            _p,
+            get(kwargs, :autodiff, nothing),
+            get(kwargs, :jvp_autodiff, nothing),
+            get(kwargs, :vjp_autodiff, nothing),
+            _ls_ad,
+            _tr_ad,
+        )
     end
-    if alg.trustregion !== missing && alg.trustregion !== nothing &&
-            hasfield(typeof(alg.trustregion), :autodiff)
-        push!(_ad_autodiffs, alg.trustregion.autodiff)
-    end
-    _ad_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(prob, _ad_autodiffs...)
 
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin

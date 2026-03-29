@@ -35,34 +35,15 @@ share the same Julia type, enabling precompilation). The original is used as a f
 for external packages that call with unsupported dual types (IIP path) and for nested
 ForwardDiff differentiation in NLLS (via `get_raw_f`).
 """
-struct AutoSpecializeCallable{FW} <: Function
+struct AutoSpecializeCallable{FW}
     fw::FW
     orig::Any  # type-erased: all wrapped functions share the same Julia type
 end
 
-# Fast-path dispatch for IIP calls with Vector{Float64} arguments.
-# These call directly through the FunctionWrappersWrapper for zero-allocation dispatch.
-# The ForwardDiff extension adds analogous methods for dual-number argument types.
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{Float64}, u::Vector{Float64}, p::Vector{Float64},
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{Float64}, u::Vector{Float64}, p::Float64,
-    )
-    return f.fw(du, u, p)
-end
-@inline function (f::AutoSpecializeCallable)(
-        du::Vector{Float64}, u::Vector{Float64}, p::SciMLBase.NullParameters,
-    )
-    return f.fw(du, u, p)
-end
-
-# Fallback: call original function for unsupported argument types (e.g., external
-# packages like LeastSquaresOptim doing their own ForwardDiff with different
-# tags/chunksizes, or JVP paths that bypass tag standardization).
-@inline (f::AutoSpecializeCallable)(args...) = f.orig(args...)
+# Call through FunctionWrappersWrapper. If the argument types match a precompiled
+# wrapper signature, this is zero-allocation. If not, FunctionWrappersWrapper throws
+# NoFunctionWrapperFoundError — the user should use `SciMLBase.FullSpecialize()`.
+@inline (f::AutoSpecializeCallable)(args...) = f.fw(args...)
 
 """
     is_fw_wrapped(f) -> Bool
@@ -155,6 +136,10 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # Only wrap IIP functions. OOP wrapping requires guessing the return type,
     # which doesn't always work (see DiffEqBase for precedent).
     SciMLBase.isinplace(prob) || return prob.f.f
+
+    # Only wrap when AutoSpecialize is requested (opt-in).
+    # FullSpecialize (the default) keeps the exact function type for specialization.
+    SciMLBase.specialization(prob.f) === SciMLBase.AutoSpecialize || return prob.f.f
 
     orig = prob.f.f
     inputs = (u0, u0, p)
