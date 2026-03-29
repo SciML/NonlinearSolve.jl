@@ -123,6 +123,19 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
+    # AutoSpecialize NLLS workloads with Vector{Float64} params
+    push!(
+        nlls_problems,
+        NonlinearLeastSquaresProblem(
+            NonlinearFunction{true, SciMLBase.AutoSpecialize}(
+                (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p),
+                resid_prototype = zeros(4),
+            ),
+            [0.1, 0.1],
+            [2.0, 2.0],
+        ),
+    )
+
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
@@ -134,6 +147,16 @@ include("forward_diff.jl")
 
             for prob in nlls_problems, alg in nlls_algs
                 Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = NonlinearVerbosity())
+            end
+
+            # Default algorithms — the paths hit by solve(prob) with no algorithm
+            # NonlinearProblem → FastShortcutNonlinearPolyalg
+            # NonlinearLeastSquaresProblem → FastShortcutNLLSPolyalg
+            for prob in nonlinear_problems
+                Threads.@spawn CommonSolve.solve(prob; abstol = 1.0e-2, verbose = NonlinearVerbosity())
+            end
+            for prob in nlls_problems
+                Threads.@spawn CommonSolve.solve(prob; abstol = 1.0e-2, verbose = NonlinearVerbosity())
             end
         end
     end
