@@ -74,12 +74,12 @@ _accum_nested!(::Nothing, ::Nothing) = nothing
 
 function Enzyme.EnzymeRules.augmented_primal(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
-        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Union{Type{Duplicated{RT}}, Type{MixedDuplicated{RT}}}, prob,
+        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{RT}, prob,
         sensealg::Union{
             Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
         },
         u0, p, args...; kwargs...
-    ) where {RT}
+    ) where {RT <: Enzyme.Annotation}
     @inline function copy_or_reuse(val, idx)
         if Enzyme.EnzymeRules.overwritten(config)[idx] && ismutable(val)
             return deepcopy(val)
@@ -99,21 +99,23 @@ function Enzyme.EnzymeRules.augmented_primal(
         kwargs...
     )
 
-    dres = Enzyme.make_zero(res[1])::RT
+    dres = Enzyme.make_zero(res[1])
+    primal = EnzymeRules.needs_primal(config) ? res[1] : nothing
+    shadow = EnzymeRules.needs_shadow(config) ? dres : nothing
     tup = (dres, res[2])
-    return Enzyme.EnzymeRules.AugmentedReturn{RT, RT, Any}(res[1], dres, tup::Any)
+    RetType = Enzyme.EnzymeRules.augmented_rule_return_type(config, RT)
+    return RetType(primal, shadow, tup::Any)
 end
 
 function Enzyme.EnzymeRules.reverse(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
-        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Union{Type{Duplicated{RT}}, Type{MixedDuplicated{RT}}}, tape, prob,
+        func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{RT}, tape, prob,
         sensealg::Union{
             Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
         },
         u0, p, args...; kwargs...
-    ) where {RT}
+    ) where {RT <: Enzyme.Annotation}
     dres, clos = tape
-    dres = dres::RT
     dargs = clos(dres)
     for (darg, ptr) in zip(dargs, (func, prob, sensealg, u0, p, args...))
         if ptr isa Enzyme.Const
