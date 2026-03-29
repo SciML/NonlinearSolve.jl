@@ -14,7 +14,7 @@ using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
 using LinearAlgebra: LinearAlgebra, dot, norm
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
-    NonlinearSolveTag, AutoSpecializeCallable, is_fw_wrapped
+    NonlinearSolveTag, is_fw_wrapped
 
 import NonlinearSolveBase: wrapfun_iip, standardize_forwarddiff_tag
 
