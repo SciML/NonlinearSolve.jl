@@ -5,7 +5,7 @@ using NLsolve: NLsolve, OnceDifferentiable, nlsolve
 
 using NonlinearSolveBase: NonlinearSolveBase, Utils, TraceMinimal, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, NLsolveJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 function SciMLBase.__solve(

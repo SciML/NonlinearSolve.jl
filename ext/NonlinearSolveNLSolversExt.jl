@@ -7,7 +7,7 @@ using NLSolvers: NLSolvers, NEqOptions, NEqProblem
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, NLSolversJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 const DI = DifferentiationInterface

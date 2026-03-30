@@ -5,7 +5,7 @@ using MINPACK: MINPACK
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, CMINPACK
-using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 function SciMLBase.__solve(

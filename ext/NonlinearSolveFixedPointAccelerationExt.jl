@@ -4,7 +4,7 @@ using FixedPointAcceleration: FixedPointAcceleration, fixed_point
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FixedPointAccelerationJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 function SciMLBase.__solve(
