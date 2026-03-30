@@ -6,9 +6,10 @@ using ArrayInterface: ArrayInterface
 using FastLevenbergMarquardt: FastLevenbergMarquardt
 using StaticArraysCore: SArray
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FastLevenbergMarquardtJL
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 const FastLM = FastLevenbergMarquardt
 
@@ -17,6 +18,11 @@ function SciMLBase.__solve(
         alias_u0 = false, abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )

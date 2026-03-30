@@ -2,15 +2,21 @@ module NonlinearSolveFixedPointAccelerationExt
 
 using FixedPointAcceleration: FixedPointAcceleration, fixed_point
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FixedPointAccelerationJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::FixedPointAccelerationJL, args...;
         abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         show_trace::Val = Val(false), termination_condition = nothing, kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end

@@ -3,9 +3,10 @@ module NonlinearSolveMINPACKExt
 using FastClosures: @closure
 using MINPACK: MINPACK
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, CMINPACK
-using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 function SciMLBase.__solve(
         prob::Union{NonlinearLeastSquaresProblem, NonlinearProblem}, alg::CMINPACK, args...;
@@ -13,6 +14,11 @@ function SciMLBase.__solve(
         show_trace::Val = Val(false), store_trace::Val = Val(false),
         termination_condition = nothing, kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )

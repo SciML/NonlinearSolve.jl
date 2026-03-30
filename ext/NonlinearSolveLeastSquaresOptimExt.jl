@@ -2,9 +2,10 @@ module NonlinearSolveLeastSquaresOptimExt
 
 using LeastSquaresOptim: LeastSquaresOptim
 
-using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal
+using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 const LSO = LeastSquaresOptim
 
@@ -14,6 +15,11 @@ function SciMLBase.__solve(
         trace_level = TraceMinimal(), termination_condition = nothing,
         show_trace::Val = Val(false), store_trace::Val = Val(false), kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )

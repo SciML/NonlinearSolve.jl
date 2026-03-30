@@ -133,7 +133,14 @@ function transform_bounded_problem(prob, alg)
     end
 
     orig_f = prob.f
-    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(orig_f, lb, ub, u_cache)
+    # Unwrap AutoSpecializeCallable before wrapping in BoundedWrapper.
+    # BoundedWrapper transforms arguments, so the FunctionWrapper signatures won't match.
+    unwrapped_orig_f = if is_fw_wrapped(orig_f.f)
+        @set orig_f.f = get_raw_f(orig_f.f)
+    else
+        orig_f
+    end
+    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(unwrapped_orig_f, lb, ub, u_cache)
 
     new_f = if orig_f isa NonlinearFunction
         @set orig_f.f = wrapped
