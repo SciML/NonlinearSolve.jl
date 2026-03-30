@@ -10,6 +10,7 @@ using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
     NonlinearProblem, NonlinearLeastSquaresProblem, remake
+using Setfield: @set
 
 using LinearAlgebra: LinearAlgebra, dot, norm
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
@@ -76,7 +77,7 @@ end
     )
     iip_returnlists = (Nothing, Nothing, Nothing, Nothing)
     return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), iip_arglists, iip_returnlists, Val{true}()
+        SciMLBase.Void(ff), iip_arglists, iip_returnlists
     )
 end
 
@@ -124,11 +125,19 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
     sol = solve(newprob, alg, args...; kwargs...)
     uu = sol.u
 
-    fn = prob isa NonlinearLeastSquaresProblem ?
-        NonlinearSolveBase.nlls_generate_vjp_function(prob, sol, uu) : prob.f
+    # Unwrap AutoSpecializeCallable for the AD-over-solve Jacobian computations.
+    # These use ForwardDiff with closure-based tags that don't match the wrapper signatures.
+    ad_prob = if is_fw_wrapped(prob.f.f)
+        @set prob.f.f = NonlinearSolveBase.get_raw_f(prob.f.f)
+    else
+        prob
+    end
 
-    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, fn, uu, p)
-    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, fn, uu, p)
+    fn = ad_prob isa NonlinearLeastSquaresProblem ?
+        NonlinearSolveBase.nlls_generate_vjp_function(ad_prob, sol, uu) : ad_prob.f
+
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(ad_prob, fn, uu, p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(ad_prob, fn, uu, p)
     z = -Jᵤ \ Jₚ
     pp = prob.p
     sumfun = ((z, p),) -> map(Base.Fix2(*, ForwardDiff.partials(p)), z)
@@ -143,16 +152,6 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
 
     return sol, partials
 end
-
-# Check if a NonlinearFunction has an AutoSpecialize-wrapped callable.
-# Wrapping is only active for Vector{Float64} state/params, so the Number code paths
-# (derivative, gradient) never encounter it — only the jacobian paths need configs.
-_is_wrapped_nlf(f) = false
-function _is_wrapped_nlf(f::SciMLBase.NonlinearFunction)
-    return is_fw_wrapped(f.f)
-end
-
-const _nls_tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
 
 function NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
@@ -169,10 +168,6 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, f::F, u, p) where {F}
     elseif u isa Number
         return Utils.safe_reshape(ForwardDiff.gradient(f2, p), 1, :)
     else
-        if _is_wrapped_nlf(f)
-            cfg = ForwardDiff.JacobianConfig(f2, p, ForwardDiff.Chunk{1}(), _nls_tag)
-            return ForwardDiff.jacobian(f2, p, cfg)
-        end
         return ForwardDiff.jacobian(f2, p)
     end
 end
@@ -181,21 +176,9 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     if SciMLBase.isinplace(prob)
         jac_f = @closure((du, u) -> f(du, u, p))
         du_cache = Utils.safe_similar(u)
-        if _is_wrapped_nlf(f)
-            cfg = ForwardDiff.JacobianConfig(
-                jac_f, du_cache, u, ForwardDiff.Chunk{1}(), _nls_tag
-            )
-            return ForwardDiff.jacobian(jac_f, du_cache, u, cfg)
-        end
         return ForwardDiff.jacobian(jac_f, du_cache, u)
     end
     u isa Number && return ForwardDiff.derivative(Base.Fix2(f, p), u)
-    if _is_wrapped_nlf(f)
-        cfg = ForwardDiff.JacobianConfig(
-            Base.Fix2(f, p), u, ForwardDiff.Chunk{1}(), _nls_tag
-        )
-        return ForwardDiff.jacobian(Base.Fix2(f, p), u, cfg)
-    end
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
 end
 
@@ -260,11 +243,18 @@ function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     prob = cache.prob
     uu = sol.u
 
-    fn = prob isa NonlinearLeastSquaresProblem ?
-        NonlinearSolveBase.nlls_generate_vjp_function(prob, sol, uu) : prob.f
+    # Unwrap AutoSpecializeCallable for the AD-over-solve Jacobian computations.
+    ad_prob = if is_fw_wrapped(prob.f.f)
+        @set prob.f.f = NonlinearSolveBase.get_raw_f(prob.f.f)
+    else
+        prob
+    end
 
-    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(prob, fn, uu, cache.values_p)
-    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, fn, uu, cache.values_p)
+    fn = ad_prob isa NonlinearLeastSquaresProblem ?
+        NonlinearSolveBase.nlls_generate_vjp_function(ad_prob, sol, uu) : ad_prob.f
+
+    Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(ad_prob, fn, uu, cache.values_p)
+    Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(ad_prob, fn, uu, cache.values_p)
 
     z_arr = -Jᵤ \ Jₚ
 

@@ -5,9 +5,10 @@ using FastClosures: @closure
 
 using NLSolvers: NLSolvers, NEqOptions, NEqProblem
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, NLSolversJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 const DI = DifferentiationInterface
 
@@ -16,6 +17,11 @@ function SciMLBase.__solve(
         abstol = nothing, reltol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         termination_condition = nothing, kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end

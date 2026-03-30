@@ -49,8 +49,8 @@
     # FullSpecialize preserves function identity
     @test sol.prob.f.f === f!
 
-    # Default (AutoSpecialize) also works — falls back to original function
-    # when bounds transform produces unsupported argument types
+    # Default (AutoSpecialize) also works with bounds — bounds transform
+    # unwraps AutoSpecializeCallable before wrapping in BoundedWrapper
     prob_as = NonlinearLeastSquaresProblem(NonlinearFunction(f!), u0, p; lb, ub)
     sol_as = solve(prob_as, alg)
     @test SciMLBase.successful_retcode(sol_as)

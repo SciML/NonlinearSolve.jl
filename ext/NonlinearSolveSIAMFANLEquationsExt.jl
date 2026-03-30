@@ -4,9 +4,10 @@ using FastClosures: @closure
 using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, ptcsoli,
     ptcsolsc, secant
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 function siamfanlequations_retcode_mapping(sol)
     if sol.errcode == 0
@@ -42,6 +43,11 @@ function SciMLBase.__solve(
         abstol = nothing, reltol = nothing, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         termination_condition = nothing, show_trace = Val(false), kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end

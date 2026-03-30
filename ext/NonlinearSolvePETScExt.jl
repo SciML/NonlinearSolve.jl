@@ -3,9 +3,10 @@ module NonlinearSolvePETScExt
 using MPI: MPI
 using PETSc: PETSc
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, PETScSNES
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 using SparseArrays: AbstractSparseMatrix, SparseMatrixCSC, sparse, rowvals, nonzeros, nzrange
 
@@ -40,6 +41,11 @@ function SciMLBase.__solve(
         maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), termination_condition = nothing,
         show_trace::Val = Val(false), kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end

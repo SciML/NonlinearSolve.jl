@@ -3,9 +3,10 @@ module NonlinearSolveNLsolveExt
 using LineSearches: Static
 using NLsolve: NLsolve, OnceDifferentiable, nlsolve
 
-using NonlinearSolveBase: NonlinearSolveBase, Utils, TraceMinimal
+using NonlinearSolveBase: NonlinearSolveBase, Utils, TraceMinimal, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, NLsolveJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using Setfield: @set
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLsolveJL, args...;
@@ -13,6 +14,11 @@ function SciMLBase.__solve(
         termination_condition = nothing, trace_level = TraceMinimal(),
         store_trace::Val = Val(false), show_trace::Val = Val(false), kwargs...
     )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     if haskey(kwargs, :alias_u0)
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end

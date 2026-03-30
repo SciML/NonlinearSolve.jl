@@ -40,10 +40,8 @@ struct AutoSpecializeCallable{FW}
     orig::Any  # type-erased: all wrapped functions share the same Julia type
 end
 
-# Call through FunctionWrappersWrapper. For supported argument types this is
-# zero-allocation precompiled dispatch. For unsupported types (e.g., external
-# packages with different dual tags/chunksizes, scalar parameters) the
-# FunctionWrappersWrapper falls back to the original function via its fallback mode.
+# Call through FunctionWrappersWrapper. All argument types that reach here have
+# matching wrapper signatures (wrapping is only applied for supported types).
 @inline (f::AutoSpecializeCallable)(args...) = f.fw(args...)
 
 """
@@ -97,7 +95,7 @@ end
 
 function wrapfun_iip(ff, inputs::Tuple)
     return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), (typeof(inputs),), (Nothing,), Val{true}()
+        SciMLBase.Void(ff), (typeof(inputs),), (Nothing,)
     )
 end
 
@@ -124,12 +122,19 @@ the `FunctionWrappersWrapper` and the original function if the problem is IIP wi
 
 OOP functions are not wrapped because guessing the return type is unreliable.
 """
+# Parameter types supported by the FunctionWrapper norecompile pathway.
+# The ForwardDiff extension generates dual-aware wrappers for these.
+_supported_autospecialize_p(::Vector{Float64}) = true
+_supported_autospecialize_p(::SciMLBase.NullParameters) = true
+_supported_autospecialize_p(_) = false
+
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
     p = prob.p
 
-    # Only wrap for Vector{Float64} state
+    # Only wrap for Vector{Float64} state and supported parameter types
     u0 isa Vector{Float64} || return prob.f.f
+    _supported_autospecialize_p(p) || return prob.f.f
 
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f
