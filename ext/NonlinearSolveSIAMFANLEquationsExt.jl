@@ -6,7 +6,7 @@ using SIAMFANLEquations: SIAMFANLEquations, aasol, nsol, nsoli, nsolsc, ptcsol, 
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, SIAMFANLEquationsJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 function siamfanlequations_retcode_mapping(sol)

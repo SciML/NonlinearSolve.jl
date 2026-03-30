@@ -4,7 +4,7 @@ using LeastSquaresOptim: LeastSquaresOptim
 
 using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
 using Setfield: @set
 
 const LSO = LeastSquaresOptim

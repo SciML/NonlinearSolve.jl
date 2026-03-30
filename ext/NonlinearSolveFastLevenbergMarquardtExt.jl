@@ -8,7 +8,7 @@ using StaticArraysCore: SArray
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FastLevenbergMarquardtJL
-using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
 using Setfield: @set
 
 const FastLM = FastLevenbergMarquardt

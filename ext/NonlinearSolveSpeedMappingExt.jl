@@ -4,7 +4,7 @@ using SpeedMapping: speedmapping
 
 using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, SpeedMappingJL
-using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode, remake
+using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
 
 function SciMLBase.__solve(
