@@ -253,7 +253,7 @@ end
 # algorithms which dont support those.
 # Note: ForwardDiff doesn't support complex numbers, so we use FiniteDiff instead.
 # Trust region methods also don't work with complex numbers (they use extrema internally).
-@testitem "Complex Valued Problems: Single-Shooting" tags = [:core] begin
+@testitem "Complex Valued Problems: Single-Shooting" tags = [:downstream] begin
     using OrdinaryDiffEqTsit5
 
     function ode_func!(du, u, p, t)

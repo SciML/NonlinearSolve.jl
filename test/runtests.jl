@@ -35,6 +35,7 @@ if GROUP != "trim"
     if GROUP == "all" || GROUP == "downstream"
         push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
         push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
+        push!(EXTRA_PKGS, Pkg.PackageSpec("OrdinaryDiffEqTsit5"))
     end
     if GROUP in ("all", "nopre", "bounds")
         # Only add Enzyme for specific groups if not on prerelease Julia and if enabled
