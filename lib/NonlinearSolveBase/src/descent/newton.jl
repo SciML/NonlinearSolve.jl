@@ -105,7 +105,15 @@ function InternalAPI.solve!(
         if normal_form(cache)
             @assert !preinverted_jacobian(cache)
             if idx === Val(1)
-                @bb cache.JᵀJ_cache = transpose(J) × J
+                # For sparse J, @bb cannot update entries in-place
++               # It will update entries absent from the initial sparsity pattern of
++               # cache.JᵀJ_cache, corrupting the normal equations.
++               # Fresh memory is therefore allocated in case of sparse matrix
++               if ArrayInterface.isstructured(J)
++                   cache.JᵀJ_cache = transpose(J) * J
++               else
++                   @bb cache.JᵀJ_cache = transpose(J) × J
++               end
             end
             @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
             @static_timeit cache.timer "linear solve" begin
