@@ -106,7 +106,7 @@ function InternalAPI.solve!(
             @assert !preinverted_jacobian(cache)
             if idx === Val(1)
                 # For sparse J, @bb cannot update entries in-place
-+               # It will update entries absent from the initial sparsity pattern of
++               # It cannot update entries absent from the initial sparsity pattern of
 +               # cache.JᵀJ_cache, corrupting the normal equations.
 +               # Fresh memory is therefore allocated in case of sparse matrix
 +               if ArrayInterface.isstructured(J)
