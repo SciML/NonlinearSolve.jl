@@ -9,7 +9,7 @@ matrices via colored automatic differentiation and preconditioned linear solvers
 for large-scale and numerically-difficult nonlinear systems.
 """
 function GaussNewton(;
-        concrete_jac = nothing, linsolve = nothing, linesearch = missing,
+        concrete_jac = nothing, linsolve = nothing, linesearch = BackTracking(),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
     )
     return GeneralizedFirstOrderAlgorithm(;
