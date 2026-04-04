@@ -122,19 +122,12 @@ the `FunctionWrappersWrapper` and the original function if the problem is IIP wi
 
 OOP functions are not wrapped because guessing the return type is unreliable.
 """
-# Parameter types supported by the FunctionWrapper norecompile pathway.
-# The ForwardDiff extension generates dual-aware wrappers for these.
-_supported_autospecialize_p(::Vector{Float64}) = true
-_supported_autospecialize_p(::SciMLBase.NullParameters) = true
-_supported_autospecialize_p(_) = false
-
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
     p = prob.p
 
-    # Only wrap for Vector{Float64} state and supported parameter types
+    # Only wrap for Vector{Float64} state
     u0 isa Vector{Float64} || return prob.f.f
-    _supported_autospecialize_p(p) || return prob.f.f
 
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f
