@@ -243,12 +243,13 @@ function SciMLBase.__init(
         if has_linesearch
             NonlinearSolveBase.supports_line_search(alg.descent) ||
                 error("Line Search not supported by $(alg.descent).")
+            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
+                ifelse(provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff),
+                _ad_prob
+            )
             linesearch_cache = CommonSolve.init(
                 _ad_prob, alg.linesearch, fu, u; stats, internalnorm,
-                autodiff = ifelse(
-                    provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
-                ),
-                kwargs...
+                autodiff = _ls_ad, kwargs...
             )
             globalization = Val(:LineSearch)
         end

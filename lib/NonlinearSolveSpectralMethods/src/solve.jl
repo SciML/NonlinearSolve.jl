@@ -144,7 +144,16 @@ function SciMLBase.__init(
         fu = Utils.evaluate_f(prob, u)
         @bb fu_cache = copy(fu)
 
-        linesearch_cache = CommonSolve.init(prob, alg.linesearch, fu, u; stats, kwargs...)
+        linesearch_cache = if hasfield(typeof(alg.linesearch), :autodiff)
+            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
+                alg.linesearch.autodiff, prob
+            )
+            CommonSolve.init(
+                prob, alg.linesearch, fu, u; stats, autodiff = _ls_ad, kwargs...
+            )
+        else
+            CommonSolve.init(prob, alg.linesearch, fu, u; stats, kwargs...)
+        end
 
         abstol, reltol,
             tc_cache = NonlinearSolveBase.init_termination_cache(
