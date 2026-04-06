@@ -176,6 +176,9 @@ end
 
 ## Actually Compute the Jacobian
 function (cache::JacobianCache)(u)
+    # Empty state vector — Jacobian is 0×0, nothing to compute
+    length(u) == 0 && return cache.J
+
     cache.stats.njacs += 1
     (; f, J, p) = cache
     if SciMLBase.isinplace(f)
