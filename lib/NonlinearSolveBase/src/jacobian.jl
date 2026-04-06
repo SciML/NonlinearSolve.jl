@@ -35,6 +35,12 @@ function construct_jacobian_cache(
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
     )
+    # Empty state vector (e.g. u0=nothing converted to Float64[]) — nothing to differentiate
+    if length(u) == 0
+        J = Utils.safe_similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), 0)
+        return JacobianCache(J, f, fu, p, stats, autodiff, nothing)
+    end
+
     has_analytic_jac = SciMLBase.has_jac(f)
     linsolve_needs_jac = !concrete_jac(alg) && (
         linsolve === missing ||
