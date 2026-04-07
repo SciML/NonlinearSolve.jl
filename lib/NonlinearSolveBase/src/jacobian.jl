@@ -30,86 +30,133 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
   - `linsolve`: Linear Solver Algorithm used to determine if we need a concrete jacobian
     or if possible we can just use a `JacobianOperator` instead.
 """
+
+# Val-dispatched helpers so the compiler resolves branches at the type level.
+# has_analytic_jac and needs_jac are kept as Val throughout to avoid Unions.
+
+_valnot(::Val{true}) = Val{false}()
+_valnot(::Val{false}) = Val{true}()
+
+# --- di_extras: prepare AD or return nothing ---
+# Only the (!has_analytic_jac, needs_jac) = (true, true) case does AD prep.
+function _prepare_jacobian_di_extras(
+        ::Val{false}, ::Val, autodiff, f, fu_cache, u, p, prob
+    )
+    return autodiff, f, nothing
+end
+function _prepare_jacobian_di_extras(
+        ::Val, ::Val{false}, autodiff, f, fu_cache, u, p, prob
+    )
+    return autodiff, f, nothing
+end
+function _prepare_jacobian_di_extras(
+        ::Val{false}, ::Val{false}, autodiff, f, fu_cache, u, p, prob
+    )
+    return autodiff, f, nothing
+end
+function _prepare_jacobian_di_extras(
+        ::Val{true}, ::Val{true}, autodiff, f, fu_cache, u, p, prob
+    )
+    if autodiff === nothing
+        throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
+specified and cannot be `nothing`. Use \
+`NonlinearSolveBase.select_jacobian_autodiff` for \
+automatic backend selection."))
+    end
+    autodiff = standardize_forwarddiff_tag(autodiff, prob)
+    autodiff = construct_concrete_adtype(f, autodiff)
+    if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
+        f = @set f.f = get_raw_f(f.f)
+    end
+    di_extras = if SciMLBase.isinplace(f)
+        DI.prepare_jacobian(
+            f, fu_cache, autodiff, u, Constant(p), strict = Val(false)
+        )
+    else
+        DI.prepare_jacobian(f, autodiff, u, Constant(p), strict = Val(false))
+    end
+    return autodiff, f, di_extras
+end
+
+# --- J: build initial Jacobian matrix or operator ---
+function _build_jacobian(
+        ::Val{false}, has_analytic_jac, f, fu, fu_cache, u, p, prob,
+        di_extras, autodiff, vjp_autodiff, jvp_autodiff, stats
+    )
+    _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
+    _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
+    _prob = if is_fw_wrapped(f.f) &&
+            (_uses_enzyme_ad(_jvp_ad) || _uses_enzyme_ad(_vjp_ad))
+        @set prob.f.f = get_raw_f(f.f)
+    else
+        prob
+    end
+    return JacobianOperator(
+        _prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad
+    )
+end
+function _build_jacobian(
+        ::Val{true}, has_analytic_jac, f, fu, fu_cache, u, p, prob,
+        di_extras, autodiff, vjp_autodiff, jvp_autodiff, stats
+    )
+    return if f.jac_prototype === nothing
+        stats.njacs += 1
+        _build_initial_jacobian(
+            has_analytic_jac, f, fu, fu_cache, u, p, di_extras, autodiff
+        )
+    else
+        if eltype(f.jac_prototype) <: Bool
+            Utils.safe_similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
+        else
+            Utils.safe_similar(f.jac_prototype)
+        end
+    end
+end
+
+function _build_initial_jacobian(
+        ::Val{true}, f, fu, fu_cache, u, p, di_extras, autodiff
+    )
+    return Utils.safe_similar(
+        fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)
+    )
+end
+function _build_initial_jacobian(
+        ::Val{false}, f, fu, fu_cache, u, p, di_extras, autodiff
+    )
+    if SciMLBase.isinplace(f)
+        return DI.jacobian(f, fu_cache, di_extras, autodiff, u, Constant(p))
+    else
+        return DI.jacobian(f, di_extras, autodiff, u, Constant(p))
+    end
+end
+
 function construct_jacobian_cache(
         prob, alg, f::NonlinearFunction, fu, u = prob.u0, p = prob.p; stats,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
     )
-    # Empty state vector (e.g. u0=nothing converted to Float64[]) — nothing to differentiate
     if length(u) == 0
         J = Utils.safe_similar(fu, promote_type(eltype(fu), eltype(u)), length(fu), 0)
         return JacobianCache(J, f, fu, p, stats, autodiff, nothing)
     end
 
-    has_analytic_jac = SciMLBase.has_jac(f)
+    has_analytic_jac = Val(SciMLBase.has_jac(f))
     linsolve_needs_jac = !concrete_jac(alg) && (
         linsolve === missing ||
             (linsolve === nothing || needs_concrete_A(linsolve))
     )
-    needs_jac = linsolve_needs_jac || concrete_jac(alg)
+    needs_jac = Val(linsolve_needs_jac || concrete_jac(alg))
 
     fu_cache = Utils.safe_similar(fu)
 
-    if !has_analytic_jac && needs_jac
-        if autodiff === nothing
-            throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
-                                 specified and cannot be `nothing`. Use \
-                                 `NonlinearSolveBase.select_jacobian_autodiff` for \
-                                 automatic backend selection."))
-        end
-        autodiff = standardize_forwarddiff_tag(autodiff, prob)
-        autodiff = construct_concrete_adtype(f, autodiff)
-        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
-        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
-        if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
-            f = @set f.f = get_raw_f(f.f)
-        end
-        di_extras = if SciMLBase.isinplace(f)
-            DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
-        else
-            DI.prepare_jacobian(f, autodiff, u, Constant(p), strict = Val(false))
-        end
-    else
-        di_extras = nothing
-    end
+    autodiff, f, di_extras = _prepare_jacobian_di_extras(
+        _valnot(has_analytic_jac), needs_jac, autodiff, f, fu_cache, u, p, prob
+    )
 
-    J = if !needs_jac
-        # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
-        _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
-        _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
-        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
-        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
-        _prob = if is_fw_wrapped(f.f) &&
-                (_uses_enzyme_ad(_jvp_ad) || _uses_enzyme_ad(_vjp_ad))
-            @set prob.f.f = get_raw_f(f.f)
-        else
-            prob
-        end
-        JacobianOperator(_prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
-    else
-        if f.jac_prototype === nothing
-            # While this is technically wasteful, it gives out the type of the Jacobian
-            # which is needed to create the linear solver cache
-            stats.njacs += 1
-            if has_analytic_jac
-                Utils.safe_similar(
-                    fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)
-                )
-            else
-                if SciMLBase.isinplace(f)
-                    DI.jacobian(f, fu_cache, di_extras, autodiff, u, Constant(p))
-                else
-                    DI.jacobian(f, di_extras, autodiff, u, Constant(p))
-                end
-            end
-        else
-            if eltype(f.jac_prototype) <: Bool
-                Utils.safe_similar(f.jac_prototype, promote_type(eltype(fu), eltype(u)))
-            else
-                Utils.safe_similar(f.jac_prototype)
-            end
-        end
-    end
+    J = _build_jacobian(
+        needs_jac, has_analytic_jac, f, fu, fu_cache, u, p, prob,
+        di_extras, autodiff, vjp_autodiff, jvp_autodiff, stats
+    )
 
     return JacobianCache(J, f, fu, p, stats, autodiff, di_extras)
 end
