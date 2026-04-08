@@ -15,8 +15,8 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
 
 [extensions]
 BracketingNonlinearSolveChainRulesCoreExt = ["ChainRulesCore", "ForwardDiff"]
@@ -33,7 +33,7 @@ InteractiveUtils = "<0.0.1, 1"
 NonlinearSolveBase = "2.1"
 PrecompileTools = "1.2"
 Reexport = "1.2.2"
-SciMLBase = "2.153"
+SciMLBase = "2.153, 3"
 Test = "1.10"
 TestItemRunner = "1"
 Zygote = "0.7"
