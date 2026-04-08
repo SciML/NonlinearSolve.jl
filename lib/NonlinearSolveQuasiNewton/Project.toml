@@ -1,7 +1,7 @@
 name = "NonlinearSolveQuasiNewton"
 uuid = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
-authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "1.13.0"
+authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
@@ -20,8 +20,8 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 [weakdeps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
 
 [extensions]
 NonlinearSolveQuasiNewtonForwardDiffExt = "ForwardDiff"
@@ -50,7 +50,7 @@ Pkg = "1.10"
 PrecompileTools = "1.2"
 ReTestItems = "1.24"
 Reexport = "1.2.2"
-SciMLBase = "2.153"
+SciMLBase = "2.153, 3"
 SciMLOperators = "1.7"
 StableRNGs = "1"
 StaticArrays = "1.9.8"
