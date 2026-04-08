@@ -1,7 +1,7 @@
 name = "NonlinearSolveFirstOrder"
 uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
-authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 version = "2.1.0"
+authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -22,9 +22,11 @@ SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
-SciMLJacobianOperators = {path = "../SciMLJacobianOperators"}
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
+
+[sources.SciMLJacobianOperators]
+path = "../SciMLJacobianOperators"
 
 [compat]
 ADTypes = "1.9.0"
@@ -53,7 +55,7 @@ PrecompileTools = "1.2"
 Random = "1.10"
 ReTestItems = "1.24"
 Reexport = "1.2.2"
-SciMLBase = "2.153"
+SciMLBase = "2.153, 3"
 SciMLJacobianOperators = "0.1.0"
 Setfield = "1.1.1"
 SparseArrays = "1.10"
