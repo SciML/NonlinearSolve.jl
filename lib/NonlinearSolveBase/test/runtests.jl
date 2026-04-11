@@ -54,4 +54,34 @@ using InteractiveUtils, Test
             @test_nowarn SciMLBase.reinit!(cache, du, u)
         end
     end
+
+    @testset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
+        # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
+        # any path where the user function was not wrapped via AutoSpecialize),
+        # `standardize_forwarddiff_tag` must return the AD backend unchanged
+        # and NOT substitute in a canonical `Tag{NonlinearSolveTag, Float64}`.
+        # Substituting the pre-baked canonical tag used to drag in ForwardDiff's
+        # precompile-time `@generated tagcount` literal for that exact type and
+        # `≺`-reverse against nested tags created later inside an inner ODE
+        # solve, which crashed `setindex!(du, ...)` in the user body with a
+        # `Float64(::nested_dual)` MethodError.
+        using NonlinearSolveBase, SciMLBase, ADTypes, ForwardDiff
+
+        # FullSpecialize nonlinear function with Vector{Float64} u0.
+        resid!(du, u, p) = (du .= u .- p; nothing)
+        f = NonlinearFunction{true, SciMLBase.FullSpecialize}(
+            resid!, resid_prototype = zeros(2)
+        )
+        prob = NonlinearLeastSquaresProblem(f, [1.0, 2.0])
+
+        ad = AutoForwardDiff()
+        out = NonlinearSolveBase.standardize_forwarddiff_tag(ad, prob)
+        @test out === ad
+
+        # AutoPolyesterForwardDiff path must also leave `ad` alone when the
+        # function is not wrapped.
+        adp = AutoPolyesterForwardDiff()
+        outp = NonlinearSolveBase.standardize_forwarddiff_tag(adp, prob)
+        @test outp === adp
+    end
 end
