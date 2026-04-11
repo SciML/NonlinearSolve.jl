@@ -102,11 +102,13 @@ end
 """
     standardize_forwarddiff_tag(ad, prob)
 
-If `ad` is an `AutoForwardDiff` with no custom tag and `prob` has `Vector{Float64}` state,
-stamp it with `NonlinearSolveTag` so that the dual numbers generated during Jacobian
-computation match the precompiled `FunctionWrappersWrapper` type signatures.
+If the user function was wrapped via AutoSpecialize (`FunctionWrappersWrapper`),
+stamp `ad` with `NonlinearSolveTag` so that the dual numbers generated during
+Jacobian computation match the precompiled wrapper type signatures.
 
-For all other AD backends or non-standard argument types, returns `ad` unchanged.
+For all other AD backends, or for problems whose function was not wrapped
+(FullSpecialize, OOP, or non-in-place), returns `ad` unchanged so
+DifferentiationInterface generates a runtime tag from the function type.
 
 The `AutoForwardDiff`-specific dispatch is provided by the ForwardDiff extension.
 """
@@ -117,17 +119,14 @@ standardize_forwarddiff_tag(ad, prob) = ad
 
 Attempt to wrap an in-place problem function with `FunctionWrappersWrapper` for the
 norecompile (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both
-the `FunctionWrappersWrapper` and the original function if the problem is IIP with
-`Vector{Float64}` state, otherwise returns the original function unchanged.
+the `FunctionWrappersWrapper` and the original function if the problem is IIP and
+has opted in to `AutoSpecialize`; otherwise returns the original function unchanged.
 
 OOP functions are not wrapped because guessing the return type is unreliable.
 """
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
     p = prob.p
-
-    # Only wrap for Vector{Float64} state
-    u0 isa Vector{Float64} || return prob.f.f
 
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f

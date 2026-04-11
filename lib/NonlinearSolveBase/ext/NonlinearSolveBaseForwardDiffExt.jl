@@ -30,36 +30,37 @@ dualgen(::Type{T}) where {T} = ForwardDiff.Dual{
     ForwardDiff.Tag{NonlinearSolveTag, T}, T, 1,
 }
 
-# Helper: build the canonical AutoForwardDiff for wrapped functions (chunksize=1 + tag).
-function _wrapped_forwarddiff_ad()
-    tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
+# Helper: build the canonical AutoForwardDiff for wrapped functions
+# (chunksize=1 + NonlinearSolveTag). The tag's `V` parameter takes the
+# actual problem eltype rather than being hardcoded to `Float64`, so the
+# stamped AD backend properly reflects the user's problem type.
+function _wrapped_forwarddiff_ad(::Type{T}) where {T}
+    tag = ForwardDiff.Tag(NonlinearSolveTag(), T)
     return AutoForwardDiff{1, typeof(tag)}(tag)
 end
 
-# Stamp AutoForwardDiff with NonlinearSolveTag so duals match FunctionWrapper signatures.
-# When the function has been wrapped via AutoSpecialize, also force chunksize=1 to match
-# the precompiled N=1 dual type in the wrappers.
+# Stamp AutoForwardDiff with NonlinearSolveTag so duals match the wrapped
+# `FunctionWrappersWrapper` signatures. Only stamps when the user function was
+# actually wrapped via AutoSpecialize — otherwise leaves `ad` untouched so
+# DifferentiationInterface generates a fresh runtime tag from the function type.
+# Substituting the canonical tag in the non-wrapped path would otherwise drag in
+# a precompile-time `@generated tagcount` literal that can `≺`-reverse against
+# tags created later for nested ForwardDiff over an inner solve.
 function standardize_forwarddiff_tag(
         ad::AutoForwardDiff{CS, Nothing}, prob::AbstractNonlinearProblem
     ) where {CS}
-    prob.u0 isa Vector{Float64} || return ad
-    if is_fw_wrapped(prob.f.f)
-        return _wrapped_forwarddiff_ad()
-    end
-    tag = ForwardDiff.Tag(NonlinearSolveTag(), Float64)
-    return AutoForwardDiff{CS, typeof(tag)}(tag)
+    is_fw_wrapped(prob.f.f) || return ad
+    return _wrapped_forwarddiff_ad(eltype(prob.u0))
 end
 
-# AutoPolyesterForwardDiff doesn't support custom tags. When the function is wrapped,
-# replace it with AutoForwardDiff (chunksize=1, NonlinearSolveTag) so duals match wrappers.
+# AutoPolyesterForwardDiff doesn't support custom tags. When the function is
+# wrapped, replace it with AutoForwardDiff (chunksize=1, NonlinearSolveTag) so
+# duals match wrappers. Otherwise leave it alone.
 function standardize_forwarddiff_tag(
         ad::AutoPolyesterForwardDiff, prob::AbstractNonlinearProblem
     )
-    prob.u0 isa Vector{Float64} || return ad
-    if is_fw_wrapped(prob.f.f)
-        return _wrapped_forwarddiff_ad()
-    end
-    return ad
+    is_fw_wrapped(prob.f.f) || return ad
+    return _wrapped_forwarddiff_ad(eltype(prob.u0))
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
