@@ -119,8 +119,9 @@ standardize_forwarddiff_tag(ad, prob) = ad
 
 Attempt to wrap an in-place problem function with `FunctionWrappersWrapper` for the
 norecompile (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both
-the `FunctionWrappersWrapper` and the original function if the problem is IIP and
-has opted in to `AutoSpecialize`; otherwise returns the original function unchanged.
+the `FunctionWrappersWrapper` and the original function if the problem is IIP with
+`Vector{Float64}` state and has opted in to `AutoSpecialize`; otherwise returns the
+original function unchanged.
 
 OOP functions are not wrapped because guessing the return type is unreliable.
 """
@@ -130,6 +131,18 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
 
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f
+
+    # Only wrap for Vector{Float64} state. The FunctionWrappersWrapper signatures
+    # built by `wrapfun_iip` are keyed off `eltype(u0)`, and `nonlinearsolve_forwarddiff_solve`
+    # calls `remake(prob; u0=Utils.value(u0), p=Utils.value(p))` to build a Float64 inner
+    # problem that reuses the already-wrapped `f.f`. If the outer u0 was promoted to a Dual
+    # eltype (e.g. by `promote_u0` in `get_concrete_problem` when `p` carries outer-AD
+    # duals), the stored wrapper would have Dual-eltype signatures and the inner Float64
+    # solve would fail with "No matching function wrapper" when the Jacobian cache calls
+    # `f(du::Vector{Float64}, u::Vector{Float64}, p::Vector{Float64})`. Restricting
+    # wrapping to Vector{Float64} keeps the wrapper signatures aligned with the inner
+    # solve and with the precompiled FWW specializations.
+    u0 isa Vector{Float64} || return prob.f.f
 
     # Only wrap IIP functions. OOP wrapping requires guessing the return type,
     # which doesn't always work (see DiffEqBase for precedent).
