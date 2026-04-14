@@ -64,12 +64,16 @@ function standardize_forwarddiff_tag(
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
+# Works for any `AbstractArray` state; the Dual-eltype array type `VdT` is
+# derived from `similar(u0, dT)` so the signatures follow the user's concrete
+# array kind (plain `Vector{Float64}` → `Vector{Dual}`, `Array{Float64, 3}` →
+# `Array{Dual, 3}`, etc.).
 @inline function wrapfun_iip(
         ff, inputs::Tuple{T1, T2, T3}
-    ) where {T1 <: AbstractVector, T2 <: AbstractVector, T3}
+    ) where {T1 <: AbstractArray, T2 <: AbstractArray, T3}
     T = eltype(T1)
     dT = dualgen(T)
-    VdT = Vector{dT}
+    VdT = typeof(similar(inputs[1], dT))
     iip_arglists = (
         Tuple{T1, T2, T3},
         Tuple{VdT, VdT, T3},
@@ -121,6 +125,15 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
         newprob = IntervalNonlinearProblem(prob.f, tspan, p; prob.kwargs...)
     else
         newprob = remake(prob; p, u0 = Utils.value(prob.u0))
+        # `remake` reuses `prob.f.f`. If `get_concrete_problem` had wrapped the
+        # outer prob under a Dual u0 eltype (via `promote_u0`), the stored
+        # `FunctionWrappersWrapper` signatures are keyed off that Dual eltype
+        # and would miss the inner Float64 solve's `f(du, u, p)` dispatch.
+        # Unwrap here so the inner solve's `maybe_wrap_f` rebuilds a wrapper
+        # aligned with the value-typed `u0`/`p`.
+        if is_fw_wrapped(newprob.f.f)
+            newprob = @set newprob.f.f = NonlinearSolveBase.get_raw_f(newprob.f.f)
+        end
     end
 
     sol = solve(newprob, alg, args...; kwargs...)
@@ -232,6 +245,12 @@ for algType in GENERAL_SOLVER_TYPES
         )
         p = NonlinearSolveBase.nodual_value(prob.p)
         newprob = SciMLBase.remake(prob; u0 = NonlinearSolveBase.nodual_value(prob.u0), p)
+        # See comment in `nonlinearsolve_forwarddiff_solve`: the outer FWW's
+        # signatures were built under a Dual u0 eltype and would miss the
+        # inner value-typed solve. Unwrap and let the inner init rebuild.
+        if is_fw_wrapped(newprob.f.f)
+            newprob = @set newprob.f.f = NonlinearSolveBase.get_raw_f(newprob.f.f)
+        end
         cache = init(newprob, alg, args...; kwargs...)
         return NonlinearSolveForwardDiffCache(
             cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p)

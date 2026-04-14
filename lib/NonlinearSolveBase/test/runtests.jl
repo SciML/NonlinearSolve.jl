@@ -85,48 +85,46 @@ using InteractiveUtils, Test
         @test outp === adp
     end
 
-    @testset "maybe_wrap_nonlinear_f gates wrapping by Vector{Float64} u0" begin
-        # Regression: `maybe_wrap_nonlinear_f` builds a `FunctionWrappersWrapper`
-        # whose signatures are derived from `eltype(u0)`. `nonlinearsolve_forwarddiff_solve`
-        # then calls `remake(prob; u0 = Utils.value(u0), p = Utils.value(p))` to build a
-        # Float64 inner problem, but `remake` reuses the already-wrapped `f.f`. If the
-        # outer u0 was promoted to a Dual eltype by `promote_u0` in `get_concrete_problem`
-        # (e.g. when `p` carries outer-AD duals from `ForwardDiff.gradient` over an NLLS),
-        # the wrapper would carry Dual-eltype signatures and the inner Float64 Jacobian
-        # call `f(du::Vector{Float64}, u::Vector{Float64}, p::Vector{Float64})` would
-        # crash with "No matching function wrapper was found!" inside FWW dispatch.
-        # The same issue affects non-Vector u0 (e.g. `Array{Float64,3}` for a 2D
-        # Brusselator), where the FWW would lock to `Array{Float64,3}` signatures and
-        # later fail when called with `Array{Dual,3}` during AD-driven Jacobian setup.
+    @testset "maybe_wrap_nonlinear_f wraps IIP array problems regardless of eltype" begin
+        # Regression: wrapping must not be gated on `Vector{Float64}`. The
+        # `ForwardDiff`-aware `wrapfun_iip` builds Dual-eltype signatures over
+        # `similar(u0, ::DualT)`, so it works for any `AbstractArray` state —
+        # including Dual-eltype u0 (e.g. `Vector{Dual}` after `promote_u0`
+        # promotes an outer-AD nested-ForwardDiff NLLS problem) and
+        # multi-dimensional arrays (e.g. `Array{Float64, 3}` for a Brusselator
+        # 2D residual). Gating on `Vector{Float64}` was unnecessary and was
+        # removed together with its sibling gate in `standardize_forwarddiff_tag`.
         using NonlinearSolveBase, SciMLBase, ForwardDiff
 
-        resid!(du, u, p) = (du .= u .- p; nothing)
+        resid!(du, u, p) = (du .= vec(u) .- (p isa Tuple ? collect(p)[1:length(u)] : p); nothing)
         f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
             resid!, resid_prototype = zeros(2)
         )
 
-        # Vector{Float64} u0 — should wrap.
+        # Vector{Float64} u0 — wraps.
         prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-        wrapped_f64 = NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
-        @test NonlinearSolveBase.is_fw_wrapped(wrapped_f64)
+        @test NonlinearSolveBase.is_fw_wrapped(
+            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
+        )
 
-        # Vector{Dual} u0 — must NOT wrap (would lock signatures to Dual eltype).
+        # Vector{Dual} u0 — also wraps (ForwardDiff ext `wrapfun_iip` builds
+        # a nested-Dual signature from `similar(u0, dualgen(eltype(u0)))`).
         DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
         u0_dual = DualF[DualF(1.0), DualF(2.0)]
         p_dual = DualF[DualF(0.5), DualF(0.25)]
         prob_dual = NonlinearProblem(f, u0_dual, p_dual)
-        @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual) === f.f
-        @test !NonlinearSolveBase.is_fw_wrapped(
+        @test NonlinearSolveBase.is_fw_wrapped(
             NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual)
         )
 
-        # Array{Float64,3} u0 (Brusselator-style) — must NOT wrap (default
-        # `wrapfun_iip` would freeze a single Array3D signature that fails
-        # the inner ForwardDiff Jacobian call).
+        # Array{Float64, 3} u0 — wraps (VdT derived via `similar` respects
+        # the user's concrete array kind and ndims).
         f3 = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
         u3d = zeros(2, 2, 2)
-        p_tup = (1.0, 2.0, 3.0, 4.0)
+        p_tup = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
         prob_3d = NonlinearProblem(f3, u3d, p_tup)
-        @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d) === f3.f
+        @test NonlinearSolveBase.is_fw_wrapped(
+            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d)
+        )
     end
 end
