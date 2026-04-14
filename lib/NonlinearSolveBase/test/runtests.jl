@@ -85,18 +85,21 @@ using InteractiveUtils, Test
         @test outp === adp
     end
 
-    @testset "maybe_wrap_nonlinear_f wraps IIP array problems regardless of eltype" begin
-        # Regression: wrapping must not be gated on `Vector{Float64}`. The
-        # `ForwardDiff`-aware `wrapfun_iip` builds Dual-eltype signatures over
-        # `similar(u0, ::DualT)`, so it works for any `AbstractArray` state —
-        # including Dual-eltype u0 (e.g. `Vector{Dual}` after `promote_u0`
-        # promotes an outer-AD nested-ForwardDiff NLLS problem) and
-        # multi-dimensional arrays (e.g. `Array{Float64, 3}` for a Brusselator
-        # 2D residual). Gating on `Vector{Float64}` was unnecessary and was
-        # removed together with its sibling gate in `standardize_forwarddiff_tag`.
+    @testset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
+        # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
+        # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works
+        # for any `AbstractArray` state with a non-dual eltype — `Vector{Float64}`,
+        # `Array{Float64, 3}` (Brusselator 2D residual), etc. It must NOT wrap
+        # when `u0` already carries a `Dual` eltype (which happens whenever
+        # `promote_u0` upgrades `u0` against outer-AD Dual parameters, e.g. a
+        # nested-ForwardDiff NLLS over the `#445` Hessian case or a
+        # `ForwardDiff.derivative(solve, p)` pass with Dual `p`). If wrapping
+        # fired in that case, the stored signatures would be keyed off the
+        # outer Dual tag and miss the value-typed inner dispatch produced by
+        # the forward-diff extension.
         using NonlinearSolveBase, SciMLBase, ForwardDiff
 
-        resid!(du, u, p) = (du .= vec(u) .- (p isa Tuple ? collect(p)[1:length(u)] : p); nothing)
+        resid!(du, u, p) = (du .= vec(u); nothing)
         f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
             resid!, resid_prototype = zeros(2)
         )
@@ -107,18 +110,18 @@ using InteractiveUtils, Test
             NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
         )
 
-        # Vector{Dual} u0 — also wraps (ForwardDiff ext `wrapfun_iip` builds
-        # a nested-Dual signature from `similar(u0, dualgen(eltype(u0)))`).
+        # Vector{Dual} u0 — must NOT wrap.
         DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
         u0_dual = DualF[DualF(1.0), DualF(2.0)]
         p_dual = DualF[DualF(0.5), DualF(0.25)]
         prob_dual = NonlinearProblem(f, u0_dual, p_dual)
-        @test NonlinearSolveBase.is_fw_wrapped(
+        @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual) === f.f
+        @test !NonlinearSolveBase.is_fw_wrapped(
             NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual)
         )
 
-        # Array{Float64, 3} u0 — wraps (VdT derived via `similar` respects
-        # the user's concrete array kind and ndims).
+        # Array{Float64, 3} u0 — wraps (VdT derived via `similar` respects the
+        # user's concrete array kind and ndims).
         f3 = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
         u3d = zeros(2, 2, 2)
         p_tup = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)

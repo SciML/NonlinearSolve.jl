@@ -120,13 +120,16 @@ standardize_forwarddiff_tag(ad, prob) = ad
 Attempt to wrap an in-place problem function with `FunctionWrappersWrapper` for the
 norecompile (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both
 the `FunctionWrappersWrapper` and the original function if the problem is IIP with
-array-typed state and has opted in to `AutoSpecialize`; otherwise returns the original
-function unchanged.
+array-typed state, non-dual eltype, and has opted in to `AutoSpecialize`; otherwise
+returns the original function unchanged.
 
 OOP functions are not wrapped because guessing the return type is unreliable.
-Non-array state (e.g. scalar `Number` u0) is not wrapped because FWW dispatches on
-the concrete argument types of the stored signatures, and the Dual-aware signatures
-built by `wrapfun_iip` are only meaningful for array state.
+Non-array state (e.g. scalar `Number` u0) is not wrapped because the Dual-aware
+`wrapfun_iip` signatures only cover array state. Dual-eltype state is not wrapped
+because `promote_u0` upgrades `u0` to a `Dual`-eltype array whenever the user's
+outer-AD pass injected duals into `p`; in that case the wrapper's signatures would
+be keyed off the outer Dual tag and miss the inner value-typed dispatch that the
+forward-diff extension builds via `Utils.value` / `nodual_value`.
 """
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
@@ -142,6 +145,13 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # Only wrap array-typed state. The ForwardDiff-aware `wrapfun_iip` dispatches
     # on `AbstractArray` state and builds signatures over `similar(u0, ::DualT)`.
     u0 isa AbstractArray || return prob.f.f
+
+    # Skip wrapping when `u0` already carries a Dual eltype — `promote_u0` does
+    # this whenever outer-AD injected duals into `p`. The wrapper's signatures
+    # would then be keyed off the outer Dual tag and miss the inner value-typed
+    # dispatch that the forward-diff extension builds via `Utils.value` /
+    # `nodual_value`.
+    SciMLBase.isdualtype(eltype(u0)) && return prob.f.f
 
     # Only wrap when AutoSpecialize is active (the default).
     # FullSpecialize opts out of wrapping, keeping the exact function type.
