@@ -156,7 +156,7 @@ end
             # default, so `HC.results(; only_real = true)` can surface a
             # varying number of near-real complex roots across runs, which
             # made `length(_sol) == 1` flaky in CI.
-            _sol = solve(_prob, _alg; seed = 0x12345)
+            _sol = solve(_prob, _alg; seed = 0x00012345)
             @test !_sol.converged
             # The meaningful invariant is that every returned `NonlinearSolution`
             # reports a non-success retcode — not the exact ensemble length,
