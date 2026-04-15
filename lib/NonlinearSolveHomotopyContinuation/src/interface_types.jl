@@ -1,5 +1,7 @@
 abstract type HomotopySystemVariant end
 
+# Marker types for the in-place / out-of-place / scalar dispatch on
+# `HomotopySystemWrapper`.
 struct Inplace <: HomotopySystemVariant end
 struct OutOfPlace <: HomotopySystemVariant end
 struct Scalar <: HomotopySystemVariant end
