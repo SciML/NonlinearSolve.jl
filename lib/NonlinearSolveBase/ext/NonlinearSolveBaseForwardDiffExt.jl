@@ -64,16 +64,16 @@ function standardize_forwarddiff_tag(
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
-# Works for any `AbstractArray` state; the Dual-eltype array type `VdT` is
-# derived from `similar(u0, dT)` so the signatures follow the user's concrete
-# array kind (plain `Vector{Float64}` → `Vector{Dual}`, `Array{Float64, 3}` →
-# `Array{Dual, 3}`, etc.).
+# Works for any `AbstractArray` state; `ArrayInterface.promote_eltype` produces
+# the Dual-eltype array type at the type level (no allocation) so signatures
+# follow the user's concrete array kind (plain `Vector{Float64}` →
+# `Vector{Dual}`, `Array{Float64, 3}` → `Array{Dual, 3}`, etc.).
 @inline function wrapfun_iip(
         ff, inputs::Tuple{T1, T2, T3}
     ) where {T1 <: AbstractArray, T2 <: AbstractArray, T3}
     T = eltype(T1)
     dT = dualgen(T)
-    VdT = typeof(similar(inputs[1], dT))
+    VdT = ArrayInterface.promote_eltype(T1, dT)
     iip_arglists = (
         Tuple{T1, T2, T3},
         Tuple{VdT, VdT, T3},
