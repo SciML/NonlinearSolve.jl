@@ -36,6 +36,8 @@ jobs:
           - alloc_check
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
       project: "lib/SimpleNonlinearSolve"
@@ -55,6 +57,8 @@ jobs:
           - alloc_check
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: "1.11"
       project: "lib/SimpleNonlinearSolve"
       downgrade_testing: true
