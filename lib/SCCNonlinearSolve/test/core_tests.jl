@@ -60,36 +60,42 @@ end
     sol3 = solve(prob3)  # LinearProblem uses default linear solver
     manualscc = reduce(vcat, (sol1, sol2, sol3))
 
-    sccprob = SciMLBase.SCCNonlinearProblem(
+    sccprob1 = SciMLBase.SCCNonlinearProblem(
         (prob1, prob2, prob3),
+        SciMLBase.Void{Any}.([explicitfun1, explicitfun2, explicitfun3])
+    )
+    sccprob2 = SciMLBase.SCCNonlinearProblem(
+        [prob1, prob2, prob3],
         SciMLBase.Void{Any}.([explicitfun1, explicitfun2, explicitfun3])
     )
 
     # Test with SCCAlg that handles both nonlinear and linear problems
     using SCCNonlinearSolve
     scc_alg = SCCNonlinearSolve.SCCAlg(nlalg = NewtonRaphson(), linalg = nothing)
-    scc_sol = solve(sccprob, scc_alg)
-    @test sol ≈ manualscc ≈ scc_sol
-    @test scc_sol.original === nothing  # default: store_original = Val(false)
+    @testset "$type" for (type, sccprob) in [("tuple-form", sccprob1), ("array-form", sccprob2)]
+        scc_sol = solve(sccprob, scc_alg)
+        @test sol ≈ manualscc ≈ scc_sol
+        @test scc_sol.original === nothing  # default: store_original = Val(false)
 
-    # Test store_original = Val(true) for debugging
-    scc_alg_debug = SCCNonlinearSolve.SCCAlg(
-        nlalg = NewtonRaphson(), linalg = nothing, store_original = Val(true),
-    )
-    scc_sol_debug = solve(sccprob, scc_alg_debug)
-    @test sol ≈ manualscc ≈ scc_sol_debug
-    @test scc_sol_debug.original !== nothing
-    @test length(scc_sol_debug.original) == 3  # 3 sub-problems
+        # Test store_original = Val(true) for debugging
+        scc_alg_debug = SCCNonlinearSolve.SCCAlg(
+            nlalg = NewtonRaphson(), linalg = nothing, store_original = Val(true),
+        )
+        scc_sol_debug = solve(sccprob, scc_alg_debug)
+        @test sol ≈ manualscc ≈ scc_sol_debug
+        @test scc_sol_debug.original !== nothing
+        @test length(scc_sol_debug.original) == 3  # 3 sub-problems
 
-    # Backwards compat of alg choice
-    scc_sol = solve(sccprob, NewtonRaphson())
-    @test sol ≈ manualscc ≈ scc_sol
+        # Backwards compat of alg choice
+        scc_sol = solve(sccprob, NewtonRaphson())
+        @test sol ≈ manualscc ≈ scc_sol
 
-    import NonlinearSolve # Required for Default
+        import NonlinearSolve # Required for Default
 
-    # Test default interface
-    scc_sol_default = solve(sccprob)
-    @test sol ≈ manualscc ≈ scc_sol_default
+        # Test default interface
+        scc_sol_default = solve(sccprob)
+        @test sol ≈ manualscc ≈ scc_sol_default
+    end
 end
 
 @testitem "SCCNonlinearProblem solve without explicit u0 (issue #758)" setup = [CoreRootfindTesting] tags = [:core] begin
