@@ -87,8 +87,9 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; kwargs...)
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
-        SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode
+        nlprob = NonlinearProblem{true}(Returns(nothing), sol.u, prob.p)
+        SciMLBase.strip_solution(
+            SciMLBase.build_solution(nlprob, nothing, sol.u, resid, retcode = sol.retcode)
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
@@ -116,7 +117,7 @@ function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::Abstra
     }
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
-        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)
+        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
     end
     return sols
 end
