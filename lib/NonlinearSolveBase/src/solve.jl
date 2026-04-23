@@ -65,6 +65,13 @@ function solve(
         end
     elseif verbose isa AbstractVerbosityPreset
         verbose = NonlinearVerbosity(verbose)
+    elseif verbose === nothing
+        # Wrapping `solve`s that forward a caller's `verbose` kwarg without
+        # owning the default (e.g. DiffEqBase → NonlinearSolve bridges) may
+        # pass `nothing` to mean "use the default". Treat it as such rather
+        # than letting `nothing` leak into downstream `verbose.field` accesses
+        # and fail with `getfield(::Nothing, …)`.
+        verbose = NonlinearVerbosity()
     end
 
     alias_spec = if haskey(kwargs, :alias) && kwargs[:alias] isa NonlinearAliasSpecifier
@@ -225,6 +232,13 @@ function init(
         end
     elseif verbose isa AbstractVerbosityPreset
         verbose = NonlinearVerbosity(verbose)
+    elseif verbose === nothing
+        # Wrapping `solve`s that forward a caller's `verbose` kwarg without
+        # owning the default (e.g. DiffEqBase → NonlinearSolve bridges) may
+        # pass `nothing` to mean "use the default". Treat it as such rather
+        # than letting `nothing` leak into downstream `verbose.field` accesses
+        # and fail with `getfield(::Nothing, …)`.
+        verbose = NonlinearVerbosity()
     end
 
     u0 = u0 !== nothing ? u0 : prob.u0
