@@ -49,7 +49,7 @@ include("utils.jl")
 include("broyden.jl")
 include("dfsane.jl")
 include("halley.jl")
-include("householder.jl")
+include("higher_order.jl")
 include("klement.jl")
 include("lbroyden.jl")
 include("raphson.jl")
@@ -166,7 +166,7 @@ end
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
-export SimpleHalley, SimpleHouseholder
+export SimpleHalley, SimpleHouseholder, SimpleInverseTaylor
 
 export solve
 

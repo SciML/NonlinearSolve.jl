@@ -150,6 +150,40 @@ end
     end
 end
 
+@testitem "Higher Order Methods" setup = [RootfindTestSnippet] tags = [:core] begin
+    using TaylorDiff
+    @testset for alg in (
+            SimpleHouseholder{2},
+            SimpleHouseholder{3},
+        )
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in (
+                [1.0], @SVector[1.0], 1.0,
+            )
+            broken_inferred = false
+            sol = run_nlsolve_oop(
+                quadratic_f, u0; solver = alg(),
+                broken_inferred
+            )
+            @test SciMLBase.successful_retcode(sol)
+            @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1.0e-9
+        end
+    end
+
+    @testset for alg in (SimpleInverseTaylor, ), order in (Val(2), Val(3), Val(4))
+        @testset "[OOP] u0: $(typeof(u0))" for u0 in (
+                [1.0, 1.0], 1.0,
+            )
+            broken_inferred = u0 isa Number && order != Val(2)
+            sol = run_nlsolve_oop(
+                quadratic_f, u0; solver = alg(; order, autodiff = AutoForwardDiff()),
+                broken_inferred
+            )
+            @test SciMLBase.successful_retcode(sol)
+            @test maximum(abs, quadratic_f(sol.u, 2.0)) < 1.0e-9
+        end
+    end
+end
+
 @testitem "Derivative Free Methods" setup = [RootfindTestSnippet] tags = [:core] begin
     @testset "$(nameof(typeof(alg)))" for alg in (
             SimpleBroyden(),

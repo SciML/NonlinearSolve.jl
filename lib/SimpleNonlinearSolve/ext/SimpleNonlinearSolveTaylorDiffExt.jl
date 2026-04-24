@@ -1,7 +1,7 @@
 module SimpleNonlinearSolveTaylorDiffExt
-using SimpleNonlinearSolve: SimpleNonlinearSolve, SimpleHouseholder, Utils
+using SimpleNonlinearSolve: SimpleNonlinearSolve, SimpleHouseholder, SimpleInverseTaylor, Utils
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem,
-                          AbstractNonlinearSolveAlgorithm
+    AbstractNonlinearSolveAlgorithm
 using MaybeInplace: @bb
 using FastClosures: @closure
 import SciMLBase
@@ -11,14 +11,15 @@ SimpleNonlinearSolve.is_extension_loaded(::Val{:TaylorDiff}) = true
 
 const NLBUtils = NonlinearSolveBase.Utils
 
-@inline function __get_higher_order_derivatives(
-        ::SimpleHouseholder{N}, prob, x, fx) where {N}
-    vN = Val(N)
+@inline function __get_value_and_householder_quotient(
+        ::SimpleHouseholder{P}, prob, x, fx
+    ) where {P}
+    vP = Val(P)
     l = map(one, x)
-    t = TaylorDiff.make_seed(x, l, vN)
+    t = TaylorDiff.make_seed(x, l, vP)
 
     if SciMLBase.isinplace(prob)
-        bundle = similar(fx, TaylorDiff.TaylorScalar{eltype(fx), N})
+        bundle = similar(fx, TaylorDiff.TaylorScalar{eltype(fx), P})
         prob.f(bundle, t, prob.p)
         map!(TaylorDiff.value, fx, bundle)
     else
@@ -26,15 +27,16 @@ const NLBUtils = NonlinearSolveBase.Utils
         fx = map(TaylorDiff.value, bundle)
     end
     invbundle = inv.(bundle)
-    num = N == 1 ? map(TaylorDiff.value, invbundle) :
-          TaylorDiff.extract_derivative(invbundle, Val(N - 1))
-    den = TaylorDiff.extract_derivative(invbundle, vN)
+    num = TaylorDiff.get_coefficient(invbundle, P - 1)
+    den = TaylorDiff.get_coefficient(invbundle, P)
     return num, den, fx
 end
 
-function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHouseholder{N},
+function SciMLBase.__solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleHouseholder{P},
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
-        termination_condition = nothing, alias_u0 = false, kwargs...) where {N}
+        termination_condition = nothing, alias_u0 = false, kwargs...
+    ) where {P}
     length(prob.u0) == 1 ||
         throw(ArgumentError("SimpleHouseholder only supports scalar problems"))
     x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
@@ -44,14 +46,15 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHousehold
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
     abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
-        prob, abstol, reltol, fx, x, termination_condition, Val(:simple))
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
 
     @bb xo = similar(x)
 
     for i in 1:maxiters
         @bb copyto!(xo, x)
-        num, den, fx = __get_higher_order_derivatives(alg, prob, x, fx)
-        @bb x .+= N .* num ./ den
+        num, den, fx = __get_value_and_householder_quotient(alg, prob, x, fx)
+        @bb x .+= num ./ den
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
         solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
     end
@@ -59,8 +62,55 @@ function SciMLBase.__solve(prob::ImmutableNonlinearProblem, alg::SimpleHousehold
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
 
-function SimpleNonlinearSolve.evaluate_hvvp_internal(
-        hvvp, prob::ImmutableNonlinearProblem, u, a)
+function SciMLBase.__solve(
+        prob::ImmutableNonlinearProblem, alg::SimpleInverseTaylor,
+        args...; abstol = nothing, reltol = nothing, maxiters = 1000,
+        termination_condition = nothing, alias_u0 = false, kwargs...
+    )
+    autodiff = alg.autodiff
+    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    fx = NLBUtils.evaluate_f(prob, x)
+
+    iszero(fx) &&
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+
+    abstol, reltol, tc_cache = NonlinearSolveBase.init_termination_cache(
+        prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
+    )
+
+    @bb xo = similar(x)
+    fx_cache = Utils.should_cache_fx(prob, prob.f) ?
+        NLBUtils.safe_similar(fx) : fx
+    jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
+    J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
+
+    for _ in 1:maxiters
+        @bb copyto!(xo, x)
+        δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
+        @bb x .-= δx
+
+        seed = TaylorDiff.make_seed(xo, -δx, Val(2))
+        for i in 2:NLBUtils.unwrap_val(alg.order)
+            r = TaylorDiff.get_coefficient(prob.f(seed, prob.p), i)
+            gi = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(-r))
+            @bb x .+= gi
+            seed = TaylorDiff.set_coefficient(seed, i, gi)
+            seed = TaylorDiff.append_coefficient(seed, zero(x))
+        end
+
+        solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
+        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
+        J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+    end
+
+    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+end
+
+function taylor_hvvp(
+        hvvp, prob::ImmutableNonlinearProblem, u, a
+    )
     if SciMLBase.isinplace(prob)
         binary_f = @closure (y, x) -> prob.f(y, x, prob.p)
         TaylorDiff.derivative!(hvvp, binary_f, cache.fu, u, a, Val(2))
@@ -68,7 +118,7 @@ function SimpleNonlinearSolve.evaluate_hvvp_internal(
         unary_f = Base.Fix2(prob.f, prob.p)
         hvvp = TaylorDiff.derivative(unary_f, u, a, Val(2))
     end
-    hvvp
+    return hvvp
 end
 
 end
