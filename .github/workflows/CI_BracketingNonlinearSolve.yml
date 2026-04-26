@@ -31,6 +31,8 @@ jobs:
           - macos-latest
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
       project: "lib/BracketingNonlinearSolve"
@@ -42,6 +44,8 @@ jobs:
     if: false
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: "1.11"
       project: "lib/BracketingNonlinearSolve"
       downgrade_testing: true
