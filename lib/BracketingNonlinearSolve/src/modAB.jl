@@ -9,6 +9,12 @@ function, with a convergence rate between 1.7 and 1.8.
 This method was introduced in the paper "Modified Anderson-Bjork’s method for solving non-linear equations 
 in structural mechanics" (https://doi.org/10.1088/1757-899X/1276/1/012010) by
 N Ganchovski and A Traykov.
+
+This implementation includes the latest improvements made in 2026 by the following paper:
+Ganchovski, N.; Smith, O.; Rackauckas, C.; Tomov, L.; Traykov, A. 
+Improvements to the Modified Anderson–Björck (modAB) Root-Finding Algorithm. Algorithms 2026, 19, 332. 
+(https://doi.org/10.3390/a19050332)
+
 """
 struct ModAB <: AbstractBracketingAlgorithm
 end
