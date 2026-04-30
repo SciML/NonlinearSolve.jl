@@ -65,7 +65,7 @@ verbose = NonlinearVerbosity(
 NonlinearVerbosity
 
 @verbosity_specifier NonlinearVerbosity begin
-    specifiers = (:linear_verbosity,)
+    sub_specifiers = (:linear_verbosity,)
     toggles = (
         :non_enclosing_interval, :alias_u0_immutable,
         :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing,
