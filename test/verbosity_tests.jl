@@ -231,7 +231,7 @@
 
     @testset "NonlinearVerbosity with keyword message levels (issue #796)" begin
         # Regression test: constructing NonlinearVerbosity with keyword arguments
-        # that are AbstractMessageLevel subtypes should not throw UndefVarError
+        # that are MessageLevel subtypes should not throw UndefVarError
         verb = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel())
         @test verb.non_enclosing_interval isa SciMLLogging.ErrorLevel
 
