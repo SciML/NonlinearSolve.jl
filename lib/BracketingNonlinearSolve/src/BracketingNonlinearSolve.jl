@@ -51,7 +51,7 @@ end
         prob_brack = IntervalNonlinearProblem{false}(
             (u, p) -> u^2 - p, T.((0.0, 2.0)), T(2)
         )
-        algs = (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder(), ModAB())
+        algs = (ModAB())
 
         @compile_workload begin
             @sync for alg in algs
