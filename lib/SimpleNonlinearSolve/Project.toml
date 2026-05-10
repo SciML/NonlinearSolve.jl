@@ -1,7 +1,7 @@
 name = "SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 authors = ["SciML"]
-version = "2.11.1"
+version = "2.11.2"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -47,7 +47,7 @@ BracketingNonlinearSolve = "1.6"
 ChainRulesCore = "1.24"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
-DifferentiationInterface = "0.7.3"
+DifferentiationInterface = "0.7.3 - 0.7.16"
 Enzyme = "0.13.11"
 ExplicitImports = "1.9"
 FastClosures = "0.3.2"

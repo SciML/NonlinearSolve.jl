@@ -1,6 +1,6 @@
 name = "SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
-version = "0.1.13"
+version = "0.1.14"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -20,7 +20,7 @@ Aqua = "0.8.7"
 ArrayInterface = "7.16"
 ConcreteStructs = "0.2.3"
 ConstructionBase = "1.5"
-DifferentiationInterface = "0.7.3"
+DifferentiationInterface = "0.7.3 - 0.7.16"
 Enzyme = "0.13.11"
 ExplicitImports = "1.9.0"
 FastClosures = "0.3.2"
