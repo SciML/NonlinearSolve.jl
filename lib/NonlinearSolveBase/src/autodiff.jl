@@ -176,60 +176,52 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
         # FunctionWrapper type mismatches with nested duals
         raw_f = get_raw_f(prob.f.f)
 
-        # When using ForwardDiff for the inner pullback, materialize the
-        # Jacobian and form `2 * J' * resid` directly. DI's pullback-via-
-        # pushforward emulation uses an output buffer keyed off `eltype(u)`,
-        # which fails when this closure is itself called under an outer
-        # ForwardDiff layer (e.g. `ForwardDiff.gradient(p -> sum(abs2,
-        # solve(NLLS(...; p)).u), p)`): the captured outer-Dual `p` makes
-        # the function output Dual while `u` stays Float64. Forming `J' * r`
-        # via `ForwardDiff.jacobian` (called by DI under AutoForwardDiff)
-        # is robust under nested Duals.
-        is_forwarddiff = autodiff isa AutoForwardDiff
-        if SciMLBase.isinplace(prob)
-            return @closure (
-                du, u, p,
-            ) -> begin
-                resid = Utils.safe_similar(du, length(sol.resid))
-                raw_f(resid, u, p)
-                if is_forwarddiff
-                    # Wrap IIP raw_f as OOP so ForwardDiff.jacobian allocates
-                    # an output buffer of the correctly promoted Dual type
-                    # under nested differentiation.
-                    ff_oop = @closure uu -> begin
+        # `DI.pullback` with `AutoForwardDiff` is emulated via pushforward into
+        # a buffer keyed off `eltype(u)`, which breaks when this vjp closure
+        # runs under an outer ForwardDiff layer (the function output becomes
+        # Dual while `u` stays Float64). For ForwardDiff we materialize the
+        # Jacobian and form `2·J'·r` directly — `DI.jacobian` here dispatches
+        # to `ForwardDiff.jacobian`, which handles nested Duals via fresh tags.
+        if autodiff isa AutoForwardDiff
+            if SciMLBase.isinplace(prob)
+                return @closure (du, u, p) -> begin
+                    ff = @closure uu -> begin
                         T = promote_type(eltype(uu), eltype(p))
-                        r = Utils.safe_similar(resid, T)
+                        r = Utils.safe_similar(uu, T, length(sol.resid))
                         raw_f(r, uu, p)
                         return r
                     end
-                    J = DI.jacobian(ff_oop, autodiff, u)
-                    mul!(reshape(du, 1, :), reshape(resid, 1, :), J, 2, false)
-                else
-                    # Using `Constant` lead to dual ordering issues
-                    ff = @closure (du, u) -> raw_f(du, u, p)
-                    resid2 = copy(resid)
-                    DI.pullback!(ff, resid2, (du,), autodiff, u, (resid,))
-                    @. du *= 2
+                    J = DI.jacobian(ff, autodiff, u)
+                    mul!(du, J', ff(u), 2, false)
+                    return nothing
                 end
+            else
+                return @closure (u, p) -> begin
+                    J = DI.jacobian(Base.Fix2(raw_f, p), autodiff, u)
+                    return 2 .* (J' * raw_f(u, p))
+                end
+            end
+        end
+
+        if SciMLBase.isinplace(prob)
+            return @closure (du, u, p) -> begin
+                resid = Utils.safe_similar(du, length(sol.resid))
+                raw_f(resid, u, p)
+                # Using `Constant` lead to dual ordering issues
+                ff = @closure (du, u) -> raw_f(du, u, p)
+                resid2 = copy(resid)
+                DI.pullback!(ff, resid2, (du,), autodiff, u, (resid,))
+                @. du *= 2
                 return nothing
             end
         else
-            return @closure (
-                u,
-                p,
-            ) -> begin
+            return @closure (u, p) -> begin
                 v = raw_f(u, p)
-                if is_forwarddiff
-                    J = DI.jacobian(Base.Fix2(raw_f, p), autodiff, u)
-                    res = 2 .* (J' * v)
-                    return res
-                else
-                    # Using `Constant` lead to dual ordering issues
-                    res = only(DI.pullback(Base.Fix2(raw_f, p), autodiff, u, (v,)))
-                    ArrayInterface.can_setindex(res) || return 2 .* res
-                    @. res *= 2
-                    return res
-                end
+                # Using `Constant` lead to dual ordering issues
+                res = only(DI.pullback(Base.Fix2(raw_f, p), autodiff, u, (v,)))
+                ArrayInterface.can_setindex(res) || return 2 .* res
+                @. res *= 2
+                return res
             end
         end
     end
