@@ -13,44 +13,44 @@
         v_standard = NonlinearVerbosity(SciMLLogging.Standard())
         v_detailed = NonlinearVerbosity(SciMLLogging.Detailed())
 
-        @test v_none.non_enclosing_interval isa SciMLLogging.Silent
-        @test v_none.threshold_state isa SciMLLogging.Silent
-        @test v_none.alias_u0_immutable isa SciMLLogging.Silent
-        @test v_none.sensitivity_vjp_choice isa SciMLLogging.Silent
+        @test v_none.non_enclosing_interval == SciMLLogging.Silent()
+        @test v_none.threshold_state == SciMLLogging.Silent()
+        @test v_none.alias_u0_immutable == SciMLLogging.Silent()
+        @test v_none.sensitivity_vjp_choice == SciMLLogging.Silent()
 
-        @test v_minimal.non_enclosing_interval isa SciMLLogging.WarnLevel
-        @test v_minimal.alias_u0_immutable isa SciMLLogging.Silent
-        @test v_minimal.termination_condition isa SciMLLogging.Silent
-        @test v_minimal.sensitivity_vjp_choice isa SciMLLogging.Silent
+        @test v_minimal.non_enclosing_interval == SciMLLogging.WarnLevel()
+        @test v_minimal.alias_u0_immutable == SciMLLogging.Silent()
+        @test v_minimal.termination_condition == SciMLLogging.Silent()
+        @test v_minimal.sensitivity_vjp_choice == SciMLLogging.Silent()
 
-        @test v_standard.non_enclosing_interval isa SciMLLogging.WarnLevel
-        @test v_standard.threshold_state isa SciMLLogging.WarnLevel
-        @test v_standard.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
+        @test v_standard.non_enclosing_interval == SciMLLogging.WarnLevel()
+        @test v_standard.threshold_state == SciMLLogging.WarnLevel()
+        @test v_standard.sensitivity_vjp_choice == SciMLLogging.WarnLevel()
 
-        @test v_detailed.alias_u0_immutable isa SciMLLogging.WarnLevel
-        @test v_detailed.termination_condition isa SciMLLogging.WarnLevel
-        @test v_detailed.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
+        @test v_detailed.alias_u0_immutable == SciMLLogging.WarnLevel()
+        @test v_detailed.termination_condition == SciMLLogging.WarnLevel()
+        @test v_detailed.sensitivity_vjp_choice == SciMLLogging.WarnLevel()
 
-        @test v_all.linsolve_failed_noncurrent isa SciMLLogging.WarnLevel
-        @test v_all.threshold_state isa SciMLLogging.InfoLevel
-        @test v_all.sensitivity_vjp_choice isa SciMLLogging.WarnLevel
+        @test v_all.linsolve_failed_noncurrent == SciMLLogging.WarnLevel()
+        @test v_all.threshold_state == SciMLLogging.InfoLevel()
+        @test v_all.sensitivity_vjp_choice == SciMLLogging.WarnLevel()
     end
 
     @testset "Group-level keyword constructors" begin
         v_error = NonlinearVerbosity(error_control = SciMLLogging.ErrorLevel())
-        @test v_error.alias_u0_immutable isa SciMLLogging.ErrorLevel
-        @test v_error.non_enclosing_interval isa SciMLLogging.ErrorLevel
-        @test v_error.termination_condition isa SciMLLogging.ErrorLevel
-        @test v_error.linsolve_failed_noncurrent isa SciMLLogging.ErrorLevel
+        @test v_error.alias_u0_immutable == SciMLLogging.ErrorLevel()
+        @test v_error.non_enclosing_interval == SciMLLogging.ErrorLevel()
+        @test v_error.termination_condition == SciMLLogging.ErrorLevel()
+        @test v_error.linsolve_failed_noncurrent == SciMLLogging.ErrorLevel()
 
         v_numerical = NonlinearVerbosity(numerical = SciMLLogging.Silent())
-        @test v_numerical.threshold_state isa SciMLLogging.Silent
+        @test v_numerical.threshold_state == SciMLLogging.Silent()
 
         v_sensitivity = NonlinearVerbosity(sensitivity = SciMLLogging.Silent())
-        @test v_sensitivity.sensitivity_vjp_choice isa SciMLLogging.Silent
+        @test v_sensitivity.sensitivity_vjp_choice == SciMLLogging.Silent()
 
         v_sensitivity2 = NonlinearVerbosity(sensitivity = SciMLLogging.InfoLevel())
-        @test v_sensitivity2.sensitivity_vjp_choice isa SciMLLogging.InfoLevel
+        @test v_sensitivity2.sensitivity_vjp_choice == SciMLLogging.InfoLevel()
     end
 
     @testset "Mixed group and individual settings" begin
@@ -60,10 +60,10 @@
             error_control = SciMLLogging.InfoLevel()
         )
         # Individual override should take precedence
-        @test v_mixed.threshold_state isa SciMLLogging.WarnLevel
+        @test v_mixed.threshold_state == SciMLLogging.WarnLevel()
         # Error control group setting should apply
-        @test v_mixed.alias_u0_immutable isa SciMLLogging.InfoLevel
-        @test v_mixed.linsolve_failed_noncurrent isa SciMLLogging.InfoLevel
+        @test v_mixed.alias_u0_immutable == SciMLLogging.InfoLevel()
+        @test v_mixed.linsolve_failed_noncurrent == SciMLLogging.InfoLevel()
     end
 
     @testset "Individual keyword arguments" begin
@@ -72,12 +72,12 @@
             threshold_state = SciMLLogging.InfoLevel(),
             termination_condition = SciMLLogging.Silent()
         )
-        @test v_individual.alias_u0_immutable isa SciMLLogging.ErrorLevel
-        @test v_individual.threshold_state isa SciMLLogging.InfoLevel
-        @test v_individual.termination_condition isa SciMLLogging.Silent
+        @test v_individual.alias_u0_immutable == SciMLLogging.ErrorLevel()
+        @test v_individual.threshold_state == SciMLLogging.InfoLevel()
+        @test v_individual.termination_condition == SciMLLogging.Silent()
         # Unspecified options should use defaults
-        @test v_individual.non_enclosing_interval isa SciMLLogging.WarnLevel
-        @test v_individual.linsolve_failed_noncurrent isa SciMLLogging.WarnLevel
+        @test v_individual.non_enclosing_interval == SciMLLogging.WarnLevel()
+        @test v_individual.linsolve_failed_noncurrent == SciMLLogging.WarnLevel()
     end
 
     g(u, p) = u^2 - 4
@@ -192,8 +192,8 @@
         # Test verbose = false converts to NonlinearVerbosity(None())
         cache2 = init(prob, verbose = false)
         @test cache2.verbose isa NonlinearVerbosity
-        @test cache2.verbose.threshold_state isa SciMLLogging.Silent
-        @test cache2.verbose.non_enclosing_interval isa SciMLLogging.Silent
+        @test cache2.verbose.threshold_state == SciMLLogging.Silent()
+        @test cache2.verbose.non_enclosing_interval == SciMLLogging.Silent()
     end
 
     @testset "init with Preset verbose" begin
@@ -205,12 +205,12 @@
         # Test verbose = SciMLLogging.None() converts to NonlinearVerbosity(None())
         cache2 = init(prob, verbose = SciMLLogging.None())
         @test cache2.verbose isa NonlinearVerbosity
-        @test cache2.verbose.threshold_state isa SciMLLogging.Silent
+        @test cache2.verbose.threshold_state == SciMLLogging.Silent()
 
         # Test verbose = SciMLLogging.Detailed()
         cache3 = init(prob, verbose = SciMLLogging.Detailed())
         @test cache3.verbose isa NonlinearVerbosity
-        @test cache3.verbose.linear_verbosity isa SciMLLogging.Detailed
+        @test cache3.verbose.linear_verbosity == SciMLLogging.Detailed()
 
         # Test verbose = SciMLLogging.All()
         cache4 = init(prob, verbose = SciMLLogging.All())
@@ -220,7 +220,7 @@
         # Test verbose = SciMLLogging.Minimal()
         cache5 = init(prob, verbose = SciMLLogging.Minimal())
         @test cache5.verbose isa NonlinearVerbosity
-        @test cache5.verbose.alias_u0_immutable isa SciMLLogging.Silent
+        @test cache5.verbose.alias_u0_immutable == SciMLLogging.Silent()
     end
 
     @testset "init then solve with converted verbose" begin
@@ -233,7 +233,7 @@
         # Regression test: constructing NonlinearVerbosity with keyword arguments
         # that are MessageLevel subtypes should not throw UndefVarError
         verb = NonlinearVerbosity(non_enclosing_interval = SciMLLogging.ErrorLevel())
-        @test verb.non_enclosing_interval isa SciMLLogging.ErrorLevel
+        @test verb.non_enclosing_interval == SciMLLogging.ErrorLevel()
 
         # Test with the full solve pipeline from the issue MWE
         f_interval(x, p) = x^2 - p
