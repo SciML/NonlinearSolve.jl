@@ -1,6 +1,6 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "2.25.0"
+version = "2.25.1"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -94,7 +94,7 @@ RecursiveArrayTools = "3, 4"
 ReverseDiff = "1.15"
 SciMLBase = "2.153, 3"
 SciMLJacobianOperators = "0.1.1"
-SciMLLogging = "1.7"
+SciMLLogging = "1.10.1, 2"
 SciMLOperators = "1.7"
 SciMLStructures = "1.5"
 Setfield = "1.1.2"

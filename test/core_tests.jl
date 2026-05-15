@@ -255,6 +255,7 @@ end
 # Trust region methods also don't work with complex numbers (they use extrema internally).
 @testitem "Complex Valued Problems: Single-Shooting" tags = [:downstream] begin
     using OrdinaryDiffEqTsit5
+    using SciMLLogging: SciMLLogging
 
     function ode_func!(du, u, p, t)
         du[1] = u[2]
@@ -265,7 +266,7 @@ end
     function objective_function!(resid, u0, p)
         odeprob = ODEProblem{true}(ode_func!, u0, (0.0, 100.0), p)
         sol = solve(
-            odeprob, Tsit5(), abstol = 1.0e-9, reltol = 1.0e-9, verbose = false
+            odeprob, Tsit5(), abstol = 1.0e-9, reltol = 1.0e-9, verbose = SciMLLogging.None()
         )
         resid[1] = sol(0.0)[1]
         resid[2] = sol(100.0)[1] - 1.0
