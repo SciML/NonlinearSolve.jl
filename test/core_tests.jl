@@ -173,7 +173,8 @@ end
 end
 
 @testitem "Ensemble Nonlinear Problems" tags = [:nopre] begin
-    prob_func(prob, i, repeat) = remake(prob; u0 = prob.u0[:, i])
+    prob_func(prob, i::Integer, repeat) = remake(prob; u0 = prob.u0[:, i])
+    prob_func(prob, ctx) = remake(prob; u0 = prob.u0[:, ctx.sim_id])
 
     prob_nls_oop = NonlinearProblem((u, p) -> u .* u .- p, rand(4, 128), 2.0)
     prob_nls_iip = NonlinearProblem((du, u, p) -> du .= u .* u .- p, rand(4, 128), 2.0)
