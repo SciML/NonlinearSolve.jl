@@ -52,6 +52,8 @@ jobs:
             version: "lts"
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: ${{ matrix.version }}
       os: ${{ matrix.os }}
       project: "."
@@ -76,6 +78,8 @@ jobs:
           - macos-latest
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       julia_version: "pre"
       os: ${{ matrix.os }}
       project: "."
@@ -97,6 +101,8 @@ jobs:
           - nopre
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
+      enable_telemetry: false
+      enable_cache: false
       project: "."
       julia_version: "1.11"
       downgrade_testing: true
