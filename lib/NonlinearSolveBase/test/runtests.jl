@@ -134,4 +134,8 @@ using InteractiveUtils, Test
     @testset "EnzymeExt _accum_tangent! caches accumulation (#935)" begin
         include("enzyme_accum_tangent.jl")
     end
+
+    @testset "EnzymeExt _make_solution_zero preserves prob.p/u0 aliasing" begin
+        include("enzyme_make_solution_zero.jl")
+    end
 end

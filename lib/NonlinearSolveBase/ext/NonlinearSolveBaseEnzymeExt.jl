@@ -115,12 +115,41 @@ function Enzyme.EnzymeRules.augmented_primal(
         kwargs...
     )
 
-    dres = Enzyme.make_zero(res[1])
+    dres = _make_solution_zero(res[1])
     primal = EnzymeRules.needs_primal(config) ? res[1] : nothing
     shadow = EnzymeRules.needs_shadow(config) ? dres : nothing
     tup = (dres, res[2])
     RetType = Enzyme.EnzymeRules.augmented_rule_return_type(config, RT)
     return RetType(primal, shadow, tup::Any)
+end
+
+# Build the shadow `NonlinearSolution` for the augmented primal. A plain
+# `Enzyme.make_zero(sol)` recursively allocates fresh zero buffers for every
+# mutable field of `sol`, including `sol.prob.p` and `sol.prob.u0`, which are
+# aliased to the active `p` / `u0` shadows the outer caller is differentiating
+# against. Severing that aliasing means a cotangent written into the returned
+# `sol.prob.p` field by a downstream consumer (e.g. anything reading the
+# solution's parameters) goes into a dangling buffer instead of the buffer
+# the outer Enzyme tape is tracking, silently dropping that gradient
+# contribution.
+#
+# Pre-seed the `make_zero` seen-set so `prob.p` and `prob.u0` map to
+# themselves: recursion into those fields short-circuits via `haskey(seen, …)`,
+# preserving aliasing with the outer shadow. The actual derivative-carrying
+# field (`sol.u`) still gets a fresh zero buffer.
+@inline function _make_solution_zero(sol)
+    seen = IdDict()
+    _preseed_alias!(seen, sol.prob.p)
+    _preseed_alias!(seen, sol.prob.u0)
+    return Enzyme.make_zero(Core.Typeof(sol), seen, sol, Val(false))
+end
+
+@inline _preseed_alias!(::IdDict, ::Nothing) = nothing
+@inline function _preseed_alias!(seen::IdDict, v)
+    if ismutable(v)
+        seen[v] = v
+    end
+    return nothing
 end
 
 function Enzyme.EnzymeRules.reverse(
