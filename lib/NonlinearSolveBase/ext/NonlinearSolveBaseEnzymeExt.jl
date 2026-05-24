@@ -133,16 +133,27 @@ function Enzyme.EnzymeRules.reverse(
     ) where {RT <: Enzyme.Annotation}
     dres, clos = tape
     dargs = clos(dres)
-    # Mirror the sensealg's `diff_tunables` (default `true`). When `false`,
-    # `SciMLSensitivity.steadystatebackpass` returns a structured cotangent
-    # whose meaningful contribution may live in non-Tunable fields such as
-    # `caches`, so the accumulator walks those too.
-    diff_tunables = let s = sensealg.val
-        !(
-            s isa SciMLBase.AbstractSensitivityAlgorithm &&
-                hasproperty(s, :diff_tunables) &&
-                getproperty(s, :diff_tunables) isa Val{false}
-        )
+    # Mirror the `diff_tunables` choice the inner adjoint will make. When the
+    # user passes a concrete sensealg, honor its `diff_tunables` field. When
+    # the outer sensealg is `nothing` (default), `_concrete_solve_adjoint`
+    # delegates to `automatic_sensealg_choice`, which picks
+    # `diff_tunables = Val(false)` whenever `prob.p` is a SciMLStructure with
+    # a non-empty `caches` field (e.g. an MTKParameters tied to an
+    # SCCNonlinearProblem's `explicitfuns!` coupling). Reproducing that
+    # predicate here lets the accumulator walk every non-Tunable field of a
+    # structured `darg` so the meaningful cotangent isn't dropped.
+    diff_tunables = let s = sensealg.val, pv = p.val
+        if s isa SciMLBase.AbstractSensitivityAlgorithm &&
+                hasproperty(s, :diff_tunables)
+            !(getproperty(s, :diff_tunables) isa Val{false})
+        else
+            !(
+                SciMLStructures.isscimlstructure(pv) &&
+                    !(pv isa AbstractArray) &&
+                    hasfield(typeof(pv), :caches) &&
+                    !isempty(pv.caches)
+            )
+        end
     end
     for (darg, ptr) in zip(dargs, (func, prob, sensealg, u0, p, args...))
         if ptr isa Enzyme.Const
