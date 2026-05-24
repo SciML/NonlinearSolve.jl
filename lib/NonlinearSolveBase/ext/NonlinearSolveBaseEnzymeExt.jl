@@ -24,6 +24,18 @@ function _accum_tangent!(dval, darg)
             )
             shadow_tunables .+= darg_tunables
             SciMLStructures.replace!(SciMLStructures.Tunable(), dval, shadow_tunables)
+            # When the upstream rule returns a structured cotangent
+            # (e.g. SciMLSensitivity's steadystatebackpass under
+            # diff_tunables = Val(false)), the gradient contribution may
+            # live in non-Tunable fields such as `caches` (SCC sub-problem
+            # buffers feeding `explicitfuns!`). Accumulate every non-Tunable
+            # field that both sides expose so those contributions are not
+            # silently dropped.
+            for field in fieldnames(typeof(darg))
+                field === :tunable && continue
+                hasfield(typeof(dval), field) || continue
+                _accum_nested!(getfield(dval, field), getfield(darg, field))
+            end
         elseif darg isa AbstractVector
             shadow_tunables, _, _ = SciMLStructures.canonicalize(
                 SciMLStructures.Tunable(), dval,

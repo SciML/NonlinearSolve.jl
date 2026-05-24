@@ -130,4 +130,8 @@ using InteractiveUtils, Test
             NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d)
         )
     end
+
+    @testset "EnzymeExt _accum_tangent! caches accumulation (#935)" begin
+        include("enzyme_accum_tangent.jl")
+    end
 end
