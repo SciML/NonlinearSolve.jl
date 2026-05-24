@@ -13,7 +13,16 @@ import SciMLStructures
 #   - Another SciMLStructure
 #   - A broadcastable array
 # In all cases, accumulation goes through the SciMLStructures interface.
-function _accum_tangent!(dval, darg)
+#
+# `diff_tunables` mirrors the sensealg field of the same name and means
+# "differentiate only the Tunable portion." When `true` (the default and
+# the value carried by `SteadyStateAdjoint`/`Quadrature`/`Gauss` adjoints
+# unless the user opted out) only the Tunable slice of a structured
+# `darg` is accumulated. When `false`, `SciMLSensitivity.steadystatebackpass`
+# returns a structured cotangent whose gradient contribution may live in
+# non-Tunable fields such as `caches` (e.g. SCC sub-problem buffers feeding
+# `explicitfuns!`), so those fields are walked in as well.
+function _accum_tangent!(dval, darg; diff_tunables::Bool = true)
     if SciMLStructures.isscimlstructure(dval) && !(dval isa AbstractArray)
         if SciMLStructures.isscimlstructure(darg)
             shadow_tunables, _, _ = SciMLStructures.canonicalize(
@@ -24,17 +33,12 @@ function _accum_tangent!(dval, darg)
             )
             shadow_tunables .+= darg_tunables
             SciMLStructures.replace!(SciMLStructures.Tunable(), dval, shadow_tunables)
-            # When the upstream rule returns a structured cotangent
-            # (e.g. SciMLSensitivity's steadystatebackpass under
-            # diff_tunables = Val(false)), the gradient contribution may
-            # live in non-Tunable fields such as `caches` (SCC sub-problem
-            # buffers feeding `explicitfuns!`). Accumulate every non-Tunable
-            # field that both sides expose so those contributions are not
-            # silently dropped.
-            for field in fieldnames(typeof(darg))
-                field === :tunable && continue
-                hasfield(typeof(dval), field) || continue
-                _accum_nested!(getfield(dval, field), getfield(darg, field))
+            if !diff_tunables
+                for field in fieldnames(typeof(darg))
+                    field === :tunable && continue
+                    hasfield(typeof(dval), field) || continue
+                    _accum_nested!(getfield(dval, field), getfield(darg, field))
+                end
             end
         elseif darg isa AbstractVector
             shadow_tunables, _, _ = SciMLStructures.canonicalize(
@@ -129,6 +133,17 @@ function Enzyme.EnzymeRules.reverse(
     ) where {RT <: Enzyme.Annotation}
     dres, clos = tape
     dargs = clos(dres)
+    # Mirror the sensealg's `diff_tunables` (default `true`). When `false`,
+    # `SciMLSensitivity.steadystatebackpass` returns a structured cotangent
+    # whose meaningful contribution may live in non-Tunable fields such as
+    # `caches`, so the accumulator walks those too.
+    diff_tunables = let s = sensealg.val
+        !(
+            s isa SciMLBase.AbstractSensitivityAlgorithm &&
+                hasproperty(s, :diff_tunables) &&
+                getproperty(s, :diff_tunables) isa Val{false}
+        )
+    end
     for (darg, ptr) in zip(dargs, (func, prob, sensealg, u0, p, args...))
         if ptr isa Enzyme.Const
             continue
@@ -137,9 +152,9 @@ function Enzyme.EnzymeRules.reverse(
             continue
         end
         if ptr isa MixedDuplicated
-            _accum_tangent!(ptr.dval[], darg)
+            _accum_tangent!(ptr.dval[], darg; diff_tunables)
         else
-            _accum_tangent!(ptr.dval, darg)
+            _accum_tangent!(ptr.dval, darg; diff_tunables)
         end
     end
     Enzyme.make_zero!(dres.u)

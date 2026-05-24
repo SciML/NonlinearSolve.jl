@@ -23,27 +23,37 @@ end
 
 const EXT = Base.get_extension(NonlinearSolveBase, :NonlinearSolveBaseEnzymeExt)
 
-@testset "EnzymeExt._accum_tangent! walks non-Tunable fields (caches)" begin
-    # Regression for SciML/NonlinearSolve.jl#935: when SciMLSensitivity's
-    # `steadystatebackpass` returns a structured cotangent under
-    # `diff_tunables = Val(false)` (e.g. SCC explicitfuns! coupling),
-    # the gradient contribution lives in `caches`, not only `tunable`.
-    # The accumulator must walk those non-Tunable fields too — otherwise
-    # the meaningful cotangent is silently dropped and the user observes
-    # a zero gradient.
+@testset "EnzymeExt._accum_tangent! gates non-Tunable walk on diff_tunables (#935)" begin
+    # Regression for SciML/NonlinearSolve.jl#935. The reverse rule
+    # mirrors `sensealg.diff_tunables` into this kwarg:
+    #
+    #   * `diff_tunables = true`  (default) — backpass returned a
+    #     Tunable-only cotangent; leave non-Tunable fields of any
+    #     structured `darg` alone.
+    #   * `diff_tunables = false` — backpass returned a *structured*
+    #     cotangent (e.g. caches from SCC `explicitfuns!` coupling).
+    #     Walk every non-Tunable field of `darg` into `dval` so the
+    #     meaningful contribution lands.
+
+    # diff_tunables = false: caches must accumulate.
     dval = MockMTKParams([0.0, 0.0], (zeros(3),))
     darg = MockMTKParams([1.0, 2.0], ([10.0, 20.0, 30.0],))
-
-    EXT._accum_tangent!(dval, darg)
-
+    EXT._accum_tangent!(dval, darg; diff_tunables = false)
     @test dval.tunable == [1.0, 2.0]
     @test dval.caches[1] == [10.0, 20.0, 30.0]
 
-    # Accumulate again — verify it adds, doesn't overwrite.
+    # And `+=` semantics on repeated calls.
     darg2 = MockMTKParams([0.5, 0.5], ([1.0, 2.0, 3.0],))
-    EXT._accum_tangent!(dval, darg2)
+    EXT._accum_tangent!(dval, darg2; diff_tunables = false)
     @test dval.tunable == [1.5, 2.5]
     @test dval.caches[1] == [11.0, 22.0, 33.0]
+
+    # diff_tunables = true (default): only Tunable touched.
+    dval2 = MockMTKParams([0.0, 0.0], (zeros(3),))
+    darg3 = MockMTKParams([1.0, 2.0], ([10.0, 20.0, 30.0],))
+    EXT._accum_tangent!(dval2, darg3)
+    @test dval2.tunable == [1.0, 2.0]
+    @test dval2.caches[1] == zeros(3)
 end
 
 end
