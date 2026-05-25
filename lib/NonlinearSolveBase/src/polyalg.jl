@@ -1,5 +1,5 @@
 """
-    NonlinearSolvePolyAlgorithm(algs; start_index::Int = 1)
+    NonlinearSolvePolyAlgorithm(algs; start_index::Int = 1, store_original = Val(false))
 
 A general way to define PolyAlgorithms for `NonlinearProblem` and
 `NonlinearLeastSquaresProblem`. This is a container for a tuple of algorithms that will be
@@ -14,6 +14,10 @@ residual is returned.
 ### Keyword Arguments
 
   - `start_index`: the index to start at. Defaults to `1`.
+  - `store_original`: Whether to store the winning sub-algorithm's solution in the
+    `original` field of the returned solution. Default `Val(false)` to keep the
+    return type simple (required for Enzyme AD compatibility). Set to `Val(true)`
+    for debugging to inspect the sub-algorithm's solution.
 
 ### Example
 
@@ -27,12 +31,13 @@ alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), Broyden()))
     static_length <: Val
     algs <: Tuple
     start_index::Int
+    store_original <: Val
 end
 
-function NonlinearSolvePolyAlgorithm(algs; start_index::Int = 1)
+function NonlinearSolvePolyAlgorithm(algs; start_index::Int = 1, store_original = Val(false))
     @assert 0 < start_index ≤ length(algs)
     algs = Tuple(algs)
-    return NonlinearSolvePolyAlgorithm(Val(length(algs)), algs, start_index)
+    return NonlinearSolvePolyAlgorithm(Val(length(algs)), algs, start_index, store_original)
 end
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
@@ -216,20 +221,30 @@ end
 end
 
 # `original` is determined by runtime polyalg branch choice, so we deliberately
-# avoid specializing the returned `NonlinearSolution` on its concrete type. We
-# previously stored `original` with type slot `Any`, but that leaves the
-# solution type with a non-concrete field, which trips Enzyme's
-# `MixedReturnException` when the polyalg sits inside a reverse-mode
-# differentiated function (#878). The polyalg never exposes a documented use
-# for `original` (the sub-algorithm cache is implementation detail), so we
-# now drop it entirely on the returned solution. Concrete-typed `Nothing`
-# keeps the type stable for Enzyme and preserves the no-specialization
-# property because we no longer carry a runtime-varying value.
+# avoid specializing the returned `NonlinearSolution` on its concrete type. The
+# old `Any`-typed slot left the solution type with a non-concrete field, which
+# trips Enzyme's `MixedReturnException` when the polyalg sits inside a
+# reverse-mode differentiated function (#878). To keep the default Enzyme-
+# friendly while preserving opt-in introspection, the polyalg now carries a
+# `store_original::Val` field (default `Val(false)`) and we branch here on it:
+#  - `Val(false)`: drop the payload and pin the type slot to `Nothing`. Type
+#    is fully concrete and Enzyme is happy.
+#  - `Val(true)`: keep the payload with type slot `Any` (matches the legacy
+#    behavior). Useful for debugging; not Enzyme-differentiable.
 function build_solution_less_specialize(
         prob::AbstractNonlinearProblem, alg, u, resid;
         retcode = ReturnCode.Default, original = nothing, left = nothing,
-        right = nothing, stats = nothing, trace = nothing, kwargs...
+        right = nothing, stats = nothing, trace = nothing,
+        store_original::Val = Val(false), kwargs...
     )
+    if store_original isa Val{true}
+        return SciMLBase.NonlinearSolution{
+            eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
+            typeof(alg), Any, typeof(left), typeof(stats), typeof(trace),
+        }(
+            u, resid, prob, alg, retcode, original, left, right, stats, trace
+        )
+    end
     return SciMLBase.NonlinearSolution{
         eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
         typeof(alg), Nothing, typeof(left), typeof(stats), typeof(trace),
