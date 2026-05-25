@@ -215,8 +215,16 @@ end
     return Expr(:block, calls...)
 end
 
-# Original is often determined on runtime information especially for PolyAlgorithms so it
-# is best to never specialize on that
+# `original` is determined by runtime polyalg branch choice, so we deliberately
+# avoid specializing the returned `NonlinearSolution` on its concrete type. We
+# previously stored `original` with type slot `Any`, but that leaves the
+# solution type with a non-concrete field, which trips Enzyme's
+# `MixedReturnException` when the polyalg sits inside a reverse-mode
+# differentiated function (#878). The polyalg never exposes a documented use
+# for `original` (the sub-algorithm cache is implementation detail), so we
+# now drop it entirely on the returned solution. Concrete-typed `Nothing`
+# keeps the type stable for Enzyme and preserves the no-specialization
+# property because we no longer carry a runtime-varying value.
 function build_solution_less_specialize(
         prob::AbstractNonlinearProblem, alg, u, resid;
         retcode = ReturnCode.Default, original = nothing, left = nothing,
@@ -224,9 +232,9 @@ function build_solution_less_specialize(
     )
     return SciMLBase.NonlinearSolution{
         eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Any, typeof(left), typeof(stats), typeof(trace),
+        typeof(alg), Nothing, typeof(left), typeof(stats), typeof(trace),
     }(
-        u, resid, prob, alg, retcode, original, left, right, stats, trace
+        u, resid, prob, alg, retcode, nothing, left, right, stats, trace
     )
 end
 

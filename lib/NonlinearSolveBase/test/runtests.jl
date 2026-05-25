@@ -134,4 +134,8 @@ using InteractiveUtils, Test
     @testset "EnzymeExt _accum_tangent! caches accumulation (#935)" begin
         include("enzyme_accum_tangent.jl")
     end
+
+    @testset "PolyAlgorithm solution type is concrete (#878)" begin
+        include("polyalg_solution_type.jl")
+    end
 end
