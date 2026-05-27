@@ -85,49 +85,6 @@ using InteractiveUtils, Test
         @test outp === adp
     end
 
-    @testset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff" begin
-        # Regression for SciML/NonlinearSolve.jl#939: the FunctionWrappersWrapper
-        # construction emits ptrtoint/store patterns that defeat Enzyme's static
-        # activity analysis when an outer reverse-mode pass differentiates through
-        # `solve(::NonlinearProblem, ...)`. The wrapper exists for ForwardDiff
-        # dispatch in the inner Jacobian and is unnecessary on the outer-AD path,
-        # so `maybe_wrap_nonlinear_f` must short-circuit and return the raw
-        # function whenever `EnzymeCore.within_autodiff()` is true.
-        using NonlinearSolveBase, SciMLBase, Enzyme
-
-        resid!(du, u, p) = (du .= u .- p; nothing)
-        f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-            resid!, resid_prototype = zeros(2)
-        )
-        prob = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-
-        # Sanity: outside Enzyme, this problem normally wraps.
-        @test NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob)
-        )
-
-        # Inside Enzyme.autodiff, wrapping is skipped — `maybe_wrap_nonlinear_f`
-        # returns `prob.f.f` unchanged. We probe this by differentiating a
-        # function that calls `maybe_wrap_nonlinear_f` and returns 1.0 if the
-        # result is wrapped, 0.0 if not. Under Enzyme it should return 0.0.
-        probe = let prob = prob
-            p -> begin
-                wrapped = NonlinearSolveBase.maybe_wrap_nonlinear_f(prob)
-                # Use `p` so Enzyme doesn't optimize the call away.
-                NonlinearSolveBase.is_fw_wrapped(wrapped) ? sum(p) : zero(eltype(p))
-            end
-        end
-
-        p_test = [0.5, 0.25]
-        dp = Enzyme.make_zero(p_test)
-        _, primal = Enzyme.autodiff(
-            Enzyme.ReverseWithPrimal, probe, Enzyme.Active,
-            Enzyme.Duplicated(p_test, dp)
-        )
-        @test primal == 0.0
-        @test dp == zeros(2)
-    end
-
     @testset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
         # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
         # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works

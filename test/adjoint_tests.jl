@@ -31,3 +31,33 @@
         @info "Skipping adjoint tests on Julia $(VERSION) - Enzyme/SciMLSensitivity not compatible with 1.12+"
     end
 end
+
+@testitem "Enzyme reverse-mode over IIP NonlinearProblem (#939)" tags = [:nopre] begin
+    # Regression for SciML/NonlinearSolve.jl#939: differentiating through
+    # `solve(::NonlinearProblem, ...)` with `Enzyme.Reverse` (no
+    # `set_runtime_activity`) used to fail with `EnzymeRuntimeActivityError`
+    # inside `maybe_wrap_nonlinear_f` — the `FunctionWrappersWrapper` built for
+    # AutoSpecialize IIP problems emits `ptrtoint`/`store` patterns that defeat
+    # Enzyme's static activity analysis, and `set_runtime_activity` was not
+    # sufficient to recover correctness. The fix short-circuits the wrap on the
+    # outer-AD path via `EnzymeCore.within_autodiff()`.
+    @static if VERSION < v"1.12"
+        using SciMLSensitivity, Enzyme
+
+        function simple_loss(p)
+            prob = NonlinearProblem((du, u, p) -> du[1] = u[1] - p[1] + p[2], [0.0], p)
+            sol = solve(prob, NewtonRaphson())
+            return sum(sol.u)
+        end
+
+        p = [2.0, 1.0]
+        dp = Enzyme.make_zero(p)
+        Enzyme.autodiff(
+            Enzyme.Reverse, simple_loss, Enzyme.Active,
+            Enzyme.Duplicated(p, dp)
+        )
+        @test dp ≈ [1.0, -1.0]
+    else
+        @info "Skipping #939 regression on Julia $(VERSION) - Enzyme/SciMLSensitivity not compatible with 1.12+"
+    end
+end
