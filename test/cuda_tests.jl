@@ -1,5 +1,6 @@
 @testitem "CUDA Tests" tags = [:cuda] skip = :(!isempty(VERSION.prerelease)) begin
-    using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes
+    using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes, Test
+    include(joinpath(@__DIR__, "cuda_test_helpers.jl"))
 
     if CUDA.functional()
         CUDA.allowscalar(false)
@@ -31,7 +32,9 @@
 
         @testset "[IIP] GPU Solvers" begin
             @testset "$(nameof(typeof(alg)))" for alg in SOLVERS
-                @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+                @test_nowarn_except_gpu_deprecations sol = solve(
+                    prob, alg; abstol = 1.0f-5, reltol = 1.0f-5
+                )
             end
         end
 
@@ -41,7 +44,9 @@
 
         @testset "[OOP] GPU Solvers" begin
             @testset "$(nameof(typeof(alg)))" for alg in SOLVERS
-                @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+                @test_nowarn_except_gpu_deprecations sol = solve(
+                    prob, alg; abstol = 1.0f-5, reltol = 1.0f-5
+                )
             end
         end
     end
@@ -49,6 +54,7 @@ end
 
 @testitem "Termination Conditions: Allocations" tags = [:cuda] skip = :(!isempty(VERSION.prerelease)) begin
     using CUDA, NonlinearSolveBase, Test, LinearAlgebra
+    include(joinpath(@__DIR__, "cuda_test_helpers.jl"))
 
     if CUDA.functional()
         CUDA.allowscalar(false)
@@ -65,7 +71,7 @@ end
 
         @testset begin
             @testset "Mode: $(tcond)" for tcond in TERMINATION_CONDITIONS
-                @test_nowarn NonlinearSolveBase.check_convergence(
+                @test_nowarn_except_gpu_deprecations NonlinearSolveBase.check_convergence(
                     tcond(), du, u, uprev, 1.0e-3, 1.0e-3
                 )
             end
@@ -74,7 +80,7 @@ end
                 for nfn in (
                         Base.Fix1(maximum, abs), Base.Fix2(norm, 2), Base.Fix2(norm, Inf),
                     )
-                    @test_nowarn NonlinearSolveBase.check_convergence(
+                    @test_nowarn_except_gpu_deprecations NonlinearSolveBase.check_convergence(
                         tcond(nfn), du, u, uprev, 1.0e-3, 1.0e-3
                     )
                 end
