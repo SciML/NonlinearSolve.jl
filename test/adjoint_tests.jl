@@ -40,24 +40,23 @@ end
     # AutoSpecialize IIP problems emits `ptrtoint`/`store` patterns that defeat
     # Enzyme's static activity analysis, and `set_runtime_activity` was not
     # sufficient to recover correctness. The fix short-circuits the wrap on the
-    # outer-AD path via `EnzymeCore.within_autodiff()`.
-    @static if VERSION < v"1.12"
-        using SciMLSensitivity, Enzyme
+    # outer-AD path via `EnzymeCore.within_autodiff()`. Verified on both
+    # Julia 1.11 and 1.12; no version gate is needed (the sibling adjoint test's
+    # `VERSION < v"1.12"` gate is about Tracker/Zygote/Mooncake combined, not
+    # Enzyme+SciMLSensitivity alone, which works on 1.12).
+    using SciMLSensitivity, Enzyme
 
-        function simple_loss(p)
-            prob = NonlinearProblem((du, u, p) -> du[1] = u[1] - p[1] + p[2], [0.0], p)
-            sol = solve(prob, NewtonRaphson())
-            return sum(sol.u)
-        end
-
-        p = [2.0, 1.0]
-        dp = Enzyme.make_zero(p)
-        Enzyme.autodiff(
-            Enzyme.Reverse, simple_loss, Enzyme.Active,
-            Enzyme.Duplicated(p, dp)
-        )
-        @test dp ≈ [1.0, -1.0]
-    else
-        @info "Skipping #939 regression on Julia $(VERSION) - Enzyme/SciMLSensitivity not compatible with 1.12+"
+    function simple_loss(p)
+        prob = NonlinearProblem((du, u, p) -> du[1] = u[1] - p[1] + p[2], [0.0], p)
+        sol = solve(prob, NewtonRaphson())
+        return sum(sol.u)
     end
+
+    p = [2.0, 1.0]
+    dp = Enzyme.make_zero(p)
+    Enzyme.autodiff(
+        Enzyme.Reverse, simple_loss, Enzyme.Active,
+        Enzyme.Duplicated(p, dp)
+    )
+    @test dp ≈ [1.0, -1.0]
 end
