@@ -8,7 +8,7 @@ Solves for ``f(t) = 0`` in the problem defined by `prob` using the algorithm `al
 algorithm is given, a default algorithm will be chosen.
 
 ## Recommended Methods
-[`modAB`](@ref) (Modified Anderson-Bjork) is the recommended method for the scalar interval 
+[`ModAB`](@ref) (Modified Anderson-Bjork) is the recommended method for the scalar interval 
 root-finding problems. It combines Bisection with Anderson-Bjork steps to achieve superlinear 
 convergence 1.7–1.8, providing optimal convergence rate for poorly behaved functions. 
 According to our benchmarks, it outperforms the other methods in most cases.

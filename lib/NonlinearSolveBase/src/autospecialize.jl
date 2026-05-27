@@ -157,6 +157,19 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # FullSpecialize opts out of wrapping, keeping the exact function type.
     SciMLBase.specialization(prob.f) === SciMLBase.AutoSpecialize || return prob.f.f
 
+    # Skip wrapping when the user supplied a sparsity detector. Detectors call
+    # the user function with foreign eltypes — either non-isbits types (Tracer-
+    # based detectors, handled by FWW's `AllowNonIsBits` fallback) or *isbits*
+    # types whose tag does not match the wrapper signatures (`DenseSparsityDetector`
+    # backed by `AutoForwardDiff` uses a `DI.FixTail`-tagged Dual). The latter
+    # bypasses `AllowNonIsBits` and trips `NoFunctionWrapperFoundError`. The
+    # autospecialize gain is also less significant on the sparse path (per-color
+    # Jacobian columns are small), so unwrapping is the right tradeoff.
+    sp = prob.f.sparsity
+    if sp isa ADTypes.AbstractSparsityDetector && !(sp isa NoSparsityDetector)
+        return prob.f.f
+    end
+
     orig = prob.f.f
     inputs = (u0, u0, p)
     return AutoSpecializeCallable(wrapfun_iip(orig, inputs), orig)
