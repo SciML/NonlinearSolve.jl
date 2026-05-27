@@ -157,18 +157,14 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # FullSpecialize opts out of wrapping, keeping the exact function type.
     SciMLBase.specialization(prob.f) === SciMLBase.AutoSpecialize || return prob.f.f
 
-    # Skip wrapping when the user supplied a sparsity detector. Detectors call
-    # the user function with foreign eltypes — either non-isbits types (Tracer-
-    # based detectors, handled by FWW's `AllowNonIsBits` fallback) or *isbits*
-    # types whose tag does not match the wrapper signatures (`DenseSparsityDetector`
-    # backed by `AutoForwardDiff` uses a `DI.FixTail`-tagged Dual). The latter
-    # bypasses `AllowNonIsBits` and trips `NoFunctionWrapperFoundError`. The
-    # autospecialize gain is also less significant on the sparse path (per-color
-    # Jacobian columns are small), so unwrapping is the right tradeoff.
-    sp = prob.f.sparsity
-    if sp isa ADTypes.AbstractSparsityDetector && !(sp isa NoSparsityDetector)
-        return prob.f.f
-    end
+    # Skip wrapping for `DI.DenseSparsityDetector`, which runs the user function
+    # with ForwardDiff duals carrying DI's own `FixTail`-tagged Tag. Those duals
+    # are isbits, so `FunctionWrappersWrappers`' `AllowNonIsBits` fallback does
+    # not fire and the call trips `NoFunctionWrapperFoundError` because no
+    # wrapper signature was pre-built for the foreign tag. Other detectors
+    # (e.g. `TracerSparsityDetector`, Symbolics-based detectors) emit non-isbits
+    # eltypes and are handled by the `AllowNonIsBits` fallback — keep wrapping.
+    prob.f.sparsity isa DI.DenseSparsityDetector && return prob.f.f
 
     orig = prob.f.f
     inputs = (u0, u0, p)
