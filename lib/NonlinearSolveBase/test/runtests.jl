@@ -1,11 +1,6 @@
 using InteractiveUtils, Test
-import ADTypes
 
 @info sprint(InteractiveUtils.versioninfo)
-
-# Proxy for Tracer/Symbolics-style detectors. Defined at top level so the
-# `struct` definition isn't nested inside `@testset`.
-struct _NonDenseSparsityDetector <: ADTypes.AbstractSparsityDetector end
 
 # Changing any code here triggers all the other tests to be run. So we intentionally
 # keep the tests here minimal.
@@ -133,47 +128,6 @@ struct _NonDenseSparsityDetector <: ADTypes.AbstractSparsityDetector end
         prob_3d = NonlinearProblem(f3, u3d, p_tup)
         @test NonlinearSolveBase.is_fw_wrapped(
             NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d)
-        )
-    end
-
-    @testset "maybe_wrap_nonlinear_f and sparsity detectors" begin
-        # Regression for the docs-build failure on Brusselator with
-        # `sparsity = DifferentiationInterface.DenseSparsityDetector(AutoForwardDiff(); ...)`.
-        # `DenseSparsityDetector{AutoForwardDiff}` runs the user function with
-        # ForwardDiff duals tagged by DI (`FixTail{...}`), not `NonlinearSolveTag`.
-        # Those duals are isbits, so FunctionWrappersWrappers' `AllowNonIsBits`
-        # fallback does not fire and the wrapper trips `NoFunctionWrapperFoundError`.
-        # We skip wrapping *only* for `DenseSparsityDetector`. Tracer-style
-        # detectors emit non-isbits eltypes and are handled by `AllowNonIsBits`,
-        # so they must still wrap.
-        using NonlinearSolveBase, SciMLBase, ADTypes, DifferentiationInterface
-
-        resid!(du, u, p) = (du .= u; nothing)
-
-        # Default `NoSparsityDetector` → wraps.
-        f_none = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
-        prob_none = NonlinearProblem(f_none, [1.0, 2.0], [0.5, 0.25])
-        @test NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_none)
-        )
-
-        # `DenseSparsityDetector` → must NOT wrap (the failure mode).
-        f_dense = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-            resid!; sparsity = DenseSparsityDetector(AutoForwardDiff(); atol = 1.0e-6)
-        )
-        prob_dense = NonlinearProblem(f_dense, [1.0, 2.0], [0.5, 0.25])
-        @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dense) === f_dense.f
-        @test !NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dense)
-        )
-
-        # Other `AbstractSparsityDetector`s (proxy for Tracer/Symbolics) → wrap.
-        f_other = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-            resid!; sparsity = _NonDenseSparsityDetector()
-        )
-        prob_other = NonlinearProblem(f_other, [1.0, 2.0], [0.5, 0.25])
-        @test NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_other)
         )
     end
 
