@@ -52,6 +52,7 @@ makedocs(;
         "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrj.c",
         "https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c",
         "https://net-informations.com/faq/net/stack-heap.htm",  # Unreliable external site
+        "https://iopscience.iop.org/article/10.1088/1757-899X/1276/1/012010/",  # IOP redirects to PerimeterX bot validator from CI
     ],
     checkdocs = :exports,
     warnonly = [:missing_docs],
