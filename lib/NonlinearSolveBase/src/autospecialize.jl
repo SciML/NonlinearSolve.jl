@@ -135,6 +135,13 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
     p = prob.p
 
+    # Skip wrapping when called from inside Enzyme reverse-mode AD. The
+    # FunctionWrappersWrapper construction emits ptrtoint/store patterns that
+    # defeat Enzyme's static activity analysis (and `set_runtime_activity` is
+    # not sufficient to recover correctness), so the wrapper must not be
+    # constructed on the outer-AD path. The unwrapped function works fine.
+    EnzymeCore.within_autodiff() && return prob.f.f
+
     # Already wrapped — idempotent
     is_fw_wrapped(prob.f.f) && return prob.f.f
 
