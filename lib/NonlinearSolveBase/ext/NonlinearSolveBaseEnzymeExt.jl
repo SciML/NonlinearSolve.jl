@@ -88,12 +88,20 @@ _accum_nested!(::Any, ::Nothing) = nothing
 _accum_nested!(::Nothing, ::Any) = nothing
 _accum_nested!(::Nothing, ::Nothing) = nothing
 
+# `solve_up`'s differentiable inputs (prob/u0/p) are positional; its keyword
+# arguments are solver configuration (abstol/reltol/saveat/sensealg/...). Mark
+# them inactive so the custom rule applies when this `solve_up` is reached under
+# `set_runtime_activity` (e.g. the MTK DAE init NonlinearProblem solve), where a
+# config kwarg may otherwise be promoted to active and raise
+# NonConstantKeywordArgException. Mirrors the DiffEqBase `solve_up` declaration.
+Enzyme.EnzymeRules.inactive_kwarg(::typeof(NonlinearSolveBase.solve_up), prob, sensealg::Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm}, u0, p, args...; kwargs...) = nothing
+
+_solve_up_rt_valtype(::Type{<:Enzyme.Annotation{T}}) where {T} = T
+
 function Enzyme.EnzymeRules.augmented_primal(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
         func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{RT}, prob,
-        sensealg::Union{
-            Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
-        },
+        sensealg::Enzyme.Annotation{<:Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm}},
         u0, p, args...; kwargs...
     ) where {RT <: Enzyme.Annotation}
     @inline function copy_or_reuse(val, idx)
@@ -115,7 +123,18 @@ function Enzyme.EnzymeRules.augmented_primal(
         kwargs...
     )
 
-    dres = Enzyme.make_zero(res[1])
+    mz = Enzyme.make_zero(res[1])
+    # As in DiffEqBase's solve_up rule: when the return slot is abstract and the
+    # solution's guessed activity is MixedDuplicated, the shadow must be a
+    # `Ref`-wrapped value (Enzyme's by-reference MixedDuplicated representation),
+    # otherwise `create_activity_wrapper` builds `MixedDuplicated(::Solution)` and
+    # errors. The reverse rule dereferences it before handing it to the pullback.
+    dres = if Base.isabstracttype(_solve_up_rt_valtype(RT)) &&
+            (Enzyme.guess_activity(Core.Typeof(res[1]), Enzyme.Reverse) <: Enzyme.MixedDuplicated)
+        Ref(mz)
+    else
+        mz
+    end
     primal = EnzymeRules.needs_primal(config) ? res[1] : nothing
     shadow = EnzymeRules.needs_shadow(config) ? dres : nothing
     tup = (dres, res[2])
@@ -126,13 +145,13 @@ end
 function Enzyme.EnzymeRules.reverse(
         config::Enzyme.EnzymeRules.RevConfigWidth{1},
         func::Const{typeof(NonlinearSolveBase.solve_up)}, ::Type{RT}, tape, prob,
-        sensealg::Union{
-            Const{Nothing}, Const{<:SciMLBase.AbstractSensitivityAlgorithm},
-        },
+        sensealg::Enzyme.Annotation{<:Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm}},
         u0, p, args...; kwargs...
     ) where {RT <: Enzyme.Annotation}
     dres, clos = tape
-    dargs = clos(dres)
+    # unwrap the Ref-wrapped MixedDuplicated shadow produced by augmented_primal
+    dval = dres isa Base.RefValue ? dres[] : dres
+    dargs = clos(dval)
     # Mirror the `diff_tunables` choice the inner adjoint will make. When the
     # user passes a concrete sensealg, honor its `diff_tunables` field. When
     # the outer sensealg is `nothing` (default), `_concrete_solve_adjoint`
@@ -159,6 +178,11 @@ function Enzyme.EnzymeRules.reverse(
         if ptr isa Enzyme.Const
             continue
         end
+        # `sensealg` is inactive config; skip its slot whether it arrived as
+        # Const or a runtime-activity-promoted Duplicated/MixedDuplicated.
+        if ptr === sensealg
+            continue
+        end
         if darg == ChainRulesCore.NoTangent()
             continue
         end
@@ -168,8 +192,14 @@ function Enzyme.EnzymeRules.reverse(
             _accum_tangent!(ptr.dval, darg; diff_tunables)
         end
     end
-    Enzyme.make_zero!(dres.u)
-    return ntuple(_ -> nothing, Val(length(args) + 4))
+    Enzyme.make_zero!(dval.u)
+    # One return slot per (prob, sensealg, u0, p, args...). Active args (e.g. the
+    # init polyalgorithm promoted to `Active` under runtime activity) require a
+    # cotangent value, not `nothing`; these are inactive config, so return a
+    # zeroed value. Const/Duplicated/MixedDuplicated slots return `nothing`.
+    return map(_rev_arg_cotangent, (prob, sensealg, u0, p, args...))
 end
+
+@inline _rev_arg_cotangent(x) = x isa Enzyme.Active ? Enzyme.make_zero(x.val) : nothing
 
 end
