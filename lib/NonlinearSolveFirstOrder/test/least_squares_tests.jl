@@ -87,3 +87,50 @@ end
         @test norm(collect(sol_static.u) - sol_vec.u) < 1.0e-6
     end
 end
+
+@testitem "NLSS using GaussNewton for sparse matrices" tags = [:core] begin
+    using NonlinearSolveFirstOrder, LinearAlgebra, SparseArrays, SciMLBase
+
+    # Overdetermined: 4 residuals, 3 unknowns.
+    # Has an exact solution at u = [1.0, 1.0, 1.0].
+    function f!(r, u, p)
+        r[1] = u[1]^2 + u[2]^2 - 2.0
+        r[2] = u[2]^2 + u[3]^2 - 2.0
+        r[3] = u[1] * u[2] - 1.0
+        r[4] = u[2] * u[3] - 1.0
+    end
+
+    function jac!(J, u, p)
+        fill!(J, 0)
+        J[1, 1] = 2 * u[1];  J[1, 2] = 2 * u[2]
+        J[2, 2] = 2 * u[2];  J[2, 3] = 2 * u[3]
+        J[3, 1] = u[2];      J[3, 2] = u[1]
+        J[4, 2] = u[3];      J[4, 3] = u[2]
+    end
+
+    proto = sparse([1, 1, 2, 2, 3, 3, 4, 4], [1, 2, 2, 3, 1, 2, 2, 3], ones(8), 4, 3)
+
+    prob_sparse = NonlinearLeastSquaresProblem(
+        NonlinearFunction(f!;
+            jac = jac!,
+            resid_prototype = zeros(4),
+            jac_prototype = proto,
+        ),
+        [0.5, 0.5, 0.5],
+    )
+    prob_dense = NonlinearLeastSquaresProblem(
+        NonlinearFunction(f!;
+            jac = jac!,
+            resid_prototype = zeros(4),
+        ),
+        [0.5, 0.5, 0.5],
+    )
+
+    sol_sparse = solve(prob_sparse, GaussNewton(); maxiters = 100, abstol = 1.0e-8)
+    sol_dense  = solve(prob_dense,  GaussNewton(); maxiters = 100, abstol = 1.0e-8)
+
+    @test SciMLBase.successful_retcode(sol_sparse)
+    @test SciMLBase.successful_retcode(sol_dense)
+    # Sparse and dense analytical Jacobians must converge to the same solution
+    @test norm(sol_sparse.u - sol_dense.u) < 1.0e-6
+end
