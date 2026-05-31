@@ -738,6 +738,19 @@ function _solve_adjoint(
     alg = extract_alg(args, kwargs, prob.kwargs)
     _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
+    # Enzyme cannot differentiate through FunctionWrappers' `llvmcall`, so its
+    # traced forward solve runs on the unwrapped function (see
+    # `maybe_unwrap_prob_for_enzyme`, #940). That unwrap is keyed off the solver's
+    # own autodiff, which for an MTK DAE initialization is ForwardDiff even when
+    # the *outer* differentiation is Enzyme — so it does not fire here. Key off
+    # the originator instead: the EnzymeOriginator adjoint primal must have the
+    # same (unwrapped) type as Enzyme's traced forward, otherwise the custom
+    # `solve_up` rule's returned primal type mismatches the inferred return type
+    # (`EnzymeRuntimeException: Expected return type of primal to be ...`).
+    if originator isa SciMLBase.EnzymeOriginator && is_fw_wrapped(_prob.f.f)
+        @set! _prob.f.f = get_raw_f(_prob.f.f)
+    end
+
     if has_kwargs(_prob)
         kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
     end
