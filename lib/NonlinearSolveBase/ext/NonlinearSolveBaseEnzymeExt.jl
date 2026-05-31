@@ -96,6 +96,21 @@ _accum_nested!(::Nothing, ::Nothing) = nothing
 # NonConstantKeywordArgException. Mirrors the DiffEqBase `solve_up` declaration.
 Enzyme.EnzymeRules.inactive_kwarg(::typeof(NonlinearSolveBase.solve_up), prob, sensealg::Union{Nothing, SciMLBase.AbstractSensitivityAlgorithm}, u0, p, args...; kwargs...) = nothing
 
+# Nonlinear-solve algorithms are pure solver configuration (Vals, Rationals,
+# Nothing/Missing sentinels, nested immutable sub-algorithms, and a ForwardDiff
+# tag type parameter) with no differentiable floating-point data. When a
+# `NonlinearProblem` is solved under `Enzyme.set_runtime_activity(Reverse)` — e.g.
+# the MTK DAE-initialization solve reached through `solve_up` with the default
+# `NonlinearSolvePolyAlgorithm` as a positional `args...` — Enzyme can otherwise
+# promote that configuration argument to `Duplicated`. That trips the
+# `roots_activep != activep` assertion in `enzyme_custom_setup_args`, or leaves a
+# spurious algorithm shadow that corrupts activity bookkeeping for the genuinely
+# active `u0`/`p` (silently dropping a cotangent component). Declaring the whole
+# algorithm hierarchy inactive forces `Const`, so `activep == roots_activep`.
+# Mirrors SciMLBase's `inactive_type(::Type{<:AbstractSensitivityAlgorithm})` and
+# LinearSolve's `inactive_type(::Type{<:SciMLLinearSolveAlgorithm})`.
+Enzyme.EnzymeRules.inactive_type(::Type{<:NonlinearSolveBase.AbstractNonlinearSolveAlgorithm}) = true
+
 _solve_up_rt_valtype(::Type{<:Enzyme.Annotation{T}}) where {T} = T
 
 function Enzyme.EnzymeRules.augmented_primal(
