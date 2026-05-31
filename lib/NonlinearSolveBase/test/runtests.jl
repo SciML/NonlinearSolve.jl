@@ -138,4 +138,8 @@ using InteractiveUtils, Test
     @testset "PolyAlgorithm solution type is concrete (#878)" begin
         include("polyalg_solution_type.jl")
     end
+
+    @testset "EnzymeExt algorithms are inactive_type" begin
+        include("enzyme_inactive_algorithm.jl")
+    end
 end
