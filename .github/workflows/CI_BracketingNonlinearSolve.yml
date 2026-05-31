@@ -36,8 +36,12 @@ jobs:
       project: "lib/BracketingNonlinearSolve"
       local_dependencies: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
 
-  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
-  # with [sources] in Project.toml. See issue #774 for tracking.
+  # NOTE: downgrade left disabled. The #774 tooling blocker is resolved
+  # (julia-downgrade-compat is fixed/released in @v2, pinned in the reusable
+  # CommonCI workflow), but the downgraded test env is still Unsatisfiable: the
+  # forced FunctionWrappersWrappers floor (0.1.3) conflicts with
+  # NonlinearSolveBase's FunctionWrappersWrappers = "1". Needs a follow-up floor
+  # reconciliation; re-enable once green.
   downgrade:
     if: false
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main

@@ -82,8 +82,12 @@ jobs:
       local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
       test_args: "GROUP=${{ matrix.group }}"
 
-  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
-  # with [sources] in Project.toml. See issue #774 for tracking.
+  # NOTE: downgrade left disabled for the top-level package. The #774 tooling
+  # blocker is resolved (julia-downgrade-compat is fixed/released in @v2, pinned in
+  # the reusable CommonCI workflow), and it resolves/builds at minimal versions,
+  # but the full downgrade test suite (which pulls in the downstream stack:
+  # ModelingToolkit, OrdinaryDiffEq, Enzyme, SciMLSensitivity) was not confirmed
+  # green locally. Re-enable once green.
   downgrade:
     if: false
     strategy:

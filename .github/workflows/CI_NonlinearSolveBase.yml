@@ -35,8 +35,12 @@ jobs:
       project: "lib/NonlinearSolveBase"
       local_dependencies: "lib/SciMLJacobianOperators"
 
-  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
-  # with [sources] in Project.toml. See issue #774 for tracking.
+  # NOTE: downgrade left disabled. The #774 tooling blocker is resolved
+  # (julia-downgrade-compat is fixed/released in @v2, pinned in the reusable
+  # CommonCI workflow), but the downgraded test env still fails (test-only
+  # ChainRulesCore resolution; the minimal resolve also needs EnzymeCore raised
+  # from 0.8 to >=0.8.4 since Enzyme is floored at 0.13.12). Needs a follow-up;
+  # re-enable once green.
   downgrade:
     if: false
     uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
