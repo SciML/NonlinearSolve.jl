@@ -1,27 +1,31 @@
 """
-    SimpleBroyden(; linesearch = Val(false), alpha = nothing)
+    SimpleBroyden(; linesearch = nothing, alpha = nothing)
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar and static
 array problems.
 
 ### Keyword Arguments
 
-  - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
-    line search else no line search is used. For advanced customization of the line search,
+  - `linesearch`: `nothing` for no line search, or any `LineSearch.AbstractLineSearchAlgorithm`.
+    Extra keyword arguments to `solve` are forwarded to `LineSearch.init`. For more options,
     use `Broyden` from `NonlinearSolve.jl`.
   - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
 """
 @concrete struct SimpleBroyden <: AbstractSimpleNonlinearSolveAlgorithm
-    linesearch <: Union{Val{false}, Val{true}}
+    linesearch
     alpha
 end
 
 function SimpleBroyden(;
-        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
+        linesearch::Union{Nothing, AbstractLineSearchAlgorithm} = nothing, alpha = nothing
     )
-    linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
     return SimpleBroyden(linesearch, alpha)
+end
+
+function _linesearch_cache(prob, linesearch, fx, x; kwargs...)
+    linesearch === nothing && return nothing
+    return init(prob, linesearch, fx, x; kwargs...)
 end
 
 function SciMLBase.__solve(
@@ -64,12 +68,7 @@ function SciMLBase.__solve(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
-    if alg.linesearch isa Val{true}
-        ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
-        ls_cache = init(prob, ls_alg, fx, x)
-    else
-        ls_cache = nothing
-    end
+    ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
 
     for _ in 1:maxiters
         @bb δx = J⁻¹ × vec(fprev)

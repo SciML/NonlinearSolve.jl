@@ -1,6 +1,6 @@
 """
     SimpleLimitedMemoryBroyden(;
-        threshold::Union{Val, Int} = Val(27), linesearch = Val(false), alpha = nothing
+        threshold::Union{Val, Int} = Val(27), linesearch = nothing, alpha = nothing
     )
 
 A limited memory implementation of Broyden. This method applies the L-BFGS scheme to
@@ -10,8 +10,8 @@ If the threshold is larger than the problem size, then this method will use `Sim
 
 ### Keyword Arguments:
 
-  - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
-    line search else no line search is used. For advanced customization of the line search,
+  - `linesearch`: `nothing` for no line search, or any `LineSearch.AbstractLineSearchAlgorithm`.
+    Extra keyword arguments to `solve` are forwarded to `LineSearch.init`. For more options,
     use `Broyden` from `NonlinearSolve.jl`.
   - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
@@ -22,16 +22,16 @@ If the threshold is larger than the problem size, then this method will use `Sim
     future.
 """
 @concrete struct SimpleLimitedMemoryBroyden <: AbstractSimpleNonlinearSolveAlgorithm
-    linesearch <: Union{Val{false}, Val{true}}
+    linesearch
     threshold <: Val
     alpha
 end
 
 function SimpleLimitedMemoryBroyden(;
         threshold::Union{Val, Int} = Val(27),
-        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
+        linesearch::Union{Nothing, AbstractLineSearchAlgorithm} = nothing,
+        alpha = nothing
     )
-    linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
     threshold = threshold isa Int ? Val(threshold) : threshold
     return SimpleLimitedMemoryBroyden(linesearch, threshold, alpha)
 end
@@ -81,7 +81,7 @@ end
     # For scalar problems / if the threshold is larger than problem size just use Broyden
     if x isa Number || length(x) ≤ η
         sol = SciMLBase.__solve(
-            prob, SimpleBroyden(; alg.linesearch), args...;
+            prob, SimpleBroyden(; linesearch = alg.linesearch, alpha = alg.alpha), args...;
             abstol, reltol, maxiters, termination_condition, kwargs...
         )
         return Utils.nonlinear_solution_new_alg(sol, alg)
@@ -106,12 +106,7 @@ end
     Tcache = lbroyden_threshold_cache(x, x isa StaticArray ? alg.threshold : Val(η))
     @bb mat_cache = copy(x)
 
-    if alg.linesearch isa Val{true}
-        ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
-        ls_cache = init(prob, ls_alg, fx, x)
-    else
-        ls_cache = nothing
-    end
+    ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
 
     for i in 1:maxiters
         if ls_cache === nothing
@@ -168,12 +163,7 @@ function internal_static_solve(
 
     xo, δx, fo, δf = x, -fx, fx, fx
 
-    if alg.linesearch === Val(true)
-        ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
-        ls_cache = init(prob, ls_alg, fx, x)
-    else
-        ls_cache = nothing
-    end
+    ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
 
     T = promote_type(eltype(x), eltype(fx))
     if alg.alpha === nothing

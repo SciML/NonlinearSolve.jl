@@ -7,7 +7,7 @@ using Setfield: @set!
 
 using BracketingNonlinearSolve: BracketingNonlinearSolve
 using CommonSolve: CommonSolve, solve, init, solve!
-using LineSearch: LiFukushimaLineSearch
+using LineSearch: AbstractLineSearchAlgorithm
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
     nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,

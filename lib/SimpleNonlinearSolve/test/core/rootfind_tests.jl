@@ -1,6 +1,6 @@
 @testsnippet RootfindTestSnippet begin
     using StaticArrays, Random, LinearAlgebra, ForwardDiff, NonlinearSolveBase, SciMLBase
-    using ADTypes, PolyesterForwardDiff, ReverseDiff
+    using ADTypes, PolyesterForwardDiff, ReverseDiff, LineSearch
 
     # Conditionally import Enzyme only if not on Julia prerelease
     if isempty(VERSION.prerelease) && VERSION < v"1.12"
@@ -156,8 +156,10 @@ end
             SimpleKlement(),
             SimpleDFSane(),
             SimpleLimitedMemoryBroyden(),
-            SimpleBroyden(; linesearch = Val(true)),
-            SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+            SimpleBroyden(; linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)),
+            SimpleLimitedMemoryBroyden(;
+                linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)
+            ),
         )
         @testset "[OOP] u0: $(typeof(u0))" for u0 in ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
             sol = run_nlsolve_oop(quadratic_f, u0; solver = alg)
