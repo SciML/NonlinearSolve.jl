@@ -1,5 +1,5 @@
 @testitem "Solving on CUDA" tags = [:cuda] begin
-    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
+    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes, LineSearch
 
     if CUDA.functional()
         CUDA.allowscalar(false)
@@ -18,8 +18,10 @@
                 SimpleLimitedMemoryBroyden(),
                 SimpleKlement(),
                 SimpleHalley(; autodiff = AutoForwardDiff()),
-                SimpleBroyden(; linesearch = Val(true)),
-                SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+                SimpleBroyden(; linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)),
+                SimpleLimitedMemoryBroyden(;
+                    linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)
+                ),
             )
             # Static Arrays
             u0 = @SVector[1.0f0, 1.0f0]
@@ -48,7 +50,7 @@
 end
 
 @testitem "CUDA Kernel Launch Test" tags = [:cuda] begin
-    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes
+    using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes, LineSearch
     using NonlinearSolveBase: ImmutableNonlinearProblem
 
     if CUDA.functional()
@@ -77,8 +79,10 @@ end
                     SimpleLimitedMemoryBroyden(),
                     SimpleKlement(),
                     # SimpleHalley(; autodiff = AutoForwardDiff()),
-                    SimpleBroyden(; linesearch = Val(true)),
-                    SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+                    SimpleBroyden(; linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)),
+                    SimpleLimitedMemoryBroyden(;
+                        linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)
+                    ),
                 )
                 @test begin
                     @cuda kernel_function(prob, alg)
