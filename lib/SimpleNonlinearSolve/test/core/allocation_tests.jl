@@ -1,5 +1,5 @@
 @itesitem "Allocation Tests" tags = [:alloc_check] begin
-    using SimpleNonlinearSolve, StaticArrays, AllocCheck
+    using SimpleNonlinearSolve, StaticArrays, AllocCheck, LineSearch
 
     quadratic_f(u, p) = u .* u .- p
     quadratic_f!(du, u, p) = (du .= u .* u .- p)
@@ -12,8 +12,10 @@
             SimpleLimitedMemoryBroyden(),
             SimpleKlement(),
             SimpleHalley(),
-            SimpleBroyden(; linesearch = Val(true)),
-            SimpleLimitedMemoryBroyden(; linesearch = Val(true)),
+            SimpleBroyden(; linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)),
+            SimpleLimitedMemoryBroyden(;
+                linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)
+            ),
         )
         @check_allocs nlsolve(prob, alg) = SciMLBase.solve(prob, alg; abstol = 1.0e-9)
 
