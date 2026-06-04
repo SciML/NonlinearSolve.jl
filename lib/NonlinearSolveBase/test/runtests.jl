@@ -2,6 +2,17 @@ using InteractiveUtils, Test
 
 @info sprint(InteractiveUtils.versioninfo)
 
+# Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
+# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it for parity
+# with the other sublibraries. This suite is a single always-on Core block (no group
+# filtering), so every section runs it, matching the old bespoke CI. The "MacOS"
+# suffix only selects a runner, not a different selection.
+const _G = get(ENV, "GROUP", "All")
+const _SUB = "NonlinearSolveBase"
+const _SEC = _G == _SUB ? "Core" :
+    (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
+const GROUP = lowercase(endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC)
+
 # Changing any code here triggers all the other tests to be run. So we intentionally
 # keep the tests here minimal.
 @testset "NonlinearSolveBase.jl" begin

@@ -1,0 +1,6 @@
+[Core]
+versions = ["lts", "1.11", "1"]
+
+[CoreMacOS]
+versions = ["lts", "1.11", "1"]
+runner = "macos-latest"

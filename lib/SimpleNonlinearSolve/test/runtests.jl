@@ -22,7 +22,18 @@ function get_from_test_args_or_env(key, default)
     return get(ENV, key, default)
 end
 
-const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
+# Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
+# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it back to a
+# bare section name so the dispatch below (and bare "all" for local runs) keeps
+# working; the "MacOS" suffix only selects a runner, not a different selection.
+# The Core section corresponds to the old bespoke CI's `core` group (the :core
+# tag), not "all", so map it to "core".
+const _G = get_from_test_args_or_env("GROUP", "all")
+const _SUB = "SimpleNonlinearSolve"
+const _SEC = _G == _SUB ? "Core" :
+    (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
+const _SEC_BASE = endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC
+const GROUP = _SEC_BASE == "Core" ? "core" : lowercase(_SEC_BASE)
 
 (GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
 (GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
