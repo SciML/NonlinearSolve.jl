@@ -8,7 +8,7 @@ on:
       - "test/**"
       - "Project.toml"
       - ".github/workflows/CI_NonlinearSolve.yml"
-      - "lib/SciMLJacobianOperators/**"
+      - "lib/SciMLNonlinearOperators/**"
       - "lib/BracketingNonlinearSolve/**"
       - "lib/NonlinearSolveBase/**"
       - "lib/SimpleNonlinearSolve/**"
@@ -27,7 +27,6 @@ concurrency:
 
 jobs:
   test:
-    name: "Tests"
     strategy:
       fail-fast: false
       matrix:
@@ -51,10 +50,54 @@ jobs:
             version: "1.11"
           - group: trim
             version: "lts"
-    uses: "SciML/.github/.github/workflows/tests.yml@v1"
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
     with:
-      julia-version: "${{ matrix.version }}"
-      group: "${{ matrix.group }}"
-      os: "${{ matrix.os }}"
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
       project: "."
-    secrets: "inherit"
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  # NOTE: Pre (Julia 1.13) tests are temporarily skipped due to ReTestItems incompatibility
+  # with Julia 1.13 ScopedValues API changes. See issue #776 for tracking.
+  test-pre:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - downstream
+          - wrappers
+          - misc
+          - trim
+        os:
+          - ubuntu-latest
+          - macos-latest
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: "pre"
+      os: ${{ matrix.os }}
+      project: "."
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/NonlinearSolveFirstOrder,lib/NonlinearSolveQuasiNewton,lib/NonlinearSolveSpectralMethods,lib/SimpleNonlinearSolve"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
+  # with [sources] in Project.toml. See issue #774 for tracking.
+  downgrade:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - downstream
+          - wrappers
+          - misc
+          - nopre
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      project: "."
+      julia_version: "1.11"
+      downgrade_testing: true
+      test_args: "GROUP=${{ matrix.group }}"

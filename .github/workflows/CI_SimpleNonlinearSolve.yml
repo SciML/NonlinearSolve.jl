@@ -1,0 +1,61 @@
+name: CI (SimpleNonlinearSolve)
+
+on:
+  pull_request:
+    paths:
+      - "lib/SimpleNonlinearSolve/**"
+      - ".github/workflows/CI_SimpleNonlinearSolve.yml"
+      - "lib/BracketingNonlinearSolve/**"
+      - "lib/NonlinearSolveBase/**"
+      - "lib/SciMLJacobianOperators/**"
+  push:
+    branches:
+      - master
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - "1.10"
+          - "1.11"
+          - "1"
+        os:
+          - ubuntu-latest
+          - macos-latest
+        group:
+          - core
+          - adjoint
+          - alloc_check
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: ${{ matrix.version }}
+      os: ${{ matrix.os }}
+      project: "lib/SimpleNonlinearSolve"
+      local_dependencies: "lib/BracketingNonlinearSolve,lib/NonlinearSolveBase,lib/SciMLJacobianOperators"
+      test_args: "GROUP=${{ matrix.group }}"
+
+  # NOTE: Downgrade tests are temporarily skipped due to Resolver.jl incompatibility
+  # with [sources] in Project.toml. See issue #774 for tracking.
+  downgrade:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core
+          - adjoint
+          - alloc_check
+    uses: LuxDL/Lux.jl/.github/workflows/CommonCI.yml@main
+    with:
+      julia_version: "1.11"
+      project: "lib/SimpleNonlinearSolve"
+      downgrade_testing: true
+      test_args: "GROUP=${{ matrix.group }}"
