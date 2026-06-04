@@ -1,0 +1,24 @@
+name: Downgrade Sublibraries
+on:
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+jobs:
+  downgrade-sublibraries:
+    uses: "SciML/.github/.github/workflows/sublibrary-downgrade.yml@v1"
+    secrets: "inherit"
+    with:
+      julia-version: "lts"
+      skip: "Pkg,TOML,Statistics,LinearAlgebra,SparseArrays,InteractiveUtils,Random,Test,NonlinearSolve,NonlinearSolveBase,NonlinearSolveFirstOrder,NonlinearSolveQuasiNewton,NonlinearSolveSpectralMethods,NonlinearSolveHomotopyContinuation,NonlinearSolveSciPy,BracketingNonlinearSolve,SimpleNonlinearSolve,SCCNonlinearSolve,SciMLJacobianOperators"
+      allow-reresolve: true
+      # Every lib/* sublibrary is downgrade-tested (projects auto-discovered, no exclusions).
