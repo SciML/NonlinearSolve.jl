@@ -1,25 +1,23 @@
 name: IntegrationTest
+
 on:
   push:
     branches: [master]
     tags: [v*]
   pull_request:
+
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
 jobs:
   test:
-    name: ${{ matrix.package.repo }}/${{ matrix.package.group }}/${{ matrix.julia-version }}
-    runs-on: ${{ matrix.os }}
-    env:
-      GROUP: ${{ matrix.package.group }}
+    name: ${{ matrix.package.repo }}/${{ matrix.package.group }}
     strategy:
       fail-fast: false
       matrix:
-        julia-version: [1]
-        os: [ubuntu-latest]
         package:
           - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceI}
           - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceII}
@@ -28,51 +26,10 @@ jobs:
           - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression}
           - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All}
           - {user: SciML, repo: DiffEqCallbacks.jl, group: Core}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v3
-        with:
-          version: ${{ matrix.julia-version }}
-          arch: x64
-      - name: "Install Dependencies"
-        run: |
-          import Pkg
-          Pkg.Registry.update()
-          # Install packages present in subdirectories
-          dev_pks = Pkg.PackageSpec[]
-          for path in ("lib/SciMLJacobianOperators", "lib/BracketingNonlinearSolve", "lib/NonlinearSolveBase", "lib/SimpleNonlinearSolve", "lib/NonlinearSolveFirstOrder", "lib/NonlinearSolveSpectralMethods", "lib/NonlinearSolveQuasiNewton")
-              push!(dev_pks, Pkg.PackageSpec(; path))
-          end
-          Pkg.develop(dev_pks)
-          Pkg.instantiate()
-        shell: julia --color=yes --code-coverage=user --depwarn=yes --project=. {0}
-      - name: Clone Downstream
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ matrix.package.user }}/${{ matrix.package.repo }}
-          path: downstream
-      - name: Load this and run the downstream tests
-        shell: julia --color=yes --project=downstream {0}
-        run: |
-          using Pkg
-          try
-            # force it to use this PR's version of the package
-            Pkg.develop(PackageSpec(path="."))  # resolver may fail with main deps
-            Pkg.update()
-            Pkg.test(coverage="user")  # resolver may fail with test time deps
-          catch err
-            err isa Pkg.Resolve.ResolverError || rethrow()
-            # If we can't resolve that means this is incompatible by SemVer and this is fine
-            # It means we marked this as a breaking change, so we don't need to worry about
-            # Mistakenly introducing a breaking change, as we have intentionally made one
-            @info "Not compatible with this release. No problem." exception=err
-            exit(0)  # Exit immediately, as a success
-          end
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: src,ext
-      - uses: codecov/codecov-action@v6
-        with:
-          file: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+    uses: "SciML/.github/.github/workflows/downstream.yml@v1"
+    with:
+      owner: "${{ matrix.package.user }}"
+      repo: "${{ matrix.package.repo }}"
+      group: "${{ matrix.package.group }}"
+      julia-version: "1"
+    secrets: "inherit"
