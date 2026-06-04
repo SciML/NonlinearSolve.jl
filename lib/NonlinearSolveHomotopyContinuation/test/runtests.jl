@@ -2,14 +2,10 @@ using NonlinearSolveHomotopyContinuation
 using Test
 using Aqua
 
-# Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
-# back to the bare standard section name. Standard sublibrary groups are Core
-# (functional/correctness — AllRoots/Single Root) and QA (Aqua).
-const _G = get(ENV, "GROUP", "All")
-const _SUB = "NonlinearSolveHomotopyContinuation"
-const GROUP = _G == _SUB ? "Core" :
-    (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
+# The root NonlinearSolve runtests dispatcher activates this sublibrary and sets
+# NLS_TEST_GROUP to the bare standard section name. Standard sublibrary groups
+# are Core (functional/correctness — AllRoots/Single Root) and QA (Aqua).
+const GROUP = get(ENV, "NLS_TEST_GROUP", "All")
 
 const _RUN_CORE = GROUP in ("All", "all", "Core", "core")
 const _RUN_QA = GROUP in ("All", "all", "QA", "qa")
