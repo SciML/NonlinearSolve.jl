@@ -23,26 +23,35 @@ function get_from_test_args_or_env(key, default)
 end
 
 # Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it back to a
-# bare section name so the dispatch below (and bare "all" for local runs) keeps
-# working; the "MacOS" suffix only selects a runner, not a different selection.
-# The Core section corresponds to the old bespoke CI's `core` group (the :core
-# tag), not "all", so map it to "core".
-const _G = get_from_test_args_or_env("GROUP", "all")
+# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
+# back to the bare standard section name. Standard sublibrary groups:
+#   Core — functional/correctness, incl. the folded adjoint test (SciMLSensitivity)
+#   QA   — Aqua + Explicit Imports + the folded allocation test (AllocCheck)
+#   GPU  — CUDA tests; the dedicated GPU.yml workflow sets GROUP="cuda".
+const _G = get_from_test_args_or_env("GROUP", "All")
 const _SUB = "SimpleNonlinearSolve"
-const _SEC = _G == _SUB ? "Core" :
+const GROUP = _G == _SUB ? "Core" :
     (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
-const _SEC_BASE = endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC
-const GROUP = _SEC_BASE == "Core" ? "core" : lowercase(_SEC_BASE)
 
-(GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
-(GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
-(GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
+const _IS_ALL = GROUP in ("All", "all")
+const _IS_CORE = GROUP in ("Core", "core")
+const _IS_QA = GROUP in ("QA", "qa")
+const _IS_GPU = GROUP in ("GPU", "gpu", "cuda")
+
+(_IS_ALL || _IS_GPU) && Pkg.add(["CUDA"])
+(_IS_ALL || _IS_CORE) && Pkg.add(["SciMLSensitivity"])
+(_IS_ALL || _IS_QA) && Pkg.add(["AllocCheck"])
 
 @testset "SimpleNonlinearSolve.jl" begin
-    if GROUP == "all"
+    if _IS_ALL
         @run_package_tests
+    elseif _IS_CORE
+        @run_package_tests filter = ti -> (:core in ti.tags)
+    elseif _IS_QA
+        @run_package_tests filter = ti -> (:qa in ti.tags)
+    elseif _IS_GPU
+        @run_package_tests filter = ti -> (:cuda in ti.tags)
     else
-        @run_package_tests filter = ti -> (Symbol(GROUP) in ti.tags)
+        @run_package_tests filter = ti -> (Symbol(lowercase(GROUP)) in ti.tags)
     end
 end

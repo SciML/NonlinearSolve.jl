@@ -1,4 +1,4 @@
-@testitem "Aqua" tags = [:core] begin
+@testitem "Aqua" tags = [:qa] begin
     using Aqua, BracketingNonlinearSolve
 
     Aqua.test_all(
@@ -11,7 +11,7 @@
     Aqua.test_ambiguities(BracketingNonlinearSolve; recursive = false)
 end
 
-@testitem "Explicit Imports" tags = [:core] begin
+@testitem "Explicit Imports" tags = [:qa] begin
     import ForwardDiff
     using ExplicitImports, BracketingNonlinearSolve
 

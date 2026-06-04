@@ -1,4 +1,4 @@
-@testitem "Scalar Ops" begin
+@testitem "Scalar Ops" tags = [:core] begin
     using ADTypes, SciMLBase
     using Zygote, ForwardDiff, FiniteDiff, ReverseDiff, Tracker
     using SciMLJacobianOperators
@@ -98,7 +98,7 @@
     end
 end
 
-@testitem "Inplace Problems" begin
+@testitem "Inplace Problems" tags = [:core] begin
     using ADTypes, SciMLBase
     using ForwardDiff, FiniteDiff, ReverseDiff
     using SciMLJacobianOperators
@@ -207,7 +207,7 @@ end
     end
 end
 
-@testitem "Out-of-place Problems" begin
+@testitem "Out-of-place Problems" tags = [:core] begin
     using ADTypes, SciMLBase
     using ForwardDiff, FiniteDiff, ReverseDiff, Zygote, Tracker
     using SciMLJacobianOperators
@@ -314,13 +314,13 @@ end
     end
 end
 
-@testitem "Aqua" begin
+@testitem "Aqua" tags = [:qa] begin
     using SciMLJacobianOperators, Aqua
 
     Aqua.test_all(SciMLJacobianOperators)
 end
 
-@testitem "Explicit Imports" begin
+@testitem "Explicit Imports" tags = [:qa] begin
     using SciMLJacobianOperators, ExplicitImports
 
     @test check_no_implicit_imports(SciMLJacobianOperators) === nothing
@@ -328,7 +328,7 @@ end
     @test check_all_qualified_accesses_via_owners(SciMLJacobianOperators) === nothing
 end
 
-@testitem "Copy with Tuple parameters (Issue #752)" begin
+@testitem "Copy with Tuple parameters (Issue #752)" tags = [:core] begin
     using ADTypes, SciMLBase, ForwardDiff, FiniteDiff
     using SciMLJacobianOperators
     using SciMLJacobianOperators: _safe_copy

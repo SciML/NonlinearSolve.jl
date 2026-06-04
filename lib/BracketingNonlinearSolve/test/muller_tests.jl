@@ -1,4 +1,4 @@
-@testitem "Muller" begin
+@testitem "Muller" tags = [:core] begin
     f(u, p) = u^2 - p
     g(u, p) = sin(u)
     h(u, p) = exp(-u) * sin(u)

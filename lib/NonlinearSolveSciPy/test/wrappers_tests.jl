@@ -1,4 +1,4 @@
-@testitem "SciPyLeastSquares" tags = [:wrappers] begin
+@testitem "SciPyLeastSquares" tags = [:core] begin
     using SciMLBase, NonlinearSolveSciPy
     success = false
     try
@@ -30,7 +30,7 @@
     end
 end
 
-@testitem "SciPyRoot + SciPyRootScalar" tags = [:wrappers] begin
+@testitem "SciPyRoot + SciPyRootScalar" tags = [:core] begin
     using SciMLBase, NonlinearSolveSciPy
     success = false
     try

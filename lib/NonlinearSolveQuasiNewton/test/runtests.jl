@@ -3,15 +3,19 @@ using ReTestItems, NonlinearSolveQuasiNewton, Hwloc, InteractiveUtils, Pkg
 @info sprint(InteractiveUtils.versioninfo)
 
 # Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it back to a
-# bare section name so the dispatch below (and bare "All" for local runs) keeps
-# working; the "MacOS" suffix only selects a runner, not a different selection.
+# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
+# back to the bare standard section name. Standard sublibrary groups are Core
+# (functional/correctness), QA (Aqua/JET/ExplicitImports/allocation) and GPU
+# (the dedicated GPU.yml workflow sets GROUP="cuda" directly).
 const _G = get(ENV, "GROUP", "All")
 const _SUB = "NonlinearSolveQuasiNewton"
-const _SEC = _G == _SUB ? "Core" :
+const GROUP = _G == _SUB ? "Core" :
     (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
-const _SEC_BASE = endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC
-const GROUP = lowercase(_SEC_BASE)
+
+const _TAGS = GROUP in ("All", "all") ? nothing :
+    GROUP in ("Core", "core") ? [:core] :
+    GROUP in ("QA", "qa") ? [:qa] :
+    GROUP in ("GPU", "gpu", "cuda") ? [:cuda] : [Symbol(lowercase(GROUP))]
 
 const RETESTITEMS_NWORKERS = parse(
     Int, get(
@@ -31,7 +35,7 @@ const RETESTITEMS_NWORKER_THREADS = parse(
 
 ReTestItems.runtests(
     NonlinearSolveQuasiNewton;
-    tags = (GROUP == "all" || GROUP == "core" ? nothing : [Symbol(GROUP)]),
+    tags = _TAGS,
     nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
     testitem_timeout = 3600
 )

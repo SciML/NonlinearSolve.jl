@@ -1,4 +1,4 @@
-@testitem "Aqua" tags = [:core] begin
+@testitem "Aqua" tags = [:qa] begin
     using Aqua, NonlinearSolveFirstOrder
 
     Aqua.test_all(
@@ -9,7 +9,7 @@
     Aqua.test_ambiguities(NonlinearSolveFirstOrder; recursive = false)
 end
 
-@testitem "Explicit Imports" tags = [:core] begin
+@testitem "Explicit Imports" tags = [:qa] begin
     using ExplicitImports, NonlinearSolveFirstOrder
 
     @test check_no_implicit_imports(

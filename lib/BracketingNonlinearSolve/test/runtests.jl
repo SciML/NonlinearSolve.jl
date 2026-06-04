@@ -3,21 +3,23 @@ using TestItemRunner, InteractiveUtils, Test
 @info sprint(InteractiveUtils.versioninfo)
 
 # Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it back to a
-# bare section name. The old bespoke CI ran the full suite (every tag) on each leg,
-# so Core/All run everything; an explicit group filters by tag. The "MacOS" suffix
-# only selects a runner, not a different selection.
+# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
+# back to the bare standard section name. Standard sublibrary groups are Core
+# (functional/correctness, incl. the folded adjoint test) and QA (Aqua +
+# Explicit Imports).
 const _G = get(ENV, "GROUP", "All")
 const _SUB = "BracketingNonlinearSolve"
-const _SEC = _G == _SUB ? "Core" :
+const GROUP = _G == _SUB ? "Core" :
     (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
-const _SEC_BASE = endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC
-const GROUP = lowercase(_SEC_BASE)
 
 @testset "BracketingNonlinearSolve.jl" begin
-    if GROUP == "all" || GROUP == "core"
+    if GROUP in ("All", "all")
         @run_package_tests
+    elseif GROUP in ("Core", "core")
+        @run_package_tests filter = ti -> (:core in ti.tags)
+    elseif GROUP in ("QA", "qa")
+        @run_package_tests filter = ti -> (:qa in ti.tags)
     else
-        @run_package_tests filter = ti -> (Symbol(GROUP) in ti.tags)
+        @run_package_tests filter = ti -> (Symbol(lowercase(GROUP)) in ti.tags)
     end
 end

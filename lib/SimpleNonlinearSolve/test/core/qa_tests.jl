@@ -1,4 +1,4 @@
-@testitem "Aqua" tags = [:core] begin
+@testitem "Aqua" tags = [:qa] begin
     using Aqua, SimpleNonlinearSolve
 
     Aqua.test_all(
@@ -16,7 +16,7 @@
     Aqua.test_ambiguities(SimpleNonlinearSolve; recursive = false)
 end
 
-@testitem "Explicit Imports" tags = [:core] begin
+@testitem "Explicit Imports" tags = [:qa] begin
     import ReverseDiff, Tracker, StaticArrays, Zygote
     using ExplicitImports, SimpleNonlinearSolve
 

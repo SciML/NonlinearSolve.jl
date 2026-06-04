@@ -1,4 +1,4 @@
-@testitem "Aqua" tags = [:core] begin
+@testitem "Aqua" tags = [:qa] begin
     using Aqua, SCCNonlinearSolve
 
     Aqua.test_all(
@@ -17,7 +17,7 @@
     Aqua.test_ambiguities(SCCNonlinearSolve; recursive = false)
 end
 
-@testitem "Explicit Imports" tags = [:core] begin
+@testitem "Explicit Imports" tags = [:qa] begin
     using ExplicitImports, SciMLBase, SCCNonlinearSolve
 
     @test check_no_implicit_imports(

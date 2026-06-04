@@ -1,6 +1,0 @@
-[Core]
-versions = ["1.10", "1.11", "1"]
-
-[CoreMacOS]
-versions = ["1.10", "1.11", "1"]
-runner = "macos-latest"

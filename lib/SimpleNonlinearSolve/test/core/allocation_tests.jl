@@ -1,4 +1,4 @@
-@itesitem "Allocation Tests" tags = [:alloc_check] begin
+@testitem "Allocation Tests" tags = [:qa] begin
     using SimpleNonlinearSolve, StaticArrays, AllocCheck, LineSearch
 
     quadratic_f(u, p) = u .* u .- p

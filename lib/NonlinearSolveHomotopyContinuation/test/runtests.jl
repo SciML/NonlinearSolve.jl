@@ -3,24 +3,29 @@ using Test
 using Aqua
 
 # Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it for parity
-# with the other sublibraries. This suite is a single always-on Core block (no group
-# filtering), so every section runs it, matching the old bespoke CI. The "MacOS"
-# suffix only selects a runner, not a different selection.
+# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
+# back to the bare standard section name. Standard sublibrary groups are Core
+# (functional/correctness — AllRoots/Single Root) and QA (Aqua).
 const _G = get(ENV, "GROUP", "All")
 const _SUB = "NonlinearSolveHomotopyContinuation"
-const _SEC = _G == _SUB ? "Core" :
+const GROUP = _G == _SUB ? "Core" :
     (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
-const GROUP = lowercase(endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC)
+
+const _RUN_CORE = GROUP in ("All", "all", "Core", "core")
+const _RUN_QA = GROUP in ("All", "all", "QA", "qa")
 
 @testset "NonlinearSolveHomotopyContinuation.jl" begin
-    @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(NonlinearSolveHomotopyContinuation)
+    if _RUN_QA
+        @testset "Code quality (Aqua.jl)" begin
+            Aqua.test_all(NonlinearSolveHomotopyContinuation)
+        end
     end
-    @testset "AllRoots" begin
-        include("allroots.jl")
-    end
-    @testset "Single Root" begin
-        include("single_root.jl")
+    if _RUN_CORE
+        @testset "AllRoots" begin
+            include("allroots.jl")
+        end
+        @testset "Single Root" begin
+            include("single_root.jl")
+        end
     end
 end

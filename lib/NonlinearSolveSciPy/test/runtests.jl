@@ -3,15 +3,19 @@ using ReTestItems, NonlinearSolveSciPy, Hwloc, InteractiveUtils
 @info sprint(InteractiveUtils.versioninfo)
 
 # Centralized SublibraryCI (sublibrary-tests.yml@v1) emits GROUP="<pkg>" for the
-# Core section and GROUP="<pkg>_<Section>" for other sections. Decode it back to a
-# bare section name so the dispatch below (and bare "All" for local runs) keeps
-# working; the "MacOS" suffix only selects a runner, not a different selection.
+# Core section and GROUP="<pkg>_<Section>" for other sections; strip the prefix
+# back to the bare standard section name. Standard sublibrary groups are Core
+# (functional/correctness — the SciPy wrappers + basic load tests) and QA. This
+# sublibrary has no QA-tagged items, so the QA leg runs nothing.
 const _G = get(ENV, "GROUP", "All")
 const _SUB = "NonlinearSolveSciPy"
-const _SEC = _G == _SUB ? "Core" :
+const GROUP = _G == _SUB ? "Core" :
     (startswith(_G, _SUB * "_") ? _G[(length(_SUB) + 2):end] : _G)
-const _SEC_BASE = endswith(_SEC, "MacOS") ? _SEC[1:(end - 5)] : _SEC
-const GROUP = lowercase(_SEC_BASE)
+
+const _TAGS = GROUP in ("All", "all") ? nothing :
+    GROUP in ("Core", "core") ? [:core] :
+    GROUP in ("QA", "qa") ? [:qa] :
+    GROUP in ("GPU", "gpu", "cuda") ? [:cuda] : [Symbol(lowercase(GROUP))]
 
 const NWORKERS = 1   # PythonCall is not thread-safe across multiple Julia processes/threads
 const NTHREADS = 1
@@ -20,7 +24,7 @@ const NTHREADS = 1
 
 ReTestItems.runtests(
     NonlinearSolveSciPy;
-    tags = (GROUP == "all" || GROUP == "core" ? nothing : [Symbol(GROUP)]),
+    tags = _TAGS,
     nworkers = NWORKERS, nworker_threads = NTHREADS,
     testitem_timeout = 3600
 )
