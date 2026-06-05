@@ -50,6 +50,12 @@ Klement
 LimitedMemoryBroyden
 ```
 
+## Homotopy / Continuation Solvers
+
+```@docs
+HomotopySweep
+```
+
 ## Nonlinear Least Squares Solvers
 
 ```@docs
