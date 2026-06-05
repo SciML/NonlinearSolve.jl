@@ -27,3 +27,23 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test sol.u[1] ≈ sqrt(c) atol = 1e-6
 end
+
+@testitem "HomotopySweep rescues an out-of-basin guess (no MTK)" tags = [:core] begin
+    using SciMLBase
+    # actual residual atan(u-3) has root u=3 but its derivative saturates, so a cold
+    # Newton from u0=12 overshoots/diverges. simplified residual u has root u=0.
+    # H(u,p) = (1-λ)*u + λ*atan(u-3); p=[λ]. Sweep 0→1 tracks 0 → 3.
+    H(u, p) = [(1 - p[1]) * u[1] + p[1] * atan(u[1] - 3.0)]
+    u0 = [12.0]
+    p = [0.0]
+    prob = HomotopyProblem(H, u0, p; homotopy_parameter = 1, λspan = (0.0, 1.0))
+
+    sol = solve(prob, HomotopySweep(; nsteps = 20))
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u[1] ≈ 3.0 atol = 1e-5
+
+    # contrast: cold Newton on the actual system from the same guess does NOT land on 3.
+    cold = NonlinearProblem((u, p) -> [atan(u[1] - 3.0)], u0)
+    csol = solve(cold, NewtonRaphson())
+    @test !(SciMLBase.successful_retcode(csol) && isapprox(csol.u[1], 3.0; atol = 1e-3))
+end
