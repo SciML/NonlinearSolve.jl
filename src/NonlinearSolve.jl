@@ -41,6 +41,7 @@ const SII = SymbolicIndexingInterface
 
 include("poly_algs.jl")
 include("extension_algs.jl")
+include("homotopy_sweep.jl")
 
 include("default.jl")
 
@@ -157,5 +158,8 @@ export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
     FixedPointAccelerationJL, SpeedMappingJL, SIAMFANLEquationsJL
 export PETScSNES, CMINPACK
+
+# Homotopy continuation
+export HomotopySweep
 
 end
