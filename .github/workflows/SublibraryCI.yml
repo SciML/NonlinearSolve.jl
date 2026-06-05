@@ -13,13 +13,33 @@ on:
       - 'docs/**'
 
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  sublibrary-ci:
-    name: "Sublibrary CI"
-    uses: "SciML/.github/.github/workflows/sublibrary-tests.yml@v1"
+  list-sublibraries:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.list.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: "List lib/* sublibraries"
+        id: list
+        run: |
+          projects=$(for d in lib/*/; do d="${d%/}"; [ -f "$d/Project.toml" ] && echo "$d"; done \
+            | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+          echo "Sublibraries: $projects"
+          echo "projects=$projects" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: list-sublibraries
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.list-sublibraries.outputs.projects) }}
+    name: "Sublibrary - ${{ matrix.project }}"
+    uses: "SciML/.github/.github/workflows/tests.yml@v1"
+    with:
+      project: "${{ matrix.project }}"
+      coverage: false
     secrets: "inherit"
