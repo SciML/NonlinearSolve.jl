@@ -41,5 +41,7 @@ jobs:
     uses: "SciML/.github/.github/workflows/tests.yml@v1"
     with:
       project: "${{ matrix.project }}"
-      coverage: false
+      # collect the sublibrary's own source coverage (its tests are the only thing
+      # that exercises it); point processcoverage at the sublibrary, not repo root.
+      coverage-directories: "${{ matrix.project }}/src,${{ matrix.project }}/ext"
     secrets: "inherit"
