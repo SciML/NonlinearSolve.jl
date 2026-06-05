@@ -17,39 +17,6 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  list-sublibraries:
-    runs-on: ubuntu-latest
-    outputs:
-      projects: ${{ steps.list.outputs.projects }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: "List lib/* sublibraries"
-        id: list
-        run: |
-          # Build the JSON array in pure shell -- no jq/python3, since neither is
-          # guaranteed on a self-hosted runner. lib/* names contain no JSON-special
-          # characters, so plain quoting is safe.
-          projects=""
-          for d in lib/*/; do
-            d="${d%/}"
-            [ -f "$d/Project.toml" ] || continue
-            if [ -z "$projects" ]; then projects="\"$d\""; else projects="$projects,\"$d\""; fi
-          done
-          projects="[$projects]"
-          echo "Sublibraries: $projects"
-          echo "projects=$projects" >> "$GITHUB_OUTPUT"
-
-  test:
-    needs: list-sublibraries
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJson(needs.list-sublibraries.outputs.projects) }}
-    name: "Sublibrary - ${{ matrix.project }}"
-    uses: "SciML/.github/.github/workflows/tests.yml@v1"
-    with:
-      project: "${{ matrix.project }}"
-      # collect the sublibrary's own source coverage (its tests are the only thing
-      # that exercises it); point processcoverage at the sublibrary, not repo root.
-      coverage-directories: "${{ matrix.project }}/src,${{ matrix.project }}/ext"
+  sublibraries:
+    uses: "SciML/.github/.github/workflows/sublibrary-project-tests.yml@v1"
     secrets: "inherit"
