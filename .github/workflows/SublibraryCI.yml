@@ -13,13 +13,10 @@ on:
       - 'docs/**'
 
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  sublibrary-ci:
-    name: "Sublibrary CI"
-    uses: "SciML/.github/.github/workflows/sublibrary-tests.yml@v1"
+  sublibraries:
+    uses: "SciML/.github/.github/workflows/sublibrary-project-tests.yml@v1"
     secrets: "inherit"
