@@ -87,3 +87,16 @@ end
     @test SciMLBase.successful_retcode(s_snr)
     @test s_snr.u[1] ≈ sqrt(c) atol = 1e-6
 end
+
+@testitem "HomotopySweep handles integer-eltype p" tags = [:core] begin
+    using SciMLBase
+    # p is Vector{Int}; the λ-setter must promote so a Float λ doesn't throw InexactError.
+    c = 4.0
+    H(u, p) = [(1 - p[2]) * (u[1] - c) + p[2] * (u[1]^2 - c)]
+    u0 = [c]
+    p = [4, 0]                      # Vector{Int}; index 2 is λ
+    prob = HomotopyProblem(H, u0, p; homotopy_parameter = 2, λspan = (0.0, 1.0))
+    sol = solve(prob, HomotopySweep())
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u[1] ≈ sqrt(c) atol = 1e-6
+end

@@ -29,7 +29,9 @@ end
 # Symbolic locator → setp_oop, which yields a fresh parameter container with λ set.
 function _lambda_setter(prob::HomotopyProblem, loc::Integer)
     return (p, λ) -> begin
-        p2 = copy(p)
+        T = promote_type(eltype(p), typeof(λ))
+        p2 = similar(p, T)
+        copyto!(p2, p)
         p2[loc] = λ
         return p2
     end
