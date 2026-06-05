@@ -26,8 +26,10 @@ jobs:
       - name: "List lib/* sublibraries"
         id: list
         run: |
+          # jq is preinstalled on GitHub-hosted runners; -R reads each path as a
+          # JSON string, -s slurps them into a compact array (-> [] when empty).
           projects=$(for d in lib/*/; do d="${d%/}"; [ -f "$d/Project.toml" ] && echo "$d"; done \
-            | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+            | jq -R . | jq -sc .)
           echo "Sublibraries: $projects"
           echo "projects=$projects" >> "$GITHUB_OUTPUT"
 
