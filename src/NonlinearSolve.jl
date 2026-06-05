@@ -14,7 +14,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
     NonlinearFunction,
-    NonlinearProblem, NonlinearLeastSquaresProblem
+    NonlinearProblem, NonlinearLeastSquaresProblem, HomotopyProblem
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 using StaticArraysCore: StaticArray
 
