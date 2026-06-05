@@ -47,3 +47,21 @@ end
     csol = solve(cold, NewtonRaphson())
     @test !(SciMLBase.successful_retcode(csol) && isapprox(csol.u[1], 3.0; atol = 1e-3))
 end
+
+@testitem "HomotopySweep reports a failure retcode when it cannot finish" tags = [:core] begin
+    using SciMLBase
+    # No real root for λ>1/3 (fold): (1-λ)*u + λ*(u^2 + 1). Continuation cannot reach λ=1.
+    H(u, p) = [(1 - p[1]) * u[1] + p[1] * (u[1]^2 + 1.0)]
+    prob = HomotopyProblem(H, [0.0], [0.0]; homotopy_parameter = 1, λspan = (0.0, 1.0))
+    sol = solve(prob, HomotopySweep(; adaptive = true, min_dλ = 1e-2))
+    @test !SciMLBase.successful_retcode(sol)            # must fail, not silently "succeed"
+    @test sol.retcode != SciMLBase.ReturnCode.Success
+end
+
+@testitem "HomotopySweep adaptive=false fails fast on a hard step" tags = [:core] begin
+    using SciMLBase
+    H(u, p) = [(1 - p[1]) * u[1] + p[1] * (u[1]^2 + 1.0)]
+    prob = HomotopyProblem(H, [0.0], [0.0]; homotopy_parameter = 1, λspan = (0.0, 1.0))
+    sol = solve(prob, HomotopySweep(; adaptive = false))
+    @test !SciMLBase.successful_retcode(sol)
+end

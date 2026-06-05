@@ -71,7 +71,7 @@ function CommonSolve.solve(
         else
             # on failure: u is the last CONVERGED iterate (λ<λ1); resid is from the failed step (advisory)
             return SciMLBase.build_solution(
-                prob, alg, u, last_sol.resid; retcode = ReturnCode.ConvergenceFailure)
+                prob, alg, u, last_sol.resid; retcode = last_sol.retcode)
         end
     end
 
