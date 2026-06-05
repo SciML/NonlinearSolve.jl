@@ -117,6 +117,13 @@ end
 # unbounded parameter `t` using the logistic function to map all values of `t`
 # into the interval (lb, ub).
 function transform_bounded_problem(prob, alg)
+    # `initialization_data` (e.g. from ModelingToolkit) is defined in the original,
+    # bounded coordinates. It must run *before* the transform so the resulting `u0`/`p`
+    # are consistent; running it on the transformed problem would interpret the unbounded
+    # iterate `t` as a bounded state and corrupt the solution. We run it here and strip it
+    # from the transformed function below so it isn't re-run in `t`-space.
+    prob = run_bounded_initialization(prob, alg)
+
     lb, ub = _normalize_bounds(prob.lb, prob.ub, prob.u0)
 
     # Clamp u0 into the interior of the bounds so that _to_unbounded doesn't hit log(0)
@@ -125,8 +132,10 @@ function transform_bounded_problem(prob, alg)
     u0_transformed = _to_unbounded.(u0_clamped, lb, ub)
 
     # PreallocationTools is only supported by ForwardDiff so we only use
-    # FixedSizeDiffCache if we're using ForwardDiff.
-    u_cache = if isnothing(alg) || isnothing(alg.autodiff) || alg.autodiff isa AutoForwardDiff
+    # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
+    # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
+    alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
+    u_cache = if alg_ad === nothing || alg_ad isa AutoForwardDiff
         FixedSizeDiffCache(prob.u0)
     else
         similar(prob.u0)
@@ -148,7 +157,24 @@ function transform_bounded_problem(prob, alg)
         wrapped
     end
 
-    transformed_prob = remake(prob; f = new_f, u0 = u0_transformed, lb = nothing, ub = nothing)
+    transformed_prob = remake(
+        prob; f = new_f, u0 = u0_transformed, lb = nothing, ub = nothing,
+        build_initializeprob = Val{false}
+    )
 
     return transformed_prob
+end
+
+# Run problem initialization (if any) in the original bounded coordinates so that the
+# resulting `u0`/`p` are consistent before the bounds transform is applied. Returns the
+# problem unchanged when there is no `OverrideInitData` to run.
+function run_bounded_initialization(prob, alg)
+    SciMLBase.has_initialization_data(prob.f) || return prob
+    prob.f.initialization_data isa SciMLBase.OverrideInitData || return prob
+    iip = SciMLBase.isinplace(prob)
+    u0, p, _ = SciMLBase.get_initial_values(
+        prob, prob, prob.f, SciMLBase.OverrideInit(), Val(iip);
+        nlsolve_alg = alg, abstol = get_abstol(prob), reltol = get_reltol(prob)
+    )
+    return remake(prob; u0, p, build_initializeprob = Val{false})
 end

@@ -142,4 +142,8 @@ using InteractiveUtils, Test
     @testset "EnzymeExt algorithms are inactive_type" begin
         include("enzyme_inactive_algorithm.jl")
     end
+
+    @testset "Bounds transform (#955)" begin
+        include("bounds_transform.jl")
+    end
 end
