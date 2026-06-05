@@ -418,7 +418,12 @@ end
             PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
             Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2),
         )
-        @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
+        # The matrix and vectorized `u0` take slightly different reshape/BLAS kernel
+        # paths, which can differ by ~1 ULP (observed on arm64 CI runners). Compare
+        # approximately with a tight tolerance rather than bit-exactly: `rtol = 1e-12`
+        # is ~10⁴× looser than the observed last-bit noise yet ~10⁴× tighter than the
+        # solvers' own convergence tolerance, so it still catches any real regression.
+        @test vec(solve(prob, alg).u) ≈ solve(vecprob, alg).u rtol = 1.0e-12
     end
 end
 
@@ -436,7 +441,12 @@ end
             PseudoTransient(), RobustMultiNewton(), FastShortcutNonlinearPolyalg(),
             Broyden(), Klement(), LimitedMemoryBroyden(; threshold = 2),
         )
-        @test vec(solve(prob, alg).u) == solve(vecprob, alg).u
+        # The matrix and vectorized `u0` take slightly different reshape/BLAS kernel
+        # paths, which can differ by ~1 ULP (observed on arm64 CI runners). Compare
+        # approximately with a tight tolerance rather than bit-exactly: `rtol = 1e-12`
+        # is ~10⁴× looser than the observed last-bit noise yet ~10⁴× tighter than the
+        # solvers' own convergence tolerance, so it still catches any real regression.
+        @test vec(solve(prob, alg).u) ≈ solve(vecprob, alg).u rtol = 1.0e-12
     end
 end
 
