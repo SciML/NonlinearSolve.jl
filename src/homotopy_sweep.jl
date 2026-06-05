@@ -80,3 +80,10 @@ function CommonSolve.solve(
     return SciMLBase.build_solution(
         prob, alg, u, last_sol.resid; retcode = ReturnCode.Success)
 end
+
+# A HomotopyProblem with no algorithm defaults to the continuation sweep. This lets the
+# generic `solve(initprob, nothing)` path (e.g. SciMLBase OverrideInit with a default
+# nlsolve) route a homotopy initialization problem to HomotopySweep automatically.
+function CommonSolve.solve(prob::HomotopyProblem, ::Nothing, args...; kwargs...)
+    return solve(prob, HomotopySweep(), args...; kwargs...)
+end

@@ -100,3 +100,13 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test sol.u[1] ≈ sqrt(c) atol = 1e-6
 end
+
+@testitem "HomotopyProblem defaults to HomotopySweep when alg is nothing" tags = [:core] begin
+    using SciMLBase
+    c = 4.0
+    H(u, p) = [(1 - p[2]) * (u[1] - c) + p[2] * (u[1]^2 - c)]
+    prob = HomotopyProblem(H, [c], [c, 0.0]; homotopy_parameter = 2, λspan = (0.0, 1.0))
+    sol = solve(prob, nothing)        # no algorithm → should default to HomotopySweep
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u[1] ≈ sqrt(c) atol = 1e-6
+end
