@@ -20,12 +20,13 @@ unrelated to the polynomial `HomotopyContinuationJL`.
 end
 
 function HomotopySweep(; inner = nothing, nsteps = 10, adaptive = true, min_dλ = 1.0e-3)
+    nsteps >= 1 || throw(ArgumentError("HomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
     return HomotopySweep(inner, nsteps, adaptive, min_dλ)
 end
 
 # Build a pure setter `(p, λ) -> p′` that writes λ at the problem's homotopy_parameter.
 # Integer locator → positional index into a copy of `p`.
-# Otherwise → SymbolicIndexingInterface setter (symbolic parameter), normalized to OOP.
+# Symbolic locator → setp_oop, which yields a fresh parameter container with λ set.
 function _lambda_setter(prob::HomotopyProblem, loc::Integer)
     return (p, λ) -> begin
         p2 = copy(p)
@@ -35,12 +36,10 @@ function _lambda_setter(prob::HomotopyProblem, loc::Integer)
 end
 
 function _lambda_setter(prob::HomotopyProblem, loc)
-    raw = SymbolicIndexingInterface.setp(prob, loc)
-    return (p, λ) -> begin
-        p2 = copy(p)
-        ret = raw(p2, λ)
-        return ret === nothing ? p2 : ret
-    end
+    # setp_oop returns a setter `(p, λ) -> new_p` that yields a fresh parameter container
+    # with λ set, without mutating `p` — the correct out-of-place SII contract.
+    setter = SymbolicIndexingInterface.setp_oop(prob, loc)
+    return (p, λ) -> setter(p, λ)
 end
 
 function CommonSolve.solve(
@@ -67,8 +66,10 @@ function CommonSolve.solve(
             λ = next_λ
             λ == λ1 && break
         elseif alg.adaptive && abs(dλ) / 2 >= alg.min_dλ
+            # conservative: step size is not restored after a bisection
             dλ = dλ / 2          # bisect; retry from the same λ (do not advance)
         else
+            # on failure: u is the last CONVERGED iterate (λ<λ1); resid is from the failed step (advisory)
             return SciMLBase.build_solution(
                 prob, alg, u, last_sol.resid; retcode = ReturnCode.ConvergenceFailure)
         end
