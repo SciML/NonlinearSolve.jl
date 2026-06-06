@@ -64,6 +64,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("homotopy_sweep.jl")
 
 
 include("descent/common.jl")
@@ -110,6 +111,8 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
     GeodesicAcceleration
 
 export NonlinearSolvePolyAlgorithm
+
+export HomotopySweep
 
 export NonlinearVerbosity
 

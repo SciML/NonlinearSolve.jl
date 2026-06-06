@@ -27,7 +27,7 @@ end
 # Build a pure setter `(p, λ) -> p′` that writes λ at the problem's homotopy_parameter.
 # Integer locator → positional index into a copy of `p`.
 # Symbolic locator → setp_oop, which yields a fresh parameter container with λ set.
-function _lambda_setter(prob::HomotopyProblem, loc::Integer)
+function _lambda_setter(prob::SciMLBase.HomotopyProblem, loc::Integer)
     return (p, λ) -> begin
         T = promote_type(eltype(p), typeof(λ))
         p2 = similar(p, T)
@@ -37,7 +37,7 @@ function _lambda_setter(prob::HomotopyProblem, loc::Integer)
     end
 end
 
-function _lambda_setter(prob::HomotopyProblem, loc)
+function _lambda_setter(prob::SciMLBase.HomotopyProblem, loc)
     # setp_oop returns a setter `(p, λ) -> new_p` that yields a fresh parameter container
     # with λ set, without mutating `p` — the correct out-of-place SII contract.
     setter = SymbolicIndexingInterface.setp_oop(prob, loc)
@@ -45,7 +45,7 @@ function _lambda_setter(prob::HomotopyProblem, loc)
 end
 
 function CommonSolve.solve(
-        prob::HomotopyProblem, alg::HomotopySweep, args...; kwargs...)
+        prob::SciMLBase.HomotopyProblem, alg::HomotopySweep, args...; kwargs...)
     loc = prob.homotopy_parameter
     loc === nothing && throw(ArgumentError(
         "HomotopyProblem.homotopy_parameter is `nothing`; HomotopySweep needs to know " *
@@ -84,6 +84,6 @@ end
 # A HomotopyProblem with no algorithm defaults to the continuation sweep. This lets the
 # generic `solve(initprob, nothing)` path (e.g. SciMLBase OverrideInit with a default
 # nlsolve) route a homotopy initialization problem to HomotopySweep automatically.
-function CommonSolve.solve(prob::HomotopyProblem, ::Nothing, args...; kwargs...)
+function CommonSolve.solve(prob::SciMLBase.HomotopyProblem, ::Nothing, args...; kwargs...)
     return solve(prob, HomotopySweep(), args...; kwargs...)
 end
