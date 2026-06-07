@@ -29,16 +29,16 @@ AbstractSafeNonlinearTerminationMode end
 
 #! format: off
 const TERM_DOCS = Dict(
-    :Norm => doc"``\| \Delta u \| \leq reltol \times \| \Delta u + u \|`` or ``\| \Delta u \| \leq abstol``.",
-    :Rel => doc"``\mathrm{all} \left(| \Delta u | \leq reltol \times | u | \right)``.",
-    :RelNorm => doc"``\| \Delta u \| \leq reltol \times \| \Delta u + u \|``.",
-    :Abs => doc"``\mathrm{all} \left( | \Delta u | \leq abstol \right)``.",
-    :AbsNorm => doc"``\| \Delta u \| \leq abstol``."
+    :Norm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|`` or ``\| Δu \| ≤ abstol``",
+    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | u | \right)``",
+    :RelNorm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|``",
+    :Abs => doc"``\mathrm{all} \left( | Δu | ≤ abstol \right)``",
+    :AbsNorm => doc"``\| Δu \| ≤ abstol``"
 )
 
 const TERM_INTERNALNORM_DOCS = """
 where `internalnorm` is the norm to use for the termination condition. Special handling is
-done for `norm(_, 2)`, `norm`, `norm(_, Inf)`, and `maximum(abs, _)`."""
+done for `norm(_, 2)`, `norm`, `norm(_, Inf)`, and `maximum(abs, _)`"""
 #! format: on
 
 for name in (:Rel, :Abs)
