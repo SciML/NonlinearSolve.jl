@@ -32,11 +32,11 @@ ReverseDiff = "1.15"
 SciMLBase = "2.153, 3"
 SciMLOperators = "1.7"
 Test = "1.10"
-TestItemRunner = "1"
 Tracker = "0.2.35"
 Zygote = "0.6.70, 0.7"
 julia = "1.10"
 
+SafeTestsets = "0.1"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
@@ -46,9 +46,9 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Aqua", "Enzyme", "ExplicitImports", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "ReverseDiff", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "Enzyme", "ExplicitImports", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "ReverseDiff", "Test", "Tracker", "Zygote", "SafeTestsets"]

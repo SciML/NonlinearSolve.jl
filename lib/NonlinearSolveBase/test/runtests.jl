@@ -1,11 +1,15 @@
-using InteractiveUtils, Test
+using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
 
-# Changing any code here triggers all the other tests to be run. So we intentionally
-# keep the tests here minimal.
-@testset "NonlinearSolveBase.jl" begin
-    @testset "Aqua" begin
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
+
+@info "Running tests for group: $(GROUP)"
+
+# All NonlinearSolveBase tests run under the default Core group.
+if GROUP == "all" || GROUP == "core"
+    @safetestset "Aqua" begin
         using Aqua, NonlinearSolveBase
         using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem
 
@@ -17,7 +21,7 @@ using InteractiveUtils, Test
         Aqua.test_ambiguities(NonlinearSolveBase; recursive = false)
     end
 
-    @testset "Explicit Imports" begin
+    @safetestset "Explicit Imports" begin
         import ForwardDiff, SparseArrays
         using ExplicitImports, NonlinearSolveBase
 
@@ -30,7 +34,8 @@ using InteractiveUtils, Test
         @test check_all_qualified_accesses_via_owners(NonlinearSolveBase) === nothing
     end
 
-    @testset "Banded Matrix vcat" begin
+    @safetestset "Banded Matrix vcat" begin
+        using NonlinearSolveBase
         using BandedMatrices, LinearAlgebra, SparseArrays
 
         b = BandedMatrix(Ones(5, 5), (1, 1))
@@ -39,7 +44,7 @@ using InteractiveUtils, Test
         @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
     end
 
-    @testset "Termination Conditions" begin
+    @safetestset "Termination Conditions" begin
         using NonlinearSolveBase, SciMLBase
         @testset "reinit! with AbsTerminationMode" begin
             mode = NonlinearSolveBase.AbsTerminationMode()
@@ -55,7 +60,7 @@ using InteractiveUtils, Test
         end
     end
 
-    @testset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
+    @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
         # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
         # any path where the user function was not wrapped via AutoSpecialize),
         # `standardize_forwarddiff_tag` must return the AD backend unchanged
@@ -85,7 +90,7 @@ using InteractiveUtils, Test
         @test outp === adp
     end
 
-    @testset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
+    @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
         # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
         # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works
         # for any `AbstractArray` state with a non-dual eltype — `Vector{Float64}`,
@@ -131,19 +136,11 @@ using InteractiveUtils, Test
         )
     end
 
-    @testset "EnzymeExt _accum_tangent! caches accumulation (#935)" begin
-        include("enzyme_accum_tangent.jl")
-    end
+    @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
-    @testset "PolyAlgorithm solution type is concrete (#878)" begin
-        include("polyalg_solution_type.jl")
-    end
+    @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
 
-    @testset "EnzymeExt algorithms are inactive_type" begin
-        include("enzyme_inactive_algorithm.jl")
-    end
+    @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
 
-    @testset "Bounds transform (#955)" begin
-        include("bounds_transform.jl")
-    end
+    @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
 end

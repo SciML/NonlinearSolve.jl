@@ -70,11 +70,11 @@ Setfield = "1.1.1"
 StaticArrays = "1.9"
 StaticArraysCore = "1.4.3"
 Test = "1.10"
-TestItemRunner = "1"
 Tracker = "0.2.35"
 Zygote = "0.6.70, 0.7"
 julia = "1.10"
 
+SafeTestsets = "0.1"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
@@ -87,9 +87,9 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Aqua", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "TestItemRunner", "Tracker", "Zygote"]
+test = ["Aqua", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "Tracker", "Zygote", "SafeTestsets"]

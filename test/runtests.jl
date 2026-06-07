@@ -1,83 +1,126 @@
-using ReTestItems, Hwloc, InteractiveUtils, Pkg
+using Pkg
+using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
 
-function parse_test_args()
-    test_args_from_env = @isdefined(TEST_ARGS) ? TEST_ARGS : ARGS
-    test_args = Dict{String, String}()
-    for arg in test_args_from_env
-        if contains(arg, "=")
-            key, value = split(arg, "="; limit = 2)
-            test_args[key] = value
-        end
-    end
-    @info "Parsed test args" test_args
-    return test_args
-end
+# Group dispatch. SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; the root CI sets
+# GROUP. Read either so the same runtests.jl works as both the root test entry
+# and the sublibrary dispatcher.
+const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
 
-const PARSED_TEST_ARGS = parse_test_args()
-
-function get_from_test_args_or_env(key, default)
-    haskey(PARSED_TEST_ARGS, key) && return PARSED_TEST_ARGS[key]
-    return get(ENV, key, default)
-end
-
-const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
-
-# Disable Enzyme on Julia 1.12+ due to compatibility issues
-# To re-enable: change condition to `true` or `VERSION < v"1.13"`
+# Disable Enzyme on Julia 1.13+ due to compatibility issues.
 const ENZYME_ENABLED = VERSION < v"1.13"
 
-if GROUP != "trim"
-    using NonlinearSolve  # trimming uses NonlinearSolve from a custom environment
-
-    const EXTRA_PKGS = Pkg.PackageSpec[]
-    if GROUP == "all" || GROUP == "downstream"
-        push!(EXTRA_PKGS, Pkg.PackageSpec("ModelingToolkit"))
-        push!(EXTRA_PKGS, Pkg.PackageSpec("SymbolicIndexingInterface"))
-        push!(EXTRA_PKGS, Pkg.PackageSpec("OrdinaryDiffEqTsit5"))
+# GROUP is lowercased above; match sublibrary dirs case-insensitively.
+function _find_lib(base, lib_dir)
+    isdir(lib_dir) || return nothing
+    for d in readdir(lib_dir)
+        isdir(joinpath(lib_dir, d)) && lowercase(d) == lowercase(base) && return d
     end
-    if GROUP in ("all", "nopre", "bounds")
-        # Only add Enzyme for specific groups if not on prerelease Julia and if enabled
-        if isempty(VERSION.prerelease) && ENZYME_ENABLED
-            push!(EXTRA_PKGS, Pkg.PackageSpec("Enzyme"))
-            push!(EXTRA_PKGS, Pkg.PackageSpec("Mooncake"))
-            push!(EXTRA_PKGS, Pkg.PackageSpec("SciMLSensitivity"))
-        end
-    end
-    if GROUP == "all" || GROUP == "cuda"
-        # Only add CUDA for cuda group if not on prerelease Julia
-        if isempty(VERSION.prerelease)
-            push!(EXTRA_PKGS, Pkg.PackageSpec("CUDA"))
-        end
-    end
-    length(EXTRA_PKGS) ≥ 1 && Pkg.add(EXTRA_PKGS)
-
-    # Use sequential execution for wrapper tests to avoid parallel initialization issues
-    const RETESTITEMS_NWORKERS = if GROUP == "wrappers"
-        0  # Sequential execution for wrapper tests
-    else
-        tmp = get(ENV, "RETESTITEMS_NWORKERS", "")
-        isempty(tmp) &&
-            (tmp = string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4)))
-        parse(Int, tmp)
-    end
-    const RETESTITEMS_NWORKER_THREADS = begin
-        tmp = get(ENV, "RETESTITEMS_NWORKER_THREADS", "")
-        isempty(tmp) &&
-            (tmp = string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1)))
-        parse(Int, tmp)
-    end
-
-    @info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
-
-    ReTestItems.runtests(
-        NonlinearSolve; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-        nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
-        testitem_timeout = 3600
-    )
-elseif GROUP == "trim" && VERSION >= v"1.12.0-rc1"  # trimming has been introduced in julia 1.12
-    Pkg.activate(joinpath(dirname(@__FILE__), "trim"))
-    Pkg.instantiate()
-    include("trim/runtests.jl")
+    return nothing
 end
+
+# If GROUP names a lib/<X> sublibrary (optionally `<X>_<TESTGROUP>`), activate
+# that sublibrary, develop its in-repo [sources], and Pkg.test it with the
+# sublibrary's own group env var set. Mirrors OrdinaryDiffEq's root dispatcher
+# so a single GROUP value can target any sublibrary. Scan underscores
+# right-to-left for the longest matching sublibrary prefix.
+function _detect_sublibrary_group(group, lib_dir)
+    _find_lib(group, lib_dir) !== nothing && return (group, "core")
+    for i in length(group):-1:1
+        if group[i] == '_' && _find_lib(group[1:(i - 1)], lib_dir) !== nothing
+            return (group[1:(i - 1)], group[(i + 1):end])
+        end
+    end
+    return (group, "core")
+end
+
+@time begin
+    lib_dir = joinpath(dirname(@__DIR__), "lib")
+    base_group, sub_group = _detect_sublibrary_group(GROUP, lib_dir)
+    sublib = _find_lib(base_group, lib_dir)
+
+    if sublib !== nothing
+        sub_path = joinpath(lib_dir, sublib)
+        Pkg.activate(sub_path)
+        # On Julia < 1.11 the [sources] section is ignored; develop local path
+        # deps so CI tests the PR branch code (transitively, including the
+        # umbrella root for sublibs that depend back on it).
+        if VERSION < v"1.11.0-DEV.0"
+            developed = Set{String}([normpath(sub_path)])
+            specs = Pkg.PackageSpec[]
+            queue = [sub_path]
+            while !isempty(queue)
+                pkg_dir = popfirst!(queue)
+                toml_path = joinpath(pkg_dir, "Project.toml")
+                isfile(toml_path) || continue
+                toml = Pkg.TOML.parsefile(toml_path)
+                if haskey(toml, "sources")
+                    for (dep_name, source_spec) in toml["sources"]
+                        if source_spec isa Dict && haskey(source_spec, "path")
+                            dep_path = normpath(joinpath(pkg_dir, source_spec["path"]))
+                            if isdir(dep_path) && !(dep_path in developed)
+                                push!(developed, dep_path)
+                                push!(specs, Pkg.PackageSpec(path = dep_path))
+                                push!(queue, dep_path)
+                            end
+                        end
+                    end
+                end
+            end
+            isempty(specs) || Pkg.develop(specs)
+        end
+        withenv("NONLINEARSOLVE_TEST_GROUP" => sub_group) do
+            Pkg.test(
+                sublib;
+                julia_args = ["--check-bounds=auto"],
+                force_latest_compatible_version = false, allow_reresolve = true
+            )
+        end
+    elseif GROUP == "trim" && VERSION >= v"1.12.0-rc1"
+        # Trimming was introduced in Julia 1.12; runs in its own environment.
+        Pkg.activate(joinpath(@__DIR__, "trim"))
+        Pkg.instantiate()
+        include("trim/runtests.jl")
+    else
+        # Heavy/optional group deps are added on demand so the default Core
+        # matrix stays lightweight (matches the original ReTestItems setup).
+        extra_pkgs = Pkg.PackageSpec[]
+        if GROUP == "all" || GROUP == "downstream"
+            push!(extra_pkgs, Pkg.PackageSpec("ModelingToolkit"))
+            push!(extra_pkgs, Pkg.PackageSpec("SymbolicIndexingInterface"))
+            push!(extra_pkgs, Pkg.PackageSpec("OrdinaryDiffEqTsit5"))
+        end
+        if GROUP in ("all", "nopre", "bounds")
+            if isempty(VERSION.prerelease) && ENZYME_ENABLED
+                push!(extra_pkgs, Pkg.PackageSpec("Enzyme"))
+                push!(extra_pkgs, Pkg.PackageSpec("Mooncake"))
+                push!(extra_pkgs, Pkg.PackageSpec("SciMLSensitivity"))
+            end
+        end
+        if GROUP == "all" || GROUP == "cuda"
+            isempty(VERSION.prerelease) && push!(extra_pkgs, Pkg.PackageSpec("CUDA"))
+        end
+        isempty(extra_pkgs) || Pkg.add(extra_pkgs)
+
+        @info "Running tests for group: $(GROUP)"
+
+        # Each test file is a sequence of top-level, per-item group-guarded
+        # @safetestset includes, so we include them all and the active GROUP
+        # selects which items run.
+        @time include("core_tests.jl")
+        @time include("23_test_problems_tests.jl")
+        @time include("bounds_tests.jl")
+        @time include("default_alg_tests.jl")
+        @time include("forward_ad_tests.jl")
+        @time include("issue_tests.jl")
+        @time include("adjoint_tests.jl")
+        @time include("mtk_cache_indexing_tests.jl")
+        @time include("verbosity_tests.jl")
+        @time include("qa_tests.jl")
+        @time include("cuda_tests.jl")
+        @time include("wrappers/fixedpoint_tests.jl")
+        @time include("wrappers/least_squares_tests.jl")
+        @time include("wrappers/rootfind_tests.jl")
+    end
+end # @time

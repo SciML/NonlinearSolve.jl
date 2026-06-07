@@ -23,17 +23,17 @@ InteractiveUtils = "<0.0.1, 1"
 NonlinearSolveBase = "2.1"
 PrecompileTools = "1.2"
 PythonCall = "0.9"
-ReTestItems = "1.24"
 Reexport = "1.2.2"
 SciMLBase = "2.153, 3"
 Test = "1.10"
 julia = "1.10"
 
+SafeTestsets = "0.1"
 [extras]
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Hwloc", "InteractiveUtils", "ReTestItems", "Test"]
+test = ["Hwloc", "InteractiveUtils", "Test", "SafeTestsets"]

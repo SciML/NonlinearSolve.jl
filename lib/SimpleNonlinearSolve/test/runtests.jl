@@ -1,37 +1,30 @@
-using TestItemRunner, InteractiveUtils, Pkg, Test
+using SafeTestsets, Test, InteractiveUtils, Pkg
 
 @info sprint(InteractiveUtils.versioninfo)
 
-function parse_test_args()
-    test_args_from_env = @isdefined(TEST_ARGS) ? TEST_ARGS : ARGS
-    test_args = Dict{String, String}()
-    for arg in test_args_from_env
-        if contains(arg, "=")
-            key, value = split(arg, "="; limit = 2)
-            test_args[key] = value
-        end
-    end
-    @info "Parsed test args" test_args
-    return test_args
-end
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
 
-const PARSED_TEST_ARGS = parse_test_args()
+@info "Running tests for group: $(GROUP)"
 
-function get_from_test_args_or_env(key, default)
-    haskey(PARSED_TEST_ARGS, key) && return PARSED_TEST_ARGS[key]
-    return get(ENV, key, default)
-end
-
-const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
-
+# Heavy/optional group deps are added on demand (not part of the default
+# resolve) so the Core/QA matrix stays lightweight, matching the original setup.
 (GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
 (GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
-(GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
 
-@testset "SimpleNonlinearSolve.jl" begin
-    if GROUP == "all"
-        @run_package_tests
-    else
-        @run_package_tests filter = ti -> (Symbol(GROUP) in ti.tags)
-    end
+if GROUP == "all" || GROUP == "adjoint"
+    include("core/adjoint_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "core"
+    include("core/exotic_type_tests.jl")
+    include("core/forward_diff_tests.jl")
+    include("core/least_squares_tests.jl")
+    include("core/matrix_resizing_tests.jl")
+    include("core/qa_tests.jl")
+    include("core/rootfind_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "cuda"
+    include("gpu/cuda_tests.jl")
 end

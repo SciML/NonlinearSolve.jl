@@ -55,6 +55,8 @@ jobs:
     with:
       julia-version: "${{ matrix.version }}"
       group: "${{ matrix.group }}"
+      group-env-name: NONLINEARSOLVE_TEST_GROUP
+      check-bounds: auto
       os: "${{ matrix.os }}"
       project: "."
     secrets: "inherit"

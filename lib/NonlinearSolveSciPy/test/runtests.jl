@@ -1,16 +1,16 @@
-using ReTestItems, NonlinearSolveSciPy, Hwloc, InteractiveUtils
+using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
 
-const GROUP = lowercase(get(ENV, "GROUP", "All"))
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
 
-const NWORKERS = 1   # PythonCall is not thread-safe across multiple Julia processes/threads
-const NTHREADS = 1
+@info "Running tests for group: $(GROUP)"
 
-@info "Running SciPy solver tests serially (nworkers = 1) to avoid Python multithreading issues"
+if GROUP == "all" || GROUP == "core"
+    include("basic_tests.jl")
+end
 
-ReTestItems.runtests(
-    NonlinearSolveSciPy; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = NWORKERS, nworker_threads = NTHREADS,
-    testitem_timeout = 3600
-)
+if GROUP == "all" || GROUP == "wrappers"
+    include("wrappers_tests.jl")
+end

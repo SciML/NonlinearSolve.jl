@@ -20,4 +20,6 @@ jobs:
     with:
       julia-version: "lts"
       skip: "Pkg,TOML,Statistics,LinearAlgebra,SparseArrays,InteractiveUtils,Random,Test,NonlinearSolve,NonlinearSolveBase,NonlinearSolveFirstOrder,NonlinearSolveQuasiNewton,NonlinearSolveSpectralMethods,NonlinearSolveHomotopyContinuation,NonlinearSolveSciPy,BracketingNonlinearSolve,SimpleNonlinearSolve,SCCNonlinearSolve,SciMLJacobianOperators"
+      group-env-name: "NONLINEARSOLVE_TEST_GROUP"
+      group-env-value: "Core"
       # Every lib/* sublibrary is downgrade-tested (projects auto-discovered, no exclusions).

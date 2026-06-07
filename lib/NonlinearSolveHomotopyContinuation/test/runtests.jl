@@ -1,15 +1,17 @@
-using NonlinearSolveHomotopyContinuation
-using Test
-using Aqua
+using SafeTestsets, Test, InteractiveUtils
 
-@testset "NonlinearSolveHomotopyContinuation.jl" begin
-    @testset "Code quality (Aqua.jl)" begin
+@info sprint(InteractiveUtils.versioninfo)
+
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
+
+@info "Running tests for group: $(GROUP)"
+
+if GROUP == "all" || GROUP == "core"
+    @safetestset "Code quality (Aqua.jl)" begin
+        using NonlinearSolveHomotopyContinuation, Aqua
         Aqua.test_all(NonlinearSolveHomotopyContinuation)
     end
-    @testset "AllRoots" begin
-        include("allroots.jl")
-    end
-    @testset "Single Root" begin
-        include("single_root.jl")
-    end
+    @safetestset "AllRoots" include("allroots.jl")
+    @safetestset "Single Root" include("single_root.jl")
 end

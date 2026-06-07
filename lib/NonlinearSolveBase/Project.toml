@@ -107,6 +107,7 @@ TimerOutputs = "0.5.23"
 Tracker = "0.2.35"
 julia = "1.10"
 
+SafeTestsets = "0.1"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
@@ -120,5 +121,6 @@ SciMLStructures = "53ae85a6-f571-4167-b2af-e1d143709226"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Aqua", "BandedMatrices", "ChainRulesCore", "Enzyme", "ExplicitImports", "ForwardDiff", "InteractiveUtils", "LinearAlgebra", "SciMLStructures", "SparseArrays", "Test"]
+test = ["Aqua", "BandedMatrices", "ChainRulesCore", "Enzyme", "ExplicitImports", "ForwardDiff", "InteractiveUtils", "LinearAlgebra", "SciMLStructures", "SparseArrays", "Test", "SafeTestsets"]
