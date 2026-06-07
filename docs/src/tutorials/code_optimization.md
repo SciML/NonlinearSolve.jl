@@ -40,12 +40,12 @@ prob = NLS.NonlinearProblem(f, u0, p)
 sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
-We can use BenchmarkTools.jl to get more precise timings:
+We can use the `@benchmark` macro from BenchmarkTools.jl to get more precise timings:
 
 ```@example small_opt
-import BenchmarkTools
+import BenchmarkTools: @benchmark
 
-BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
+@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Note that this way of writing the function is a shorthand for:
@@ -71,7 +71,7 @@ function f(du, u, p)
 end
 
 prob = NLS.NonlinearProblem(f, u0, p)
-BenchmarkTools.@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
+@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Notice how much faster this already runs! We can make this code even simpler by using
@@ -83,7 +83,7 @@ function f(du, u, p)
     return nothing
 end
 
-BenchmarkTools.@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
+@benchmark sol = NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 ## Further Optimizations for Small Nonlinear Solves with Static Arrays and SimpleNonlinearSolve
@@ -138,7 +138,7 @@ u0 = StaticArrays.SA[1.0, 1.0]
 p = 2.0
 prob = NLS.NonlinearProblem(f_SA, u0, p)
 
-BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
+@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 Note that only change here is that `u0` is made into a StaticArray! If we needed to write
@@ -147,7 +147,7 @@ Note that only change here is that `u0` is made into a StaticArray! If we needed
 ```@example small_opt
 f_SA(u, p) = StaticArrays.SA[u[1] * u[1] - p, u[2] * u[2] - p]
 
-BenchmarkTools.@benchmark NLS.solve(prob, NLS.NewtonRaphson())
+@benchmark NLS.solve(prob, NLS.NewtonRaphson())
 ```
 
 However, notice that this did not give us a speedup but rather a slowdown. This is because
@@ -158,7 +158,7 @@ of the methods from SimpleNonlinearSolve.jl which are designed for these small-s
 examples. Let's now use `SimpleNewtonRaphson`:
 
 ```@example small_opt
-BenchmarkTools.@benchmark NLS.solve(prob, NLS.SimpleNewtonRaphson())
+@benchmark NLS.solve(prob, NLS.SimpleNewtonRaphson())
 ```
 
 And there we go, around `40ns` from our starting point of almost `4μs`!
