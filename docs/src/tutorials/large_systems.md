@@ -16,10 +16,10 @@ equation (BRUSS) using NonlinearSolve.jl.
 The Brusselator PDE is defined as follows:
 
 ```math
-\begin{align}
+\begin{align*}
 0 &= 1 + u^2v - 4.4u + \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) + f(x, y, t)\\
 0 &= 3.4u - u^2v + \alpha\left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right)
-\end{align}
+\end{align*}
 ```
 
 where
@@ -34,19 +34,19 @@ f(x, y, t) = \begin{cases}
 and the initial conditions are
 
 ```math
-\begin{align}
+\begin{align*}
 u(x, y, 0) &= 22\cdot (y(1-y))^{3/2} \\
 v(x, y, 0) &= 27\cdot (x(1-x))^{3/2}
-\end{align}
+\end{align*}
 ```
 
 with the periodic boundary condition
 
 ```math
-\begin{align}
+\begin{align*}
 u(x+1,y,t) &= u(x,y,t) \\
 u(x,y+1,t) &= u(x,y,t)
-\end{align}
+\end{align*}
 ```
 
 To solve this PDE, we will discretize it into a system of ODEs with the finite difference
