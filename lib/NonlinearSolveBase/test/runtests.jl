@@ -3,12 +3,12 @@ using SafeTestsets, Test, InteractiveUtils
 @info sprint(InteractiveUtils.versioninfo)
 
 # Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
-const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
+const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
 @info "Running tests for group: $(GROUP)"
 
 # All NonlinearSolveBase tests run under the default Core group.
-if GROUP == "all" || GROUP == "core"
+if GROUP == "All" || GROUP == "Core"
     @safetestset "Aqua" begin
         using Aqua, NonlinearSolveBase
         using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem

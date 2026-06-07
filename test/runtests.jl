@@ -6,12 +6,12 @@ using SafeTestsets, Test, InteractiveUtils
 # Group dispatch. SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; the root CI sets
 # GROUP. Read either so the same runtests.jl works as both the root test entry
 # and the sublibrary dispatcher.
-const GROUP = lowercase(get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "all")))
+const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
 # Disable Enzyme on Julia 1.13+ due to compatibility issues.
 const ENZYME_ENABLED = VERSION < v"1.13"
 
-# GROUP is lowercased above; match sublibrary dirs case-insensitively.
+# Match sublibrary dirs case-insensitively.
 function _find_lib(base, lib_dir)
     isdir(lib_dir) || return nothing
     for d in readdir(lib_dir)
@@ -26,13 +26,13 @@ end
 # so a single GROUP value can target any sublibrary. Scan underscores
 # right-to-left for the longest matching sublibrary prefix.
 function _detect_sublibrary_group(group, lib_dir)
-    _find_lib(group, lib_dir) !== nothing && return (group, "core")
+    _find_lib(group, lib_dir) !== nothing && return (group, "Core")
     for i in length(group):-1:1
         if group[i] == '_' && _find_lib(group[1:(i - 1)], lib_dir) !== nothing
             return (group[1:(i - 1)], group[(i + 1):end])
         end
     end
-    return (group, "core")
+    return (group, "Core")
 end
 
 @time begin
@@ -77,7 +77,7 @@ end
                 force_latest_compatible_version = false, allow_reresolve = true
             )
         end
-    elseif GROUP == "trim" && VERSION >= v"1.12.0-rc1"
+    elseif GROUP == "Trim" && VERSION >= v"1.12.0-rc1"
         # Trimming was introduced in Julia 1.12; runs in its own environment.
         Pkg.activate(joinpath(@__DIR__, "trim"))
         Pkg.instantiate()
@@ -86,19 +86,19 @@ end
         # Heavy/optional group deps are added on demand so the default Core
         # matrix stays lightweight (matches the original ReTestItems setup).
         extra_pkgs = Pkg.PackageSpec[]
-        if GROUP == "all" || GROUP == "downstream"
+        if GROUP == "All" || GROUP == "Downstream"
             push!(extra_pkgs, Pkg.PackageSpec("ModelingToolkit"))
             push!(extra_pkgs, Pkg.PackageSpec("SymbolicIndexingInterface"))
             push!(extra_pkgs, Pkg.PackageSpec("OrdinaryDiffEqTsit5"))
         end
-        if GROUP in ("all", "nopre", "bounds")
+        if GROUP in ("All", "NoPre", "Bounds")
             if isempty(VERSION.prerelease) && ENZYME_ENABLED
                 push!(extra_pkgs, Pkg.PackageSpec("Enzyme"))
                 push!(extra_pkgs, Pkg.PackageSpec("Mooncake"))
                 push!(extra_pkgs, Pkg.PackageSpec("SciMLSensitivity"))
             end
         end
-        if GROUP == "all" || GROUP == "cuda"
+        if GROUP == "All" || GROUP == "CUDA"
             isempty(VERSION.prerelease) && push!(extra_pkgs, Pkg.PackageSpec("CUDA"))
         end
         isempty(extra_pkgs) || Pkg.add(extra_pkgs)
