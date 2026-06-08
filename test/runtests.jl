@@ -196,7 +196,7 @@ end
 
         # QA (Aqua/ExplicitImports) lives in an isolated sub-env under test/qa so
         # its compat bounds don't constrain the base resolve. Excluded from All.
-        if GROUP == "Misc"
+        if GROUP == "QA"
             activate_group_env("qa")
             @time @safetestset "Aqua" include("qa/qa.jl")
             @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")

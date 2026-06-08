@@ -131,8 +131,11 @@ if GROUP == "All" || GROUP == "Core"
     @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
 
     @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+end
 
-    # QA runs last: activate_qa_env() switches the active project to test/qa.
+# QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
+# sub-env under test/qa (excluded from the base/Core/All run).
+if GROUP == "QA"
     activate_qa_env()
     @safetestset "Aqua" include("qa/qa.jl")
     @safetestset "Explicit Imports" include("qa/explicit_imports.jl")

@@ -28,18 +28,26 @@ if GROUP == "All" || GROUP == "Core"
     include("core/least_squares_tests.jl")
     include("core/matrix_resizing_tests.jl")
     include("core/rootfind_tests.jl")
-    # QA runs last: activate_group_env switches the active project to test/qa.
+end
+
+# Dep-adding groups run in their own isolated sub-envs (excluded from the
+# base/Core env). QA (Aqua/ExplicitImports), Adjoint (SciMLSensitivity), Alloc
+# (AllocCheck) and CUDA carry deps beyond the base test set and are not
+# Pkg.add'ed into the main resolve.
+if GROUP == "QA"
     activate_group_env("qa")
     @safetestset "Aqua" include("qa/qa.jl")
     @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
 end
 
-# Dep-adding groups run in their own isolated sub-envs (excluded from the
-# base/Core env). SciMLSensitivity (Adjoint) and CUDA (gpu) are no longer
-# Pkg.add'ed into the main resolve.
 if GROUP == "Adjoint"
     activate_group_env("adjoint")
     include("adjoint/adjoint_tests.jl")
+end
+
+if GROUP == "Alloc"
+    activate_group_env("alloc")
+    include("alloc/allocation_tests.jl")
 end
 
 if GROUP == "CUDA"

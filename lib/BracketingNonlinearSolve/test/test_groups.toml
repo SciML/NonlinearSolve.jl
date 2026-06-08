@@ -1,5 +1,8 @@
 [Core]
 versions = ["lts", "1", "pre"]
 
+[QA]
+versions = ["lts", "1"]
+
 [Adjoint]
 versions = ["1"]

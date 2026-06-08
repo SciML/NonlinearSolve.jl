@@ -39,7 +39,7 @@ jobs:
           - Bounds
           - Adjoint
           - Wrappers
-          - Misc
+          - QA
           - Trim
         version:
           - "lts"
@@ -56,7 +56,7 @@ jobs:
           - group: Trim
             version: "lts"
           # QA only runs on lts and 1 (matches the SciML test-group matrix).
-          - group: Misc
+          - group: QA
             version: "pre"
           # Enzyme/SciMLSensitivity-backed groups are not compatible with the
           # prerelease (1.13+) Julia channel; the test files also self-guard.

@@ -26,7 +26,11 @@ end
 if GROUP == "All" || GROUP == "Core"
     @safetestset "AllRoots" include("allroots.jl")
     @safetestset "Single Root" include("single_root.jl")
-    # QA runs last: activate_qa_env() switches the active project to test/qa.
+end
+
+# QA (Aqua) is a dep-adding group: it runs in its own isolated sub-env under
+# test/qa (excluded from the base/Core/All run).
+if GROUP == "QA"
     activate_qa_env()
     @safetestset "Code quality (Aqua.jl)" include("qa/qa.jl")
 end
