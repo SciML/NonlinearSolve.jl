@@ -8,9 +8,6 @@ using SafeTestsets, Test, InteractiveUtils
 # and the sublibrary dispatcher.
 const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
-# Disable Enzyme on Julia 1.13+ due to compatibility issues.
-const ENZYME_ENABLED = VERSION < v"1.13"
-
 # Match sublibrary dirs case-insensitively.
 function _find_lib(base, lib_dir)
     isdir(lib_dir) || return nothing
@@ -35,26 +32,27 @@ function _detect_sublibrary_group(group, lib_dir)
     return (group, "Core")
 end
 
-# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
-# test/qa so its compat bounds don't constrain the main test resolve. Develop
-# the in-repo path deps (the umbrella package and its sublibraries) so [sources]
-# also works on Julia < 1.11 (where the Project.toml [sources] table is
-# ignored), then instantiate.
-function activate_qa_env()
-    Pkg.activate(joinpath(@__DIR__, "qa"))
-    if VERSION < v"1.11.0-DEV.0"
-        root = dirname(@__DIR__)
-        lib = joinpath(root, "lib")
-        Pkg.develop([
-            Pkg.PackageSpec(path = root),
-            Pkg.PackageSpec(path = joinpath(lib, "BracketingNonlinearSolve")),
-            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveBase")),
-            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveFirstOrder")),
-            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveQuasiNewton")),
-            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveSpectralMethods")),
-            Pkg.PackageSpec(path = joinpath(lib, "SimpleNonlinearSolve")),
-        ])
+# In-repo path dependencies developed when a sub-environment's [sources] table
+# is ignored (Julia < 1.11). Lists the umbrella root and every sublibrary so any
+# group env that references a subset still resolves to the PR branch code.
+function _develop_inrepo_sources()
+    VERSION < v"1.11.0-DEV.0" || return
+    root = dirname(@__DIR__)
+    lib = joinpath(root, "lib")
+    specs = Pkg.PackageSpec[Pkg.PackageSpec(path = root)]
+    for d in readdir(lib)
+        isdir(joinpath(lib, d)) && push!(specs, Pkg.PackageSpec(path = joinpath(lib, d)))
     end
+    return Pkg.develop(specs)
+end
+
+# Activate a dep-adding group's isolated sub-environment under test/<Group> and
+# instantiate it. These groups carry deps beyond the base test set (and are
+# excluded from the All run, which uses the base env). On Julia < 1.11 the
+# [sources] table is ignored, so the in-repo path deps are developed first.
+function activate_group_env(group)
+    Pkg.activate(joinpath(@__DIR__, group))
+    _develop_inrepo_sources()
     return Pkg.instantiate()
 end
 
@@ -106,49 +104,100 @@ end
         Pkg.instantiate()
         include("trim/runtests.jl")
     else
-        # Heavy/optional group deps are added on demand so the default Core
-        # matrix stays lightweight (matches the original ReTestItems setup).
-        extra_pkgs = Pkg.PackageSpec[]
-        if GROUP == "All" || GROUP == "Downstream"
-            push!(extra_pkgs, Pkg.PackageSpec("ModelingToolkit"))
-            push!(extra_pkgs, Pkg.PackageSpec("SymbolicIndexingInterface"))
-            push!(extra_pkgs, Pkg.PackageSpec("OrdinaryDiffEqTsit5"))
-        end
-        if GROUP in ("All", "NoPre", "Bounds")
-            if isempty(VERSION.prerelease) && ENZYME_ENABLED
-                push!(extra_pkgs, Pkg.PackageSpec("Enzyme"))
-                push!(extra_pkgs, Pkg.PackageSpec("Mooncake"))
-                push!(extra_pkgs, Pkg.PackageSpec("SciMLSensitivity"))
-            end
-        end
-        if GROUP == "All" || GROUP == "CUDA"
-            isempty(VERSION.prerelease) && push!(extra_pkgs, Pkg.PackageSpec("CUDA"))
-        end
-        isempty(extra_pkgs) || Pkg.add(extra_pkgs)
-
         @info "Running tests for group: $(GROUP)"
 
-        # Each test file is a sequence of top-level, per-item group-guarded
-        # @safetestset includes, so we include them all and the active GROUP
-        # selects which items run.
-        @time include("core_tests.jl")
-        @time include("23_test_problems_tests.jl")
-        @time include("bounds_tests.jl")
-        @time include("default_alg_tests.jl")
-        @time include("forward_ad_tests.jl")
-        @time include("issue_tests.jl")
-        @time include("adjoint_tests.jl")
-        @time include("mtk_cache_indexing_tests.jl")
-        @time include("verbosity_tests.jl")
-        @time include("cuda_tests.jl")
-        @time include("wrappers/fixedpoint_tests.jl")
-        @time include("wrappers/least_squares_tests.jl")
-        @time include("wrappers/rootfind_tests.jl")
+        # --- Base-env groups (no extra deps; part of the All run) ---
+        if GROUP == "All" || GROUP == "Core"
+            @time @safetestset "NLLS Analytic Jacobian" include("Core/core_tests__item1.jl")
+            @time @safetestset "PolyAlgorithm Type Inference" include("Core/core_tests__item3.jl")
+            @time @safetestset "PolyAlgorithm Aliasing" include("Core/core_tests__item5.jl")
+            @time @safetestset "BigFloat Support" include("Core/core_tests__item7.jl")
+            @time @safetestset "Singular Exception: Issue #153" include("Core/core_tests__item8.jl")
+            @time @safetestset "Simple Scalar Problem: Issue #187" include("Core/core_tests__item9.jl")
+            @time @safetestset "No AD" include("Core/core_tests__item11.jl")
+            @time @safetestset "Infeasible" include("Core/core_tests__item12.jl")
+            @time @safetestset "NoInit Caching" include("Core/core_tests__item13.jl")
+            @time @safetestset "Singular Systems -- Auto Linear Solve Switching" include("Core/core_tests__item16.jl")
+            @time @safetestset "No PolyesterForwardDiff for SArray" include("Core/core_tests__item17.jl")
+            @time @safetestset "NonlinearLeastSquares ReturnCode" include("Core/core_tests__item18.jl")
+            @time @safetestset "NonNumberEltype error" include("Core/core_tests__item20.jl")
+            @time @safetestset "LinearSolve Preconditioner Interface" include("Core/core_tests__item21.jl")
+            @time @safetestset "23 Test Problems: NewtonRaphson" include("Core/23_test_problems_tests__item2.jl")
+            @time @safetestset "23 Test Problems: Halley" include("Core/23_test_problems_tests__item3.jl")
+            @time @safetestset "23 Test Problems: TrustRegion" include("Core/23_test_problems_tests__item4.jl")
+            @time @safetestset "23 Test Problems: LevenbergMarquardt" include("Core/23_test_problems_tests__item5.jl")
+            @time @safetestset "23 Test Problems: DFSane" include("Core/23_test_problems_tests__item6.jl")
+            @time @safetestset "23 Test Problems: Broyden" include("Core/23_test_problems_tests__item7.jl")
+            @time @safetestset "23 Test Problems: Klement" include("Core/23_test_problems_tests__item8.jl")
+            @time @safetestset "23 Test Problems: PseudoTransient" include("Core/23_test_problems_tests__item9.jl")
+            @time @safetestset "Default Algorithm for AbstractSteadyStateProblem" include("Core/default_alg_tests__item1.jl")
+            @time @safetestset "NLLS Hessian SciML/NonlinearSolve.jl#445" include("Core/forward_ad_tests__item2.jl")
+            @time @safetestset "reinit! on ForwardDiff cache SciML/NonlinearSolve.jl#391" include("Core/forward_ad_tests__item3.jl")
+            @time @safetestset "Correct Best Solution: #565" include("Core/issue_tests__item1.jl")
+            @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
+            @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
+            @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
+            @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
+            @time @safetestset "Bounds: polyalgorithm and quasi-Newton algorithms" include("Core/bounds_tests__item4.jl")
+        end
 
-        # QA runs last: activate_qa_env() switches the active project to test/qa.
-        # Gated to the Misc group (and All) to preserve the prior dispatch.
-        if GROUP == "All" || GROUP == "Misc"
-            activate_qa_env()
+        if GROUP == "All" || GROUP == "NoPre"
+            @time @safetestset "Basic PolyAlgorithms" include("NoPre/core_tests__item2.jl")
+            @time @safetestset "PolyAlgorithms Autodiff" include("NoPre/core_tests__item4.jl")
+            @time @safetestset "Ensemble Nonlinear Problems" include("NoPre/core_tests__item6.jl")
+            @time @safetestset "Out-of-place Matrix Resizing" include("NoPre/core_tests__item14.jl")
+            @time @safetestset "Inplace Matrix Resizing" include("NoPre/core_tests__item15.jl")
+            @time @safetestset "Default Algorithm Singular Handling" include("NoPre/core_tests__item19.jl")
+            @time @safetestset "23 Test Problems: PolyAlgorithms" include("NoPre/23_test_problems_tests__item1.jl")
+        end
+
+        if GROUP == "All" || GROUP == "Verbosity"
+            @time @safetestset "Nonlinear Verbosity" include("Verbosity/verbosity_tests__item1.jl")
+        end
+
+        # --- Dep-adding groups (isolated sub-envs; excluded from All) ---
+        if GROUP == "Downstream"
+            activate_group_env("Downstream")
+            @time @safetestset "Complex Valued Problems: Single-Shooting" include("Downstream/core_tests__item10.jl")
+            @time @safetestset "Modeling Toolkit Cache Indexing" include("Downstream/mtk_cache_indexing_tests__item1.jl")
+        end
+
+        if GROUP == "Bounds"
+            activate_group_env("Bounds")
+            @time @safetestset "Bounds: nonlinear model" include("Bounds/bounds_tests__item3.jl")
+        end
+
+        if GROUP == "Adjoint"
+            activate_group_env("Adjoint")
+            @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
+            @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
+        end
+
+        if GROUP == "Wrappers"
+            activate_group_env("Wrappers")
+            @time @safetestset "ForwardDiff.jl Integration" include("Wrappers/forward_ad_tests__item1.jl")
+            @time @safetestset "Simple Scalar Problem" include("Wrappers/fixedpoint_tests__item1.jl")
+            @time @safetestset "Simple Vector Problem" include("Wrappers/fixedpoint_tests__item2.jl")
+            @time @safetestset "Power Method" include("Wrappers/fixedpoint_tests__item3.jl")
+            @time @safetestset "Anderson does not allocate dense Jacobian (#862)" include("Wrappers/fixedpoint_tests__item4.jl")
+            @time @safetestset "LeastSquaresOptim.jl" include("Wrappers/least_squares_tests__item1.jl")
+            @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" include("Wrappers/least_squares_tests__item2.jl")
+            @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
+            @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
+            @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
+            @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+        end
+
+        if GROUP == "CUDA"
+            activate_group_env("gpu")
+            @time @safetestset "CUDA Tests" include("gpu/cuda_tests__item1.jl")
+            @time @safetestset "Termination Conditions: Allocations" include("gpu/cuda_tests__item2.jl")
+        end
+
+        # QA (Aqua/ExplicitImports) lives in an isolated sub-env under test/qa so
+        # its compat bounds don't constrain the base resolve. Excluded from All.
+        if GROUP == "Misc"
+            activate_group_env("qa")
             @time @safetestset "Aqua" include("qa/qa.jl")
             @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
         end

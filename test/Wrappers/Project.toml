@@ -1,0 +1,56 @@
+[deps]
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
+FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LeastSquaresOptim = "0fc2ff8b-aaa3-5acd-a817-1944a5e08891"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MINPACK = "4854310b-de5a-5eb6-a2a5-c1dee2bd17f9"
+NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
+NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
+SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
+SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = "../.."}
+NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
+SciMLJacobianOperators = {path = "../../lib/SciMLJacobianOperators"}
+SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
+
+[compat]
+BracketingNonlinearSolve = "1.6"
+FastLevenbergMarquardt = "0.1"
+FixedPointAcceleration = "0.3, 1"
+ForwardDiff = "1"
+LeastSquaresOptim = "0.8.5"
+LinearAlgebra = "1.10"
+MINPACK = "1.2"
+NLSolvers = "0.5"
+NLsolve = "4.5"
+NonlinearSolve = "4.19"
+NonlinearSolveBase = "2.20"
+NonlinearSolveFirstOrder = "2"
+NonlinearSolveQuasiNewton = "1.12"
+NonlinearSolveSpectralMethods = "1.6"
+SIAMFANLEquations = "1.0.1"
+SciMLJacobianOperators = "0.1"
+SimpleNonlinearSolve = "2.10"
+SpeedMapping = "0.4"
+StaticArrays = "1.9"
+Sundials = "4.23.1, 5, 6"
+Test = "1.10"
+julia = "1.10"
