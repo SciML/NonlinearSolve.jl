@@ -1,5 +1,10 @@
 [Core]
-versions = ["lts", "1.11", "1", "pre"]
+versions = ["lts", "1", "pre"]
 
 [Adjoint]
 versions = ["1"]
+
+[CUDA]
+versions = ["1"]
+runner = ["self-hosted", "Linux", "X64", "gpu"]
+timeout = 60

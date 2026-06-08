@@ -7,12 +7,11 @@ const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
 @info "Running tests for group: $(GROUP)"
 
-# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
-# test/qa so its compat bounds don't constrain the main test resolve. Develop
-# the in-repo path deps so [sources] also works on Julia < 1.11 (where the
-# Project.toml [sources] table is ignored), then instantiate.
-function activate_qa_env()
-    Pkg.activate(joinpath(@__DIR__, "qa"))
+# Activate a dep-adding group's isolated sub-environment under test/<dir> and
+# instantiate it. On Julia < 1.11 the [sources] table is ignored, so the in-repo
+# path deps (this sublibrary and its in-repo siblings) are developed first.
+function activate_group_env(dir)
+    Pkg.activate(joinpath(@__DIR__, dir))
     if VERSION < v"1.11.0-DEV.0"
         Pkg.develop([
             Pkg.PackageSpec(path = joinpath(@__DIR__, "..")),
@@ -23,27 +22,27 @@ function activate_qa_env()
     return Pkg.instantiate()
 end
 
-# Heavy/optional group deps are added on demand (not part of the default
-# resolve) so the Core/QA matrix stays lightweight, matching the original setup.
-(GROUP == "All" || GROUP == "CUDA") && Pkg.add(["CUDA"])
-(GROUP == "All" || GROUP == "Adjoint") && Pkg.add(["SciMLSensitivity"])
-
-if GROUP == "All" || GROUP == "Adjoint"
-    include("core/adjoint_tests.jl")
-end
-
 if GROUP == "All" || GROUP == "Core"
     include("core/exotic_type_tests.jl")
     include("core/forward_diff_tests.jl")
     include("core/least_squares_tests.jl")
     include("core/matrix_resizing_tests.jl")
     include("core/rootfind_tests.jl")
-    # QA runs last: activate_qa_env() switches the active project to test/qa.
-    activate_qa_env()
+    # QA runs last: activate_group_env switches the active project to test/qa.
+    activate_group_env("qa")
     @safetestset "Aqua" include("qa/qa.jl")
     @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
 end
 
-if GROUP == "All" || GROUP == "CUDA"
+# Dep-adding groups run in their own isolated sub-envs (excluded from the
+# base/Core env). SciMLSensitivity (Adjoint) and CUDA (gpu) are no longer
+# Pkg.add'ed into the main resolve.
+if GROUP == "Adjoint"
+    activate_group_env("adjoint")
+    include("adjoint/adjoint_tests.jl")
+end
+
+if GROUP == "CUDA"
+    activate_group_env("gpu")
     include("gpu/cuda_tests.jl")
 end
