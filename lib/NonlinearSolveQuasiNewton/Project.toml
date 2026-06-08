@@ -28,13 +28,11 @@ NonlinearSolveQuasiNewtonForwardDiffExt = "ForwardDiff"
 
 [compat]
 ADTypes = "1.9.0"
-Aqua = "0.8"
 ArrayInterface = "7.16.0"
 BenchmarkTools = "1.5.0"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 Enzyme = "0.13.12"
-ExplicitImports = "1.5"
 FiniteDiff = "2.24"
 ForwardDiff = "0.10.36, 1"
 Hwloc = "3"
@@ -61,10 +59,8 @@ julia = "1.10"
 SafeTestsets = "0.1"
 [extras]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
@@ -80,4 +76,4 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["ADTypes", "Aqua", "BenchmarkTools", "Enzyme", "ExplicitImports", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LineSearch", "LineSearches", "NonlinearProblemLibrary", "Pkg", "StableRNGs", "StaticArrays", "Test", "Zygote", "SafeTestsets"]
+test = ["ADTypes", "BenchmarkTools", "Enzyme", "FiniteDiff", "ForwardDiff", "Hwloc", "InteractiveUtils", "LineSearch", "LineSearches", "NonlinearProblemLibrary", "Pkg", "StableRNGs", "StaticArrays", "Test", "Zygote", "SafeTestsets"]
