@@ -23,30 +23,28 @@ BracketingNonlinearSolveChainRulesCoreExt = ["ChainRulesCore", "ForwardDiff"]
 BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
 
 [compat]
-Aqua = "0.8.9"
 ChainRulesCore = "1.24"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
-ExplicitImports = "1.10.1"
 ForwardDiff = "0.10.36, 1"
 InteractiveUtils = "<0.0.1, 1"
 NonlinearSolveBase = "2.1"
+Pkg = "1.10"
 PrecompileTools = "1.2"
 Reexport = "1.2.2"
 SciMLBase = "2.153, 3"
 Test = "1.10"
-TestItemRunner = "1"
 Zygote = "0.7"
 julia = "1.10"
 
+SafeTestsets = "0.1"
 [extras]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Aqua", "ExplicitImports", "ForwardDiff", "InteractiveUtils", "Test", "TestItemRunner", "Zygote"]
+test = ["ForwardDiff", "InteractiveUtils", "Pkg", "Test", "Zygote", "SafeTestsets"]

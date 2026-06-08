@@ -1,0 +1,27 @@
+[deps]
+AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+LineSearch = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+BracketingNonlinearSolve = {path = "../../../BracketingNonlinearSolve"}
+NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
+SimpleNonlinearSolve = {path = "../.."}
+
+[compat]
+AllocCheck = "0.1, 0.2"
+BracketingNonlinearSolve = "1.6"
+LineSearch = "0.1.9"
+NonlinearSolveBase = "2.20"
+SafeTestsets = "0.1"
+SciMLBase = "2.153, 3"
+SimpleNonlinearSolve = "2.10"
+StaticArrays = "1.9"
+Test = "1.10"
+julia = "1.10"

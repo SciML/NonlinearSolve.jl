@@ -1,0 +1,20 @@
+[deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+BracketingNonlinearSolve = {path = "../.."}
+NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
+
+[compat]
+Aqua = "0.8.9"
+BracketingNonlinearSolve = "1.12"
+ExplicitImports = "1.10.1"
+ForwardDiff = "0.10.36, 1"
+NonlinearSolveBase = "2.1"
+Test = "1.10"
+julia = "1.10"

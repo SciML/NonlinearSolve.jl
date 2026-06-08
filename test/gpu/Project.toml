@@ -1,0 +1,42 @@
+[deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
+NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
+SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = "../.."}
+NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
+SciMLJacobianOperators = {path = "../../lib/SciMLJacobianOperators"}
+SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
+
+[compat]
+ADTypes = "1.9"
+BracketingNonlinearSolve = "1.6"
+CUDA = "5"
+LinearAlgebra = "1.10"
+LinearSolve = "3.48"
+NonlinearSolve = "4.19"
+NonlinearSolveBase = "2.20"
+NonlinearSolveFirstOrder = "2"
+NonlinearSolveQuasiNewton = "1.12"
+NonlinearSolveSpectralMethods = "1.6"
+SciMLJacobianOperators = "0.1"
+SimpleNonlinearSolve = "2.10"
+StableRNGs = "1"
+Test = "1.10"
+julia = "1.10"
