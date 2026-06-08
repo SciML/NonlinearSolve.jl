@@ -1,0 +1,3 @@
+using NonlinearSolveHomotopyContinuation, Aqua
+
+Aqua.test_all(NonlinearSolveHomotopyContinuation)

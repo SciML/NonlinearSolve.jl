@@ -1,3 +1,4 @@
+using Pkg
 using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
@@ -7,33 +8,20 @@ const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
 @info "Running tests for group: $(GROUP)"
 
+# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
+# test/qa so its compat bounds don't constrain the main test resolve. Develop
+# the in-repo path dep so [sources] also works on Julia < 1.11 (where the
+# Project.toml [sources] table is ignored), then instantiate.
+function activate_qa_env()
+    Pkg.activate(joinpath(@__DIR__, "qa"))
+    if VERSION < v"1.11.0-DEV.0"
+        Pkg.develop(Pkg.PackageSpec(path = joinpath(@__DIR__, "..")))
+    end
+    return Pkg.instantiate()
+end
+
 # All NonlinearSolveBase tests run under the default Core group.
 if GROUP == "All" || GROUP == "Core"
-    @safetestset "Aqua" begin
-        using Aqua, NonlinearSolveBase
-        using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem
-
-        Aqua.test_all(
-            NonlinearSolveBase; piracies = false, ambiguities = false, stale_deps = false
-        )
-        Aqua.test_stale_deps(NonlinearSolveBase; ignore = [:TimerOutputs])
-        Aqua.test_piracies(NonlinearSolveBase, treat_as_own = [AbstractNonlinearProblem, NonlinearProblem])
-        Aqua.test_ambiguities(NonlinearSolveBase; recursive = false)
-    end
-
-    @safetestset "Explicit Imports" begin
-        import ForwardDiff, SparseArrays
-        using ExplicitImports, NonlinearSolveBase
-
-        @test check_no_implicit_imports(NonlinearSolveBase; skip = (Base, Core)) === nothing
-        # Ignore SciMLLogging types used by @verbosity_specifier macro (ExplicitImports can't track macro usage)
-        @test check_no_stale_explicit_imports(
-            NonlinearSolveBase;
-            ignore = (:MessageLevel, :AbstractVerbositySpecifier, :All, :Detailed, :Minimal, :None, :Standard, :SciMLLogging)
-        ) === nothing
-        @test check_all_qualified_accesses_via_owners(NonlinearSolveBase) === nothing
-    end
-
     @safetestset "Banded Matrix vcat" begin
         using NonlinearSolveBase
         using BandedMatrices, LinearAlgebra, SparseArrays
@@ -143,4 +131,9 @@ if GROUP == "All" || GROUP == "Core"
     @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
 
     @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+
+    # QA runs last: activate_qa_env() switches the active project to test/qa.
+    activate_qa_env()
+    @safetestset "Aqua" include("qa/qa.jl")
+    @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
 end

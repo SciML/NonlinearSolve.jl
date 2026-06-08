@@ -41,7 +41,6 @@ SimpleNonlinearSolveTrackerExt = "Tracker"
 
 [compat]
 ADTypes = "1.2"
-Aqua = "0.8.7"
 ArrayInterface = "7.16"
 BracketingNonlinearSolve = "1.6"
 ChainRulesCore = "1.24"
@@ -49,7 +48,6 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DifferentiationInterface = "0.7.3"
 Enzyme = "0.13.11"
-ExplicitImports = "1.9"
 FastClosures = "0.3.2"
 FiniteDiff = "2.24"
 ForwardDiff = "0.10.36, 1"
@@ -76,9 +74,7 @@ julia = "1.10"
 
 SafeTestsets = "0.1"
 [extras]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -92,4 +88,4 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 [targets]
-test = ["Aqua", "Enzyme", "ExplicitImports", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "Tracker", "Zygote", "SafeTestsets"]
+test = ["Enzyme", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "ReverseDiff", "StaticArrays", "Test", "Tracker", "Zygote", "SafeTestsets"]

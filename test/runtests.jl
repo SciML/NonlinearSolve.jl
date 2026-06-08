@@ -35,6 +35,29 @@ function _detect_sublibrary_group(group, lib_dir)
     return (group, "Core")
 end
 
+# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
+# test/qa so its compat bounds don't constrain the main test resolve. Develop
+# the in-repo path deps (the umbrella package and its sublibraries) so [sources]
+# also works on Julia < 1.11 (where the Project.toml [sources] table is
+# ignored), then instantiate.
+function activate_qa_env()
+    Pkg.activate(joinpath(@__DIR__, "qa"))
+    if VERSION < v"1.11.0-DEV.0"
+        root = dirname(@__DIR__)
+        lib = joinpath(root, "lib")
+        Pkg.develop([
+            Pkg.PackageSpec(path = root),
+            Pkg.PackageSpec(path = joinpath(lib, "BracketingNonlinearSolve")),
+            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveBase")),
+            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveFirstOrder")),
+            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveQuasiNewton")),
+            Pkg.PackageSpec(path = joinpath(lib, "NonlinearSolveSpectralMethods")),
+            Pkg.PackageSpec(path = joinpath(lib, "SimpleNonlinearSolve")),
+        ])
+    end
+    return Pkg.instantiate()
+end
+
 @time begin
     lib_dir = joinpath(dirname(@__DIR__), "lib")
     base_group, sub_group = _detect_sublibrary_group(GROUP, lib_dir)
@@ -117,10 +140,17 @@ end
         @time include("adjoint_tests.jl")
         @time include("mtk_cache_indexing_tests.jl")
         @time include("verbosity_tests.jl")
-        @time include("qa_tests.jl")
         @time include("cuda_tests.jl")
         @time include("wrappers/fixedpoint_tests.jl")
         @time include("wrappers/least_squares_tests.jl")
         @time include("wrappers/rootfind_tests.jl")
+
+        # QA runs last: activate_qa_env() switches the active project to test/qa.
+        # Gated to the Misc group (and All) to preserve the prior dispatch.
+        if GROUP == "All" || GROUP == "Misc"
+            activate_qa_env()
+            @time @safetestset "Aqua" include("qa/qa.jl")
+            @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
+        end
     end
 end # @time

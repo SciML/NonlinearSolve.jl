@@ -76,7 +76,6 @@ NonlinearSolveSundialsExt = "Sundials"
 
 [compat]
 ADTypes = "1.9"
-Aqua = "0.8"
 ArrayInterface = "7.16"
 BandedMatrices = "1.5"
 BenchmarkTools = "1.4"
@@ -84,7 +83,6 @@ BracketingNonlinearSolve = "1.6"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DifferentiationInterface = "0.7.3"
-ExplicitImports = "1.5"
 FastClosures = "0.3.2"
 FastLevenbergMarquardt = "0.1"
 FiniteDiff = "2.24"
@@ -135,10 +133,8 @@ Zygote = "0.6.69, 0.7"
 julia = "1.10"
 
 [extras]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FastLevenbergMarquardt = "7a0df574-e128-4d35-8cbd-3d84502bf7ce"
 FixedPointAcceleration = "817d07cb-a79a-5c30-9a31-890123675176"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
@@ -171,4 +167,4 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Aqua", "BandedMatrices", "BenchmarkTools", "ExplicitImports", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "MPI", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "PETSc", "Pkg", "PolyesterForwardDiff", "PreallocationTools", "Random", "SafeTestsets", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker", "SciMLLogging"]
+test = ["BandedMatrices", "BenchmarkTools", "FastLevenbergMarquardt", "FixedPointAcceleration", "Hwloc", "InteractiveUtils", "LeastSquaresOptim", "LineSearches", "MINPACK", "MPI", "NLSolvers", "NLsolve", "NaNMath", "NonlinearProblemLibrary", "PETSc", "Pkg", "PolyesterForwardDiff", "PreallocationTools", "Random", "SafeTestsets", "SIAMFANLEquations", "SparseConnectivityTracer", "SparseMatrixColorings", "SpeedMapping", "StableRNGs", "StaticArrays", "Sundials", "Test", "Zygote", "ReverseDiff", "Tracker", "SciMLLogging"]
