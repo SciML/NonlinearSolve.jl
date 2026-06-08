@@ -44,7 +44,9 @@ jobs:
           - BracketingNonlinearSolve
           - NonlinearSolveBase
           - NonlinearSolveFirstOrder
+          - NonlinearSolveHomotopyContinuation
           - NonlinearSolveQuasiNewton
+          - NonlinearSolveSciPy
           - NonlinearSolveSpectralMethods
           - SCCNonlinearSolve
           - SciMLJacobianOperators
