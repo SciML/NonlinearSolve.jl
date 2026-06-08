@@ -26,58 +26,9 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  test:
-    name: "Tests"
-    strategy:
-      fail-fast: false
-      matrix:
-        group:
-          - Core
-          - NoPre
-          - Verbosity
-          - Downstream
-          - Bounds
-          - Adjoint
-          - Wrappers
-          - QA
-          - Trim
-        version:
-          - "lts"
-          - "1"
-          - "pre"
-        os:
-          - ubuntu-latest
-          - macos-latest
-        runner:
-          - ""
-        exclude:
-          # Trim was introduced in Julia 1.12; only run it on the current
-          # release and prerelease channels (skip lts == 1.10).
-          - group: Trim
-            version: "lts"
-          # QA only runs on lts and 1 (matches the SciML test-group matrix).
-          - group: QA
-            version: "pre"
-          # Enzyme/SciMLSensitivity-backed groups are not compatible with the
-          # prerelease (1.13+) Julia channel; the test files also self-guard.
-          - group: Adjoint
-            version: "pre"
-          - group: Bounds
-            version: "pre"
-        include:
-          # GPU group: dep-adding (CUDA) sub-env on a self-hosted GPU runner,
-          # folded in from the former bespoke GPU.yml workflow.
-          - group: CUDA
-            version: "1"
-            os: ubuntu-latest
-            runner: '["self-hosted", "Linux", "X64", "gpu"]'
-    uses: "SciML/.github/.github/workflows/tests.yml@v1"
+  tests:
+    uses: "SciML/.github/.github/workflows/grouped-tests.yml@v1"
     with:
-      julia-version: "${{ matrix.version }}"
-      group: "${{ matrix.group }}"
       group-env-name: NONLINEARSOLVE_TEST_GROUP
       check-bounds: auto
-      os: "${{ matrix.os }}"
-      runner: "${{ matrix.runner }}"
-      project: "."
     secrets: "inherit"
