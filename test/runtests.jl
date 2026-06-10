@@ -139,6 +139,20 @@ end
             @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
             @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
             @time @safetestset "Bounds: polyalgorithm and quasi-Newton algorithms" include("Core/bounds_tests__item4.jl")
+            @time @safetestset "HomotopySweep construction + defaults" include("Core/homotopy_sweep_tests__item1.jl")
+            @time @safetestset "HomotopySweep happy path (oop, λ as separate argument)" include("Core/homotopy_sweep_tests__item2.jl")
+            @time @safetestset "HomotopySweep in-place residual f(du, u, p, λ)" include("Core/homotopy_sweep_tests__item3.jl")
+            @time @safetestset "HomotopySweep with structured (NamedTuple) parameters" include("Core/homotopy_sweep_tests__item4.jl")
+            @time @safetestset "HomotopySweep rescues an out-of-basin guess (no MTK)" include("Core/homotopy_sweep_tests__item5.jl")
+            @time @safetestset "HomotopySweep reports a failure retcode when it cannot finish" include("Core/homotopy_sweep_tests__item6.jl")
+            @time @safetestset "HomotopySweep returns last converged iterate even with aliasing" include("Core/homotopy_sweep_tests__item7.jl")
+            @time @safetestset "HomotopySweep honors HomotopyProblem-level solver kwargs" include("Core/homotopy_sweep_tests__item8.jl")
+            @time @safetestset "HomotopySweep adaptive=false takes fixed steps and fails fast" include("Core/homotopy_sweep_tests__item9.jl")
+            @time @safetestset "HomotopySweep stalls (does not hang) when dλ underflows eps(λ)" include("Core/homotopy_sweep_tests__item10.jl")
+            @time @safetestset "HomotopySweep handles a decreasing λspan" include("Core/homotopy_sweep_tests__item11.jl")
+            @time @safetestset "HomotopySweep stays in Float32 (no promotion)" include("Core/homotopy_sweep_tests__item12.jl")
+            @time @safetestset "HomotopySweep inner solver is composable" include("Core/homotopy_sweep_tests__item13.jl")
+            @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
         end
 
         if GROUP == "All" || GROUP == "NoPre"
