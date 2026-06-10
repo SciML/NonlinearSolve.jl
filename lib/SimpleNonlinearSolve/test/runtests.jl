@@ -1,37 +1,56 @@
-using TestItemRunner, InteractiveUtils, Pkg, Test
+using SafeTestsets, Test, InteractiveUtils, Pkg
 
 @info sprint(InteractiveUtils.versioninfo)
 
-function parse_test_args()
-    test_args_from_env = @isdefined(TEST_ARGS) ? TEST_ARGS : ARGS
-    test_args = Dict{String, String}()
-    for arg in test_args_from_env
-        if contains(arg, "=")
-            key, value = split(arg, "="; limit = 2)
-            test_args[key] = value
-        end
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
+
+@info "Running tests for group: $(GROUP)"
+
+# Activate a dep-adding group's isolated sub-environment under test/<dir> and
+# instantiate it. On Julia < 1.11 the [sources] table is ignored, so the in-repo
+# path deps (this sublibrary and its in-repo siblings) are developed first.
+function activate_group_env(dir)
+    Pkg.activate(joinpath(@__DIR__, dir))
+    if VERSION < v"1.11.0-DEV.0"
+        Pkg.develop([
+            Pkg.PackageSpec(path = joinpath(@__DIR__, "..")),
+            Pkg.PackageSpec(path = joinpath(@__DIR__, "..", "..", "BracketingNonlinearSolve")),
+            Pkg.PackageSpec(path = joinpath(@__DIR__, "..", "..", "NonlinearSolveBase")),
+        ])
     end
-    @info "Parsed test args" test_args
-    return test_args
+    return Pkg.instantiate()
 end
 
-const PARSED_TEST_ARGS = parse_test_args()
-
-function get_from_test_args_or_env(key, default)
-    haskey(PARSED_TEST_ARGS, key) && return PARSED_TEST_ARGS[key]
-    return get(ENV, key, default)
+if GROUP == "All" || GROUP == "Core"
+    include("core/exotic_type_tests.jl")
+    include("core/forward_diff_tests.jl")
+    include("core/least_squares_tests.jl")
+    include("core/matrix_resizing_tests.jl")
+    include("core/rootfind_tests.jl")
 end
 
-const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
+# Dep-adding groups run in their own isolated sub-envs (excluded from the
+# base/Core env). QA (Aqua/ExplicitImports), Adjoint (SciMLSensitivity), Alloc
+# (AllocCheck) and CUDA carry deps beyond the base test set and are not
+# Pkg.add'ed into the main resolve.
+if GROUP == "QA"
+    activate_group_env("qa")
+    @safetestset "Aqua" include("qa/qa.jl")
+    @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
+end
 
-(GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
-(GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
-(GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
+if GROUP == "Adjoint"
+    activate_group_env("adjoint")
+    include("adjoint/adjoint_tests.jl")
+end
 
-@testset "SimpleNonlinearSolve.jl" begin
-    if GROUP == "all"
-        @run_package_tests
-    else
-        @run_package_tests filter = ti -> (Symbol(GROUP) in ti.tags)
-    end
+if GROUP == "Alloc"
+    activate_group_env("alloc")
+    include("alloc/allocation_tests.jl")
+end
+
+if GROUP == "CUDA"
+    activate_group_env("gpu")
+    include("gpu/cuda_tests.jl")
 end

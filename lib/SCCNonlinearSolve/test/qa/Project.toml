@@ -1,0 +1,17 @@
+[deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
+SCCNonlinearSolve = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+SCCNonlinearSolve = {path = "../.."}
+
+[compat]
+Aqua = "0.8"
+ExplicitImports = "1.5"
+SCCNonlinearSolve = "1.13"
+SciMLBase = "2.153, 3"
+Test = "1.10"
+julia = "1.10"

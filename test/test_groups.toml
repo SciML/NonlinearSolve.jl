@@ -1,0 +1,48 @@
+# Root NonlinearSolve.jl test-group matrix, consumed by the reusable
+# grouped-tests.yml@v1 caller (.github/workflows/CI_NonlinearSolve.yml). Each
+# group runs on every Julia version it lists and, where an `os` list is given,
+# once per OS. runtests.jl dispatches on NONLINEARSOLVE_TEST_GROUP.
+
+[Core]
+versions = ["lts", "1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+[NoPre]
+versions = ["lts", "1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+[Verbosity]
+versions = ["lts", "1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+[Downstream]
+versions = ["lts", "1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+# Enzyme/SciMLSensitivity-backed; not compatible with the prerelease channel.
+[Bounds]
+versions = ["lts", "1"]
+os = ["ubuntu-latest", "macos-latest"]
+
+# Enzyme/SciMLSensitivity-backed; not compatible with the prerelease channel.
+[Adjoint]
+versions = ["lts", "1"]
+os = ["ubuntu-latest", "macos-latest"]
+
+[Wrappers]
+versions = ["lts", "1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+[QA]
+versions = ["lts", "1"]
+os = ["ubuntu-latest", "macos-latest"]
+
+# Trimming was introduced in Julia 1.12; skip lts (1.10).
+[Trim]
+versions = ["1", "pre"]
+os = ["ubuntu-latest", "macos-latest"]
+
+# GPU group: CUDA sub-env on a self-hosted GPU runner (ubuntu only).
+[CUDA]
+versions = ["1"]
+runner = ["self-hosted", "Linux", "X64", "gpu"]

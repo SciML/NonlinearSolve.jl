@@ -1,36 +1,29 @@
-using InteractiveUtils, Test
+using Pkg
+using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
 
-# Changing any code here triggers all the other tests to be run. So we intentionally
-# keep the tests here minimal.
-@testset "NonlinearSolveBase.jl" begin
-    @testset "Aqua" begin
-        using Aqua, NonlinearSolveBase
-        using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
-        Aqua.test_all(
-            NonlinearSolveBase; piracies = false, ambiguities = false, stale_deps = false
-        )
-        Aqua.test_stale_deps(NonlinearSolveBase; ignore = [:TimerOutputs])
-        Aqua.test_piracies(NonlinearSolveBase, treat_as_own = [AbstractNonlinearProblem, NonlinearProblem])
-        Aqua.test_ambiguities(NonlinearSolveBase; recursive = false)
+@info "Running tests for group: $(GROUP)"
+
+# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
+# test/qa so its compat bounds don't constrain the main test resolve. Develop
+# the in-repo path dep so [sources] also works on Julia < 1.11 (where the
+# Project.toml [sources] table is ignored), then instantiate.
+function activate_qa_env()
+    Pkg.activate(joinpath(@__DIR__, "qa"))
+    if VERSION < v"1.11.0-DEV.0"
+        Pkg.develop(Pkg.PackageSpec(path = joinpath(@__DIR__, "..")))
     end
+    return Pkg.instantiate()
+end
 
-    @testset "Explicit Imports" begin
-        import ForwardDiff, SparseArrays
-        using ExplicitImports, NonlinearSolveBase
-
-        @test check_no_implicit_imports(NonlinearSolveBase; skip = (Base, Core)) === nothing
-        # Ignore SciMLLogging types used by @verbosity_specifier macro (ExplicitImports can't track macro usage)
-        @test check_no_stale_explicit_imports(
-            NonlinearSolveBase;
-            ignore = (:MessageLevel, :AbstractVerbositySpecifier, :All, :Detailed, :Minimal, :None, :Standard, :SciMLLogging)
-        ) === nothing
-        @test check_all_qualified_accesses_via_owners(NonlinearSolveBase) === nothing
-    end
-
-    @testset "Banded Matrix vcat" begin
+# All NonlinearSolveBase tests run under the default Core group.
+if GROUP == "All" || GROUP == "Core"
+    @safetestset "Banded Matrix vcat" begin
+        using NonlinearSolveBase
         using BandedMatrices, LinearAlgebra, SparseArrays
 
         b = BandedMatrix(Ones(5, 5), (1, 1))
@@ -39,7 +32,7 @@ using InteractiveUtils, Test
         @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
     end
 
-    @testset "Termination Conditions" begin
+    @safetestset "Termination Conditions" begin
         using NonlinearSolveBase, SciMLBase
         @testset "reinit! with AbsTerminationMode" begin
             mode = NonlinearSolveBase.AbsTerminationMode()
@@ -55,7 +48,7 @@ using InteractiveUtils, Test
         end
     end
 
-    @testset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
+    @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
         # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
         # any path where the user function was not wrapped via AutoSpecialize),
         # `standardize_forwarddiff_tag` must return the AD backend unchanged
@@ -85,7 +78,7 @@ using InteractiveUtils, Test
         @test outp === adp
     end
 
-    @testset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
+    @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
         # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
         # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works
         # for any `AbstractArray` state with a non-dual eltype — `Vector{Float64}`,
@@ -131,15 +124,19 @@ using InteractiveUtils, Test
         )
     end
 
-    @testset "EnzymeExt _accum_tangent! caches accumulation (#935)" begin
-        include("enzyme_accum_tangent.jl")
-    end
+    @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
-    @testset "PolyAlgorithm solution type is concrete (#878)" begin
-        include("polyalg_solution_type.jl")
-    end
+    @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
 
-    @testset "EnzymeExt algorithms are inactive_type" begin
-        include("enzyme_inactive_algorithm.jl")
-    end
+    @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
+
+    @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+end
+
+# QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
+# sub-env under test/qa (excluded from the base/Core/All run).
+if GROUP == "QA"
+    activate_qa_env()
+    @safetestset "Aqua" include("qa/qa.jl")
+    @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
 end

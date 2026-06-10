@@ -12,7 +12,7 @@ import NonlinearSolve as NLS
 import PETSc
 import LinearAlgebra
 import SparseConnectivityTracer
-import BenchmarkTools
+import BenchmarkTools: @benchmark
 
 u0 = fill(0.5, 128)
 
@@ -68,19 +68,19 @@ runtimes.
 ### Dense Jacobian
 
 ```@example snes_ex2
-BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1e-8)
 ```
 
 ```@example snes_ex2
-BenchmarkTools.@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1e-8)
 ```
 
 ### Sparse Jacobian
 
 ```@example snes_ex2
-BenchmarkTools.@benchmark NLS.solve($(nlprob_sparse), $(NLS.NewtonRaphson()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_sparse), $(NLS.NewtonRaphson()); abstol = 1e-8)
 ```
 
 ```@example snes_ex2
-BenchmarkTools.@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1e-8)
 ```

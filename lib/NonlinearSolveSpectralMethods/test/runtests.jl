@@ -1,27 +1,36 @@
-using ReTestItems, NonlinearSolveSpectralMethods, Hwloc, InteractiveUtils, Pkg
+using Pkg
+using SafeTestsets, Test, InteractiveUtils
 
 @info sprint(InteractiveUtils.versioninfo)
 
-const GROUP = lowercase(get(ENV, "GROUP", "All"))
+# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
+const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
 
-const RETESTITEMS_NWORKERS = parse(
-    Int, get(
-        ENV, "RETESTITEMS_NWORKERS",
-        string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-    )
-)
-const RETESTITEMS_NWORKER_THREADS = parse(
-    Int,
-    get(
-        ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
-    )
-)
+@info "Running tests for group: $(GROUP)"
 
-@info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
+# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
+# test/qa so its compat bounds don't constrain the main test resolve. Develop
+# the in-repo path deps so [sources] also works on Julia < 1.11 (where the
+# Project.toml [sources] table is ignored), then instantiate.
+function activate_qa_env()
+    Pkg.activate(joinpath(@__DIR__, "qa"))
+    if VERSION < v"1.11.0-DEV.0"
+        Pkg.develop([
+            Pkg.PackageSpec(path = joinpath(@__DIR__, "..")),
+            Pkg.PackageSpec(path = joinpath(@__DIR__, "..", "..", "NonlinearSolveBase")),
+        ])
+    end
+    return Pkg.instantiate()
+end
 
-ReTestItems.runtests(
-    NonlinearSolveSpectralMethods; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
-    testitem_timeout = 3600
-)
+if GROUP == "All" || GROUP == "Core"
+    include("core_tests.jl")
+end
+
+# QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
+# sub-env under test/qa (excluded from the base/Core/All run).
+if GROUP == "QA"
+    activate_qa_env()
+    @safetestset "Aqua" include("qa/qa.jl")
+    @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
+end

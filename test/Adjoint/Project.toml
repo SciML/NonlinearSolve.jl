@@ -1,0 +1,48 @@
+[deps]
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
+NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
+SciMLSensitivity = "1ed8b502-d754-442c-8d5d-10ac956f44a1"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[sources]
+BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = "../.."}
+NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
+SciMLJacobianOperators = {path = "../../lib/SciMLJacobianOperators"}
+SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
+
+[compat]
+BracketingNonlinearSolve = "1.6"
+Enzyme = "0.13"
+ForwardDiff = "1"
+Mooncake = "0.4, 0.5"
+NonlinearSolve = "4.19"
+NonlinearSolveBase = "2.20"
+NonlinearSolveFirstOrder = "2"
+NonlinearSolveQuasiNewton = "1.12"
+NonlinearSolveSpectralMethods = "1.6"
+ReverseDiff = "1.15"
+SciMLBase = "2.154, 3"
+SciMLJacobianOperators = "0.1"
+SciMLSensitivity = "7.65, 7.104, 8"
+SimpleNonlinearSolve = "2.10"
+Test = "1.10"
+Tracker = "0.2.35"
+Zygote = "0.6.69, 0.7"
+julia = "1.10"
