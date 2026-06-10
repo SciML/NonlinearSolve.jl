@@ -35,7 +35,6 @@ os = ["ubuntu-latest", "macos-latest"]
 
 [QA]
 versions = ["lts", "1"]
-os = ["ubuntu-latest", "macos-latest"]
 
 # Trimming was introduced in Julia 1.12; skip lts (1.10).
 [Trim]
