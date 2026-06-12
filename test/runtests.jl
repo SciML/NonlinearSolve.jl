@@ -106,6 +106,12 @@ end
     else
         @info "Running tests for group: $(GROUP)"
 
+        # On Julia < 1.11 the root test env ignores the [sources] table, so the
+        # base-env groups below would test the REGISTERED sublibraries instead of
+        # the PR branch code (and fail outright whenever a PR bumps a sublibrary
+        # version that is not yet registered); develop the in-repo paths first.
+        _develop_inrepo_sources()
+
         # --- Base-env groups (no extra deps; part of the All run) ---
         if GROUP == "All" || GROUP == "Core"
             @time @safetestset "NLLS Analytic Jacobian" include("Core/core_tests__item1.jl")
@@ -153,6 +159,10 @@ end
             @time @safetestset "HomotopySweep stays in Float32 (no promotion)" include("Core/homotopy_sweep_tests__item12.jl")
             @time @safetestset "HomotopySweep inner solver is composable" include("Core/homotopy_sweep_tests__item13.jl")
             @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+            @time @safetestset "HomotopySweep step-control kwargs validation + defaults" include("Core/homotopy_sweep_tests__item15.jl")
+            @time @safetestset "HomotopySweep expands the step after consecutive successes" include("Core/homotopy_sweep_tests__item16.jl")
+            @time @safetestset "HomotopySweep secant predictor reduces corrector work" include("Core/homotopy_sweep_tests__item17.jl")
+            @time @safetestset "HomotopySweep regrows the step after bisecting a hard region" include("Core/homotopy_sweep_tests__item18.jl")
         end
 
         if GROUP == "All" || GROUP == "NoPre"
