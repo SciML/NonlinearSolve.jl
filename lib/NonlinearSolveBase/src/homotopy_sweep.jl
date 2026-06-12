@@ -11,7 +11,8 @@ corrects it by solving the resulting standard nonlinear system with `inner`.
 
 The step size is governed by the classic success/failure heuristic of
 predictor-corrector path tracking (see e.g. Timme, *Mixed precision path tracking for
-polynomial homotopy continuation*, Adv. Comput. Math. 47 (2021)): a failed corrector
+polynomial homotopy continuation*, Advances in Computational Mathematics 47, 2021): a
+failed corrector
 halves the λ increment and retries from the last accepted point, while
 `expand_threshold` consecutive accepted steps grow the increment by `expand_factor`,
 capped at `max_step_factor` of the span width. Expansion is additionally gated on the
