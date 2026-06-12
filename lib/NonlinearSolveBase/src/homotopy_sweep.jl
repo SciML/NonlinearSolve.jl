@@ -3,9 +3,12 @@
         initial_step_factor = 0.1, min_dλ = nothing)
 
 Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
-scalar continuation parameter ``λ`` is swept across the problem's `λspan`; each step
-fixes ``λ``, solves the resulting standard nonlinear system with `inner`, and
-warm-starts from the previous step's solution.
+scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
+first solves the system at `λspan[1]` (for the canonical `(0, 1)` span, the
+`simplified` system — the form the homotopy is designed to make solvable from a cold
+start) starting from `u0`; each subsequent step fixes ``λ``, solves the resulting
+standard nonlinear system with `inner`, and warm-starts from the previous step's
+solution.
 
 Keyword arguments:
 
@@ -22,9 +25,9 @@ Keyword arguments:
     to `sqrt(eps(typeof(λ)))` at solve time, so the floor scales with precision.
 
 When the sweep cannot reach the end of `λspan`, the returned solution carries a failure
-retcode: its `u` is the last converged iterate (at some ``λ`` short of `λspan[2]`),
-while `resid` comes from the failed step (`nothing` on the `ReturnCode.Stalled` path,
-where no step ran).
+retcode: its `u` is the last converged iterate (at some ``λ`` short of `λspan[2]`, or
+`u0` itself if the initial `λspan[1]` anchor solve failed), while `resid` comes from the
+failed step (`nothing` on the `ReturnCode.Stalled` path, where no step ran).
 
 This is the embedding-homotopy / continuation analogue used to robustly initialize
 systems whose target form is hard to solve cold; it is unrelated to the polynomial
@@ -89,13 +92,38 @@ function CommonSolve.solve(
     dλ = alg.nsteps === nothing ? λT(alg.initial_step_factor) * span : span / alg.nsteps
     min_dλ = alg.min_dλ === nothing ? sqrt(eps(λT)) : λT(alg.min_dλ)
     u = copy(prob.u0)
-    local last_sol
+
+    # Anchor: solve the system at λ = λspan[1] from u0 BEFORE stepping. For the
+    # canonical (0, 1) span this is the pure `simplified` system — the one the
+    # homotopy contract is designed to make solvable from a cold start (OMC's
+    # reference implementation also solves λ = 0 first). Without this anchor the
+    # first inner solve runs at λ0 + dλ warm-started from u0, so a poor u0 can
+    # converge onto the wrong branch and the sweep then tracks that branch all
+    # the way to a wrong root with a success retcode.
+    anchor_f = SciMLBase.NonlinearFunction{iip}(FixLambda(prob.f, λ))
+    last_sol = solve(
+        NonlinearProblem{iip}(anchor_f, copy(u), prob.p),
+        alg.inner, args...; prob.kwargs..., kwargs...
+    )
+    if !SciMLBase.successful_retcode(last_sol)
+        # the λ = λspan[1] system itself failed from u0: the homotopy premise is
+        # broken, so no continuation is possible. `u` stays u0.
+        return SciMLBase.build_solution(
+            prob, alg, u, last_sol.resid;
+            retcode = last_sol.retcode, original = last_sol
+        )
+    end
+    u = copy(last_sol.u)
+    # Zero-width λspan (λ0 == λend): the anchor IS the single target solve.
+    λ == λend && return SciMLBase.build_solution(
+        prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+    )
 
     while true
         next_λ = abs(λend - λ) <= abs(dλ) ? λend : λ + dλ
         if next_λ == λ && next_λ != λend
-            # dλ underflowed below eps(λ): no further progress is possible. λend is
-            # excluded so that a zero-width λspan still solves the target system once.
+            # dλ underflowed below eps(λ) mid-continuation: no further progress is
+            # possible (the zero-width span is already handled by the anchor above).
             return SciMLBase.build_solution(
                 prob, alg, u, nothing; retcode = ReturnCode.Stalled
             )

@@ -126,7 +126,10 @@ else
             @time @safetestset "HomotopySweep handles a decreasing λspan" include("Core/homotopy_sweep_tests__item11.jl")
             @time @safetestset "HomotopySweep stays in Float32 (no promotion)" include("Core/homotopy_sweep_tests__item12.jl")
             @time @safetestset "HomotopySweep inner solver is composable" include("Core/homotopy_sweep_tests__item13.jl")
-            return @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+            @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+            @time @safetestset "HomotopySweep anchors at λspan[1] (right branch, not wrong root)" include("Core/homotopy_sweep_tests__item15.jl")
+            @time @safetestset "HomotopySweep fails fast when the λspan[1] anchor is unsolvable" include("Core/homotopy_sweep_tests__item16.jl")
+            return @time @safetestset "HomotopySweep solves a zero-width λspan exactly once" include("Core/homotopy_sweep_tests__item17.jl")
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()
