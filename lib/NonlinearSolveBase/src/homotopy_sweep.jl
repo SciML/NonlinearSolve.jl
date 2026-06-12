@@ -4,7 +4,7 @@
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
         predictor = :secant)
 
-Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
+Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`. The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`; each step
 fixes ``λ``, predicts an initial guess by extrapolating along the solution path, and
 corrects it by solving the resulting standard nonlinear system with `inner`.
