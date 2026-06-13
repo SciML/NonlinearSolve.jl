@@ -216,8 +216,8 @@ function CommonSolve.solve(
         # points once history exists; a pure-λ step toward λend bootstraps the first step.
         if have_prev
             d = xcur .- xprev
-            nd = norm(d)
-            τ = nd > 0 ? d ./ nd : pack(zeros(Tx, n), sλ)
+            dnorm = norm(d)
+            τ = dnorm > 0 ? d ./ dnorm : pack(zeros(Tx, n), sλ)
         else
             τ = pack(zeros(Tx, n), sλ)
         end
