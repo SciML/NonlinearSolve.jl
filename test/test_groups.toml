@@ -7,7 +7,9 @@
 versions = ["lts", "1", "pre"]
 os = ["ubuntu-latest", "macos-latest"]
 
-[NoPre]
+# Extended PolyAlgorithm / default-algorithm functional tests, run in the base
+# test env alongside Core (formerly the misnamed "NoPre" group).
+[PolyAlgorithms]
 versions = ["lts", "1", "pre"]
 os = ["ubuntu-latest", "macos-latest"]
 
