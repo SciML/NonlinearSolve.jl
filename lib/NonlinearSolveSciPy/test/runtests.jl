@@ -1,16 +1,22 @@
 using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
-const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
-
-@info "Running tests for group: $(GROUP)"
-
-if GROUP == "All" || GROUP == "Core"
-    include("basic_tests.jl")
+# SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP for local runs.
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
 end
 
-if GROUP == "All" || GROUP == "Wrappers"
-    include("wrappers_tests.jl")
-end
+run_tests(;
+    env = "NONLINEARSOLVE_TEST_GROUP",
+    core = function ()
+        return include("basic_tests.jl")
+    end,
+    groups = Dict(
+        # Wrappers runs in the base test env and is part of the "All" run.
+        "Wrappers" => function ()
+            return include("wrappers_tests.jl")
+        end,
+    ),
+)

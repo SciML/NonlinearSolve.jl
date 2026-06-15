@@ -29,7 +29,6 @@ ConcreteStructs = "0.2.3"
 ForwardDiff = "0.10.36, 1"
 InteractiveUtils = "<0.0.1, 1"
 NonlinearSolveBase = "2.1"
-Pkg = "1.10"
 PrecompileTools = "1.2"
 Reexport = "1.2.2"
 SciMLBase = "2.153, 3"
@@ -38,13 +37,14 @@ Zygote = "0.7"
 julia = "1.10"
 
 SafeTestsets = "0.1"
+SciMLTesting = "1"
 [extras]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 [targets]
-test = ["ForwardDiff", "InteractiveUtils", "Pkg", "Test", "Zygote", "SafeTestsets"]
+test = ["ForwardDiff", "InteractiveUtils", "Test", "Zygote", "SafeTestsets", "SciMLTesting"]

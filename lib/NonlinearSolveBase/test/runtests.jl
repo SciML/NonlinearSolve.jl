@@ -1,142 +1,134 @@
-using Pkg
 using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-# Group dispatch: SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP.
-const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
-
-@info "Running tests for group: $(GROUP)"
-
-# QA tooling (Aqua/ExplicitImports) lives in an isolated sub-environment under
-# test/qa so its compat bounds don't constrain the main test resolve. Develop
-# the in-repo path dep so [sources] also works on Julia < 1.11 (where the
-# Project.toml [sources] table is ignored), then instantiate.
-function activate_qa_env()
-    Pkg.activate(joinpath(@__DIR__, "qa"))
-    if VERSION < v"1.11.0-DEV.0"
-        Pkg.develop(Pkg.PackageSpec(path = joinpath(@__DIR__, "..")))
-    end
-    return Pkg.instantiate()
+# SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP for local runs.
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
 end
 
-# All NonlinearSolveBase tests run under the default Core group.
-if GROUP == "All" || GROUP == "Core"
-    @safetestset "Banded Matrix vcat" begin
-        using NonlinearSolveBase
-        using BandedMatrices, LinearAlgebra, SparseArrays
+run_tests(;
+    env = "NONLINEARSOLVE_TEST_GROUP",
+    # All NonlinearSolveBase tests run under the default Core group.
+    core = function ()
+        @safetestset "Banded Matrix vcat" begin
+            using NonlinearSolveBase
+            using BandedMatrices, LinearAlgebra, SparseArrays
 
-        b = BandedMatrix(Ones(5, 5), (1, 1))
-        d = Diagonal(ones(5, 5))
+            b = BandedMatrix(Ones(5, 5), (1, 1))
+            d = Diagonal(ones(5, 5))
 
-        @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
-    end
-
-    @safetestset "Termination Conditions" begin
-        using NonlinearSolveBase, SciMLBase
-        @testset "reinit! with AbsTerminationMode" begin
-            mode = NonlinearSolveBase.AbsTerminationMode()
-            u_unaliased = nothing
-            T = Float64
-            cache = NonlinearSolveBase.NonlinearTerminationModeCache(
-                u_unaliased, SciMLBase.ReturnCode.Default, 1.0e-8, 1.0e-8, Inf, mode,
-                nothing, nothing, 0, nothing, nothing, nothing, nothing, nothing, false
-            )
-            du = [1.0, 1.0]
-            u = [1.1, 1.1]
-            @test_nowarn SciMLBase.reinit!(cache, du, u)
+            @test NonlinearSolveBase.Utils.faster_vcat(b, d) == vcat(sparse(b), d)
         end
-    end
 
-    @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
-        # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
-        # any path where the user function was not wrapped via AutoSpecialize),
-        # `standardize_forwarddiff_tag` must return the AD backend unchanged
-        # and NOT substitute in a canonical `Tag{NonlinearSolveTag, Float64}`.
-        # Substituting the pre-baked canonical tag used to drag in ForwardDiff's
-        # precompile-time `@generated tagcount` literal for that exact type and
-        # `≺`-reverse against nested tags created later inside an inner ODE
-        # solve, which crashed `setindex!(du, ...)` in the user body with a
-        # `Float64(::nested_dual)` MethodError.
-        using NonlinearSolveBase, SciMLBase, ADTypes, ForwardDiff
+        @safetestset "Termination Conditions" begin
+            using NonlinearSolveBase, SciMLBase
+            @testset "reinit! with AbsTerminationMode" begin
+                mode = NonlinearSolveBase.AbsTerminationMode()
+                u_unaliased = nothing
+                T = Float64
+                cache = NonlinearSolveBase.NonlinearTerminationModeCache(
+                    u_unaliased, SciMLBase.ReturnCode.Default, 1.0e-8, 1.0e-8, Inf, mode,
+                    nothing, nothing, 0, nothing, nothing, nothing, nothing, nothing, false
+                )
+                du = [1.0, 1.0]
+                u = [1.1, 1.1]
+                @test_nowarn SciMLBase.reinit!(cache, du, u)
+            end
+        end
 
-        # FullSpecialize nonlinear function with Vector{Float64} u0.
-        resid!(du, u, p) = (du .= u .- p; nothing)
-        f = NonlinearFunction{true, SciMLBase.FullSpecialize}(
-            resid!, resid_prototype = zeros(2)
-        )
-        prob = NonlinearLeastSquaresProblem(f, [1.0, 2.0])
+        @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
+            # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
+            # any path where the user function was not wrapped via AutoSpecialize),
+            # `standardize_forwarddiff_tag` must return the AD backend unchanged
+            # and NOT substitute in a canonical `Tag{NonlinearSolveTag, Float64}`.
+            # Substituting the pre-baked canonical tag used to drag in ForwardDiff's
+            # precompile-time `@generated tagcount` literal for that exact type and
+            # `≺`-reverse against nested tags created later inside an inner ODE
+            # solve, which crashed `setindex!(du, ...)` in the user body with a
+            # `Float64(::nested_dual)` MethodError.
+            using NonlinearSolveBase, SciMLBase, ADTypes, ForwardDiff
 
-        ad = AutoForwardDiff()
-        out = NonlinearSolveBase.standardize_forwarddiff_tag(ad, prob)
-        @test out === ad
+            # FullSpecialize nonlinear function with Vector{Float64} u0.
+            resid!(du, u, p) = (du .= u .- p; nothing)
+            f = NonlinearFunction{true, SciMLBase.FullSpecialize}(
+                resid!, resid_prototype = zeros(2)
+            )
+            prob = NonlinearLeastSquaresProblem(f, [1.0, 2.0])
 
-        # AutoPolyesterForwardDiff path must also leave `ad` alone when the
-        # function is not wrapped.
-        adp = AutoPolyesterForwardDiff()
-        outp = NonlinearSolveBase.standardize_forwarddiff_tag(adp, prob)
-        @test outp === adp
-    end
+            ad = AutoForwardDiff()
+            out = NonlinearSolveBase.standardize_forwarddiff_tag(ad, prob)
+            @test out === ad
 
-    @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
-        # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
-        # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works
-        # for any `AbstractArray` state with a non-dual eltype — `Vector{Float64}`,
-        # `Array{Float64, 3}` (Brusselator 2D residual), etc. It must NOT wrap
-        # when `u0` already carries a `Dual` eltype (which happens whenever
-        # `promote_u0` upgrades `u0` against outer-AD Dual parameters, e.g. a
-        # nested-ForwardDiff NLLS over the `#445` Hessian case or a
-        # `ForwardDiff.derivative(solve, p)` pass with Dual `p`). If wrapping
-        # fired in that case, the stored signatures would be keyed off the
-        # outer Dual tag and miss the value-typed inner dispatch produced by
-        # the forward-diff extension.
-        using NonlinearSolveBase, SciMLBase, ForwardDiff
+            # AutoPolyesterForwardDiff path must also leave `ad` alone when the
+            # function is not wrapped.
+            adp = AutoPolyesterForwardDiff()
+            outp = NonlinearSolveBase.standardize_forwarddiff_tag(adp, prob)
+            @test outp === adp
+        end
 
-        resid!(du, u, p) = (du .= vec(u); nothing)
-        f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
-            resid!, resid_prototype = zeros(2)
-        )
+        @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
+            # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
+            # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works
+            # for any `AbstractArray` state with a non-dual eltype — `Vector{Float64}`,
+            # `Array{Float64, 3}` (Brusselator 2D residual), etc. It must NOT wrap
+            # when `u0` already carries a `Dual` eltype (which happens whenever
+            # `promote_u0` upgrades `u0` against outer-AD Dual parameters, e.g. a
+            # nested-ForwardDiff NLLS over the `#445` Hessian case or a
+            # `ForwardDiff.derivative(solve, p)` pass with Dual `p`). If wrapping
+            # fired in that case, the stored signatures would be keyed off the
+            # outer Dual tag and miss the value-typed inner dispatch produced by
+            # the forward-diff extension.
+            using NonlinearSolveBase, SciMLBase, ForwardDiff
 
-        # Vector{Float64} u0 — wraps.
-        prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-        @test NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
-        )
+            resid!(du, u, p) = (du .= vec(u); nothing)
+            f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(
+                resid!, resid_prototype = zeros(2)
+            )
 
-        # Vector{Dual} u0 — must NOT wrap.
-        DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
-        u0_dual = DualF[DualF(1.0), DualF(2.0)]
-        p_dual = DualF[DualF(0.5), DualF(0.25)]
-        prob_dual = NonlinearProblem(f, u0_dual, p_dual)
-        @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual) === f.f
-        @test !NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual)
-        )
+            # Vector{Float64} u0 — wraps.
+            prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
+            @test NonlinearSolveBase.is_fw_wrapped(
+                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
+            )
 
-        # Array{Float64, 3} u0 — wraps (VdT derived via `similar` respects the
-        # user's concrete array kind and ndims).
-        f3 = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
-        u3d = zeros(2, 2, 2)
-        p_tup = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
-        prob_3d = NonlinearProblem(f3, u3d, p_tup)
-        @test NonlinearSolveBase.is_fw_wrapped(
-            NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d)
-        )
-    end
+            # Vector{Dual} u0 — must NOT wrap.
+            DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
+            u0_dual = DualF[DualF(1.0), DualF(2.0)]
+            p_dual = DualF[DualF(0.5), DualF(0.25)]
+            prob_dual = NonlinearProblem(f, u0_dual, p_dual)
+            @test NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual) === f.f
+            @test !NonlinearSolveBase.is_fw_wrapped(
+                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_dual)
+            )
 
-    @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
+            # Array{Float64, 3} u0 — wraps (VdT derived via `similar` respects the
+            # user's concrete array kind and ndims).
+            f3 = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
+            u3d = zeros(2, 2, 2)
+            p_tup = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
+            prob_3d = NonlinearProblem(f3, u3d, p_tup)
+            @test NonlinearSolveBase.is_fw_wrapped(
+                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_3d)
+            )
+        end
 
-    @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
+        @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
-    @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
+        @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
 
-    @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
-end
+        @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
 
-# QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
-# sub-env under test/qa (excluded from the base/Core/All run).
-if GROUP == "QA"
-    activate_qa_env()
-    @safetestset "Aqua" include("qa/qa.jl")
-    @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
-end
+        return @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+    end,
+    # QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
+    # sub-env under test/qa (excluded from the base/Core/All run).
+    qa = (;
+        env = joinpath(@__DIR__, "qa"),
+        body = function ()
+            @safetestset "Aqua" include("qa/qa.jl")
+            return @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
+        end,
+    ),
+)
