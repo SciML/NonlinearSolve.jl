@@ -27,13 +27,11 @@ BenchmarkTools = "1.5.0"
 CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 ForwardDiff = "0.10.36, 1"
-Hwloc = "3"
 InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"
 MaybeInplace = "0.1.4"
 NonlinearProblemLibrary = "0.1.2"
 NonlinearSolveBase = "2.20"
-Pkg = "1.10"
 PrecompileTools = "1.2"
 Reexport = "1.2.2"
 SciMLBase = "2.153, 3"
@@ -43,16 +41,16 @@ Test = "1.10"
 julia = "1.10"
 
 SafeTestsets = "0.1"
+SciMLTesting = "1"
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 [targets]
-test = ["BenchmarkTools", "Hwloc", "InteractiveUtils", "NonlinearProblemLibrary", "Pkg", "StableRNGs", "StaticArrays", "Test", "SafeTestsets"]
+test = ["BenchmarkTools", "InteractiveUtils", "NonlinearProblemLibrary", "StableRNGs", "StaticArrays", "Test", "SafeTestsets", "SciMLTesting"]

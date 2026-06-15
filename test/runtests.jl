@@ -1,113 +1,87 @@
 using Pkg
 using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-# Group dispatch. SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; the root CI sets
-# GROUP. Read either so the same runtests.jl works as both the root test entry
-# and the sublibrary dispatcher.
-const GROUP = get(ENV, "NONLINEARSOLVE_TEST_GROUP", get(ENV, "GROUP", "All"))
-
-# Match sublibrary dirs case-insensitively.
-function _find_lib(base, lib_dir)
-    isdir(lib_dir) || return nothing
-    for d in readdir(lib_dir)
-        isdir(joinpath(lib_dir, d)) && lowercase(d) == lowercase(base) && return d
-    end
-    return nothing
+# Group dispatch. The root CI (grouped-tests.yml@v1) and SublibraryCI both set
+# NONLINEARSOLVE_TEST_GROUP; a bare local run may set GROUP instead. Read either so
+# the same runtests.jl works as the root test entry and the sublibrary dispatcher.
+# run_tests reads NONLINEARSOLVE_TEST_GROUP below, so seed it from GROUP when only
+# GROUP is set (preserving the previous `get(ENV, "NONLINEARSOLVE_TEST_GROUP",
+# get(ENV, "GROUP", "All"))` precedence).
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
 end
 
-# If GROUP names a lib/<X> sublibrary (optionally `<X>_<TESTGROUP>`), activate
-# that sublibrary, develop its in-repo [sources], and Pkg.test it with the
-# sublibrary's own group env var set. Mirrors OrdinaryDiffEq's root dispatcher
-# so a single GROUP value can target any sublibrary. Scan underscores
-# right-to-left for the longest matching sublibrary prefix.
-function _detect_sublibrary_group(group, lib_dir)
-    _find_lib(group, lib_dir) !== nothing && return (group, "Core")
-    for i in length(group):-1:1
-        if group[i] == '_' && _find_lib(group[1:(i - 1)], lib_dir) !== nothing
-            return (group[1:(i - 1)], group[(i + 1):end])
-        end
-    end
-    return (group, "Core")
-end
+const GROUP = current_group(; env = "NONLINEARSOLVE_TEST_GROUP")
+const LIB_DIR = joinpath(dirname(@__DIR__), "lib")
 
-# In-repo path dependencies developed when a sub-environment's [sources] table
-# is ignored (Julia < 1.11). Lists the umbrella root and every sublibrary so any
-# group env that references a subset still resolves to the PR branch code.
-function _develop_inrepo_sources()
-    VERSION < v"1.11.0-DEV.0" || return
-    root = dirname(@__DIR__)
-    lib = joinpath(root, "lib")
-    specs = Pkg.PackageSpec[Pkg.PackageSpec(path = root)]
-    for d in readdir(lib)
-        isdir(joinpath(lib, d)) && push!(specs, Pkg.PackageSpec(path = joinpath(lib, d)))
-    end
-    return Pkg.develop(specs)
-end
+@info "Running tests for group: $(GROUP)"
 
-# Activate a dep-adding group's isolated sub-environment under test/<Group> and
-# instantiate it. These groups carry deps beyond the base test set (and are
-# excluded from the All run, which uses the base env). On Julia < 1.11 the
-# [sources] table is ignored, so the in-repo path deps are developed first.
-function activate_group_env(group)
-    Pkg.activate(joinpath(@__DIR__, group))
-    _develop_inrepo_sources()
-    return Pkg.instantiate()
-end
+# Centralized sublibrary CI (sublibrary-project-tests.yml@v1) tests each lib/<name>
+# via the project model and never routes through this file. This dispatcher only
+# matters when the root suite is invoked with a GROUP that names a sublibrary (e.g.
+# local `NONLINEARSOLVE_TEST_GROUP=NonlinearSolveFirstOrder julia test/runtests.jl`):
+# the bare sublibrary name selects that sublibrary's "Core" group and
+# "<sublibrary>_<grp>" selects a named group. We activate the sublibrary's own test
+# environment and hand off to its runtests.jl via NONLINEARSOLVE_TEST_GROUP. The
+# Pkg.test is done explicitly here (rather than via run_tests's built-in lib_dir
+# path) so the Julia < 1.11 transitive [sources] develop walk is preserved verbatim.
+base_group, sub_group = detect_sublibrary_group(GROUP, LIB_DIR)
 
-@time begin
-    lib_dir = joinpath(dirname(@__DIR__), "lib")
-    base_group, sub_group = _detect_sublibrary_group(GROUP, lib_dir)
-    sublib = _find_lib(base_group, lib_dir)
-
-    if sublib !== nothing
-        sub_path = joinpath(lib_dir, sublib)
-        Pkg.activate(sub_path)
-        # On Julia < 1.11 the [sources] section is ignored; develop local path
-        # deps so CI tests the PR branch code (transitively, including the
-        # umbrella root for sublibs that depend back on it).
-        if VERSION < v"1.11.0-DEV.0"
-            developed = Set{String}([normpath(sub_path)])
-            specs = Pkg.PackageSpec[]
-            queue = [sub_path]
-            while !isempty(queue)
-                pkg_dir = popfirst!(queue)
-                toml_path = joinpath(pkg_dir, "Project.toml")
-                isfile(toml_path) || continue
-                toml = Pkg.TOML.parsefile(toml_path)
-                if haskey(toml, "sources")
-                    for (dep_name, source_spec) in toml["sources"]
-                        if source_spec isa Dict && haskey(source_spec, "path")
-                            dep_path = normpath(joinpath(pkg_dir, source_spec["path"]))
-                            if isdir(dep_path) && !(dep_path in developed)
-                                push!(developed, dep_path)
-                                push!(specs, Pkg.PackageSpec(path = dep_path))
-                                push!(queue, dep_path)
-                            end
+if !isempty(base_group) && isdir(joinpath(LIB_DIR, base_group))
+    sublib_path = joinpath(LIB_DIR, base_group)
+    Pkg.activate(sublib_path)
+    # On Julia < 1.11 the [sources] section is ignored; develop local path deps so
+    # CI tests the PR branch code (transitively, including the umbrella root for
+    # sublibs that depend back on it). Walk [sources] in case a developed dependency
+    # carries its own.
+    if VERSION < v"1.11.0-DEV.0"
+        developed = Set{String}([normpath(sublib_path)])
+        specs = Pkg.PackageSpec[]
+        queue = [sublib_path]
+        while !isempty(queue)
+            pkg_dir = popfirst!(queue)
+            toml_path = joinpath(pkg_dir, "Project.toml")
+            isfile(toml_path) || continue
+            toml = Pkg.TOML.parsefile(toml_path)
+            if haskey(toml, "sources")
+                for (dep_name, source_spec) in toml["sources"]
+                    if source_spec isa Dict && haskey(source_spec, "path")
+                        dep_path = normpath(joinpath(pkg_dir, source_spec["path"]))
+                        if isdir(dep_path) && !(dep_path in developed)
+                            push!(developed, dep_path)
+                            push!(specs, Pkg.PackageSpec(path = dep_path))
+                            push!(queue, dep_path)
                         end
                     end
                 end
             end
-            isempty(specs) || Pkg.develop(specs)
         end
-        withenv("NONLINEARSOLVE_TEST_GROUP" => sub_group) do
-            Pkg.test(
-                sublib;
-                julia_args = ["--check-bounds=auto"],
-                force_latest_compatible_version = false, allow_reresolve = true
-            )
-        end
-    elseif GROUP == "Trim" && VERSION >= v"1.12.0-rc1"
-        # Trimming was introduced in Julia 1.12; runs in its own environment.
+        isempty(specs) || Pkg.develop(specs)
+    end
+    withenv("NONLINEARSOLVE_TEST_GROUP" => sub_group) do
+        Pkg.test(
+            base_group;
+            julia_args = ["--check-bounds=auto"],
+            force_latest_compatible_version = false, allow_reresolve = true
+        )
+    end
+elseif GROUP == "Trim"
+    # Trimming was introduced in Julia 1.12; runs in its own environment. Modeled as
+    # a self-contained group rather than a run_tests group so the version gate and
+    # the bespoke (root-not-developed) trim env activation are preserved verbatim.
+    if VERSION >= v"1.12.0-rc1"
         Pkg.activate(joinpath(@__DIR__, "trim"))
         Pkg.instantiate()
         include("trim/runtests.jl")
-    else
-        @info "Running tests for group: $(GROUP)"
-
-        # --- Base-env groups (no extra deps; part of the All run) ---
-        if GROUP == "All" || GROUP == "Core"
+    end
+else
+    run_tests(;
+        env = "NONLINEARSOLVE_TEST_GROUP",
+        # --- Base-env groups (no extra deps; part of the "All" run) ---
+        core = function ()
             @time @safetestset "NLLS Analytic Jacobian" include("Core/core_tests__item1.jl")
             @time @safetestset "PolyAlgorithm Type Inference" include("Core/core_tests__item3.jl")
             @time @safetestset "PolyAlgorithm Aliasing" include("Core/core_tests__item5.jl")
@@ -152,68 +126,78 @@ end
             @time @safetestset "HomotopySweep handles a decreasing λspan" include("Core/homotopy_sweep_tests__item11.jl")
             @time @safetestset "HomotopySweep stays in Float32 (no promotion)" include("Core/homotopy_sweep_tests__item12.jl")
             @time @safetestset "HomotopySweep inner solver is composable" include("Core/homotopy_sweep_tests__item13.jl")
-            @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
-        end
-
-        if GROUP == "All" || GROUP == "NoPre"
-            @time @safetestset "Basic PolyAlgorithms" include("NoPre/core_tests__item2.jl")
-            @time @safetestset "PolyAlgorithms Autodiff" include("NoPre/core_tests__item4.jl")
-            @time @safetestset "Ensemble Nonlinear Problems" include("NoPre/core_tests__item6.jl")
-            @time @safetestset "Out-of-place Matrix Resizing" include("NoPre/core_tests__item14.jl")
-            @time @safetestset "Inplace Matrix Resizing" include("NoPre/core_tests__item15.jl")
-            @time @safetestset "Default Algorithm Singular Handling" include("NoPre/core_tests__item19.jl")
-            @time @safetestset "23 Test Problems: PolyAlgorithms" include("NoPre/23_test_problems_tests__item1.jl")
-        end
-
-        if GROUP == "All" || GROUP == "Verbosity"
-            @time @safetestset "Nonlinear Verbosity" include("Verbosity/verbosity_tests__item1.jl")
-        end
-
-        # --- Dep-adding groups (isolated sub-envs; excluded from All) ---
-        if GROUP == "Downstream"
-            activate_group_env("Downstream")
-            @time @safetestset "Complex Valued Problems: Single-Shooting" include("Downstream/core_tests__item10.jl")
-            @time @safetestset "Modeling Toolkit Cache Indexing" include("Downstream/mtk_cache_indexing_tests__item1.jl")
-        end
-
-        if GROUP == "Bounds"
-            activate_group_env("Bounds")
-            @time @safetestset "Bounds: nonlinear model" include("Bounds/bounds_tests__item3.jl")
-        end
-
-        if GROUP == "Adjoint"
-            activate_group_env("Adjoint")
-            @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
-            @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
-        end
-
-        if GROUP == "Wrappers"
-            activate_group_env("Wrappers")
-            @time @safetestset "ForwardDiff.jl Integration" include("Wrappers/forward_ad_tests__item1.jl")
-            @time @safetestset "Simple Scalar Problem" include("Wrappers/fixedpoint_tests__item1.jl")
-            @time @safetestset "Simple Vector Problem" include("Wrappers/fixedpoint_tests__item2.jl")
-            @time @safetestset "Power Method" include("Wrappers/fixedpoint_tests__item3.jl")
-            @time @safetestset "Anderson does not allocate dense Jacobian (#862)" include("Wrappers/fixedpoint_tests__item4.jl")
-            @time @safetestset "LeastSquaresOptim.jl" include("Wrappers/least_squares_tests__item1.jl")
-            @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" include("Wrappers/least_squares_tests__item2.jl")
-            @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
-            @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
-            @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
-            @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
-        end
-
-        if GROUP == "CUDA"
-            activate_group_env("gpu")
-            @time @safetestset "CUDA Tests" include("gpu/cuda_tests__item1.jl")
-            @time @safetestset "Termination Conditions: Allocations" include("gpu/cuda_tests__item2.jl")
-        end
-
-        # QA (Aqua/ExplicitImports) lives in an isolated sub-env under test/qa so
-        # its compat bounds don't constrain the base resolve. Excluded from All.
-        if GROUP == "QA"
-            activate_group_env("qa")
-            @time @safetestset "Aqua" include("qa/qa.jl")
-            @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
-        end
-    end
-end # @time
+            return @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+        end,
+        groups = Dict(
+            "NoPre" => function ()
+                @time @safetestset "Basic PolyAlgorithms" include("NoPre/core_tests__item2.jl")
+                @time @safetestset "PolyAlgorithms Autodiff" include("NoPre/core_tests__item4.jl")
+                @time @safetestset "Ensemble Nonlinear Problems" include("NoPre/core_tests__item6.jl")
+                @time @safetestset "Out-of-place Matrix Resizing" include("NoPre/core_tests__item14.jl")
+                @time @safetestset "Inplace Matrix Resizing" include("NoPre/core_tests__item15.jl")
+                @time @safetestset "Default Algorithm Singular Handling" include("NoPre/core_tests__item19.jl")
+                return @time @safetestset "23 Test Problems: PolyAlgorithms" include("NoPre/23_test_problems_tests__item1.jl")
+            end,
+            "Verbosity" => function ()
+                return @time @safetestset "Nonlinear Verbosity" include("Verbosity/verbosity_tests__item1.jl")
+            end,
+            # --- Dep-adding groups (isolated sub-envs; excluded from "All") ---
+            "Downstream" => (;
+                env = joinpath(@__DIR__, "Downstream"),
+                body = function ()
+                    @time @safetestset "Complex Valued Problems: Single-Shooting" include("Downstream/core_tests__item10.jl")
+                    return @time @safetestset "Modeling Toolkit Cache Indexing" include("Downstream/mtk_cache_indexing_tests__item1.jl")
+                end,
+            ),
+            "Bounds" => (;
+                env = joinpath(@__DIR__, "Bounds"),
+                body = function ()
+                    return @time @safetestset "Bounds: nonlinear model" include("Bounds/bounds_tests__item3.jl")
+                end,
+            ),
+            "Adjoint" => (;
+                env = joinpath(@__DIR__, "Adjoint"),
+                body = function ()
+                    @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
+                    return @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
+                end,
+            ),
+            "Wrappers" => (;
+                env = joinpath(@__DIR__, "Wrappers"),
+                body = function ()
+                    @time @safetestset "ForwardDiff.jl Integration" include("Wrappers/forward_ad_tests__item1.jl")
+                    @time @safetestset "Simple Scalar Problem" include("Wrappers/fixedpoint_tests__item1.jl")
+                    @time @safetestset "Simple Vector Problem" include("Wrappers/fixedpoint_tests__item2.jl")
+                    @time @safetestset "Power Method" include("Wrappers/fixedpoint_tests__item3.jl")
+                    @time @safetestset "Anderson does not allocate dense Jacobian (#862)" include("Wrappers/fixedpoint_tests__item4.jl")
+                    @time @safetestset "LeastSquaresOptim.jl" include("Wrappers/least_squares_tests__item1.jl")
+                    @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Provided" include("Wrappers/least_squares_tests__item2.jl")
+                    @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
+                    @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
+                    @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
+                    return @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                end,
+            ),
+            "CUDA" => (;
+                env = joinpath(@__DIR__, "gpu"),
+                body = function ()
+                    @time @safetestset "CUDA Tests" include("gpu/cuda_tests__item1.jl")
+                    return @time @safetestset "Termination Conditions: Allocations" include("gpu/cuda_tests__item2.jl")
+                end,
+            ),
+        ),
+        # QA (Aqua/ExplicitImports) lives in an isolated sub-env under test/qa so its
+        # compat bounds don't constrain the base resolve. Excluded from "All".
+        qa = (;
+            env = joinpath(@__DIR__, "qa"),
+            body = function ()
+                @time @safetestset "Aqua" include("qa/qa.jl")
+                return @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
+            end,
+        ),
+        # "All" runs the base-env groups only (Core + NoPre + Verbosity); the
+        # dep-adding groups and QA run only when selected by name.
+        all = ["Core", "NoPre", "Verbosity"],
+        sublib_env = "NONLINEARSOLVE_TEST_GROUP",
+    )
+end

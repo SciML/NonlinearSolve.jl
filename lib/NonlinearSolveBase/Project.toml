@@ -87,7 +87,6 @@ LogExpFunctions = "0.3.29, 1"
 Markdown = "1.10"
 MaybeInplace = "0.1.4"
 Mooncake = "0.4, 0.5"
-Pkg = "1.10"
 PreallocationTools = "1.1.2"
 PrecompileTools = "1.2"
 Preferences = "1.4"
@@ -110,6 +109,7 @@ Tracker = "0.2.35"
 julia = "1.10"
 
 SafeTestsets = "0.1"
+SciMLTesting = "1"
 [extras]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -117,11 +117,11 @@ Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SciMLStructures = "53ae85a6-f571-4167-b2af-e1d143709226"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 [targets]
-test = ["BandedMatrices", "ChainRulesCore", "Enzyme", "ForwardDiff", "InteractiveUtils", "LinearAlgebra", "Pkg", "SciMLStructures", "SparseArrays", "Test", "SafeTestsets"]
+test = ["BandedMatrices", "ChainRulesCore", "Enzyme", "ForwardDiff", "InteractiveUtils", "LinearAlgebra", "SciMLStructures", "SparseArrays", "Test", "SafeTestsets", "SciMLTesting"]
