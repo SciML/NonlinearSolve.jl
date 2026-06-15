@@ -129,14 +129,14 @@ else
             return @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
         end,
         groups = Dict(
-            "NoPre" => function ()
-                @time @safetestset "Basic PolyAlgorithms" include("NoPre/core_tests__item2.jl")
-                @time @safetestset "PolyAlgorithms Autodiff" include("NoPre/core_tests__item4.jl")
-                @time @safetestset "Ensemble Nonlinear Problems" include("NoPre/core_tests__item6.jl")
-                @time @safetestset "Out-of-place Matrix Resizing" include("NoPre/core_tests__item14.jl")
-                @time @safetestset "Inplace Matrix Resizing" include("NoPre/core_tests__item15.jl")
-                @time @safetestset "Default Algorithm Singular Handling" include("NoPre/core_tests__item19.jl")
-                return @time @safetestset "23 Test Problems: PolyAlgorithms" include("NoPre/23_test_problems_tests__item1.jl")
+            "PolyAlgorithms" => function ()
+                @time @safetestset "Basic PolyAlgorithms" include("PolyAlgorithms/core_tests__item2.jl")
+                @time @safetestset "PolyAlgorithms Autodiff" include("PolyAlgorithms/core_tests__item4.jl")
+                @time @safetestset "Ensemble Nonlinear Problems" include("PolyAlgorithms/core_tests__item6.jl")
+                @time @safetestset "Out-of-place Matrix Resizing" include("PolyAlgorithms/core_tests__item14.jl")
+                @time @safetestset "Inplace Matrix Resizing" include("PolyAlgorithms/core_tests__item15.jl")
+                @time @safetestset "Default Algorithm Singular Handling" include("PolyAlgorithms/core_tests__item19.jl")
+                return @time @safetestset "23 Test Problems: PolyAlgorithms" include("PolyAlgorithms/23_test_problems_tests__item1.jl")
             end,
             "Verbosity" => function ()
                 return @time @safetestset "Nonlinear Verbosity" include("Verbosity/verbosity_tests__item1.jl")
@@ -195,9 +195,9 @@ else
                 return @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
             end,
         ),
-        # "All" runs the base-env groups only (Core + NoPre + Verbosity); the
+        # "All" runs the base-env groups only (Core + PolyAlgorithms + Verbosity); the
         # dep-adding groups and QA run only when selected by name.
-        all = ["Core", "NoPre", "Verbosity"],
+        all = ["Core", "PolyAlgorithms", "Verbosity"],
         sublib_env = "NONLINEARSOLVE_TEST_GROUP",
     )
 end
