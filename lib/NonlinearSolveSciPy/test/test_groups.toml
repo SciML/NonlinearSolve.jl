@@ -3,3 +3,6 @@ versions = ["1"]
 
 [Wrappers]
 versions = ["1"]
+
+[QA]
+versions = ["lts", "1"]
