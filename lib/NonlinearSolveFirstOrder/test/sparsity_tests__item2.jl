@@ -1,7 +1,8 @@
 using NonlinearSolveFirstOrder
 
 using SparseConnectivityTracer, BandedMatrices, LinearAlgebra, SparseArrays,
-    SparseMatrixColorings
+    SparseMatrixColorings, ADTypes
+using DifferentiationInterface: DenseSparsityDetector
 
 N = 16
 p = rand(N)
@@ -39,6 +40,23 @@ for nlf in (f, f!)
         )
 
         cache = init(nlprob_autosparse, NewtonRaphson(); abstol = 1.0e-9)
+        @test cache.jac_cache.J isa SparseMatrixCSC
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+    end
+
+    # The detector runs its own ForwardDiff pass with a foreign tag; under the default
+    # AutoSpecialize wrapping this used to throw `NoFunctionWrapperFoundError` because the
+    # isbits foreign-tag duals matched no precompiled wrapper signature.
+    @testset "Unstructured Sparse AD: DenseSparsityDetector" begin
+        nlprob_dense_detector = NonlinearProblem(
+            NonlinearFunction(
+                nlf; sparsity = DenseSparsityDetector(AutoForwardDiff(); atol = 1.0e-4)
+            ),
+            u0, p
+        )
+
+        cache = init(nlprob_dense_detector, NewtonRaphson(); abstol = 1.0e-9)
         @test cache.jac_cache.J isa SparseMatrixCSC
         sol = solve!(cache)
         @test SciMLBase.successful_retcode(sol)

@@ -53,9 +53,15 @@ function construct_jacobian_cache(
         end
         autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
-        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
-        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
-        if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function when:
+        # - Enzyme is used (it cannot differentiate through FunctionWrappers' llvmcall), or
+        # - a runtime sparsity detector is active. The detector runs its own AD pass with
+        #   a foreign tag (e.g. `DenseSparsityDetector` with `AutoForwardDiff`), producing
+        #   isbits dual element types that match no precompiled `NonlinearSolveTag` wrapper
+        #   signature and do not hit the non-isbits fallback, so the call would otherwise
+        #   throw `NoFunctionWrapperFoundError`.
+        if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(autodiff) || _has_runtime_sparsity_detector(f))
             f = @set f.f = get_raw_f(f.f)
         end
         di_extras = if SciMLBase.isinplace(f)
@@ -196,6 +202,11 @@ function (cache::JacobianCache{<:JacobianOperator})(u)
 end
 
 # Sparse Automatic Differentiation
+# True when `f` carries a runtime sparsity detector (`ADTypes.AbstractSparsityDetector`),
+# i.e. one whose detection pass evaluates the function with foreign element types rather
+# than reading a known prototype matrix.
+_has_runtime_sparsity_detector(f::NonlinearFunction) = f.sparsity isa ADTypes.AbstractSparsityDetector
+
 function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
     return if f.sparsity === nothing
         if f.jac_prototype === nothing

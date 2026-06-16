@@ -126,19 +126,20 @@ function SciMLBase.__solve(
             PJ = PETSc.MatSeqDense(petsclib, J_init)
         end
 
-        # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success
-        # Use J_init as intermediate storage for the Julia Jacobian
+        # PETSc 0.4 callback signature: jac!(J, snes, x) returning PetscInt(0) for success.
+        # `J_init` is closed over directly as intermediate storage for the Julia Jacobian.
+        # PETSc reconstructs a fresh `snes` wrapper for the callback whose `user_ctx` is
+        # `nothing`, so the Julia-side context cannot be recovered through `snes_arg`.
         function jac_fn!(J, snes_arg, cx)
             njac[] += 1
             PETSc.withlocalarray!(cx; read = true, write = false) do x_arr
-                jac!(snes_arg.user_ctx.jacobian, x_arr)
-                copy_to_petsc_mat!(J, snes_arg.user_ctx.jacobian)
+                jac!(J_init, x_arr)
+                copy_to_petsc_mat!(J, J_init)
                 PETSc.assemble!(J)
             end
             return PETSc.LibPETSc.PetscInt(0)
         end
         PETSc.setjacobian!(snes, jac_fn!, PJ, PJ)
-        snes.user_ctx = (; jacobian = J_init)
     end
 
     # Create PETSc vector for solution and solve
