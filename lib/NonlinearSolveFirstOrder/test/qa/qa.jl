@@ -10,9 +10,7 @@ run_qa(
     ei_kwargs = (;
         # CommonSolve.init is used unqualified in forward_diff.jl (the
         # CommonSolve.solve method dispatch surfaces `init` as an implicit import).
-        no_implicit_imports = (;
-            skip = (NonlinearSolveFirstOrder, Base, Core, NonlinearSolveFirstOrder.CommonSolve),
-        ),
+        no_implicit_imports = (; ignore = (:init,)),
         # @SciMLMessage / AbstractVerbosityPreset / None are owned by SciMLLogging and
         # re-exported through NonlinearSolveBase (where they are imported from).
         all_explicit_imports_via_owners = (;

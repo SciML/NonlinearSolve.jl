@@ -3,6 +3,15 @@ using SciMLTesting, NonlinearSolveHomotopyContinuation, Test
 run_qa(
     NonlinearSolveHomotopyContinuation;
     explicit_imports = true,
+    # persistent_tasks: intermittently errors on Julia >=1.11 because the registered
+    # NonlinearSolveBase ships a leaked `[sources]` (SciMLJacobianOperators =
+    # {path = "../SciMLJacobianOperators"}) that Pkg >=1.11 honors during Aqua's
+    # develop-by-path check, so the sibling path does not resolve. This is the upstream
+    # Pkg [sources]-leak bug (JuliaLang/Pkg.jl#4705 + JuliaTesting/Aqua.jl#387), not a
+    # real persistent task; it flakes the same way on master. Marked broken so the lane
+    # is stable; drop when the Pkg/Aqua fix lands. (This env does not develop
+    # SciMLJacobianOperators, so run_qa's clean_sources cannot reach the leaked entry.)
+    aqua_broken = (:persistent_tasks,),
     ei_kwargs = (;
         # Non-public names qualified-accessed from their owning packages:
         #   NonlinearSolveBase(.Utils): AbstractNonlinearSolveAlgorithm, Utils, evaluate_f

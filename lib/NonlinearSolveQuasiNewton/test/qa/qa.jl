@@ -11,9 +11,7 @@ run_qa(
     ei_kwargs = (;
         # `using SciMLOperators: AbstractSciMLOperator` also brings the SciMLOperators
         # module name into scope as an implicit import.
-        no_implicit_imports = (;
-            skip = (NonlinearSolveQuasiNewton, Base, Core, NonlinearSolveQuasiNewton.SciMLOperators),
-        ),
+        no_implicit_imports = (; ignore = (:SciMLOperators,)),
         # @SciMLMessage / AbstractVerbosityPreset / None are owned by SciMLLogging and
         # re-exported through NonlinearSolveBase (where they are imported from).
         all_explicit_imports_via_owners = (;

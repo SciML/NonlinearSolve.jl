@@ -26,39 +26,75 @@ run_qa(
         # ImmutableNonlinearProblem is owned by SciMLBase and re-exported through
         # NonlinearSolveBase (where the ForwardDiff extension imports it from).
         all_explicit_imports_via_owners = (; ignore = (:ImmutableNonlinearProblem,)),
-        # Non-public names qualified-accessed from their owning packages (ForwardDiff ext):
+        # Non-public names qualified-accessed from their owning packages. NonlinearSolveBase
+        # builds on the internal API of SciMLBase / CommonSolve / ArrayInterface /
+        # ForwardDiff by design, across the main module and the ForwardDiff / SparseArrays /
+        # LinearSolve / SparseMatrixColorings extensions:
+        #   SciMLBase: AutoSpecialize, ChainRulesOriginator, DAEInitializationAlgorithm,
+        #     EnzymeOriginator, NoInit, NonNumberEltypeError, OverrideInit, OverrideInitData,
+        #     Void, __init, __solve, allows_late_binding_tstops, allowsbounds, build_solution,
+        #     get_initial_values, get_root_indp, has_colorvec, has_initialization_data,
+        #     has_jac, has_jvp, has_vjp, isdualtype, set_mooncakeoriginator_if_mooncake,
+        #     specialization
         #   ForwardDiff: Dual, Partials, Tag, can_dual, derivative, gradient, jacobian,
         #     partials, pickchunksize, value
-        #   SciMLBase: Void, __init, __solve, build_solution
-        #   NonlinearSolveBase(.Utils/.InternalAPI, own internal):
-        #     additional_incompatible_backend_check, get_raw_f, get_u,
-        #     nlls_generate_vjp_function, nodual_value, nonlinearsolve_∂f_∂p,
-        #     nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape, safe_similar, value
-        #   CommonSolve: solve!
+        #   ArrayInterface: can_setindex, fast_scalar_indexing, ismutable, isstructured
+        #   CommonSolve: init, solve, solve!, step!;  Base: add_sum
+        #   Core(.Compiler): Compiler, return_type;  LinearAlgebra: inv!
+        #   FunctionWrappers: FunctionWrapper
+        #   NonlinearSolveBase(.Utils, own internal): additional_incompatible_backend_check,
+        #     condition_number, get_raw_f, get_u, make_sparse, maybe_pinv!!_workspace,
+        #     maybe_symmetric, nlls_generate_vjp_function, nodual_value,
+        #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape,
+        #     safe_similar, sparse_or_structured_prototype
         all_qualified_accesses_are_public = (;
             ignore = (
-                :Dual, :Partials, :Tag, :Void, :__init, :__solve,
-                :additional_incompatible_backend_check, :build_solution, :can_dual,
-                :derivative, :get_raw_f, :get_u, :gradient, :jacobian,
+                :AutoSpecialize, :ChainRulesOriginator, :DAEInitializationAlgorithm,
+                :EnzymeOriginator, :NoInit, :NonNumberEltypeError, :OverrideInit,
+                :OverrideInitData, :Void, :__init, :__solve, :allows_late_binding_tstops,
+                :allowsbounds, :build_solution, :get_initial_values, :get_root_indp,
+                :has_colorvec, :has_initialization_data, :has_jac, :has_jvp, :has_vjp,
+                :isdualtype, :set_mooncakeoriginator_if_mooncake, :specialization,
+                :Dual, :Partials, :Tag, :can_dual, :derivative, :gradient, :jacobian,
+                :partials, :pickchunksize, :value,
+                :can_setindex, :fast_scalar_indexing, :ismutable, :isstructured,
+                :init, :solve, :solve!, :step!, :add_sum, :Compiler, :return_type, :inv!,
+                :FunctionWrapper,
+                :additional_incompatible_backend_check, :condition_number, :get_raw_f,
+                :get_u, :make_sparse, :maybe_pinv!!_workspace, :maybe_symmetric,
                 :nlls_generate_vjp_function, :nodual_value,
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
-                :partials, :pickchunksize, :reinit!, :restructure, :safe_reshape,
-                :safe_similar, :solve!, :value,
+                :reinit!, :restructure, :safe_reshape, :safe_similar,
+                :sparse_or_structured_prototype,
             ),
         ),
-        # Non-public names explicitly imported from their owning packages (ForwardDiff ext):
-        #   NonlinearSolveBase (own internal): ImmutableNonlinearProblem,
-        #     NonlinearSolveForwardDiffCache, NonlinearSolveTag, Utils, is_fw_wrapped,
-        #     standardize_forwarddiff_tag, wrapfun_iip
-        #   SciMLBase: AbstractNonlinearProblem
-        #   ForwardDiff: Dual, pickchunksize
+        # Non-public names explicitly imported from their owning packages, across the
+        # main module and the ForwardDiff / SparseArrays / LinearSolve extensions:
+        #   SciMLBase: AbstractDEAlgorithm, AbstractNonlinearAlgorithm,
+        #     AbstractNonlinearProblem, AbstractODEIntegrator, ImmutableNonlinearProblem,
+        #     KeywordArgError, NLStats, NoDefaultAlgorithmError, NonSolverError,
+        #     NonlinearAliasSpecifier, __init, __solve, _concrete_solve_adjoint,
+        #     _concrete_solve_forward, checkkwargs, extract_alg, get_concrete_p,
+        #     get_concrete_u0, get_root_indp, has_kwargs, promote_u0, wrap_sol
+        #   SciMLOperators: AbstractSciMLOperator;  StaticArraysCore: StaticArray
+        #   SparseArrays: AbstractSparseMatrixCSC;  ForwardDiff: Dual, pickchunksize
         #   CommonSolve: init, solve, solve!
+        #   NonlinearSolveBase (own internal): NonlinearSolveForwardDiffCache,
+        #     NonlinearSolveTag, Utils, is_fw_wrapped, standardize_forwarddiff_tag,
+        #     wrapfun_iip
         all_explicit_imports_are_public = (;
             ignore = (
-                :AbstractNonlinearProblem, :Dual, :ImmutableNonlinearProblem,
-                :NonlinearSolveForwardDiffCache, :NonlinearSolveTag, :Utils, :init,
-                :is_fw_wrapped, :pickchunksize, :solve, :solve!,
-                :standardize_forwarddiff_tag, :wrapfun_iip,
+                :AbstractDEAlgorithm, :AbstractNonlinearAlgorithm,
+                :AbstractNonlinearProblem, :AbstractODEIntegrator,
+                :ImmutableNonlinearProblem, :KeywordArgError, :NLStats,
+                :NoDefaultAlgorithmError, :NonSolverError, :NonlinearAliasSpecifier,
+                :__init, :__solve, :_concrete_solve_adjoint, :_concrete_solve_forward,
+                :checkkwargs, :extract_alg, :get_concrete_p, :get_concrete_u0,
+                :get_root_indp, :has_kwargs, :promote_u0, :wrap_sol,
+                :AbstractSciMLOperator, :StaticArray, :AbstractSparseMatrixCSC, :Dual,
+                :pickchunksize, :init, :solve, :solve!,
+                :NonlinearSolveForwardDiffCache, :NonlinearSolveTag, :Utils,
+                :is_fw_wrapped, :standardize_forwarddiff_tag, :wrapfun_iip,
             ),
         ),
     ),
