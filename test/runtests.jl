@@ -186,14 +186,12 @@ else
                 end,
             ),
         ),
-        # QA (Aqua/ExplicitImports) lives in an isolated sub-env under test/qa so its
-        # compat bounds don't constrain the base resolve. Excluded from "All".
+        # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) lives in an isolated sub-env
+        # under test/qa so its compat bounds don't constrain the base resolve. Excluded
+        # from "All".
         qa = (;
             env = joinpath(@__DIR__, "qa"),
-            body = function ()
-                @time @safetestset "Aqua" include("qa/qa.jl")
-                return @time @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
-            end,
+            body = joinpath(@__DIR__, "qa", "qa.jl"),
         ),
         # "All" runs the base-env groups only (Core + PolyAlgorithms + Verbosity); the
         # dep-adding groups and QA run only when selected by name.

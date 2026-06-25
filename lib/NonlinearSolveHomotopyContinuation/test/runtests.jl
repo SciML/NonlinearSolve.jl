@@ -14,12 +14,10 @@ run_tests(;
         @safetestset "AllRoots" include("allroots.jl")
         return @safetestset "Single Root" include("single_root.jl")
     end,
-    # QA (Aqua) is a dep-adding group: it runs in its own isolated sub-env under
-    # test/qa (excluded from the base/Core/All run).
+    # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
+    # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
     qa = (;
         env = joinpath(@__DIR__, "qa"),
-        body = function ()
-            return @safetestset "Code quality (Aqua.jl)" include("qa/qa.jl")
-        end,
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
     ),
 )

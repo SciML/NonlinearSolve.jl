@@ -2,6 +2,7 @@
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveHomotopyContinuation = "2ac3b008-d579-4536-8c91-a1a5998c2f8b"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -12,5 +13,6 @@ NonlinearSolveHomotopyContinuation = {path = "../.."}
 Aqua = "0.8"
 NonlinearSolveBase = "2.1"
 NonlinearSolveHomotopyContinuation = "0.1"
+SciMLTesting = "1.6"
 Test = "1.10"
 julia = "1.10"

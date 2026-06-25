@@ -1,12 +1,36 @@
-using BracketingNonlinearSolve
+using SciMLTesting, BracketingNonlinearSolve, Test
+import ForwardDiff
 
-using Aqua, BracketingNonlinearSolve
-
-Aqua.test_all(
+run_qa(
     BracketingNonlinearSolve;
-    piracies = false, ambiguities = false, stale_deps = false, deps_compat = false
+    explicit_imports = true,
+    aqua_kwargs = (;
+        stale_deps = (; ignore = [:SciMLJacobianOperators]),
+        deps_compat = (; ignore = [:SciMLJacobianOperators]),
+        piracies = (; treat_as_own = [IntervalNonlinearProblem]),
+        ambiguities = (; recursive = false),
+    ),
+    ei_kwargs = (;
+        # @SciMLMessage / AbstractVerbosityPreset are owned by SciMLLogging and
+        # re-exported through NonlinearSolveBase (where they are imported from).
+        all_explicit_imports_via_owners = (;
+            ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset),
+        ),
+        # Non-public names qualified-accessed from their owning packages:
+        #   SciMLBase: __solve, build_solution
+        #   CommonSolve: solve
+        all_qualified_accesses_are_public = (;
+            ignore = (:__solve, :build_solution, :solve),
+        ),
+        # Non-public names explicitly imported from their owning packages:
+        #   NonlinearSolveBase: @SciMLMessage, AbstractNonlinearSolveAlgorithm,
+        #     AbstractVerbosityPreset
+        #   CommonSolve: solve
+        all_explicit_imports_are_public = (;
+            ignore = (
+                Symbol("@SciMLMessage"), :AbstractNonlinearSolveAlgorithm,
+                :AbstractVerbosityPreset, :solve,
+            ),
+        ),
+    ),
 )
-Aqua.test_stale_deps(BracketingNonlinearSolve; ignore = [:SciMLJacobianOperators])
-Aqua.test_deps_compat(BracketingNonlinearSolve; ignore = [:SciMLJacobianOperators])
-Aqua.test_piracies(BracketingNonlinearSolve; treat_as_own = [IntervalNonlinearProblem])
-Aqua.test_ambiguities(BracketingNonlinearSolve; recursive = false)

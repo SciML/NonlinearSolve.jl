@@ -1,8 +1,8 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -11,8 +11,8 @@ NonlinearSolveQuasiNewton = {path = "../.."}
 
 [compat]
 Aqua = "0.8"
-ExplicitImports = "1.5"
 NonlinearSolveBase = "2.20"
 NonlinearSolveQuasiNewton = "1.12"
+SciMLTesting = "1.6"
 Test = "1.10"
 julia = "1.10"
