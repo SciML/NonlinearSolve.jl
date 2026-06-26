@@ -30,6 +30,7 @@ DifferentiationInterface = "0.7.3"
 DocStringExtensions = "0.9.3"
 Enzyme = "0.13.90"
 HomotopyContinuation = "2.12.0"
+InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
 NaNMath = "1.1"
 NonlinearSolve = "4.10"
@@ -44,6 +45,7 @@ SafeTestsets = "0.1"
 SciMLTesting = "1"
 [extras]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -51,4 +53,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 [targets]
-test = ["Test", "NonlinearSolve", "Enzyme", "NaNMath", "SafeTestsets", "SciMLTesting"]
+test = ["Test", "NonlinearSolve", "Enzyme", "InteractiveUtils", "NaNMath", "SafeTestsets", "SciMLTesting"]
