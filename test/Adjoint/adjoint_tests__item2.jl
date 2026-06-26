@@ -10,12 +10,10 @@ using NonlinearSolve
 #
 # End-to-end gradient correctness (the full
 # `Enzyme.autodiff(Reverse, simple_loss, Active, Duplicated(p, dp))`
-# over `solve(::NonlinearProblem)`) is not verified here because compiling
-# the `solve_up` Enzyme augmented_primal rule for an IIP problem triggers
-# a "GC error (probable corruption)" abort on macOS LTS in Enzyme v0.13.150
-# — a separate Enzyme/Julia 1.10 GC issue, not a NonlinearSolveBase bug.
-# Has been manually verified to return `dp ≈ [1.0, -1.0]` on Julia 1.11.9
-# and 1.12.6 with the patch + SciMLSensitivity loaded.
+# over `solve(::NonlinearProblem)`) lives in `adjoint_tests__item3.jl`. That
+# path used to abort with a "GC error (probable corruption)" on macOS LTS in
+# Enzyme v0.13.150 (EnzymeAD/Enzyme.jl#3130) and is re-enabled now that the
+# GC issue is fixed.
 using NonlinearSolveBase, SciMLBase, Enzyme
 
 resid!(du, u, p) = (du .= u .- p; nothing)
