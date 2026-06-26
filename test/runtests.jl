@@ -159,7 +159,8 @@ else
                 env = joinpath(@__DIR__, "Adjoint"),
                 body = function ()
                     @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
-                    return @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
+                    @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
+                    return @time @safetestset "Enzyme reverse-mode over IIP NonlinearProblem (#939)" include("Adjoint/adjoint_tests__item3.jl")
                 end,
             ),
             "Wrappers" => (;
