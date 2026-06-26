@@ -16,52 +16,48 @@ run_qa(
         all_explicit_imports_via_owners = (;
             ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset, :None),
         ),
-        # Non-public names qualified-accessed from their owning packages; NonlinearSolve
-        # sublibraries are built on NonlinearSolveBase's internal API by design:
+        # Still non-public in their owning packages (NonlinearSolveBase's own internal API
+        # was not covered by the public-API round); the sublibrary builds on it by design:
         #   NonlinearSolveBase(.Utils/.InternalAPI): @internal_caches, callback_into_cache!,
-        #     check_and_update!, evaluate_f, evaluate_f!, evaluate_f!!, get_fu, get_linear_solver,
-        #     get_u, init, init_nonlinearsolve_trace, init_termination_cache, initialization_alg,
-        #     last_step_accepted, maybe_unaliased, maybe_unwrap_prob_for_enzyme,
-        #     NewtonDescentCache, NonlinearSolveDefaultInit, nodual_value, reinit!,
-        #     reinit_common!, reinit_self!, requires_normal_form_jacobian,
-        #     requires_normal_form_rhs, reset!, reset_timer!, returns_norm_form_damping,
-        #     run_initialization!, safe_dot, safe_vec, solve!, standardize_forwarddiff_tag, step!
-        #   SciMLBase: __init, __solve, build_solution, NonlinearAliasSpecifier
-        #   ArrayInterface: can_setindex, fast_scalar_indexing
-        #   CommonSolve: init, solve, solve!
-        #   ForwardDiff: partials
-        #   LinearSolve: update_tolerances!
+        #     check_and_update!, evaluate_f, evaluate_f!, evaluate_f!!, get_fu,
+        #     get_linear_solver, get_u, init, init_nonlinearsolve_trace, init_termination_cache,
+        #     initialization_alg, last_step_accepted, maybe_unaliased,
+        #     maybe_unwrap_prob_for_enzyme, NewtonDescentCache, NonlinearSolveDefaultInit,
+        #     nodual_value, reinit!, reinit_common!, reinit_self!,
+        #     requires_normal_form_jacobian, requires_normal_form_rhs, reset!, reset_timer!,
+        #     returns_norm_form_damping, run_initialization!, safe_dot, safe_vec, solve!,
+        #     standardize_forwarddiff_tag, step!
+        #   SciMLBase: __init, __solve, NonlinearAliasSpecifier
+        #   ForwardDiff: partials;  LinearSolve: update_tolerances!
         all_qualified_accesses_are_public = (;
             ignore = (
                 Symbol("@internal_caches"), :NewtonDescentCache, :NonlinearAliasSpecifier,
-                :NonlinearSolveDefaultInit, :__init, :__solve, :build_solution,
-                :callback_into_cache!, :can_setindex, :check_and_update!, :evaluate_f,
-                :evaluate_f!, :evaluate_f!!, :fast_scalar_indexing, :get_fu,
+                :NonlinearSolveDefaultInit, :__init, :__solve, :callback_into_cache!,
+                :check_and_update!, :evaluate_f, :evaluate_f!, :evaluate_f!!, :get_fu,
                 :get_linear_solver, :get_u, :init, :init_nonlinearsolve_trace,
                 :init_termination_cache, :initialization_alg, :last_step_accepted,
                 :maybe_unaliased, :maybe_unwrap_prob_for_enzyme, :nodual_value, :partials,
                 :reinit!, :reinit_common!, :reinit_self!, :requires_normal_form_jacobian,
                 :requires_normal_form_rhs, :reset!, :reset_timer!, :returns_norm_form_damping,
-                :run_initialization!, :safe_dot, :safe_vec, :solve, :solve!,
+                :run_initialization!, :safe_dot, :safe_vec, :solve!,
                 :standardize_forwarddiff_tag, :step!, :update_tolerances!,
             ),
         ),
-        # Non-public names explicitly imported from their owning packages:
+        # Still non-public in their owning packages:
         #   NonlinearSolveBase: @SciMLMessage, @static_timeit, AbstractDampingFunction,
         #     AbstractDampingFunctionCache, AbstractNonlinearSolveAlgorithm,
         #     AbstractNonlinearSolveCache, AbstractTrustRegionMethod,
         #     AbstractTrustRegionMethodCache, AbstractVerbosityPreset, None,
         #     NonlinearSolveForwardDiffCache, Utils, get_timer_output, update_trace!
-        #   SciMLBase: AbstractNonlinearProblem, NLStats, NoSpecialize
-        #   ForwardDiff: Dual
+        #   SciMLBase: NoSpecialize;  ForwardDiff: Dual
         all_explicit_imports_are_public = (;
             ignore = (
                 Symbol("@SciMLMessage"), Symbol("@static_timeit"), :AbstractDampingFunction,
-                :AbstractDampingFunctionCache, :AbstractNonlinearProblem,
-                :AbstractNonlinearSolveAlgorithm, :AbstractNonlinearSolveCache,
-                :AbstractTrustRegionMethod, :AbstractTrustRegionMethodCache,
-                :AbstractVerbosityPreset, :Dual, :NLStats, :NoSpecialize, :None,
-                :NonlinearSolveForwardDiffCache, :Utils, :get_timer_output, :update_trace!,
+                :AbstractDampingFunctionCache, :AbstractNonlinearSolveAlgorithm,
+                :AbstractNonlinearSolveCache, :AbstractTrustRegionMethod,
+                :AbstractTrustRegionMethodCache, :AbstractVerbosityPreset, :Dual,
+                :NoSpecialize, :None, :NonlinearSolveForwardDiffCache, :Utils,
+                :get_timer_output, :update_trace!,
             ),
         ),
     ),

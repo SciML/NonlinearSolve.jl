@@ -10,15 +10,13 @@ run_qa(
         ambiguities = (; recursive = false),
     ),
     ei_kwargs = (;
-        # Non-public names qualified-accessed from their owning packages:
-        #   SciMLBase: AbstractNonlinearAlgorithm, build_linear_solution, build_solution,
-        #     strip_solution
-        #   CommonSolve: solve
+        # Still non-public in their owning packages (not covered by the public-API round):
+        #   SciMLBase: AbstractNonlinearAlgorithm, build_linear_solution, strip_solution
         #   Base: Cartesian
         all_qualified_accesses_are_public = (;
             ignore = (
                 :AbstractNonlinearAlgorithm, :Cartesian, :build_linear_solution,
-                :build_solution, :solve, :strip_solution,
+                :strip_solution,
             ),
         ),
     ),

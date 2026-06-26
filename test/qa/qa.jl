@@ -28,38 +28,33 @@ run_qa(
         # NonDifferentiable is owned by NLSolversBase and re-exported through NLsolve
         # (where the NLsolve extension imports it from).
         all_explicit_imports_via_owners = (; ignore = (:NonDifferentiable,)),
-        # Non-public names qualified-accessed from their owning packages, across the main
-        # module and the solver extensions (FastLevenbergMarquardt, FixedPointAcceleration,
-        # LeastSquaresOptim, MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping):
-        #   SciMLBase: AbstractNonlinearProblem, AbstractSteadyStateProblem, NLStats,
-        #     NonlinearAliasSpecifier, __init, __solve, build_solution, has_jac
+        # Still non-public in their owning packages (the public-API round covered only
+        # SciMLBase/CommonSolve/ArrayInterface), across the main module and the solver
+        # extensions (FastLevenbergMarquardt, FixedPointAcceleration, LeastSquaresOptim,
+        # MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping):
+        #   SciMLBase: AbstractSteadyStateProblem, NonlinearAliasSpecifier, __init, __solve
         #   NonlinearSolveBase(.Utils): AbstractNonlinearSolveAlgorithm, Utils, evaluate_f,
         #     initialization_alg, nodual_value, safe_vec
-        #   ForwardDiff: Dual, partials;  ArrayInterface: undefmatrix
-        #   CommonSolve: init, solve, solve!;  StaticArraysCore: StaticArray
+        #   ForwardDiff: Dual, partials;  StaticArraysCore: StaticArray
         #   LinearSolve: LSMR, QR;  LinearAlgebra: Cholesky
         #   SIAMFANLEquations: Bastin;  SpeedMapping: RUS
         all_qualified_accesses_are_public = (;
             ignore = (
-                :AbstractNonlinearProblem, :AbstractSteadyStateProblem, :NLStats,
-                :NonlinearAliasSpecifier, :__init, :__solve, :build_solution, :has_jac,
+                :AbstractSteadyStateProblem, :NonlinearAliasSpecifier, :__init, :__solve,
                 :AbstractNonlinearSolveAlgorithm, :Utils, :evaluate_f, :initialization_alg,
-                :nodual_value, :safe_vec, :Dual, :partials, :undefmatrix, :init, :solve,
-                :solve!, :StaticArray, :LSMR, :QR, :Cholesky, :Bastin, :RUS,
+                :nodual_value, :safe_vec, :Dual, :partials, :StaticArray, :LSMR, :QR,
+                :Cholesky, :Bastin, :RUS,
             ),
         ),
-        # Non-public names explicitly imported from their owning packages, main module +
-        # solver extensions:
+        # Still non-public in their owning packages, main module + solver extensions:
         #   NonlinearSolveBase(.Utils): get_raw_f, is_fw_wrapped,
         #     AbstractNonlinearSolveAlgorithm, Utils, safe_vec
-        #   SciMLBase: AbstractNonlinearProblem;  ForwardDiff: Dual
-        #   CommonSolve: init, solve, solve!;  StaticArraysCore: StaticArray
-        #   SpeedMapping: RUS;  NLsolve (re-export, owner NLSolversBase): NonDifferentiable
+        #   ForwardDiff: Dual;  StaticArraysCore: StaticArray;  SpeedMapping: RUS
+        #   NLsolve (re-export, owner NLSolversBase): NonDifferentiable
         all_explicit_imports_are_public = (;
             ignore = (
                 :get_raw_f, :is_fw_wrapped, :AbstractNonlinearSolveAlgorithm, :Utils,
-                :safe_vec, :AbstractNonlinearProblem, :Dual, :init, :solve, :solve!,
-                :StaticArray, :RUS, :NonDifferentiable,
+                :safe_vec, :Dual, :StaticArray, :RUS, :NonDifferentiable,
             ),
         ),
     ),

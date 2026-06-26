@@ -13,15 +13,12 @@ run_qa(
     # SciMLJacobianOperators, so run_qa's clean_sources cannot reach the leaked entry.)
     aqua_broken = (:persistent_tasks,),
     ei_kwargs = (;
-        # Non-public names qualified-accessed from their owning packages:
+        # Still non-public in their owning packages (not covered by the public-API round):
         #   NonlinearSolveBase(.Utils): AbstractNonlinearSolveAlgorithm, Utils, evaluate_f
-        #   SciMLBase: build_solution, has_jac
         #   TaylorDiff: flatten, value
-        #   CommonSolve: solve
         all_qualified_accesses_are_public = (;
             ignore = (
-                :AbstractNonlinearSolveAlgorithm, :Utils, :build_solution, :evaluate_f,
-                :flatten, :has_jac, :solve, :value,
+                :AbstractNonlinearSolveAlgorithm, :Utils, :evaluate_f, :flatten, :value,
             ),
         ),
     ),
