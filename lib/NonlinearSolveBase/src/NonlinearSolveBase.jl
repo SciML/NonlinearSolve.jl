@@ -65,6 +65,7 @@ include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
 include("homotopy_sweep.jl")
+include("arclength.jl")
 
 
 include("descent/common.jl")
@@ -112,7 +113,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
-export HomotopySweep
+export HomotopySweep, ArcLengthContinuation
 
 export NonlinearVerbosity
 

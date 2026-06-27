@@ -126,7 +126,12 @@ else
             @time @safetestset "HomotopySweep handles a decreasing λspan" include("Core/homotopy_sweep_tests__item11.jl")
             @time @safetestset "HomotopySweep stays in Float32 (no promotion)" include("Core/homotopy_sweep_tests__item12.jl")
             @time @safetestset "HomotopySweep inner solver is composable" include("Core/homotopy_sweep_tests__item13.jl")
-            return @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+            @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
+            @time @safetestset "ArcLengthContinuation construction + defaults" include("Core/arclength_tests__item1.jl")
+            @time @safetestset "ArcLengthContinuation happy path (fold-free, matches sweep)" include("Core/arclength_tests__item2.jl")
+            @time @safetestset "ArcLengthContinuation rounds a fold (non-monotone λ)" include("Core/arclength_tests__item3.jl")
+            @time @safetestset "ArcLengthContinuation Float32 / in-place / multi-dim" include("Core/arclength_tests__item4.jl")
+            return @time @safetestset "ArcLengthContinuation fails (no hang) on an unreachable target" include("Core/arclength_tests__item5.jl")
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()
