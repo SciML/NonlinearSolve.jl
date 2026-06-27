@@ -20,11 +20,9 @@ run_qa(
         no_implicit_imports = (;
             ignore = (:CommonSolve, :NonlinearSolveBase, :SciMLBase),
         ),
-        # Still non-public in their owning packages (not covered by the public-API round):
-        #   SciMLBase: __solve, allowsbounds
-        all_qualified_accesses_are_public = (;
-            ignore = (:__solve, :allowsbounds),
-        ),
+        # Still non-public in their owning packages after the make-public round:
+        #   SciMLBase: __solve
+        all_qualified_accesses_are_public = (; ignore = (:__solve,)),
         # AbstractNonlinearSolveAlgorithm is non-public in NonlinearSolveBase.
         all_explicit_imports_are_public = (; ignore = (:AbstractNonlinearSolveAlgorithm,)),
     ),

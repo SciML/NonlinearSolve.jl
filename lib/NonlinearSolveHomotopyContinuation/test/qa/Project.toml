@@ -13,6 +13,6 @@ NonlinearSolveHomotopyContinuation = {path = "../.."}
 Aqua = "0.8"
 NonlinearSolveBase = "2.1"
 NonlinearSolveHomotopyContinuation = "0.1"
-SciMLTesting = "1.6"
+SciMLTesting = "1.7"
 Test = "1.10"
 julia = "1.10"

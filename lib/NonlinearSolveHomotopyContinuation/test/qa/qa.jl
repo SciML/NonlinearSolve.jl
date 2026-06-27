@@ -13,7 +13,7 @@ run_qa(
     # SciMLJacobianOperators, so run_qa's clean_sources cannot reach the leaked entry.)
     aqua_broken = (:persistent_tasks,),
     ei_kwargs = (;
-        # Still non-public in their owning packages (not covered by the public-API round):
+        # Still non-public in their owning packages after the make-public round:
         #   NonlinearSolveBase(.Utils): AbstractNonlinearSolveAlgorithm, Utils, evaluate_f
         #   TaylorDiff: flatten, value
         all_qualified_accesses_are_public = (;

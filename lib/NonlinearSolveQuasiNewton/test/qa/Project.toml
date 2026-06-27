@@ -13,6 +13,6 @@ NonlinearSolveQuasiNewton = {path = "../.."}
 Aqua = "0.8"
 NonlinearSolveBase = "2.20"
 NonlinearSolveQuasiNewton = "1.12"
-SciMLTesting = "1.6"
+SciMLTesting = "1.7"
 Test = "1.10"
 julia = "1.10"

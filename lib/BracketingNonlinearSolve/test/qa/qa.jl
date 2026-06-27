@@ -16,12 +16,12 @@ run_qa(
         all_explicit_imports_via_owners = (;
             ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset),
         ),
-        # Still non-public in their owning packages (not covered by the public-API round):
+        # Still non-public in their owning packages after the make-public round:
         #   SciMLBase: __solve;  ForwardDiff (ChainRulesCore/ForwardDiff ext): partials, value
         all_qualified_accesses_are_public = (;
             ignore = (:__solve, :partials, :value),
         ),
-        # Still non-public, where they are imported from (@SciMLMessage /
+        # Still non-public where they are imported from (@SciMLMessage /
         # AbstractVerbosityPreset are SciMLLogging-owned re-exports flagged here too):
         #   NonlinearSolveBase: @SciMLMessage, AbstractNonlinearSolveAlgorithm,
         #     AbstractVerbosityPreset

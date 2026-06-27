@@ -17,8 +17,8 @@ run_qa(
         all_explicit_imports_via_owners = (;
             ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset, :None),
         ),
-        # Still non-public in their owning packages (NonlinearSolveBase's own internal API
-        # was not covered by the public-API round); the sublibrary builds on it by design:
+        # Still non-public in their owning packages after the make-public round
+        # (NonlinearSolveBase's own internal API; the sublibrary builds on it by design):
         #   NonlinearSolveBase(.Utils/.InternalAPI): @internal_caches, callback_into_cache!,
         #     check_and_update!, condition_number, evaluate_f, evaluate_f!, get_abstol,
         #     get_fu, get_full_jacobian, get_linear_solver, get_reltol, get_u, init,
@@ -29,10 +29,10 @@ run_qa(
         #     reinit_common!, reinit_self!, reset!, reset_timer!, restructure,
         #     run_initialization!, safe_similar, safe_vec, solve!, standardize_forwarddiff_tag,
         #     step!, store_inverse_jacobian, stores_full_jacobian, unwrap_val
-        #   SciMLBase: __init, NonlinearAliasSpecifier;  LinearAlgebra: AdjOrTransAbsVec
+        #   SciMLBase: __init;  LinearAlgebra: AdjOrTransAbsVec
         all_qualified_accesses_are_public = (;
             ignore = (
-                Symbol("@internal_caches"), :AdjOrTransAbsVec, :NonlinearAliasSpecifier,
+                Symbol("@internal_caches"), :AdjOrTransAbsVec,
                 :NonlinearSolveDefaultInit, :__init, :callback_into_cache!,
                 :check_and_update!, :condition_number, :evaluate_f, :evaluate_f!,
                 :get_abstol, :get_fu, :get_full_jacobian, :get_linear_solver, :get_reltol,
@@ -45,7 +45,7 @@ run_qa(
                 :store_inverse_jacobian, :stores_full_jacobian, :unwrap_val,
             ),
         ),
-        # Still non-public in their owning packages:
+        # Still non-public in their owning packages after the make-public round:
         #   NonlinearSolveBase: @SciMLMessage, @static_timeit,
         #     AbstractApproximateJacobianStructure, AbstractApproximateJacobianUpdateRule,
         #     AbstractApproximateJacobianUpdateRuleCache, AbstractDescentDirection,

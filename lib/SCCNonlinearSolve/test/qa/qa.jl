@@ -10,14 +10,10 @@ run_qa(
         ambiguities = (; recursive = false),
     ),
     ei_kwargs = (;
-        # Still non-public in their owning packages (not covered by the public-API round):
-        #   SciMLBase: AbstractNonlinearAlgorithm, build_linear_solution, strip_solution
-        #   Base: Cartesian
+        # Still non-public in their owning packages after the make-public round:
+        #   SciMLBase: build_linear_solution, strip_solution;  Base: Cartesian
         all_qualified_accesses_are_public = (;
-            ignore = (
-                :AbstractNonlinearAlgorithm, :Cartesian, :build_linear_solution,
-                :strip_solution,
-            ),
+            ignore = (:Cartesian, :build_linear_solution, :strip_solution),
         ),
     ),
 )
