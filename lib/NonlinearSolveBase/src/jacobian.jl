@@ -53,9 +53,12 @@ function construct_jacobian_cache(
         end
         autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
-        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
-        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
-        if is_fw_wrapped(f.f) && _uses_enzyme_ad(autodiff)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall, and AD-based
+        # sparsity detection (DenseSparsityDetector) differentiates with a foreign tag the
+        # wrapper has no entry for. In both cases unwrap AutoSpecializeCallable so DI sees
+        # the raw user function.
+        if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(autodiff) || _uses_ad_sparsity_detector(autodiff))
             f = @set f.f = get_raw_f(f.f)
         end
         di_extras = if SciMLBase.isinplace(f)

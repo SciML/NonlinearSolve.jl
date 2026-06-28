@@ -73,6 +73,17 @@ _uses_enzyme_ad(ad::AutoSparse) = _uses_enzyme_ad(ADTypes.dense_ad(ad))
 _uses_enzyme_ad(_) = false
 
 """
+    _uses_ad_sparsity_detector(ad) -> Bool
+
+Return `true` if `ad` is an `AutoSparse` whose sparsity detector differentiates the
+function (`DenseSparsityDetector`). Such detectors call the function with their own AD
+tag, which `AutoSpecializeCallable`'s FunctionWrapper does not have an entry for, so the
+raw user function must be used. Tracer-based detectors do not differentiate and are fine.
+"""
+_uses_ad_sparsity_detector(ad::AutoSparse) = ADTypes.sparsity_detector(ad) isa DI.DenseSparsityDetector
+_uses_ad_sparsity_detector(_) = false
+
+"""
     maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
 
 If the problem function is wrapped by AutoSpecialize and any of the given AD backends
