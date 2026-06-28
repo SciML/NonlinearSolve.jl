@@ -52,4 +52,5 @@ IntervalNonlinearProblem
 NonlinearProblem
 SteadyStateProblem
 NonlinearLeastSquaresProblem
+SciMLBase.HomotopyProblem
 ```
