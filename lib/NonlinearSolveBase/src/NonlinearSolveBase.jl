@@ -83,10 +83,6 @@ include("forward_diff.jl")
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
 
-# Documented cache/termination author interface (so downstream packages can drop their
-# `NonlinearSolveBase.X` non-public ExplicitImports ignores). `get_abstol`/`get_reltol`
-# are part of the documented `AbstractNonlinearSolveCache` interface; the termination-mode
-# abstract supertypes are the documented hierarchy the concrete modes extend.
 @compat(public, (get_abstol, get_reltol))
 @compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
