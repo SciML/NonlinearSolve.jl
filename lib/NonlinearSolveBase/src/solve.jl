@@ -146,7 +146,8 @@ function solve_call(
         _prob.kwargs[:kwargshandle] : kwargshandle
 
     if has_kwargs(_prob)
-        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+        # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs)::NamedTuple, kwargs)
     end
 
     checkkwargs(kwargshandle; kwargs...)
@@ -268,7 +269,8 @@ function init_call(
     kwargshandle = has_kwargs(_prob) && haskey(_prob.kwargs, :kwargshandle) ?
         _prob.kwargs[:kwargshandle] : kwargshandle
     if has_kwargs(_prob)
-        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+        # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs)::NamedTuple, kwargs)
     end
 
     checkkwargs(kwargshandle; kwargs...)
@@ -752,7 +754,8 @@ function _solve_adjoint(
     end
 
     if has_kwargs(_prob)
-        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+        # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs)::NamedTuple, kwargs)
     end
 
     return if length(args) > 1
@@ -773,7 +776,8 @@ function _solve_forward(
     _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
 
     if has_kwargs(_prob)
-        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs), kwargs)
+        # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
+        kwargs = isempty(_prob.kwargs) ? kwargs : merge(values(_prob.kwargs)::NamedTuple, kwargs)
     end
 
     return if length(args) > 1
