@@ -82,6 +82,9 @@ include("forward_diff.jl")
 
 # Unexported Public API
 @compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
+
+@compat(public, (get_abstol, get_reltol))
+@compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
 @compat(
     public,
