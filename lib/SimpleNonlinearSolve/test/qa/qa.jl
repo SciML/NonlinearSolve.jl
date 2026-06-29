@@ -15,19 +15,10 @@ run_qa(
         ambiguities = (; recursive = false),
     ),
     ei_kwargs = (;
-        # @SciMLMessage / AbstractVerbosityPreset (owner SciMLLogging) and
-        # ImmutableNonlinearProblem (owner SciMLBase) are re-exported through
-        # NonlinearSolveBase, where they are imported from.
-        all_explicit_imports_via_owners = (;
-            ignore = (
-                Symbol("@SciMLMessage"), :AbstractVerbosityPreset,
-                :ImmutableNonlinearProblem,
-            ),
-        ),
-        # Still non-public in their owning packages after the make-public round, across
-        # the main module and the Tracker / ReverseDiff / ChainRulesCore extensions:
-        #   Tracker: @grad, data, track;  ReverseDiff: @grad, track, value
-        #   SciMLBase: __init, __solve;  Base: setindex
+        # Still non-public in their owning packages, across the main module and the
+        # Tracker / ReverseDiff / ChainRulesCore extensions. __init / __solve dropped:
+        # now public in SciMLBase.
+        #   Tracker: @grad, data, track;  ReverseDiff: value;  Base: setindex
         #   NonlinearSolveBase(.Utils): can_setindex, Utils, build_null_solution, evaluate_f,
         #     evaluate_f!!, init_termination_cache, maybe_unaliased, restructure, safe_similar,
         #     safe_vec, unwrap_val
@@ -35,29 +26,30 @@ run_qa(
         all_qualified_accesses_are_public = (;
             ignore = (
                 Symbol("@grad"), :data, :track, :value, :can_setindex,
-                :__init, :__solve, :Utils, :build_null_solution,
+                :Utils, :build_null_solution,
                 :evaluate_f, :evaluate_f!!, :init_termination_cache, :maybe_unaliased,
                 :restructure, :safe_similar, :safe_vec, :unwrap_val, :setindex,
                 :simplenonlinearsolve_solve_up,
             ),
         ),
-        # Still non-public in their owning packages after the make-public round, main
-        # module + Tracker / ReverseDiff / ChainRulesCore exts:
-        #   NonlinearSolveBase: @SciMLMessage, AbstractNonlinearSolveAlgorithm,
+        # Still non-public in their owning packages, main module + Tracker / ReverseDiff /
+        # ChainRulesCore exts. @SciMLMessage / AbstractVerbosityPreset dropped: now imported
+        # directly from their owner SciMLLogging (public there).
+        #   NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
         #     AbstractNonlinearTerminationMode, AbstractSafeBestNonlinearTerminationMode,
-        #     AbstractSafeNonlinearTerminationMode, AbstractVerbosityPreset,
-        #     ImmutableNonlinearProblem, _solve_adjoint
+        #     AbstractSafeNonlinearTerminationMode, _solve_adjoint
         #   LineSearch: AbstractLineSearchAlgorithm;  ForwardDiff: Dual
         #   StaticArraysCore: StaticArray;  Tracker: TrackedReal
         #   ReverseDiff: TrackedArray, TrackedReal
-        #   SciMLBase: TrackerOriginator, ChainRulesOriginator, ReverseDiffOriginator
+        #   SciMLBase: ImmutableNonlinearProblem, TrackerOriginator, ChainRulesOriginator,
+        #     ReverseDiffOriginator
         #   SimpleNonlinearSolve (own internal): simplenonlinearsolve_solve_up
         all_explicit_imports_are_public = (;
             ignore = (
-                Symbol("@SciMLMessage"), :AbstractLineSearchAlgorithm,
+                :AbstractLineSearchAlgorithm,
                 :AbstractNonlinearSolveAlgorithm, :AbstractNonlinearTerminationMode,
                 :AbstractSafeBestNonlinearTerminationMode,
-                :AbstractSafeNonlinearTerminationMode, :AbstractVerbosityPreset, :Dual,
+                :AbstractSafeNonlinearTerminationMode, :Dual,
                 :ImmutableNonlinearProblem, :StaticArray, :TrackedReal, :TrackedArray,
                 :TrackerOriginator, :ChainRulesOriginator, :ReverseDiffOriginator,
                 :_solve_adjoint, :simplenonlinearsolve_solve_up,

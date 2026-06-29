@@ -15,14 +15,6 @@ run_qa(
     # SciMLJacobianOperators, so run_qa's clean_sources cannot reach the leaked entry.)
     aqua_broken = (:persistent_tasks,),
     ei_kwargs = (;
-        # CommonSolve / NonlinearSolveBase / SciMLBase module names reach the module
-        # via `using X: name` forms (the module name itself is an implicit import).
-        no_implicit_imports = (;
-            ignore = (:CommonSolve, :NonlinearSolveBase, :SciMLBase),
-        ),
-        # Still non-public in their owning packages after the make-public round:
-        #   SciMLBase: __solve
-        all_qualified_accesses_are_public = (; ignore = (:__solve,)),
         # AbstractNonlinearSolveAlgorithm is non-public in NonlinearSolveBase.
         all_explicit_imports_are_public = (; ignore = (:AbstractNonlinearSolveAlgorithm,)),
     ),

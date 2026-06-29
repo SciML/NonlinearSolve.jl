@@ -8,16 +8,9 @@ run_qa(
         ambiguities = (; recursive = false),
     ),
     ei_kwargs = (;
-        # CommonSolve.init is used unqualified in forward_diff.jl (the
-        # CommonSolve.solve method dispatch surfaces `init` as an implicit import).
-        no_implicit_imports = (; ignore = (:init,)),
-        # @SciMLMessage / AbstractVerbosityPreset / None are owned by SciMLLogging and
-        # re-exported through NonlinearSolveBase (where they are imported from).
-        all_explicit_imports_via_owners = (;
-            ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset, :None),
-        ),
-        # Still non-public in their owning packages after the make-public round
-        # (NonlinearSolveBase's own internal API; the sublibrary builds on it by design):
+        # Still non-public in their owning packages (NonlinearSolveBase's own internal API;
+        # the sublibrary builds on it by design). __init / __solve dropped: now public in
+        # SciMLBase.
         #   NonlinearSolveBase(.Utils/.InternalAPI): @internal_caches, callback_into_cache!,
         #     check_and_update!, evaluate_f, evaluate_f!, evaluate_f!!, get_fu,
         #     get_linear_solver, get_u, init, init_nonlinearsolve_trace, init_termination_cache,
@@ -27,12 +20,11 @@ run_qa(
         #     requires_normal_form_jacobian, requires_normal_form_rhs, reset!, reset_timer!,
         #     returns_norm_form_damping, run_initialization!, safe_dot, safe_vec, solve!,
         #     standardize_forwarddiff_tag, step!
-        #   SciMLBase: __init, __solve
         #   ForwardDiff: partials;  LinearSolve: update_tolerances!
         all_qualified_accesses_are_public = (;
             ignore = (
                 Symbol("@internal_caches"), :NewtonDescentCache,
-                :NonlinearSolveDefaultInit, :__init, :__solve, :callback_into_cache!,
+                :NonlinearSolveDefaultInit, :callback_into_cache!,
                 :check_and_update!, :evaluate_f, :evaluate_f!, :evaluate_f!!, :get_fu,
                 :get_linear_solver, :get_u, :init, :init_nonlinearsolve_trace,
                 :init_termination_cache, :initialization_alg, :last_step_accepted,
@@ -43,20 +35,21 @@ run_qa(
                 :standardize_forwarddiff_tag, :step!, :update_tolerances!,
             ),
         ),
-        # Still non-public in their owning packages after the make-public round:
-        #   NonlinearSolveBase: @SciMLMessage, @static_timeit, AbstractDampingFunction,
+        # Still non-public in their owning packages. @SciMLMessage / AbstractVerbosityPreset
+        # / None dropped: now imported directly from their owner SciMLLogging (public there).
+        #   NonlinearSolveBase: @static_timeit, AbstractDampingFunction,
         #     AbstractDampingFunctionCache, AbstractNonlinearSolveAlgorithm,
         #     AbstractNonlinearSolveCache, AbstractTrustRegionMethod,
-        #     AbstractTrustRegionMethodCache, AbstractVerbosityPreset, None,
-        #     NonlinearSolveForwardDiffCache, Utils, get_timer_output, update_trace!
+        #     AbstractTrustRegionMethodCache, NonlinearSolveForwardDiffCache, Utils,
+        #     get_timer_output, update_trace!
         #   SciMLBase: NoSpecialize;  ForwardDiff: Dual
         all_explicit_imports_are_public = (;
             ignore = (
-                Symbol("@SciMLMessage"), Symbol("@static_timeit"), :AbstractDampingFunction,
+                Symbol("@static_timeit"), :AbstractDampingFunction,
                 :AbstractDampingFunctionCache, :AbstractNonlinearSolveAlgorithm,
                 :AbstractNonlinearSolveCache, :AbstractTrustRegionMethod,
-                :AbstractTrustRegionMethodCache, :AbstractVerbosityPreset, :Dual,
-                :NoSpecialize, :None, :NonlinearSolveForwardDiffCache, :Utils,
+                :AbstractTrustRegionMethodCache, :Dual,
+                :NoSpecialize, :NonlinearSolveForwardDiffCache, :Utils,
                 :get_timer_output, :update_trace!,
             ),
         ),

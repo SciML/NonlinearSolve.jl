@@ -22,9 +22,4 @@ run_qa(
             ),
         ),
     ),
-    # no_implicit_imports: ~20 names reach the module via `using` of ADTypes,
-    # DocStringExtensions, LinearAlgebra, NonlinearSolveBase, SciMLBase,
-    # SymbolicIndexingInterface and TaylorDiff. Making each explicit is a large refactor
-    # tracked separately (this QA PR); kept broken so the lane records Broken, not Fail.
-    ei_broken = (:no_implicit_imports,),
 )

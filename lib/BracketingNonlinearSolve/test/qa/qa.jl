@@ -11,26 +11,18 @@ run_qa(
         ambiguities = (; recursive = false),
     ),
     ei_kwargs = (;
-        # @SciMLMessage / AbstractVerbosityPreset are owned by SciMLLogging and
-        # re-exported through NonlinearSolveBase (where they are imported from).
-        all_explicit_imports_via_owners = (;
-            ignore = (Symbol("@SciMLMessage"), :AbstractVerbosityPreset),
-        ),
-        # Still non-public in their owning packages after the make-public round:
-        #   SciMLBase: __solve;  ForwardDiff (ChainRulesCore/ForwardDiff ext): partials, value
+        # Still non-public in their owning packages. __solve dropped: now public in
+        # SciMLBase.
+        #   ForwardDiff (ChainRulesCore/ForwardDiff ext): partials, value
         all_qualified_accesses_are_public = (;
-            ignore = (:__solve, :partials, :value),
+            ignore = (:partials, :value),
         ),
-        # Still non-public where they are imported from (@SciMLMessage /
-        # AbstractVerbosityPreset are SciMLLogging-owned re-exports flagged here too):
-        #   NonlinearSolveBase: @SciMLMessage, AbstractNonlinearSolveAlgorithm,
-        #     AbstractVerbosityPreset
+        # Still non-public in their owning packages. @SciMLMessage / AbstractVerbosityPreset
+        # dropped: now imported directly from their owner SciMLLogging (public there).
+        #   NonlinearSolveBase: AbstractNonlinearSolveAlgorithm
         #   ForwardDiff (ChainRulesCore/ForwardDiff ext): Dual, Partials
         all_explicit_imports_are_public = (;
-            ignore = (
-                Symbol("@SciMLMessage"), :AbstractNonlinearSolveAlgorithm,
-                :AbstractVerbosityPreset, :Dual, :Partials,
-            ),
+            ignore = (:AbstractNonlinearSolveAlgorithm, :Dual, :Partials),
         ),
     ),
 )

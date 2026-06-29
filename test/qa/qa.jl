@@ -28,18 +28,17 @@ run_qa(
         # NonDifferentiable is owned by NLSolversBase and re-exported through NLsolve
         # (where the NLsolve extension imports it from).
         all_explicit_imports_via_owners = (; ignore = (:NonDifferentiable,)),
-        # Still non-public in their owning packages after the make-public round, across
-        # the main module and the solver extensions:
-        #   SciMLBase: AbstractSteadyStateProblem, __init, __solve
+        # Still non-public in their owning packages, across the main module and the solver
+        # extensions. AbstractSteadyStateProblem / __init / __solve dropped: now public in
+        # SciMLBase.
         #   NonlinearSolveBase(.Utils): Utils, evaluate_f, initialization_alg, nodual_value,
         #     safe_vec
         #   ForwardDiff: partials;  LeastSquaresOptim: Cholesky, LSMR, QR
         #   NonlinearSolveFirstOrder.RadiusUpdateSchemes: Bastin
         all_qualified_accesses_are_public = (;
             ignore = (
-                :AbstractSteadyStateProblem, :__init, :__solve, :Utils, :evaluate_f,
-                :initialization_alg, :nodual_value, :safe_vec, :partials, :Cholesky, :LSMR,
-                :QR, :Bastin,
+                :Utils, :evaluate_f, :initialization_alg, :nodual_value, :safe_vec,
+                :partials, :Cholesky, :LSMR, :QR, :Bastin,
             ),
         ),
         # Still non-public in their owning packages after the make-public round:

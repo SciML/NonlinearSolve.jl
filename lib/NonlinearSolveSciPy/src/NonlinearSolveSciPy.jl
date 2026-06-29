@@ -19,9 +19,9 @@ function __init__()
     end
 end
 
-using CommonSolve
-using SciMLBase
-using NonlinearSolveBase: AbstractNonlinearSolveAlgorithm,
+using CommonSolve: CommonSolve
+using SciMLBase: SciMLBase
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     construct_extension_function_wrapper
 
 """
