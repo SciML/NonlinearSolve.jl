@@ -19,12 +19,10 @@ run_tests(;
             return include("wrappers_tests.jl")
         end,
     ),
-    # QA (Aqua/JET) is a dep-adding group: it runs in its own isolated sub-env
-    # under test/qa (excluded from the base/Core/All run).
+    # QA (Aqua/JET/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it
+    # runs in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
     qa = (;
         env = joinpath(@__DIR__, "qa"),
-        body = function ()
-            return include("qa/qa.jl")
-        end,
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
     ),
 )

@@ -1,9 +1,9 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -18,9 +18,9 @@ SimpleNonlinearSolve = {path = "../.."}
 [compat]
 Aqua = "0.8.7"
 BracketingNonlinearSolve = "1.6"
-ExplicitImports = "1.9"
 NonlinearSolveBase = "2.20"
 ReverseDiff = "1.15"
+SciMLTesting = "1.7"
 SimpleNonlinearSolve = "2.10"
 StaticArrays = "1.9"
 Test = "1.10"

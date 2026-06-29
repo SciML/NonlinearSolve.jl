@@ -9,11 +9,11 @@ using ForwardDiff: ForwardDiff, Dual, pickchunksize
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
-    NonlinearProblem, NonlinearLeastSquaresProblem, remake
+    NonlinearProblem, NonlinearLeastSquaresProblem, ImmutableNonlinearProblem, remake
 using Setfield: @set
 
 using LinearAlgebra: LinearAlgebra, dot, norm
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, Utils, InternalAPI,
+using NonlinearSolveBase: NonlinearSolveBase, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
     NonlinearSolveTag, is_fw_wrapped
 

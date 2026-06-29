@@ -2,8 +2,9 @@ module SimpleNonlinearSolveChainRulesCoreExt
 
 using ChainRulesCore: ChainRulesCore, NoTangent
 
-using NonlinearSolveBase: ImmutableNonlinearProblem, _solve_adjoint
-using SciMLBase: ChainRulesOriginator, NonlinearLeastSquaresProblem
+using NonlinearSolveBase: _solve_adjoint
+using SciMLBase: ImmutableNonlinearProblem, ChainRulesOriginator,
+    NonlinearLeastSquaresProblem
 
 using SimpleNonlinearSolve: SimpleNonlinearSolve, simplenonlinearsolve_solve_up
 

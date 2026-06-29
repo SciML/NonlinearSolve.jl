@@ -1,12 +1,14 @@
 module NonlinearSolveHomotopyContinuation
 
-using SciMLBase
-using NonlinearSolveBase
-using SymbolicIndexingInterface
-using LinearAlgebra
-using ADTypes
-using TaylorDiff
-using DocStringExtensions
+using SciMLBase: SciMLBase, HomotopyNonlinearFunction, NonlinearProblem
+using NonlinearSolveBase: NonlinearSolveBase
+using SymbolicIndexingInterface: SymbolicIndexingInterface, parameter_values,
+    state_values
+using LinearAlgebra: LinearAlgebra, norm
+using ADTypes: ADTypes, AutoEnzyme, AutoFiniteDiff, AutoForwardDiff
+using TaylorDiff: TaylorDiff, TaylorScalar
+using DocStringExtensions: DocStringExtensions, FIELDS, TYPEDEF, TYPEDFIELDS,
+    TYPEDSIGNATURES
 import CommonSolve
 import HomotopyContinuation as HC
 import DifferentiationInterface as DI
