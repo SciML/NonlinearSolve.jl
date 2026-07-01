@@ -27,7 +27,7 @@ SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
 [compat]
 ADTypes = "1.9"
 BracketingNonlinearSolve = "1.6"
-CUDA = "5"
+CUDA = "6"
 LinearAlgebra = "1.10"
 LinearSolve = "3.48"
 NonlinearSolve = "4.19"
