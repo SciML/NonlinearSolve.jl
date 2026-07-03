@@ -31,7 +31,7 @@ SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
 BracketingNonlinearSolve = "1.6"
 Enzyme = "0.13"
 ForwardDiff = "1"
-Mooncake = "0.4, 0.5"
+Mooncake = "0.5.36"
 NonlinearSolve = "4.19"
 NonlinearSolveBase = "2.20"
 NonlinearSolveFirstOrder = "2"

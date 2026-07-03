@@ -1,6 +1,6 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "2.31.3"
+version = "2.31.4"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -86,7 +86,7 @@ LinearSolve = "3.48"
 LogExpFunctions = "0.3.29, 1"
 Markdown = "1.10"
 MaybeInplace = "0.1.4"
-Mooncake = "0.4, 0.5"
+Mooncake = "0.5.36"
 PreallocationTools = "1.1.2"
 PrecompileTools = "1.2"
 Preferences = "1.4"
