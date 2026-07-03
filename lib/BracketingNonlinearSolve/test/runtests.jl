@@ -15,11 +15,15 @@ run_tests(;
         return include("rootfind_tests.jl")
     end,
     groups = Dict(
-        # Adjoint runs in the base test env (Zygote is a base test dep) and is part
-        # of the "All" run.
-        "Adjoint" => function ()
-            return include("adjoint_tests.jl")
-        end,
+        # Adjoint (Zygote) is a dep-adding group: it runs in its own isolated sub-env
+        # under test/adjoint (excluded from the base/Core/All run) so Zygote's joint
+        # graph does not constrain the base resolve.
+        "Adjoint" => (;
+            env = joinpath(@__DIR__, "adjoint"),
+            body = function ()
+                return include("adjoint/adjoint_tests.jl")
+            end,
+        ),
     ),
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
     # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
@@ -27,5 +31,7 @@ run_tests(;
         env = joinpath(@__DIR__, "qa"),
         body = joinpath(@__DIR__, "qa", "qa.jl"),
     ),
-    all = ["Core", "Adjoint"],
+    # "All" runs only the base-env Core group; the dep-adding Adjoint group and QA
+    # run only when selected by name.
+    all = ["Core"],
 )
