@@ -1,9 +1,9 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 SciMLJacobianOperators = "19f34311-ddf3-4b8b-af20-060888a46c0e"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -13,9 +13,9 @@ SciMLJacobianOperators = {path = "../../../SciMLJacobianOperators"}
 
 [compat]
 Aqua = "0.8"
-ExplicitImports = "1.5"
 NonlinearSolveBase = "2.20"
 NonlinearSolveFirstOrder = "2"
 SciMLJacobianOperators = "0.1.0"
+SciMLTesting = "1.7"
 Test = "1.10"
 julia = "1.10"

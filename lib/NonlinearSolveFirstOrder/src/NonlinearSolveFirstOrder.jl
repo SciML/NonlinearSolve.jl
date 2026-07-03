@@ -11,7 +11,7 @@ using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
 using LineSearch: BackTracking
 using StaticArraysCore: SArray
 
-using CommonSolve: CommonSolve
+using CommonSolve: CommonSolve, init
 using LinearSolve: LinearSolve  # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
@@ -21,11 +21,11 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     Utils, InternalAPI, get_timer_output, @static_timeit,
     update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
     NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-    Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity,
-    @SciMLMessage, None, reused_jacobian, AbstractVerbosityPreset
+    Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
     NonlinearFunction,
     NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
+using SciMLLogging: @SciMLMessage, None, AbstractVerbosityPreset
 using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
 
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method

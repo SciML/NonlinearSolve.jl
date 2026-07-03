@@ -1,18 +1,19 @@
-using SCCNonlinearSolve
+using SciMLTesting, SCCNonlinearSolve, Test
 
-using Aqua, SCCNonlinearSolve
-
-Aqua.test_all(
+run_qa(
     SCCNonlinearSolve;
-    piracies = false, ambiguities = false, stale_deps = false, deps_compat = false
+    explicit_imports = true,
+    aqua_kwargs = (;
+        stale_deps = (; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]),
+        deps_compat = (; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]),
+        piracies = (; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve]),
+        ambiguities = (; recursive = false),
+    ),
+    ei_kwargs = (;
+        # Still non-public in their owning packages after the make-public round:
+        #   SciMLBase: build_linear_solution, strip_solution;  Base: Cartesian
+        all_qualified_accesses_are_public = (;
+            ignore = (:Cartesian, :build_linear_solution, :strip_solution),
+        ),
+    ),
 )
-Aqua.test_stale_deps(
-    SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]
-)
-Aqua.test_deps_compat(
-    SCCNonlinearSolve; ignore = [:SciMLJacobianOperators, :NonlinearSolveBase]
-)
-Aqua.test_piracies(
-    SCCNonlinearSolve; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve]
-)
-Aqua.test_ambiguities(SCCNonlinearSolve; recursive = false)

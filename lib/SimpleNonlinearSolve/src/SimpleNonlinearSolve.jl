@@ -9,12 +9,12 @@ using BracketingNonlinearSolve: BracketingNonlinearSolve
 using CommonSolve: CommonSolve, solve, init, solve!
 using LineSearch: AbstractLineSearchAlgorithm
 using MaybeInplace: @bb
-using NonlinearSolveBase: NonlinearSolveBase, ImmutableNonlinearProblem, L2_NORM,
+using NonlinearSolveBase: NonlinearSolveBase, L2_NORM,
     nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution,
-    AbstractNonlinearSolveAlgorithm, NonlinearVerbosity, @SciMLMessage,
-    AbstractVerbosityPreset
+    AbstractNonlinearSolveAlgorithm, NonlinearVerbosity
 using SciMLBase: SciMLBase, NonlinearFunction, NonlinearProblem,
-    NonlinearLeastSquaresProblem, ReturnCode, remake
+    NonlinearLeastSquaresProblem, ImmutableNonlinearProblem, ReturnCode, remake
+using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset
 using LinearAlgebra: LinearAlgebra, dot
 
 using StaticArraysCore: StaticArray, SArray, SVector, MArray

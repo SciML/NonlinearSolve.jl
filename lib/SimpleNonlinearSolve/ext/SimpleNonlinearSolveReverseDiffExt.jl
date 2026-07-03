@@ -1,7 +1,8 @@
 module SimpleNonlinearSolveReverseDiffExt
 
-using NonlinearSolveBase: ImmutableNonlinearProblem, _solve_adjoint
-using SciMLBase: ReverseDiffOriginator, NonlinearLeastSquaresProblem, remake
+using NonlinearSolveBase: _solve_adjoint
+using SciMLBase: ImmutableNonlinearProblem, ReverseDiffOriginator,
+    NonlinearLeastSquaresProblem, remake
 
 using ArrayInterface: ArrayInterface
 using ReverseDiff: ReverseDiff, TrackedArray, TrackedReal

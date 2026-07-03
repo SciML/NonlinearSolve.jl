@@ -17,13 +17,10 @@ run_tests(;
         include("rootfind_tests.jl")
         return include("sparsity_tests.jl")
     end,
-    # QA (Aqua/ExplicitImports) is a dep-adding group: it runs in its own isolated
-    # sub-env under test/qa (excluded from the base/Core/All run).
+    # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
+    # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
     qa = (;
         env = joinpath(@__DIR__, "qa"),
-        body = function ()
-            @safetestset "Aqua" include("qa/qa.jl")
-            return @safetestset "Explicit Imports" include("qa/explicit_imports.jl")
-        end,
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
     ),
 )
