@@ -28,14 +28,20 @@ end
     function _execute(cmd::Cmd)
         out = Pipe()
         err = Pipe()
-        process = run(pipeline(ignorestatus(cmd); stdout = out, stderr = err))
+        # The pipes must be drained while the process runs: with `--trim=unsafe-warn`
+        # juliac can emit far more than the 64KiB pipe buffer, and a full pipe blocks
+        # the child while `run(...; wait = true)` blocks the parent — a deadlock that
+        # hung CI until the 2h job timeout.
+        process = run(pipeline(ignorestatus(cmd); stdout = out, stderr = err); wait = false)
         close(out.in)
         close(err.in)
-        out = (
-            stdout = String(read(out)), stderr = String(read(err)),
+        stdout_task = @async read(out, String)
+        stderr_task = @async read(err, String)
+        wait(process)
+        return (
+            stdout = fetch(stdout_task), stderr = fetch(stderr_task),
             exitcode = process.exitcode,
         )
-        return out
     end
 
     JULIAC = normpath(
