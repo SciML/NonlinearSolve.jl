@@ -39,7 +39,7 @@ os = ["ubuntu-latest", "macos-latest"]
 versions = ["lts", "1"]
 
 # Trimming was introduced in Julia 1.12; skip lts (1.10). The prerelease channel
-# (1.13) is also skipped: JET's `report_opt`/`test_opt` mis-analyzes on 1.13-rc1
+# (1.13) is also skipped: JET's `report_opt`/`test_opt` analyzes incorrectly on 1.13-rc1
 # (spurious dynamic-dispatch reports inside Base's printing code plus a fatal crash
 # in error display), which is an upstream JET/Julia issue, not a NonlinearSolve one.
 [Trim]
