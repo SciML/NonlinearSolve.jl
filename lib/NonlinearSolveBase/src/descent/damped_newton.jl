@@ -110,8 +110,12 @@ function InternalAPI.init(
         damping_fn_cache = InternalAPI.init(
             prob, alg.damping_fn, alg.initial_damping, J, fu, u, Val(false); kwargs...
         )
-        J_cache = Utils.maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
+        # A matrix-valued damping (e.g. a mass matrix) is added to every stored entry of the
+        # Jacobian and can grow a sparse Jacobian's sparsity pattern. Never alias the Jacobian
+        # cache's own storage in that case, or the next Jacobian recompute would decompress
+        # into a corrupted pattern.
+        J_cache = Utils.maybe_unaliased(J, alias_J && !(D isa AbstractMatrix))
 
         J_damped = dampen_jacobian!!(J_cache, J, D)
         J_cache = J_damped

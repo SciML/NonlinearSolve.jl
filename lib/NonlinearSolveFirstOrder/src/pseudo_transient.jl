@@ -104,21 +104,42 @@ function InternalAPI.init(
     ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     α⁻¹ = T(inv(initial_damping))
-    M = resolve_ser_mass_matrix(f.mass_matrix, prob)
+    M = materialize_ser_mass_matrix(resolve_ser_mass_matrix(f.mass_matrix, prob), u)
+    if M isa AbstractMatrix
+        n = length(u)
+        size(M) == (n, n) || throw(
+            DimensionMismatch(
+                "mass matrix has size $(size(M)) but the problem has $n unknowns; a square \
+                 mass matrix of size ($n, $n) is required."
+            )
+        )
+    end
     D = M === nothing ? nothing : α⁻¹ .* M
     return SwitchedEvolutionRelaxationCache(internalnorm(fu), α⁻¹, internalnorm, M, D)
 end
 
 # Resolve the mass matrix used for damping: an explicit one always wins, otherwise fall
 # back to the problem's `NonlinearFunction` mass matrix if it is a genuine (non-identity)
-# matrix. `I` / `UniformScaling` / `nothing` all map back to scalar identity damping so the
-# classical behavior is preserved bit-for-bit.
+# matrix. `nothing` and the identity `I` both map back to scalar identity damping so the
+# classical behavior is preserved bit-for-bit; a scaled `λI` is kept and materialized into a
+# concrete `Diagonal` by `materialize_ser_mass_matrix`.
 resolve_ser_mass_matrix(mass_matrix, ::AbstractNonlinearProblem) = mass_matrix
+function resolve_ser_mass_matrix(M::LinearAlgebra.UniformScaling, ::AbstractNonlinearProblem)
+    return isone(M.λ) ? nothing : M
+end
 function resolve_ser_mass_matrix(::Nothing, prob::AbstractNonlinearProblem)
     hasproperty(prob.f, :mass_matrix) || return nothing
     M = prob.f.mass_matrix
     (M === nothing || M isa LinearAlgebra.UniformScaling) && return nothing
     return M
+end
+
+# A scaled identity `λI` carries no size, so materialize it into a concrete `Diagonal` of
+# the right size (the identity `I` has already been mapped to `nothing` above). Anything else
+# (a real matrix, or `nothing`) passes through unchanged.
+materialize_ser_mass_matrix(M, u) = M
+function materialize_ser_mass_matrix(M::LinearAlgebra.UniformScaling, u)
+    return Diagonal(fill(convert(eltype(u), M.λ), length(u)))
 end
 
 (damping::SwitchedEvolutionRelaxationCache)(::Nothing) =
@@ -135,7 +156,6 @@ function InternalAPI.solve!(
     return damping.D
 end
 
-scale_mass_matrix!!(::Nothing, α⁻¹, M) = α⁻¹ .* M
 function scale_mass_matrix!!(D, α⁻¹, M)
     ArrayInterface.can_setindex(D) || return α⁻¹ .* M
     @. D = α⁻¹ * M
