@@ -11,10 +11,16 @@ choice, but it is not as numerically stable as the least squares solver.
 
 For underdetermined systems (more unknowns than equations, `length(u) > length(fu)`) with
 a normal form damping function, we default to a minimum-norm formulation: solve
-``(JJᵀ + λD̃ᵀD̃) z = -fu`` and set ``δu = Jᵀz``, where `D̃` is the damping for the `JJᵀ`
-system. As ``λ → 0`` this recovers the minimum-norm step solving the linearized equations,
-and it keeps the linear system small (`m × m` where `m = length(fu)` instead of
-`n × n`).
+``(JJᵀ + λD̃ᵀD̃) z = -fu`` and set ``δu = Jᵀz``, where ``D̃ᵀD̃`` is the damping the
+`damping_fn` produces for the `JJᵀ` system — for Levenberg-Marquardt this is the running
+elementwise maximum of `diag(JJᵀ)`, so the damping scales with ``‖J‖²`` and the step is
+invariant to rescaling the problem. As ``λ → 0`` this recovers the minimum-norm step
+solving the linearized equations, and it keeps the linear system small (`m × m` where
+`m = length(fu)` instead of `n × n`). Like the normal form equations, this formulation
+squares the conditioning of the Jacobian, so it trades some numerical robustness for
+speed; pass `min_norm_mode = :disabled` to use the QR-based least squares formulation
+instead. `JJᵀ + λD̃ᵀD̃` is symmetric positive definite, so a Cholesky factorization can be
+used via `linsolve = CholeskyFactorization()`.
 
 The damping factor returned must be a non-negative number.
 
@@ -79,14 +85,21 @@ function InternalAPI.init(
     alg.min_norm_mode in (:auto, :minimum_norm, :disabled) ||
         throw(ArgumentError("`min_norm_mode` must be `:auto`, `:minimum_norm`, or \
                              `:disabled`, got `$(alg.min_norm_mode)`."))
+    # The dual system is formed with `transpose`, which is only correct for real
+    # arithmetic; complex problems keep the least squares formulation.
+    real_arithmetic = eltype(u) <: Real && eltype(fu) <: Real
     use_minimum_norm = alg.min_norm_mode === :minimum_norm ||
         (
         alg.min_norm_mode === :auto && length(fu) < length(u) &&
-            normal_form_damping
+            normal_form_damping && real_arithmetic
     )
     if use_minimum_norm && !normal_form_damping
         throw(ArgumentError("`min_norm_mode = :minimum_norm` requires a damping function \
                              that returns normal form damping."))
+    end
+    if use_minimum_norm && !real_arithmetic
+        throw(ArgumentError("the minimum-norm formulation only supports real-valued \
+                             problems."))
     end
 
     mode = if u isa Number
