@@ -36,3 +36,26 @@ lc_dense = NonlinearSolveBase.construct_linear_solver(
     nothing, nothing, rand(4, 4) + 5I, b, u, nothing; stats
 )
 @test lc_dense isa NonlinearSolveBase.LinearSolveJLCache
+
+# `update_A!` must dispatch on the *resolved* algorithm (`lincache.alg`), not the
+# user-passed `linsolve` object (which has no `alg` field). With the old dispatch every
+# call re-set `A` — factorization algorithms refactorized on every solve even when the
+# caller requested reuse via `reuse_A_if_factorization`, and `nfactors` never moved.
+stats_reuse = SciMLBase.NLStats(0, 0, 0, 0, 0)
+A_fact = rand(4, 4) + 5I
+lc_fact = NonlinearSolveBase.construct_linear_solver(
+    nothing, LUFactorization(), copy(A_fact), copy(b), copy(u), nothing;
+    stats = stats_reuse
+)
+@test lc_fact isa NonlinearSolveBase.LinearSolveJLCache
+res = lc_fact(; A = A_fact, b, linu = u, reuse_A_if_factorization = false)
+@test res.u ≈ A_fact \ b
+@test stats_reuse.nfactors == 1
+# reuse: the factorization must not be redone and nfactors must not move
+res = lc_fact(; A = A_fact, b, linu = u, reuse_A_if_factorization = true)
+@test res.u ≈ A_fact \ b
+@test stats_reuse.nfactors == 1
+# fresh A with reuse off refactorizes exactly once more
+res = lc_fact(; A = 2 .* A_fact, b, linu = u, reuse_A_if_factorization = false)
+@test res.u ≈ (2 .* A_fact) \ b
+@test stats_reuse.nfactors == 2
