@@ -19,8 +19,8 @@ solving the linearized equations, and it keeps the linear system small (`m × m`
 `m = length(fu)` instead of `n × n`). Like the normal form equations, this formulation
 squares the conditioning of the Jacobian, so it trades some numerical robustness for
 speed; pass `min_norm_mode = :disabled` to use the QR-based least squares formulation
-instead. `JJᵀ + λD̃ᵀD̃` is symmetric positive definite, so a Cholesky factorization can be
-used via `linsolve = CholeskyFactorization()`.
+instead. `JJᵀ + λD̃ᵀD̃` is symmetric positive definite, so when no `linsolve` is specified
+this mode defaults to a Cholesky factorization (when LinearSolve is loaded).
 
 The damping factor returned must be a non-negative number.
 
@@ -207,9 +207,17 @@ function InternalAPI.init(
         rhs_cache = nothing
     end
 
-    linsolve_u = mode === :minimum_norm ? Utils.safe_vec(z_cache) : Utils.safe_vec(u)
+    if mode === :minimum_norm
+        # The damped JJᵀ system is symmetric positive definite by construction, so
+        # default to a Cholesky factorization when no linear solver was requested.
+        linsolve = alg.linsolve === nothing ? default_spd_linsolve(A) : alg.linsolve
+        linsolve_u = Utils.safe_vec(z_cache)
+    else
+        linsolve = alg.linsolve
+        linsolve_u = Utils.safe_vec(u)
+    end
     lincache = construct_linear_solver(
-        alg, alg.linsolve, A, b, linsolve_u, prob.p;
+        alg, linsolve, A, b, linsolve_u, prob.p;
         stats, abstol, reltol, linsolve_kwargs...
     )
 

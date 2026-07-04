@@ -14,9 +14,11 @@ sol = solve(prob_linear, LevenbergMarquardt(); maxiters = 1000, abstol = 1.0e-10
 @test norm(sol.resid) < 1.0e-8
 @test sol.u ≈ [0.5, 0.5, 1.0, 1.0] atol = 1.0e-6
 
-# The minimum-norm formulation must actually be engaged for underdetermined problems
+# The minimum-norm formulation must actually be engaged for underdetermined problems,
+# and its damped JJᵀ system is SPD so the default linear solver must be Cholesky
 cache = SciMLBase.init(prob_linear, LevenbergMarquardt(); abstol = 1.0e-10)
 @test cache.descent_cache.descent_cache.mode isa Val{:minimum_norm}
+@test cache.descent_cache.descent_cache.lincache.lincache.alg isa CholeskyFactorization
 
 # ... and opting out via `min_norm_mode = :disabled` must fall back to the least squares
 # formulation and still converge

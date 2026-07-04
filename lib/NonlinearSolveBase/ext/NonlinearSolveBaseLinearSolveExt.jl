@@ -7,7 +7,7 @@ using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using SciMLBase: SciMLBase, ReturnCode, LinearProblem, LinearAliasSpecifier
 using SciMLLogging: @SciMLMessage
 
-using LinearAlgebra: ColumnNorm
+using LinearAlgebra: ColumnNorm, Symmetric
 
 using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity, InternalAPI, LinearSolveParameters
 
@@ -32,6 +32,10 @@ end
 function NonlinearSolveBase.needs_square_A(linsolve::SciMLLinearSolveAlgorithm, ::Any)
     return LinearSolve.needs_square_A(linsolve)
 end
+function NonlinearSolveBase.default_spd_linsolve(::Symmetric{<:Real})
+    return LinearSolve.CholeskyFactorization()
+end
+
 function NonlinearSolveBase.needs_concrete_A(linsolve::SciMLLinearSolveAlgorithm)
     return LinearSolve.needs_concrete_A(linsolve)
 end
