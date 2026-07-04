@@ -70,7 +70,7 @@ function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
-        if (A isa SMatrix || A isa WrappedArray{<:Any, <:SMatrix})
+        if (A isa SMatrix || A isa WrappedArray{<:Any, <:Any, <:SMatrix, <:SMatrix})
             return NativeJLLinearSolveCache(A, b, stats)
         end
     end

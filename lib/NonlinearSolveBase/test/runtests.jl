@@ -120,7 +120,9 @@ run_tests(;
 
         @safetestset "EnzymeExt algorithms are inactive_type" include("enzyme_inactive_algorithm.jl")
 
-        return @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+        @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
+
+        return @safetestset "Linear solver routing" include("linear_solver_routing.jl")
     end,
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
     # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
