@@ -243,10 +243,21 @@ function SciMLBase.__init(
         if has_linesearch
             NonlinearSolveBase.supports_line_search(alg.descent) ||
                 error("Line Search not supported by $(alg.descent).")
-            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
-                ifelse(provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff),
-                _ad_prob
-            )
+            # The line search only needs the directional derivative
+            # ϕ'(α) = ⟨fu, J⋅δu⟩, a single JVP, so prefer the forward-mode
+            # backend. Only use the reverse-mode backend when explicitly
+            # requested via `vjp_autodiff` or a reverse-mode `autodiff`, so
+            # that loading a reverse-mode AD package cannot change the
+            # behavior of an explicitly configured solver.
+            ls_ad = if provided_jvp_autodiff
+                alg.jvp_autodiff
+            elseif provided_vjp_autodiff ||
+                    ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode
+                alg.vjp_autodiff
+            else
+                alg.jvp_autodiff
+            end
+            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(ls_ad, _ad_prob)
             linesearch_cache = CommonSolve.init(
                 _ad_prob, alg.linesearch, fu, u; stats, internalnorm,
                 autodiff = _ls_ad, kwargs...
