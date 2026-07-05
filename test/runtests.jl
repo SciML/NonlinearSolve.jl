@@ -139,6 +139,7 @@ else
                 @time @safetestset "Out-of-place Matrix Resizing" include("PolyAlgorithms/core_tests__item14.jl")
                 @time @safetestset "Inplace Matrix Resizing" include("PolyAlgorithms/core_tests__item15.jl")
                 @time @safetestset "Default Algorithm Singular Handling" include("PolyAlgorithms/core_tests__item19.jl")
+                @time @safetestset "Default polyalgs are forward-mode only: Issue #837" include("PolyAlgorithms/core_tests__item20.jl")
                 return @time @safetestset "23 Test Problems: PolyAlgorithms" include("PolyAlgorithms/23_test_problems_tests__item1.jl")
             end,
             "Verbosity" => function ()

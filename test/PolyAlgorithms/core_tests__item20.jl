@@ -1,0 +1,26 @@
+using NonlinearSolve
+using NonlinearSolve: RadiusUpdateSchemes
+
+# The Bastin and Yuan radius update schemes construct VJP operators, whose default
+# backend is selected from whichever reverse-mode AD packages happen to be loaded.
+# The default polyalgorithms must not contain such stages, so that loading a
+# reverse-mode AD package (e.g. Enzyme) can never change the behavior of a default
+# solve. See #837.
+function stage_needs_reverse_mode(stage)
+    hasproperty(stage, :trustregion) || return false
+    tr = stage.trustregion
+    (tr === missing || tr === nothing) && return false
+    hasproperty(tr, :method) || return false
+    return tr.method isa
+        Union{RadiusUpdateSchemes.__Bastin, RadiusUpdateSchemes.__Yuan}
+end
+
+# `FastShortcutNLLSPolyalg` is asserted in NonlinearSolveFirstOrder's own tests,
+# since this environment resolves that package from the registry.
+for poly in (
+        FastShortcutNonlinearPolyalg(),
+        FastShortcutNonlinearPolyalg(; must_use_jacobian = Val(true)),
+        FastShortcutNonlinearPolyalg(; prefer_simplenonlinearsolve = Val(true)),
+    )
+    @test all(!stage_needs_reverse_mode, poly.algs)
+end
