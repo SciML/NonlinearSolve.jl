@@ -1,5 +1,6 @@
 """
-    DampedNewtonDescent(; linsolve = nothing, initial_damping, damping_fn)
+    DampedNewtonDescent(; linsolve = nothing, initial_damping, damping_fn,
+                          min_norm_mode = :auto)
 
 A Newton descent algorithm with damping. The damping factor is computed using the
 `damping_fn` function. The descent direction is computed as ``(JᵀJ + λDᵀD) δu = -fu``. For
@@ -8,6 +9,19 @@ simultaneously. If the linear solver can't handle non-square matrices, we use th
 form equations ``(JᵀJ + λDᵀD) δu = Jᵀ fu``. Note that this factorization is often the faster
 choice, but it is not as numerically stable as the least squares solver.
 
+For underdetermined systems (more unknowns than equations, `length(u) > length(fu)`) with
+a normal form damping function, we default to a minimum-norm formulation: solve
+``(JJᵀ + λD̃ᵀD̃) z = -fu`` and set ``δu = Jᵀz``, where ``D̃ᵀD̃`` is the damping the
+`damping_fn` produces for the `JJᵀ` system — for Levenberg-Marquardt this is the running
+elementwise maximum of `diag(JJᵀ)`, so the damping scales with ``‖J‖²`` and the step is
+invariant to rescaling the problem. As ``λ → 0`` this recovers the minimum-norm step
+solving the linearized equations, and it keeps the linear system small (`m × m` where
+`m = length(fu)` instead of `n × n`). Like the normal form equations, this formulation
+squares the conditioning of the Jacobian, so it trades some numerical robustness for
+speed; pass `min_norm_mode = :disabled` to use the QR-based least squares formulation
+instead. `JJᵀ + λD̃ᵀD̃` is symmetric positive definite, so when no `linsolve` is specified
+this mode defaults to a Cholesky factorization (when LinearSolve is loaded).
+
 The damping factor returned must be a non-negative number.
 
 ### Keyword Arguments
@@ -15,11 +29,18 @@ The damping factor returned must be a non-negative number.
   - `initial_damping`: the initial damping factor to use
   - `damping_fn`: the function to use to compute the damping factor. This must satisfy the
     [`NonlinearSolveBase.AbstractDampingFunction`](@ref) interface.
+  - `min_norm_mode`: controls the minimum-norm formulation for underdetermined systems:
+
+      + `:auto` (default): use the minimum-norm formulation for underdetermined systems
+        when the damping function returns normal form damping
+      + `:minimum_norm`: force the minimum-norm formulation regardless of system dimensions
+      + `:disabled`: never use the minimum-norm formulation
 """
 @kwdef @concrete struct DampedNewtonDescent <: AbstractDescentDirection
     linsolve = nothing
     initial_damping
     damping_fn <: AbstractDampingFunction
+    min_norm_mode::Symbol = :auto
 end
 
 supports_line_search(::DampedNewtonDescent) = true
@@ -36,7 +57,8 @@ supports_trust_region(::DampedNewtonDescent) = true
     damping_fn_cache
     timer
     preinverted_jacobian <: Union{Val{false}, Val{true}}
-    mode <: Union{Val{:normal_form}, Val{:least_squares}, Val{:simple}}
+    mode <: Union{Val{:normal_form}, Val{:least_squares}, Val{:simple}, Val{:minimum_norm}}
+    z_cache    # only used in `:minimum_norm` mode, solution of the m×m dual system
 end
 
 @internal_caches DampedNewtonDescentCache :lincache :damping_fn_cache
@@ -60,8 +82,30 @@ function InternalAPI.init(
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
     normal_form_linsolve = needs_square_A(alg.linsolve, u)
 
+    alg.min_norm_mode in (:auto, :minimum_norm, :disabled) ||
+        throw(ArgumentError("`min_norm_mode` must be `:auto`, `:minimum_norm`, or \
+                             `:disabled`, got `$(alg.min_norm_mode)`."))
+    # The dual system is formed with `transpose`, which is only correct for real
+    # arithmetic; complex problems keep the least squares formulation.
+    real_arithmetic = eltype(u) <: Real && eltype(fu) <: Real
+    use_minimum_norm = alg.min_norm_mode === :minimum_norm ||
+        (
+        alg.min_norm_mode === :auto && length(fu) < length(u) &&
+            normal_form_damping && real_arithmetic
+    )
+    if use_minimum_norm && !normal_form_damping
+        throw(ArgumentError("`min_norm_mode = :minimum_norm` requires a damping function \
+                             that returns normal form damping."))
+    end
+    if use_minimum_norm && !real_arithmetic
+        throw(ArgumentError("the minimum-norm formulation only supports real-valued \
+                             problems."))
+    end
+
     mode = if u isa Number
         :simple
+    elseif use_minimum_norm
+        :minimum_norm
     elseif prob isa NonlinearProblem
         if normal_form_damping
             ifelse(normal_form_linsolve, :normal_form, :least_squares)
@@ -80,7 +124,34 @@ function InternalAPI.init(
         end
     end
 
-    if mode === :least_squares
+    z_cache = nothing
+
+    if mode === :minimum_norm
+        # The minimum-norm formulation is the normal form of the dual system: solve
+        # (JJᵀ + λD̃ᵀD̃) z = -fu for the m-sized z, then δu = Jᵀz. The damping function
+        # is initialized on the dual system, so `fu` takes the place of `u` (and of the
+        # normal form rhs Jᵀfu) and `JJᵀ` the place of `JᵀJ`.
+        JᵀJ = J * transpose(J)
+        jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
+
+        damping_fn_cache = InternalAPI.init(
+            prob, alg.damping_fn, alg.initial_damping, jac_damp, fu, fu, Val(true);
+            stats, kwargs...
+        )
+        D = damping_fn_cache(nothing)
+
+        if ArrayInterface.can_setindex(JᵀJ)
+            @bb J_cache = similar(JᵀJ)
+            @bb @. J_cache = 0
+        else
+            J_cache = JᵀJ
+        end
+        J_damped = dampen_jacobian!!(J_cache, JᵀJ, D)
+        @bb z_cache = similar(fu)
+
+        A, b = Utils.maybe_symmetric(J_damped), Utils.safe_vec(fu)
+        Jᵀfu, rhs_cache = nothing, nothing
+    elseif mode === :least_squares
         if requires_normal_form_jacobian(alg.damping_fn)
             JᵀJ = transpose(J) * J  # Needed to compute the damping factor
             jac_damp = JᵀJ
@@ -136,14 +207,23 @@ function InternalAPI.init(
         rhs_cache = nothing
     end
 
+    if mode === :minimum_norm
+        # The damped JJᵀ system is symmetric positive definite by construction, so
+        # default to a Cholesky factorization when no linear solver was requested.
+        linsolve = alg.linsolve === nothing ? default_spd_linsolve(A) : alg.linsolve
+        linsolve_u = Utils.safe_vec(z_cache)
+    else
+        linsolve = alg.linsolve
+        linsolve_u = Utils.safe_vec(u)
+    end
     lincache = construct_linear_solver(
-        alg, alg.linsolve, A, b, Utils.safe_vec(u), prob.p;
+        alg, linsolve, A, b, linsolve_u, prob.p;
         stats, abstol, reltol, linsolve_kwargs...
     )
 
     return DampedNewtonDescentCache(
         J_cache, δu, δus, lincache, JᵀJ, Jᵀfu, rhs_cache,
-        damping_fn_cache, timer, pre_inverted, Val(mode)
+        damping_fn_cache, timer, pre_inverted, Val(mode), z_cache
     )
 end
 
@@ -157,7 +237,20 @@ function InternalAPI.solve!(
     recompute_A = idx === Val(1)
 
     @static_timeit cache.timer "dampen" begin
-        if cache.mode isa Val{:least_squares}
+        if cache.mode isa Val{:minimum_norm}
+            if (J !== nothing || new_jacobian) && recompute_A
+                preinverted_jacobian(cache) && (J = inv(J))
+                @bb cache.JᵀJ_cache = J × transpose(J)
+                D = InternalAPI.solve!(cache.damping_fn_cache, cache.JᵀJ_cache, fu, Val(true))
+                cache.J = dampen_jacobian!!(cache.J, cache.JᵀJ_cache, D)
+                A = Utils.maybe_symmetric(cache.J)
+            elseif !recompute_A
+                A = Utils.maybe_symmetric(cache.J)
+            else
+                A = nothing
+            end
+            b = Utils.safe_vec(fu)
+        elseif cache.mode isa Val{:least_squares}
             if (J !== nothing || new_jacobian) && recompute_A
                 preinverted_jacobian(cache) && (J = inv(J))
                 if requires_normal_form_jacobian(cache.damping_fn_cache)
@@ -220,13 +313,18 @@ function InternalAPI.solve!(
     end
 
     @static_timeit cache.timer "linear solve" begin
+        min_norm = cache.mode isa Val{:minimum_norm}
         linres = cache.lincache(;
             A, b,
             reuse_A_if_factorization = !new_jacobian && !recompute_A,
             kwargs...,
-            linu = Utils.safe_vec(δu)
+            linu = min_norm ? Utils.safe_vec(cache.z_cache) : Utils.safe_vec(δu)
         )
-        δu = Utils.restructure(SciMLBase.get_du(cache, idx), linres.u)
+        if min_norm
+            z = Utils.restructure(cache.z_cache, linres.u)
+            @bb δu = transpose(J) × vec(z)
+        end
+        δu = Utils.restructure(SciMLBase.get_du(cache, idx), min_norm ? δu : linres.u)
         if !linres.success
             set_du!(cache, δu, idx)
             return DescentResult(; δu, success = false, linsolve_success = false)

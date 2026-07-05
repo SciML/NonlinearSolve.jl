@@ -135,3 +135,13 @@ needs_square_A(::typeof(\), ::Any) = false
 
 needs_concrete_A(::Union{Nothing, Missing}) = false
 needs_concrete_A(::typeof(\)) = true
+
+"""
+    default_spd_linsolve(A)
+
+Default linear solver for a system whose matrix is symmetric positive definite by
+construction (e.g. the damped `JJᵀ` system of the minimum-norm descent). Returns a
+Cholesky factorization when LinearSolve is loaded and `A` is a real `Symmetric` matrix;
+otherwise returns `nothing` to use the generic default.
+"""
+default_spd_linsolve(A) = nothing
