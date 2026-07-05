@@ -181,8 +181,12 @@ function InternalAPI.init(
         damping_fn_cache = InternalAPI.init(
             prob, alg.damping_fn, alg.initial_damping, J, fu, u, Val(false); kwargs...
         )
-        J_cache = Utils.maybe_unaliased(J, alias_J)
         D = damping_fn_cache(nothing)
+        # A matrix-valued damping (e.g. a mass matrix) is added to every stored entry of the
+        # Jacobian and can grow a sparse Jacobian's sparsity pattern. Never alias the Jacobian
+        # cache's own storage in that case, or the next Jacobian recompute would decompress
+        # into a corrupted pattern.
+        J_cache = Utils.maybe_unaliased(J, alias_J && !(D isa AbstractMatrix))
 
         J_damped = dampen_jacobian!!(J_cache, J, D)
         J_cache = J_damped
@@ -337,26 +341,42 @@ function InternalAPI.solve!(
 end
 
 dampen_jacobian!!(::Any, J::Union{AbstractSciMLOperator, Number}, D) = J + D
-function dampen_jacobian!!(J_cache, J::AbstractMatrix, D::Union{AbstractMatrix, Number})
+
+# Scalar damping (identity-style `(1/α) I` damping) only touches the diagonal of `J`.
+function dampen_jacobian!!(J_cache, J::AbstractMatrix, D::Number)
     ArrayInterface.can_setindex(J_cache) || return J .+ D
     J_cache !== J && copyto!(J_cache, J)
     if ArrayInterface.fast_scalar_indexing(J_cache)
-        if D isa Number
-            @simd ivdep for i in axes(J_cache, 1)
-                @inbounds J_cache[i, i] += D
-            end
-        else
-            @simd ivdep for i in axes(J_cache, 1)
-                @inbounds J_cache[i, i] += D[i, i]
-            end
+        @simd ivdep for i in axes(J_cache, 1)
+            @inbounds J_cache[i, i] += D
         end
     else
         idxs = diagind(J_cache)
-        if D isa Number
-            J_cache[idxs] .+= D
-        else
-            J_cache[idxs] .+= @view(D[idxs])
-        end
+        J_cache[idxs] .+= D
     end
+    return J_cache
+end
+
+# Diagonal damping (e.g. Levenberg-Marquardt's `Diagonal` `DᵀD`, or a diagonal mass matrix)
+# only touches the diagonal of `J`.
+function dampen_jacobian!!(J_cache, J::AbstractMatrix, D::Diagonal)
+    ArrayInterface.can_setindex(J_cache) || return J .+ D
+    J_cache !== J && copyto!(J_cache, J)
+    if ArrayInterface.fast_scalar_indexing(J_cache)
+        @simd ivdep for i in axes(J_cache, 1)
+            @inbounds J_cache[i, i] += D[i, i]
+        end
+    else
+        idxs = diagind(J_cache)
+        J_cache[idxs] .+= @view(D[idxs])
+    end
+    return J_cache
+end
+
+# General (e.g. non-diagonal mass-matrix) damping adds the full matrix `D` to `J`.
+function dampen_jacobian!!(J_cache, J::AbstractMatrix, D::AbstractMatrix)
+    ArrayInterface.can_setindex(J_cache) || return J .+ D
+    J_cache !== J && copyto!(J_cache, J)
+    @. J_cache += D
     return J_cache
 end
