@@ -54,6 +54,7 @@ LimitedMemoryBroyden
 
 ```@docs
 HomotopySweep
+ArcLengthContinuation
 ```
 
 ## Nonlinear Least Squares Solvers
