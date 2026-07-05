@@ -134,7 +134,8 @@ else
             @time @safetestset "ArcLengthContinuation happy path (fold-free, matches sweep)" include("Core/arclength_tests__item2.jl")
             @time @safetestset "ArcLengthContinuation rounds a fold (non-monotone λ)" include("Core/arclength_tests__item3.jl")
             @time @safetestset "ArcLengthContinuation Float32 / in-place / multi-dim" include("Core/arclength_tests__item4.jl")
-            return @time @safetestset "ArcLengthContinuation fails (no hang) on an unreachable target" include("Core/arclength_tests__item5.jl")
+            @time @safetestset "ArcLengthContinuation fails (no hang) on an unreachable target" include("Core/arclength_tests__item5.jl")
+            return @time @safetestset "ArcLengthContinuation tangent predictor" include("Core/arclength_tests__item6.jl")
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()

@@ -2,7 +2,7 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        maxsteps = 10000)
+        predictor = :secant, autodiff = nothing, maxsteps = 10000)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -52,6 +52,20 @@ Keyword arguments:
     steps *through* a turning point while permitting large steps on straight stretches —
     and it is what prevents the secant predictor from overshooting onto a different branch
     ("path jumping"). This is the analogue of OpenModelica's homotopy bend parameter.
+  - `predictor`: how the initial guess for each corrector is extrapolated along the path.
+    `:secant` (default) uses the secant through the last two accepted points, bootstrapped
+    from a pure-``λ`` step — derivative-free, but the bootstrap step cannot round a fold
+    located within the very first step, and it is not curvature-checked. `:tangent`
+    instead computes the true path tangent at the current point as the (oriented) null
+    vector of the augmented Jacobian ``[∂H/∂u | ∂H/∂λ]``, which stays well-defined at a
+    fold (where the tangent is vertical in ``λ``). The tangent is a higher-order predictor
+    and is accurate from the first step, so it curvature-checks every step and can round a
+    fold at the very start; the cost is one Jacobian factorization per step (see
+    `autodiff`). This is the Euler tangent predictor of the classic path trackers and of
+    OpenModelica's global homotopy.
+  - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
+    to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
+    selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts (including
     bisection retries). Required because the path is *not* monotone in `λ`, so a sweep
     that never reaches the target — a closed loop, or a branch escaping to infinity —
@@ -60,10 +74,11 @@ Keyword arguments:
 When the solver cannot reach `λspan[2]`, the returned solution carries a failure retcode
 and its `u` is the last converged curve point.
 
-The continuation is derivative-free in the predictor (a secant through the last two
-accepted points, bootstrapped from a pure-``λ`` step); the augmented corrector obtains
-the derivatives it needs through the inner solver's own differentiation, exactly as a
-standard `NonlinearProblem` would.
+With the default `:secant` predictor the continuation is derivative-free in the predictor;
+the augmented corrector obtains the derivatives it needs through the inner solver's own
+differentiation, exactly as a standard `NonlinearProblem` would. The `:tangent` predictor
+additionally differentiates the homotopy through `autodiff` to build the augmented
+Jacobian.
 """
 @concrete struct ArcLengthContinuation <: AbstractNonlinearSolveAlgorithm
     inner
@@ -74,13 +89,16 @@ standard `NonlinearProblem` would.
     expand_factor
     expand_threshold::Int
     max_angle
+    predictor::Symbol
+    autodiff
     maxsteps::Int
 end
 
 function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
-        expand_threshold = 2, max_angle = π / 6, maxsteps = 10000
+        expand_threshold = 2, max_angle = π / 6, predictor = :secant,
+        autodiff = nothing, maxsteps = 10000
     )
     if !(0 < initial_step_factor <= 1)
         throw(
@@ -120,12 +138,19 @@ function ArcLengthContinuation(;
             )
         )
     end
+    if predictor !== :secant && predictor !== :tangent
+        throw(
+            ArgumentError(
+                "ArcLengthContinuation `predictor` must be :secant or :tangent, got :$predictor"
+            )
+        )
+    end
     if maxsteps < 1
         throw(ArgumentError("ArcLengthContinuation `maxsteps` must be ≥ 1, got $maxsteps"))
     end
     return ArcLengthContinuation(
-        inner, initial_step_factor, adaptive, min_ds,
-        max_step_factor, expand_factor, expand_threshold, max_angle, maxsteps
+        inner, initial_step_factor, adaptive, min_ds, max_step_factor,
+        expand_factor, expand_threshold, max_angle, predictor, autodiff, maxsteps
     )
 end
 
@@ -159,6 +184,22 @@ function (a::AugmentedHomotopy)(res, x, p)
     return nothing
 end
 
+# The n homotopy rows on their own, as a function of the packed variable `x = [u; λ]`. The
+# `:tangent` predictor differentiates this with NonlinearSolve's own Jacobian tooling to
+# get the augmented Jacobian `[∂H/∂u | ∂H/∂λ]`; unlike `AugmentedHomotopy` it omits the
+# arclength-constraint row (that row is a known constant, not part of the path Jacobian).
+struct HomotopyResidual{F}
+    f::F
+    n::Int
+end
+
+(a::HomotopyResidual)(x, p) = a.f(view(x, 1:(a.n)), p, x[a.n + 1])
+
+function (a::HomotopyResidual)(res, x, p)
+    a.f(res, view(x, 1:(a.n)), p, x[a.n + 1])
+    return nothing
+end
+
 # Natural-parameter solve at a fixed λ: gets the start point onto the curve and lands the
 # final point exactly on λ = λspan[2]. Mirrors HomotopySweep's per-step solve.
 function _arclength_fixed_solve(
@@ -168,6 +209,44 @@ function _arclength_fixed_solve(
     fλ = SciMLBase.NonlinearFunction{iip}(FixLambda(prob.f, λfix))
     inner_prob = NonlinearProblem{iip}(fλ, copy(uguess), prob.p)
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
+end
+
+# Build the reusable Jacobian cache for the `:tangent` predictor's augmented Jacobian,
+# using NonlinearSolve's own `construct_jacobian_cache` (backend selection, tag handling,
+# and AD-extras preparation shared with every other solver) rather than a bespoke DI call.
+# `alg` carries no `concrete_jac`, so the cache holds a dense J that `nullspace` can use.
+function _arclength_jac_cache(
+        prob::SciMLBase.HomotopyProblem{uType, iip}, alg, x,
+        n
+    ) where {uType, iip}
+    gf = SciMLBase.NonlinearFunction{iip}(HomotopyResidual(prob.f, n))
+    gprob = NonlinearProblem{iip}(gf, x, prob.p)
+    fu = if iip
+        res = Utils.safe_similar(x, n)
+        gf(res, x, prob.p)
+        res
+    else
+        gf(x, prob.p)
+    end
+    autodiff = select_jacobian_autodiff(gprob, alg.autodiff)
+    return construct_jacobian_cache(
+        gprob, alg, gf, fu, x, prob.p; stats = NLStats(0, 0, 0, 0, 0), autodiff
+    )
+end
+
+# Unit tangent of the curve H(u, λ) = 0 at the packed point `x = [u; λ]`, the null vector
+# of the augmented Jacobian `J = [∂H/∂u | ∂H/∂λ]` (n×(n+1)) evaluated by `jac_cache`. `J`
+# has full row rank n along the whole path — including at a fold, where the u-block ∂H/∂u
+# is singular but the appended ∂H/∂λ column keeps the row rank — so `nullspace(J)` is
+# one-dimensional and yields the tangent (vertical in λ at a fold) without needing a
+# bordering vector. Oriented to continue the previous direction `τprev` (dot > 0).
+function _arclength_tangent(jac_cache, x, τprev)
+    J = jac_cache(x)
+    N = LinearAlgebra.nullspace(J)
+    τ = N[:, 1]
+    τ ./= norm(τ)
+    LinearAlgebra.dot(τ, τprev) < 0 && (τ .= .-τ)
+    return τ
 end
 
 function CommonSolve.solve(
@@ -211,14 +290,27 @@ function CommonSolve.solve(
     cos_grow = Tx(cos(alg.max_angle / 3))       # turn below max_angle/3 ⇒ allow growth
     streak = 0
 
+    use_tangent = alg.predictor === :tangent
+    # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
+    # predictor; nothing for the derivative-free secant.
+    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n) : nothing
+    # orientation reference for the tangent predictor: seed toward λend so the first
+    # tangent continues into the span (pure-λ direction picks the correct sign).
+    τ = pack(zeros(Tx, n), sλ)
+
     for _ in 1:(alg.maxsteps)
-        # Predictor direction τ (unit, length n+1). Secant through the last two accepted
-        # points once history exists; a pure-λ step toward λend bootstraps the first step.
-        if have_prev
+        # Predictor direction τ (unit, length n+1).
+        if use_tangent
+            # True path tangent (null vector of the augmented Jacobian), oriented to
+            # continue τ; accurate from the first step and well-defined at a fold.
+            τ = _arclength_tangent(jac_cache, xcur, τ)
+        elseif have_prev
+            # Secant through the last two accepted points.
             d = xcur .- xprev
             dnorm = norm(d)
             τ = dnorm > 0 ? d ./ dnorm : pack(zeros(Tx, n), sλ)
         else
+            # Bootstrap: a pure-λ step toward λend (no history for a secant yet).
             τ = pack(zeros(Tx, n), sλ)
         end
 
@@ -235,15 +327,16 @@ function CommonSolve.solve(
             chord = xnew .- xcur
             nchord = norm(chord)
 
-            # Curvature control: the realized step direction vs. the predictor (which, once
-            # there is history, IS the previous accepted segment's direction) measures the
+            # Curvature control: the realized step direction vs. the predictor measures the
             # path's turn. A large turn means either real high curvature or that the
             # corrector jumped to another branch — both call for a smaller step, so reject
-            # and bisect. The gate is skipped on the bootstrap step, where the pure-λ
-            # predictor is legitimately misaligned with a sloped branch.
-            cosang = (have_prev && nchord > 0) ?
+            # and bisect. The gate needs a trustworthy predictor: the tangent is accurate
+            # from the first step, but the secant only becomes meaningful once there is
+            # history (its pure-λ bootstrap is legitimately misaligned with a sloped branch).
+            trust = use_tangent || have_prev
+            cosang = (trust && nchord > 0) ?
                 clamp(LinearAlgebra.dot(τ, chord) / nchord, -one(Tx), one(Tx)) : one(Tx)
-            if have_prev && cosang < cos_reject && alg.adaptive && ds / 2 >= min_ds
+            if trust && cosang < cos_reject && alg.adaptive && ds / 2 >= min_ds
                 ds = ds / 2
                 streak = 0
                 continue
