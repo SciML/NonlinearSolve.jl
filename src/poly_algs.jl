@@ -42,7 +42,7 @@ function FastShortcutNonlinearPolyalg(
             algs = (
                 NewtonRaphson(; common_kwargs...),
                 TrustRegion(; common_kwargs...),
-                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
                 LevenbergMarquardt(; common_kwargs_nocj...),
             )
         end
@@ -63,7 +63,7 @@ function FastShortcutNonlinearPolyalg(
                     SimpleKlement(),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
                     LevenbergMarquardt(; common_kwargs_nocj...),
                 )
             end
@@ -82,7 +82,7 @@ function FastShortcutNonlinearPolyalg(
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
                     LevenbergMarquardt(; common_kwargs_nocj...),
                 )
             end

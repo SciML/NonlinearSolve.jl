@@ -79,7 +79,7 @@ function FastShortcutNLLSPolyalg(
             TrustRegion(; common_kwargs..., concrete_jac),
             GaussNewton(; common_kwargs..., linesearch = BackTracking(), concrete_jac),
             TrustRegion(;
-                common_kwargs..., radius_update_scheme = RUS.Bastin, concrete_jac
+                common_kwargs..., radius_update_scheme = RUS.Fan, concrete_jac
             ),
             LevenbergMarquardt(; common_kwargs...),
         )
