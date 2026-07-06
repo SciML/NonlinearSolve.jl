@@ -107,6 +107,7 @@ else
             @time @safetestset "Default Algorithm for AbstractSteadyStateProblem" include("Core/default_alg_tests__item1.jl")
             @time @safetestset "NLLS Hessian SciML/NonlinearSolve.jl#445" include("Core/forward_ad_tests__item2.jl")
             @time @safetestset "reinit! on ForwardDiff cache SciML/NonlinearSolve.jl#391" include("Core/forward_ad_tests__item3.jl")
+            @time @safetestset "reinit! preserves parameters (LinearSolveParameters type stability)" include("Core/reinit_tests__item1.jl")
             @time @safetestset "Correct Best Solution: #565" include("Core/issue_tests__item1.jl")
             @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
             @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
