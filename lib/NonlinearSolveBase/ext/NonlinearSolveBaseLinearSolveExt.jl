@@ -42,7 +42,14 @@ end
 
 update_A!(cache::LinearSolveJLCache, ::Nothing, reuse) = cache
 function update_A!(cache::LinearSolveJLCache, A, reuse)
-    return update_A!(cache, Utils.safe_getproperty(cache.linsolve, Val(:alg)), A, reuse)
+    # Dispatch on the *resolved* algorithm stored in the LinearSolve cache.
+    # `cache.linsolve` is the user-passed object (e.g. `KLUFactorization()`), which has
+    # no `alg` field, so the old `safe_getproperty(cache.linsolve, Val(:alg))` returned
+    # `missing` and always fell through to the non-factorization method below. That
+    # method re-sets `A` unconditionally, marking the LinearSolve cache fresh, so
+    # factorization algorithms refactorized on every call even when the caller asked
+    # for reuse via `reuse_A_if_factorization` (and `nfactors` was never incremented).
+    return update_A!(cache, cache.lincache.alg, A, reuse)
 end
 
 function update_A!(cache::LinearSolveJLCache, alg, A, reuse)
