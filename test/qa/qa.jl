@@ -34,11 +34,10 @@ run_qa(
         #   NonlinearSolveBase(.Utils): Utils, evaluate_f, initialization_alg, nodual_value,
         #     safe_vec
         #   ForwardDiff: partials;  LeastSquaresOptim: Cholesky, LSMR, QR
-        #   NonlinearSolveFirstOrder.RadiusUpdateSchemes: Bastin
         all_qualified_accesses_are_public = (;
             ignore = (
                 :Utils, :evaluate_f, :initialization_alg, :nodual_value, :safe_vec,
-                :partials, :Cholesky, :LSMR, :QR, :Bastin,
+                :partials, :Cholesky, :LSMR, :QR,
             ),
         ),
         # Still non-public in their owning packages after the make-public round:
