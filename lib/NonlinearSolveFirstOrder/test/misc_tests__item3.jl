@@ -18,3 +18,9 @@ sol = solve!(cache)
 # Reinitialize and check the trust region was reset
 reinit!(cache, [1.0, 1.0]; p = 2.0)
 @test tr_cache.trust_region == tr_cache.initial_trust_radius
+
+original_initial_trust_radius = tr_cache.initial_trust_radius
+reinit!(cache, [100.0, 1.0]; p = 2.0)
+@test tr_cache.initial_trust_radius != original_initial_trust_radius
+@test tr_cache.initial_trust_radius == tr_cache.max_trust_radius / 11
+@test tr_cache.trust_region == tr_cache.initial_trust_radius
