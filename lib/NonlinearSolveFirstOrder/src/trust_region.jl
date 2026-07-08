@@ -59,7 +59,7 @@ Simply put the desired scheme as follows:
 module RadiusUpdateSchemes
     # The weird definitions here are needed to main compatibility with the older enum variants
 
-    export Simple, NLsolve, NocedalWright, Hei, Yuan, Bastin, Fan
+    export Bastin, Fan, Hei, NLsolve, NocedalWright, Simple, Yuan
 
     abstract type AbstractRadiusUpdateScheme end
 
@@ -295,6 +295,21 @@ function InternalAPI.reinit!(
     cache.p = p
     if u0 !== nothing
         u0_norm = cache.internalnorm(u0)
+        cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, u0, p)
+        T = promote_type(eltype(u0), eltype(cache.fu_cache))
+        fu_norm = cache.internalnorm(cache.fu_cache)
+        cache.max_trust_radius = max_trust_radius(
+            cache.alg.max_trust_radius, T, cache.method, u0, fu_norm
+        )
+        cache.initial_trust_radius = initial_trust_radius(
+            cache.alg.initial_trust_radius, T, cache.method, cache.max_trust_radius,
+            u0_norm, fu_norm
+        )
+        if cache.method isa RUS.__Yuan
+            operator = StatefulJacobianOperator(cache.vjp_operator, u0, p)
+            @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
+            cache.initial_trust_radius = T(cache.p1 * cache.internalnorm(cache.Jᵀfu_cache))
+        end
     end
     cache.last_step_accepted = false
     cache.trust_region = cache.initial_trust_radius
