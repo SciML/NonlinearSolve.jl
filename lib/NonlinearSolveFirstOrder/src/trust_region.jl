@@ -59,6 +59,8 @@ Simply put the desired scheme as follows:
 module RadiusUpdateSchemes
     # The weird definitions here are needed to main compatibility with the older enum variants
 
+    export Simple, NLsolve, NocedalWright, Hei, Yuan, Bastin, Fan
+
     abstract type AbstractRadiusUpdateScheme end
 
     function Base.show(io::IO, rus::AbstractRadiusUpdateScheme)
