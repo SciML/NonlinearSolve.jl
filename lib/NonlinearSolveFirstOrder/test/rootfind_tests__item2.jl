@@ -5,11 +5,27 @@ using ADTypes, LineSearch, LinearAlgebra, Random, LinearSolve
 using LineSearches: LineSearches
 using BenchmarkTools: @ballocated
 using StaticArrays: @SVector
+using SciMLOperators: MatrixOperator
 using Zygote, ForwardDiff, FiniteDiff
 
 # Conditionally import Enzyme only if not on Julia prerelease
 if isempty(VERSION.prerelease) && VERSION < v"1.12"
     using Enzyme
+end
+
+@testset "NewtonRaphson with SciMLOperator jac_prototype" begin
+    f(u, p) = u .^ 2 .- p
+    Jop = MatrixOperator(zeros(2, 2))
+    jac(u, p) = MatrixOperator(Matrix(Diagonal(2 .* u)))
+    nlf = NonlinearFunction{false}(f; jac, jac_prototype = Jop)
+    prob = NonlinearProblem(nlf, [1.0, 2.0], 4.0)
+
+    cache = init(prob, NewtonRaphson())
+    @test cache.jac_cache.J === Jop
+
+    sol = solve(prob, NewtonRaphson(; linsolve = KrylovJL_GMRES()); abstol = 1.0e-10)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ [2.0, 2.0]
 end
 
 u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
