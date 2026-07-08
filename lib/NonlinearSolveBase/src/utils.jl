@@ -117,6 +117,8 @@ function safe_similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
     return init_similar_array!!(y)
 end
+safe_similar(x::AbstractSciMLOperator) = x
+safe_similar(x::AbstractSciMLOperator, ::Type) = x
 
 init_similar_array!!(x) = x
 
