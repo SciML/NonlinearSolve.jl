@@ -18,6 +18,37 @@ const ForwardADs = (
     ADTypes.AutoFiniteDiff(),
 )
 
+"""
+    select_forward_mode_autodiff(prob, ad; warn_check_mode = true)
+
+Choose a forward-mode-compatible automatic differentiation backend for `prob`.
+
+If `ad` is an `AbstractADType`, the backend is returned when it is available and compatible
+with the problem. If `ad === nothing`, NonlinearSolveBase selects the first available
+compatible backend from its preferred forward-mode list.
+
+### Arguments
+
+  - `prob`: A SciML nonlinear problem.
+  - `ad`: An ADTypes backend or `nothing`.
+
+### Keyword Arguments
+
+  - `warn_check_mode`: Emit a warning when `ad` is not a forward-mode backend.
+
+### Returns
+
+An ADTypes backend suitable for forward-mode differentiation.
+
+### Examples
+
+```julia
+using ADTypes, NonlinearSolveBase, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - 2, 1.0)
+NonlinearSolveBase.select_forward_mode_autodiff(prob, AutoForwardDiff())
+```
+"""
 function select_forward_mode_autodiff(
         prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true
     )
@@ -52,6 +83,28 @@ function select_forward_mode_autodiff(
                          or the loaded backends don't support the problem."))
 end
 
+"""
+    select_reverse_mode_autodiff(prob, ad; warn_check_mode = true)
+
+Choose a reverse-mode-compatible automatic differentiation backend for `prob`.
+
+If `ad === nothing`, NonlinearSolveBase selects the first available compatible backend from
+its preferred reverse-mode list. Finite differencing backends are accepted as explicit
+fallback choices.
+
+### Arguments
+
+  - `prob`: A SciML nonlinear problem.
+  - `ad`: An ADTypes backend or `nothing`.
+
+### Keyword Arguments
+
+  - `warn_check_mode`: Emit a warning when `ad` is not a reverse-mode backend.
+
+### Returns
+
+An ADTypes backend suitable for reverse-mode differentiation.
+"""
 function select_reverse_mode_autodiff(
         prob::AbstractNonlinearProblem, ad::AbstractADType; warn_check_mode::Bool = true
     )
@@ -82,6 +135,24 @@ function select_reverse_mode_autodiff(
                          or the loaded backends don't support the problem."))
 end
 
+"""
+    select_jacobian_autodiff(prob, ad)
+
+Choose an automatic differentiation backend for constructing Jacobians for `prob`.
+
+If `ad === nothing`, NonlinearSolveBase prefers a compatible forward-mode backend that is
+not finite differencing, then falls back to compatible reverse-mode or finite-difference
+backends.
+
+### Arguments
+
+  - `prob`: A SciML nonlinear problem.
+  - `ad`: An ADTypes backend or `nothing`.
+
+### Returns
+
+An ADTypes backend suitable for Jacobian construction.
+"""
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractADType)
     if incompatible_backend_and_problem(prob, ad)
         adₙ = select_jacobian_autodiff(prob, nothing)

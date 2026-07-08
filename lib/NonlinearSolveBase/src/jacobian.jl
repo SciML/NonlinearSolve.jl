@@ -150,6 +150,25 @@ end
 (cache::JacobianCache{<:JacobianOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 (cache::JacobianCache)(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 
+"""
+    reused_jacobian(cache, u)
+
+Return the Jacobian object from `cache` for reuse at the current state `u`.
+
+For concrete Jacobian caches this returns the stored matrix-like object. For matrix-free
+`JacobianOperator` caches it returns a [`StatefulJacobianOperator`](@ref) bound to `u` and
+the cache parameters.
+
+### Arguments
+
+  - `cache`: A Jacobian cache from [`construct_jacobian_cache`](@ref).
+  - `u`: Current nonlinear state.
+
+### Returns
+
+A matrix-like Jacobian or stateful Jacobian operator suitable for descent and linear solve
+initialization.
+"""
 reused_jacobian(cache::JacobianCache, u) = cache.J
 reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
 

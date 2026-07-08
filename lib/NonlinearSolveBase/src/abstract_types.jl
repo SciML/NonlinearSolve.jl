@@ -1,3 +1,25 @@
+"""
+    NonlinearSolveBase.InternalAPI
+
+Developer extension namespace for nonlinear solver implementations.
+
+Methods in this module are public only for NonlinearSolve.jl subpackages and downstream
+solver packages that implement the NonlinearSolveBase interfaces. They are not intended as
+the user-facing cache API; user code should prefer `solve`, `init`, `step!`, and SciMLBase
+problem and solution objects.
+
+### Interface Functions
+
+  - `InternalAPI.init(args...; kwargs...)`: construct an algorithm-specific cache.
+  - `InternalAPI.solve!(cache, args...; kwargs...)`: update an internal cache and return
+    the algorithm-specific result.
+  - `InternalAPI.step!(cache, args...; kwargs...)`: advance an iterative nonlinear solver
+    cache by one step.
+  - `InternalAPI.reinit!(cache, args...; kwargs...)`: reset a cache and any nested caches
+    for a new solve.
+  - `InternalAPI.reinit_self!(cache, args...; kwargs...)`: reset only the fields owned by
+    `cache`; callers use this from generated nested-cache reset implementations.
+"""
 module InternalAPI
 
     using SciMLBase: NLStats
@@ -81,7 +103,49 @@ See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
 """
 abstract type AbstractDescentDirection <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    supports_line_search(alg)::Bool
+
+Return whether the descent direction `alg` can be used with line-search globalization.
+
+Descent algorithms should overload this trait when their `InternalAPI.solve!`
+implementation accepts the line-search call pattern used by `GeneralizedFirstOrderAlgorithm`
+and `QuasiNewtonAlgorithm`.
+
+### Arguments
+
+  - `alg`: An [`AbstractDescentDirection`](@ref).
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.supports_line_search(NewtonDescent())
+```
+"""
 supports_line_search(::AbstractDescentDirection) = false
+
+"""
+    supports_trust_region(alg)::Bool
+
+Return whether the descent direction `alg` can be used inside a trust-region method.
+
+Descent algorithms should overload this trait when their `InternalAPI.solve!` method accepts
+a `trust_region` keyword and reports whether the proposed step was accepted.
+
+### Arguments
+
+  - `alg`: An [`AbstractDescentDirection`](@ref).
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.supports_trust_region(Dogleg())
+```
+"""
 supports_trust_region(::AbstractDescentDirection) = false
 
 function get_linear_solver(alg::AbstractDescentDirection)
@@ -132,6 +196,22 @@ abstract type AbstractDescentCache <: AbstractNonlinearSolveBaseAPI end
 SciMLBase.get_du(cache::AbstractDescentCache) = cache.δu
 SciMLBase.get_du(cache::AbstractDescentCache, ::Val{1}) = SciMLBase.get_du(cache)
 SciMLBase.get_du(cache::AbstractDescentCache, ::Val{N}) where {N} = cache.δus[N - 1]
+
+"""
+    set_du!(cache, δu)
+    set_du!(cache, δu, ::Val{N})
+
+Store the current descent direction in `cache`.
+
+This developer hook is used by descent, quasi-Newton, and spectral-method caches to expose
+their latest step through `SciMLBase.get_du`.
+
+### Arguments
+
+  - `cache`: An [`AbstractDescentCache`](@ref) or compatible solver cache.
+  - `δu`: The descent direction to store.
+  - `::Val{N}`: Optional index for caches storing multiple shared directions.
+"""
 set_du!(cache::AbstractDescentCache, δu) = (cache.δu = δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{1}) = set_du!(cache, δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
@@ -307,9 +387,26 @@ end
 
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
 
+"""
+    get_abstol(cache)
+
+Return the absolute tolerance currently stored in a nonlinear solver cache or problem.
+
+Solver caches should overload this hook when the tolerance is not stored in the default
+`termination_cache` location.
+"""
 function get_abstol(cache::AbstractNonlinearSolveCache)
     return get_abstol(cache.termination_cache)
 end
+
+"""
+    get_reltol(cache)
+
+Return the relative tolerance currently stored in a nonlinear solver cache or problem.
+
+Solver caches should overload this hook when the tolerance is not stored in the default
+`termination_cache` location.
+"""
 function get_reltol(cache::AbstractNonlinearSolveCache)
     return get_reltol(cache.termination_cache)
 end
