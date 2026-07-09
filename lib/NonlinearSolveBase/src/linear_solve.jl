@@ -126,13 +126,53 @@ function wrap_preconditioners(Pl, Pr, u)
     return Pl, Pr
 end
 
-# Traits. Core traits are expanded in LinearSolve extension
+"""
+    needs_square_A(linsolve, u)::Bool
+
+Return whether `linsolve` requires a square matrix for a state shaped like `u`.
+
+NonlinearSolveBase uses this developer trait to decide whether least-squares nonlinear
+problems should build normal equations before calling a linear solver. LinearSolve
+extensions add methods for concrete LinearSolve algorithms.
+
+### Arguments
+
+  - `linsolve`: A linear solver algorithm, `nothing`, or `\\`.
+  - `u`: Current nonlinear state, used to distinguish scalar and array cases.
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.needs_square_A(nothing, [1.0, 2.0])
+```
+"""
 needs_square_A(::Any, ::Number) = false
 needs_square_A(::Nothing, ::Number) = false
 needs_square_A(::Nothing, ::Any) = false
 needs_square_A(::typeof(\), ::Number) = false
 needs_square_A(::typeof(\), ::Any) = false
 
+"""
+    needs_concrete_A(linsolve)::Bool
+
+Return whether `linsolve` requires NonlinearSolveBase to materialize a concrete Jacobian.
+
+Matrix-free Jacobian operators can be used only when this trait is `false`.
+
+### Arguments
+
+  - `linsolve`: A linear solver algorithm, `missing`, `nothing`, or `\\`.
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.needs_concrete_A(\\)
+```
+"""
 needs_concrete_A(::Union{Nothing, Missing}) = false
 needs_concrete_A(::typeof(\)) = true
 
