@@ -14,6 +14,7 @@ run_tests(;
         include("core/exotic_type_tests.jl")
         include("core/forward_diff_tests.jl")
         include("core/least_squares_tests.jl")
+        include("core/homotopy_sweep_tests.jl")
         include("core/matrix_resizing_tests.jl")
         return include("core/rootfind_tests.jl")
     end,

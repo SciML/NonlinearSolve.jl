@@ -53,6 +53,7 @@ include("klement.jl")
 include("lbroyden.jl")
 include("raphson.jl")
 include("trust_region.jl")
+include("simple_homotopy_sweep.jl")
 
 # By Pass the highlevel checks for NonlinearProblem for Simple Algorithms
 function CommonSolve.solve(
@@ -166,6 +167,7 @@ export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion
 export SimpleHalley
+export SimpleHomotopySweep
 
 export solve
 

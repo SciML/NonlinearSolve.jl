@@ -20,6 +20,7 @@ These methods are suited for any general nonlinear root-finding problem, i.e.
 | [`SimpleTrustRegion`](@ref)          | ✔️       | ✔️           | ✔️                       | ✔️                        |
 | [`SimpleDFSane`](@ref)               | ✔️       | ✔️           | ✔️[^1]                   | ✔️                        |
 | [`SimpleLimitedMemoryBroyden`](@ref) | ✔️       | ✔️           | ✔️                       | ✔️[^2]                    |
+| [`SimpleHomotopySweep`](@ref)        | ✔️       | ✔️           | ✔️                       | ✔️                        |
 
 The algorithms which are non-allocating can be used directly inside GPU Kernels[^3].
 See [ParallelParticleSwarms.jl](https://github.com/SciML/ParallelParticleSwarms.jl) for more details.
@@ -32,6 +33,7 @@ SimpleKlement
 SimpleTrustRegion
 SimpleDFSane
 SimpleLimitedMemoryBroyden
+SimpleHomotopySweep
 ```
 
 `SimpleGaussNewton` is aliased to [`SimpleNewtonRaphson`](@ref) for solving Nonlinear Least
