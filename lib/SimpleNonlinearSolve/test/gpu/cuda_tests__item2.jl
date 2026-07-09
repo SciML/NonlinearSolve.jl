@@ -13,7 +13,18 @@ if CUDA.functional()
         return nothing
     end
 
+    limited_memory_broyden_for_kernel(::Type{<:Number}; linesearch = nothing) =
+        SimpleLimitedMemoryBroyden(; linesearch)
+
+    function limited_memory_broyden_for_kernel(::Type{<:StaticArray}; linesearch = nothing)
+        # The StaticArray path unrolls one generated block per threshold. Keep the
+        # kernel smoke test small enough for 16 GiB CI GPUs; scalar coverage keeps
+        # the default threshold.
+        return SimpleLimitedMemoryBroyden(; threshold = Val(2), linesearch)
+    end
+
     @testset for u0 in (1.0f0, @SVector[1.0f0, 1.0f0])
+        u0_type = typeof(u0)
         prob = convert(ImmutableNonlinearProblem, NonlinearProblem{false}(f, u0, 2.0f0))
 
         # Note: SimpleHalley is excluded from kernel tests due to dynamic dispatch issues
@@ -26,11 +37,12 @@ if CUDA.functional()
                     nlsolve_update_rule = Val(true), autodiff = AutoForwardDiff()
                 ),
                 SimpleBroyden(),
-                SimpleLimitedMemoryBroyden(),
+                limited_memory_broyden_for_kernel(u0_type),
                 SimpleKlement(),
                 # SimpleHalley(; autodiff = AutoForwardDiff()),
                 SimpleBroyden(; linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)),
-                SimpleLimitedMemoryBroyden(;
+                limited_memory_broyden_for_kernel(
+                    u0_type;
                     linesearch = LiFukushimaLineSearch(; nan_maxiters = nothing)
                 ),
             )
