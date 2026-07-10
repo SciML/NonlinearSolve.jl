@@ -2,7 +2,8 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        predictor = :secant, autodiff = nothing, maxsteps = 10000)
+        predictor = :secant, autodiff = nothing, tracking_maxiters = 10,
+        maxsteps = 10000)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -66,6 +67,14 @@ Keyword arguments:
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
     to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
     selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
+  - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 10,
+    in the range used by MatCont, HomotopyContinuation.jl, and OpenModelica;
+    `nothing` disables). A rejected step retries at half the arclength increment from a warm
+    start, so failing fast is far cheaper than exhausting the inner solver's full
+    budget. Never applied to the anchor or final λ-fixed landing solves; an explicit
+    user-passed `maxiters` always wins. On success, step growth is additionally
+    scaled by the corrector's iteration count (AUTO-style bands) alongside the
+    bend-angle gate.
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts (including
     bisection retries). Required because the path is *not* monotone in `λ`, so a sweep
     that never reaches the target — a closed loop, or a branch escaping to infinity —
@@ -91,6 +100,7 @@ Jacobian.
     max_angle
     predictor::Symbol
     autodiff
+    tracking_maxiters
     maxsteps::Int
 end
 
@@ -98,7 +108,7 @@ function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
-        autodiff = nothing, maxsteps = 10000
+        autodiff = nothing, tracking_maxiters = 10, maxsteps = 10000
     )
     if !(0 < initial_step_factor <= 1)
         throw(
@@ -145,12 +155,21 @@ function ArcLengthContinuation(;
             )
         )
     end
+    if tracking_maxiters !== nothing && tracking_maxiters < 1
+        throw(
+            ArgumentError(
+                "ArcLengthContinuation `tracking_maxiters` must be ≥ 1 (nothing " *
+                    "disables the cap), got $tracking_maxiters"
+            )
+        )
+    end
     if maxsteps < 1
         throw(ArgumentError("ArcLengthContinuation `maxsteps` must be ≥ 1, got $maxsteps"))
     end
     return ArcLengthContinuation(
         inner, initial_step_factor, adaptive, min_ds, max_step_factor,
-        expand_factor, expand_threshold, max_angle, predictor, autodiff, maxsteps
+        expand_factor, expand_threshold, max_angle, predictor, autodiff,
+        tracking_maxiters, maxsteps
     )
 end
 
@@ -289,6 +308,10 @@ function CommonSolve.solve(
     cos_reject = Tx(cos(alg.max_angle))         # turn beyond max_angle ⇒ reject + shrink
     cos_grow = Tx(cos(alg.max_angle / 3))       # turn below max_angle/3 ⇒ allow growth
     streak = 0
+    # The tracking cap applies to the augmented corrector solves only; the λ-fixed
+    # anchor above and the final landing (`_arclength_fixed_solve`) keep the user's
+    # full budget. See `_tracking_budget` (homotopy_sweep.jl) for the resolution rules.
+    budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
 
     use_tangent = alg.predictor === :tangent
     # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
@@ -320,7 +343,16 @@ function CommonSolve.solve(
         # user-facing buffer, so we always own the residual.
         augf = SciMLBase.NonlinearFunction{iip}(aug)
         corr_prob = NonlinearProblem{iip}(augf, copy(xpred), prob.p)
-        last_sol = solve(corr_prob, alg.inner, args...; prob.kwargs..., kwargs...)
+        # The cap is spliced BEFORE the user kwargs so an explicit `maxiters` always
+        # wins (and `cap_active` is false in that case anyway).
+        last_sol = if cap_active
+            solve(
+                corr_prob, alg.inner, args...;
+                maxiters = budget, prob.kwargs..., kwargs...
+            )
+        else
+            solve(corr_prob, alg.inner, args...; prob.kwargs..., kwargs...)
+        end
 
         if SciMLBase.successful_retcode(last_sol)
             xnew = last_sol.u
@@ -373,12 +405,24 @@ function CommonSolve.solve(
             end
 
             # Grow only on near-straight stretches, so the step does not race ahead into a
-            # turn it would then have to reject.
+            # turn it would then have to reject. The growth factor is additionally scaled
+            # by the corrector's iteration count (the same AUTO ADPTDS effort bands as the
+            # sweep — see `_effort_growth_factor`), giving the arclength driver an effort
+            # signal alongside the purely geometric bend-angle test.
             if alg.adaptive
-                streak += 1
-                if streak >= alg.expand_threshold && cosang >= cos_grow
-                    ds = min(λT(alg.expand_factor) * ds, max_ds)
+                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                if _effort_wants_shrink(nit, budget)
+                    ds / 2 >= min_ds && (ds = ds / 2)
                     streak = 0
+                else
+                    streak += 1
+                    if streak >= alg.expand_threshold && cosang >= cos_grow
+                        g = _effort_growth_factor(nit, budget, λT(alg.expand_factor))
+                        if g > 1
+                            ds = min(g * ds, max_ds)
+                            streak = 0
+                        end
+                    end
                 end
             end
         elseif alg.adaptive && ds / 2 >= min_ds

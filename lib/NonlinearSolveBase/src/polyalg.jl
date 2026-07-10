@@ -160,9 +160,13 @@ function SciMLBase.__init(
     cache = NonlinearSolvePolyAlgorithmCache(
         alg.static_length, prob,
         map(alg.algs) do solver
+            # `maxiters` must reach the subcaches: the polyalg's `solve!` runs each
+            # subcache to ITS termination, so a cap kept only at the polyalg level is
+            # silently ignored on the init/solve! path (the one-shot `__solve` path
+            # forwards it to every subsolver, and this must match).
             SciMLBase.__init(
                 prob, solver, args...;
-                stats, maxtime, internalnorm, alias, verbose,
+                stats, maxtime, maxiters, internalnorm, alias, verbose,
                 initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,

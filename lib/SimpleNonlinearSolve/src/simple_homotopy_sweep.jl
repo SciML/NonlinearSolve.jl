@@ -2,7 +2,8 @@
     SimpleHomotopySweep(; inner = SimpleNewtonRaphson(), nsteps = nothing,
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
-        expand_quality = 0.25, predictor = :secant)
+        expand_quality = 0.25, predictor = :secant, tracking_maxiters = 10,
+        maxsteps = 10000)
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
 SimpleNonlinearSolve counterpart of `HomotopySweep`. The algorithm is the same —
@@ -23,7 +24,14 @@ across steps.
 
 Keyword arguments are identical to `HomotopySweep` except that `inner` defaults to
 `SimpleNewtonRaphson()` (a SimpleNonlinearSolve corrector) rather than the
-NonlinearSolve polyalgorithm.
+NonlinearSolve polyalgorithm. In particular `tracking_maxiters` caps the inner
+corrector's iterations for interior tracking steps only (never the `λspan[1]` anchor,
+never the final landing on `λspan[2]`, and never overriding an explicit user-passed
+`maxiters`), the success-side step growth is scaled by the corrector's iteration
+count (the AUTO-07p `ADPTDS` effort bands, including a proactive halving when a
+success nearly exhausts the budget), and `maxsteps` caps the total number of
+predictor-corrector attempts, returning `ReturnCode.MaxIters` with the last converged
+iterate when exceeded.
 
 When the sweep cannot reach the end of `λspan`, the returned solution carries a
 failure retcode: its `u` is the last converged iterate (at some ``λ`` short of
@@ -44,13 +52,15 @@ which is part of what keeps the sweep allocation-free).
     expand_threshold::Int
     expand_quality
     predictor::Symbol
+    tracking_maxiters
+    maxsteps::Int
 end
 
 function SimpleHomotopySweep(;
         inner = SimpleNewtonRaphson(), nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant
+        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("SimpleHomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -114,9 +124,21 @@ function SimpleHomotopySweep(;
             )
         )
     end
+    if tracking_maxiters !== nothing && tracking_maxiters < 1
+        throw(
+            ArgumentError(
+                "SimpleHomotopySweep `tracking_maxiters` must be ≥ 1 (nothing " *
+                    "disables the cap), got $tracking_maxiters"
+            )
+        )
+    end
+    if maxsteps < 1
+        throw(ArgumentError("SimpleHomotopySweep `maxsteps` must be ≥ 1, got $maxsteps"))
+    end
     return SimpleHomotopySweep(
         inner, nsteps, adaptive, initial_step_factor, min_dλ,
-        max_step_factor, expand_factor, expand_threshold, expand_quality, predictor
+        max_step_factor, expand_factor, expand_threshold, expand_quality, predictor,
+        tracking_maxiters, maxsteps
     )
 end
 
@@ -144,6 +166,31 @@ end
 # immutable/StaticArray/scalar `u` cannot be mutated and passes through (stack).
 _simple_sweep_guess(u) = NLBUtils.can_setindex(u) ? copy(u) : u
 
+# Local duplicates of NonlinearSolveBase's `_tracking_budget` / `_effort_growth_factor`
+# / `_effort_wants_shrink` (see homotopy_sweep.jl there for the rationale): duplicated
+# rather than shared so this package does not depend on new NonlinearSolveBase
+# internals, and kept branch-only/isbits so the StaticArray path stays kernel-safe.
+function _simple_tracking_budget(tracking_maxiters, prob_kwargs, kwargs)
+    haskey(kwargs, :maxiters) && return Int(kwargs[:maxiters]), false
+    haskey(prob_kwargs, :maxiters) && return Int(prob_kwargs[:maxiters]), false
+    tracking_maxiters === nothing && return 1000, false
+    return Int(tracking_maxiters), true
+end
+
+function _simple_effort_growth_factor(nit::Int, budget::Int, expand_factor::T) where {T}
+    nit < 0 && return expand_factor
+    nit <= max(3, budget ÷ 20) && return expand_factor
+    nit <= max(6, budget ÷ 4) && return one(T) + (expand_factor - one(T)) / 2
+    return one(T)
+end
+
+# only trusted when nit ≤ budget: a polyalgorithm inner aggregates nsteps across its
+# ladder, and misreading that as corrector struggle would collapse the increment (see
+# NonlinearSolveBase._effort_wants_shrink) — an untrustworthy count holds, never shrinks
+function _simple_effort_wants_shrink(nit::Int, budget::Int)
+    return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
+end
+
 function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},
         alg::SimpleHomotopySweep, args...; kwargs...
@@ -159,6 +206,7 @@ function CommonSolve.solve(
     expand_factor = λT(alg.expand_factor)
     abs(dλ) > abs(max_dλ) && (dλ = max_dλ)
     u = _simple_sweep_guess(prob.u0)
+    budget, cap_active = _simple_tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
 
     # Anchor: solve the system at λ = λspan[1] from u0 before stepping (see
     # `HomotopySweep` — same contract: a failed anchor means the homotopy premise is
@@ -186,8 +234,18 @@ function CommonSolve.solve(
     streak = 0
     trust = 2
     disp_prev = zero(λT)
+    attempts = 0
 
     while true
+        attempts += 1
+        if attempts > alg.maxsteps
+            # Cap on total attempts (accepted steps plus bisection retries); the same
+            # concrete solution type as every other return path (see the Stalled path).
+            return SciMLBase.build_solution(
+                prob, alg, u, last_sol.resid;
+                retcode = ReturnCode.MaxIters, original = last_sol
+            )
+        end
         next_λ = abs(λend - λ) <= abs(dλ) ? λend : λ + dλ
         if next_λ == λ && next_λ != λend
             # dλ underflowed below eps(λ) mid-continuation: no further progress.
@@ -207,7 +265,17 @@ function CommonSolve.solve(
         else
             _simple_sweep_guess(u)
         end
-        last_sol = _simple_sweep_solve(prob, alg.inner, guess, next_λ, args...; kwargs...)
+        # Interior tracking steps run under the tracking cap; the final landing on λend
+        # keeps the full user budget (the anchor above never enters this loop). The cap
+        # is spliced BEFORE the user kwargs so an explicit `maxiters` always wins (and
+        # `cap_active` is false in that case anyway).
+        last_sol = if cap_active && next_λ != λend
+            _simple_sweep_solve(
+                prob, alg.inner, guess, next_λ, args...; maxiters = budget, kwargs...
+            )
+        else
+            _simple_sweep_solve(prob, alg.inner, guess, next_λ, args...; kwargs...)
+        end
 
         if SciMLBase.successful_retcode(last_sol)
             θ = nothing
@@ -231,14 +299,23 @@ function CommonSolve.solve(
             λ = next_λ
             λ == λend && break
             if alg.adaptive
-                streak += 1
-                corrector_cheap = last_sol.stats !== nothing &&
-                    last_sol.stats.nsteps <= 2
-                if streak >= alg.expand_threshold &&
-                        (θ === nothing || θ <= λT(alg.expand_quality) || corrector_cheap)
-                    grown = expand_factor * dλ
-                    dλ = abs(grown) > abs(max_dλ) ? max_dλ : grown
+                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                if _simple_effort_wants_shrink(nit, budget)
+                    # proactive shrink on a straining success (AUTO's NIT ≥ ITNW band)
+                    abs(dλ) / 2 >= min_dλ && (dλ = dλ / 2)
                     streak = 0
+                else
+                    streak += 1
+                    corrector_cheap = nit >= 0 && nit <= 2
+                    if streak >= alg.expand_threshold &&
+                            (θ === nothing || θ <= λT(alg.expand_quality) || corrector_cheap)
+                        g = _simple_effort_growth_factor(nit, budget, expand_factor)
+                        if g > 1
+                            grown = g * dλ
+                            dλ = abs(grown) > abs(max_dλ) ? max_dλ : grown
+                            streak = 0
+                        end
+                    end
                 end
             end
         elseif alg.adaptive && abs(dλ) / 2 >= min_dλ
