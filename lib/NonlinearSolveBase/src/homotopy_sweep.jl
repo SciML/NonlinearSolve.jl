@@ -369,15 +369,16 @@ function CommonSolve.solve(
     )
 end
 
-# A HomotopyProblem with no algorithm defaults to the continuation sweep. This lets the
-# generic `solve(initprob, nothing)` path (e.g. SciMLBase OverrideInit with a default
-# nlsolve) route a homotopy initialization problem to HomotopySweep automatically.
+# A HomotopyProblem with no algorithm defaults to the staged polyalgorithm (sweep first,
+# pseudo-arclength fallback). This lets the generic `solve(initprob, nothing)` path
+# (e.g. SciMLBase OverrideInit with a default nlsolve) route a homotopy initialization
+# problem to the most robust default automatically.
 function CommonSolve.solve(prob::SciMLBase.HomotopyProblem, ::Nothing, args...; kwargs...)
-    return solve(prob, HomotopySweep(), args...; kwargs...)
+    return solve(prob, HomotopyPolyAlgorithm(), args...; kwargs...)
 end
 
 # The zero-argument form `solve(prob)` must route the same way instead of falling into
 # the generic concrete-problem machinery (which has no HomotopyProblem path).
 function CommonSolve.solve(prob::SciMLBase.HomotopyProblem; kwargs...)
-    return solve(prob, HomotopySweep(); kwargs...)
+    return solve(prob, HomotopyPolyAlgorithm(); kwargs...)
 end

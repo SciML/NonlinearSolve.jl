@@ -8,6 +8,9 @@ successful retcode. The first success is returned immediately — later stages n
 If every stage fails, the *last* stage's failed solution is returned, so its `retcode`
 (and `original`, when the stage attaches one) describe the most robust attempt.
 
+This is the default algorithm for `SciMLBase.HomotopyProblem`: `solve(prob)` and
+`solve(prob, nothing)` route here.
+
 The zero-argument form defaults to
 
 ```julia
