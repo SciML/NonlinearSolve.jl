@@ -90,6 +90,15 @@ S = Set(zip(Is, Js))
 @test all(((i, i) in S) for i in 1:n)             # diagonal
 @test all(((i, n + 1) in S) for i in 1:(n + 1))   # dense ∂H/∂λ column + corner
 @test all(((n + 1, j) in S) for j in 1:n)         # dense constraint row
+# Diagonal is the type where plain `sparse` is value-based (`sparse(Diagonal(zeros(n)))`
+# has zero stored entries) — the structural conversion must keep the full diagonal
+diag_aug = NonlinearSolveBase._augmented_prototype(Diagonal(zeros(n)), n)
+@test diag_aug isa SparseMatrixCSC && size(diag_aug) == (n, n + 1)
+Id, Jd, _ = findnz(diag_aug)
+Sd = Set(zip(Id, Jd))
+@test all(((i, i) in Sd) for i in 1:n)            # diagonal survived zero values
+@test all(((i, n + 1) in Sd) for i in 1:n)        # dense ∂H/∂λ column
+
 # a SparseMatrixCSC prototype borders without conversion
 csc_proto = spdiagm(-1 => ones(n - 1), 0 => ones(n), 1 => ones(n - 1))
 bord_csc = NonlinearSolveBase._bordered_prototype(csc_proto, n)
