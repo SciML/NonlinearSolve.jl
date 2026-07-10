@@ -2,8 +2,8 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        predictor = :secant, autodiff = nothing, tracking_maxiters = 10,
-        maxsteps = 10000)
+        predictor = :secant, autodiff = nothing, linsolve = nothing,
+        tracking_maxiters = 10, maxsteps = 10000, theta = 0.5)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -26,6 +26,27 @@ reachable by going around a fold.
 The target is the point on the curve where ``λ = λspan[2]``: the solver follows the path
 until a step brackets that ``λ``, then performs one final ``λ``-fixed correction to land
 on it exactly.
+
+!!! note "The arclength metric is θ-weighted"
+
+    All of the solver's path geometry — the Keller constraint row, the predictor
+    normalization and orientation, the realized chord length, and the bend-angle test —
+    is measured in the weighted inner product
+
+    ```
+    ⟨(u₁, λ₁), (u₂, λ₂)⟩_θ = (θ/n)⋅⟨u₁, u₂⟩ + (1 - θ)⋅λ₁λ₂,       n = length(u)
+    ```
+
+    (the `DotTheta` convention of BifurcationKit.jl). The `1/n` normalization makes the
+    balance between the state block and the parameter independent of the system size: in
+    the plain Euclidean dot on `[u; λ]` the ``n`` state components swamp the single ``λ``
+    component for large systems, distorting the constraint and the angle test. A
+    consequence is that `ds` values (`initial_step_factor`, `min_ds`, `max_step_factor`)
+    and `max_angle` are measured in this weighted metric, **not** in the Euclidean metric
+    on `[u; λ]`: for a pure-``λ`` motion a weighted arclength `ds` corresponds to a
+    ``λ``-distance of `ds / sqrt(1 - θ)`, and for a pure-``u`` motion to a Euclidean
+    ``u``-distance of `ds / sqrt(θ/n)`. Step-size values tuned against versions that used
+    the unweighted metric may need rescaling.
 
 Keyword arguments:
 
@@ -59,7 +80,11 @@ Keyword arguments:
     located within the very first step, and it is not curvature-checked. `:tangent`
     instead computes the true path tangent at the current point as the (oriented) null
     vector of the augmented Jacobian ``[∂H/∂u | ∂H/∂λ]``, which stays well-defined at a
-    fold (where the tangent is vertical in ``λ``). The tangent is a higher-order predictor
+    fold (where the tangent is vertical in ``λ``). It is obtained from the bordered
+    linear solve ``[J; τ_prevᵀ] t = e_{n+1}`` (one LU factorization per step, sparse
+    Jacobians supported), falling back to a dense SVD null-space computation only when
+    the bordered matrix is (near-)singular — e.g. exactly at a branch point, or when the
+    previous tangent is orthogonal to the path. The tangent is a higher-order predictor
     and is accurate from the first step, so it curvature-checks every step and can round a
     fold at the very start; the cost is one Jacobian factorization per step (see
     `autodiff`). This is the Euler tangent predictor of the classic path trackers and of
@@ -67,6 +92,9 @@ Keyword arguments:
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
     to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
     selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
+  - `linsolve`: the LinearSolve.jl algorithm for the `:tangent` predictor's bordered
+    solve (the same knob the Newton descent methods expose); `nothing` (default) selects
+    LinearSolve's default. Unused by the `:secant` predictor.
   - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 10,
     in the range used by MatCont, HomotopyContinuation.jl, and OpenModelica;
     `nothing` disables). A rejected step retries at half the arclength increment from a warm
@@ -79,6 +107,10 @@ Keyword arguments:
     bisection retries). Required because the path is *not* monotone in `λ`, so a sweep
     that never reaches the target — a closed loop, or a branch escaping to infinity —
     would otherwise not terminate. Exceeding it returns a `ReturnCode.MaxIters` failure.
+  - `theta`: the weight ``θ`` of the arclength metric (see the note above). Must be in
+    `(0, 1)`; the default `0.5` weighs the (size-normalized) state block and the
+    parameter equally. Larger `theta` emphasizes the state components, smaller `theta`
+    emphasizes ``λ``.
 
 When the solver cannot reach `λspan[2]`, the returned solution carries a failure retcode
 and its `u` is the last converged curve point.
@@ -100,15 +132,18 @@ Jacobian.
     max_angle
     predictor::Symbol
     autodiff
+    linsolve
     tracking_maxiters
     maxsteps::Int
+    theta
 end
 
 function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
-        autodiff = nothing, tracking_maxiters = 10, maxsteps = 10000
+        autodiff = nothing, linsolve = nothing, tracking_maxiters = 10,
+        maxsteps = 10000, theta = 0.5
     )
     if !(0 < initial_step_factor <= 1)
         throw(
@@ -166,40 +201,63 @@ function ArcLengthContinuation(;
     if maxsteps < 1
         throw(ArgumentError("ArcLengthContinuation `maxsteps` must be ≥ 1, got $maxsteps"))
     end
+    if !(0 < theta < 1)
+        throw(
+            ArgumentError(
+                "ArcLengthContinuation `theta` must be in (0, 1), got $theta"
+            )
+        )
+    end
     return ArcLengthContinuation(
         inner, initial_step_factor, adaptive, min_ds, max_step_factor,
-        expand_factor, expand_threshold, max_angle, predictor, autodiff,
-        tracking_maxiters, maxsteps
+        expand_factor, expand_threshold, max_angle, predictor, autodiff, linsolve,
+        tracking_maxiters, maxsteps, theta
     )
 end
+
+# The θ-weighted inner product on packed points x = [u; λ] (BifurcationKit's `DotTheta`):
+# ⟨x, y⟩_θ = wu⋅⟨x[1:n], y[1:n]⟩ + wλ⋅x[n+1]y[n+1] with wu = θ/n, wλ = 1 - θ. All of the
+# driver's path geometry (constraint row, tangent/secant normalization, orientation,
+# chord length, bend angle) must use this one metric consistently or the pieces measure
+# different things. Written on views so it neither allocates nor forces the eltype —
+# `x`/`y` may carry ForwardDiff duals when the corrector differentiates the constraint.
+@inline function _theta_dot(x, y, wu, wλ, n)
+    return wu * LinearAlgebra.dot(view(x, 1:n), view(y, 1:n)) + wλ * (x[n + 1] * y[n + 1])
+end
+
+@inline _theta_norm(x, wu, wλ, n) = sqrt(_theta_dot(x, x, wu, wλ, n))
 
 # Residual of the augmented (n+1) corrector system: the n homotopy equations stacked
 # with the scalar Keller pseudo-arclength constraint. A named struct (not a closure) so
 # the inner solver's compilation is reused across continuation steps. `f` is the raw
-# user homotopy `f(u, p, λ)` / `f(du, u, p, λ)`; `τ` and `xcur` are the unit predictor
-# direction and the last accepted packed point `[u; λ]`; `ds` is the arclength step. The
-# augmented variable is `x = [u; λ]`; the solver passes the problem parameter `p` through
-# (as for any `NonlinearProblem` residual) and it is forwarded to the user homotopy.
+# user homotopy `f(u, p, λ)` / `f(du, u, p, λ)`; `τ` and `xcur` are the (θ-metric unit)
+# predictor direction and the last accepted packed point `[u; λ]`; `ds` is the arclength
+# step and `wu`/`wλ` are the θ-metric weights, so the constraint row reads
+# ⟨τ, x - xcur⟩_θ = ds. The augmented variable is `x = [u; λ]`; the solver passes the
+# problem parameter `p` through (as for any `NonlinearProblem` residual) and it is
+# forwarded to the user homotopy.
 struct AugmentedHomotopy{F, V, T}
     f::F
     τ::V
     xcur::V
     ds::T
     n::Int
+    wu::T
+    wλ::T
 end
 
 function (a::AugmentedHomotopy)(x, p)
     u = x[1:(a.n)]
     λ = x[a.n + 1]
     Hval = a.f(u, p, λ)
-    c = LinearAlgebra.dot(a.τ, x .- a.xcur) - a.ds
+    c = _theta_dot(a.τ, x .- a.xcur, a.wu, a.wλ, a.n) - a.ds
     return vcat(Hval, c)
 end
 
 function (a::AugmentedHomotopy)(res, x, p)
     n = a.n
     a.f(view(res, 1:n), view(x, 1:n), p, x[n + 1])
-    res[n + 1] = LinearAlgebra.dot(a.τ, x .- a.xcur) - a.ds
+    res[n + 1] = _theta_dot(a.τ, x .- a.xcur, a.wu, a.wλ, n) - a.ds
     return nothing
 end
 
@@ -233,10 +291,11 @@ end
 # Build the reusable Jacobian cache for the `:tangent` predictor's augmented Jacobian,
 # using NonlinearSolve's own `construct_jacobian_cache` (backend selection, tag handling,
 # and AD-extras preparation shared with every other solver) rather than a bespoke DI call.
-# `alg` carries no `concrete_jac`, so the cache holds a dense J that `nullspace` can use.
+# `alg` carries no `concrete_jac`, so the cache holds a concrete J the bordered solve can
+# factorize.
 function _arclength_jac_cache(
         prob::SciMLBase.HomotopyProblem{uType, iip}, alg, x,
-        n
+        n, stats
     ) where {uType, iip}
     gf = SciMLBase.NonlinearFunction{iip}(HomotopyResidual(prob.f, n))
     gprob = NonlinearProblem{iip}(gf, x, prob.p)
@@ -249,23 +308,112 @@ function _arclength_jac_cache(
     end
     autodiff = select_jacobian_autodiff(gprob, alg.autodiff)
     return construct_jacobian_cache(
-        gprob, alg, gf, fu, x, prob.p; stats = NLStats(0, 0, 0, 0, 0), autodiff
+        gprob, alg, gf, fu, x, prob.p; stats, autodiff, linsolve = alg.linsolve
     )
 end
 
-# Unit tangent of the curve H(u, λ) = 0 at the packed point `x = [u; λ]`, the null vector
-# of the augmented Jacobian `J = [∂H/∂u | ∂H/∂λ]` (n×(n+1)) evaluated by `jac_cache`. `J`
-# has full row rank n along the whole path — including at a fold, where the u-block ∂H/∂u
-# is singular but the appended ∂H/∂λ column keeps the row rank — so `nullspace(J)` is
-# one-dimensional and yields the tangent (vertical in λ at a fold) without needing a
-# bordering vector. Oriented to continue the previous direction `τprev` (dot > 0).
-function _arclength_tangent(jac_cache, x, τprev)
-    J = jac_cache(x)
-    N = LinearAlgebra.nullspace(J)
-    τ = N[:, 1]
-    τ ./= norm(τ)
-    LinearAlgebra.dot(τ, τprev) < 0 && (τ .= .-τ)
-    return τ
+# Workspace for the bordered tangent solve, built once per solve. `B` receives [J; wᵀ]
+# each step, `rhs` holds the constant e_{n+1}, `t` receives the solution, and `lincache`
+# is the same NonlinearSolve linear-solver cache the Newton descent methods use
+# (LinearSolve.jl-backed, honoring the algorithm's `linsolve` and reusing the solver's
+# workspace across steps; a plain `\`-backed native cache when the LinearSolve
+# extension is not loaded, since NonlinearSolveBase only weak-depends on it).
+@concrete struct BorderedTangentCache
+    B
+    rhs
+    t
+    r
+    lincache
+end
+
+function _bordered_tangent_cache(alg, p, ::Type{Tx}, n, stats) where {Tx}
+    B = zeros(Tx, n + 1, n + 1)
+    rhs = zeros(Tx, n + 1)
+    rhs[n + 1] = one(Tx)
+    t = Vector{Tx}(undef, n + 1)
+    r = Vector{Tx}(undef, n)
+    linsolve = if alg.linsolve === nothing && !Utils.is_extension_loaded(Val(:LinearSolve))
+        \
+    else
+        alg.linsolve
+    end
+    lincache = construct_linear_solver(alg, linsolve, B, rhs, t, p; stats)
+    return BorderedTangentCache(B, rhs, t, r, lincache)
+end
+
+# θ-metric unit tangent of the curve H(u, λ) = 0 given the augmented Jacobian
+# `J = [∂H/∂u | ∂H/∂λ]` (n×(n+1)). `J` has full row rank n along the whole path —
+# including at a fold, where the u-block ∂H/∂u is singular but the appended ∂H/∂λ column
+# keeps the row rank — so its null space is one-dimensional and is the tangent (vertical
+# in λ at a fold). The null vector is extracted with the bordered solve
+#     [J; wᵀ] t = e_{n+1},        w = θ-metric weighting of τprev,
+# i.e. J t = 0 with the normalization ⟨τprev, t⟩_θ = 1 (Keller/Govaerts bordering;
+# BifurcationKit's `Bordered` tangent) — one LU factorization, O(n³/3) dense and
+# sparse-capable, versus the O(n³)-with-large-constant dense SVD of `nullspace`. The
+# bordered matrix is singular exactly when τprev is θ-orthogonal to the tangent (e.g. a
+# pure-λ seed meeting a fold head-on) or at a branch point where null(J) is
+# 2-dimensional; in those cases — detected by a failed/non-finite LU solve, never
+# exercised on the happy path — fall back to the SVD null space, which stays robust
+# there. Oriented to continue the previous direction `τprev` (θ-dot ≥ 0).
+# `B` and `t` are caller-preallocated scratch reused across every predictor step: `B`
+# receives [J; wᵀ] and is factorized IN PLACE (`lu!`), `t` receives e_{n+1} and is
+# overwritten by the solution, normalized and oriented in place. The only remaining
+# per-step heap allocation on the happy path is `lu!`'s internal pivot vector (O(n)
+# Ints); the SVD fallback allocates freely but is never reached on the happy path.
+# `J` itself (the Jacobian cache's buffer) is left untouched — `B` holds the copy that
+# the factorization destroys — so the fallback can still read it.
+function _bordered_tangent!(btc::BorderedTangentCache, J, τprev, wu, wλ, n)
+    B, t = btc.B, btc.t
+    copyto!(view(B, 1:n, :), J)
+    @views B[n + 1, 1:n] .= wu .* τprev[1:n]
+    B[n + 1, n + 1] = wλ * τprev[n + 1]
+    # The bordered matrix is singular by design at the failure cases (τprev θ-orthogonal
+    # to the tangent, branch points), so a singular factorization here is an expected
+    # algorithmic signal — caught and routed to the SVD fallback below, unlike the
+    # descent methods where it is a genuine error.
+    res = try
+        btc.lincache(; A = B, b = btc.rhs, linu = t, reuse_A_if_factorization = false)
+    catch err
+        err isa LinearAlgebra.SingularException || rethrow()
+        nothing
+    end
+    solved = false
+    if res !== nothing && res.success
+        res.u === t || copyto!(t, res.u)
+        # Residual check before accepting: LinearSolve's default solver is itself a
+        # polyalgorithm that falls back to pivoted QR on a singular LU and returns a
+        # finite LEAST-SQUARES pseudo-solution with a success retcode, so neither the
+        # retcode nor finiteness detects the designed-singular cases. A genuine solve
+        # has ‖[J t; ⟨w,t⟩ − 1]‖ at rounding level; the inconsistent singular system's
+        # pseudo-solution misses by O(1). Computed from `J` and `τprev` (not `B`, which
+        # the factorization may have destroyed).
+        if all(isfinite, t)
+            LinearAlgebra.mul!(btc.r, J, t)
+            cres = _theta_dot(t, τprev, wu, wλ, n) - 1
+            resid = sqrt(sum(abs2, btc.r) + abs2(cres))
+            nt = _theta_norm(t, wu, wλ, n)
+            if isfinite(nt) && nt > 0 &&
+                    resid <= sqrt(eps(one(nt))) * (1 + nt)
+                t ./= nt
+                solved = true
+            end
+        end
+    end
+    if !solved
+        N = LinearAlgebra.nullspace(Matrix(J))
+        copyto!(t, view(N, :, 1))
+        t ./= _theta_norm(t, wu, wλ, n)
+    end
+    _theta_dot(t, τprev, wu, wλ, n) < 0 && (t .= .-t)
+    return t
+end
+
+# Evaluates the Jacobian through the cache (reusing its `J` buffer), solves the bordered
+# system into the `t` scratch, and copies the result into `τ` — `τprev === τ` is safe
+# because `τ` is only read (border row, orientation sign) before the final copy.
+function _arclength_tangent!(btc::BorderedTangentCache, τ, jac_cache, x, wu, wλ, n)
+    _bordered_tangent!(btc, jac_cache(x), τ, wu, wλ, n)
+    return copyto!(τ, btc.t)
 end
 
 function CommonSolve.solve(
@@ -313,32 +461,51 @@ function CommonSolve.solve(
     # full budget. See `_tracking_budget` (homotopy_sweep.jl) for the resolution rules.
     budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
 
+    # θ-metric weights: every dot/norm below is ⟨⋅,⋅⟩_θ = wu⟨u,u'⟩ + wλ λλ'.
+    θw = Tx(alg.theta)
+    wu = θw / n
+    wλ = one(Tx) - θw
+    # pure-λ direction toward λend, unit in the θ metric (‖[0; a]‖_θ = √wλ·|a|).
+    τseed = pack(zeros(Tx, n), sλ / sqrt(wλ))
+
     use_tangent = alg.predictor === :tangent
     # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
     # predictor; nothing for the derivative-free secant.
-    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n) : nothing
+    stats = NLStats(0, 0, 0, 0, 0)
+    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n, stats) : nothing
+    # Reused by every predictor step: the bordered-tangent workspace (matrix, rhs,
+    # solution, and the shared linear-solver cache) for the tangent, and `tscratch` for
+    # the secant chord. Allocated once here so the loop only reuses memory.
+    btc = use_tangent ? _bordered_tangent_cache(alg, prob.p, Tx, n, stats) : nothing
+    tscratch = Vector{Tx}(undef, n + 1)
     # orientation reference for the tangent predictor: seed toward λend so the first
-    # tangent continues into the span (pure-λ direction picks the correct sign).
-    τ = pack(zeros(Tx, n), sλ)
+    # tangent continues into the span (pure-λ direction picks the correct sign). A
+    # stable buffer, written in place by every predictor branch below.
+    τ = copy(τseed)
 
     for _ in 1:(alg.maxsteps)
-        # Predictor direction τ (unit, length n+1).
+        # Predictor direction τ (θ-metric unit, length n+1).
         if use_tangent
             # True path tangent (null vector of the augmented Jacobian), oriented to
             # continue τ; accurate from the first step and well-defined at a fold.
-            τ = _arclength_tangent(jac_cache, xcur, τ)
+            _arclength_tangent!(btc, τ, jac_cache, xcur, wu, wλ, n)
         elseif have_prev
-            # Secant through the last two accepted points.
-            d = xcur .- xprev
-            dnorm = norm(d)
-            τ = dnorm > 0 ? d ./ dnorm : pack(zeros(Tx, n), sλ)
+            # Secant through the last two accepted points (chord built in scratch,
+            # normalized into the reused τ buffer).
+            @. tscratch = xcur - xprev
+            dnorm = _theta_norm(tscratch, wu, wλ, n)
+            if dnorm > 0
+                @. τ = tscratch / dnorm
+            else
+                copyto!(τ, τseed)
+            end
         else
             # Bootstrap: a pure-λ step toward λend (no history for a secant yet).
-            τ = pack(zeros(Tx, n), sλ)
+            copyto!(τ, τseed)
         end
 
         xpred = xcur .+ ds .* τ
-        aug = AugmentedHomotopy(prob.f, τ, xcur, Tx(ds), n)
+        aug = AugmentedHomotopy(prob.f, τ, xcur, Tx(ds), n, wu, wλ)
         # length n+1; never in-place even for an iip homotopy — the constraint row has no
         # user-facing buffer, so we always own the residual.
         augf = SciMLBase.NonlinearFunction{iip}(aug)
@@ -357,7 +524,7 @@ function CommonSolve.solve(
         if SciMLBase.successful_retcode(last_sol)
             xnew = last_sol.u
             chord = xnew .- xcur
-            nchord = norm(chord)
+            nchord = _theta_norm(chord, wu, wλ, n)
 
             # Curvature control: the realized step direction vs. the predictor measures the
             # path's turn. A large turn means either real high curvature or that the
@@ -367,7 +534,8 @@ function CommonSolve.solve(
             # history (its pure-λ bootstrap is legitimately misaligned with a sloped branch).
             trust = use_tangent || have_prev
             cosang = (trust && nchord > 0) ?
-                clamp(LinearAlgebra.dot(τ, chord) / nchord, -one(Tx), one(Tx)) : one(Tx)
+                clamp(_theta_dot(τ, chord, wu, wλ, n) / nchord, -one(Tx), one(Tx)) :
+                one(Tx)
             if trust && cosang < cos_reject && alg.adaptive && ds / 2 >= min_ds
                 ds = ds / 2
                 streak = 0

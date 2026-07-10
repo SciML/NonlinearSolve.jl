@@ -11,6 +11,8 @@ using LinearAlgebra: ColumnNorm, Symmetric
 
 using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity, InternalAPI, LinearSolveParameters
 
+Utils.is_extension_loaded(::Val{:LinearSolve}) = true
+
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,
         reuse_A_if_factorization = false, kwargs...
