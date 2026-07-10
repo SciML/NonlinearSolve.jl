@@ -64,7 +64,7 @@ target = 2.1038034
 Hf(u, p, λ) = [u[1]^3 - 3 * u[1] - (-3 + 6λ)]
 probf = HomotopyProblem(Hf, [-target]; λspan = (0.0, 1.0))
 for tm in (100, 20)
-    solf = solve(probf, ArcLengthContinuation(; tracking_maxiters = tm))
-    @test SciMLBase.successful_retcode(solf)
-    @test solf.u[1] ≈ target atol = 1.0e-4
+    fold_solution = solve(probf, ArcLengthContinuation(; tracking_maxiters = tm))
+    @test SciMLBase.successful_retcode(fold_solution)
+    @test fold_solution.u[1] ≈ target atol = 1.0e-4
 end
