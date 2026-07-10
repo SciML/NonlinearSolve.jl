@@ -321,34 +321,45 @@ end
 # 2-dimensional; in those cases — detected by a failed/non-finite LU solve, never
 # exercised on the happy path — fall back to the SVD null space, which stays robust
 # there. Oriented to continue the previous direction `τprev` (θ-dot ≥ 0).
-function _bordered_tangent(J, τprev, wu, wλ, n)
-    T = eltype(τprev)
-    w = similar(τprev)
-    @views w[1:n] .= wu .* τprev[1:n]
-    w[n + 1] = wλ * τprev[n + 1]
-    B = vcat(J, transpose(w))
-    rhs = zeros(T, n + 1)
-    rhs[n + 1] = one(T)
-    τ = nothing
-    F = LinearAlgebra.lu(B; check = false)
+# `B` and `t` are caller-preallocated scratch reused across every predictor step: `B`
+# receives [J; wᵀ] and is factorized IN PLACE (`lu!`), `t` receives e_{n+1} and is
+# overwritten by the solution, normalized and oriented in place. The only remaining
+# per-step heap allocation on the happy path is `lu!`'s internal pivot vector (O(n)
+# Ints); the SVD fallback allocates freely but is never reached on the happy path.
+# `J` itself (the Jacobian cache's buffer) is left untouched — `B` holds the copy that
+# the factorization destroys — so the fallback can still read it.
+function _bordered_tangent!(B, t, J, τprev, wu, wλ, n)
+    T = eltype(t)
+    copyto!(view(B, 1:n, :), J)
+    @views B[n + 1, 1:n] .= wu .* τprev[1:n]
+    B[n + 1, n + 1] = wλ * τprev[n + 1]
+    fill!(t, zero(T))
+    t[n + 1] = one(T)
+    solved = false
+    F = LinearAlgebra.lu!(B; check = false)
     if LinearAlgebra.issuccess(F)
-        t = F \ rhs
+        LinearAlgebra.ldiv!(F, t)
         nt = _theta_norm(t, wu, wλ, n)
         if all(isfinite, t) && isfinite(nt) && nt > 0
-            τ = t ./ nt
+            t ./= nt
+            solved = true
         end
     end
-    if τ === nothing
+    if !solved
         N = LinearAlgebra.nullspace(Matrix(J))
-        t = N[:, 1]
-        τ = t ./ _theta_norm(t, wu, wλ, n)
+        copyto!(t, view(N, :, 1))
+        t ./= _theta_norm(t, wu, wλ, n)
     end
-    _theta_dot(τ, τprev, wu, wλ, n) < 0 && (τ .= .-τ)
-    return τ
+    _theta_dot(t, τprev, wu, wλ, n) < 0 && (t .= .-t)
+    return t
 end
 
-function _arclength_tangent(jac_cache, x, τprev, wu, wλ, n)
-    return _bordered_tangent(jac_cache(x), τprev, wu, wλ, n)
+# Evaluates the Jacobian through the cache (reusing its `J` buffer), solves the bordered
+# system into the `t` scratch, and copies the result into `τ` — `τprev === τ` is safe
+# because `τ` is only read (border row, orientation sign) before the final copy.
+function _arclength_tangent!(B, t, τ, jac_cache, x, wu, wλ, n)
+    _bordered_tangent!(B, t, jac_cache(x), τ, wu, wλ, n)
+    return copyto!(τ, t)
 end
 
 function CommonSolve.solve(
@@ -407,8 +418,14 @@ function CommonSolve.solve(
     # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
     # predictor; nothing for the derivative-free secant.
     jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n) : nothing
+    # Scratch reused by every predictor step: `tscratch` for the bordered solution and
+    # the secant chord; `Bscratch` for the bordered matrix (tangent only). Allocated
+    # once here so the loop only reuses memory.
+    tscratch = Vector{Tx}(undef, n + 1)
+    Bscratch = use_tangent ? Matrix{Tx}(undef, n + 1, n + 1) : nothing
     # orientation reference for the tangent predictor: seed toward λend so the first
-    # tangent continues into the span (pure-λ direction picks the correct sign).
+    # tangent continues into the span (pure-λ direction picks the correct sign). A
+    # stable buffer, written in place by every predictor branch below.
     τ = copy(τseed)
 
     for _ in 1:(alg.maxsteps)
@@ -416,15 +433,20 @@ function CommonSolve.solve(
         if use_tangent
             # True path tangent (null vector of the augmented Jacobian), oriented to
             # continue τ; accurate from the first step and well-defined at a fold.
-            τ = _arclength_tangent(jac_cache, xcur, τ, wu, wλ, n)
+            _arclength_tangent!(Bscratch, tscratch, τ, jac_cache, xcur, wu, wλ, n)
         elseif have_prev
-            # Secant through the last two accepted points.
-            d = xcur .- xprev
-            dnorm = _theta_norm(d, wu, wλ, n)
-            τ = dnorm > 0 ? d ./ dnorm : copy(τseed)
+            # Secant through the last two accepted points (chord built in scratch,
+            # normalized into the reused τ buffer).
+            @. tscratch = xcur - xprev
+            dnorm = _theta_norm(tscratch, wu, wλ, n)
+            if dnorm > 0
+                @. τ = tscratch / dnorm
+            else
+                copyto!(τ, τseed)
+            end
         else
             # Bootstrap: a pure-λ step toward λend (no history for a secant yet).
-            τ = copy(τseed)
+            copyto!(τ, τseed)
         end
 
         xpred = xcur .+ ds .* τ
