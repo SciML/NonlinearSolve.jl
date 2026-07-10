@@ -2,7 +2,7 @@
     SimpleHomotopySweep(; inner = SimpleNewtonRaphson(), nsteps = nothing,
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
-        expand_quality = 0.25, predictor = :secant, tracking_maxiters = 100,
+        expand_quality = 0.25, predictor = :secant, tracking_maxiters = 20,
         maxsteps = 10000)
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
@@ -60,7 +60,7 @@ function SimpleHomotopySweep(;
         inner = SimpleNewtonRaphson(), nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 100, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("SimpleHomotopySweep `nsteps` must be ≥ 1, got $nsteps"))

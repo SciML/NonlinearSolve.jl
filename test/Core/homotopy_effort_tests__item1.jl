@@ -8,7 +8,7 @@ using StaticArrays
 # (u² + λ − 0.5 = 0 has no real solution past λ = 0.5), every bisection retry otherwise
 # re-runs the inner solver against its full default budget of 1000 iterations.
 # Reference measurements (Julia 1.11, this commit): default polyalg inner burns 93049
-# residual calls uncapped, 11534 at the default cap of 100, and 3257 at a cap of 20;
+# residual calls uncapped versus 3257 at the default cap of 20;
 # NewtonRaphson burns 48132 uncapped and 1050 at 20 — matching the ~80× reduction
 # measured in SciML/NonlinearSolve.jl#1020. The thresholds below carry generous margin
 # over those measurements so benign solver-internal drift does not flip them.

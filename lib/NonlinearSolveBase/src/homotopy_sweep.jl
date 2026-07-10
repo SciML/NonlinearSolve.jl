@@ -2,7 +2,7 @@
     HomotopySweep(; inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 100, maxsteps = 10000)
+        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000)
 
 Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
@@ -79,19 +79,12 @@ Keyword arguments:
     away from the path), or a step is rejected outright, subsequent steps fall back to
     the constant warm start until two consecutive accepted steps measure good secant
     quality again.
-  - `tracking_maxiters`: an iteration cap merged into the inner solver's options for
-    the *interior* tracking steps only — never the `λspan[1]` anchor solve, never the
-    final step that lands on `λspan[2]`, and never overriding an explicit user-passed
-    `maxiters` (a `maxiters` in the solve or problem kwargs always wins). A rejected
-    step is retried at half the increment from a warm start, which is usually far
-    cheaper than letting the inner solver grind out its full default budget of 1000
-    iterations first: on a fold problem where the sweep must fail
-    (`u² + λ − 0.5 = 0`), the failing sweep burns ~89000 residual calls at the default
-    `maxiters = 1000` versus ~1000–3000 with a cap of 20, because every bisection
-    retry re-runs the full inner ladder. The default of 100 is deliberately generous
-    so no currently-converging tracking step flips to a rejection; lowering it to
-    10–20 (the range used by OpenModelica, MatCont, and HomotopyContinuation.jl)
-    makes rejections cheap on hard paths. `nothing` disables the cap.
+  - `tracking_maxiters`: iteration cap for the inner solver on interior tracking
+    steps (default 20, the range used by OpenModelica, MatCont, and
+    HomotopyContinuation.jl; `nothing` disables). A rejected step retries at half the
+    increment from a warm start, so failing fast is far cheaper than exhausting the
+    inner solver's full budget. Never applied to the `λspan[1]` anchor solve or the
+    final step landing on `λspan[2]`; an explicit user-passed `maxiters` always wins.
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts
     (accepted steps plus bisection retries). Exceeding it returns a
     `ReturnCode.MaxIters` failure carrying the last converged iterate. Must be ≥ 1.
@@ -125,7 +118,7 @@ function HomotopySweep(;
         inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 100, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("HomotopySweep `nsteps` must be ≥ 1, got $nsteps"))

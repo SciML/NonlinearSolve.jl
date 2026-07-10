@@ -2,7 +2,7 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        predictor = :secant, autodiff = nothing, tracking_maxiters = 100,
+        predictor = :secant, autodiff = nothing, tracking_maxiters = 20,
         maxsteps = 10000)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
@@ -67,21 +67,14 @@ Keyword arguments:
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
     to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
     selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
-  - `tracking_maxiters`: an iteration cap merged into the inner solver's options for the
-    augmented corrector solves only — never the `λspan[1]` anchor solve or the final
-    λ-fixed landing on `λspan[2]`, and never overriding an explicit user-passed
-    `maxiters` (a `maxiters` in the solve or problem kwargs always wins). A rejected
-    step is retried at half the arclength increment from a warm start, which is usually
-    far cheaper than letting the inner solver grind out its full default budget of 1000
-    iterations first (measured on a failing sweep of the analogous natural-parameter
-    driver: ~89000 residual calls at the default versus ~1000–3000 at a cap of 20). The
-    default of 100 is deliberately generous; lowering it to 10–20 (the range used by
-    OpenModelica, MatCont, and HomotopyContinuation.jl) makes rejections cheap on hard
-    paths. `nothing` disables the cap. On success the step growth is additionally scaled
-    by the corrector's iteration count (the AUTO-07p `ADPTDS` bands) alongside the
-    bend-angle gate: a near-free corrector earns the full `expand_factor`, moderate
-    effort milder growth, effort past a quarter of the budget holds `Δs`, and a success
-    that nearly exhausted the budget proactively halves it.
+  - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 20,
+    the range used by OpenModelica, MatCont, and HomotopyContinuation.jl; `nothing`
+    disables). A rejected step retries at half the arclength increment from a warm
+    start, so failing fast is far cheaper than exhausting the inner solver's full
+    budget. Never applied to the anchor or final λ-fixed landing solves; an explicit
+    user-passed `maxiters` always wins. On success, step growth is additionally
+    scaled by the corrector's iteration count (AUTO-style bands) alongside the
+    bend-angle gate.
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts (including
     bisection retries). Required because the path is *not* monotone in `λ`, so a sweep
     that never reaches the target — a closed loop, or a branch escaping to infinity —
@@ -115,7 +108,7 @@ function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
-        autodiff = nothing, tracking_maxiters = 100, maxsteps = 10000
+        autodiff = nothing, tracking_maxiters = 20, maxsteps = 10000
     )
     if !(0 < initial_step_factor <= 1)
         throw(
