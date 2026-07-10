@@ -2,7 +2,7 @@
     HomotopySweep(; inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000)
+        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000)
 
 Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
@@ -80,8 +80,8 @@ Keyword arguments:
     the constant warm start until two consecutive accepted steps measure good secant
     quality again.
   - `tracking_maxiters`: iteration cap for the inner solver on interior tracking
-    steps (default 20, the range used by OpenModelica, MatCont, and
-    HomotopyContinuation.jl; `nothing` disables). A rejected step retries at half the
+    steps (default 10, in the range used by MatCont,
+    HomotopyContinuation.jl, and OpenModelica; `nothing` disables). A rejected step retries at half the
     increment from a warm start, so failing fast is far cheaper than exhausting the
     inner solver's full budget. Never applied to the `λspan[1]` anchor solve or the
     final step landing on `λspan[2]`; an explicit user-passed `maxiters` always wins.
@@ -118,7 +118,7 @@ function HomotopySweep(;
         inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("HomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -265,9 +265,17 @@ function _effort_growth_factor(nit::Int, budget::Int, expand_factor::T) where {T
 end
 
 # A success whose corrector consumed at least 3/4 of its iteration budget is the
-# earliest warning that the next step will be rejected (AUTO's NIT ≥ ITNW band):
-# the caller shrinks the step proactively instead of paying for a full-cost failure.
-_effort_wants_shrink(nit::Int, budget::Int) = nit >= 0 && 4 * nit >= 3 * budget
+# earliest warning that the next step will be rejected (AUTO's NIT ≥ ITNW band): the
+# caller shrinks the step proactively instead of paying for a full-cost failure. The
+# signal is only trusted when `nit ≤ budget`: a polyalgorithm inner reports `nsteps`
+# aggregated across ALL its ladder members, so an over-budget count means an early
+# member burned its budget before a later one succeeded cheaply — not that the
+# successful corrector was struggling. Misreading that as struggle collapses the
+# increment on every accepted step (measured: a 400× blowup on an n = 50 system), so
+# an untrustworthy count may withhold growth but never shrink.
+function _effort_wants_shrink(nit::Int, budget::Int)
+    return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
+end
 
 # Full-budget standalone solve at a fixed λ. Used only when the tracking cap is active
 # but must not bind — rescuing the λspan[1] anchor and the final landing on λspan[2] —

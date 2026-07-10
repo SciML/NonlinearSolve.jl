@@ -2,7 +2,7 @@
     SimpleHomotopySweep(; inner = SimpleNewtonRaphson(), nsteps = nothing,
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
-        expand_quality = 0.25, predictor = :secant, tracking_maxiters = 20,
+        expand_quality = 0.25, predictor = :secant, tracking_maxiters = 10,
         maxsteps = 10000)
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
@@ -60,7 +60,7 @@ function SimpleHomotopySweep(;
         inner = SimpleNewtonRaphson(), nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 20, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("SimpleHomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -184,7 +184,12 @@ function _simple_effort_growth_factor(nit::Int, budget::Int, expand_factor::T) w
     return one(T)
 end
 
-_simple_effort_wants_shrink(nit::Int, budget::Int) = nit >= 0 && 4 * nit >= 3 * budget
+# only trusted when nit ≤ budget: a polyalgorithm inner aggregates nsteps across its
+# ladder, and misreading that as corrector struggle would collapse the increment (see
+# NonlinearSolveBase._effort_wants_shrink) — an untrustworthy count holds, never shrinks
+function _simple_effort_wants_shrink(nit::Int, budget::Int)
+    return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
+end
 
 function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},

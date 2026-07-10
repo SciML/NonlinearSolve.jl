@@ -2,7 +2,7 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        predictor = :secant, autodiff = nothing, tracking_maxiters = 20,
+        predictor = :secant, autodiff = nothing, tracking_maxiters = 10,
         maxsteps = 10000)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
@@ -67,9 +67,9 @@ Keyword arguments:
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
     to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
     selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
-  - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 20,
-    the range used by OpenModelica, MatCont, and HomotopyContinuation.jl; `nothing`
-    disables). A rejected step retries at half the arclength increment from a warm
+  - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 10,
+    in the range used by MatCont, HomotopyContinuation.jl, and OpenModelica;
+    `nothing` disables). A rejected step retries at half the arclength increment from a warm
     start, so failing fast is far cheaper than exhausting the inner solver's full
     budget. Never applied to the anchor or final λ-fixed landing solves; an explicit
     user-passed `maxiters` always wins. On success, step growth is additionally
@@ -108,7 +108,7 @@ function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
-        autodiff = nothing, tracking_maxiters = 20, maxsteps = 10000
+        autodiff = nothing, tracking_maxiters = 10, maxsteps = 10000
     )
     if !(0 < initial_step_factor <= 1)
         throw(
