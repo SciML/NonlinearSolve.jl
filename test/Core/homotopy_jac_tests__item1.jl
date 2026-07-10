@@ -59,15 +59,15 @@ sol_ad = solve(prob_ad, HomotopySweep(; inner = NewtonRaphson()))
 
 # --- SimpleHomotopySweep consumes an analytic jac (SimpleNewtonRaphson honors f.jac) ---
 simple_oop_jac_calls = Ref(0)
-function j_soop(u, p, λ)
+function j_short_oop(u, p, λ)
     simple_oop_jac_calls[] += 1
     return reshape([(1 - λ) + λ * 3 * u[1]^2;;], 1, 1)
 end
-j_soop(u, p) = error("λ-free jac must never be called by the sweep")
-prob_soop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_soop), [2.0], 2.0)
-sol_soop = solve(prob_soop, SimpleHomotopySweep(; inner = SimpleNewtonRaphson()))
-@test SciMLBase.successful_retcode(sol_soop)
-@test sol_soop.u[1] ≈ cbrt(2.0) atol = 1.0e-8
+j_short_oop(u, p) = error("λ-free jac must never be called by the sweep")
+prob_short_oop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_short_oop), [2.0], 2.0)
+sol_short_oop = solve(prob_short_oop, SimpleHomotopySweep(; inner = SimpleNewtonRaphson()))
+@test SciMLBase.successful_retcode(sol_short_oop)
+@test sol_short_oop.u[1] ≈ cbrt(2.0) atol = 1.0e-8
 @test simple_oop_jac_calls[] > 0
 
 simple_iip_jac_calls = Ref(0)
