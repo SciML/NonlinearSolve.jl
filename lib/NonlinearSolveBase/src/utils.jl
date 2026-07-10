@@ -208,6 +208,13 @@ end
 # When SparseArrays is not loaded, this function should not be called
 function make_sparse end
 
+# SparseMatrixCSC carrying the STRUCTURAL nonzero pattern of a prototype (ones at every
+# structural entry) — unlike `sparse(x)`, which drops stored zeros, so a prototype band
+# whose values happen to be zero would silently vanish from the pattern.
+# Implementation provided by the SparseArrays extension; gate calls on
+# `is_extension_loaded(Val(:SparseArrays))`.
+function structural_sparse end
+
 condition_number(J::AbstractMatrix) = cond(J)
 function condition_number(J::AbstractVector)
     if !ArrayInterface.can_setindex(J)
