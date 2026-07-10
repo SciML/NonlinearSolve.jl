@@ -15,6 +15,15 @@ but the driver is written in the direct, value-oriented SimpleNonlinearSolve sty
 each step calls `solve` on a freshly constructed (stack-allocated) inner problem
 instead of maintaining an inner-solver cache, and all sweep state is plain values.
 
+Optional derivative fields of the problem's `NonlinearFunction` (which
+`SciMLBase.HomotopyProblem` requires to follow the same λ-extended argument convention
+as the residual) are consumed by this solver: an analytic `jac(u, p, λ)` /
+`jac(J, u, p, λ)` is λ-fixed exactly like the residual and handed to the inner solver
+as a standard 2/3-argument Jacobian, and `jac_prototype`, `sparsity`, and `colorvec`
+are forwarded unchanged. The prototype is not eltype-promoted with λ: supply a
+prototype whose eltype matches the promoted residual eltype if λ's precision differs
+from `u0`'s.
+
 With a `StaticArray` (or scalar) `u0` and a SimpleNonlinearSolve inner solver, the
 entire sweep is non-allocating, which also makes it the variant of choice inside hot
 loops, on GPUs, and for compilation-sensitive targets. For large mutable systems,
@@ -129,13 +138,35 @@ struct SimpleFixLambda{F, T}
 end
 (fl::SimpleFixLambda)(args...) = fl.f(args..., fl.λ)
 
+# Builds the inner NonlinearFunction for one step, forwarding the derivative fields of
+# the problem's NonlinearFunction: `jac` is λ-fixed through a second `SimpleFixLambda`
+# constructed here from the same `λfix` value as the residual's (both wrappers are
+# immutable and rebuilt together each step, so they cannot desynchronize);
+# `jac_prototype`/`sparsity`/`colorvec` pass through unchanged (the prototype is NOT
+# eltype-promoted with λ, so its eltype should match the promoted residual eltype when
+# λ's precision differs from `u0`'s). When no derivative field is present the
+# construction is exactly the bare positional one — the branch is decided by the
+# problem's type, so the unused arm is compiled away and the StaticArray/scalar path
+# stays allocation-free.
+function _simple_sweep_nonlinear_function(::Val{iip}, f, λfix) where {iip}
+    if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
+            f.colorvec === nothing
+        return NonlinearFunction{iip}(SimpleFixLambda(f, λfix))
+    end
+    jac = f.jac === nothing ? nothing : SimpleFixLambda(f.jac, λfix)
+    return NonlinearFunction{iip}(
+        SimpleFixLambda(f, λfix); jac, jac_prototype = f.jac_prototype,
+        sparsity = f.sparsity, colorvec = f.colorvec
+    )
+end
+
 # One inner corrector solve at fixed λ. A fresh immutable problem per call: for
 # StaticArray/scalar `u` everything here lives on the stack.
 function _simple_sweep_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip}, inner, guess, λfix,
         args...; kwargs...
     ) where {uType, iip}
-    fλ = NonlinearFunction{iip}(SimpleFixLambda(prob.f, λfix))
+    fλ = _simple_sweep_nonlinear_function(Val(iip), prob.f, λfix)
     inner_prob = NonlinearProblem{iip}(fλ, guess, prob.p)
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
 end

@@ -18,6 +18,16 @@ solver's workspace (Jacobian buffers, linear-solver storage) instead of reconstr
 the solver every step; the sweep's own per-step state lives in a fixed set of
 preallocated buffers.
 
+Optional derivative fields of the problem's `NonlinearFunction` (which
+[`SciMLBase.HomotopyProblem`](@ref) requires to follow the same λ-extended argument
+convention as the residual) are consumed by this solver: an analytic `jac(u, p, λ)` /
+`jac(J, u, p, λ)` is λ-fixed exactly like the residual and handed to the inner solver
+as a standard 2/3-argument Jacobian (so e.g. the default polyalgorithm selects its
+Jacobian-based members), and `jac_prototype`, `sparsity`, and `colorvec` are forwarded
+unchanged, enabling sparse Jacobian handling in every inner solve. The prototype is
+not eltype-promoted with λ: supply a prototype whose eltype matches the promoted
+residual eltype if λ's precision differs from `u0`'s.
+
 The step size is governed by the classic success/failure heuristic of
 predictor-corrector path tracking (see e.g. Timme, *Mixed precision path tracking for
 polynomial homotopy continuation*, Advances in Computational Mathematics 47, 2021): a
@@ -177,6 +187,35 @@ mutable struct FixLambda{F, T}
 end
 (fl::FixLambda)(args...) = fl.f(args..., fl.λ)
 
+# λ-fixing wrapper for the user's analytic Jacobian `jac(u, p, λ)` / `jac(J, u, p, λ)`,
+# exposing the standard 2/3-argument form to the inner solver. It reads λ from the
+# residual's own mutable `FixLambda` rather than carrying a copy, so advancing the
+# sweep remains a single field write and the Jacobian can never be evaluated at a
+# different λ than the residual.
+struct FixLambdaJac{FL <: FixLambda}
+    fl::FL
+end
+(fj::FixLambdaJac)(args...) = fj.fl.f.jac(args..., fj.fl.λ)
+
+# Builds the inner solver's NonlinearFunction around the λ-fixing wrapper, forwarding
+# the derivative fields of the problem's NonlinearFunction (`jac` λ-fixed through the
+# shared `FixLambda`; `jac_prototype`/`sparsity`/`colorvec` unchanged — the prototype
+# is NOT eltype-promoted with λ, so its eltype should match the promoted residual
+# eltype when λ's precision differs from `u0`'s). When no derivative field is present
+# the construction is exactly the bare positional one (the branch is decided by the
+# problem's type, so the unused arm is compiled away).
+function _sweep_nonlinear_function(::Val{iip}, f, fixλ::FixLambda) where {iip}
+    if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
+            f.colorvec === nothing
+        return SciMLBase.NonlinearFunction{iip}(fixλ)
+    end
+    jac = f.jac === nothing ? nothing : FixLambdaJac(fixλ)
+    return SciMLBase.NonlinearFunction{iip}(
+        fixλ; jac, jac_prototype = f.jac_prototype,
+        sparsity = f.sparsity, colorvec = f.colorvec
+    )
+end
+
 # Secant/constant predictor `u + s*(u - u_prev)`, written into the reused `dst` buffer
 # for mutable arrays (no allocation) or returned fresh for immutable/StaticArray/scalar
 # `u` (stack, no heap). `Utils.can_setindex` is a compile-time trait, so the branch is
@@ -232,7 +271,7 @@ function CommonSolve.solve(
     # buffer the inner solver never writes, so a FAILED attempt leaves the last
     # converged iterate intact for retries and the failure returns below.
     fixλ = FixLambda(prob.f, λ)
-    fλ = SciMLBase.NonlinearFunction{iip}(fixλ)
+    fλ = _sweep_nonlinear_function(Val(iip), prob.f, fixλ)
     guess = copy(u)
     cache = init(
         NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;

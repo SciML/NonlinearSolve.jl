@@ -141,6 +141,7 @@ else
             @time @safetestset "ArcLengthContinuation Float32 / in-place / multi-dim" include("Core/arclength_tests__item4.jl")
             @time @safetestset "ArcLengthContinuation fails (no hang) on an unreachable target" include("Core/arclength_tests__item5.jl")
             @time @safetestset "ArcLengthContinuation tangent predictor" include("Core/arclength_tests__item6.jl")
+            @time @safetestset "Homotopy sweeps consume jac/jac_prototype/sparsity/colorvec" include("Core/homotopy_jac_tests__item1.jl")
             return @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
         end,
         groups = Dict(
