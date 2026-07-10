@@ -145,6 +145,7 @@ else
             @time @safetestset "Homotopy sweeps consume jac/jac_prototype/sparsity/colorvec" include("Core/homotopy_jac_tests__item1.jl")
             @time @safetestset "Homotopy tracking_maxiters caps interior corrector work" include("Core/homotopy_effort_tests__item1.jl")
             @time @safetestset "Homotopy maxsteps guard + effort-band step control" include("Core/homotopy_effort_tests__item2.jl")
+            @time @safetestset "Homotopy tracking_abstol loosens interior tracking only" include("Core/homotopy_tolerance_tests__item1.jl")
             return @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
         end,
         groups = Dict(

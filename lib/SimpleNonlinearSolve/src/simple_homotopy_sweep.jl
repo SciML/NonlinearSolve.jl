@@ -3,7 +3,7 @@
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
         expand_quality = 0.25, predictor = :secant, tracking_maxiters = 10,
-        maxsteps = 10000)
+        tracking_abstol = nothing, maxsteps = 10000)
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
 SimpleNonlinearSolve counterpart of `HomotopySweep`. The algorithm is the same —
@@ -36,11 +36,16 @@ Keyword arguments are identical to `HomotopySweep` except that `inner` defaults 
 NonlinearSolve polyalgorithm. In particular `tracking_maxiters` caps the inner
 corrector's iterations for interior tracking steps only (never the `λspan[1]` anchor,
 never the final landing on `λspan[2]`, and never overriding an explicit user-passed
-`maxiters`), the success-side step growth is scaled by the corrector's iteration
-count (the AUTO-07p `ADPTDS` effort bands, including a proactive halving when a
-success nearly exhausts the budget), and `maxsteps` caps the total number of
-predictor-corrector attempts, returning `ReturnCode.MaxIters` with the last converged
-iterate when exceeded.
+`maxiters`), `tracking_abstol` (default `nothing` = disabled) loosens the inner
+corrector's absolute tolerance on those same interior steps only — the anchor and the
+final landing always run at the user's full tolerances (each step here is a fresh
+standalone solve, so the exemption is simply not splicing the loose tolerance into
+the exempt solves — no re-polish is needed), and an explicit user-passed `abstol` or
+`reltol` (solve kwarg or problem kwarg) disables the loosening entirely — the
+success-side step growth is scaled by the corrector's iteration count (the AUTO-07p
+`ADPTDS` effort bands, including a proactive halving when a success nearly exhausts
+the budget), and `maxsteps` caps the total number of predictor-corrector attempts,
+returning `ReturnCode.MaxIters` with the last converged iterate when exceeded.
 
 When the sweep cannot reach the end of `λspan`, the returned solution carries a
 failure retcode: its `u` is the last converged iterate (at some ``λ`` short of
@@ -62,6 +67,7 @@ which is part of what keeps the sweep allocation-free).
     expand_quality
     predictor::Symbol
     tracking_maxiters
+    tracking_abstol
     maxsteps::Int
 end
 
@@ -69,7 +75,8 @@ function SimpleHomotopySweep(;
         inner = SimpleNewtonRaphson(), nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
+        maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("SimpleHomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -141,13 +148,21 @@ function SimpleHomotopySweep(;
             )
         )
     end
+    if tracking_abstol !== nothing && !(tracking_abstol > 0)
+        throw(
+            ArgumentError(
+                "SimpleHomotopySweep `tracking_abstol` must be positive (nothing " *
+                    "disables the loose tracking tolerance), got $tracking_abstol"
+            )
+        )
+    end
     if maxsteps < 1
         throw(ArgumentError("SimpleHomotopySweep `maxsteps` must be ≥ 1, got $maxsteps"))
     end
     return SimpleHomotopySweep(
         inner, nsteps, adaptive, initial_step_factor, min_dλ,
         max_step_factor, expand_factor, expand_threshold, expand_quality, predictor,
-        tracking_maxiters, maxsteps
+        tracking_maxiters, tracking_abstol, maxsteps
     )
 end
 
@@ -197,15 +212,27 @@ end
 # immutable/StaticArray/scalar `u` cannot be mutated and passes through (stack).
 _simple_sweep_guess(u) = NLBUtils.can_setindex(u) ? copy(u) : u
 
-# Local duplicates of NonlinearSolveBase's `_tracking_budget` / `_effort_growth_factor`
-# / `_effort_wants_shrink` (see homotopy_sweep.jl there for the rationale): duplicated
-# rather than shared so this package does not depend on new NonlinearSolveBase
-# internals, and kept branch-only/isbits so the StaticArray path stays kernel-safe.
+# Local duplicates of NonlinearSolveBase's `_tracking_budget` / `_tracking_tolerance`
+# / `_effort_growth_factor` / `_effort_wants_shrink` (see homotopy_sweep.jl there for
+# the rationale): duplicated rather than shared so this package does not depend on new
+# NonlinearSolveBase internals, and kept branch-only/isbits so the StaticArray path
+# stays kernel-safe.
 function _simple_tracking_budget(tracking_maxiters, prob_kwargs, kwargs)
     haskey(kwargs, :maxiters) && return Int(kwargs[:maxiters]), false
     haskey(prob_kwargs, :maxiters) && return Int(prob_kwargs[:maxiters]), false
     tracking_maxiters === nothing && return 1000, false
     return Int(tracking_maxiters), true
+end
+
+# any explicit user tolerance (abstol OR reltol; solve kwargs shadow problem kwargs)
+# disables the loosening — a loose abstol spliced next to a user reltol would fire
+# first in the default OR-combined termination modes
+function _simple_tracking_tolerance(tracking_abstol, prob_kwargs, kwargs)
+    tracking_abstol === nothing && return nothing, false
+    (haskey(kwargs, :abstol) || haskey(kwargs, :reltol)) && return nothing, false
+    (haskey(prob_kwargs, :abstol) || haskey(prob_kwargs, :reltol)) &&
+        return nothing, false
+    return tracking_abstol, true
 end
 
 function _simple_effort_growth_factor(nit::Int, budget::Int, expand_factor::T) where {T}
@@ -238,6 +265,9 @@ function CommonSolve.solve(
     abs(dλ) > abs(max_dλ) && (dλ = max_dλ)
     u = _simple_sweep_guess(prob.u0)
     budget, cap_active = _simple_tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
+    track_abstol, tol_active = _simple_tracking_tolerance(
+        alg.tracking_abstol, prob.kwargs, kwargs
+    )
 
     # Anchor: solve the system at λ = λspan[1] from u0 before stepping (see
     # `HomotopySweep` — same contract: a failed anchor means the homotopy premise is
@@ -296,13 +326,27 @@ function CommonSolve.solve(
         else
             _simple_sweep_guess(u)
         end
-        # Interior tracking steps run under the tracking cap; the final landing on λend
-        # keeps the full user budget (the anchor above never enters this loop). The cap
-        # is spliced BEFORE the user kwargs so an explicit `maxiters` always wins (and
-        # `cap_active` is false in that case anyway).
-        last_sol = if cap_active && next_λ != λend
+        # Interior tracking steps run under the tracking cap and the loose tracking
+        # tolerance; the final landing on λend keeps the full user budget and full
+        # tolerances (the anchor above never enters this loop) — every step here is a
+        # fresh standalone solve, so the exemption is simply not splicing the loose
+        # kwargs, with no re-polish needed. The cap/tolerance are spliced BEFORE the
+        # user kwargs so explicit user values always win (and `cap_active`/`tol_active`
+        # are false in those cases anyway).
+        interior = next_λ != λend
+        last_sol = if interior && cap_active && tol_active
+            _simple_sweep_solve(
+                prob, alg.inner, guess, next_λ, args...;
+                maxiters = budget, abstol = track_abstol, kwargs...
+            )
+        elseif interior && cap_active
             _simple_sweep_solve(
                 prob, alg.inner, guess, next_λ, args...; maxiters = budget, kwargs...
+            )
+        elseif interior && tol_active
+            _simple_sweep_solve(
+                prob, alg.inner, guess, next_λ, args...;
+                abstol = track_abstol, kwargs...
             )
         else
             _simple_sweep_solve(prob, alg.inner, guess, next_λ, args...; kwargs...)

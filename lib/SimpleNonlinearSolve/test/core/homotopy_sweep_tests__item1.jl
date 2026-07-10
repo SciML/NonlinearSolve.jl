@@ -16,6 +16,8 @@ alg = SimpleHomotopySweep()
 @test_throws ArgumentError SimpleHomotopySweep(; expand_threshold = 0)
 @test_throws ArgumentError SimpleHomotopySweep(; expand_quality = 0.0)
 @test_throws ArgumentError SimpleHomotopySweep(; predictor = :tangent)
+@test_throws ArgumentError SimpleHomotopySweep(; tracking_abstol = 0.0)
+@test_throws ArgumentError SimpleHomotopySweep(; tracking_abstol = -1.0e-3)
 
 # ---- correctness across container types ----
 # (1-λ)(u - p) + λ(u² - p): root path from u = p at λ = 0 to u = √p at λ = 1

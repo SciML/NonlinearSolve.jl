@@ -2,7 +2,8 @@
     HomotopySweep(; inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000)
+        predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
+        maxsteps = 10000)
 
 Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
@@ -95,6 +96,23 @@ Keyword arguments:
     increment from a warm start, so failing fast is far cheaper than exhausting the
     inner solver's full budget. Never applied to the `λspan[1]` anchor solve or the
     final step landing on `λspan[2]`; an explicit user-passed `maxiters` always wins.
+  - `tracking_abstol`: loose absolute tolerance for the inner corrector on interior
+    tracking steps (default `nothing` = disabled: every step solves to the full
+    tolerance). Interior iterates only serve as warm starts and secant-predictor
+    history for the next step, so they need just enough accuracy to stay inside the
+    next corrector's convergence basin — the reference trackers exploit exactly this
+    (Bertini tracks at 1e-5/1e-6 and only the endgame runs tight;
+    HomotopyContinuation.jl accepts on Newton contraction and polishes the endpoint).
+    Values around `1e-4`–`1e-6` are good starting points when opting in. Never applied
+    to the `λspan[1]` anchor solve (the one cold start, and the returned solution for a
+    zero-width span) or to the final step landing on `λspan[2]`, so the returned
+    solution always satisfies the full tolerances: the landing runs on the loose cache
+    first and is then re-polished at the full tolerance from that warm start (~1–2
+    extra corrector iterations). An explicit user-passed `abstol` or `reltol` (solve
+    kwarg or problem kwarg) disables the loosening entirely. The looser interior
+    iterates slightly degrade the secant/quality signals the step controller reads,
+    which is why the default stays tight (opt-in loose, per the discussion in
+    SciML/NonlinearSolve.jl#1020).
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts
     (accepted steps plus bisection retries). Exceeding it returns a
     `ReturnCode.MaxIters` failure carrying the last converged iterate. Must be ≥ 1.
@@ -121,6 +139,7 @@ systems whose target form is hard to solve cold; it is unrelated to the polynomi
     expand_quality
     predictor::Symbol
     tracking_maxiters
+    tracking_abstol
     maxsteps::Int
 end
 
@@ -128,7 +147,8 @@ function HomotopySweep(;
         inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
-        predictor = :secant, tracking_maxiters = 10, maxsteps = 10000
+        predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
+        maxsteps = 10000
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("HomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -197,13 +217,21 @@ function HomotopySweep(;
             )
         )
     end
+    if tracking_abstol !== nothing && !(tracking_abstol > 0)
+        throw(
+            ArgumentError(
+                "HomotopySweep `tracking_abstol` must be positive (nothing disables " *
+                    "the loose tracking tolerance), got $tracking_abstol"
+            )
+        )
+    end
     if maxsteps < 1
         throw(ArgumentError("HomotopySweep `maxsteps` must be ≥ 1, got $maxsteps"))
     end
     return HomotopySweep(
         inner, nsteps, adaptive, initial_step_factor, min_dλ,
         max_step_factor, expand_factor, expand_threshold, expand_quality, predictor,
-        tracking_maxiters, maxsteps
+        tracking_maxiters, tracking_abstol, maxsteps
     )
 end
 
@@ -289,6 +317,20 @@ function _tracking_budget(tracking_maxiters, prob_kwargs, kwargs)
     return Int(tracking_maxiters), true
 end
 
+# Resolve the loose tolerance interior tracking steps run under, returning
+# `(tracking_abstol, tol_active)`. Explicit user tolerances always win (mirroring
+# `_tracking_budget`): any user-passed `abstol` OR `reltol` (solve kwargs shadow
+# problem kwargs) disables the loosening entirely — splicing a loose `abstol` next to
+# a user `reltol` would let the loose criterion fire first in the default OR-combined
+# termination modes, silently overriding the user's intent.
+function _tracking_tolerance(tracking_abstol, prob_kwargs, kwargs)
+    tracking_abstol === nothing && return nothing, false
+    (haskey(kwargs, :abstol) || haskey(kwargs, :reltol)) && return nothing, false
+    (haskey(prob_kwargs, :abstol) || haskey(prob_kwargs, :reltol)) &&
+        return nothing, false
+    return tracking_abstol, true
+end
+
 # AUTO-07p ADPTDS-style effort bands, scaling the growth multiplier by the accepted
 # step's corrector iteration count `nit` relative to its iteration budget: a near-free
 # corrector earns the full `expand_factor`, moderate effort earns milder growth, and
@@ -316,14 +358,17 @@ function _effort_wants_shrink(nit::Int, budget::Int)
     return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
 end
 
-# Full-budget standalone solve at a fixed λ. Used only when the tracking cap is active
-# but must not bind — rescuing the λspan[1] anchor and the final landing on λspan[2] —
-# so it runs with the user's original kwargs, outside the capped cache.
-function _sweep_uncapped_solve(
+# Full-fidelity standalone solve at a fixed λ, with the user's original kwargs (full
+# iteration budget, full tolerances) outside the tracking cache. Used only where the
+# tracking cap / loose tracking tolerance are active but must not bind: the λspan[1]
+# anchor and the final landing on λspan[2]. Forwards the problem's derivative fields
+# exactly like the tracking cache, so an analytic/sparse Jacobian keeps working on
+# these exempt solves.
+function _sweep_exempt_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip}, inner, uguess, λfix,
         args...; kwargs...
     ) where {uType, iip}
-    fλ = SciMLBase.NonlinearFunction{iip}(FixLambda(prob.f, λfix))
+    fλ = _sweep_nonlinear_function(Val(iip), prob.f, FixLambda(prob.f, λfix))
     inner_prob = NonlinearProblem{iip}(fλ, copy(uguess), prob.p)
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
 end
@@ -344,6 +389,9 @@ function CommonSolve.solve(
     abs(dλ) > abs(max_dλ) && (dλ = max_dλ)
     u = copy(prob.u0)
     budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
+    track_abstol, tol_active = _tracking_tolerance(
+        alg.tracking_abstol, prob.kwargs, kwargs
+    )
 
     # One inner-solver cache, built once around the mutable `FixLambda` and reused for
     # every solve of the sweep (the anchor below and each continuation step): advancing
@@ -352,17 +400,29 @@ function CommonSolve.solve(
     # may be iterated in place when aliasing is forwarded; `u` is a separately-owned
     # buffer the inner solver never writes, so a FAILED attempt leaves the last
     # converged iterate intact for retries and the failure returns below. When the
-    # tracking cap is active it is baked into this cache (the many interior steps all
-    # run capped); the anchor and the final landing are exempted through the
-    # `_sweep_uncapped_solve` rescues below rather than a second full-budget cache, so
-    # the happy path keeps a single inner workspace.
+    # tracking cap / loose tracking tolerance are active they are baked into this
+    # cache (the many interior steps all run capped/loose; `abstol` cannot reliably be
+    # changed through `reinit!` — e.g. the default polyalgorithm's cache `reinit!`
+    # accepts no tolerance kwargs); the anchor and the final landing are exempted
+    # through the `_sweep_exempt_solve` calls below rather than a second full-fidelity
+    # cache, so the happy path keeps a single inner workspace.
     fixλ = FixLambda(prob.f, λ)
     fλ = _sweep_nonlinear_function(Val(iip), prob.f, fixλ)
     guess = copy(u)
-    cache = if cap_active
+    cache = if cap_active && tol_active
+        init(
+            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
+            prob.kwargs..., kwargs..., maxiters = budget, abstol = track_abstol
+        )
+    elseif cap_active
         init(
             NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
             prob.kwargs..., kwargs..., maxiters = budget
+        )
+    elseif tol_active
+        init(
+            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
+            prob.kwargs..., kwargs..., abstol = track_abstol
         )
     else
         init(
@@ -378,13 +438,21 @@ function CommonSolve.solve(
     # first inner solve runs at λ0 + dλ warm-started from u0, so a poor u0 can
     # converge onto the wrong branch and the sweep then tracks that branch all
     # the way to a wrong root with a success retcode.
-    last_sol = CommonSolve.solve!(cache)
-    if cap_active && !SciMLBase.successful_retcode(last_sol)
+    last_sol = if tol_active
+        # The anchor is exempt from the loose tracking tolerance — it is the one
+        # cold-start solve (and the returned solution when the span is zero-width),
+        # so it runs standalone at the user's full tolerances (and full budget, which
+        # also covers the tracking-cap exemption). A one-time cost when opting in.
+        _sweep_exempt_solve(prob, alg.inner, u, λ, args...; kwargs...)
+    else
+        CommonSolve.solve!(cache)
+    end
+    if cap_active && !tol_active && !SciMLBase.successful_retcode(last_sol)
         # The anchor is exempt from the tracking cap — it is the one cold-start solve
         # the homotopy contract is designed around, so it may legitimately need many
         # more iterations than a warm-started tracking step. Rerun it with the full
         # user budget before declaring the homotopy premise broken.
-        last_sol = _sweep_uncapped_solve(prob, alg.inner, u, λ, args...; kwargs...)
+        last_sol = _sweep_exempt_solve(prob, alg.inner, u, λ, args...; kwargs...)
     end
     if !SciMLBase.successful_retcode(last_sol)
         # the λ = λspan[1] system itself failed from u0: the homotopy premise is
@@ -447,19 +515,32 @@ function CommonSolve.solve(
         SciMLBase.reinit!(cache, guess)
         last_sol = CommonSolve.solve!(cache)
 
-        if cap_active && next_λ == λend && !SciMLBase.successful_retcode(last_sol)
-            # The final landing on λspan[2] is exempt from the tracking cap: give it
-            # the full user budget before letting the failure feed the bisection
-            # logic. The prediction is recomputed (never reuse `guess`: the capped
-            # solve may have iterated in place in that buffer).
-            retry_guess = if used_secant
-                _sweep_extrapolate!(virtual, u, u_prev, (next_λ - λ) / (λ - λ_prev))
-            else
-                u
+        if next_λ == λend
+            if cap_active && !SciMLBase.successful_retcode(last_sol)
+                # The final landing on λspan[2] is exempt from the tracking cap: give
+                # it the full user budget before letting the failure feed the
+                # bisection logic. The prediction is recomputed (never reuse `guess`:
+                # the capped solve may have iterated in place in that buffer). The
+                # exempt solve also runs at the full tolerances, so it covers the
+                # loose-tolerance exemption when both are active.
+                retry_guess = if used_secant
+                    _sweep_extrapolate!(virtual, u, u_prev, (next_λ - λ) / (λ - λ_prev))
+                else
+                    u
+                end
+                last_sol = _sweep_exempt_solve(
+                    prob, alg.inner, retry_guess, next_λ, args...; kwargs...
+                )
+            elseif tol_active && SciMLBase.successful_retcode(last_sol)
+                # The landing is exempt from the loose tracking tolerance: the loose
+                # cache solve above did the bulk of the convergence, now re-polish at
+                # the user's full tolerances warm-started from it (~1–2 corrector
+                # iterations), so the returned solution's accuracy semantics are
+                # unchanged. A failed polish feeds the ordinary bisection logic.
+                last_sol = _sweep_exempt_solve(
+                    prob, alg.inner, last_sol.u, next_λ, args...; kwargs...
+                )
             end
-            last_sol = _sweep_uncapped_solve(
-                prob, alg.inner, retry_guess, next_λ, args...; kwargs...
-            )
         end
 
         if SciMLBase.successful_retcode(last_sol)
