@@ -31,8 +31,8 @@ J_reg = [3 * u0pt^2 - 3 -6.0]
 const btc = NLSB._bordered_tangent_cache(
     ArcLengthContinuation(), nothing, Float64, 1, NLSB.NLStats(0, 0, 0, 0, 0)
 )
-bord!(J, τp) = copy(NLSB._bordered_tangent!(btc, J, τp, wu, wλ, 1))
-τ_reg = bord!(J_reg, τprev)
+unit_tangent!(J, τp) = copy(NLSB._bordered_tangent!(btc, J, τp, wu, wλ, 1))
+τ_reg = unit_tangent!(J_reg, τprev)
 @test abs(J_reg[1] * τ_reg[1] + J_reg[2] * τ_reg[2]) < 1.0e-12   # J τ = 0
 @test wu * τ_reg[1]^2 + wλ * τ_reg[2]^2 ≈ 1.0                    # θ-unit
 @test wλ * τprev[2] * τ_reg[2] > 0                               # oriented along τprev
@@ -42,7 +42,7 @@ d_analytic ./= sqrt(wu * d_analytic[1]^2 + wλ * d_analytic[2]^2)
 
 # Fold point (u, λ) = (1, 1/6): J = [0, -6], so the tangent must be vertical in λ.
 J_fold = [0.0 -6.0]
-τ_fold = bord!(J_fold, [1.0, 0.5])
+τ_fold = unit_tangent!(J_fold, [1.0, 0.5])
 @test abs(τ_fold[2]) < 1.0e-12                       # vertical in λ
 @test wu * τ_fold[1]^2 ≈ 1.0                         # θ-unit
 @test τ_fold[1] > 0                                  # oriented along τprev = [1, 0.5]
@@ -50,7 +50,7 @@ J_fold = [0.0 -6.0]
 # SVD fallback: τprev θ-orthogonal to the tangent at the fold makes the bordered matrix
 # exactly singular ([J; wᵀ] has a zero first column); the fallback must return the same
 # (θ-unit, vertical-in-λ) tangent without erroring.
-τ_fb = bord!(J_fold, [0.0, 1.0 / sqrt(wλ)])
+τ_fb = unit_tangent!(J_fold, [0.0, 1.0 / sqrt(wλ)])
 @test abs(τ_fb[2]) < 1.0e-12
 @test wu * τ_fb[1]^2 ≈ 1.0
 
