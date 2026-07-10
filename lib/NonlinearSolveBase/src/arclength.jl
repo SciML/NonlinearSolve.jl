@@ -2,8 +2,8 @@
     ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
-        predictor = :secant, autodiff = nothing, tracking_maxiters = 10,
-        maxsteps = 10000, theta = 0.5)
+        predictor = :secant, autodiff = nothing, linsolve = nothing,
+        tracking_maxiters = 10, maxsteps = 10000, theta = 0.5)
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -92,6 +92,9 @@ Keyword arguments:
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
     to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
     selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
+  - `linsolve`: the LinearSolve.jl algorithm for the `:tangent` predictor's bordered
+    solve (the same knob the Newton descent methods expose); `nothing` (default) selects
+    LinearSolve's default. Unused by the `:secant` predictor.
   - `tracking_maxiters`: iteration cap for the augmented corrector solves (default 10,
     in the range used by MatCont, HomotopyContinuation.jl, and OpenModelica;
     `nothing` disables). A rejected step retries at half the arclength increment from a warm
@@ -129,6 +132,7 @@ Jacobian.
     max_angle
     predictor::Symbol
     autodiff
+    linsolve
     tracking_maxiters
     maxsteps::Int
     theta
@@ -138,7 +142,8 @@ function ArcLengthContinuation(;
         inner = nothing, initial_step_factor = 0.1, adaptive = true,
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
-        autodiff = nothing, tracking_maxiters = 10, maxsteps = 10000, theta = 0.5
+        autodiff = nothing, linsolve = nothing, tracking_maxiters = 10,
+        maxsteps = 10000, theta = 0.5
     )
     if !(0 < initial_step_factor <= 1)
         throw(
@@ -205,7 +210,7 @@ function ArcLengthContinuation(;
     end
     return ArcLengthContinuation(
         inner, initial_step_factor, adaptive, min_ds, max_step_factor,
-        expand_factor, expand_threshold, max_angle, predictor, autodiff,
+        expand_factor, expand_threshold, max_angle, predictor, autodiff, linsolve,
         tracking_maxiters, maxsteps, theta
     )
 end
@@ -290,7 +295,7 @@ end
 # factorize.
 function _arclength_jac_cache(
         prob::SciMLBase.HomotopyProblem{uType, iip}, alg, x,
-        n
+        n, stats
     ) where {uType, iip}
     gf = SciMLBase.NonlinearFunction{iip}(HomotopyResidual(prob.f, n))
     gprob = NonlinearProblem{iip}(gf, x, prob.p)
@@ -303,8 +308,37 @@ function _arclength_jac_cache(
     end
     autodiff = select_jacobian_autodiff(gprob, alg.autodiff)
     return construct_jacobian_cache(
-        gprob, alg, gf, fu, x, prob.p; stats = NLStats(0, 0, 0, 0, 0), autodiff
+        gprob, alg, gf, fu, x, prob.p; stats, autodiff, linsolve = alg.linsolve
     )
+end
+
+# Workspace for the bordered tangent solve, built once per solve. `B` receives [J; wᵀ]
+# each step, `rhs` holds the constant e_{n+1}, `t` receives the solution, and `lincache`
+# is the same NonlinearSolve linear-solver cache the Newton descent methods use
+# (LinearSolve.jl-backed, honoring the algorithm's `linsolve` and reusing the solver's
+# workspace across steps; a plain `\`-backed native cache when the LinearSolve
+# extension is not loaded, since NonlinearSolveBase only weak-depends on it).
+@concrete struct BorderedTangentCache
+    B
+    rhs
+    t
+    r
+    lincache
+end
+
+function _bordered_tangent_cache(alg, p, ::Type{Tx}, n, stats) where {Tx}
+    B = zeros(Tx, n + 1, n + 1)
+    rhs = zeros(Tx, n + 1)
+    rhs[n + 1] = one(Tx)
+    t = Vector{Tx}(undef, n + 1)
+    r = Vector{Tx}(undef, n)
+    linsolve = if alg.linsolve === nothing && !Utils.is_extension_loaded(Val(:LinearSolve))
+        \
+    else
+        alg.linsolve
+    end
+    lincache = construct_linear_solver(alg, linsolve, B, rhs, t, p; stats)
+    return BorderedTangentCache(B, rhs, t, r, lincache)
 end
 
 # θ-metric unit tangent of the curve H(u, λ) = 0 given the augmented Jacobian
@@ -328,21 +362,41 @@ end
 # Ints); the SVD fallback allocates freely but is never reached on the happy path.
 # `J` itself (the Jacobian cache's buffer) is left untouched — `B` holds the copy that
 # the factorization destroys — so the fallback can still read it.
-function _bordered_tangent!(B, t, J, τprev, wu, wλ, n)
-    T = eltype(t)
+function _bordered_tangent!(btc::BorderedTangentCache, J, τprev, wu, wλ, n)
+    B, t = btc.B, btc.t
     copyto!(view(B, 1:n, :), J)
     @views B[n + 1, 1:n] .= wu .* τprev[1:n]
     B[n + 1, n + 1] = wλ * τprev[n + 1]
-    fill!(t, zero(T))
-    t[n + 1] = one(T)
+    # The bordered matrix is singular by design at the failure cases (τprev θ-orthogonal
+    # to the tangent, branch points), so a singular factorization here is an expected
+    # algorithmic signal — caught and routed to the SVD fallback below, unlike the
+    # descent methods where it is a genuine error.
+    res = try
+        btc.lincache(; A = B, b = btc.rhs, linu = t, reuse_A_if_factorization = false)
+    catch err
+        err isa LinearAlgebra.SingularException || rethrow()
+        nothing
+    end
     solved = false
-    F = LinearAlgebra.lu!(B; check = false)
-    if LinearAlgebra.issuccess(F)
-        LinearAlgebra.ldiv!(F, t)
-        nt = _theta_norm(t, wu, wλ, n)
-        if all(isfinite, t) && isfinite(nt) && nt > 0
-            t ./= nt
-            solved = true
+    if res !== nothing && res.success
+        res.u === t || copyto!(t, res.u)
+        # Residual check before accepting: LinearSolve's default solver is itself a
+        # polyalgorithm that falls back to pivoted QR on a singular LU and returns a
+        # finite LEAST-SQUARES pseudo-solution with a success retcode, so neither the
+        # retcode nor finiteness detects the designed-singular cases. A genuine solve
+        # has ‖[J t; ⟨w,t⟩ − 1]‖ at rounding level; the inconsistent singular system's
+        # pseudo-solution misses by O(1). Computed from `J` and `τprev` (not `B`, which
+        # the factorization may have destroyed).
+        if all(isfinite, t)
+            LinearAlgebra.mul!(btc.r, J, t)
+            cres = _theta_dot(t, τprev, wu, wλ, n) - 1
+            resid = sqrt(sum(abs2, btc.r) + abs2(cres))
+            nt = _theta_norm(t, wu, wλ, n)
+            if isfinite(nt) && nt > 0 &&
+                    resid <= sqrt(eps(one(nt))) * (1 + nt)
+                t ./= nt
+                solved = true
+            end
         end
     end
     if !solved
@@ -357,9 +411,9 @@ end
 # Evaluates the Jacobian through the cache (reusing its `J` buffer), solves the bordered
 # system into the `t` scratch, and copies the result into `τ` — `τprev === τ` is safe
 # because `τ` is only read (border row, orientation sign) before the final copy.
-function _arclength_tangent!(B, t, τ, jac_cache, x, wu, wλ, n)
-    _bordered_tangent!(B, t, jac_cache(x), τ, wu, wλ, n)
-    return copyto!(τ, t)
+function _arclength_tangent!(btc::BorderedTangentCache, τ, jac_cache, x, wu, wλ, n)
+    _bordered_tangent!(btc, jac_cache(x), τ, wu, wλ, n)
+    return copyto!(τ, btc.t)
 end
 
 function CommonSolve.solve(
@@ -417,12 +471,13 @@ function CommonSolve.solve(
     use_tangent = alg.predictor === :tangent
     # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
     # predictor; nothing for the derivative-free secant.
-    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n) : nothing
-    # Scratch reused by every predictor step: `tscratch` for the bordered solution and
-    # the secant chord; `Bscratch` for the bordered matrix (tangent only). Allocated
-    # once here so the loop only reuses memory.
+    stats = NLStats(0, 0, 0, 0, 0)
+    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n, stats) : nothing
+    # Reused by every predictor step: the bordered-tangent workspace (matrix, rhs,
+    # solution, and the shared linear-solver cache) for the tangent, and `tscratch` for
+    # the secant chord. Allocated once here so the loop only reuses memory.
+    btc = use_tangent ? _bordered_tangent_cache(alg, prob.p, Tx, n, stats) : nothing
     tscratch = Vector{Tx}(undef, n + 1)
-    Bscratch = use_tangent ? Matrix{Tx}(undef, n + 1, n + 1) : nothing
     # orientation reference for the tangent predictor: seed toward λend so the first
     # tangent continues into the span (pure-λ direction picks the correct sign). A
     # stable buffer, written in place by every predictor branch below.
@@ -433,7 +488,7 @@ function CommonSolve.solve(
         if use_tangent
             # True path tangent (null vector of the augmented Jacobian), oriented to
             # continue τ; accurate from the first step and well-defined at a fold.
-            _arclength_tangent!(Bscratch, tscratch, τ, jac_cache, xcur, wu, wλ, n)
+            _arclength_tangent!(btc, τ, jac_cache, xcur, wu, wλ, n)
         elseif have_prev
             # Secant through the last two accepted points (chord built in scratch,
             # normalized into the reused τ buffer).

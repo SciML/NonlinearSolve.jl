@@ -25,13 +25,13 @@ wu, wλ = 0.5, 0.5
 u0pt = -2.1038034
 J_reg = [3 * u0pt^2 - 3 -6.0]
 τprev = [0.0, 1.0 / sqrt(wλ)]                       # the driver's pure-λ seed, θ-unit
-# the in-place API takes caller-preallocated scratch (B overwritten by lu!, t by the
-# solution) and returns t
-bord!(J, τp) = copy(
-    NLSB._bordered_tangent!(
-        Matrix{Float64}(undef, 2, 2), Vector{Float64}(undef, 2), J, τp, wu, wλ, 1
-    )
+# the in-place API works through a once-allocated workspace (bordered matrix, rhs,
+# solution buffer, and the shared LinearSolve-backed linear-solver cache) and returns
+# the workspace's solution buffer
+const btc = NLSB._bordered_tangent_cache(
+    ArcLengthContinuation(), nothing, Float64, 1, NLSB.NLStats(0, 0, 0, 0, 0)
 )
+bord!(J, τp) = copy(NLSB._bordered_tangent!(btc, J, τp, wu, wλ, 1))
 τ_reg = bord!(J_reg, τprev)
 @test abs(J_reg[1] * τ_reg[1] + J_reg[2] * τ_reg[2]) < 1.0e-12   # J τ = 0
 @test wu * τ_reg[1]^2 + wλ * τ_reg[2]^2 ≈ 1.0                    # θ-unit
@@ -123,3 +123,11 @@ s32 = solve(prob32, ArcLengthContinuation(; predictor = :tangent))
 @test SciMLBase.successful_retcode(s32)
 @test eltype(s32.u) == Float32
 @test s32.u[1] ≈ 2.0f0 atol = 1.0f-4
+
+# ---- the bordered solve honors the shared `linsolve` knob (same stack as the Newton
+# descent methods): an explicit LinearSolve algorithm reaches the same connected root ----
+sol_qr = solve(
+    prob, ArcLengthContinuation(; predictor = :tangent, linsolve = QRFactorization())
+)
+@test SciMLBase.successful_retcode(sol_qr)
+@test sol_qr.u[1] ≈ target atol = 1.0e-4
