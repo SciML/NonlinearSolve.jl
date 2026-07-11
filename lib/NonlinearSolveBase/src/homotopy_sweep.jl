@@ -374,6 +374,19 @@ function _sweep_exempt_solve(
 end
 
 function CommonSolve.solve(
+        prob::SciMLBase.HomotopyProblem, alg::HomotopySweep, args...; kwargs...
+    )
+    sol, _ = _homotopy_sweep_solve(prob, alg, args...; kwargs...)
+    return sol
+end
+
+# Internal driver returning `(sol, λ_last)`. `λ_last` is the λ of the sweep's last
+# ACCEPTED point when the sweep fails past the anchor (so `sol.u` is a converged
+# on-path solution at exactly `λ_last`), and `nothing` on success or when the anchor
+# itself failed (no accepted point exists). `HomotopyPolyAlgorithm` uses it to
+# warm-hand the remaining stretch to the next stage instead of restarting the
+# fallback cold at `λspan[1]`.
+function _homotopy_sweep_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},
         alg::HomotopySweep, args...; kwargs...
     ) where {uType, iip}
@@ -456,17 +469,18 @@ function CommonSolve.solve(
     end
     if !SciMLBase.successful_retcode(last_sol)
         # the λ = λspan[1] system itself failed from u0: the homotopy premise is
-        # broken, so no continuation is possible. `u` stays u0.
+        # broken, so no continuation is possible. `u` stays u0. No accepted point
+        # exists, so there is nothing to hand off.
         return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid;
-            retcode = last_sol.retcode, original = last_sol
-        )
+                prob, alg, u, last_sol.resid;
+                retcode = last_sol.retcode, original = last_sol
+            ), nothing
     end
     u = copy(last_sol.u)
     # Zero-width λspan (λ0 == λend): the anchor IS the single target solve.
     λ == λend && return SciMLBase.build_solution(
-        prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
-    )
+            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+        ), nothing
 
     # Reused across every step: `u`/`u_prev` are the last two accepted iterates (their
     # buffers are swapped, never reallocated); `virtual` is scratch for the secant
@@ -491,16 +505,16 @@ function CommonSolve.solve(
             # ArcLengthContinuation's guard: without it the loop is bounded only by
             # span/min_dλ ≈ 7×10⁷ accepted steps.
             return SciMLBase.build_solution(
-                prob, alg, u, nothing; retcode = ReturnCode.MaxIters
-            )
+                    prob, alg, u, nothing; retcode = ReturnCode.MaxIters
+                ), λ
         end
         next_λ = abs(λend - λ) <= abs(dλ) ? λend : λ + dλ
         if next_λ == λ && next_λ != λend
             # dλ underflowed below eps(λ) mid-continuation: no further progress is
             # possible (the zero-width span is already handled by the anchor above).
             return SciMLBase.build_solution(
-                prob, alg, u, nothing; retcode = ReturnCode.Stalled
-            )
+                    prob, alg, u, nothing; retcode = ReturnCode.Stalled
+                ), λ
         end
         used_secant = alg.predictor === :secant && trust >= 2 && λ_prev != λ
         guess = if used_secant
@@ -617,15 +631,15 @@ function CommonSolve.solve(
         else
             # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
             return SciMLBase.build_solution(
-                prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol
-            )
+                    prob, alg, u, last_sol.resid;
+                    retcode = last_sol.retcode, original = last_sol
+                ), λ
         end
     end
 
     return SciMLBase.build_solution(
-        prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
-    )
+            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+        ), nothing
 end
 
 # A HomotopyProblem with no algorithm defaults to the staged polyalgorithm (sweep first,
