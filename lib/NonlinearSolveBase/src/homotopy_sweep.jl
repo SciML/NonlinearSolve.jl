@@ -17,7 +17,13 @@ The inner solver is initialized once and re-driven each step through the
 `init`/`reinit!`/`solve!` cache interface, so the continuation loop reuses the inner
 solver's workspace (Jacobian buffers, linear-solver storage) instead of reconstructing
 the solver every step; the sweep's own per-step state lives in a fixed set of
-preallocated buffers.
+preallocated buffers. When the inner solver is a polyalgorithm (as the default is),
+the warm-started tracking steps additionally arm best-subalgorithm retention on that
+cache (see [`NonlinearSolvePolyAlgorithm`](@ref)): each step resumes from the
+subalgorithm that produced the previous step's success instead of re-running the
+polyalgorithm ladder from its start, escalating (and eventually wrapping around) only
+when the retained subalgorithm fails. The cold anchor solve at `λspan[1]` always runs
+the full ladder — that is where the winning subalgorithm is discovered.
 
 Optional derivative fields of the problem's `NonlinearFunction` (which
 [`SciMLBase.HomotopyProblem`](@ref) requires to follow the same λ-extended argument
@@ -526,7 +532,10 @@ function _homotopy_sweep_solve(
             _sweep_warmstart!(guess, u)
         end
         fixλ.λ = next_λ
-        SciMLBase.reinit!(cache, guess)
+        # Retaining reinit!: a polyalgorithm inner resumes from the subalgorithm that
+        # won the previous solve (the anchor's full-ladder run discovers the winner)
+        # instead of re-failing the cheaper ladder members on every warm-started step.
+        reinit_retaining!(cache, guess)
         last_sol = CommonSolve.solve!(cache)
 
         if next_λ == λend

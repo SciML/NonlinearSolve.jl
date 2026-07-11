@@ -76,6 +76,11 @@ Keyword arguments:
 
   - `inner`: the inner nonlinear algorithm used for both the initial on-curve correction
     and the augmented corrector; `nothing` selects NonlinearSolve's default polyalgorithm.
+    A polyalgorithm inner runs the augmented corrector with best-subalgorithm retention
+    (see [`NonlinearSolvePolyAlgorithm`](@ref)): after the first corrector solve
+    discovers the winning subalgorithm, each warm-started corrector resumes from it
+    instead of re-running the ladder from its start, escalating only when it fails. The
+    λ-fixed anchor and landing solves always run the full ladder.
   - `initial_step_factor`: the initial arclength step `Δs` as a fraction of the `λspan`
     width. Must be in `(0, 1]`.
   - `adaptive`: when `true` (default), a corrector failure halves `Δs` and retries from
@@ -810,7 +815,11 @@ function CommonSolve.solve(
 
         @. xpred = xcur + ds * τ
         aug.ds = Tx(ds)
-        SciMLBase.reinit!(corr_cache, xpred)
+        # Retaining reinit!: a polyalgorithm inner resumes from the subalgorithm that
+        # won the previous corrector solve (the first corrector runs the full ladder
+        # and discovers the winner) instead of re-failing the cheaper ladder members
+        # on every warm-started step.
+        reinit_retaining!(corr_cache, xpred)
         last_sol = CommonSolve.solve!(corr_cache)
 
         if SciMLBase.successful_retcode(last_sol)
