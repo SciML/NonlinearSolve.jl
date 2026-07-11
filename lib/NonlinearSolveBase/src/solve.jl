@@ -383,34 +383,77 @@ end
         end
     )
 
+    # The per-subalgorithm attempt body, shared by the normal in-order pass and the
+    # retention wrap-around pass below (`cache_syms[i]` is assigned unconditionally in
+    # the first pass, and a given `i` runs in at most one of the two passes, so the
+    # `sol`/`u_result` symbols can be shared).
+    attempt_block = i -> quote
+        if cache.retain_best && $(i) != cache.start_current
+            # a `retain_best` reinit! only reinitialized the starting subcache;
+            # escalation freshens each further subcache right before its attempt
+            deferred_subcache_reinit!(cache, $(cache_syms[i]))
+        end
+        cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
+        $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
+        if SciMLBase.successful_retcode($(sol_syms[i]))
+            stats = $(sol_syms[i]).stats
+            cache.best = $(i)
+            if cache.alias_u0
+                copyto!(cache.u0, $(sol_syms[i]).u)
+                $(u_result_syms[i]) = cache.u0::_uType
+            else
+                $(u_result_syms[i]) = $(sol_syms[i]).u::_uType
+            end
+            fu = NonlinearSolveBase.get_fu($(cache_syms[i]))::_fuType
+            return build_solution_less_specialize(
+                cache.prob, cache.alg, $(u_result_syms[i]), fu;
+                retcode = $(sol_syms[i]).retcode, stats,
+                original = $(sol_syms[i]), trace = ($(sol_syms[i]).trace::_traceType),
+                store_original = cache.alg.store_original
+            )
+        elseif cache.alias_u0
+            # For safety we need to maintain a copy of the solution
+            $(u_result_syms[i]) = copy($(sol_syms[i]).u)
+        end
+        cache.current = $(i + 1)
+    end
+
     for i in 1:N
         push!(
             calls,
             quote
                 $(cache_syms[i]) = cache.caches[$(i)]
                 if $(i) == cache.current
-                    cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
-                    $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
-                    if SciMLBase.successful_retcode($(sol_syms[i]))
-                        stats = $(sol_syms[i]).stats
-                        if cache.alias_u0
-                            copyto!(cache.u0, $(sol_syms[i]).u)
-                            $(u_result_syms[i]) = cache.u0::_uType
-                        else
-                            $(u_result_syms[i]) = $(sol_syms[i]).u::_uType
-                        end
-                        fu = NonlinearSolveBase.get_fu($(cache_syms[i]))::_fuType
-                        return build_solution_less_specialize(
-                            cache.prob, cache.alg, $(u_result_syms[i]), fu;
-                            retcode = $(sol_syms[i]).retcode, stats,
-                            original = $(sol_syms[i]), trace = ($(sol_syms[i]).trace::_traceType),
-                            store_original = cache.alg.store_original
-                        )
-                    elseif cache.alias_u0
-                        # For safety we need to maintain a copy of the solution
-                        $(u_result_syms[i]) = copy($(sol_syms[i]).u)
-                    end
-                    cache.current = $(i + 1)
+                    $(attempt_block(i))
+                end
+            end
+        )
+    end
+
+    # Retention wrap-around (see the `NonlinearSolvePolyAlgorithm` docstring): when
+    # `reinit!` armed `retain_best` and the retained subalgorithm's ladder started
+    # past the algorithm's own `start_index`, a fully-failed pass continues with the
+    # skipped cheaper subalgorithms before falling through to the lowest-residual
+    # selection. The wrapped pass starts at `start_index` (never below it — retention
+    # must not attempt subalgorithms the algorithm itself excludes) and stops where
+    # the retained start already ran, so every subalgorithm of a full ladder run is
+    # attempted exactly once.
+    push!(
+        calls,
+        quote
+            if cache.retain_best && !cache.wrapped &&
+                    cache.start_current > cache.alg.start_index
+                cache.wrapped = true
+                cache.current = cache.alg.start_index
+            end
+        end
+    )
+    for i in 1:(N - 1)
+        push!(
+            calls,
+            quote
+                if cache.wrapped && $(i) == cache.current && $(i) < cache.start_current
+                    $(attempt_block(i))
                 end
             end
         )
