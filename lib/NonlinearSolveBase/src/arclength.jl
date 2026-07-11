@@ -253,37 +253,53 @@ end
 
 @inline _theta_norm(x, wu, wλ, n) = sqrt(_theta_dot(x, x, wu, wλ, n))
 
+# ⟨τ, x - x0⟩_θ without materializing the difference. The corrector residual evaluates
+# this once per inner iteration with `x` possibly Dual-typed under the inner solver's
+# AD, so a temporary `x .- x0` would heap-allocate on every residual call; the loop
+# stays generic in the eltype (duals flow through the accumulator).
+@inline function _theta_dot_shifted(τ, x, x0, wu, wλ, n)
+    acc = zero(τ[1] * (x[1] - x0[1]))
+    @inbounds @simd for i in 1:n
+        acc += τ[i] * (x[i] - x0[i])
+    end
+    return wu * acc + wλ * (τ[n + 1] * (x[n + 1] - x0[n + 1]))
+end
+
 # Residual of the augmented (n+1) corrector system: the n homotopy equations stacked
 # with the scalar Keller pseudo-arclength constraint. A named struct (not a closure) so
 # the inner solver's compilation is reused across continuation steps. `f` is the raw
 # user homotopy `f(u, p, λ)` / `f(du, u, p, λ)`; `τ` and `xcur` are the (θ-metric unit)
-# predictor direction and the last accepted packed point `[u; λ]`; `ds` is the arclength
-# step and `wu`/`wλ` are the θ-metric weights, so the constraint row reads
+# predictor direction and the last accepted packed point `[u; λ]` — both alias STABLE
+# driver buffers that are updated in place between steps — and `ds` is a mutable field,
+# so the SAME residual (and the one inner-solver cache built around it) is reused for
+# every corrector attempt: advancing the continuation is a couple of buffer/field
+# writes, not a new function/problem/solver allocation (mirroring the sweep's
+# `FixLambda`). `wu`/`wλ` are the θ-metric weights, so the constraint row reads
 # ⟨τ, x - xcur⟩_θ = ds. The augmented variable is `x = [u; λ]`; the solver passes the
 # problem parameter `p` through (as for any `NonlinearProblem` residual) and it is
 # forwarded to the user homotopy.
-struct AugmentedHomotopy{F, V, T}
-    f::F
-    τ::V
-    xcur::V
+mutable struct AugmentedHomotopy{F, V, T}
+    const f::F
+    const τ::V
+    const xcur::V
     ds::T
-    n::Int
-    wu::T
-    wλ::T
+    const n::Int
+    const wu::T
+    const wλ::T
 end
 
 function (a::AugmentedHomotopy)(x, p)
-    u = x[1:(a.n)]
+    u = view(x, 1:(a.n))
     λ = x[a.n + 1]
     Hval = a.f(u, p, λ)
-    c = _theta_dot(a.τ, x .- a.xcur, a.wu, a.wλ, a.n) - a.ds
+    c = _theta_dot_shifted(a.τ, x, a.xcur, a.wu, a.wλ, a.n) - a.ds
     return vcat(Hval, c)
 end
 
 function (a::AugmentedHomotopy)(res, x, p)
     n = a.n
     a.f(view(res, 1:n), view(x, 1:n), p, x[n + 1])
-    res[n + 1] = _theta_dot(a.τ, x .- a.xcur, a.wu, a.wλ, n) - a.ds
+    res[n + 1] = _theta_dot_shifted(a.τ, x, a.xcur, a.wu, a.wλ, n) - a.ds
     return nothing
 end
 
@@ -669,9 +685,14 @@ function CommonSolve.solve(
 
     n = length(u)
     Tx = promote_type(eltype(u), λT)
-    pack(uvec, λval) = Tx[uvec..., λval]
-    xcur = pack(u, λ)
-    xprev = xcur                       # no history yet → secant falls back to pure-λ
+    # Packed current point `[u; λ]` and its predecessor: STABLE buffers written in
+    # place for the rest of the solve. `xcur` is aliased by the corrector residual
+    # built once below, so accepting a step copies through these buffers instead of
+    # rebinding them.
+    xcur = Vector{Tx}(undef, n + 1)
+    copyto!(view(xcur, 1:n), u)
+    xcur[n + 1] = λ
+    xprev = copy(xcur)                 # no history yet → secant falls back to pure-λ
     have_prev = false
 
     min_ds = alg.min_ds === nothing ? sqrt(eps(λT)) : λT(alg.min_ds)
@@ -691,7 +712,8 @@ function CommonSolve.solve(
     wu = θw / n
     wλ = one(Tx) - θw
     # pure-λ direction toward λend, unit in the θ metric (‖[0; a]‖_θ = √wλ·|a|).
-    τseed = pack(zeros(Tx, n), sλ / sqrt(wλ))
+    τseed = zeros(Tx, n + 1)
+    τseed[n + 1] = sλ / sqrt(wλ)
 
     use_tangent = alg.predictor === :tangent
     # Analytic path Jacobian assembled from the user's jac (nothing without one),
@@ -730,6 +752,41 @@ function CommonSolve.solve(
         prob.f.sparsity
     end
 
+    # ONE corrector residual/function/inner-solver cache, mirroring the sweep's cache
+    # driver: the residual reads the in-place-updated `τ`/`xcur` buffers and its `ds`
+    # is a mutable field, so each corrector attempt is a couple of buffer/field writes
+    # plus a `reinit!` with the new prediction — the inner solver's workspace (Newton
+    # state, Jacobian cache, linear-solve cache) is reused across every continuation
+    # step instead of being reconstructed. The residual is length n+1 and never
+    # in-place even for an iip homotopy — the constraint row has no user-facing
+    # buffer, so we always own it. `xpred` is handed to the cache and may be iterated
+    # in place when aliasing is forwarded; it is fully rewritten before every attempt.
+    # When the tracking cap is active it is baked into this cache — every corrector
+    # solve runs capped; the λ-fixed anchor above and the landing solves below are
+    # separate full-budget solves — and an explicit user `maxiters` always wins
+    # (`cap_active` is false in that case).
+    aug = AugmentedHomotopy(prob.f, τ, xcur, Tx(ds), n, wu, wλ)
+    augf = _arclength_augmented_function(
+        Val(iip), prob.f, aug, aug_jac, aug_proto, aug_sparsity
+    )
+    xpred = copy(xcur)
+    corr_cache = if cap_active
+        init(
+            NonlinearProblem{iip}(augf, xpred, prob.p), alg.inner, args...;
+            prob.kwargs..., kwargs..., maxiters = budget
+        )
+    else
+        init(
+            NonlinearProblem{iip}(augf, xpred, prob.p), alg.inner, args...;
+            prob.kwargs..., kwargs...
+        )
+    end
+    # Accepted-state buffers reused every step: `ubuf` receives the accepted u-block
+    # (the failure returns hand it out), `uland` the interpolated warm start of the
+    # λ-fixed landing solve.
+    ubuf = Vector{Tx}(undef, n)
+    uland = Vector{Tx}(undef, n)
+
     for _ in 1:(alg.maxsteps)
         # Predictor direction τ (θ-metric unit, length n+1).
         if use_tangent
@@ -751,29 +808,16 @@ function CommonSolve.solve(
             copyto!(τ, τseed)
         end
 
-        xpred = xcur .+ ds .* τ
-        aug = AugmentedHomotopy(prob.f, τ, xcur, Tx(ds), n, wu, wλ)
-        # length n+1; never in-place even for an iip homotopy — the constraint row has no
-        # user-facing buffer, so we always own the residual.
-        augf = _arclength_augmented_function(
-            Val(iip), prob.f, aug, aug_jac, aug_proto, aug_sparsity
-        )
-        corr_prob = NonlinearProblem{iip}(augf, copy(xpred), prob.p)
-        # The cap is spliced BEFORE the user kwargs so an explicit `maxiters` always
-        # wins (and `cap_active` is false in that case anyway).
-        last_sol = if cap_active
-            solve(
-                corr_prob, alg.inner, args...;
-                maxiters = budget, prob.kwargs..., kwargs...
-            )
-        else
-            solve(corr_prob, alg.inner, args...; prob.kwargs..., kwargs...)
-        end
+        @. xpred = xcur + ds * τ
+        aug.ds = Tx(ds)
+        SciMLBase.reinit!(corr_cache, xpred)
+        last_sol = CommonSolve.solve!(corr_cache)
 
         if SciMLBase.successful_retcode(last_sol)
             xnew = last_sol.u
-            chord = xnew .- xcur
-            nchord = _theta_norm(chord, wu, wλ, n)
+            # realized chord, built in the (currently free) secant scratch
+            @. tscratch = xnew - xcur
+            nchord = _theta_norm(tscratch, wu, wλ, n)
 
             # Curvature control: the realized step direction vs. the predictor measures the
             # path's turn. A large turn means either real high curvature or that the
@@ -783,7 +827,7 @@ function CommonSolve.solve(
             # history (its pure-λ bootstrap is legitimately misaligned with a sloped branch).
             trust = use_tangent || have_prev
             cosang = (trust && nchord > 0) ?
-                clamp(_theta_dot(τ, chord, wu, wλ, n) / nchord, -one(Tx), one(Tx)) :
+                clamp(_theta_dot(τ, tscratch, wu, wλ, n) / nchord, -one(Tx), one(Tx)) :
                 one(Tx)
             if trust && cosang < cos_reject && alg.adaptive && ds / 2 >= min_ds
                 ds = ds / 2
@@ -791,13 +835,17 @@ function CommonSolve.solve(
                 continue
             end
 
-            unew = xnew[1:n]
             λnew = xnew[n + 1]
             λold = λ
 
-            xprev = xcur
-            xcur = copy(xnew)
-            u = copy(unew)
+            # Accept: shift the packed history through the stable buffers (the
+            # corrector residual aliases `xcur`, so the buffers are copied through,
+            # never swapped or rebound) and keep the accepted u-block in `ubuf` for
+            # the failure returns.
+            copyto!(xprev, xcur)
+            copyto!(xcur, xnew)
+            copyto!(ubuf, view(xcur, 1:n))
+            u = ubuf
             λ = λnew
             have_prev = true
 
@@ -806,10 +854,9 @@ function CommonSolve.solve(
             if (λold - λend) * (λnew - λend) <= 0
                 denom = λnew - λold
                 frac = denom == 0 ? one(Tx) : Tx((λend - λold) / denom)
-                uprev = xprev[1:n]
-                uguess = uprev .+ frac .* (unew .- uprev)
+                @views @. uland = xprev[1:n] + frac * (xcur[1:n] - xprev[1:n])
                 final_sol = _arclength_fixed_solve(
-                    prob, alg.inner, uguess, λend, args...; kwargs...
+                    prob, alg.inner, uland, λend, args...; kwargs...
                 )
                 if SciMLBase.successful_retcode(final_sol)
                     return SciMLBase.build_solution(
