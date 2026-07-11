@@ -1,6 +1,6 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "4.20.4"
+version = "4.21.0"
 authors = ["SciML"]
 
 [deps]
@@ -91,7 +91,7 @@ LeastSquaresOptim = "0.8.5"
 LineSearch = "0.1.9"
 LineSearches = "7.3"
 LinearAlgebra = "1.10"
-LinearSolve = "3.48, 4"
+LinearSolve = "3.48, 4, 5"
 MINPACK = "1.2"
 MPI = "0.20.22"
 NLSolvers = "0.5"
