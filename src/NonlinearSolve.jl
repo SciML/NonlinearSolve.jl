@@ -150,62 +150,6 @@ end
     NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
 @reexport using LinearSolve
 
-@doc raw"""
-    AutoModelingToolkit(; obj_sparse = false, cons_sparse = false)
-
-Deprecated ADTypes backend selector for ModelingToolkit-based symbolic differentiation.
-Prefer `AutoSymbolics()` or `AutoSparse(AutoSymbolics())`.
-""" ADTypes.AutoModelingToolkit
-
-@doc raw"""
-    AutoSparseFastDifferentiation()
-
-Deprecated ADTypes sparse automatic differentiation selector. Prefer
-`AutoSparse(AutoFastDifferentiation())`.
-""" ADTypes.AutoSparseFastDifferentiation
-
-@doc raw"""
-    AutoSparseFiniteDiff(; kwargs...)
-
-Deprecated ADTypes sparse finite-difference selector. Prefer
-`AutoSparse(AutoFiniteDiff(; kwargs...))`.
-""" ADTypes.AutoSparseFiniteDiff
-
-@doc raw"""
-    AutoSparseForwardDiff(; kwargs...)
-
-Deprecated ADTypes sparse ForwardDiff selector. Prefer
-`AutoSparse(AutoForwardDiff(; kwargs...))`.
-""" ADTypes.AutoSparseForwardDiff
-
-@doc raw"""
-    AutoSparsePolyesterForwardDiff(; kwargs...)
-
-Deprecated ADTypes sparse PolyesterForwardDiff selector. Prefer
-`AutoSparse(AutoPolyesterForwardDiff(; kwargs...))`.
-""" ADTypes.AutoSparsePolyesterForwardDiff
-
-@doc raw"""
-    AutoSparseReverseDiff(; kwargs...)
-    AutoSparseReverseDiff(compile)
-
-Deprecated ADTypes sparse ReverseDiff selector. Prefer
-`AutoSparse(AutoReverseDiff(; kwargs...))`.
-""" ADTypes.AutoSparseReverseDiff
-
-@doc raw"""
-    AutoSparseZygote()
-
-Deprecated ADTypes sparse Zygote selector. Prefer `AutoSparse(AutoZygote())`.
-""" ADTypes.AutoSparseZygote
-
-@doc raw"""
-    LineSearchSolution(step_size, retcode)
-
-Result object returned by LineSearch.jl line-search solves. `step_size` is the
-accepted step length and `retcode` is the SciML return code for the line search.
-""" LineSearch.LineSearchSolution
-
 # Poly Algorithms
 export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg
 
