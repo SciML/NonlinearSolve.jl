@@ -27,6 +27,7 @@ See [ParallelParticleSwarms.jl](https://github.com/SciML/ParallelParticleSwarms.
 
 ```@docs
 SimpleNewtonRaphson
+SimpleGaussNewton
 SimpleBroyden
 SimpleHalley
 SimpleKlement

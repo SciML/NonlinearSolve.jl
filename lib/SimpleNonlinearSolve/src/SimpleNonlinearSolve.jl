@@ -163,6 +163,55 @@ end
 # Rexexports
 @reexport using ADTypes, SciMLBase, BracketingNonlinearSolve, NonlinearSolveBase
 
+@doc raw"""
+    AutoModelingToolkit(; obj_sparse = false, cons_sparse = false)
+
+Deprecated ADTypes backend selector for ModelingToolkit-based symbolic differentiation.
+Prefer `AutoSymbolics()` or `AutoSparse(AutoSymbolics())`.
+""" ADTypes.AutoModelingToolkit
+
+@doc raw"""
+    AutoSparseFastDifferentiation()
+
+Deprecated ADTypes sparse automatic differentiation selector. Prefer
+`AutoSparse(AutoFastDifferentiation())`.
+""" ADTypes.AutoSparseFastDifferentiation
+
+@doc raw"""
+    AutoSparseFiniteDiff(; kwargs...)
+
+Deprecated ADTypes sparse finite-difference selector. Prefer
+`AutoSparse(AutoFiniteDiff(; kwargs...))`.
+""" ADTypes.AutoSparseFiniteDiff
+
+@doc raw"""
+    AutoSparseForwardDiff(; kwargs...)
+
+Deprecated ADTypes sparse ForwardDiff selector. Prefer
+`AutoSparse(AutoForwardDiff(; kwargs...))`.
+""" ADTypes.AutoSparseForwardDiff
+
+@doc raw"""
+    AutoSparsePolyesterForwardDiff(; kwargs...)
+
+Deprecated ADTypes sparse PolyesterForwardDiff selector. Prefer
+`AutoSparse(AutoPolyesterForwardDiff(; kwargs...))`.
+""" ADTypes.AutoSparsePolyesterForwardDiff
+
+@doc raw"""
+    AutoSparseReverseDiff(; kwargs...)
+    AutoSparseReverseDiff(compile)
+
+Deprecated ADTypes sparse ReverseDiff selector. Prefer
+`AutoSparse(AutoReverseDiff(; kwargs...))`.
+""" ADTypes.AutoSparseReverseDiff
+
+@doc raw"""
+    AutoSparseZygote()
+
+Deprecated ADTypes sparse Zygote selector. Prefer `AutoSparse(AutoZygote())`.
+""" ADTypes.AutoSparseZygote
+
 export SimpleBroyden, SimpleKlement, SimpleLimitedMemoryBroyden
 export SimpleDFSane
 export SimpleGaussNewton, SimpleNewtonRaphson, SimpleTrustRegion

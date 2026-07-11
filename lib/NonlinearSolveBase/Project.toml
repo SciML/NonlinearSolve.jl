@@ -110,7 +110,7 @@ Tracker = "0.2.35"
 julia = "1.10"
 
 SafeTestsets = "0.1"
-SciMLTesting = "1"
+SciMLTesting = "2.1"
 [extras]
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"

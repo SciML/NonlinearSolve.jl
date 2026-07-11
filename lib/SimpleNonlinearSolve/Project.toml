@@ -74,7 +74,7 @@ Zygote = "0.6.70, 0.7"
 julia = "1.10"
 
 SafeTestsets = "0.1"
-SciMLTesting = "1"
+SciMLTesting = "2.1"
 [extras]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"

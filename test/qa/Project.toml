@@ -22,7 +22,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
-NonlinearSolve = {path = "../.."}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
@@ -46,7 +45,7 @@ NonlinearSolveQuasiNewton = "1.12"
 NonlinearSolveSpectralMethods = "1.6"
 SIAMFANLEquations = "1.0.1"
 SciMLBase = "2.154, 3"
-SciMLTesting = "1.7"
+SciMLTesting = "2.1"
 SimpleNonlinearSolve = "2.10"
 SpeedMapping = "0.4"
 Test = "1.10"
