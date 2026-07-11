@@ -576,25 +576,31 @@ function _homotopy_sweep_solve(
             # points lie past a sharp turn. The scale includes the previous step's
             # displacement and an absolute floor so that a flat stretch of the path
             # (where the displacement is rounding noise) doesn't read as distrust.
+            # `last_sol.u` reached through a single concrete local: the driver's
+            # `last_sol` is union-typed across the anchor/step branches, so a bare
+            # `last_sol.u` boxes on every access — reading it once per step and using the
+            # local at the four sites below drops three redundant boxed getproperty calls
+            # per step from the accept/quality glue (~1.5 KB/step at n = 50).
+            solu = last_sol.u
             θ = nothing
             if λ_prev != λ
                 # recomputed from scratch (never reuse `guess`): the inner solver may
                 # have iterated in place in the guess buffer when aliasing is forwarded
                 sv = (next_λ - λ) / (λ - λ_prev)
                 virtual = _sweep_extrapolate!(virtual, u, u_prev, sv)
-                correction = Utils.norm_op(L2_NORM, -, last_sol.u, virtual)
-                disp = Utils.norm_op(L2_NORM, -, last_sol.u, u)
-                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(last_sol.u)))
+                correction = Utils.norm_op(L2_NORM, -, solu, virtual)
+                disp = Utils.norm_op(L2_NORM, -, solu, u)
+                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(solu)))
                 θ = correction / scale
                 # the secant only earns its keep when it predicts at least twice as
                 # well as the trivial constant prediction (whose θ is exactly 1)
                 trust = θ < 1 / 2 ? trust + 1 : 0
                 disp_prev = disp
             else
-                disp_prev = Utils.norm_op(L2_NORM, -, last_sol.u, u)
+                disp_prev = Utils.norm_op(L2_NORM, -, solu, u)
             end
             # accept: swap `u`↔`u_prev` and copy the solution into `u` (no allocation).
-            u, u_prev = _sweep_accept!(u, u_prev, last_sol.u)
+            u, u_prev = _sweep_accept!(u, u_prev, solu)
             λ_prev = λ
             λ = next_λ
             λ == λend && break
