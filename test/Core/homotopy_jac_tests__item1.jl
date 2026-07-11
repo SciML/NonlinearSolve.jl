@@ -8,10 +8,9 @@ using LinearAlgebra
 # problem's NonlinearFunction into the inner solver's NonlinearFunction instead of
 # dropping them.
 #
-# The extra λ-free jac methods below exist only so the user-side NonlinearFunction
-# constructor's arity-based iip conformance check accepts the λ-extended jac (MTK-style
-# generated functions carry both dispatches naturally); they error loudly because the
-# sweep must only ever call the λ-extended form through its own λ-fixing wrapper.
+# The jac-carrying constructions pass `lambda_extended = true` (SciMLBase ≥ the release
+# containing SciML/SciMLBase.jl#1430) so the constructor validates the jac against the
+# λ-extended arity directly — no λ-free dummy methods needed.
 
 # f(u,p,λ) = (1-λ)*(u-c) + λ*(u^3-c); λ=0 root u=c ; λ=1 root u=∛c.
 f_oop(u, p, λ) = [(1 - λ) * (u[1] - p) + λ * (u[1]^3 - p)]
@@ -20,8 +19,7 @@ f_iip(du, u, p, λ) = (du[1] = (1 - λ) * (u[1] - p) + λ * (u[1]^3 - p); nothin
 # --- Analytic oop jac is consumed (counting) ---
 oop_jac_calls = Ref(0)
 j_oop(u, p, λ) = (oop_jac_calls[] += 1; reshape([(1 - λ) + λ * 3 * u[1]^2;;], 1, 1))
-j_oop(u, p) = error("λ-free jac must never be called by the sweep")
-prob_oop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_oop), [2.0], 2.0)
+prob_oop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_oop, lambda_extended = true), [2.0], 2.0)
 sol_oop = solve(prob_oop, HomotopySweep(; inner = NewtonRaphson()))
 @test SciMLBase.successful_retcode(sol_oop)
 @test sol_oop.u[1] ≈ cbrt(2.0) atol = 1.0e-8
@@ -34,8 +32,7 @@ function j_iip(J, u, p, λ)
     J[1, 1] = (1 - λ) + λ * 3 * u[1]^2
     return nothing
 end
-j_iip(J, u, p) = error("λ-free jac must never be called by the sweep")
-prob_iip = HomotopyProblem(NonlinearFunction{true}(f_iip; jac = j_iip), [2.0], 2.0)
+prob_iip = HomotopyProblem(NonlinearFunction{true}(f_iip; jac = j_iip, lambda_extended = true), [2.0], 2.0)
 sol_iip = solve(prob_iip, HomotopySweep(; inner = NewtonRaphson()))
 @test SciMLBase.successful_retcode(sol_iip)
 @test sol_iip.u[1] ≈ cbrt(2.0) atol = 1.0e-8
@@ -44,8 +41,7 @@ sol_iip = solve(prob_iip, HomotopySweep(; inner = NewtonRaphson()))
 # --- The default polyalgorithm sees the analytic jac (must_use_jacobian path) ---
 polyalg_jac_calls = Ref(0)
 j_poly(u, p, λ) = (polyalg_jac_calls[] += 1; reshape([(1 - λ) + λ * 3 * u[1]^2;;], 1, 1))
-j_poly(u, p) = error("λ-free jac must never be called by the sweep")
-prob_poly = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_poly), [2.0], 2.0)
+prob_poly = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_poly, lambda_extended = true), [2.0], 2.0)
 sol_poly = solve(prob_poly, HomotopySweep())
 @test SciMLBase.successful_retcode(sol_poly)
 @test sol_poly.u[1] ≈ cbrt(2.0) atol = 1.0e-8
@@ -63,8 +59,7 @@ function j_short_oop(u, p, λ)
     simple_oop_jac_calls[] += 1
     return reshape([(1 - λ) + λ * 3 * u[1]^2;;], 1, 1)
 end
-j_short_oop(u, p) = error("λ-free jac must never be called by the sweep")
-prob_short_oop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_short_oop), [2.0], 2.0)
+prob_short_oop = HomotopyProblem(NonlinearFunction{false}(f_oop; jac = j_short_oop, lambda_extended = true), [2.0], 2.0)
 sol_short_oop = solve(prob_short_oop, SimpleHomotopySweep(; inner = SimpleNewtonRaphson()))
 @test SciMLBase.successful_retcode(sol_short_oop)
 @test sol_short_oop.u[1] ≈ cbrt(2.0) atol = 1.0e-8
@@ -76,8 +71,7 @@ function j_siip(J, u, p, λ)
     J[1, 1] = (1 - λ) + λ * 3 * u[1]^2
     return nothing
 end
-j_siip(J, u, p) = error("λ-free jac must never be called by the sweep")
-prob_siip = HomotopyProblem(NonlinearFunction{true}(f_iip; jac = j_siip), [2.0], 2.0)
+prob_siip = HomotopyProblem(NonlinearFunction{true}(f_iip; jac = j_siip, lambda_extended = true), [2.0], 2.0)
 sol_siip = solve(prob_siip, SimpleHomotopySweep(; inner = SimpleNewtonRaphson()))
 @test SciMLBase.successful_retcode(sol_siip)
 @test sol_siip.u[1] ≈ cbrt(2.0) atol = 1.0e-8
@@ -105,9 +99,8 @@ function j_band(J, u, p, λ)
     end
     return nothing
 end
-j_band(J, u, p) = error("λ-free jac must never be called by the sweep")
 proto = Tridiagonal(zeros(n - 1), ones(n), zeros(n - 1))
-nf_band = NonlinearFunction{true}(f_band; jac = j_band, jac_prototype = proto)
+nf_band = NonlinearFunction{true}(f_band; jac = j_band, jac_prototype = proto, lambda_extended = true)
 prob_band = HomotopyProblem(nf_band, fill(1.0, n), 1.0)
 sol_band = solve(prob_band, HomotopySweep(; inner = NewtonRaphson()))
 @test SciMLBase.successful_retcode(sol_band)
