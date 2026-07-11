@@ -47,9 +47,15 @@ function per_step_bytes(prob, predictor; N1 = 50, N2 = 250)
 end
 
 # Measured ≈ 56 KB (secant) / 77 KB (tangent) per step at n = 50 with the cache
-# driver — the default inner polyalgorithm's per-iteration internals (LU workspace,
-# quasi-Newton updates). The pre-cache driver measured ≈ 274 KB / 295 KB. Bounds sit
-# at roughly 2× the cached cost, well under half the uncached cost.
+# driver; the driver's own glue profiles at < 1 KB/step. The remainder is the shared
+# Newton stack, attributed by Profile.Allocs: ~21.5 KB/step is LinearSolve's
+# `lu(A, check = false)` copy on refactorization (skippable via its in-place `lu!`
+# path, gated on `alias_A = true` at init — a `construct_linear_solver` follow-up,
+# not driver work), ~21.5 KB/step is Broyden's initial J⁻¹ (`maybe_pinv!!` does a
+# fresh `lu(A)`), and ~10 KB/step is Klement/termination internals of the default
+# inner polyalgorithm. The pre-cache driver measured ≈ 274 KB / 295 KB. Bounds sit
+# at roughly 2× the cached cost, well under half the uncached cost, and hold
+# regardless of whether the Newton-stack follow-ups land.
 @test per_step_bytes(prob_big, :secant) < 128_000
 @test per_step_bytes(prob_big, :tangent) < 160_000
 
