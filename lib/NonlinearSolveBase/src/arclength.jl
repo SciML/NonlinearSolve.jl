@@ -27,6 +27,30 @@ The target is the point on the curve where ``λ = λspan[2]``: the solver follow
 until a step brackets that ``λ``, then performs one final ``λ``-fixed correction to land
 on it exactly.
 
+Optional derivative fields of the problem's `NonlinearFunction` (which follow the same
+λ-extended argument convention as the residual) are consumed. An analytic
+`jac(u, p, λ)` / `jac(J, u, p, λ)` supplies the ``∂H/∂u`` block of the augmented path
+Jacobian ``[∂H/∂u | ∂H/∂λ]``; the missing ``∂H/∂λ`` column is a *scalar-parameter*
+derivative, obtained as one forward-mode derivative of the residual in ``λ`` at fixed
+`u` (through `autodiff`) — the packed system is never differentiated wholesale. The
+assembled path Jacobian drives the `:tangent` predictor and, extended by the
+analytically known θ-weighted Keller constraint row, gives every augmented corrector
+solve a full analytic ``(n+1)×(n+1)`` Jacobian; the λ-fixed anchor and landing solves
+consume the jac exactly as [`HomotopySweep`](@ref) does. A `jac_prototype` (or matrix
+`sparsity`) is extended to the augmented shapes: one structurally dense ``∂H/∂λ``
+column for the predictor's ``n×(n+1)`` system, plus the structurally dense constraint
+row for the corrector's bordered ``(n+1)×(n+1)`` system. Sparse and structured
+prototypes are promoted to `SparseMatrixCSC` — a bordered `Tridiagonal` is no longer
+tridiagonal, and CSC is the general container the coloring and sparse linear-solve
+machinery handle; this requires `SparseArrays` to be loaded (structured prototypes
+fall back to a dense bordered prototype otherwise), and the prototype is not
+eltype-promoted with λ. A sparsity *detector* is forwarded unchanged (it detects the
+augmented pattern from the augmented residual itself). A user `colorvec` is forwarded
+to the predictor's system extended by one fresh color for the dense λ column; it is
+not forwarded to the corrector, whose dense constraint row admits no nontrivial column
+coloring — there the bordered prototype's value is chiefly the sparse linear solve.
+When no derivative fields are present, construction is identical to before.
+
 !!! note "The arclength metric is θ-weighted"
 
     All of the solver's path geometry — the Keller constraint row, the predictor
@@ -90,8 +114,10 @@ Keyword arguments:
     `autodiff`). This is the Euler tangent predictor of the classic path trackers and of
     OpenModelica's global homotopy.
   - `autodiff`: the automatic-differentiation backend (an `ADTypes.AbstractADType`) used
-    to form the augmented Jacobian for the `:tangent` predictor; `nothing` (default)
-    selects `AutoForwardDiff()`. Unused by the `:secant` predictor.
+    to form the augmented Jacobian for the `:tangent` predictor and, when the problem
+    supplies an analytic `jac`, to take the single ``∂H/∂λ`` scalar derivative that
+    completes it; `nothing` (default) selects `AutoForwardDiff()`. Unused by the
+    `:secant` predictor on problems without an analytic `jac`.
   - `linsolve`: the LinearSolve.jl algorithm for the `:tangent` predictor's bordered
     solve (the same knob the Newton descent methods expose); `nothing` (default) selects
     LinearSolve's default. Unused by the `:secant` predictor.
@@ -277,13 +303,212 @@ function (a::HomotopyResidual)(res, x, p)
     return nothing
 end
 
+# The homotopy with λ moved into the differentiated-argument slot and (u, p) as DI
+# `Constant` contexts: the ∂H/∂λ column of the augmented Jacobian is the derivative of
+# this in its first (scalar) argument — one forward-mode directional derivative, not a
+# Jacobian of the packed system.
+struct LambdaShifted{F}
+    f::F
+end
+
+(ls::LambdaShifted)(λ, u, p) = ls.f(u, p, λ)
+
+function (ls::LambdaShifted)(res, λ, u, p)
+    ls.f(res, u, p, λ)
+    return nothing
+end
+
+# Analytic n×(n+1) path Jacobian `[∂H/∂u | ∂H/∂λ]` of the packed variable `x = [u; λ]`,
+# assembled from the user's λ-extended `jac` (which supplies only the n×n ∂H/∂u block)
+# plus the ∂H/∂λ column as a single scalar derivative in λ (prepared once at solve
+# start, reused every call). Standard 2/3-argument Jacobian calling convention, so
+# `construct_jacobian_cache` consumes it through its ordinary `has_jac` path and the
+# augmented corrector's Jacobian can embed it as its top block.
+struct AugmentedPathJac{J, L, B, P, R}
+    jac::J           # the user's λ-extended jac(u, p, λ) / jac(J, u, p, λ)
+    lres::L          # LambdaShifted residual for the ∂H/∂λ column
+    backend::B
+    prep::P
+    rescratch::R     # iip: primal residual buffer for DI.derivative!; oop: nothing
+    n::Int
+end
+
+function (apj::AugmentedPathJac)(J, x, p)
+    n = apj.n
+    u = view(x, 1:n)
+    λ = x[n + 1]
+    apj.jac(view(J, 1:n, 1:n), u, p, λ)
+    DI.derivative!(
+        apj.lres, apj.rescratch, view(J, 1:n, n + 1),
+        apj.prep, apj.backend, λ, Constant(u), Constant(p)
+    )
+    return nothing
+end
+
+function (apj::AugmentedPathJac)(x, p)
+    n = apj.n
+    u = view(x, 1:n)
+    λ = x[n + 1]
+    Ju = apj.jac(u, p, λ)
+    col = DI.derivative(apj.lres, apj.prep, apj.backend, λ, Constant(u), Constant(p))
+    return hcat(Ju, col)
+end
+
+# Full analytic (n+1)×(n+1) Jacobian of `AugmentedHomotopy`: the path Jacobian as the
+# top n rows and the Keller constraint row — analytically known, it is the θ-weighted
+# τ — as the bottom row. Aliases the driver's in-place-updated τ buffer (the same
+# object the per-step `AugmentedHomotopy` residual reads), so the Jacobian's constraint
+# row can never desynchronize from the residual's; `ds`/`xcur` do not appear because
+# the constraint is affine in `x` (its gradient is independent of both).
+struct AugmentedHomotopyJac{PJ, V, T}
+    pathjac::PJ
+    τ::V
+    n::Int
+    wu::T
+    wλ::T
+end
+
+function (aj::AugmentedHomotopyJac)(J, x, p)
+    n = aj.n
+    aj.pathjac(view(J, 1:n, :), x, p)
+    @views J[n + 1, 1:n] .= aj.wu .* aj.τ[1:n]
+    J[n + 1, n + 1] = aj.wλ * aj.τ[n + 1]
+    return nothing
+end
+
+function (aj::AugmentedHomotopyJac)(x, p)
+    n = aj.n
+    Jtop = aj.pathjac(x, p)
+    row = vcat(aj.wu .* view(aj.τ, 1:n), aj.wλ * aj.τ[n + 1])
+    return vcat(Jtop, transpose(row))
+end
+
+# The user's n×n ∂H/∂u prototype extended to the packed path system's n×(n+1) shape by
+# appending the structurally dense ∂H/∂λ column. Sparse/structured prototypes become
+# `SparseMatrixCSC` — a bordered `Tridiagonal` (or any banded/structured type) no longer
+# fits its own structure, and CSC is the general sparse container every downstream
+# consumer (coloring, sparse LU) handles — via the STRUCTURAL nonzero pattern
+# (`Utils.structural_sparse`), so band entries whose prototype values happen to be zero
+# survive as pattern. The sparse route needs the SparseArrays extension; without it (a
+# session that cannot construct CSC matrices anyway) structured prototypes fall back to
+# dense. Dense prototypes stay dense. As in the sweep, the prototype is NOT
+# eltype-promoted with λ.
+function _augmented_prototype(proto::AbstractMatrix, n)
+    T = eltype(proto)
+    if sparse_or_structured_prototype(proto) &&
+            Utils.is_extension_loaded(Val(:SparseArrays))
+        S = Utils.structural_sparse(proto)
+        return hcat(S, Utils.make_sparse(fill(one(T), n, 1)))
+    end
+    B = fill(one(T), n, n + 1)
+    copyto!(view(B, 1:n, 1:n), proto)
+    return B
+end
+
+# The (n+1)×(n+1) bordered prototype of the augmented corrector system: the augmented
+# path prototype with the structurally dense Keller constraint row appended,
+# `[∂H/∂u  ∂H/∂λ; wᵀ  1]`.
+function _bordered_prototype(proto::AbstractMatrix, n)
+    T = eltype(proto)
+    top = _augmented_prototype(proto, n)
+    row = fill(one(T), 1, n + 1)
+    if sparse_or_structured_prototype(top)
+        return vcat(top, Utils.make_sparse(row))
+    end
+    return vcat(top, row)
+end
+
+# Builds the shared analytic path Jacobian (or `nothing` when the user supplied no
+# analytic jac; the branch is decided by the problem's type). The DI preparation for
+# the ∂H/∂λ scalar derivative is done once here — with `(u, p)` as `Constant` contexts
+# whose values change call to call — and reused by both consumers (the `:tangent`
+# predictor's Jacobian cache and every corrector Jacobian evaluation).
+function _arclength_path_jac(
+        prob::SciMLBase.HomotopyProblem{uType, iip}, alg, x, n
+    ) where {uType, iip}
+    prob.f.jac === nothing && return nothing
+    gf = SciMLBase.NonlinearFunction{iip}(HomotopyResidual(prob.f, n))
+    gprob = NonlinearProblem{iip}(gf, x, prob.p)
+    backend = select_jacobian_autodiff(gprob, alg.autodiff)
+    lres = LambdaShifted(prob.f.f)
+    u = view(x, 1:n)
+    λ = x[n + 1]
+    if iip
+        rescratch = Utils.safe_similar(x, n)
+        prep = DI.prepare_derivative(
+            lres, rescratch, backend, λ, Constant(u), Constant(prob.p);
+            strict = Val(false)
+        )
+        return AugmentedPathJac(prob.f.jac, lres, backend, prep, rescratch, n)
+    else
+        prep = DI.prepare_derivative(
+            lres, backend, λ, Constant(u), Constant(prob.p); strict = Val(false)
+        )
+        return AugmentedPathJac(prob.f.jac, lres, backend, prep, nothing, n)
+    end
+end
+
+# The packed path function for the `:tangent` predictor, carrying the derivative fields
+# of the problem's NonlinearFunction translated to the packed n×(n+1) shapes: the
+# analytic path Jacobian, the augmented prototype/matrix-sparsity, and the user
+# colorvec extended by one fresh color for the structurally dense ∂H/∂λ column (valid
+# for forward-mode column coloring, which is what the packed n×(n+1) system uses). A
+# sparsity DETECTOR is forwarded unchanged — it detects the augmented pattern from the
+# packed residual itself. With no derivative fields the construction is exactly the
+# bare one (the branch is decided by the problem's type, so the unused arm is compiled
+# away).
+function _arclength_path_function(::Val{iip}, f, path_jac, n) where {iip}
+    g = HomotopyResidual(f, n)
+    if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
+            f.colorvec === nothing
+        return SciMLBase.NonlinearFunction{iip}(g)
+    end
+    jac_prototype = f.jac_prototype === nothing ? nothing :
+        _augmented_prototype(f.jac_prototype, n)
+    # the NonlinearFunction constructor defaults `sparsity` to the SAME object as
+    # `jac_prototype`, and construct_concrete_adtype rejects a matrix sparsity that is
+    # a distinct object from a sparse/structured prototype — preserve the identity
+    sparsity = if f.sparsity === nothing
+        nothing
+    elseif f.sparsity === f.jac_prototype
+        jac_prototype
+    elseif f.sparsity isa AbstractMatrix
+        _augmented_prototype(f.sparsity, n)
+    else
+        f.sparsity
+    end
+    colorvec = f.colorvec === nothing ? nothing :
+        vcat(f.colorvec, maximum(f.colorvec) + 1)
+    return SciMLBase.NonlinearFunction{iip}(
+        g; jac = path_jac, jac_prototype, sparsity, colorvec
+    )
+end
+
+# The corrector's NonlinearFunction around the per-step `AugmentedHomotopy` residual,
+# carrying the (n+1)×(n+1) bordered derivative fields. The user colorvec is NOT
+# forwarded: the structurally dense constraint row makes every pair of columns share a
+# row, so no nontrivial column coloring is valid for the bordered pattern — when sparse
+# AD applies (no analytic jac), the coloring is recomputed, and the bordered
+# prototype's value is chiefly the sparse linear solve. With no derivative fields the
+# construction is exactly the bare one.
+function _arclength_augmented_function(
+        ::Val{iip}, f, aug, jac, jac_prototype, sparsity
+    ) where {iip}
+    if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
+            f.colorvec === nothing
+        return SciMLBase.NonlinearFunction{iip}(aug)
+    end
+    return SciMLBase.NonlinearFunction{iip}(aug; jac, jac_prototype, sparsity)
+end
+
 # Natural-parameter solve at a fixed λ: gets the start point onto the curve and lands the
-# final point exactly on λ = λspan[2]. Mirrors HomotopySweep's per-step solve.
+# final point exactly on λ = λspan[2]. Mirrors HomotopySweep's per-step solve, including
+# its derivative-field forwarding (λ-fixed jac, prototype/sparsity/colorvec unchanged).
 function _arclength_fixed_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip}, inner, uguess,
         λfix, args...; kwargs...
     ) where {uType, iip}
-    fλ = SciMLBase.NonlinearFunction{iip}(FixLambda(prob.f, λfix))
+    fλ = _sweep_nonlinear_function(Val(iip), prob.f, FixLambda(prob.f, λfix))
     inner_prob = NonlinearProblem{iip}(fλ, copy(uguess), prob.p)
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
 end
@@ -294,10 +519,10 @@ end
 # `alg` carries no `concrete_jac`, so the cache holds a concrete J the bordered solve can
 # factorize.
 function _arclength_jac_cache(
-        prob::SciMLBase.HomotopyProblem{uType, iip}, alg, x,
+        prob::SciMLBase.HomotopyProblem{uType, iip}, alg, path_jac, x,
         n, stats
     ) where {uType, iip}
-    gf = SciMLBase.NonlinearFunction{iip}(HomotopyResidual(prob.f, n))
+    gf = _arclength_path_function(Val(iip), prob.f, path_jac, n)
     gprob = NonlinearProblem{iip}(gf, x, prob.p)
     fu = if iip
         res = Utils.safe_similar(x, n)
@@ -469,10 +694,14 @@ function CommonSolve.solve(
     τseed = pack(zeros(Tx, n), sλ / sqrt(wλ))
 
     use_tangent = alg.predictor === :tangent
+    # Analytic path Jacobian assembled from the user's jac (nothing without one),
+    # shared by the tangent predictor's Jacobian cache and the corrector's Jacobian.
+    path_jac = _arclength_path_jac(prob, alg, xcur, n)
     # one reusable Jacobian cache (via NonlinearSolve's own tooling) for the tangent
     # predictor; nothing for the derivative-free secant.
     stats = NLStats(0, 0, 0, 0, 0)
-    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, xcur, n, stats) : nothing
+    jac_cache = use_tangent ? _arclength_jac_cache(prob, alg, path_jac, xcur, n, stats) :
+        nothing
     # Reused by every predictor step: the bordered-tangent workspace (matrix, rhs,
     # solution, and the shared linear-solver cache) for the tangent, and `tscratch` for
     # the secant chord. Allocated once here so the loop only reuses memory.
@@ -482,6 +711,24 @@ function CommonSolve.solve(
     # tangent continues into the span (pure-λ direction picks the correct sign). A
     # stable buffer, written in place by every predictor branch below.
     τ = copy(τseed)
+    # Derivative fields of the per-step corrector function, built once: the Jacobian
+    # aliases the τ buffer (kept in sync with the residual by construction) and the
+    # bordered prototypes depend only on the user prototype and n.
+    aug_jac = path_jac === nothing ? nothing :
+        AugmentedHomotopyJac(path_jac, τ, n, wu, wλ)
+    aug_proto = prob.f.jac_prototype === nothing ? nothing :
+        _bordered_prototype(prob.f.jac_prototype, n)
+    # preserve the constructor-established `sparsity === jac_prototype` identity (see
+    # `_arclength_path_function`)
+    aug_sparsity = if prob.f.sparsity === nothing
+        nothing
+    elseif prob.f.sparsity === prob.f.jac_prototype
+        aug_proto
+    elseif prob.f.sparsity isa AbstractMatrix
+        _bordered_prototype(prob.f.sparsity, n)
+    else
+        prob.f.sparsity
+    end
 
     for _ in 1:(alg.maxsteps)
         # Predictor direction τ (θ-metric unit, length n+1).
@@ -508,7 +755,9 @@ function CommonSolve.solve(
         aug = AugmentedHomotopy(prob.f, τ, xcur, Tx(ds), n, wu, wλ)
         # length n+1; never in-place even for an iip homotopy — the constraint row has no
         # user-facing buffer, so we always own the residual.
-        augf = SciMLBase.NonlinearFunction{iip}(aug)
+        augf = _arclength_augmented_function(
+            Val(iip), prob.f, aug, aug_jac, aug_proto, aug_sparsity
+        )
         corr_prob = NonlinearProblem{iip}(augf, copy(xpred), prob.p)
         # The cap is spliced BEFORE the user kwargs so an explicit `maxiters` always
         # wins (and `cap_active` is false in that case anyway).

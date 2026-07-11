@@ -143,6 +143,7 @@ else
             @time @safetestset "ArcLengthContinuation tangent predictor" include("Core/arclength_tests__item6.jl")
             @time @safetestset "ArcLengthContinuation bordered tangent + θ-weighted metric" include("Core/arclength_tests__item7.jl")
             @time @safetestset "Homotopy sweeps consume jac/jac_prototype/sparsity/colorvec" include("Core/homotopy_jac_tests__item1.jl")
+            @time @safetestset "ArcLengthContinuation consumes jac/jac_prototype/sparsity/colorvec" include("Core/arclength_jac_tests__item1.jl")
             @time @safetestset "Homotopy tracking_maxiters caps interior corrector work" include("Core/homotopy_effort_tests__item1.jl")
             @time @safetestset "Homotopy maxsteps guard + effort-band step control" include("Core/homotopy_effort_tests__item2.jl")
             return @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
