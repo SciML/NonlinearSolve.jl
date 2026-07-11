@@ -38,10 +38,10 @@ run_qa(
         #   Base: add_sum;  Core(.Compiler): Compiler, return_type;  LinearAlgebra: inv!
         #   FunctionWrappers: FunctionWrapper
         #   NonlinearSolveBase(.Utils/.InternalAPI): additional_incompatible_backend_check,
-        #     condition_number, get_raw_f, get_u, make_sparse, maybe_pinv!!_workspace,
-        #     maybe_symmetric, nlls_generate_vjp_function, nodual_value,
-        #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape,
-        #     safe_similar, sparse_or_structured_prototype
+        #     condition_number, get_raw_f, get_u, is_extension_loaded, make_sparse,
+        #     maybe_pinv!!_workspace, maybe_symmetric, nlls_generate_vjp_function,
+        #     nodual_value, nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, reinit!, restructure,
+        #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse
         all_qualified_accesses_are_public = (;
             ignore = (
                 :ChainRulesOriginator, :DAEInitializationAlgorithm, :EnzymeOriginator,
@@ -51,11 +51,12 @@ run_qa(
                 :Dual, :Partials, :Tag, :can_dual, :derivative, :gradient, :jacobian,
                 :partials, :pickchunksize, :value, :add_sum, :Compiler, :return_type, :inv!,
                 :FunctionWrapper, :additional_incompatible_backend_check, :condition_number,
-                :get_raw_f, :get_u, :make_sparse, Symbol("maybe_pinv!!_workspace"),
+                :get_raw_f, :get_u, :is_extension_loaded, :make_sparse,
+                Symbol("maybe_pinv!!_workspace"),
                 :maybe_symmetric, :nlls_generate_vjp_function, :nodual_value,
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
-                :sparse_or_structured_prototype,
+                :sparse_or_structured_prototype, :structural_sparse,
             ),
         ),
         # Still non-public in their owning packages. AbstractODEIntegrator / __init /

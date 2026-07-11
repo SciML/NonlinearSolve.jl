@@ -1,5 +1,6 @@
 module NonlinearSolveBaseSparseArraysExt
 
+using ArrayInterface: ArrayInterface
 using SparseArrays: AbstractSparseMatrix, AbstractSparseMatrixCSC, nonzeros, sparse
 
 using NonlinearSolveBase: NonlinearSolveBase, Utils
@@ -22,7 +23,7 @@ happen to be zero can silently lose pattern entries that sparse AD coloring need
 Going through `findstructralnz` makes the conversion value-independent for every type.
 """
 function Utils.structural_sparse(x::AbstractMatrix)
-    rows, cols = NonlinearSolveBase.ArrayInterface.findstructralnz(x)
+    rows, cols = ArrayInterface.findstructralnz(x)
     # indexed comprehensions, not collect: the structured-matrix index iterators
     # (e.g. ArrayInterface.TridiagonalIndex) advertise eltype Any and fail collect
     I = Int[rows[k] for k in 1:length(rows)]
