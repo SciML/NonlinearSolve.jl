@@ -77,13 +77,35 @@ function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
-    # unlias here, we will later use these as caches
-    lincache = init(
-        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false), kwargs...
-    )
+    if alias_A_for_refactorization(linsolve, A)
+        # Hand LinearSolve a NonlinearSolve-owned copy of `A` with `alias_A = true`:
+        # one O(n²) copy here at init instead of one per refactorization inside
+        # `solve!` (with `alias_A = true` dense LU refactorizes via the in-place
+        # `lu!`; otherwise `lu` copies `A` on every refactorization). Destroying the
+        # aliased buffer in place is safe because `set_lincache_A!` refreshes it in
+        # full via `copyto!` before every refactorization, and copying at init (as
+        # opposed to aliasing the caller's `A`) keeps the first factorization from
+        # destroying the Jacobian buffer, which consumers may read after the solve.
+        linprob = LinearProblem(copy(A), b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        alias = LinearAliasSpecifier(alias_A = true, alias_b = false)
+    else
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        # unlias here, we will later use these as caches
+        alias = LinearAliasSpecifier(alias_A = false, alias_b = false)
+    end
+    lincache = init(linprob, linsolve; alias, kwargs...)
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
+
+"""
+    alias_A_for_refactorization(linsolve, A)::Bool
+
+Whether `construct_linear_solver` should initialize the LinearSolve cache on an owned
+copy of `A` with `alias_A = true` so that refactorizations can destroy `cache.A` in
+place instead of copying it. Opted into by the LinearSolve extension for factorization
+algorithms whose `solve!` has an in-place refactorization path on the given `A` type.
+"""
+alias_A_for_refactorization(linsolve, A) = false
 
 function (cache::NativeJLLinearSolveCache)(;
         A = nothing, b = nothing, linu = nothing, kwargs...

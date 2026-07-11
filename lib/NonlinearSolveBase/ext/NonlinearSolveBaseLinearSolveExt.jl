@@ -34,6 +34,25 @@ end
 function NonlinearSolveBase.needs_square_A(linsolve::SciMLLinearSolveAlgorithm, ::Any)
     return LinearSolve.needs_square_A(linsolve)
 end
+
+# `LUFactorization` is the only LinearSolve algorithm whose `solve!` keys on
+# `cache.alias_A` for an in-place (`lu!`) refactorization path; its gate is
+# "mutable dense non-GPU", which plain `Matrix` mirrors conservatively. Other dense
+# LU variants (Generic/MKL/OpenBLAS/RecursiveFactorization) already factorize
+# `cache.A` in place unconditionally, so they gain nothing from aliasing.
+function NonlinearSolveBase.alias_A_for_refactorization(
+        ::LinearSolve.LUFactorization, ::Matrix
+    )
+    return true
+end
+# `linsolve === nothing` resolves to `DefaultLinearSolver`, whose dense choices funnel
+# into the same alias-gated LU `solve!` body (measured: 21,513 → 560 B per
+# refactorization on a 51×51 `Matrix`). Its singular-LU → QR safety fallback stays
+# intact under aliasing: `_copy_A_for_safety` keeps a private cached `A_backup`
+# reused across refactorizations, so the backup does not reintroduce a per-step
+# allocation. The cache is inited on an owned copy either way, so aliasing is at
+# worst neutral for default choices without an in-place path.
+NonlinearSolveBase.alias_A_for_refactorization(::Nothing, ::Matrix) = true
 function NonlinearSolveBase.default_spd_linsolve(::Symmetric{<:Real})
     return LinearSolve.CholeskyFactorization()
 end
