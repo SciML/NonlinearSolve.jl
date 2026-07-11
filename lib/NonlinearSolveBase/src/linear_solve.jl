@@ -60,11 +60,20 @@ matrices.
     possible. This is useful when solving the same system with different `b` values.
     If the algorithm is an iterative solver, then we reset the internal linear solve cache.
 
+  - `alias`: A `LinearAliasSpecifier` forwarded to the LinearSolve cache construction, or
+    `nothing` (the default) to let the `alias_A_for_refactorization` trait decide:
+    unalias both `A` and `b` so the caller's arrays are used as caches safely, unless the
+    LinearSolve extension opts the algorithm into an owned-copy refactorization buffer.
+    Callers that own the passed `A`/`b` outright can pass a `LinearAliasSpecifier`
+    explicitly so factorizations may work in place without any defensive copy.
+
 One distinct feature of this compared to the cache from LinearSolve is that it respects the
 aliasing arguments even after cache construction, i.e., if we passed in an `A` that `A` is
 not mutated, we do this by copying over `A` to a preconstructed cache.
 """
-function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
+function construct_linear_solver(
+        alg, linsolve, A, b, u, p; stats, alias = nothing, kwargs...
+    )
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve isa typeof(\)
@@ -77,7 +86,11 @@ function construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    if alias_A_for_refactorization(linsolve, A)
+    if alias !== nothing
+        # caller-forced aliasing: the caller owns A/b outright (e.g. the inverse-Jacobian
+        # workspace), so no defensive copy of A is made
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+    elseif alias_A_for_refactorization(linsolve, A)
         # Hand LinearSolve a NonlinearSolve-owned copy of `A` with `alias_A = true`:
         # one O(n²) copy here at init instead of one per refactorization inside
         # `solve!` (with `alias_A = true` dense LU refactorizes via the in-place

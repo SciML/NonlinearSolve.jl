@@ -212,7 +212,7 @@ Low Rank Approximation of the Jacobian Matrix. Currently only used for
     alpha
 end
 
-Utils.maybe_pinv!!(workspace, A::BroydenLowRankJacobian) = A  # Already Inverted form
+Utils.linsolve_identity!!(workspace, A::BroydenLowRankJacobian) = A  # Already Inverted form
 
 function get_components(op::BroydenLowRankJacobian)
     op.idx ≥ size(op.U, 2) && return op.cache, op.U, transpose(op.Vᵀ)

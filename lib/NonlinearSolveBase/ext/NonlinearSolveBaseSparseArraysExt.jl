@@ -77,15 +77,18 @@ is not generally available.
 Utils.condition_number(J::AbstractSparseMatrix) = Utils.condition_number(Matrix(J))
 
 """
-    maybe_pinv!!_workspace(A::AbstractSparseMatrix)
+    linsolve_workspace(A::AbstractSparseMatrix)
 
-Prepare workspace for pseudo-inverse computation of sparse matrices.
-Converts to dense format since sparse pseudo-inverse is not efficient.
-Returns (dense_A, copy(dense_A)) for in-place operations.
+Build the inverse-Jacobian workspace on a densified copy of `A`: the inverse (and the
+identity RHS) are generically dense, and `similar` on a sparse matrix would give sparse
+buffers that cannot hold them efficiently. `linsolve_identity!!` calls with sparse `A`
+then go through the dense workspace's linear-solve cache, which `copyto!`s `A` into its
+dense buffer before factorizing.
 """
-function Utils.maybe_pinv!!_workspace(A::AbstractSparseMatrix)
+function Utils.linsolve_workspace(A::AbstractSparseMatrix)
     dense_A = Matrix(A)
-    return dense_A, copy(dense_A)
+    workspace, _ = Utils.linsolve_workspace(dense_A)
+    return workspace, dense_A
 end
 
 end
