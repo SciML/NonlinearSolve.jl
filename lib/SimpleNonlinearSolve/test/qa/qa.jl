@@ -14,6 +14,14 @@ run_qa(
         ),
         ambiguities = (; recursive = false),
     ),
+    api_docs_kwargs = (;
+        # Deprecated selectors owned by ADTypes and re-exported through SimpleNonlinearSolve.
+        ignore = (
+            :AutoModelingToolkit, :AutoSparseFastDifferentiation, :AutoSparseFiniteDiff,
+            :AutoSparseForwardDiff, :AutoSparsePolyesterForwardDiff,
+            :AutoSparseReverseDiff, :AutoSparseZygote,
+        ),
+    ),
     ei_kwargs = (;
         # Still non-public in their owning packages, across the main module and the
         # Tracker / ReverseDiff / ChainRulesCore extensions. __init / __solve dropped:

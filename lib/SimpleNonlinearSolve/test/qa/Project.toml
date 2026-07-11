@@ -13,14 +13,13 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [sources]
 BracketingNonlinearSolve = {path = "../../../BracketingNonlinearSolve"}
 NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
-SimpleNonlinearSolve = {path = "../.."}
 
 [compat]
 Aqua = "0.8.7"
 BracketingNonlinearSolve = "1.6"
 NonlinearSolveBase = "2.20"
 ReverseDiff = "1.15"
-SciMLTesting = "1.7"
+SciMLTesting = "2.1"
 SimpleNonlinearSolve = "2.10"
 StaticArrays = "1.9"
 Test = "1.10"

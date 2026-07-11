@@ -24,6 +24,14 @@ run_qa(
             ],
         ),
     ),
+    api_docs_kwargs = (;
+        # External APIs re-exported through NonlinearSolve and documented by their owners.
+        ignore = (
+            :AutoModelingToolkit, :AutoSparseFastDifferentiation, :AutoSparseFiniteDiff,
+            :AutoSparseForwardDiff, :AutoSparsePolyesterForwardDiff,
+            :AutoSparseReverseDiff, :AutoSparseZygote, :LineSearchSolution,
+        ),
+    ),
     ei_kwargs = (;
         # NonDifferentiable is owned by NLSolversBase and re-exported through NLsolve
         # (where the NLsolve extension imports it from).

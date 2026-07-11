@@ -21,6 +21,13 @@ and static array problems.
     autodiff = nothing
 end
 
+"""
+    SimpleGaussNewton(autodiff)
+    SimpleGaussNewton(; autodiff = nothing)
+
+Alias for [`SimpleNewtonRaphson`](@ref) used for nonlinear least-squares problems. It
+uses the same low-overhead Newton implementation and Jacobian backend selection.
+"""
 const SimpleGaussNewton = SimpleNewtonRaphson
 
 function configure_autodiff(prob, alg::SimpleNewtonRaphson)

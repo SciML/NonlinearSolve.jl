@@ -57,7 +57,7 @@ Zygote = "0.6.72, 0.7"
 julia = "1.10"
 
 SafeTestsets = "0.1"
-SciMLTesting = "1"
+SciMLTesting = "2.1"
 [extras]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"

@@ -19,56 +19,7 @@ const LIB_DIR = joinpath(dirname(@__DIR__), "lib")
 
 @info "Running tests for group: $(GROUP)"
 
-# Centralized sublibrary CI (sublibrary-project-tests.yml@v1) tests each lib/<name>
-# via the project model and never routes through this file. This dispatcher only
-# matters when the root suite is invoked with a GROUP that names a sublibrary (e.g.
-# local `NONLINEARSOLVE_TEST_GROUP=NonlinearSolveFirstOrder julia test/runtests.jl`):
-# the bare sublibrary name selects that sublibrary's "Core" group and
-# "<sublibrary>_<grp>" selects a named group. We activate the sublibrary's own test
-# environment and hand off to its runtests.jl via NONLINEARSOLVE_TEST_GROUP. The
-# Pkg.test is done explicitly here (rather than via run_tests's built-in lib_dir
-# path) so the Julia < 1.11 transitive [sources] develop walk is preserved verbatim.
-base_group, sub_group = detect_sublibrary_group(GROUP, LIB_DIR)
-
-if !isempty(base_group) && isdir(joinpath(LIB_DIR, base_group))
-    sublib_path = joinpath(LIB_DIR, base_group)
-    Pkg.activate(sublib_path)
-    # On Julia < 1.11 the [sources] section is ignored; develop local path deps so
-    # CI tests the PR branch code (transitively, including the umbrella root for
-    # sublibs that depend back on it). Walk [sources] in case a developed dependency
-    # carries its own.
-    if VERSION < v"1.11.0-DEV.0"
-        developed = Set{String}([normpath(sublib_path)])
-        specs = Pkg.PackageSpec[]
-        queue = [sublib_path]
-        while !isempty(queue)
-            pkg_dir = popfirst!(queue)
-            toml_path = joinpath(pkg_dir, "Project.toml")
-            isfile(toml_path) || continue
-            toml = Pkg.TOML.parsefile(toml_path)
-            if haskey(toml, "sources")
-                for (dep_name, source_spec) in toml["sources"]
-                    if source_spec isa Dict && haskey(source_spec, "path")
-                        dep_path = normpath(joinpath(pkg_dir, source_spec["path"]))
-                        if isdir(dep_path) && !(dep_path in developed)
-                            push!(developed, dep_path)
-                            push!(specs, Pkg.PackageSpec(path = dep_path))
-                            push!(queue, dep_path)
-                        end
-                    end
-                end
-            end
-        end
-        isempty(specs) || Pkg.develop(specs)
-    end
-    withenv("NONLINEARSOLVE_TEST_GROUP" => sub_group) do
-        Pkg.test(
-            base_group;
-            julia_args = ["--check-bounds=auto"],
-            force_latest_compatible_version = false, allow_reresolve = true
-        )
-    end
-elseif GROUP == "Trim"
+if GROUP == "Trim"
     # Trimming was introduced in Julia 1.12; runs in its own environment. Modeled as
     # a self-contained group rather than a run_tests group so the version gate and
     # the bespoke (root-not-developed) trim env activation are preserved verbatim.
@@ -224,5 +175,6 @@ else
         # dep-adding groups and QA run only when selected by name.
         all = ["Core", "PolyAlgorithms", "Verbosity"],
         sublib_env = "NONLINEARSOLVE_TEST_GROUP",
+        lib_dir = LIB_DIR,
     )
 end

@@ -59,8 +59,28 @@ function SciPyLeastSquares(; method::String = "trf", loss::String = "linear")
     return SciPyLeastSquares(method, loss, :SciPyLeastSquares)
 end
 
+"""
+    SciPyLeastSquaresTRF()
+
+Construct a `SciPyLeastSquares` algorithm using SciPy's Trust Region Reflective
+least-squares method.
+"""
 SciPyLeastSquaresTRF() = SciPyLeastSquares(method = "trf")
+
+"""
+    SciPyLeastSquaresDogbox()
+
+Construct a `SciPyLeastSquares` algorithm using SciPy's dogleg least-squares
+method with rectangular trust regions.
+"""
 SciPyLeastSquaresDogbox() = SciPyLeastSquares(method = "dogbox")
+
+"""
+    SciPyLeastSquaresLM()
+
+Construct a `SciPyLeastSquares` algorithm using SciPy's Levenberg-Marquardt
+least-squares method.
+"""
 SciPyLeastSquaresLM() = SciPyLeastSquares(method = "lm")
 
 """

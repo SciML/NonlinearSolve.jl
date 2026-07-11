@@ -35,7 +35,7 @@ Zygote = "0.6.70, 0.7"
 julia = "1.10"
 
 SafeTestsets = "0.1"
-SciMLTesting = "1"
+SciMLTesting = "2.1"
 [extras]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
