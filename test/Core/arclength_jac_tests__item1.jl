@@ -80,10 +80,10 @@ import NonlinearSolveBase
 n = 50
 proto = Tridiagonal(zeros(n - 1), ones(n), zeros(n - 1))
 aug_proto = NonlinearSolveBase._augmented_prototype(proto, n)
-bord_proto = NonlinearSolveBase._bordered_prototype(proto, n)
+bordered_proto = NonlinearSolveBase._bordered_prototype(proto, n)
 @test aug_proto isa SparseMatrixCSC && size(aug_proto) == (n, n + 1)
-@test bord_proto isa SparseMatrixCSC && size(bord_proto) == (n + 1, n + 1)
-Is, Js, _ = findnz(bord_proto)
+@test bordered_proto isa SparseMatrixCSC && size(bordered_proto) == (n + 1, n + 1)
+Is, Js, _ = findnz(bordered_proto)
 S = Set(zip(Is, Js))
 @test all(((i, i + 1) in S) for i in 1:(n - 1))   # superdiagonal survived zero values
 @test all(((i + 1, i) in S) for i in 1:(n - 1))   # subdiagonal survived zero values
@@ -101,9 +101,9 @@ Sd = Set(zip(Id, Jd))
 
 # a SparseMatrixCSC prototype borders without conversion
 csc_proto = spdiagm(-1 => ones(n - 1), 0 => ones(n), 1 => ones(n - 1))
-bord_csc = NonlinearSolveBase._bordered_prototype(csc_proto, n)
-@test bord_csc isa SparseMatrixCSC && size(bord_csc) == (n + 1, n + 1)
-@test bord_csc[n + 1, 1] == 1 && bord_csc[1, n + 1] == 1 && bord_csc[2, 1] == 1
+bordered_csc = NonlinearSolveBase._bordered_prototype(csc_proto, n)
+@test bordered_csc isa SparseMatrixCSC && size(bordered_csc) == (n + 1, n + 1)
+@test bordered_csc[n + 1, 1] == 1 && bordered_csc[1, n + 1] == 1 && bordered_csc[2, 1] == 1
 
 # --- n = 50 fold-free banded system: analytic jac + Tridiagonal prototype, :tangent.
 # (1-λ)*(uᵢ-c) + λ*(3uᵢ - uᵢ₋₁ - uᵢ₊₁ + uᵢ³ - c) with zero boundary neighbors:
