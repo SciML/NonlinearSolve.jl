@@ -379,6 +379,19 @@ function _sweep_exempt_solve(
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
 end
 
+# The inner `solve!(cache)` returns a concretely-inferred `NonlinearSolution`, but a fresh
+# `solve(inner_prob, inner)` (the exempt/anchor/landing path) does not infer its return type
+# — inference of `solve` on the inner polyalgorithm gives up and yields `Any`. Assigning both
+# to `last_sol` therefore widens the driver's local to `Any`, so every inline `last_sol.u`
+# / `.stats` / `.resid` read dispatches `getproperty` dynamically and boxes the field value
+# (~hundreds of bytes/step; a profiler attributes it to SciMLBase's `getfield`). These
+# accessors take the solution as a typed argument, so each is specialized on the concrete
+# runtime solution type and its field read compiles to a non-boxing `getfield`.
+_sol_u(sol) = sol.u
+_sol_resid(sol) = sol.resid
+_sol_retcode(sol) = sol.retcode
+_sol_nsteps(sol) = sol.stats === nothing ? -1 : Int(sol.stats.nsteps)
+
 function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem, alg::HomotopySweep, args...; kwargs...
     )
@@ -478,14 +491,14 @@ function _homotopy_sweep_solve(
         # broken, so no continuation is possible. `u` stays u0. No accepted point
         # exists, so there is nothing to hand off.
         return SciMLBase.build_solution(
-                prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol
+                prob, alg, u, _sol_resid(last_sol);
+                retcode = _sol_retcode(last_sol), original = last_sol
             ), nothing
     end
-    u = copy(last_sol.u)
+    u = copy(_sol_u(last_sol))
     # Zero-width λspan (λ0 == λend): the anchor IS the single target solve.
     λ == λend && return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+            prob, alg, u, _sol_resid(last_sol); retcode = ReturnCode.Success
         ), nothing
 
     # Reused across every step: `u`/`u_prev` are the last two accepted iterates (their
@@ -561,7 +574,7 @@ function _homotopy_sweep_solve(
                 # iterations), so the returned solution's accuracy semantics are
                 # unchanged. A failed polish feeds the ordinary bisection logic.
                 last_sol = _sweep_exempt_solve(
-                    prob, alg.inner, last_sol.u, next_λ, args...; kwargs...
+                    prob, alg.inner, _sol_u(last_sol), next_λ, args...; kwargs...
                 )
             end
         end
@@ -582,24 +595,25 @@ function _homotopy_sweep_solve(
                 # have iterated in place in the guess buffer when aliasing is forwarded
                 sv = (next_λ - λ) / (λ - λ_prev)
                 virtual = _sweep_extrapolate!(virtual, u, u_prev, sv)
-                correction = Utils.norm_op(L2_NORM, -, last_sol.u, virtual)
-                disp = Utils.norm_op(L2_NORM, -, last_sol.u, u)
-                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(last_sol.u)))
+                lsu = _sol_u(last_sol)
+                correction = Utils.norm_op(L2_NORM, -, lsu, virtual)
+                disp = Utils.norm_op(L2_NORM, -, lsu, u)
+                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(lsu)))
                 θ = correction / scale
                 # the secant only earns its keep when it predicts at least twice as
                 # well as the trivial constant prediction (whose θ is exactly 1)
                 trust = θ < 1 / 2 ? trust + 1 : 0
                 disp_prev = disp
             else
-                disp_prev = Utils.norm_op(L2_NORM, -, last_sol.u, u)
+                disp_prev = Utils.norm_op(L2_NORM, -, _sol_u(last_sol), u)
             end
             # accept: swap `u`↔`u_prev` and copy the solution into `u` (no allocation).
-            u, u_prev = _sweep_accept!(u, u_prev, last_sol.u)
+            u, u_prev = _sweep_accept!(u, u_prev, _sol_u(last_sol))
             λ_prev = λ
             λ = next_λ
             λ == λend && break
             if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                nit = _sol_nsteps(last_sol)
                 if _effort_wants_shrink(nit, budget)
                     # Proactive shrink on a straining success (see
                     # `_effort_wants_shrink`); the floor guard keeps the increment
@@ -640,14 +654,14 @@ function _homotopy_sweep_solve(
         else
             # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
             return SciMLBase.build_solution(
-                    prob, alg, u, last_sol.resid;
-                    retcode = last_sol.retcode, original = last_sol
+                    prob, alg, u, _sol_resid(last_sol);
+                    retcode = _sol_retcode(last_sol), original = last_sol
                 ), λ
         end
     end
 
     return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+            prob, alg, u, _sol_resid(last_sol); retcode = ReturnCode.Success
         ), nothing
 end
 

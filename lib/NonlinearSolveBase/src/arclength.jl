@@ -676,15 +676,15 @@ function CommonSolve.solve(
     start_sol = _arclength_fixed_solve(prob, alg.inner, prob.u0, λ, args...; kwargs...)
     if !SciMLBase.successful_retcode(start_sol)
         return SciMLBase.build_solution(
-            prob, alg, copy(prob.u0), start_sol.resid;
-            retcode = start_sol.retcode, original = start_sol
+            prob, alg, copy(prob.u0), _sol_resid(start_sol);
+            retcode = _sol_retcode(start_sol), original = start_sol
         )
     end
-    u = copy(start_sol.u)
+    u = copy(_sol_u(start_sol))
     last_sol = start_sol
     if span == 0
         return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+            prob, alg, u, _sol_resid(last_sol); retcode = ReturnCode.Success
         )
     end
 
@@ -823,7 +823,7 @@ function CommonSolve.solve(
         last_sol = CommonSolve.solve!(corr_cache)
 
         if SciMLBase.successful_retcode(last_sol)
-            xnew = last_sol.u
+            xnew = _sol_u(last_sol)
             # realized chord, built in the (currently free) secant scratch
             @. tscratch = xnew - xcur
             nchord = _theta_norm(tscratch, wu, wλ, n)
@@ -869,7 +869,7 @@ function CommonSolve.solve(
                 )
                 if SciMLBase.successful_retcode(final_sol)
                     return SciMLBase.build_solution(
-                        prob, alg, copy(final_sol.u), final_sol.resid;
+                        prob, alg, copy(_sol_u(final_sol)), _sol_resid(final_sol);
                         retcode = ReturnCode.Success
                     )
                 end
@@ -883,7 +883,7 @@ function CommonSolve.solve(
             # sweep — see `_effort_growth_factor`), giving the arclength driver an effort
             # signal alongside the purely geometric bend-angle test.
             if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                nit = _sol_nsteps(last_sol)
                 if _effort_wants_shrink(nit, budget)
                     ds / 2 >= min_ds && (ds = ds / 2)
                     streak = 0
@@ -904,7 +904,7 @@ function CommonSolve.solve(
         else
             return SciMLBase.build_solution(
                 prob, alg, u, nothing;
-                retcode = last_sol.retcode, original = last_sol
+                retcode = _sol_retcode(last_sol), original = last_sol
             )
         end
     end

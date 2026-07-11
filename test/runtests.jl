@@ -86,6 +86,7 @@ else
             @time @safetestset "HomotopySweep expands the step after consecutive successes" include("Core/homotopy_sweep_tests__item19.jl")
             @time @safetestset "HomotopySweep secant predictor reduces corrector work" include("Core/homotopy_sweep_tests__item20.jl")
             @time @safetestset "HomotopySweep regrows the step after bisecting a hard region" include("Core/homotopy_sweep_tests__item21.jl")
+            @time @safetestset "HomotopySweep solution field reads do not allocate through getproperty" include("Core/homotopy_sweep_tests__item22.jl")
             @time @safetestset "ArcLengthContinuation construction + defaults" include("Core/arclength_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation happy path (fold-free, matches sweep)" include("Core/arclength_tests__item2.jl")
             @time @safetestset "ArcLengthContinuation rounds a fold (non-monotone λ)" include("Core/arclength_tests__item3.jl")
