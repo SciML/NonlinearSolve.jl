@@ -3,7 +3,7 @@
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
         predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
-        maxsteps = 10000)
+        maxsteps = 10000, store_original = Val(false))
 
 Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
@@ -122,6 +122,14 @@ Keyword arguments:
   - `maxsteps`: a hard cap on the total number of predictor-corrector attempts
     (accepted steps plus bisection retries). Exceeding it returns a
     `ReturnCode.MaxIters` failure carrying the last converged iterate. Must be ≥ 1.
+  - `store_original`: whether to store the failing inner solve in the `original` field
+    of the returned solution. Default `Val(false)` to keep the returned solution type
+    concrete: the inner solve is a fresh `solve(inner_prob, inner)` whose return type
+    inference gives up (its residual is a `FixLambda` wrapper), so storing it would pin
+    the driver's returned solution's `original` type-slot to `Any`, forcing dynamic
+    dispatch on every downstream field read of that solution. Set to `Val(true)` to keep
+    the payload for debugging (the returned type is then no longer concrete). Mirrors
+    [`NonlinearSolvePolyAlgorithm`](@ref)'s option of the same name.
 
 When the sweep cannot reach the end of `λspan`, the returned solution carries a failure
 retcode: its `u` is the last converged iterate (at some ``λ`` short of `λspan[2]`, or
@@ -147,6 +155,7 @@ systems whose target form is hard to solve cold; it is unrelated to the polynomi
     tracking_maxiters
     tracking_abstol
     maxsteps::Int
+    store_original <: Val
 end
 
 function HomotopySweep(;
@@ -154,7 +163,7 @@ function HomotopySweep(;
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
         predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
-        maxsteps = 10000
+        maxsteps = 10000, store_original::Val = Val(false)
     )
     if nsteps !== nothing && nsteps < 1
         throw(ArgumentError("HomotopySweep `nsteps` must be ≥ 1, got $nsteps"))
@@ -237,7 +246,7 @@ function HomotopySweep(;
     return HomotopySweep(
         inner, nsteps, adaptive, initial_step_factor, min_dλ,
         max_step_factor, expand_factor, expand_threshold, expand_quality, predictor,
-        tracking_maxiters, tracking_abstol, maxsteps
+        tracking_maxiters, tracking_abstol, maxsteps, store_original
     )
 end
 
@@ -268,13 +277,23 @@ end
 # eltype when λ's precision differs from `u0`'s). When no derivative field is present
 # the construction is exactly the bare positional one (the branch is decided by the
 # problem's type, so the unused arm is compiled away).
+#
+# `FullSpecialize` is required, not the `AutoSpecialize` default: the residual is a
+# `FixLambda` wrapper, and `AutoSpecialize`'s `FunctionWrappersWrapper` prototype
+# inference gives up on a wrapper-of-a-wrapper, so inference of the inner `solve` on the
+# resulting problem widens to `Any`. That `Any` reaches the drivers through the fresh
+# `solve(inner_prob, inner)` used for the exempt/anchor/landing solves
+# (`_sweep_exempt_solve`) and the arclength start/corrector solves — whose results are
+# stored into the driver's returned solution as `original`, pinning its `original`
+# type-slot to `Any` and making the whole driver `solve` infer as `Any`. `FullSpecialize`
+# keeps the residual concretely typed so those inner solves infer.
 function _sweep_nonlinear_function(::Val{iip}, f, fixλ::FixLambda) where {iip}
     if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
             f.colorvec === nothing
-        return SciMLBase.NonlinearFunction{iip}(fixλ)
+        return SciMLBase.NonlinearFunction{iip, SciMLBase.FullSpecialize}(fixλ)
     end
     jac = f.jac === nothing ? nothing : FixLambdaJac(fixλ)
-    return SciMLBase.NonlinearFunction{iip}(
+    return SciMLBase.NonlinearFunction{iip, SciMLBase.FullSpecialize}(
         fixλ; jac, jac_prototype = f.jac_prototype,
         sparsity = f.sparsity, colorvec = f.colorvec
     )
@@ -477,9 +496,10 @@ function _homotopy_sweep_solve(
         # the λ = λspan[1] system itself failed from u0: the homotopy premise is
         # broken, so no continuation is possible. `u` stays u0. No accepted point
         # exists, so there is nothing to hand off.
-        return SciMLBase.build_solution(
+        return build_solution_less_specialize(
                 prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol
+                retcode = last_sol.retcode, original = last_sol,
+                store_original = alg.store_original
             ), nothing
     end
     u = copy(last_sol.u)
@@ -639,9 +659,10 @@ function _homotopy_sweep_solve(
             trust = 0
         else
             # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
-            return SciMLBase.build_solution(
+            return build_solution_less_specialize(
                     prob, alg, u, last_sol.resid;
-                    retcode = last_sol.retcode, original = last_sol
+                    retcode = last_sol.retcode, original = last_sol,
+                    store_original = alg.store_original
                 ), λ
         end
     end

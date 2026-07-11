@@ -3,7 +3,8 @@
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
         predictor = :secant, autodiff = nothing, linsolve = nothing,
-        tracking_maxiters = 10, maxsteps = 10000, theta = 0.5)
+        tracking_maxiters = 10, maxsteps = 10000, theta = 0.5,
+        store_original = Val(false))
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -142,6 +143,12 @@ Keyword arguments:
     `(0, 1)`; the default `0.5` weighs the (size-normalized) state block and the
     parameter equally. Larger `theta` emphasizes the state components, smaller `theta`
     emphasizes ``λ``.
+  - `store_original`: whether to store the failing inner solve in the `original` field of
+    the returned solution. Default `Val(false)` to keep the returned solution type
+    concrete (the anchor/corrector inner solves' return type inference gives up, so
+    storing one would pin the returned solution's `original` slot to `Any`). Set to
+    `Val(true)` to keep the payload for debugging. Mirrors
+    [`NonlinearSolvePolyAlgorithm`](@ref)'s option of the same name.
 
 When the solver cannot reach `λspan[2]`, the returned solution carries a failure retcode
 and its `u` is the last converged curve point.
@@ -167,6 +174,7 @@ Jacobian.
     tracking_maxiters
     maxsteps::Int
     theta
+    store_original <: Val
 end
 
 function ArcLengthContinuation(;
@@ -174,7 +182,7 @@ function ArcLengthContinuation(;
         min_ds = nothing, max_step_factor = 1.0, expand_factor = 2.0,
         expand_threshold = 2, max_angle = π / 6, predictor = :secant,
         autodiff = nothing, linsolve = nothing, tracking_maxiters = 10,
-        maxsteps = 10000, theta = 0.5
+        maxsteps = 10000, theta = 0.5, store_original::Val = Val(false)
     )
     if !(0 < initial_step_factor <= 1)
         throw(
@@ -242,7 +250,7 @@ function ArcLengthContinuation(;
     return ArcLengthContinuation(
         inner, initial_step_factor, adaptive, min_ds, max_step_factor,
         expand_factor, expand_threshold, max_angle, predictor, autodiff, linsolve,
-        tracking_maxiters, maxsteps, theta
+        tracking_maxiters, maxsteps, theta, store_original
     )
 end
 
@@ -675,9 +683,10 @@ function CommonSolve.solve(
     # Correct the start onto the curve at λ0; everything downstream assumes H(u, λ) = 0.
     start_sol = _arclength_fixed_solve(prob, alg.inner, prob.u0, λ, args...; kwargs...)
     if !SciMLBase.successful_retcode(start_sol)
-        return SciMLBase.build_solution(
+        return build_solution_less_specialize(
             prob, alg, copy(prob.u0), start_sol.resid;
-            retcode = start_sol.retcode, original = start_sol
+            retcode = start_sol.retcode, original = start_sol,
+            store_original = alg.store_original
         )
     end
     u = copy(start_sol.u)
@@ -902,9 +911,10 @@ function CommonSolve.solve(
             ds = ds / 2          # bisect; retry from the same accepted point
             streak = 0
         else
-            return SciMLBase.build_solution(
+            return build_solution_less_specialize(
                 prob, alg, u, nothing;
-                retcode = last_sol.retcode, original = last_sol
+                retcode = last_sol.retcode, original = last_sol,
+                store_original = alg.store_original
             )
         end
     end

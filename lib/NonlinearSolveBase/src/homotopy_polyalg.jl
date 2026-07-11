@@ -1,6 +1,6 @@
 """
-    HomotopyPolyAlgorithm(algs::Tuple; warm_handoff = true)
-    HomotopyPolyAlgorithm(; warm_handoff = true)
+    HomotopyPolyAlgorithm(algs::Tuple; warm_handoff = true, store_original = Val(false))
+    HomotopyPolyAlgorithm(; warm_handoff = true, store_original = Val(false))
 
 A polyalgorithm for [`SciMLBase.HomotopyProblem`](@ref): a container for a tuple of
 continuation algorithms that are tried in order until one returns a solution with a
@@ -61,7 +61,8 @@ strictly past `λspan[1]`); a sweep that failed at the `λspan[1]` anchor itself
 within the backoff width of it, leaves the fallback stages with the current cold
 full-range behavior. A warm-handoff success is returned as a solution of the
 *original* problem (same `prob`, same `u` type); the stage's solution of the shrunken
-problem is attached as `original`.
+problem is attached as `original` only when `store_original = Val(true)` (see below) —
+by default it is dropped so the returned solution stays concretely typed.
 
 ### Arguments
 
@@ -75,6 +76,11 @@ problem is attached as `original`.
     from the sweep's last accepted iterate (with `λ_h` backed off 5% of the span from
     the failure), falling back to the cold full-range attempt only if that fails.
     `false` recovers the plain try-each-stage-cold behavior.
+  - `store_original`: whether a warm-handoff success stores its shrunken-problem stage
+    solution in the returned solution's `original` field. Default `Val(false)` keeps the
+    returned solution concretely typed (the stage solution the handoff produces infers
+    as `Any`). Pass `Val(true)` to recover the stage solution through `original` for
+    introspection, at the cost of the returned solution's type no longer being concrete.
 
 ### Example
 
@@ -92,15 +98,20 @@ alg = HomotopyPolyAlgorithm(; warm_handoff = false) # always restart stages cold
 @concrete struct HomotopyPolyAlgorithm <: AbstractNonlinearSolveAlgorithm
     algs <: Tuple
     warm_handoff::Bool
+    store_original <: Val
 end
 
-function HomotopyPolyAlgorithm(algs::Tuple; warm_handoff::Bool = true)
-    return HomotopyPolyAlgorithm(algs, warm_handoff)
+function HomotopyPolyAlgorithm(
+        algs::Tuple; warm_handoff::Bool = true, store_original::Val = Val(false)
+    )
+    return HomotopyPolyAlgorithm(algs, warm_handoff, store_original)
 end
 
-function HomotopyPolyAlgorithm(; warm_handoff::Bool = true)
+function HomotopyPolyAlgorithm(;
+        warm_handoff::Bool = true, store_original::Val = Val(false)
+    )
     return HomotopyPolyAlgorithm(
-        (HomotopySweep(), ArcLengthContinuation()); warm_handoff
+        (HomotopySweep(), ArcLengthContinuation()); warm_handoff, store_original
     )
 end
 
@@ -160,10 +171,14 @@ function CommonSolve.solve(
             if SciMLBase.successful_retcode(hsol)
                 # Rebuild against the ORIGINAL problem: the caller handed in `prob`
                 # and must get a solution whose `prob`/λspan semantics match it. The
-                # shrunken-problem solution stays reachable through `original`.
-                return SciMLBase.build_solution(
+                # shrunken-problem solution stays reachable through `original` when
+                # `store_original = Val(true)`; by default the slot is pinned to
+                # `Nothing` so the warm-handoff solution stays concretely typed (the
+                # inner stage solve infers as `Any`).
+                return build_solution_less_specialize(
                     prob, stage, hsol.u, hsol.resid;
-                    retcode = hsol.retcode, original = hsol, stats = hsol.stats
+                    retcode = hsol.retcode, original = hsol, stats = hsol.stats,
+                    store_original = alg.store_original
                 )
             end
             # Warm attempt failed (even the backed-off seed can be unlucky, e.g. on a

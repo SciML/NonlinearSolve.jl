@@ -46,16 +46,25 @@ n_cold = count_ref[]
 
 # --- the warm success corresponds to the ORIGINAL problem ---
 @test sol_warm.prob === prob_fold
-# the stage's solution of the shrunken remaining-stretch problem is kept as `original`:
-# its span starts strictly inside the original span and ends at the original target,
-# backed off ~5% of the span from the sweep's last accepted λ (which is near the
-# λ = 5/6 fold)
-hsol = sol_warm.original
+@test typeof(sol_warm.u) == typeof(prob_fold.u0)
+# by default `original` is dropped so the returned solution stays concretely typed
+@test fieldtype(typeof(sol_warm), :original) === Nothing
+
+# with `store_original = Val(true)` the stage's solution of the shrunken
+# remaining-stretch problem is kept as `original`: its span starts strictly inside the
+# original span and ends at the original target, backed off ~5% of the span from the
+# sweep's last accepted λ (which is near the λ = 5/6 fold)
+sol_warm_orig = solve(
+    prob_fold, HomotopyPolyAlgorithm((stage1, stage2); store_original = Val(true));
+    maxiters = 10
+)
+@test SciMLBase.successful_retcode(sol_warm_orig)
+@test sol_warm_orig.u[1] ≈ target atol = 1.0e-4
+hsol = sol_warm_orig.original
 @test hsol.prob isa SciMLBase.HomotopyProblem
 @test hsol.prob.λspan[2] == 1.0
 @test 0.0 < hsol.prob.λspan[1] < 5 / 6
-@test hsol.u == sol_warm.u
-@test typeof(sol_warm.u) == typeof(prob_fold.u0)
+@test hsol.u == sol_warm_orig.u
 
 # --- anchor failure: no accepted point, warm handoff must not engage ---
 # (1 - λ)(atan(u) + 2) + λ(u - 1) has no real root at λ = 0 (atan(u) + 2 ∈ (0.43, 3.57))
