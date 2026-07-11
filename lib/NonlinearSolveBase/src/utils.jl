@@ -226,34 +226,72 @@ function condition_number(J::AbstractVector)
 end
 condition_number(::Any) = -1
 
-# compute `pinv` if `inv` won't work
-maybe_pinv!!_workspace(A) = nothing, A
+# Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
+# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, and static
+# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
+# of the linear-solve cache.
+linsolve_workspace(A) = nothing, A
+linsolve_workspace(A::Diagonal) = nothing, A
+linsolve_workspace(A::SMatrix) = nothing, A
+function linsolve_workspace(A::AbstractMatrix)
+    LinearAlgebra.checksquare(A)
+    # the linear solve promotes e.g. integer eltypes; the buffers must hold the promoted
+    # values. The `size` form of `similar` gives a dense buffer for structured input
+    # (e.g. Tridiagonal), which the generically-dense inverse and identity RHS need.
+    T = typeof(oneunit(eltype(A)) / oneunit(eltype(A)))
+    A_buf = similar(A, T, size(A))
+    copyto!(A_buf, A)
+    rhs = make_identity!!(similar(A_buf, T), true)
+    u = similar(A_buf, T)
+    # One factorization + a multi-RHS solve against an identity RHS gives X = A⁻¹, and the
+    # default algorithm's singular-LU → pivoted-QR rescue handles rank-deficient input.
+    # All buffers are workspace-owned, so aliasing is opted into to let the LU
+    # refactorize A_buf in place instead of copying it on every call. Requires LinearSolve
+    # to be loaded (as does any use of `construct_linear_solver` without a native fast
+    # path).
+    lincache = NonlinearSolveBase.construct_linear_solver(
+        nothing, nothing, A_buf, rhs, u, nothing;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
+        alias = SciMLBase.LinearAliasSpecifier(alias_A = true, alias_b = true)
+    )
+    return (; lincache, rhs), A
+end
 
-maybe_pinv!!(workspace, A::Union{Number, AbstractMatrix}) = pinv(A)
-function maybe_pinv!!(workspace, A::Diagonal)
+# scalar analog of the default solver's least-squares rescue: a singular (zero) entry
+# inverts to zero instead of Inf
+safe_inv(x::Number) = iszero(x) ? zero(inv(x)) : inv(x)
+
+linsolve_identity!!(workspace, x::Number) = safe_inv(x)
+function linsolve_identity!!(workspace, A::Diagonal)
     D = A.diag
-    @bb @. D = pinv(D)
+    @bb @. D = safe_inv(D)
     return Diagonal(D)
 end
-maybe_pinv!!(workspace, A::AbstractVector) = maybe_pinv!!(workspace, Diagonal(A))
-function maybe_pinv!!(workspace, A::StridedMatrix)
+linsolve_identity!!(workspace, A::AbstractVector) = linsolve_identity!!(workspace, Diagonal(A))
+# Static matrices solve `A X = I` through LinearSolve's static fast path directly (NOT
+# `construct_linear_solver`, whose `SMatrix` route is a plain `A \ b` that yields Inf/NaN
+# on a singular Jacobian). The static default's SVD rescue returns the finite min-norm
+# generalized inverse on singular `A` — the behavior `pinv` used to provide — and the
+# whole path is allocation-free on static arrays. The rescue requires LinearSolve ≥ 4.3
+# (SciML/LinearSolve.jl#1085); older versions silently returned Inf/NaN here.
+function linsolve_identity!!(workspace, A::SMatrix{S1, S2, T, L}) where {S1, S2, T, L}
+    Tinv = typeof(oneunit(T) / oneunit(T))
+    return SciMLBase.solve(
+        SciMLBase.LinearProblem(A, SMatrix{S1, S2, Tinv}(LinearAlgebra.I))
+    ).u
+end
+function linsolve_identity!!(workspace, A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
-    if LinearAlgebra.istriu(A)
-        issingular = any(iszero, @view(A[diagind(A)]))
-        A_ = LinearAlgebra.UpperTriangular(A)
-        !issingular && return LinearAlgebra.triu!(parent(inv(A_)))
-    elseif LinearAlgebra.istril(A)
-        A_ = LinearAlgebra.LowerTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
-    else
-        F = LinearAlgebra.lu(A; check = false)
-        if LinearAlgebra.issuccess(F)
-            Ai = LinearAlgebra.inv!(F)
-            return convert(typeof(parent(Ai)), Ai)
-        end
-    end
-    return pinv(A)
+    # a `nothing` workspace (the preinverted-init path in NonlinearSolveQuasiNewton)
+    # builds a transient linear-solve cache; it allocates, but runs at most once per solve
+    ws = workspace === nothing ? first(linsolve_workspace(A)) : workspace
+    # the previous solve may have consumed the RHS buffer, so refill it with I. The
+    # lincache call copies A into its internal buffer before overwriting the solution
+    # buffer, so A is never mutated and passing the previously returned inverse as A is
+    # safe. On singular A the default algorithm's pivoted-QR rescue returns a finite
+    # least-squares generalized inverse (not the SVD `pinv`).
+    make_identity!!(ws.rhs, true)
+    return ws.lincache(; A, b = ws.rhs).u
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)

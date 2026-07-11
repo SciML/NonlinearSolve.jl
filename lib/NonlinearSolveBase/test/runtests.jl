@@ -122,6 +122,8 @@ run_tests(;
 
         @safetestset "Bounds transform (#955)" include("bounds_transform.jl")
 
+        @safetestset "linsolve_identity!! workspace (#1020)" include("linsolve_workspace.jl")
+
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
         return @safetestset "Dense LU refactorization allocations" include(

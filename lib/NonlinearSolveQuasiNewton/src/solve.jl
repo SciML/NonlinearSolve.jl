@@ -69,7 +69,7 @@ end
     update_rule_cache
     reinit_rule_cache
 
-    inv_workspace
+    linsolve_workspace
 
     # Counters
     stats::NLStats
@@ -218,9 +218,9 @@ function SciMLBase.__init(
 
         J = initialization_cache(nothing)
 
-        inv_workspace,
+        linsolve_workspace,
             J = Utils.unwrap_val(inverted_jac) ?
-            Utils.maybe_pinv!!_workspace(J) : (nothing, J)
+            Utils.linsolve_workspace(J) : (nothing, J)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u;
@@ -277,7 +277,7 @@ function SciMLBase.__init(
             fu, u, u_cache, prob.p, J, alg, prob, globalization,
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
-            inv_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
+            linsolve_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
             alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
             ReturnCode.Default, false, false, kwargs, initializealg, verbose
         )
@@ -302,13 +302,13 @@ function InternalAPI.step!(
                     )
                     cache.J = J_init
                 else
-                    cache.J = Utils.maybe_pinv!!(cache.inv_workspace, J_init)
+                    cache.J = Utils.linsolve_identity!!(cache.linsolve_workspace, J_init)
                 end
             else
                 if NonlinearSolveBase.jacobian_initialized_preinverted(
                         cache.initialization_cache.alg
                     )
-                    cache.J = Utils.maybe_pinv!!(cache.inv_workspace, J_init)
+                    cache.J = Utils.linsolve_identity!!(cache.linsolve_workspace, J_init)
                 else
                     cache.J = J_init
                 end
@@ -347,7 +347,7 @@ function InternalAPI.step!(
                     cache.initialization_cache, cache.fu, cache.u, Val(true)
                 )
                 cache.J = Utils.unwrap_val(NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache)) ?
-                    Utils.maybe_pinv!!(cache.inv_workspace, J_init) : J_init
+                    Utils.linsolve_identity!!(cache.linsolve_workspace, J_init) : J_init
                 J = cache.J
                 cache.steps_since_last_reset = 0
             else
