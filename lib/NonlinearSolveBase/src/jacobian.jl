@@ -188,13 +188,8 @@ initialization.
 """
 reused_jacobian(cache::JacobianCache, u) = cache.J
 reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
-function reused_jacobian(cache::JacobianCache{<:AbstractSciMLOperator}, u)
-    # Refresh only a genuinely state-dependent operator. A constant operator (a
-    # `MatrixOperator`, or an externally-maintained `WOperator` whose state the caller
-    # owns) is skipped; `t = nothing` because a `NonlinearProblem` has no time.
-    isconstant(cache.J) || update_coefficients!(cache.J, u, cache.p, nothing)
-    return cache.J
-end
+# A reused operator Jacobian is returned as-is (the generic `reused_jacobian` returns
+# `cache.J`); no special method is needed.
 
 # Core Computation
 ## Numbers
@@ -242,7 +237,23 @@ function (cache::JacobianCache{<:JacobianOperator})(u)
 end
 
 function (cache::JacobianCache{<:AbstractSciMLOperator})(u)
-    isconstant(cache.J) || update_coefficients!(cache.J, u, cache.p, nothing)
+    (; f, p) = cache
+    if SciMLBase.has_jac(f) && f.jac !== update_coefficients!
+        # A user-supplied analytic Jacobian that returns/updates an operator (e.g.
+        # `jac(u, p)` returning a `MatrixOperator`). Mirror the concrete `has_jac` path.
+        cache.stats.njacs += 1
+        if SciMLBase.isinplace(f)
+            f.jac(cache.J, u, p)
+        else
+            cache.J = f.jac(u, p)
+        end
+    end
+    # Otherwise the operator is used as-is, held fixed across the solve's Newton iterations
+    # (as NLNewton holds `W` fixed). This covers a constant operator and the case where
+    # SciMLBase auto-wired `f.jac = update_coefficients!` for an operator `jac_prototype`:
+    # NonlinearSolve does not refresh it, since a `NonlinearProblem` has no time and its `p`
+    # may be `NullParameters`. Its owner — e.g. the ODE integrator via `_update_nlsolvealg_W!`
+    # — refreshes the operator's coefficients with the correct `t`/`gamma` between solves.
     return cache.J
 end
 

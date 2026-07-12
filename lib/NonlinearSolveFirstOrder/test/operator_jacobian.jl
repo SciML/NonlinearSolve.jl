@@ -1,4 +1,4 @@
-using NonlinearSolveBase, NonlinearSolve, LinearSolve, SciMLOperators, SciMLBase
+using NonlinearSolveFirstOrder, LinearSolve, SciMLOperators, SciMLBase
 using LinearAlgebra, SparseArrays, Test
 using SciMLOperators: AbstractSciMLOperator, isconvertible
 
