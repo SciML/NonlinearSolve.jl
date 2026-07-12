@@ -126,9 +126,11 @@ run_tests(;
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
-        return @safetestset "Dense LU refactorization allocations" include(
+        @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )
+
+        return @safetestset "SciMLOperator Jacobians" include("operator_jacobian.jl")
     end,
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
     # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).

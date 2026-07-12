@@ -36,6 +36,10 @@ function construct_jacobian_cache(
         linsolve = missing
     )
     has_analytic_jac = SciMLBase.has_jac(f)
+    # A SciMLOperator `jac_prototype` is used as the Jacobian directly (matrix-free `mul!`
+    # for iterative solvers, lazy `convert` for factorizations) rather than being AD'd or
+    # `similar`'d, so it skips the concrete/di_extras machinery below.
+    op_jac = f.jac_prototype isa AbstractSciMLOperator ? f.jac_prototype : nothing
     linsolve_needs_jac = !concrete_jac(alg) && (
         linsolve === missing ||
             (linsolve === nothing || needs_concrete_A(linsolve))
@@ -44,7 +48,7 @@ function construct_jacobian_cache(
 
     fu_cache = Utils.safe_similar(fu)
 
-    if !has_analytic_jac && needs_jac
+    if op_jac === nothing && !has_analytic_jac && needs_jac
         if autodiff === nothing
             throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
                                  specified and cannot be `nothing`. Use \
@@ -70,7 +74,20 @@ function construct_jacobian_cache(
         di_extras = nothing
     end
 
-    J = if !needs_jac
+    J = if op_jac !== nothing
+        # Hand the operator straight through. An iterative solver applies it matrix-free
+        # via `mul!`; a factorization materializes it lazily with `convert(AbstractMatrix,
+        # ·)`. Guard the latter: a genuinely matrix-free (non-convertible) operator cannot
+        # be handed to a solver that needs a concrete `A`.
+        if needs_jac && !isconvertible(op_jac)
+            throw(ArgumentError("The supplied Jacobian operator `$(typeof(op_jac))` is \
+                not convertible to a concrete matrix, but the selected linear solver \
+                requires a concrete `A`. Use a matrix-free linear solver (e.g. \
+                `KrylovJL_GMRES()`) or supply a convertible operator / concrete \
+                `jac_prototype`."))
+        end
+        op_jac
+    elseif !needs_jac
         # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
         _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
         _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
@@ -171,6 +188,13 @@ initialization.
 """
 reused_jacobian(cache::JacobianCache, u) = cache.J
 reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
+function reused_jacobian(cache::JacobianCache{<:AbstractSciMLOperator}, u)
+    # Refresh only a genuinely state-dependent operator. A constant operator (a
+    # `MatrixOperator`, or an externally-maintained `WOperator` whose state the caller
+    # owns) is skipped; `t = nothing` because a `NonlinearProblem` has no time.
+    isconstant(cache.J) || update_coefficients!(cache.J, u, cache.p, nothing)
+    return cache.J
+end
 
 # Core Computation
 ## Numbers
@@ -215,6 +239,11 @@ end
 
 function (cache::JacobianCache{<:JacobianOperator})(u)
     return StatefulJacobianOperator(cache.J, u, cache.p)
+end
+
+function (cache::JacobianCache{<:AbstractSciMLOperator})(u)
+    isconstant(cache.J) || update_coefficients!(cache.J, u, cache.p, nothing)
+    return cache.J
 end
 
 # Sparse Automatic Differentiation

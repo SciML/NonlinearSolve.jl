@@ -90,6 +90,12 @@ function construct_linear_solver(
         # caller-forced aliasing: the caller owns A/b outright (e.g. the inverse-Jacobian
         # workspace), so no defensive copy of A is made
         linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+    elseif A isa AbstractSciMLOperator
+        # A SciMLOperator `A` is externally maintained (refreshed in place by
+        # `update_coefficients!`), so alias it: copying would sever those in-place updates
+        # and, for some operators, change the concrete type (breaking the later `A`-rebind).
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        alias = LinearAliasSpecifier(alias_A = true, alias_b = false)
     elseif alias_A_for_refactorization(linsolve, A)
         # Hand LinearSolve a NonlinearSolve-owned copy of `A` with `alias_A = true`:
         # one O(n²) copy here at init instead of one per refactorization inside
