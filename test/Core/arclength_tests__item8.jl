@@ -51,8 +51,9 @@ end
 # Newton stack, attributed by Profile.Allocs: ~21.5 KB/step is LinearSolve's
 # `lu(A, check = false)` copy on refactorization (skippable via its in-place `lu!`
 # path, gated on `alias_A = true` at init — a `construct_linear_solver` follow-up,
-# not driver work), ~21.5 KB/step is Broyden's initial J⁻¹ (`maybe_pinv!!` does a
-# fresh `lu(A)`), and ~10 KB/step is Klement/termination internals of the default
+# not driver work), ~21.5 KB/step was Broyden's initial J⁻¹ (a fresh `lu(A)` per step,
+# since replaced by the reusable `Utils.linsolve_workspace` linear-solve
+# cache), and ~10 KB/step is Klement/termination internals of the default
 # inner polyalgorithm. The pre-cache driver measured ≈ 274 KB / 295 KB. Bounds sit
 # at roughly 2× the cached cost, well under half the uncached cost, and hold
 # regardless of whether the Newton-stack follow-ups land.
