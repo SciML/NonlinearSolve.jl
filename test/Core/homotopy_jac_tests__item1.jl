@@ -120,11 +120,15 @@ resid_proto = zeros(n)
 f_band(resid_proto, sol_proto.u, 1.0, 1.0)
 @test maximum(abs, resid_proto) < 1.0e-8
 
-# --- No derivative fields: the inner function is constructed exactly as before ---
+# --- No derivative fields: the inner function is the bare positional construction,
+# built `FullSpecialize` so the inner `solve` on the FixLambda-wrapped problem infers
+# (the `AutoSpecialize` default's FunctionWrappersWrapper prototype inference bails on the
+# wrapper-of-a-wrapper, widening the driver's returned solution type to `Any`). ---
 import NonlinearSolveBase
 fixλ = NonlinearSolveBase.FixLambda(prob_ad.f, 0.0)
 fλ_plain = NonlinearSolveBase._sweep_nonlinear_function(Val(false), prob_ad.f, fixλ)
-@test typeof(fλ_plain) == typeof(SciMLBase.NonlinearFunction{false}(fixλ))
+@test typeof(fλ_plain) ==
+    typeof(SciMLBase.NonlinearFunction{false, SciMLBase.FullSpecialize}(fixλ))
 @test fλ_plain.jac === nothing
 @test fλ_plain.jac_prototype === nothing
 
