@@ -278,22 +278,19 @@ end
 # the construction is exactly the bare positional one (the branch is decided by the
 # problem's type, so the unused arm is compiled away).
 #
-# `FullSpecialize` is required, not the `AutoSpecialize` default: the residual is a
-# `FixLambda` wrapper, and `AutoSpecialize`'s `FunctionWrappersWrapper` prototype
-# inference gives up on a wrapper-of-a-wrapper, so inference of the inner `solve` on the
-# resulting problem widens to `Any`. That `Any` reaches the drivers through the fresh
-# `solve(inner_prob, inner)` used for the exempt/anchor/landing solves
-# (`_sweep_exempt_solve`) and the arclength start/corrector solves — whose results are
-# stored into the driver's returned solution as `original`, pinning its `original`
-# type-slot to `Any` and making the whole driver `solve` infer as `Any`. `FullSpecialize`
-# keeps the residual concretely typed so those inner solves infer.
+# The default `AutoSpecialize` is kept: it wraps the `FixLambda` residual in a
+# `FunctionWrappersWrapper` whose fixed chunksize-1 `NonlinearSolveTag` dual signatures let
+# `init(inner_prob, inner)` infer to a concrete cache, so the driver's reused inner cache and
+# every per-step `solve!` are allocation-free (the `FunctionWrappersWrapper` is built through
+# the type-parameter-bound `_make_fww_iip` in the ForwardDiff extension — the naive
+# convenience constructor would have widened a functor residual's wrapper to `Any`).
 function _sweep_nonlinear_function(::Val{iip}, f, fixλ::FixLambda) where {iip}
     if f.jac === nothing && f.jac_prototype === nothing && f.sparsity === nothing &&
             f.colorvec === nothing
-        return SciMLBase.NonlinearFunction{iip, SciMLBase.FullSpecialize}(fixλ)
+        return SciMLBase.NonlinearFunction{iip}(fixλ)
     end
     jac = f.jac === nothing ? nothing : FixLambdaJac(fixλ)
-    return SciMLBase.NonlinearFunction{iip, SciMLBase.FullSpecialize}(
+    return SciMLBase.NonlinearFunction{iip}(
         fixλ; jac, jac_prototype = f.jac_prototype,
         sparsity = f.sparsity, colorvec = f.colorvec
     )

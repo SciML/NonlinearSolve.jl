@@ -63,6 +63,31 @@ function standardize_forwarddiff_tag(
     return _wrapped_forwarddiff_ad(eltype(prob.u0))
 end
 
+# Construct the `FunctionWrappersWrapper` bypassing the convenience constructor, mirroring
+# DiffEqBase's `_make_fww` (ext/DiffEqBaseForwardDiffExt.jl). The convenience constructor
+# builds its wrapper tuple with `map(argtypes, rettypes) do A, R; …; end`, whose closure
+# leaves `A`/`R` inferred as the join of the heterogeneous `argtypes` tuple, so the wrapper
+# type — and every cache built from the wrapped problem — widens to abstract whenever the
+# wrapped callable is one inference cannot see through: a functor such as the homotopy
+# drivers' `FixLambda` / `AugmentedHomotopy` / `HomotopyResidual` residuals (the same reason
+# DiffEqBase hit this with many-parameter `ODEFunction`s). Binding each arglist as a
+# `::Type{A}` type parameter makes `FunctionWrapper{Nothing, A}(vff)` fully inferrable, so
+# `typeof(fwt)` — and the wrapper — stays concrete. `vff` is `@nospecialize`d because it is
+# already type-erased through `Void` (that is what makes the norecompile path precompile).
+function _make_fww_iip(
+        @nospecialize(vff), ::Type{A1}, ::Type{A2}, ::Type{A3}, ::Type{A4}
+    ) where {A1, A2, A3, A4}
+    FW = FunctionWrappers.FunctionWrapper
+    fwt = (
+        FW{Nothing, A1}(vff), FW{Nothing, A2}(vff),
+        FW{Nothing, A3}(vff), FW{Nothing, A4}(vff),
+    )
+    cs = FunctionWrappersWrappers.SingleCacheStorage()
+    return FunctionWrappersWrappers.FunctionWrappersWrapper{
+        typeof(fwt), FunctionWrappersWrappers.AllowNonIsBits, typeof(cs),
+    }(fwt, cs)
+end
+
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
 # Works for any `AbstractArray` state; the Dual-eltype array type `VdT` is
 # derived via `typeof(similar(u0, dT))` so signatures follow the user's
@@ -78,15 +103,12 @@ end
     T = eltype(T1)
     dT = dualgen(T)
     VdT = typeof(similar(inputs[1], dT))
-    iip_arglists = (
+    return _make_fww_iip(
+        SciMLBase.Void(ff),
         Tuple{T1, T2, T3},
         Tuple{VdT, VdT, T3},
         Tuple{VdT, VdT, VdT},
         Tuple{VdT, T2, VdT},
-    )
-    iip_returnlists = (Nothing, Nothing, Nothing, Nothing)
-    return FunctionWrappersWrappers.FunctionWrappersWrapper(
-        SciMLBase.Void(ff), iip_arglists, iip_returnlists
     )
 end
 
