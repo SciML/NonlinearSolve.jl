@@ -97,6 +97,7 @@ else
             @time @safetestset "ArcLengthContinuation corrector cache per-step allocations" include("Core/arclength_tests__item8.jl")
             @time @safetestset "Homotopy sweeps consume jac/jac_prototype/sparsity/colorvec" include("Core/homotopy_jac_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation consumes jac/jac_prototype/sparsity/colorvec" include("Core/arclength_jac_tests__item1.jl")
+            @time @safetestset "Continuation drivers infer a concrete inner cache (AutoSpecialize functor wrapper) + zero-alloc stepping" include("Core/homotopy_alloc_tests__item1.jl")
             @time @safetestset "Homotopy tracking_maxiters caps interior corrector work" include("Core/homotopy_effort_tests__item1.jl")
             @time @safetestset "Homotopy maxsteps guard + effort-band step control" include("Core/homotopy_effort_tests__item2.jl")
             @time @safetestset "Homotopy tracking_abstol loosens interior tracking only" include("Core/homotopy_tolerance_tests__item1.jl")
