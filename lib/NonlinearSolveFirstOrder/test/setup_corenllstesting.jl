@@ -31,6 +31,16 @@ append!(
         LevenbergMarquardt(; linsolve = KrylovJL_LSMR()),
     ]
 )
+# GeodesicAcceleration requests `shared > 1` from its inner descent, exercising the
+# NLLS NewtonDescent init path
+push!(
+    solvers,
+    GeneralizedFirstOrderAlgorithm(;
+        descent = GeodesicAcceleration(NewtonDescent(), 0.1, 0.75),
+        trustregion = NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion(1.0),
+        name = :GeodesicGaussNewton, concrete_jac = Val(true)
+    )
+)
 for radius_update_scheme in [
         RadiusUpdateSchemes.Simple, RadiusUpdateSchemes.NocedalWright,
         RadiusUpdateSchemes.NLsolve, RadiusUpdateSchemes.Hei,
