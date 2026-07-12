@@ -29,7 +29,7 @@ using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinear
 import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
-using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible, isconstant,
+using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible,
     update_coefficients!
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
     AbstractVerbositySpecifier, AbstractVerbosityPreset, MessageLevel,
