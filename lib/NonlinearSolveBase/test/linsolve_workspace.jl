@@ -29,6 +29,19 @@ using Test
     end
 end
 
+@testset "dense triangular input preserves triangular solve semantics" begin
+    A = [1.1 0.0 0.0; 3.2 2.2 0.0; -4.1 5.3 3.3]
+    expected = Matrix{Float64}(I, 3, 3)
+    ldiv!(LowerTriangular(A), expected)
+    workspace, _ = Utils.linsolve_workspace(A)
+    @test Utils.linsolve_identity!!(workspace, A) == expected
+
+    A_reset = [0.1 0.0 0.0; 100.3 0.2 0.0; -44.1 55.3 0.3]
+    expected_reset = Matrix{Float64}(I, 3, 3)
+    ldiv!(LowerTriangular(A_reset), expected_reset)
+    @test Utils.linsolve_identity!!(workspace, A_reset) == expected_reset
+end
+
 @testset "singular input takes the pivoted-QR rescue" begin
     # The result is the LinearSolve default algorithm's least-squares generalized
     # inverse from its singular-LU → pivoted-QR rescue, NOT the SVD `pinv` (an
