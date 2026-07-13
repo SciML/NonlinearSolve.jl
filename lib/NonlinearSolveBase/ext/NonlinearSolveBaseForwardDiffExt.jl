@@ -178,7 +178,7 @@ function NonlinearSolveBase.nonlinearsolve_forwarddiff_solve(
 
     Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(ad_prob, fn, uu, p)
     Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(ad_prob, fn, uu, p)
-    z = -Jᵤ \ Jₚ
+    z = -_forwarddiff_implicit_solve(Jᵤ, Jₚ)
     pp = prob.p
     sumfun = ((z, p),) -> map(Base.Fix2(*, ForwardDiff.partials(p)), z)
 
@@ -220,6 +220,22 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     end
     u isa Number && return ForwardDiff.derivative(Base.Fix2(f, p), u)
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
+end
+
+_forwarddiff_implicit_solve(A::Number, B) = A \ B
+
+function _forwarddiff_implicit_solve(A, B)
+    Utils.is_extension_loaded(Val(:LinearSolve)) || return A \ B
+
+    T = promote_type(typeof(oneunit(eltype(A)) / oneunit(eltype(A))), eltype(B))
+    u = similar(B, T, size(B))
+    lincache = NonlinearSolveBase.construct_linear_solver(
+        nothing, nothing, A, B, u, nothing;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0), verbose = false
+    )
+    linres = lincache()
+    linres.success || error("Linear solve failed while differentiating a nonlinear solve.")
+    return linres.u
 end
 
 function NonlinearSolveBase.nonlinearsolve_dual_solution(
@@ -302,7 +318,7 @@ function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     Jₚ = NonlinearSolveBase.nonlinearsolve_∂f_∂p(ad_prob, fn, uu, cache.values_p)
     Jᵤ = NonlinearSolveBase.nonlinearsolve_∂f_∂u(ad_prob, fn, uu, cache.values_p)
 
-    z_arr = -Jᵤ \ Jₚ
+    z_arr = -_forwarddiff_implicit_solve(Jᵤ, Jₚ)
 
     sumfun = ((z, p),) -> map(zᵢ -> zᵢ * ForwardDiff.partials(p), z)
     if cache.p isa Number
