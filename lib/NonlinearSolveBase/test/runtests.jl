@@ -186,6 +186,7 @@ run_tests(;
         @safetestset "dampen_jacobian!! touches only the diagonal" include(
             "dampen_jacobian.jl"
         )
+        @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
