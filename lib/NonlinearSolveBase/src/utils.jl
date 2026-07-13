@@ -311,7 +311,7 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
             return LinearAlgebra.ldiv!(LinearAlgebra.LowerTriangular(A_solve), ws.rhs)
         end
     end
-    return ws.lincache(; A, b = ws.rhs).u
+    return ws.lincache(; A = A_solve, b = ws.rhs).u
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
