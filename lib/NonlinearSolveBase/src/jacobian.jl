@@ -165,6 +165,7 @@ end
 # Deprecations
 (cache::JacobianCache{<:Number})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 (cache::JacobianCache{<:JacobianOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache{<:AbstractSciMLOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 (cache::JacobianCache)(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
 
 """

@@ -47,8 +47,7 @@ run_qa(
         #     AbstractNonlinearSolveAlgorithm, AbstractNonlinearSolveCache,
         #     AbstractResetCondition, AbstractResetConditionCache, Utils, get_timer_output,
         #     update_trace!
-        #   SciMLBase: NoSpecialize;  SciMLOperators: AbstractSciMLOperator
-        #   StaticArraysCore: StaticArray
+        #   SciMLBase: NoSpecialize;  StaticArraysCore: StaticArray
         all_explicit_imports_are_public = (;
             ignore = (
                 Symbol("@static_timeit"),
@@ -56,8 +55,8 @@ run_qa(
                 :AbstractApproximateJacobianUpdateRuleCache, :AbstractDescentDirection,
                 :AbstractJacobianCache, :AbstractJacobianInitialization,
                 :AbstractNonlinearSolveAlgorithm, :AbstractNonlinearSolveCache,
-                :AbstractResetCondition, :AbstractResetConditionCache, :AbstractSciMLOperator,
-                :NoSpecialize, :StaticArray, :Utils, :get_timer_output, :update_trace!,
+                :AbstractResetCondition, :AbstractResetConditionCache, :NoSpecialize,
+                :StaticArray, :Utils, :get_timer_output, :update_trace!,
             ),
         ),
     ),

@@ -1,7 +1,7 @@
 name = "NonlinearSolveQuasiNewton"
 uuid = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "1.14.0"
+version = "1.14.1"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
@@ -48,7 +48,7 @@ PrecompileTools = "1.2"
 Reexport = "1.2.2"
 SciMLBase = "3.19"
 SciMLLogging = "1.10.1, 2"
-SciMLOperators = "1.7"
+SciMLOperators = "1.24"
 StableRNGs = "1"
 StaticArrays = "1.9.8"
 StaticArraysCore = "1.4.3"

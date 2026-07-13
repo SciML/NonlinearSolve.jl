@@ -66,8 +66,8 @@ run_qa(
         #     NonSolverError, _concrete_solve_adjoint, _concrete_solve_forward, checkkwargs,
         #     extract_alg, get_concrete_p, get_concrete_u0, get_root_indp, has_kwargs,
         #     promote_u0, wrap_sol
-        #   ForwardDiff: Dual, pickchunksize;  SciMLOperators: AbstractSciMLOperator
-        #   SparseArrays: AbstractSparseMatrixCSC;  StaticArraysCore: StaticArray
+        #   ForwardDiff: Dual, pickchunksize;  SparseArrays: AbstractSparseMatrixCSC
+        #   StaticArraysCore: StaticArray
         #   NonlinearSolveBase (own internal): NonlinearSolveForwardDiffCache,
         #     NonlinearSolveTag, Utils, is_fw_wrapped, standardize_forwarddiff_tag,
         #     wrapfun_iip
@@ -77,7 +77,7 @@ run_qa(
                 :NoDefaultAlgorithmError, :NonSolverError,
                 :_concrete_solve_adjoint, :_concrete_solve_forward, :checkkwargs,
                 :extract_alg, :get_concrete_p, :get_concrete_u0, :get_root_indp, :has_kwargs,
-                :promote_u0, :wrap_sol, :Dual, :pickchunksize, :AbstractSciMLOperator,
+                :promote_u0, :wrap_sol, :Dual, :pickchunksize,
                 :AbstractSparseMatrixCSC, :StaticArray, :NonlinearSolveForwardDiffCache,
                 :NonlinearSolveTag, :Utils, :is_fw_wrapped, :standardize_forwarddiff_tag,
                 :wrapfun_iip,

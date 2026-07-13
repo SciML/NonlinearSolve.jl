@@ -1,6 +1,6 @@
 name = "SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
-version = "0.1.15"
+version = "0.1.16"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -28,7 +28,7 @@ InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
 ReverseDiff = "1.15"
 SciMLBase = "2.153, 3"
-SciMLOperators = "1.7"
+SciMLOperators = "1.24"
 Test = "1.10"
 Tracker = "0.2.35"
 Zygote = "0.6.70, 0.7"
