@@ -126,6 +126,20 @@ run_tests(;
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
+        @safetestset "Operator Jacobian cache dispatch" begin
+            using NonlinearSolveBase, SciMLBase, SciMLOperators
+
+            f! = (du, u, p) -> (du .= u; nothing)
+            f = NonlinearFunction(f!; jac_prototype = MatrixOperator(ones(1, 1)))
+            prob = NonlinearProblem(f, [1.0])
+            stats = SciMLBase.NLStats(0, 0, 0, 0, 0)
+            cache = NonlinearSolveBase.construct_jacobian_cache(
+                prob, nothing, f, [1.0]; stats
+            )
+
+            @test_throws ErrorException cache(nothing)
+        end
+
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )
