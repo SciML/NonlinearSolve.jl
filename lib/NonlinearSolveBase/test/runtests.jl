@@ -140,6 +140,8 @@ run_tests(;
             @test_throws ErrorException cache(nothing)
         end
 
+        @safetestset "safe_similar on sparse arrays" include("init_similar_sparse.jl")
+
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )

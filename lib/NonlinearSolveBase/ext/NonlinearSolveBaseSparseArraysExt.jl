@@ -1,7 +1,8 @@
 module NonlinearSolveBaseSparseArraysExt
 
 using ArrayInterface: ArrayInterface
-using SparseArrays: AbstractSparseMatrix, AbstractSparseMatrixCSC, nonzeros, sparse
+using SparseArrays: AbstractSparseArray, AbstractSparseMatrix, AbstractSparseMatrixCSC,
+    nonzeros, sparse
 
 using NonlinearSolveBase: NonlinearSolveBase, Utils
 
@@ -41,6 +42,21 @@ This is more efficient than checking all entries including structural zeros.
 """
 function NonlinearSolveBase.NAN_CHECK(x::AbstractSparseMatrixCSC)
     return any(NonlinearSolveBase.NAN_CHECK, nonzeros(x))
+end
+
+"""
+    init_similar_array!!(x::AbstractSparseArray{<:Number})
+
+Zero a freshly `similar`ed sparse array through its stored values.
+
+The generic method zeroes with `fill!`, guarded by `ArrayInterface.can_setindex`. GPU sparse
+arrays (`CuSparseMatrixCSC`, ...) implement no `setindex!` at all, so that guard is false for
+them and they would be handed back holding uninitialized memory. They are mutable through
+`nonzeros`, which is all the zeroing needs.
+"""
+function Utils.init_similar_array!!(x::AbstractSparseArray{<:Number})
+    fill!(nonzeros(x), zero(eltype(x)))
+    return x
 end
 
 """
