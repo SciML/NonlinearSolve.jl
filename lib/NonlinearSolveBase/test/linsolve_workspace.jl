@@ -40,6 +40,10 @@ end
     expected_reset = Matrix{Float64}(I, 3, 3)
     ldiv!(LowerTriangular(A_reset), expected_reset)
     @test Utils.linsolve_identity!!(workspace, A_reset) == expected_reset
+
+    A_general = [2.0 1.0 0.0; 0.0 3.0 1.0; 1.0 0.0 4.0]
+    copyto!(workspace.rhs, A_general)
+    @test Utils.linsolve_identity!!(workspace, workspace.rhs) ≈ inv(A_general)
 end
 
 @testset "singular input takes the pivoted-QR rescue" begin
