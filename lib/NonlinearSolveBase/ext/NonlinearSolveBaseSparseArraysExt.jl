@@ -87,7 +87,7 @@ dense buffer before factorizing.
 """
 function Utils.linsolve_workspace(A::AbstractSparseMatrix)
     dense_A = Matrix(A)
-    workspace, _ = Utils.linsolve_workspace(dense_A)
+    workspace, _ = invoke(Utils.linsolve_workspace, Tuple{AbstractMatrix}, dense_A)
     return workspace, dense_A
 end
 

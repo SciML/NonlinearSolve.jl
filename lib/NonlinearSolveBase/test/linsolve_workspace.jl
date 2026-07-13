@@ -1,5 +1,5 @@
 using NonlinearSolveBase: NonlinearSolveBase, Utils
-using LinearSolve  # linsolve_identity!! routes matrices through the LinearSolve default
+using LinearSolve  # used by sparse and structured linsolve_identity!! workspaces
 using LinearAlgebra
 using Test
 
@@ -20,8 +20,7 @@ using Test
         @test Utils.linsolve_identity!!(workspace, A) ≈ inv(A_orig)
         # nothing workspace (preinverted-init path in QuasiNewton) still works
         @test Utils.linsolve_identity!!(nothing, A) ≈ inv(A_orig)
-        # re-inverting the returned inverse (which aliases the workspace's solution
-        # buffer) recovers A
+        # re-inverting the returned inverse recovers A
         Ai_copy = copy(Utils.linsolve_identity!!(workspace, A))
         @test Utils.linsolve_identity!!(workspace, Ai_copy) ≈ A_orig
         @test Utils.linsolve_identity!!(workspace, Utils.linsolve_identity!!(workspace, A)) ≈
@@ -29,11 +28,7 @@ using Test
     end
 end
 
-@testset "singular input takes the pivoted-QR rescue" begin
-    # The result is the LinearSolve default algorithm's least-squares generalized
-    # inverse from its singular-LU → pivoted-QR rescue, NOT the SVD `pinv` (an
-    # intentional semantics change: same fitness for quasi-Newton initialization,
-    # different finite matrix).
+@testset "dense singular input matches pinv" begin
     n = 20
     A_singular = let B = rand(n, n)
         B[:, 1] .= 0
@@ -45,32 +40,29 @@ end
     for A in (A_singular, A_singular_triu)
         A_orig = copy(A)
         workspace, _ = Utils.linsolve_workspace(A)
+        @test workspace === nothing
         X = Utils.linsolve_identity!!(workspace, A)
         @test size(X) == size(A)
         @test all(isfinite, X)
-        # X is a least-squares generalized inverse: A * X projects onto range(A)
+        @test X ≈ pinv(A_orig)
         @test A * X * A ≈ A atol = 1.0e-8 * norm(A)
         @test A == A_orig
-        # a subsequent nonsingular solve with the same workspace is unaffected
         B = rand(n, n) + n * I
         @test Utils.linsolve_identity!!(workspace, B) ≈ inv(B)
     end
 end
 
-@testset "workspace reuse does not allocate a matrix copy" begin
+@testset "strided matrices use the native inverse path" begin
     n = 51
     A = rand(n, n) + n * I
-    workspace, _ = Utils.linsolve_workspace(A)
-    Utils.linsolve_identity!!(workspace, A)  # compile
-    # Steady state is the LinearSolve refactorization floor (`lu!` ipiv + wrapper); the
-    # old code copied A (`lu`) and allocated a LAPACK getri work array, both O(n^2).
-    allocs = @allocated Utils.linsolve_identity!!(workspace, A)
-    @test allocs < sizeof(A)
+    workspace, A_ret = Utils.linsolve_workspace(A)
+    @test workspace === nothing && A_ret === A
+    @test Utils.linsolve_identity!!(workspace, A) ≈ inv(A)
 
     A_triu = triu(A)
-    Utils.linsolve_identity!!(workspace, A_triu)  # compile
-    allocs_tri = @allocated Utils.linsolve_identity!!(workspace, A_triu)
-    @test allocs_tri < sizeof(A)
+    workspace, A_triu_ret = Utils.linsolve_workspace(A_triu)
+    @test workspace === nothing && A_triu_ret === A_triu
+    @test Utils.linsolve_identity!!(workspace, A_triu) ≈ inv(A_triu)
 end
 
 @testset "sparse matrices route through the lincache (no sparse pinv)" begin

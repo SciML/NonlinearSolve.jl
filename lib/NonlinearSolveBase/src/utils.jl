@@ -226,13 +226,13 @@ function condition_number(J::AbstractVector)
 end
 condition_number(::Any) = -1
 
-# Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
-# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, and static
-# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
-# of the linear-solve cache.
+# Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹.
+# Dense matrices keep the previous `pinv` fallback semantics for rank-deficient
+# reinitializations; sparse and structured matrices solve A * X = I through LinearSolve.
 linsolve_workspace(A) = nothing, A
 linsolve_workspace(A::Diagonal) = nothing, A
 linsolve_workspace(A::SMatrix) = nothing, A
+linsolve_workspace(A::StridedMatrix) = nothing, A
 function linsolve_workspace(A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
     # the linear solve promotes e.g. integer eltypes; the buffers must hold the promoted
@@ -268,6 +268,25 @@ function linsolve_identity!!(workspace, A::Diagonal)
     return Diagonal(D)
 end
 linsolve_identity!!(workspace, A::AbstractVector) = linsolve_identity!!(workspace, Diagonal(A))
+function linsolve_identity!!(workspace, A::StridedMatrix)
+    LinearAlgebra.checksquare(A)
+    if LinearAlgebra.istriu(A)
+        issingular = any(iszero, @view(A[diagind(A)]))
+        A_ = LinearAlgebra.UpperTriangular(A)
+        !issingular && return LinearAlgebra.triu!(parent(inv(A_)))
+    elseif LinearAlgebra.istril(A)
+        A_ = LinearAlgebra.LowerTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
+    else
+        F = LinearAlgebra.lu(A; check = false)
+        if LinearAlgebra.issuccess(F)
+            Ai = LinearAlgebra.inv!(F)
+            return convert(typeof(parent(Ai)), Ai)
+        end
+    end
+    return pinv(A)
+end
 # Static matrices solve `A X = I` through LinearSolve's static fast path directly (NOT
 # `construct_linear_solver`, whose `SMatrix` route is a plain `A \ b` that yields Inf/NaN
 # on a singular Jacobian). The static default's SVD rescue returns the finite min-norm
