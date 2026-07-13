@@ -63,6 +63,13 @@ end
     @test Utils.linsolve_identity!!(workspace, workspace.rhs) ≈ inv(A_general)
 end
 
+@testset "arrays without fast scalar indexing use pinv" begin
+    A = NoFastScalarMatrix(rand(5, 5))
+    workspace, A_ret = Utils.linsolve_workspace(A)
+    @test workspace === nothing && A_ret === A
+    @test Utils.linsolve_identity!!(workspace, A) ≈ pinv(A.data)
+end
+
 @testset "singular input takes the pivoted-QR rescue" begin
     # The result is the LinearSolve default algorithm's least-squares generalized
     # inverse from its singular-LU → pivoted-QR rescue, NOT the SVD `pinv` (an
