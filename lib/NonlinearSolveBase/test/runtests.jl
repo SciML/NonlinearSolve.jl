@@ -140,6 +140,10 @@ run_tests(;
             @test_throws ErrorException cache(nothing)
         end
 
+        @safetestset "dampen_jacobian!! touches only the diagonal" include(
+            "dampen_jacobian.jl"
+        )
+
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )
