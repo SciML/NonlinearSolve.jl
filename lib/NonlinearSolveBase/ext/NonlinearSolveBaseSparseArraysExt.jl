@@ -49,10 +49,8 @@ end
 
 Zero a freshly `similar`ed sparse array through its stored values.
 
-The generic method zeroes with `fill!`, guarded by `ArrayInterface.can_setindex`. GPU sparse
-arrays (`CuSparseMatrixCSC`, ...) implement no `setindex!` at all, so that guard is false for
-them and they would be handed back holding uninitialized memory. They are mutable through
-`nonzeros`, which is all the zeroing needs.
+The generic method zeroes with `fill!` which is not supported by sparse GPU arrays, so
+we `fill!` the `nonzero`s in this case.
 """
 function Utils.init_similar_array!!(x::AbstractSparseArray{<:Number})
     fill!(nonzeros(x), zero(eltype(x)))
