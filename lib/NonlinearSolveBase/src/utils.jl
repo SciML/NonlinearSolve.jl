@@ -123,7 +123,7 @@ safe_similar(x::AbstractSciMLOperator, ::Type) = x
 init_similar_array!!(x) = x
 
 function init_similar_array!!(x::AbstractArray{<:T}) where {T <: Number}
-    ArrayInterface.can_setindex(x) && fill!(x, T(0))
+    fill!(x, T(0))
     return x
 end
 

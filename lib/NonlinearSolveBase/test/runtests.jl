@@ -140,6 +140,8 @@ run_tests(;
             @test_throws ErrorException cache(nothing)
         end
 
+        @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
+
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )
