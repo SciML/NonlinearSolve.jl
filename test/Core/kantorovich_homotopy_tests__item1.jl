@@ -139,6 +139,16 @@ function CommonSolve.solve!(cache::SlowContractionCache)
     )
 end
 
+corrector_prob = NonlinearProblem((u, p) -> [u[1] - 1], [0.0])
+corrector_cache = init(corrector_prob, SlowContractionAlgorithm(); maxiters = 2)
+corrector_sol, first_Θ, rejected_Θ, has_Θ, contraction_rejected =
+    NonlinearSolveBase._homotopy_corrector!(corrector_cache, alg, Float64)
+@test SciMLBase.successful_retcode(corrector_sol)
+@test has_Θ
+@test first_Θ ≈ 0.99
+@test rejected_Θ ≈ 0.99
+@test contraction_rejected
+
 slowprob = HomotopyProblem((u, p, λ) -> [u[1] - λ], [0.0]; λspan = (0.0, 0.1))
 strictsol = solve(
     slowprob,

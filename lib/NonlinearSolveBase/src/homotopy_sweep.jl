@@ -401,8 +401,7 @@ function _homotopy_corrector!(
         return sol, zero(T), zero(T), false, false
     end
 
-    residualnormprev = zero(L2_NORM(get_fu(cache)))
-    observations = 0
+    residualnormprev = L2_NORM(get_fu(cache))
     first_Θ = zero(T)
     rejected_Θ = zero(T)
     has_Θ = false
@@ -412,19 +411,16 @@ function _homotopy_corrector!(
     while not_terminated(cache)
         CommonSolve.step!(cache)
         residualnorm = L2_NORM(get_fu(cache))
-        if observations > 0
-            Θ = iszero(residualnormprev) ? zero(T) : T(residualnorm / residualnormprev)
-            if !has_Θ
-                first_Θ = Θ
-                has_Θ = true
-            end
-            if !contraction_rejected && !(Θ <= Θreject)
-                rejected_Θ = Θ
-                contraction_rejected = true
-            end
+        Θ = iszero(residualnormprev) ? zero(T) : T(residualnorm / residualnormprev)
+        if !has_Θ
+            first_Θ = Θ
+            has_Θ = true
+        end
+        if !contraction_rejected && !(Θ <= Θreject)
+            rejected_Θ = Θ
+            contraction_rejected = true
         end
         residualnormprev = residualnorm
-        observations += 1
     end
 
     sol = CommonSolve.solve!(cache)
