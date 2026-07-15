@@ -9,7 +9,8 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 ## Error Control Group
 - `non_enclosing_interval`: Messages when interval doesn't enclose root (bracketing methods)
 - `alias_u0_immutable`: Messages when aliasing u0 with immutable array
-- `linsolve_failed_noncurrent`: Messages when linear solve fails on non-current iteration
+- `linsolve_failed_noncurrent`: Messages when a linear solve or line search retries with
+  non-current Jacobian information
 - `termination_condition`: Messages about termination conditions
 
 ## Numerical Group

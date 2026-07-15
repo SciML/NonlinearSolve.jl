@@ -3,7 +3,7 @@
         descent, linesearch = missing,
         trustregion = missing, autodiff = nothing, vjp_autodiff = nothing,
         jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), name::Symbol = :unknown
+        concrete_jac = Val(false), jacobian_reuse = nothing, name::Symbol = :unknown
     )
 
 This is a Generalization of First-Order (uses Jacobian) Nonlinear Solve Algorithms. The most
@@ -20,12 +20,16 @@ order of convergence.
     [`NonlinearSolveBase.AbstractDescentDirection`](@ref) interface.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
     before the algorithm terminates.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy for reusing the Jacobian across
+    accepted steps. `true` selects the default policy; `false` or `nothing` disables reuse.
+    Defaults to `nothing`.
 """
 @concrete struct GeneralizedFirstOrderAlgorithm <: AbstractNonlinearSolveAlgorithm
     linesearch
     trustregion
     descent
     forcing
+    jacobian_reuse
     max_shrink_times::Int
 
     autodiff
@@ -39,12 +43,14 @@ end
 function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), forcing = nothing, name::Symbol = :unknown
+        concrete_jac = Val(false), forcing = nothing, jacobian_reuse = nothing,
+        name::Symbol = :unknown
     )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
         (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
+    jacobian_reuse = normalize_jacobian_reuse(jacobian_reuse)
     return GeneralizedFirstOrderAlgorithm(
-        linesearch, trustregion, descent, forcing, max_shrink_times,
+        linesearch, trustregion, descent, forcing, jacobian_reuse, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac, name
     )
@@ -64,6 +70,7 @@ end
     jac_cache
     descent_cache
     forcing_cache
+    jacobian_reuse_cache
     linesearch_cache
     trustregion_cache
 
@@ -116,6 +123,7 @@ function InternalAPI.reinit_self!(
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     cache.make_new_jacobian = true
+    reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(
@@ -276,13 +284,17 @@ function SciMLBase.__init(
             )
         end
 
+        jacobian_reuse_cache =
+            init_jacobian_reuse_cache(alg.jacobian_reuse, fu, internalnorm)
+
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du; kwargs...
         )
 
         cache = GeneralizedFirstOrderAlgorithmCache(
             fu, u, u_cache, prob.p, alg, prob, globalization,
-            jac_cache, descent_cache, forcing_cache, linesearch_cache, trustregion_cache,
+            jac_cache, descent_cache, forcing_cache, jacobian_reuse_cache,
+            linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
@@ -298,14 +310,15 @@ function InternalAPI.step!(
         recompute_jacobian::Union{Nothing, Bool} = nothing
     )
     @static_timeit cache.timer "jacobian" begin
-        if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
+        new_jacobian = recompute_jacobian === nothing ?
+            cache.make_new_jacobian : recompute_jacobian
+        if new_jacobian
             J = cache.jac_cache(cache.u)
-            new_jacobian = true
         else
             J = reused_jacobian(cache.jac_cache, cache.u)
-            new_jacobian = false
         end
     end
+    new_jacobian && mark_jacobian_refresh!(cache.jacobian_reuse_cache, cache.fu)
 
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
@@ -351,14 +364,20 @@ function InternalAPI.step!(
             post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
         end
 
-        cache.make_new_jacobian = true
+        accepted_step = false
         if cache.globalization isa Val{:LineSearch}
             @static_timeit cache.timer "linesearch" begin
                 linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
                 linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
                 α = linesearch_sol.step_size
             end
-            if linesearch_failed
+            if linesearch_failed && !new_jacobian &&
+                    jacobian_is_stale(cache.jacobian_reuse_cache)
+                @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
+                cache.make_new_jacobian = true
+                InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)
+                return
+            elseif linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
                 cache.force_stop = true
             end
@@ -366,6 +385,7 @@ function InternalAPI.step!(
                 @bb axpy!(α, δu, cache.u)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
+            accepted_step = !linesearch_failed
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new,
@@ -376,9 +396,11 @@ function InternalAPI.step!(
                     @bb copyto!(cache.u, u_new)
                     @bb copyto!(cache.fu, fu_new)
                     α = true
+                    accepted_step = true
                 else
                     α = false
-                    cache.make_new_jacobian = false
+                    cache.make_new_jacobian =
+                        jacobian_is_stale(cache.jacobian_reuse_cache)
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
                         cache.trustregion_cache.shrink_counter > cache.max_shrink_times
@@ -392,14 +414,20 @@ function InternalAPI.step!(
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
+            accepted_step = true
         else
             error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
                    are (:LineSearch, :TrustRegion, :None)")
         end
+        if accepted_step
+            cache.make_new_jacobian = prepare_next_jacobian!(
+                cache.jacobian_reuse_cache, cache.alg.jacobian_reuse, cache.fu
+            )
+        end
         NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     else
         α = false
-        cache.make_new_jacobian = false
+        cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
     end
 
     update_trace!(cache, α)

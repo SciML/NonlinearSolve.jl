@@ -31,6 +31,7 @@ using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOp
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 
+include("jacobian_reuse.jl")
 include("solve.jl")
 include("raphson.jl")
 include("eisenstat_walker.jl")
@@ -106,6 +107,7 @@ export NewtonRaphson, PseudoTransient
 export GaussNewton, LevenbergMarquardt, TrustRegion
 
 export EisenstatWalkerForcing2
+export JacobianReuse
 
 export RadiusUpdateSchemes
 

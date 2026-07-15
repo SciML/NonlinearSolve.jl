@@ -2,7 +2,8 @@
     PseudoTransient(;
         concrete_jac = nothing, linesearch = missing, alpha_initial = 1e-3,
         linsolve = nothing, mass_matrix = nothing,
-        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing
+        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
 
 An implementation of PseudoTransient Method [coffey2003pseudotransient](@cite) that is used
@@ -31,11 +32,15 @@ are treated consistently with the DAE structure.
     `NonlinearFunction` carries a non-identity `mass_matrix`, that mass matrix is used
     automatically. A diagonal `M` (e.g. `Diagonal(...)`) uses an efficient diagonal update;
     a general sparse/dense `M` is supported as well. Intended for square DAE-derived systems.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
+    `nothing`/`false` to recompute after every accepted step. The damped system is still
+    rebuilt when the pseudo-timestep changes. Defaults to `nothing`.
 """
 function PseudoTransient(;
         concrete_jac = nothing, linesearch = missing, alpha_initial = 1.0e-3,
         linsolve = nothing, mass_matrix = nothing,
-        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing
+        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
@@ -47,6 +52,7 @@ function PseudoTransient(;
         jvp_autodiff,
         vjp_autodiff,
         concrete_jac,
+        jacobian_reuse,
         name = :PseudoTransient
     )
 end

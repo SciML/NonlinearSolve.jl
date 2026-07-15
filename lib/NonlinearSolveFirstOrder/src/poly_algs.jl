@@ -3,7 +3,8 @@
         ::Type{T} = Float64;
         concrete_jac = nothing,
         linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
 
 A polyalgorithm focused on robustness. It uses a mixture of Newton methods with different
@@ -18,14 +19,18 @@ or more precision / more stable linear solver choice is required).
 
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
+  - `jacobian_reuse`: forwarded to each first-order method in the polyalgorithm.
 """
 function RobustMultiNewton(
         ::Type{T} = Float64;
         concrete_jac = nothing,
         linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     ) where {T}
-    common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (;
+        concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse,
+    )
     if T <: Complex # Let's atleast have something here for complex numbers
         algs = (
             NewtonRaphson(; common_kwargs...),
@@ -48,7 +53,8 @@ end
         ::Type{T} = Float64;
         concrete_jac = nothing,
         linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
 
 A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
@@ -58,14 +64,16 @@ for more performance and then tries more robust techniques if the faster ones fa
 
   - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
     are compatible with the problem type. Defaults to `Float64`.
+  - `jacobian_reuse`: forwarded to each first-order method in the polyalgorithm.
 """
 function FastShortcutNLLSPolyalg(
         ::Type{T} = Float64;
         concrete_jac = nothing,
         linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     ) where {T}
-    common_kwargs = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse)
     if T <: Complex
         algs = (
             GaussNewton(; common_kwargs..., concrete_jac),
