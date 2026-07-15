@@ -145,6 +145,13 @@ function _rescale_step_caps(stage::HomotopySweep, scale)
     msf = stage.max_step_factor
     return @set stage.max_step_factor = min(msf * scale, oneunit(msf))
 end
+function _rescale_step_caps(stage::KantorovichHomotopy, scale)
+    if stage.nsteps !== nothing
+        stage = @set stage.nsteps = max(1, ceil(Int, stage.nsteps / scale))
+    end
+    msf = stage.max_step_factor
+    return @set stage.max_step_factor = min(msf * scale, oneunit(msf))
+end
 
 function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem{uType, iip}, alg::HomotopyPolyAlgorithm,
@@ -186,7 +193,7 @@ function CommonSolve.solve(
             # through to the cold full-range attempt so the handoff never costs
             # robustness relative to the plain staged behavior.
         end
-        sol = if stage isa HomotopySweep
+        sol = if stage isa Union{HomotopySweep, KantorovichHomotopy}
             csol, λ_last = _homotopy_sweep_solve(prob, stage, args...; kwargs...)
             if λ_last !== nothing
                 # The sweep dies where the path turns hard (a fold), and a fallback

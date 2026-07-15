@@ -380,6 +380,141 @@ function _effort_wants_shrink(nit::Int, budget::Int)
     return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
 end
 
+function _homotopy_corrector!(cache, ::HomotopySweep, ::Type{T}) where {T}
+    sol = CommonSolve.solve!(cache)
+    return sol, zero(T), zero(T), false, false
+end
+
+function _homotopy_corrector!(
+        cache::NonlinearSolvePolyAlgorithmCache, ::KantorovichHomotopy, ::Type{T}
+    ) where {T}
+    sol = CommonSolve.solve!(cache)
+    return sol, zero(T), zero(T), false, false
+end
+
+function _homotopy_corrector!(
+        cache, alg::KantorovichHomotopy, ::Type{T}
+    ) where {T}
+    # No-init algorithms do not expose intermediate residuals or a step interface.
+    if !hasfield(typeof(cache), :fu) || cache.retcode == ReturnCode.InitialFailure
+        sol = CommonSolve.solve!(cache)
+        return sol, zero(T), zero(T), false, false
+    end
+
+    residualnormprev = zero(L2_NORM(get_fu(cache)))
+    observations = 0
+    first_Θ = zero(T)
+    rejected_Θ = zero(T)
+    has_Θ = false
+    contraction_rejected = false
+    Θreject = T(alg.Θreject)
+
+    while not_terminated(cache)
+        CommonSolve.step!(cache)
+        residualnorm = L2_NORM(get_fu(cache))
+        if observations > 0
+            Θ = iszero(residualnormprev) ? zero(T) : T(residualnorm / residualnormprev)
+            if !has_Θ
+                first_Θ = Θ
+                has_Θ = true
+            end
+            if !contraction_rejected && !(Θ <= Θreject)
+                rejected_Θ = Θ
+                contraction_rejected = true
+            end
+        end
+        residualnormprev = residualnorm
+        observations += 1
+    end
+
+    sol = CommonSolve.solve!(cache)
+    return sol, first_Θ, rejected_Θ, has_Θ, contraction_rejected
+end
+
+
+function _kantorovich_step_factor(
+        alg::KantorovichHomotopy, Θ, has_Θ::Bool, ::Type{T}
+    ) where {T}
+    has_Θ && (!isfinite(Θ) || Θ < 0) && return T(alg.qmin)
+    Θeff = has_Θ ? max(T(Θ), T(alg.Θmin)) : T(alg.Θmin)
+    g(x) = sqrt(one(T) + 4 * x) - one(T)
+    q = T(alg.γ) * (g(T(alg.Θbar)) / g(Θeff))^(inv(T(alg.predictor_order)))
+    return clamp(q, T(alg.qmin), T(alg.qmax))
+end
+
+function _accepted_step_size(
+        alg::HomotopySweep, dλ, streak::Int, θ, nit::Int, budget::Int,
+        min_dλ, max_dλ, expand_factor, ::Type{T}, first_Θ, has_Θ
+    ) where {T}
+    alg.adaptive || return dλ, streak
+    if _effort_wants_shrink(nit, budget)
+        abs(dλ) / 2 >= min_dλ && (dλ = dλ / 2)
+        return dλ, 0
+    end
+
+    streak += 1
+    corrector_cheap = nit >= 0 && nit <= 2
+    if streak >= alg.expand_threshold &&
+            (θ === nothing || θ <= T(alg.expand_quality) || corrector_cheap)
+        growth = _effort_growth_factor(nit, budget, expand_factor)
+        if growth > 1
+            grown = growth * dλ
+            dλ = abs(grown) > abs(max_dλ) ? max_dλ : grown
+            streak = 0
+        end
+    end
+    return dλ, streak
+end
+
+function _accepted_step_size(
+        alg::KantorovichHomotopy, dλ, streak::Int, θ, nit::Int, budget::Int,
+        min_dλ, max_dλ, expand_factor, ::Type{T}, first_Θ, has_Θ
+    ) where {T}
+    q = _kantorovich_step_factor(alg, first_Θ, has_Θ, T)
+    corrector_cheap = nit >= 0 && nit <= 2
+    if q > 1 && !(θ === nothing || θ <= T(alg.expand_quality) || corrector_cheap)
+        q = one(T)
+    end
+    proposed = q * dλ
+    if abs(proposed) > abs(max_dλ)
+        proposed = max_dλ
+    elseif abs(proposed) < min_dλ
+        proposed = sign(dλ) * min_dλ
+    end
+    return proposed, 0
+end
+
+function _rejected_step_size(
+        alg::HomotopySweep, dλ, attempted_dλ, min_dλ,
+        first_Θ, rejected_Θ, has_Θ, contraction_rejected, inner_success,
+        ::Type{T}
+    ) where {T}
+    alg.adaptive || return dλ, false
+    proposed = dλ / 2
+    return proposed, abs(proposed) >= min_dλ
+end
+
+function _rejected_step_size(
+        alg::KantorovichHomotopy, dλ, attempted_dλ, min_dλ,
+        first_Θ, rejected_Θ, has_Θ, contraction_rejected, inner_success,
+        ::Type{T}
+    ) where {T}
+    q = if inner_success && contraction_rejected && isfinite(rejected_Θ) && rejected_Θ >= 0
+        _kantorovich_step_factor(alg, rejected_Θ, true, T)
+    else
+        T(alg.qmin)
+    end
+    proposed = q * attempted_dλ
+    return proposed, abs(proposed) >= min_dλ && !iszero(proposed)
+end
+
+_strict_contraction_rejection(::HomotopySweep, contraction_rejected) = false
+function _strict_contraction_rejection(
+        alg::KantorovichHomotopy, contraction_rejected
+    )
+    return alg.strict && contraction_rejected
+end
+
 # Full-fidelity standalone solve at a fixed λ, with the user's original kwargs (full
 # iteration budget, full tolerances) outside the tracking cache. Used only where the
 # tracking cap / loose tracking tolerance are active but must not bind: the λspan[1]
@@ -396,7 +531,8 @@ function _sweep_exempt_solve(
 end
 
 function CommonSolve.solve(
-        prob::SciMLBase.HomotopyProblem, alg::HomotopySweep, args...; kwargs...
+        prob::SciMLBase.HomotopyProblem,
+        alg::Union{HomotopySweep, KantorovichHomotopy}, args...; kwargs...
     )
     sol, _ = _homotopy_sweep_solve(prob, alg, args...; kwargs...)
     return sol
@@ -410,7 +546,7 @@ end
 # fallback cold at `λspan[1]`.
 function _homotopy_sweep_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},
-        alg::HomotopySweep, args...; kwargs...
+        alg::Union{HomotopySweep, KantorovichHomotopy}, args...; kwargs...
     ) where {uType, iip}
     λ0, λ1 = prob.λspan
     λ = float(λ0)
@@ -420,7 +556,7 @@ function _homotopy_sweep_solve(
     dλ = alg.nsteps === nothing ? λT(alg.initial_step_factor) * span : span / alg.nsteps
     min_dλ = alg.min_dλ === nothing ? sqrt(eps(λT)) : λT(alg.min_dλ)
     max_dλ = λT(alg.max_step_factor) * span     # carries span's sign, like dλ
-    expand_factor = λT(alg.expand_factor)
+    expand_factor = alg isa HomotopySweep ? λT(alg.expand_factor) : one(λT)
     abs(dλ) > abs(max_dλ) && (dλ = max_dλ)
     u = copy(prob.u0)
     budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
@@ -553,7 +689,8 @@ function _homotopy_sweep_solve(
         # won the previous solve (the anchor's full-ladder run discovers the winner)
         # instead of re-failing the cheaper ladder members on every warm-started step.
         reinit_retaining!(cache, guess)
-        last_sol = CommonSolve.solve!(cache)
+        last_sol, first_Θ, rejected_Θ, has_Θ, contraction_rejected =
+            _homotopy_corrector!(cache, alg, λT)
 
         if next_λ == λend
             if cap_active && !SciMLBase.successful_retcode(last_sol)
@@ -571,6 +708,10 @@ function _homotopy_sweep_solve(
                 last_sol = _sweep_exempt_solve(
                     prob, alg.inner, retry_guess, next_λ, args...; kwargs...
                 )
+                first_Θ = zero(λT)
+                rejected_Θ = zero(λT)
+                has_Θ = false
+                contraction_rejected = false
             elseif tol_active && SciMLBase.successful_retcode(last_sol)
                 # The landing is exempt from the loose tracking tolerance: the loose
                 # cache solve above did the bulk of the convergence, now re-polish at
@@ -583,7 +724,9 @@ function _homotopy_sweep_solve(
             end
         end
 
-        if SciMLBase.successful_retcode(last_sol)
+        inner_success = SciMLBase.successful_retcode(last_sol)
+        strict_rejection = _strict_contraction_rejection(alg, contraction_rejected)
+        if inner_success && !strict_rejection
             # The secant prediction error θ (relative to the recent solution movement)
             # is a cheap local error estimate: it grows with the path's curvature times
             # dλ², so a large θ means the path is turning and a stale tangent would
@@ -615,52 +758,32 @@ function _homotopy_sweep_solve(
             λ_prev = λ
             λ = next_λ
             λ == λend && break
-            if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
-                if _effort_wants_shrink(nit, budget)
-                    # Proactive shrink on a straining success (see
-                    # `_effort_wants_shrink`); the floor guard keeps the increment
-                    # from dropping below what bisection itself may reach.
-                    abs(dλ) / 2 >= min_dλ && (dλ = dλ / 2)
-                    streak = 0
-                else
-                    streak += 1
-                    # Growth requires a streak of successes (the classic heuristic)
-                    # plus evidence the corrector has headroom: either a small relative
-                    # prediction error (the quality gate) or a corrector that converged
-                    # almost immediately. The iteration count covers paths that flatten
-                    # exponentially, where θ stays at a constant mediocre value while
-                    # the absolute corrections — and hence the corrector work — become
-                    # negligible. The growth factor itself is scaled by the corrector's
-                    # effort (see `_effort_growth_factor`), so the gates veto growth
-                    # and the effort bands size it. The streak is NOT reset on a vetoed
-                    # or held expansion, so growth resumes on the first step whose
-                    # evidence recovers.
-                    corrector_cheap = nit >= 0 && nit <= 2
-                    if streak >= alg.expand_threshold &&
-                            (θ === nothing || θ <= λT(alg.expand_quality) || corrector_cheap)
-                        g = _effort_growth_factor(nit, budget, expand_factor)
-                        if g > 1
-                            grown = g * dλ
-                            dλ = abs(grown) > abs(max_dλ) ? max_dλ : grown
-                            streak = 0
-                        end
-                    end
-                end
-            end
-        elseif alg.adaptive && abs(dλ) / 2 >= min_dλ
-            dλ = dλ / 2          # bisect; retry from the same λ (do not advance)
-            streak = 0
-            # a rejected step is evidence against the tangent: bisection retries (and
-            # the steps right after) warm-start constantly until quality re-accumulates
-            trust = 0
+            nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+            dλ, streak = _accepted_step_size(
+                alg, dλ, streak, θ, nit, budget, min_dλ, max_dλ,
+                expand_factor, λT, first_Θ, has_Θ
+            )
         else
-            # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
-            return build_solution_less_specialize(
-                    prob, alg, u, last_sol.resid;
-                    retcode = last_sol.retcode, original = last_sol,
-                    store_original = alg.store_original
-                ), λ
+            attempted_dλ = next_λ - λ
+            proposed_dλ, can_retry = _rejected_step_size(
+                alg, dλ, attempted_dλ, min_dλ, first_Θ, rejected_Θ,
+                has_Θ, contraction_rejected, inner_success, λT
+            )
+            if can_retry
+                dλ = proposed_dλ
+                streak = 0
+                # a rejected step is evidence against the tangent: bisection retries (and
+                # the steps right after) warm-start constantly until quality re-accumulates
+                trust = 0
+            else
+                # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
+                retcode = strict_rejection ? ReturnCode.ConvergenceFailure : last_sol.retcode
+                return build_solution_less_specialize(
+                        prob, alg, u, last_sol.resid;
+                        retcode, original = last_sol,
+                        store_original = alg.store_original
+                    ), λ
+            end
         end
     end
 

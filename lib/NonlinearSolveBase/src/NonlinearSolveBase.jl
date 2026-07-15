@@ -65,6 +65,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("kantorovich_homotopy.jl")
 include("homotopy_sweep.jl")
 include("arclength.jl")
 include("homotopy_polyalg.jl")
@@ -118,7 +119,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
-export HomotopySweep, ArcLengthContinuation, HomotopyPolyAlgorithm
+export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAlgorithm
 
 export NonlinearVerbosity
 
