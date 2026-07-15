@@ -4,3 +4,4 @@
 @safetestset "Line search uses forward-mode autodiff: Issue #837" include("misc_tests__item4.jl")
 @safetestset "Default NLLS polyalg is forward-mode only: Issue #837" include("misc_tests__item5.jl")
 @safetestset "Eisenstat-Walker forcing reinit! resets forcing state" include("misc_tests__item6.jl")
+@safetestset "Adaptive Jacobian reuse" include("misc_tests__item7.jl")

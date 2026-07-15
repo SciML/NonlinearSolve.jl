@@ -4,7 +4,8 @@
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1e-8,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
 
 An advanced Levenberg-Marquardt implementation with the improvements suggested in
@@ -28,6 +29,8 @@ nonlinear systems.
   - `disable_geodesic`: Disables Geodesic Acceleration if set to `Val(true)`. It provides
     a way to trade-off robustness for speed, though in most situations Geodesic Acceleration
     should not be disabled.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
+    `nothing`/`false` to recompute after every accepted step. Defaults to `nothing`.
 
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion`](@ref) documentations.
@@ -37,7 +40,8 @@ function LevenbergMarquardt(;
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1.0e-8,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
     descent = DampedNewtonDescent(;
         linsolve,
@@ -56,6 +60,7 @@ function LevenbergMarquardt(;
         autodiff,
         vjp_autodiff,
         jvp_autodiff,
+        jacobian_reuse,
         name = :LevenbergMarquardt,
         concrete_jac = Val(true)
     )
