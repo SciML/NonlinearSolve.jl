@@ -82,10 +82,7 @@ function _make_fww_iip(
         FW{Nothing, A1}(vff), FW{Nothing, A2}(vff),
         FW{Nothing, A3}(vff), FW{Nothing, A4}(vff),
     )
-    cs = FunctionWrappersWrappers.SingleCacheStorage()
-    return FunctionWrappersWrappers.FunctionWrappersWrapper{
-        typeof(fwt), FunctionWrappersWrappers.AllowNonIsBits, typeof(cs),
-    }(fwt, cs)
+    return FunctionWrappersWrappers.FunctionWrappersWrapper(fwt)
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
