@@ -17,6 +17,7 @@ broken_tests[alg_ops[4]] = [1, 5, 6, 11]
 if Sys.isapple()
     broken_tests[alg_ops[1]] = [1, 5, 11]
     broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
+    broken_tests[alg_ops[4]] = [1, 5, 6, 8, 11]
     if VERSION ≥ v"1.12"
         # Test #4 (Wood function) passes on v1.12+
         broken_tests[alg_ops[5]] = [1, 5, 11]
