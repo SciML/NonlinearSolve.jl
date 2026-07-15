@@ -18,6 +18,16 @@ order of convergence.
     [`NonlinearSolveBase.AbstractTrustRegionMethod`](@ref) interface.
   - `descent`: The descent method to use to compute the step. This needs to follow the
     [`NonlinearSolveBase.AbstractDescentDirection`](@ref) interface.
+  - `corrector`: An optional post-update hook run once per iteration, immediately after the
+    state update (`u ← u + αδu`) and *before* the residual re-evaluation and termination
+    check. Called as `corrector(u, u_prev, p)` and expected to mutate `u` in place; the
+    corrected `u` is what the subsequent `f`/termination sees. `nothing` (the default) is a
+    no-op with byte-identical behavior to a solver without a corrector. Only supported for
+    the `:None` and `:LineSearch` globalizations — the `:TrustRegion` globalization produces
+    its update and residual together and offers no such seam, so a corrector is ignored
+    there. Useful for projected/limited Newton schemes (e.g. SPICE-style junction limiting)
+    where the iterate must be pulled onto a feasible manifold between the linear step and the
+    next function evaluation.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
     before the algorithm terminates.
 """
@@ -26,6 +36,7 @@ order of convergence.
     trustregion
     descent
     forcing
+    corrector
     max_shrink_times::Int
 
     autodiff
@@ -39,12 +50,13 @@ end
 function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), forcing = nothing, name::Symbol = :unknown
+        concrete_jac = Val(false), forcing = nothing, corrector = nothing,
+        name::Symbol = :unknown
     )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
         (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
     return GeneralizedFirstOrderAlgorithm(
-        linesearch, trustregion, descent, forcing, max_shrink_times,
+        linesearch, trustregion, descent, forcing, corrector, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac, name
     )
@@ -293,6 +305,18 @@ function SciMLBase.__init(
     return cache
 end
 
+# Post-update corrector hook. Runs at the seam between the state update and the
+# residual re-evaluation (see the `corrector` docstring on
+# `GeneralizedFirstOrderAlgorithm`). At the call site `cache.u` holds the freshly
+# proposed iterate and `cache.u_cache` still holds the previous one. `nothing` is
+# a no-op, so a solver constructed without a corrector behaves identically.
+function maybe_apply_corrector!(cache::GeneralizedFirstOrderAlgorithmCache)
+    corrector = cache.alg.corrector
+    corrector === nothing && return nothing
+    corrector(cache.u, cache.u_cache, cache.p)
+    return nothing
+end
+
 function InternalAPI.step!(
         cache::GeneralizedFirstOrderAlgorithmCache;
         recompute_jacobian::Union{Nothing, Bool} = nothing
@@ -364,6 +388,7 @@ function InternalAPI.step!(
             end
             @static_timeit cache.timer "step" begin
                 @bb axpy!(α, δu, cache.u)
+                maybe_apply_corrector!(cache)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
         elseif cache.globalization isa Val{:TrustRegion}
@@ -389,6 +414,7 @@ function InternalAPI.step!(
         elseif cache.globalization isa Val{:None}
             @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
+                maybe_apply_corrector!(cache)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
