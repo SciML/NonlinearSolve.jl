@@ -21,6 +21,20 @@ import NonlinearSolveBase: wrapfun_iip, standardize_forwarddiff_tag
 
 const DI = DifferentiationInterface
 
+_cache_storage_type(
+    ::FunctionWrappersWrappers.FunctionWrappersWrapper{FW, P, CS}
+) where {FW, P, CS} = CS
+
+# The concrete storage types are intentionally not public. Derive the type selected by the
+# public cache-mode API, then use the documented explicit-parameter constructor below.
+const FWW_SINGLE_CACHE_STORAGE_TYPE = _cache_storage_type(
+    FunctionWrappersWrappers.FunctionWrappersWrapper(
+        identity, (Tuple{Float64},), (Float64,);
+        cache = FunctionWrappersWrappers.SingleCache(),
+        policy = FunctionWrappersWrappers.AllowNonIsBits(),
+    )
+)
+
 # --- AutoSpecialize / norecompile infrastructure for ForwardDiff ---
 
 const dualT = ForwardDiff.Dual{
@@ -78,19 +92,13 @@ function _make_fww_iip(
         @nospecialize(vff), ::Type{A1}, ::Type{A2}, ::Type{A3}, ::Type{A4}
     ) where {A1, A2, A3, A4}
     FW = FunctionWrappers.FunctionWrapper
-    fwt = (
-        FW{Nothing, A1}(vff), FW{Nothing, A2}(vff),
-        FW{Nothing, A3}(vff), FW{Nothing, A4}(vff),
-    )
-    cache_prototype = FunctionWrappersWrappers.FunctionWrappersWrapper(
-        vff, (A1,), (Nothing,);
-        cache = FunctionWrappersWrappers.SingleCache(),
-        policy = FunctionWrappersWrappers.AllowNonIsBits(),
-    )
-    cs = cache_prototype.cache_storage
+    FWT = Tuple{
+        FW{Nothing, A1}, FW{Nothing, A2},
+        FW{Nothing, A3}, FW{Nothing, A4},
+    }
     return FunctionWrappersWrappers.FunctionWrappersWrapper{
-        typeof(fwt), FunctionWrappersWrappers.AllowNonIsBits, typeof(cs),
-    }(fwt, cs)
+        FWT, FunctionWrappersWrappers.AllowNonIsBits, FWW_SINGLE_CACHE_STORAGE_TYPE,
+    }(vff)
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
