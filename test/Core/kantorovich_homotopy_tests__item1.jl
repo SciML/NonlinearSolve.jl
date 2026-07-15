@@ -182,9 +182,12 @@ foldstage_sol = solve(foldprob, foldstage; maxiters = 10)
 foldpoly_sol = solve(
     foldprob,
     HomotopyPolyAlgorithm(
-        (foldstage, ArcLengthContinuation(; inner = SimpleNewtonRaphson()))
+        (foldstage, ArcLengthContinuation(; inner = SimpleNewtonRaphson()));
+        store_original = Val(true)
     );
     maxiters = 10
 )
 @test SciMLBase.successful_retcode(foldpoly_sol)
 @test foldpoly_sol.u[1] ≈ foldtarget atol = 1.0e-4
+@test foldpoly_sol.original !== nothing
+@test first(foldpoly_sol.original.prob.λspan) > first(foldprob.λspan)
