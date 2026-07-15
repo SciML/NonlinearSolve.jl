@@ -82,7 +82,12 @@ function _make_fww_iip(
         FW{Nothing, A1}(vff), FW{Nothing, A2}(vff),
         FW{Nothing, A3}(vff), FW{Nothing, A4}(vff),
     )
-    cs = FunctionWrappersWrappers.SingleCacheStorage()
+    cache_prototype = FunctionWrappersWrappers.FunctionWrappersWrapper(
+        vff, (A1,), (Nothing,);
+        cache = FunctionWrappersWrappers.SingleCache(),
+        policy = FunctionWrappersWrappers.AllowNonIsBits(),
+    )
+    cs = cache_prototype.cache_storage
     return FunctionWrappersWrappers.FunctionWrappersWrapper{
         typeof(fwt), FunctionWrappersWrappers.AllowNonIsBits, typeof(cs),
     }(fwt, cs)
