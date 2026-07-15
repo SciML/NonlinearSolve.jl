@@ -542,6 +542,18 @@ function _arclength_fixed_solve(
     return solve(inner_prob, inner, args...; prob.kwargs..., kwargs...)
 end
 
+# Read the interior corrector solution's fields through @noinline type-specializing
+# barriers, exactly as in the sweep (see `_sweep_sol_u`): `last_sol` is union-typed
+# across the concrete interior `solve!(corr_cache)` and the fresh `solve` of the
+# λ-fixed start/landing solves, so the bare `xnew = last_sol.u` interior read boxes on
+# every step. The barrier forces the union-split at its CALL so the value the chord
+# arithmetic consumes is concrete.
+@noinline _arclength_sol_u(sol) = sol.u
+@noinline function _arclength_sol_nsteps(sol)
+    stats = sol.stats
+    return stats === nothing ? -1 : Int(stats.nsteps)
+end
+
 # Build the reusable Jacobian cache for the `:tangent` predictor's augmented Jacobian,
 # using NonlinearSolve's own `construct_jacobian_cache` (backend selection, tag handling,
 # and AD-extras preparation shared with every other solver) rather than a bespoke DI call.
@@ -832,7 +844,8 @@ function CommonSolve.solve(
         last_sol = CommonSolve.solve!(corr_cache)
 
         if SciMLBase.successful_retcode(last_sol)
-            xnew = last_sol.u
+            # read once through the typed barrier so the interior chord read doesn't box
+            xnew = _arclength_sol_u(last_sol)
             # realized chord, built in the (currently free) secant scratch
             @. tscratch = xnew - xcur
             nchord = _theta_norm(tscratch, wu, wλ, n)
@@ -892,7 +905,7 @@ function CommonSolve.solve(
             # sweep — see `_effort_growth_factor`), giving the arclength driver an effort
             # signal alongside the purely geometric bend-angle test.
             if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                nit = _arclength_sol_nsteps(last_sol)
                 if _effort_wants_shrink(nit, budget)
                     ds / 2 >= min_ds && (ds = ds / 2)
                     streak = 0
