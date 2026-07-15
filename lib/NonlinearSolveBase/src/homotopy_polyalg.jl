@@ -28,25 +28,27 @@ cost of solving an ``(n+1)``-dimensional corrector system per step.
 
 ### Warm handoff
 
-When a [`HomotopySweep`](@ref) stage fails *partway* along the span, everything it
-accepted before the failure is genuine converged path: its last accepted iterate is a
-solution of ``H(u, λ) = 0`` at some ``λ`` strictly between `λspan[1]` and the failure
-point. With `warm_handoff = true` (the default), the next stage is first attempted on
-the remaining stretch — the problem is rebuilt with `u0` set to that last accepted
-iterate and `λspan` shrunk to `(λ_h, λspan[2])` — instead of redoing the
-already-conquered prefix from a cold start at `λspan[1]`.
+When a natural-parameter stage ([`HomotopySweep`](@ref) or
+[`KantorovichHomotopy`](@ref)) fails *partway* along the span, everything it accepted
+before the failure is genuine converged path: its last accepted iterate is a solution
+of ``H(u, λ) = 0`` at some ``λ`` strictly between `λspan[1]` and the failure point. With
+`warm_handoff = true` (the default), the next stage is first attempted on the remaining
+stretch — the problem is rebuilt with `u0` set to that last accepted iterate and
+`λspan` shrunk to `(λ_h, λspan[2])` — instead of redoing the already-conquered prefix
+from a cold start at `λspan[1]`.
 
 The handoff λ is deliberately *backed off* from the failure: `λ_h` is placed 5% of the
-span width behind the sweep's last accepted ``λ``. The sweep typically dies at a fold,
-where the path turns vertical in ``λ``; a warm stage seeded right at the fold starts
-with its initial pure-λ tangent nearly orthogonal to the true path direction and pays
-for it in rejected steps (measured on the cubic S-curve: arclength warm-started at the
-fold costs *more* residual calls than a full cold run, while backing off 5% costs
-~15–25% less). The handed-over `u0` is the last accepted iterate — off-path at `λ_h`
-by the backoff distance — and the stage's own λ-fixed anchor solve at `λ_h` pulls it
-back onto the path for a few warm Newton iterations. Because the stages measure their
-step-size *caps* (`max_step_factor`, and a sweep's fixed-size `nsteps`) as fractions
-of the span width, the warm attempt rescales those caps by
+span width behind the natural-parameter stage's last accepted ``λ``. Such a stage
+typically dies at a fold, where the path turns vertical in ``λ``; a warm stage seeded
+right at the fold starts with its initial pure-λ tangent nearly orthogonal to the true
+path direction and pays for it in rejected steps (measured on the cubic S-curve:
+arclength warm-started at the fold costs *more* residual calls than a full cold run,
+while backing off 5% costs ~15–25% less). The handed-over `u0` is the last accepted
+iterate — off-path at `λ_h` by the backoff distance — and the stage's own λ-fixed anchor
+solve at `λ_h` pulls it back onto the path for a few warm Newton iterations. Because the
+stages measure their step-size *caps* (`max_step_factor`, and a natural-parameter
+stage's fixed-size `nsteps`) as fractions of the span width, the warm attempt rescales
+those caps by
 `full_width / remaining_width` (capping the fraction at 1, i.e. at an absolute step
 of the remaining width) so a user-tightened absolute cap survives the span shrink —
 the initial step factor is left span-relative, since starting small right behind the
@@ -56,13 +58,13 @@ polyalgorithm moves on, so enabling the handoff never costs robustness relative 
 `warm_handoff = false` — only, in that rare double-failure case, the extra warm
 attempt.
 
-The handoff only engages when the sweep made real progress (the backed-off `λ_h` lies
-strictly past `λspan[1]`); a sweep that failed at the `λspan[1]` anchor itself, or
-within the backoff width of it, leaves the fallback stages with the current cold
-full-range behavior. A warm-handoff success is returned as a solution of the
-*original* problem (same `prob`, same `u` type); the stage's solution of the shrunken
-problem is attached as `original` only when `store_original = Val(true)` (see below) —
-by default it is dropped so the returned solution stays concretely typed.
+The handoff only engages when the natural-parameter stage made real progress (the
+backed-off `λ_h` lies strictly past `λspan[1]`); a stage that failed at the `λspan[1]`
+anchor itself, or within the backoff width of it, leaves the fallback stages with the
+current cold full-range behavior. A warm-handoff success is returned as a solution of
+the *original* problem (same `prob`, same `u` type); the stage's solution of the
+shrunken problem is attached as `original` only when `store_original = Val(true)` (see
+below) — by default it is dropped so the returned solution stays concretely typed.
 
 ### Arguments
 
@@ -72,10 +74,11 @@ by default it is dropped so the returned solution stays concretely typed.
 ### Keyword Arguments
 
   - `warm_handoff`: when `true` (default), a stage following a partway-failed
-    [`HomotopySweep`](@ref) first attempts the remaining `(λ_h, λspan[2])` stretch
-    from the sweep's last accepted iterate (with `λ_h` backed off 5% of the span from
-    the failure), falling back to the cold full-range attempt only if that fails.
-    `false` recovers the plain try-each-stage-cold behavior.
+    [`HomotopySweep`](@ref) or [`KantorovichHomotopy`](@ref) first attempts the remaining
+    `(λ_h, λspan[2])` stretch from the natural-parameter stage's last accepted iterate
+    (with `λ_h` backed off 5% of the span from the failure), falling back to the cold
+    full-range attempt only if that fails. `false` recovers the plain
+    try-each-stage-cold behavior.
   - `store_original`: whether a warm-handoff success stores its shrunken-problem stage
     solution in the returned solution's `original` field. Default `Val(false)` keeps the
     returned solution concretely typed (the stage solution the handoff produces infers
@@ -129,9 +132,9 @@ end
 # rescaled unboundedly vs 146 capped at the remaining width). The *initial* step
 # factor is NOT rescaled for the same reason — starting small right behind the fold
 # is measurably cheaper, and adaptive growth recovers the size within a few accepted
-# steps. A sweep stage's fixed-size `nsteps` is rescaled like the cap: `nsteps` of
-# the *remaining* span would shrink the absolute increment (and `adaptive = false`
-# sweeps cannot recover from that). Stages of unknown type get the shrunken problem
+# steps. A natural-parameter stage's fixed-size `nsteps` is rescaled like the cap:
+# `nsteps` of the *remaining* span would shrink the absolute increment (and a fixed-step
+# sweep cannot recover from that). Stages of unknown type get the shrunken problem
 # unchanged — no field contract to rescale against.
 _rescale_step_caps(stage, scale) = stage
 function _rescale_step_caps(stage::ArcLengthContinuation, scale)
@@ -161,8 +164,8 @@ function CommonSolve.solve(
         throw(ArgumentError("HomotopyPolyAlgorithm requires at least one algorithm"))
     nstages = length(alg.algs)
     λ0, λ1 = prob.λspan
-    # Handoff seed `(u_last, λ_h)` from the most recent partway-failed sweep stage,
-    # or `nothing` when none is available: `u_last` is the sweep's last accepted
+    # Handoff seed `(u_last, λ_h)` from the most recent partway-failed natural-parameter
+    # stage, or `nothing` when none is available: `u_last` is the stage's last accepted
     # iterate and `λ_h` its λ backed off by 5% of the span (see the loop below).
     handoff = nothing
     for (i, stage) in enumerate(alg.algs)
@@ -196,18 +199,18 @@ function CommonSolve.solve(
         sol = if stage isa Union{HomotopySweep, KantorovichHomotopy}
             csol, λ_last = _homotopy_sweep_solve(prob, stage, args...; kwargs...)
             if λ_last !== nothing
-                # The sweep dies where the path turns hard (a fold), and a fallback
-                # seeded exactly there starts with its initial pure-λ tangent nearly
-                # orthogonal to the path — measured on the cubic S-curve, arclength
-                # warm-started AT the fold costs more residual calls than a full
-                # cold run, while 5% of the span behind it costs ~15–25% less. So
-                # the handoff λ is backed off by span/20 from the last accepted
-                # point; the stage's own λ-fixed anchor solve pulls `u_last` (5% of
-                # the span away in λ) back onto the path at `λ_h` for a few
-                # Newton iterations. The handoff only engages when the backed-off λ
-                # is still strictly past `λspan[1]` — a sweep that died within the
-                # backoff width of the anchor leaves the fallback no cheaper start
-                # than its own anchor solve.
+                # A natural-parameter stage dies where the path turns hard (a fold),
+                # and a fallback seeded exactly there starts with its initial pure-λ
+                # tangent nearly orthogonal to the path — measured on the cubic
+                # S-curve, arclength warm-started AT the fold costs more residual calls
+                # than a full cold run, while 5% of the span behind it costs ~15–25%
+                # less. So the handoff λ is backed off by span/20 from the last accepted
+                # point; the stage's own λ-fixed anchor solve pulls `u_last` (5% of the
+                # span away in λ) back onto the path at `λ_h` for a few Newton
+                # iterations. The handoff only engages when the backed-off λ is still
+                # strictly past `λspan[1]` — a stage that died within the backoff width
+                # of the anchor leaves the fallback no cheaper start than its own anchor
+                # solve.
                 backoff = (oftype(λ_last, λ1) - oftype(λ_last, λ0)) / 20
                 if abs(λ_last - oftype(λ_last, λ0)) > abs(backoff)
                     handoff = (csol.u, λ_last - backoff)

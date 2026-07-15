@@ -75,9 +75,9 @@ Keyword arguments:
   - `tracking_maxiters`, `tracking_abstol`, `maxsteps`, `store_original`: identical to
     the corresponding [`HomotopySweep`](@ref) options.
 
-This algorithm follows `λ` monotonically and therefore cannot round a fold. Use
-[`HomotopyPolyAlgorithm`](@ref) to fall back to [`ArcLengthContinuation`](@ref) when a
-fold must be traversed.
+This algorithm follows `λ` monotonically and therefore cannot round a fold. Combine it
+with [`ArcLengthContinuation`](@ref) in a [`HomotopyPolyAlgorithm`](@ref) when a fold
+must be traversed.
 """
 @concrete struct KantorovichHomotopy <: AbstractNonlinearSolveAlgorithm
     inner
