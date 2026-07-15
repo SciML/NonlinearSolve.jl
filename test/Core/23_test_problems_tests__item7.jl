@@ -12,11 +12,6 @@ alg_ops = (
 broken_tests = Dict(alg => Int[] for alg in alg_ops)
 broken_tests[alg_ops[2]] = [1, 5, 8, 11, 18]
 broken_tests[alg_ops[4]] = [5, 6, 8, 11]
-if Sys.islinux() && Sys.ARCH === :x86_64
-    # Roundoff selects different basins: supported Linux x86_64 lanes converge,
-    # while macOS arm64 does not.
-    broken_tests[alg_ops[4]] = [5, 6, 11]
-end
 if Sys.isapple()
     broken_tests[alg_ops[1]] = [1, 5, 11]
     broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
