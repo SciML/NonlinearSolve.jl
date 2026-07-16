@@ -218,8 +218,12 @@ function (cache::JacobianCache)(u)
         if SciMLBase.has_jac(f)
             f.jac(J, u, p)
         else
+            # ForwardDiff reshapes its destination internally. A full view preserves the
+            # matrix storage while letting Julia eliminate the temporary reshape wrapper.
+            J_dest = J isa Matrix && cache.autodiff isa AutoForwardDiff ?
+                view(J, axes(J)...) : J
             DI.jacobian!(
-                f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p)
+                f, cache.fu, J_dest, cache.di_extras, cache.autodiff, u, Constant(p)
             )
         end
         return J
