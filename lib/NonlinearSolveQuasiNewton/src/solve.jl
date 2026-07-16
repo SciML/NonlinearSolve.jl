@@ -408,7 +408,7 @@ function InternalAPI.step!(
                 @static_timeit cache.timer "step" begin
                     @bb axpy!(α, δu, cache.u)
                     cache.u = NonlinearSolveBase.apply_postcondition!!(
-                        cache.u, cache.u_cache, cache.prob
+                        cache.u, cache.u_cache, cache.prob, cache
                     )
                     Utils.evaluate_f!(cache, cache.u, cache.p)
                 end
@@ -423,7 +423,7 @@ function InternalAPI.step!(
                     @bb copyto!(cache.u, u_new)
                     if NonlinearSolveBase.has_postcondition(cache.prob)
                         cache.u = NonlinearSolveBase.apply_postcondition!!(
-                            cache.u, cache.u_cache, cache.prob
+                            cache.u, cache.u_cache, cache.prob, cache
                         )
                         Utils.evaluate_f!(cache, cache.u, cache.p)
                     else
@@ -441,7 +441,7 @@ function InternalAPI.step!(
             @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
                 cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache.prob
+                    cache.u, cache.u_cache, cache.prob, cache
                 )
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end

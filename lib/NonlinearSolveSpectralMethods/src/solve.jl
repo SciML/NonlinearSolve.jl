@@ -226,7 +226,7 @@ function InternalAPI.step!(
     @static_timeit cache.timer "step" begin
         @bb axpy!(α, cache.du, cache.u)
         cache.u = NonlinearSolveBase.apply_postcondition!!(
-            cache.u, cache.u_cache, cache.prob
+            cache.u, cache.u_cache, cache.prob, cache
         )
         Utils.evaluate_f!(cache, cache.u, cache.p)
     end

@@ -170,6 +170,37 @@ sol_both = solve(NonlinearProblem(fn, zeros(2), cp), NewtonRaphson(); maxiters =
 sol_both.retcode, sol_both.stats.nsteps
 ```
 
+### Solver-state-aware correctors: the four-argument form
+
+Production limiting strategies are often staged over the Newton sequence — Xyce-style
+simulators relax or disable limiting as the iteration proceeds. For this, `postcondition`
+may accept the solver cache as a fourth argument (analogous to PETSc's post-check
+receiving the `SNES` object):
+
+```@example preconditioning
+H_staged! = function (up, uprev, p, cache)
+    # cache is `nothing` for the initial-guess correction (no cache exists yet);
+    # afterwards it is the solver cache, queried via the public accessors only
+    if cache === nothing || NonlinearSolveBase.get_nsteps(cache) < 20
+        up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit)
+    end
+    return nothing
+end
+
+prob_staged = NonlinearProblem(
+    NonlinearFunction(circuit!; postcondition = H_staged!), zeros(2), cp
+)
+sol_staged = solve(prob_staged, NewtonRaphson(); maxiters = 1000)
+sol_staged.retcode, sol_staged.stats.nsteps
+```
+
+When methods for both arities exist, the four-argument form is preferred. Treat the cache
+as **read-only through its public accessors** — `NonlinearSolveBase.get_u`,
+`NonlinearSolveBase.get_fu` (the residual at the *previous* accepted iterate at the time
+the hook runs), `NonlinearSolveBase.get_nsteps`, `NonlinearSolveBase.get_abstol`, and
+`NonlinearSolveBase.get_reltol` — everything else on the cache is internal and subject to
+change without notice.
+
 ## Constraints and projections via `postcondition`
 
 Because `H` may enforce state exactly, the same hook covers projection-style

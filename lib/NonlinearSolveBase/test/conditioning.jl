@@ -87,6 +87,33 @@ end
     @test u2 ≈ [3.0]
 end
 
+@testset "apply_postcondition!! passes the solver cache to four-argument hooks" begin
+    f = (u, p) -> u .^ 2 .- p
+    seen = Ref{Any}(:unset)
+    H4 = (up, uprev, p, cache) -> (seen[] = cache; up)
+    prob = NonlinearProblem(NonlinearFunction(f; postcondition = H4), [1.0], 2.0)
+    fake_cache = (; nsteps = 3)
+    @test apply_postcondition!!([3.0], [1.0], prob, fake_cache) ≈ [3.0]
+    @test seen[] === fake_cache
+
+    # initial-guess correction runs before any cache exists
+    tprob = transform_conditioned_problem(prob, SupportedAlg())
+    @test seen[] === nothing
+    @test tprob.u0 ≈ [1.0]
+
+    # three-argument hooks are unaffected; both-arity hooks prefer four arguments
+    calls = Ref(0)
+    Hboth = (up, uprev, p) -> (calls[] += 1; up)
+    Hboth4 = (up, uprev, p, cache) -> (seen[] = cache; up)
+    Hcombined(up, uprev, p) = Hboth(up, uprev, p)
+    Hcombined(up, uprev, p, cache) = Hboth4(up, uprev, p, cache)
+    prob2 = NonlinearProblem(NonlinearFunction(f; postcondition = Hcombined), [1.0], 2.0)
+    seen[] = :unset
+    apply_postcondition!!([3.0], [1.0], prob2, fake_cache)
+    @test seen[] === fake_cache
+    @test calls[] == 0
+end
+
 @testset "guards: unsupported algorithm and bounds" begin
     f = (u, p) -> u .^ 2 .- p
     H = (up, uprev, p) -> up

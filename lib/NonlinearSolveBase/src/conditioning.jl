@@ -102,13 +102,10 @@ function transform_conditioned_problem(prob, alg)
     end
 
     u0 = if has_postcondition(prob)
-        post = prob.f.postcondition
         if SciMLBase.isinplace(prob)
-            u0c = copy(prob.u0)
-            post(u0c, prob.u0, prob.p)
-            u0c
+            apply_postcondition!!(copy(prob.u0), prob.u0, prob, nothing)
         else
-            post(prob.u0, prob.u0, prob.p)
+            apply_postcondition!!(prob.u0, prob.u0, prob, nothing)
         end
     else
         prob.u0
@@ -130,21 +127,37 @@ function transform_conditioned_problem(prob, alg)
 end
 
 """
-    apply_postcondition!!(u, u_prev, prob)
+    apply_postcondition!!(u, u_prev, prob, cache = nothing)
 
 Apply `prob.f.postcondition` to the just-committed iterate `u` given the previous
 accepted iterate `u_prev`, following the problem's in-place convention. Returns the
 corrected iterate (`u` itself for in-place problems). Solver families must call this at
 every iterate-commit point *before* evaluating the residual or testing convergence there,
 so residuals and Jacobians stay consistent with the corrected iterates.
+
+Hooks may opt into solver-state access by accepting a fourth argument,
+`H(u_proposed, u_prev, p, cache)`. When both arities exist the four-argument form is
+preferred. `cache` is the solver cache (`AbstractNonlinearSolveCache`), on which only the
+documented interface accessors (`get_u`, `get_fu`, `get_nsteps`, `get_abstol`,
+`get_reltol`) should be used; it is `nothing` for the initial-guess correction
+`H(u0, u0, p, nothing)`, which runs before any cache exists, so four-argument hooks must
+accept `nothing` there.
 """
-function apply_postcondition!!(u, u_prev, prob)
+function apply_postcondition!!(u, u_prev, prob, cache = nothing)
     has_postcondition(prob) || return u
     post = prob.f.postcondition
-    if SciMLBase.isinplace(prob)
-        post(u, u_prev, prob.p)
+    p = prob.p
+    if applicable(post, u, u_prev, p, cache)
+        if SciMLBase.isinplace(prob)
+            post(u, u_prev, p, cache)
+            return u
+        else
+            return post(u, u_prev, p, cache)
+        end
+    elseif SciMLBase.isinplace(prob)
+        post(u, u_prev, p)
         return u
     else
-        return post(u, u_prev, prob.p)
+        return post(u, u_prev, p)
     end
 end

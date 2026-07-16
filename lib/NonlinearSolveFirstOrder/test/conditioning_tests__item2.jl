@@ -1,4 +1,4 @@
-using NonlinearSolveFirstOrder, SciMLBase, StaticArrays
+using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, StaticArrays
 
 # PCNR-style iterate limiting (Aadithya, Keiter & Mei): a series voltage source,
 # resistor, and diode in the augmented unknowns [v, vj], where the junction voltage vj
@@ -56,6 +56,23 @@ fn_s = NonlinearFunction(f_s; precondition = G_s, postcondition = H_s)
 sol_s = solve(NonlinearProblem(fn_s, SA[0.0, 0.0], cp), NewtonRaphson(); maxiters = 1000)
 @test SciMLBase.successful_retcode(sol_s)
 @test resid_norm(Vector(sol_s.u)) < 1.0e-8
+
+# four-argument hook form: receives the solver cache (or nothing at the initial-guess
+# correction); only public accessors are used
+cache_types = Set{Any}()
+H4! = function (up, uprev, p, cache)
+    push!(cache_types, cache === nothing ? Nothing : typeof(cache))
+    if cache === nothing || NonlinearSolveBase.get_nsteps(cache) < 100
+        up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit)
+    end
+    return nothing
+end
+prob_lim4 = NonlinearProblem(NonlinearFunction(circuit!; postcondition = H4!), zeros(2), cp)
+sol_lim4 = solve(prob_lim4, NewtonRaphson(); maxiters = 1000)
+@test SciMLBase.successful_retcode(sol_lim4)
+@test resid_norm(sol_lim4.u) < 1.0e-8
+@test Nothing in cache_types
+@test any(T -> T <: NonlinearSolveBase.AbstractNonlinearSolveCache, cache_types)
 
 # postcondition that enforces a known solution component exactly (projection-style)
 fproj! = (du, u, p) -> (du[1] = u[1] - 1; du[2] = u[2]^2 - u[1] - 3; nothing)
