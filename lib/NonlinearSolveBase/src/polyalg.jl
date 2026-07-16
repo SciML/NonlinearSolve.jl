@@ -75,6 +75,10 @@ function NonlinearSolvePolyAlgorithm(algs; start_index::Int = 1, store_original 
     return NonlinearSolvePolyAlgorithm(Val(length(algs)), algs, start_index, store_original)
 end
 
+function supports_postcondition(alg::NonlinearSolvePolyAlgorithm)
+    return all(supports_postcondition, alg.algs)
+end
+
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
     static_length <: Val
     prob <: AbstractNonlinearProblem

@@ -33,6 +33,8 @@ function GeneralizedDFSane(;
     return GeneralizedDFSane(linesearch, sigma_min, sigma_max, sigma_1, name)
 end
 
+NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
+
 @concrete mutable struct GeneralizedDFSaneCache <: AbstractNonlinearSolveCache
     # Basic Requirements
     fu
@@ -223,6 +225,9 @@ function InternalAPI.step!(
 
     @static_timeit cache.timer "step" begin
         @bb axpy!(α, cache.du, cache.u)
+        cache.u = NonlinearSolveBase.apply_postcondition!!(
+            cache.u, cache.u_cache, cache.prob
+        )
         Utils.evaluate_f!(cache, cache.u, cache.p)
     end
 

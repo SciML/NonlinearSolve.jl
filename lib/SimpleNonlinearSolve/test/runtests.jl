@@ -11,6 +11,7 @@ end
 run_tests(;
     env = "NONLINEARSOLVE_TEST_GROUP",
     core = function ()
+        include("core/conditioning_tests.jl")
         include("core/exotic_type_tests.jl")
         include("core/forward_diff_tests.jl")
         include("core/least_squares_tests.jl")

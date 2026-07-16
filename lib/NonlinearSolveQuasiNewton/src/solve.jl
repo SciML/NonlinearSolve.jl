@@ -39,6 +39,8 @@ examples include [`Broyden`](@ref)'s Method.
     name::Symbol
 end
 
+NonlinearSolveBase.supports_postcondition(::QuasiNewtonAlgorithm) = true
+
 function QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,
@@ -405,6 +407,9 @@ function InternalAPI.step!(
             else
                 @static_timeit cache.timer "step" begin
                     @bb axpy!(α, δu, cache.u)
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache.prob
+                    )
                     Utils.evaluate_f!(cache, cache.u, cache.p)
                 end
             end
@@ -416,7 +421,14 @@ function InternalAPI.step!(
                 )
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
-                    @bb copyto!(cache.fu, fu_new)
+                    if NonlinearSolveBase.has_postcondition(cache.prob)
+                        cache.u = NonlinearSolveBase.apply_postcondition!!(
+                            cache.u, cache.u_cache, cache.prob
+                        )
+                        Utils.evaluate_f!(cache, cache.u, cache.p)
+                    else
+                        @bb copyto!(cache.fu, fu_new)
+                    end
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
                         cache.trustregion_cache.shrink_counter > cache.max_shrink_times
@@ -428,6 +440,9 @@ function InternalAPI.step!(
         elseif cache.globalization isa Val{:None}
             @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
+                cache.u = NonlinearSolveBase.apply_postcondition!!(
+                    cache.u, cache.u_cache, cache.prob
+                )
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true

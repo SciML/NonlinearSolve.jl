@@ -152,6 +152,16 @@ function solve_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
+    # Compose nonlinear preconditioning hooks. Done here (in addition to the
+    # `__solve`/`init_call` funnels) so that algorithms with their own `__solve`
+    # methods (SimpleNonlinearSolve, extension wrappers) see the composed residual
+    # and unsupported `postcondition` usage errors instead of being ignored.
+    if needs_conditioning(_prob)
+        _prob = transform_conditioned_problem(
+            _prob, length(args) > 0 ? args[1] : nothing
+        )
+    end
+
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
             if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0))
@@ -275,9 +285,16 @@ function init_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
+    alg = length(args) > 0 ? args[1] : nothing
+
+    # Compose nonlinear preconditioning hooks before any bounds transform so the
+    # composition acts in the original iterate coordinates.
+    if needs_conditioning(_prob)
+        _prob = transform_conditioned_problem(_prob, alg)
+    end
+
     # Forward bounds transform: if the algorithm doesn't natively support bounds,
     # apply a variable transformation so the solver operates in unconstrained space.
-    alg = length(args) > 0 ? args[1] : nothing
     if needs_bounds_transform(_prob, alg)
         _prob = transform_bounded_problem(_prob, alg)
     end
@@ -293,10 +310,15 @@ end
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...
     )
-    _prob = if needs_bounds_transform(prob, alg)
-        transform_bounded_problem(prob, alg)
+    _prob = if needs_conditioning(prob)
+        transform_conditioned_problem(prob, alg)
     else
         prob
+    end
+    _prob = if needs_bounds_transform(_prob, alg)
+        transform_bounded_problem(_prob, alg)
+    else
+        _prob
     end
     cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
     sol = CommonSolve.solve!(cache)
