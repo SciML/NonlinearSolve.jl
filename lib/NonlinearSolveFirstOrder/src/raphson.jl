@@ -2,7 +2,7 @@
     NewtonRaphson(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
-        forcing = nothing,
+        forcing = nothing, corrector = nothing,
     )
 
 An advanced NewtonRaphson implementation with support for efficient handling of sparse
@@ -26,11 +26,15 @@ for large-scale and numerically-difficult nonlinear systems.
     linear system is solved at each iteration. Use `EisenstatWalkerForcing2()` for the
     classical Eisenstat-Walker adaptive forcing strategy. Defaults to `nothing` (fixed
     tolerance from the termination condition).
+  - `corrector`: An optional post-update hook run once per iteration, immediately after the
+    Newton step and before the residual re-evaluation. Called as `corrector(u, u_prev, p)`,
+    expected to mutate `u` in place. Defaults to `nothing` (no-op). See
+    [`GeneralizedFirstOrderAlgorithm`](@ref) for the full contract.
 """
 function NewtonRaphson(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
-        forcing = nothing,
+        forcing = nothing, corrector = nothing,
     )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
@@ -38,6 +42,7 @@ function NewtonRaphson(;
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac,
         forcing,
+        corrector,
         name = :NewtonRaphson
     )
 end
