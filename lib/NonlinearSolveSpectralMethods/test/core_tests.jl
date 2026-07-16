@@ -3,3 +3,4 @@
 @safetestset "DFSane NewtonRaphson Fails" include("core_tests__item3.jl")
 @safetestset "DFSane: Kwargs" include("core_tests__item4.jl")
 @safetestset "DFSane Termination Conditions" include("core_tests__item5.jl")
+@safetestset "DFSane Postcondition iterate correction" include("core_tests__item6.jl")

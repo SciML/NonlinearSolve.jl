@@ -47,6 +47,7 @@ else
             @time @safetestset "NonlinearLeastSquares ReturnCode" include("Core/core_tests__item18.jl")
             @time @safetestset "NonNumberEltype error" include("Core/core_tests__item20.jl")
             @time @safetestset "LinearSolve Preconditioner Interface" include("Core/core_tests__item21.jl")
+            @time @safetestset "Nonlinear Preconditioning Hooks: Issue #351" include("Core/core_tests__item22.jl")
             @time @safetestset "23 Test Problems: NewtonRaphson" include("Core/23_test_problems_tests__item2.jl")
             @time @safetestset "23 Test Problems: Halley" include("Core/23_test_problems_tests__item3.jl")
             @time @safetestset "23 Test Problems: TrustRegion" include("Core/23_test_problems_tests__item4.jl")
