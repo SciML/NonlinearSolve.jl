@@ -104,7 +104,8 @@ else
             @time @safetestset "PolyAlgorithm best-subalgorithm retention (reinit! retain_best)" include("Core/polyalg_retention_tests__item1.jl")
             @time @safetestset "Homotopy drivers retain the winning inner subalgorithm" include("Core/homotopy_retention_tests__item1.jl")
             @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
-            return @time @safetestset "HomotopyPolyAlgorithm warm sweep→fallback handoff" include("Core/homotopy_polyalg_tests__item2.jl")
+            @time @safetestset "HomotopyPolyAlgorithm warm sweep→fallback handoff" include("Core/homotopy_polyalg_tests__item2.jl")
+            return @time @safetestset "HomotopyProblem + standard nonlinear alg routes to continuation" include("Core/homotopy_polyalg_tests__item3.jl")
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()

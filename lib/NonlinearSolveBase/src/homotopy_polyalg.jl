@@ -214,3 +214,21 @@ function CommonSolve.solve(
     end
     return
 end
+
+# A `HomotopyProblem` handed a *standard* nonlinear algorithm cannot be driven by it: the
+# residual is the λ-extended `f(u, p, λ)`, not a plain `f(u, p)`, so the ordinary
+# `AbstractNonlinearProblem` solve pipeline (which would call `f(u, p)`) does not apply.
+# Route any such call to the continuation `HomotopyPolyAlgorithm` default. This lets init
+# paths that select a *default* nonlinear solver for the problem — SciMLBase's OverrideInit,
+# SteadyStateDiffEq, etc., all of which see a `HomotopyProblem` as the `AbstractNonlinearProblem`
+# it subtypes — solve it robustly by continuation without any per-caller glue.
+#
+# `HomotopySweep`, `ArcLengthContinuation`, and `HomotopyPolyAlgorithm` each have their own,
+# strictly more specific `solve(::HomotopyProblem, ::T)` methods, so this fallback fires only
+# for non-continuation algorithms; the `solve(prob, HomotopyPolyAlgorithm())` call below
+# dispatches to the specific method, so there is no recursion.
+function CommonSolve.solve(
+        prob::SciMLBase.HomotopyProblem, ::AbstractNonlinearSolveAlgorithm, args...; kwargs...
+    )
+    return CommonSolve.solve(prob, HomotopyPolyAlgorithm(), args...; kwargs...)
+end
