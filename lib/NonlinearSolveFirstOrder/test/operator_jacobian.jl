@@ -4,7 +4,7 @@ using SciMLOperators: AbstractSciMLOperator, isconvertible
 
 # A `jac_prototype` that is an `AbstractSciMLOperator` is handed to the solver as the
 # Jacobian directly: an iterative solver applies it matrix-free via `mul!`, while a
-# factorization materializes it lazily via `convert(AbstractMatrix, ·)`. The choice is
+# factorization materializes it via `convert(AbstractMatrix, ·)`. The choice is
 # routed by `needs_concrete_A(linsolve)` (like NLNewton); `isconvertible(op)` guards the
 # factorization path.
 
@@ -18,6 +18,11 @@ const xref = Wmat \ bvec
     mop = MatrixOperator(copy(Wmat))
     @test isconvertible(mop)
     prob = NonlinearProblem(NonlinearFunction(resid!; jac_prototype = mop), zeros(N))
+
+    cache = @inferred init(prob, TrustRegion())
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ xref
 
     for ls in (KrylovJL_GMRES(), LUFactorization(), KLUFactorization())
         cache = init(prob, NewtonRaphson(linsolve = ls))
