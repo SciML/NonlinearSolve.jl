@@ -1,4 +1,5 @@
 using NonlinearSolveFirstOrder, LinearSolve, SciMLOperators, SciMLBase
+using Enzyme # Activate the preferred reverse-mode backend before checking cache inference.
 using LinearAlgebra, SparseArrays, Test
 using SciMLOperators: AbstractSciMLOperator, isconvertible
 
