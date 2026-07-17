@@ -134,6 +134,7 @@ NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 NonlinearProblemLibrary = "b7050fa9-e91f-4b37-bcee-a89a063da141"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SciMLLogging = "a6db7da4-7206-11f0-1eab-35f2a5dbe1d1"
@@ -146,4 +147,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["InteractiveUtils", "NaNMath", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Random", "SafeTestsets", "SciMLLogging", "SciMLOperators", "SciMLTesting", "SparseArrays", "SparseMatrixColorings", "StableRNGs", "StaticArrays", "Test"]
+test = ["InteractiveUtils", "NaNMath", "NonlinearProblemLibrary", "Pkg", "PolyesterForwardDiff", "Profile", "Random", "SafeTestsets", "SciMLLogging", "SciMLOperators", "SciMLTesting", "SparseArrays", "SparseMatrixColorings", "StableRNGs", "StaticArrays", "Test"]
