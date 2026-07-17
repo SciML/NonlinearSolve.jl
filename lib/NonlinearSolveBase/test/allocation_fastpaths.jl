@@ -26,12 +26,16 @@ function dense_jacobian_cache_allocations()
     cache(u)
     cache(u)
     J = copy(cache(u))
-    allocs = @allocated cache(u)
-    return J, allocs
+    destination = cache.J_destination
+    reshape_allocs = @allocated reshape(destination, size(destination))
+    jacobian_allocs = @allocated cache(u)
+    return J, destination, reshape_allocs, jacobian_allocs
 end
 
-J, jacobian_allocs = dense_jacobian_cache_allocations()
+J, destination, reshape_allocs, jacobian_allocs = dense_jacobian_cache_allocations()
 @test J == [4.0 1.0; 1.0 3.0]
+@test reshape(destination, size(destination)) === destination
+@test reshape_allocs == 0
 @test jacobian_allocs == 0
 
 function same_buffer_restructure_allocations()
