@@ -125,7 +125,8 @@ function construct_jacobian_cache(
         end
     end
 
-    return JacobianCache(J, f, fu, p, stats, autodiff, di_extras)
+    J_destination = jacobian_destination(J, autodiff)
+    return JacobianCache(J, J_destination, f, fu, p, stats, autodiff, di_extras)
 end
 
 function construct_jacobian_cache(
@@ -134,7 +135,7 @@ function construct_jacobian_cache(
         linsolve = missing
     )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache(fu, f, fu, p, stats, autodiff, nothing)
+        return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing)
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
@@ -145,11 +146,33 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(u, f, fu, p, stats, autodiff, di_extras)
+    return JacobianCache(u, u, f, fu, p, stats, autodiff, di_extras)
 end
+
+struct FixedShapeJacobianDestination{T, A <: Matrix{T}} <: AbstractMatrix{T}
+    parent::A
+end
+
+Base.size(destination::FixedShapeJacobianDestination) = size(destination.parent)
+Base.axes(destination::FixedShapeJacobianDestination) = axes(destination.parent)
+Base.IndexStyle(::Type{<:FixedShapeJacobianDestination}) = IndexLinear()
+@inline Base.getindex(destination::FixedShapeJacobianDestination, indices...) =
+    getindex(destination.parent, indices...)
+@inline Base.setindex!(destination::FixedShapeJacobianDestination, value, indices...) =
+    setindex!(destination.parent, value, indices...)
+function Base.reshape(destination::FixedShapeJacobianDestination, dims::Dims)
+    size(destination) == dims || throw(DimensionMismatch("cannot reshape Jacobian destination"))
+    return destination
+end
+Base.reshape(destination::FixedShapeJacobianDestination, dims::Int...) =
+    reshape(destination, dims)
+
+jacobian_destination(J::Matrix, ::AutoForwardDiff) = FixedShapeJacobianDestination(J)
+jacobian_destination(J, autodiff) = J
 
 @concrete mutable struct JacobianCache <: AbstractJacobianCache
     J
+    J_destination
     f <: NonlinearFunction
     fu
     p
@@ -218,12 +241,9 @@ function (cache::JacobianCache)(u)
         if SciMLBase.has_jac(f)
             f.jac(J, u, p)
         else
-            # ForwardDiff reshapes its destination internally. A full view preserves the
-            # matrix storage while letting Julia eliminate the temporary reshape wrapper.
-            J_dest = J isa Matrix && cache.autodiff isa AutoForwardDiff ?
-                view(J, axes(J)...) : J
             DI.jacobian!(
-                f, cache.fu, J_dest, cache.di_extras, cache.autodiff, u, Constant(p)
+                f, cache.fu, cache.J_destination, cache.di_extras, cache.autodiff, u,
+                Constant(p)
             )
         end
         return J
