@@ -1,6 +1,7 @@
 using NonlinearSolve
 
 using SciMLBase
+using Profile
 
 import NonlinearSolveBase as NLB
 
@@ -95,12 +96,64 @@ function arclength_per_step(prob; N1 = 50, N2 = 250)
     return (a2 - a1) / (N2 - N1)
 end
 
+function allocation_profile(label, f)
+    Profile.Allocs.clear()
+    Profile.Allocs.@profile sample_rate = 1.0 f()
+    Profile.Allocs.clear()
+    Profile.Allocs.@profile sample_rate = 1.0 f()
+    allocs = Profile.Allocs.fetch().allocs
+    grouped = Dict{Tuple{String, String}, Tuple{Int, Int}}()
+    for alloc in allocs
+        site = "outside NonlinearSolve"
+        for frame in alloc.stacktrace
+            file = string(frame.file)
+            if occursin("NonlinearSolve", file) &&
+                    !occursin("homotopy_alloc_tests", file)
+                site = "$(frame.func) at $(basename(file)):$(frame.line)"
+                break
+            end
+        end
+        key = (string(alloc.type), site)
+        count, bytes = get(grouped, key, (0, 0))
+        grouped[key] = (count + 1, bytes + alloc.size)
+    end
+    entries = sort!(collect(grouped); by = last ∘ last, rev = true)
+    println(
+        "ALLOCATION_PROFILE $label total_bytes=$(sum(a -> a.size, allocs; init = 0)) " *
+            "count=$(length(allocs))"
+    )
+    for (key, (count, bytes)) in Iterators.take(entries, 20)
+        println(
+            "ALLOCATION_PROFILE $label bytes=$bytes count=$count type=$(key[1]) " *
+                "site=$(key[2])"
+        )
+    end
+    return nothing
+end
+
 if VERSION >= v"1.11"
     # The pre-fix functor-boxing cost 96 B/step (sweep) / 320 B/step (arclength); with the
     # concrete wrapper both are 0. A small nonzero budget absorbs allocator noise while still
     # failing loudly if the `Any`-widening regresses.
-    @test sweep_per_step(prob_big) < 48
-    @test arclength_per_step(prob_big) < 48
+    sweep_allocs = sweep_per_step(prob_big)
+    arclength_allocs = arclength_per_step(prob_big)
+    sweep_allocs >= 48 && allocation_profile(
+        "sweep", () -> solve(
+            prob_big,
+            HomotopySweep(; inner = NewtonRaphson(), adaptive = false, nsteps = 50)
+        )
+    )
+    arclength_allocs >= 48 && allocation_profile(
+        "arclength", () -> solve(
+            prob_big,
+            ArcLengthContinuation(;
+                inner = NewtonRaphson(), adaptive = false,
+                initial_step_factor = 1.0e-4, maxsteps = 50
+            )
+        )
+    )
+    @test sweep_allocs < 48
+    @test arclength_allocs < 48
 end
 
 # --- the fixed-step measurement configuration must not change the answer ---
