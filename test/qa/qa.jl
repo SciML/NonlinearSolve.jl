@@ -5,6 +5,14 @@ using ADTypes
 import FastLevenbergMarquardt, FixedPointAcceleration, LeastSquaresOptim, MINPACK,
     NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping
 
+const NONLINEARSOLVE_EXTERNAL_REEXPORTS = union(
+    public_api_names(NonlinearSolve.ADTypes),
+    public_api_names(NonlinearSolve.SciMLBase),
+    public_api_names(NonlinearSolve.LineSearch),
+    public_api_names(NonlinearSolve.LinearSolve),
+    (:ADTypes, :SciMLBase, :LineSearch, :LinearSolve),
+)
+
 run_qa(
     NonlinearSolve;
     explicit_imports = true,
@@ -25,12 +33,9 @@ run_qa(
         ),
     ),
     api_docs_kwargs = (;
-        # External APIs re-exported through NonlinearSolve and documented by their owners.
-        ignore = (
-            :AutoModelingToolkit, :AutoSparseFastDifferentiation, :AutoSparseFiniteDiff,
-            :AutoSparseForwardDiff, :AutoSparsePolyesterForwardDiff,
-            :AutoSparseReverseDiff, :AutoSparseZygote, :LineSearchSolution,
-        ),
+        rendered = true,
+        ignore = NONLINEARSOLVE_EXTERNAL_REEXPORTS,
+        rendered_ignore = NONLINEARSOLVE_EXTERNAL_REEXPORTS,
     ),
     ei_kwargs = (;
         # NonDifferentiable is owned by NLSolversBase and re-exported through NLsolve

@@ -6,6 +6,7 @@ using SimpleNonlinearSolve, BracketingNonlinearSolve
 using NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods
 using NonlinearSolveHomotopyContinuation, NonlinearSolveSciPy
 using SciMLJacobianOperators, LineSearch
+using SCCNonlinearSolve
 using NonlinearSolve, SteadyStateDiffEq
 
 cp(
@@ -38,6 +39,7 @@ makedocs(;
         NonlinearSolveHomotopyContinuation,
         Sundials, LineSearch,
         SciMLJacobianOperators, NonlinearSolveSciPy,
+        SCCNonlinearSolve,
         NonlinearSolve, SteadyStateDiffEq,
     ],
     clean = true,
