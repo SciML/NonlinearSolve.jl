@@ -1,3 +1,22 @@
+"""
+    SimpleNonlinearSolve
+
+Small, dependency-light nonlinear solvers.
+
+This subpackage provides straightforward nonlinear solver algorithms such as
+`SimpleNewtonRaphson`, `SimpleBroyden`, `SimpleTrustRegion`, and `SimpleDFSane`.
+They are intended for direct use on small problems, scalar problems, and allocation
+sensitive contexts where the full NonlinearSolve.jl stack is unnecessary.
+
+### Example
+
+```julia
+using SimpleNonlinearSolve, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, SimpleNewtonRaphson())
+```
+"""
 module SimpleNonlinearSolve
 
 using ConcreteStructs: @concrete
