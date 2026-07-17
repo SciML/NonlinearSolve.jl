@@ -553,10 +553,10 @@ function _homotopy_sweep_solve(
         # won the previous solve (the anchor's full-ladder run discovers the winner)
         # instead of re-failing the cheaper ladder members on every warm-started step.
         reinit_retaining!(cache, guess)
-        last_sol = CommonSolve.solve!(cache)
+        last_sol = _solve_without_solution!(cache)
 
         if next_λ == λend
-            if cap_active && !SciMLBase.successful_retcode(last_sol)
+            if cap_active && !_solve_result_successful(last_sol)
                 # The final landing on λspan[2] is exempt from the tracking cap: give
                 # it the full user budget before letting the failure feed the
                 # bisection logic. The prediction is recomputed (never reuse `guess`:
@@ -571,19 +571,19 @@ function _homotopy_sweep_solve(
                 last_sol = _sweep_exempt_solve(
                     prob, alg.inner, retry_guess, next_λ, args...; kwargs...
                 )
-            elseif tol_active && SciMLBase.successful_retcode(last_sol)
+            elseif tol_active && _solve_result_successful(last_sol)
                 # The landing is exempt from the loose tracking tolerance: the loose
                 # cache solve above did the bulk of the convergence, now re-polish at
                 # the user's full tolerances warm-started from it (~1–2 corrector
                 # iterations), so the returned solution's accuracy semantics are
                 # unchanged. A failed polish feeds the ordinary bisection logic.
                 last_sol = _sweep_exempt_solve(
-                    prob, alg.inner, last_sol.u, next_λ, args...; kwargs...
+                    prob, alg.inner, _solve_result_u(last_sol), next_λ, args...; kwargs...
                 )
             end
         end
 
-        if SciMLBase.successful_retcode(last_sol)
+        if _solve_result_successful(last_sol)
             # The secant prediction error θ (relative to the recent solution movement)
             # is a cheap local error estimate: it grows with the path's curvature times
             # dλ², so a large θ means the path is turning and a stale tangent would
@@ -599,24 +599,26 @@ function _homotopy_sweep_solve(
                 # have iterated in place in the guess buffer when aliasing is forwarded
                 sv = (next_λ - λ) / (λ - λ_prev)
                 virtual = _sweep_extrapolate!(virtual, u, u_prev, sv)
-                correction = Utils.norm_op(L2_NORM, -, last_sol.u, virtual)
-                disp = Utils.norm_op(L2_NORM, -, last_sol.u, u)
-                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(last_sol.u)))
+                result_u = _solve_result_u(last_sol)
+                correction = Utils.norm_op(L2_NORM, -, result_u, virtual)
+                disp = Utils.norm_op(L2_NORM, -, result_u, u)
+                scale = max(disp, disp_prev, sqrt(eps(λT)) * (1 + L2_NORM(result_u)))
                 θ = correction / scale
                 # the secant only earns its keep when it predicts at least twice as
                 # well as the trivial constant prediction (whose θ is exactly 1)
                 trust = θ < 1 / 2 ? trust + 1 : 0
                 disp_prev = disp
             else
-                disp_prev = Utils.norm_op(L2_NORM, -, last_sol.u, u)
+                disp_prev = Utils.norm_op(L2_NORM, -, _solve_result_u(last_sol), u)
             end
             # accept: swap `u`↔`u_prev` and copy the solution into `u` (no allocation).
-            u, u_prev = _sweep_accept!(u, u_prev, last_sol.u)
+            u, u_prev = _sweep_accept!(u, u_prev, _solve_result_u(last_sol))
             λ_prev = λ
             λ = next_λ
             λ == λend && break
             if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                result_stats = _solve_result_stats(last_sol)
+                nit = result_stats === nothing ? -1 : Int(result_stats.nsteps)
                 if _effort_wants_shrink(nit, budget)
                     # Proactive shrink on a straining success (see
                     # `_effort_wants_shrink`); the floor guard keeps the increment
@@ -657,15 +659,16 @@ function _homotopy_sweep_solve(
         else
             # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
             return build_solution_less_specialize(
-                    prob, alg, u, last_sol.resid;
-                    retcode = last_sol.retcode, original = last_sol,
+                    prob, alg, u, _solve_result_resid(last_sol);
+                    retcode = _solve_result_retcode(last_sol),
+                    original = _solve_result_original(last_sol),
                     store_original = alg.store_original
                 ), λ
         end
     end
 
     return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
+            prob, alg, u, _solve_result_resid(last_sol); retcode = ReturnCode.Success
         ), nothing
 end
 
