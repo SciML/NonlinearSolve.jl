@@ -227,13 +227,19 @@ end
 condition_number(::Any) = -1
 
 # Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
-# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, and static
-# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
-# of the linear-solve cache.
+# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, static and strided
+# dense matrices take native fast paths (mirroring `construct_linear_solver`'s routing)
+# instead of the linear-solve cache.
 linsolve_workspace(A) = nothing, A
 linsolve_workspace(A::Diagonal) = nothing, A
 linsolve_workspace(A::SMatrix) = nothing, A
+# Strided dense matrices invert through the exact native fast paths in
+# `linsolve_identity!!` below and need no linear-solve cache.
+linsolve_workspace(A::StridedMatrix) = nothing, A
 function linsolve_workspace(A::AbstractMatrix)
+    return lincache_linsolve_workspace(A)
+end
+function lincache_linsolve_workspace(A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
     # the linear solve promotes e.g. integer eltypes; the buffers must hold the promoted
     # values. The `size` form of `similar` gives a dense buffer for structured input
@@ -279,6 +285,32 @@ function linsolve_identity!!(workspace, A::SMatrix{S1, S2, T, L}) where {S1, S2,
     return SciMLBase.solve(
         SciMLBase.LinearProblem(A, SMatrix{S1, S2, Tinv}(LinearAlgebra.I))
     ).u
+end
+# Strided dense matrices keep the exact native inversion fast paths: triangular input
+# inverts by exact back-substitution and general input by LU `inv!`, with `pinv` as the
+# singular fallback. These produce a bit-identical J⁻¹ to the pre-linsolve-workspace
+# initialization (a pivoted LU solve against an identity RHS differs at rounding level,
+# e.g. row pivoting reorders a triangular matrix), which matters because quasi-Newton
+# trajectories on hard problems are chaotic enough for last-bit differences in the
+# initial J⁻¹ to flip convergence outcomes.
+function linsolve_identity!!(workspace, A::StridedMatrix)
+    LinearAlgebra.checksquare(A)
+    if LinearAlgebra.istriu(A)
+        issingular = any(iszero, @view(A[diagind(A)]))
+        A_ = LinearAlgebra.UpperTriangular(A)
+        !issingular && return LinearAlgebra.triu!(parent(inv(A_)))
+    elseif LinearAlgebra.istril(A)
+        A_ = LinearAlgebra.LowerTriangular(A)
+        issingular = any(iszero, @view(A_[diagind(A_)]))
+        !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
+    else
+        F = LinearAlgebra.lu(A; check = false)
+        if LinearAlgebra.issuccess(F)
+            Ai = LinearAlgebra.inv!(F)
+            return convert(typeof(parent(Ai)), Ai)
+        end
+    end
+    return pinv(A)
 end
 function linsolve_identity!!(workspace, A::AbstractMatrix)
     LinearAlgebra.checksquare(A)

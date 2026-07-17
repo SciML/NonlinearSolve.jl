@@ -87,7 +87,9 @@ dense buffer before factorizing.
 """
 function Utils.linsolve_workspace(A::AbstractSparseMatrix)
     dense_A = Matrix(A)
-    workspace, _ = Utils.linsolve_workspace(dense_A)
+    # `lincache_linsolve_workspace` directly: `linsolve_workspace(dense_A)` would take the
+    # strided fast path and return no cache, but sparse `linsolve_identity!!` needs one
+    workspace, _ = Utils.lincache_linsolve_workspace(dense_A)
     return workspace, dense_A
 end
 

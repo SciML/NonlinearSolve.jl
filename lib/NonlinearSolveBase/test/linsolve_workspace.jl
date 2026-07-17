@@ -29,11 +29,11 @@ using Test
     end
 end
 
-@testset "singular input takes the pivoted-QR rescue" begin
-    # The result is the LinearSolve default algorithm's least-squares generalized
-    # inverse from its singular-LU → pivoted-QR rescue, NOT the SVD `pinv` (an
-    # intentional semantics change: same fitness for quasi-Newton initialization,
-    # different finite matrix).
+@testset "singular strided input falls back to the SVD pinv" begin
+    # Strided dense input takes the native fast paths, whose singular fallback is the
+    # SVD `pinv` — the same finite min-norm generalized inverse the pre-workspace
+    # `maybe_pinv!!` initialization produced. (Non-strided input still goes through the
+    # lincache, where singular A takes the default algorithm's pivoted-QR rescue.)
     n = 20
     A_singular = let B = rand(n, n)
         B[:, 1] .= 0
@@ -51,26 +51,29 @@ end
         # X is a least-squares generalized inverse: A * X projects onto range(A)
         @test A * X * A ≈ A atol = 1.0e-8 * norm(A)
         @test A == A_orig
+        @test X == pinv(A_orig)
         # a subsequent nonsingular solve with the same workspace is unaffected
         B = rand(n, n) + n * I
         @test Utils.linsolve_identity!!(workspace, B) ≈ inv(B)
     end
 end
 
-@testset "workspace reuse does not allocate a matrix copy" begin
-    n = 51
-    A = rand(n, n) + n * I
-    workspace, _ = Utils.linsolve_workspace(A)
-    Utils.linsolve_identity!!(workspace, A)  # compile
-    # Steady state is the LinearSolve refactorization floor (`lu!` ipiv + wrapper); the
-    # old code copied A (`lu`) and allocated a LAPACK getri work array, both O(n^2).
-    allocs = @allocated Utils.linsolve_identity!!(workspace, A)
-    @test allocs < sizeof(A)
-
-    A_triu = triu(A)
-    Utils.linsolve_identity!!(workspace, A_triu)  # compile
-    allocs_tri = @allocated Utils.linsolve_identity!!(workspace, A_triu)
-    @test allocs_tri < sizeof(A)
+@testset "strided input takes the exact native inversion fast paths" begin
+    # Strided dense matrices invert bit-identically to `inv` (exact triangular
+    # back-substitution, or LU `inv!`) and build no linear-solve cache — a pivoted
+    # solve against an identity RHS differs from `inv` at rounding level, and chaotic
+    # quasi-Newton trajectories that consume this J⁻¹ can flip convergence outcomes on
+    # last-bit differences.
+    n = 20
+    A_general = rand(n, n) + n * I
+    A_triu = triu(rand(n, n) + n * I)
+    A_tril = tril(rand(n, n) + n * I)
+    for A in (A_general, A_triu, A_tril)
+        workspace, A_ret = Utils.linsolve_workspace(A)
+        @test workspace === nothing && A_ret === A
+        @test Utils.linsolve_identity!!(workspace, A) == inv(A)
+        @test Utils.linsolve_identity!!(nothing, A) == inv(A)
+    end
 end
 
 @testset "sparse matrices route through the lincache (no sparse pinv)" begin
