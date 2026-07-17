@@ -1,6 +1,7 @@
 using NonlinearSolve
 
 using SciMLBase
+using Profile
 
 import NonlinearSolveBase as NLB
 
@@ -33,6 +34,25 @@ inner_rts = Base.return_types(SciMLBase.init, (typeof(inner_prob), typeof(Newton
 wrapped = NLB.maybe_wrap_nonlinear_f(inner_prob)
 @test NLB.is_fw_wrapped(wrapped)
 @test isconcretetype(only(Base.return_types(NLB.maybe_wrap_nonlinear_f, (typeof(inner_prob),))))
+
+# Measure the cache-only solve independently of the end-to-end continuation slopes below.
+function cache_only_solve_allocations(prob)
+    u0 = copy(prob.u0)
+    cache = SciMLBase.init(prob, NewtonRaphson())
+    result = NLB._solve_without_solution!(cache)
+    SciMLBase.reinit!(cache, u0)
+    NLB._solve_without_solution!(cache)
+    SciMLBase.reinit!(cache, u0)
+    GC.gc()
+    allocs = @allocated NLB._solve_without_solution!(cache)
+    return result, result === cache, allocs
+end
+
+cache_result, same_cache, cache_solve_allocs = cache_only_solve_allocations(inner_prob)
+@test cache_result isa NLB.AbstractNonlinearSolveCache
+@test same_cache
+@test SciMLBase.successful_retcode(cache_result.retcode)
+VERSION >= v"1.11" && @test cache_solve_allocs == 0
 
 # --- end-to-end per-step allocation with a clean `NewtonRaphson` inner. The slope between two
 # fixed-step runs cancels compile/one-time-init cost, leaving pure per-step allocation. Gated
@@ -76,12 +96,64 @@ function arclength_per_step(prob; N1 = 50, N2 = 250)
     return (a2 - a1) / (N2 - N1)
 end
 
+function allocation_profile(label, f)
+    Profile.Allocs.clear()
+    Profile.Allocs.@profile sample_rate = 1.0 f()
+    Profile.Allocs.clear()
+    Profile.Allocs.@profile sample_rate = 1.0 f()
+    allocs = Profile.Allocs.fetch().allocs
+    grouped = Dict{Tuple{String, String}, Tuple{Int, Int}}()
+    for alloc in allocs
+        site = "outside NonlinearSolve"
+        for frame in alloc.stacktrace
+            file = string(frame.file)
+            if occursin("NonlinearSolve", file) &&
+                    !occursin("homotopy_alloc_tests", file)
+                site = "$(frame.func) at $(basename(file)):$(frame.line)"
+                break
+            end
+        end
+        key = (string(alloc.type), site)
+        count, bytes = get(grouped, key, (0, 0))
+        grouped[key] = (count + 1, bytes + alloc.size)
+    end
+    entries = sort!(collect(grouped); by = last ∘ last, rev = true)
+    println(
+        "ALLOCATION_PROFILE $label total_bytes=$(sum(a -> a.size, allocs; init = 0)) " *
+            "count=$(length(allocs))"
+    )
+    for (key, (count, bytes)) in Iterators.take(entries, 20)
+        println(
+            "ALLOCATION_PROFILE $label bytes=$bytes count=$count type=$(key[1]) " *
+                "site=$(key[2])"
+        )
+    end
+    return nothing
+end
+
 if VERSION >= v"1.11"
     # The pre-fix functor-boxing cost 96 B/step (sweep) / 320 B/step (arclength); with the
     # concrete wrapper both are 0. A small nonzero budget absorbs allocator noise while still
     # failing loudly if the `Any`-widening regresses.
-    @test sweep_per_step(prob_big) < 48
-    @test arclength_per_step(prob_big) < 48
+    sweep_allocs = sweep_per_step(prob_big)
+    arclength_allocs = arclength_per_step(prob_big)
+    sweep_allocs >= 48 && allocation_profile(
+        "sweep", () -> solve(
+            prob_big,
+            HomotopySweep(; inner = NewtonRaphson(), adaptive = false, nsteps = 50)
+        )
+    )
+    arclength_allocs >= 48 && allocation_profile(
+        "arclength", () -> solve(
+            prob_big,
+            ArcLengthContinuation(;
+                inner = NewtonRaphson(), adaptive = false,
+                initial_step_factor = 1.0e-4, maxsteps = 50
+            )
+        )
+    )
+    @test sweep_allocs < 48
+    @test arclength_allocs < 48
 end
 
 # --- the fixed-step measurement configuration must not change the answer ---

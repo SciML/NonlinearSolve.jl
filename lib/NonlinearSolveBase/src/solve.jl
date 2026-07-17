@@ -304,14 +304,8 @@ function SciMLBase.__solve(
     return sol
 end
 
-function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
-    if cache.retcode == ReturnCode.InitialFailure
-        return SciMLBase.build_solution(
-            cache.prob, cache.alg, get_u(cache), get_fu(cache);
-            cache.retcode, cache.stats, cache.trace
-        )
-    end
-
+function _solve_without_solution!(cache::AbstractNonlinearSolveCache)
+    cache.retcode == ReturnCode.InitialFailure && return cache
     while not_terminated(cache)
         CommonSolve.step!(cache)
     end
@@ -330,6 +324,10 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
         last = Val(true)
     )
 
+    return cache
+end
+
+function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_bounds::Bool)
     sol = SciMLBase.build_solution(
         cache.prob, cache.alg, get_u(cache), get_fu(cache);
         cache.retcode, cache.stats, cache.trace
@@ -337,7 +335,7 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
 
     # Inverse bounds transform: if the problem function was wrapped with a
     # BoundedWrapper, map the solution back from unbounded to bounded space.
-    if hasfield(typeof(cache.prob), :f) &&
+    if transform_bounds && hasfield(typeof(cache.prob), :f) &&
             hasfield(typeof(cache.prob.f), :f) &&
             cache.prob.f.f isa BoundedWrapper
         bw = cache.prob.f.f
@@ -349,6 +347,36 @@ function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
     end
 
     return sol
+end
+
+function CommonSolve.solve!(cache::AbstractNonlinearSolveCache)
+    if cache.retcode == ReturnCode.InitialFailure
+        return _solution_from_cache(cache; transform_bounds = false)
+    end
+
+    _solve_without_solution!(cache)
+    return _solution_from_cache(cache; transform_bounds = true)
+end
+
+
+@inline _solve_result_u(result) = result.u
+@inline _solve_result_resid(result) = result.resid
+@inline _solve_result_retcode(result) = result.retcode
+@inline _solve_result_stats(result) = result.stats
+@inline _solve_result_original(result) = result
+
+@inline _solve_result_u(cache::AbstractNonlinearSolveCache) = get_u(cache)
+@inline _solve_result_resid(cache::AbstractNonlinearSolveCache) = get_fu(cache)
+@inline _solve_result_retcode(cache::AbstractNonlinearSolveCache) = cache.retcode
+@inline _solve_result_stats(cache::AbstractNonlinearSolveCache) = cache.stats
+@inline function _solve_result_original(cache::AbstractNonlinearSolveCache)
+    return _solution_from_cache(
+        cache; transform_bounds = cache.retcode != ReturnCode.InitialFailure
+    )
+end
+
+@inline function _solve_result_successful(result)
+    return SciMLBase.successful_retcode(_solve_result_retcode(result))
 end
 
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
@@ -500,6 +528,10 @@ end
     )
 
     return Expr(:block, calls...)
+end
+
+function _solve_without_solution!(cache::NonlinearSolvePolyAlgorithmCache)
+    return CommonSolve.solve!(cache)
 end
 
 function SciMLBase.__solve(
@@ -774,6 +806,11 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
         )
     end
     return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
+end
+
+
+function _solve_without_solution!(cache::NonlinearSolveNoInitCache)
+    return CommonSolve.solve!(cache)
 end
 
 function _solve_adjoint(

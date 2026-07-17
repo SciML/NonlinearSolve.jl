@@ -1,6 +1,7 @@
 using NonlinearSolve
 
 using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes
+using LinearAlgebra: norm
 
 if CUDA.functional()
     CUDA.allowscalar(false)
@@ -12,6 +13,7 @@ if CUDA.functional()
     linear_f(du, u, p) = (du .= A * u .+ b)
 
     prob = NonlinearProblem(linear_f, u0)
+    iip_prob = prob
 
     # ForwardDiff uses scalar indexing which doesn't work on GPU
     # Use AutoFiniteDiff for GPU-compatible Jacobian computation
@@ -39,10 +41,21 @@ if CUDA.functional()
     linear_f(u, p) = A * u .+ b
 
     prob = NonlinearProblem{false}(linear_f, u0)
+    oop_prob = prob
 
     @testset "[OOP] GPU Solvers" begin
         @testset "$(nameof(typeof(alg)))" for alg in SOLVERS
             @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+        end
+    end
+
+    @testset "Broyden inverse initialization" begin
+        for prob in (iip_prob, oop_prob)
+            sol = solve(
+                prob, Broyden(; linesearch = LiFukushimaLineSearch());
+                abstol = 1.0f-5, reltol = 1.0f-5
+            )
+            @test norm(A * sol.u + b) < 1.0f-4
         end
     end
 end

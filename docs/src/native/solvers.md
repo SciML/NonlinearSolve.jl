@@ -39,6 +39,10 @@ documentation.
     iterative linear solver (Krylov method), this controls how accurately the linear system
     is solved at each Newton iteration. Defaults to `nothing` (fixed tolerance). See
     [Forcing Term Strategies](@ref forcing_strategies) for available options.
+  - `jacobian_reuse`: controls whether a Jacobian can be reused across accepted nonlinear
+    iterations. `nothing` or `false` (the default) uses a fresh Jacobian after every accepted
+    step. `true` selects [`JacobianReuse()`](@ref), or a configured `JacobianReuse` policy can
+    be supplied directly. An unchanged concrete linear system also reuses its factorization.
 
 ## Nonlinear Solvers
 
@@ -93,6 +97,33 @@ QuasiNewtonAlgorithm
 GeneralizedFirstOrderAlgorithm
 GeneralizedDFSane
 ```
+
+## Jacobian Reuse
+
+```@docs
+JacobianReuse
+```
+
+Jacobian reuse is most useful when constructing or factorizing the Jacobian dominates the
+cost of evaluating the residual. It changes exact Newton iteration into a modified-Newton
+iteration, which can require more nonlinear steps, so it is opt-in. For example:
+
+```julia
+sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse()))
+```
+
+The same policy works with `TrustRegion`, `GaussNewton`, `LevenbergMarquardt`, and
+`PseudoTransient`. Damped and matrix-free systems retain their normal linear-solver update
+behavior. Rejected trust-region steps reuse a fresh Jacobian because the nonlinear state did
+not change; a rejected step based on stale Jacobian information requests a refresh.
+
+The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An outer
+solver that owns a related but distinct operator should keep using the explicit
+`step!(cache; recompute_jacobian = ...)` interface. In particular,
+OrdinaryDiffEqNonlinearSolve distinguishes the ODE Jacobian `J` from
+the iteration matrix `W` assembled from `J`, the mass matrix, `γ`, and `dt`; it decides
+independently when each must be rebuilt and retains convergence information across time
+steps. Its explicit decision takes precedence over this standalone policy.
 
 ## [Forcing Term Strategies](@id forcing_strategies)
 
