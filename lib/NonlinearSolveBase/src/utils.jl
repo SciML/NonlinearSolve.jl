@@ -254,7 +254,7 @@ function linsolve_workspace(A::AbstractMatrix)
         stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
         alias = SciMLBase.LinearAliasSpecifier(alias_A = true, alias_b = true)
     )
-    return (; lincache, rhs), A
+    return (; lincache, rhs, A_buf), A
 end
 
 # scalar analog of the default solver's least-squares rescue: a singular (zero) entry
@@ -290,8 +290,28 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     # buffer, so A is never mutated and passing the previously returned inverse as A is
     # safe. On singular A the default algorithm's pivoted-QR rescue returns a finite
     # least-squares generalized inverse (not the SVD `pinv`).
+    # The triangular solve returns `rhs` itself, so a nested reinversion can pass that
+    # buffer back as `A`. Preserve its contents before refilling the identity RHS.
+    A_solve = if A === ws.rhs
+        copyto!(ws.A_buf, A)
+        ws.A_buf
+    else
+        A
+    end
     make_identity!!(ws.rhs, true)
-    return ws.lincache(; A, b = ws.rhs).u
+    if A_solve isa StridedMatrix
+        diagonal = @view A_solve[LinearAlgebra.diagind(A_solve)]
+        nonsingular = !any(iszero, diagonal)
+        # Preserve exact triangular structure instead of allowing pivoted LU roundoff to
+        # alter sensitive quasi-Newton trajectories. Singular matrices still need the
+        # default solver's pivoted-QR rescue below.
+        if nonsingular && LinearAlgebra.istriu(A_solve)
+            return LinearAlgebra.ldiv!(LinearAlgebra.UpperTriangular(A_solve), ws.rhs)
+        elseif nonsingular && LinearAlgebra.istril(A_solve)
+            return LinearAlgebra.ldiv!(LinearAlgebra.LowerTriangular(A_solve), ws.rhs)
+        end
+    end
+    return ws.lincache(; A = A_solve, b = ws.rhs).u
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)

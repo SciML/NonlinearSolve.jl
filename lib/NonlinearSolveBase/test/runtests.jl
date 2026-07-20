@@ -89,9 +89,17 @@ run_tests(;
 
             # Vector{Float64} u0 — wraps.
             prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-            @test NonlinearSolveBase.is_fw_wrapped(
-                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
-            )
+            wrapped_f64 = NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
+            @test NonlinearSolveBase.is_fw_wrapped(wrapped_f64)
+
+            du_big = zeros(BigFloat, 2)
+            u_big = BigFloat[3, 5]
+            p_big = BigFloat[1, 2]
+            wrapped_f64(du_big, u_big, p_big)
+            @test du_big == u_big
+            fill!(du_big, 0)
+            wrapped_f64(du_big, u_big, p_big)
+            @test du_big == u_big
 
             # Vector{Dual} u0 — must NOT wrap.
             DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
