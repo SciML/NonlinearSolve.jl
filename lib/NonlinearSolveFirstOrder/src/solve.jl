@@ -131,6 +131,12 @@ NonlinearSolveBase.@internal_caches(
     :jac_cache, :descent_cache, :linesearch_cache, :trustregion_cache, :forcing_cache
 )
 
+function maybe_unwrap_trustregion_prob(prob, alg, vjp_autodiff, jvp_autodiff)
+    return NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
+        prob, vjp_autodiff, jvp_autodiff
+    )
+end
+
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedFirstOrderAlgorithm, args...;
         stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
@@ -176,12 +182,6 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(verbose)
     end
 
-    # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
-    # Create unwrapped prob for all AD-related constructions when using Enzyme.
-    _ad_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
-        prob, alg.autodiff, alg.jvp_autodiff, alg.vjp_autodiff
-    )
-
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
@@ -197,7 +197,7 @@ function SciMLBase.__init(
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
         jac_cache = NonlinearSolveBase.construct_jacobian_cache(
-            _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
+            prob, alg, prob.f, fu, u, prob.p;
             stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
         )
         J = reused_jacobian(jac_cache, u)
@@ -227,13 +227,16 @@ function SciMLBase.__init(
             # Standardize AD tags so VecJac/JacVec operators use NonlinearSolveTag
             # when the function is wrapped by AutoSpecialize.
             _tr_vjp_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
-                alg.vjp_autodiff, _ad_prob
+                alg.vjp_autodiff, prob
             )
             _tr_jvp_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
-                alg.jvp_autodiff, _ad_prob
+                alg.jvp_autodiff, prob
+            )
+            _tr_prob = maybe_unwrap_trustregion_prob(
+                prob, alg.trustregion, _tr_vjp_ad, _tr_jvp_ad
             )
             trustregion_cache = InternalAPI.init(
-                _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
+                _tr_prob, alg.trustregion, _tr_prob.f, fu, u, _tr_prob.p;
                 vjp_autodiff = _tr_vjp_ad, jvp_autodiff = _tr_jvp_ad,
                 stats, internalnorm, kwargs...
             )
@@ -257,20 +260,25 @@ function SciMLBase.__init(
             else
                 alg.jvp_autodiff
             end
-            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(ls_ad, _ad_prob)
+            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(ls_ad, prob)
+            _ls_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(prob, _ls_ad)
             linesearch_cache = CommonSolve.init(
-                _ad_prob, alg.linesearch, fu, u; stats, internalnorm,
+                _ls_prob, alg.linesearch, fu, u; stats, internalnorm,
                 autodiff = _ls_ad, kwargs...
             )
             globalization = Val(:LineSearch)
         end
 
         if has_forcing
+            _forcing_ad = ifelse(
+                provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
+            )
+            _forcing_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
+                prob, _forcing_ad
+            )
             forcing_cache = InternalAPI.init(
-                _ad_prob, alg.forcing, fu, u, u, _ad_prob.p; stats, internalnorm,
-                autodiff = ifelse(
-                    provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
-                ),
+                _forcing_prob, alg.forcing, fu, u, u, _forcing_prob.p;
+                stats, internalnorm, autodiff = _forcing_ad,
                 verbose,
                 kwargs...
             )

@@ -91,9 +91,14 @@ function construct_linear_solver(
         # workspace), so no defensive copy of A is made
         linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
     elseif A isa AbstractSciMLOperator
-        # A SciMLOperator `A` is externally maintained (refreshed in place by
-        # `update_coefficients!`), so alias it: copying would sever those in-place updates
-        # and, for some operators, change the concrete type (breaking the later `A`-rebind).
+        # An owned materialization protects operator storage from factorizations and keeps
+        # large operator closures out of the default solver's cache type. Explicit
+        # matrix-free solvers retain the operator and its coefficient updates.
+        A = if linsolve === nothing || needs_concrete_A(linsolve)
+            copy(convert(AbstractMatrix, A))
+        else
+            A
+        end
         linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
         alias = LinearAliasSpecifier(alias_A = true, alias_b = false)
     elseif alias_A_for_refactorization(linsolve, A)

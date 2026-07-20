@@ -6,6 +6,7 @@ using CommonSolve: CommonSolve, init, solve!
 using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using SciMLBase: SciMLBase, ReturnCode, LinearProblem, LinearAliasSpecifier
 using SciMLLogging: @SciMLMessage
+using SciMLOperators: AbstractSciMLOperator
 
 using LinearAlgebra: ColumnNorm, Symmetric
 
@@ -107,6 +108,23 @@ function set_lincache_A!(lincache, new_A)
         return
     end
     lincache.A = new_A
+    return
+end
+function set_lincache_A!(lincache, new_A::AbstractSciMLOperator)
+    if lincache.A isa AbstractSciMLOperator
+        lincache.A = new_A
+        return
+    end
+
+    # A concrete cache owns its materialization, so refresh that buffer rather than
+    # rebinding it to the externally maintained operator.
+    A = convert(AbstractMatrix, new_A)
+    if ArrayInterface.can_setindex(lincache.A)
+        copyto!(lincache.A, A)
+        lincache.A = lincache.A
+    else
+        lincache.A = A
+    end
     return
 end
 

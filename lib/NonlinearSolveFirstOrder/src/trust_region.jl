@@ -201,6 +201,21 @@ the value used in the respective paper.
     initial_trust_radius = nothing
 end
 
+function maybe_unwrap_trustregion_prob(
+        prob, alg::GenericTrustRegionScheme, vjp_autodiff, jvp_autodiff
+    )
+    # Only these schemes construct AD-backed operators. Unwrapping the others can
+    # type-erase AutoSpecialize's function and prevent concrete cache inference.
+    if alg.method isa RUS.__Bastin
+        return NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(
+            prob, vjp_autodiff, jvp_autodiff
+        )
+    elseif alg.method isa RUS.__Yuan
+        return NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(prob, vjp_autodiff)
+    end
+    return prob
+end
+
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f, fu, u, p,
         args...; stats, internalnorm::F = L2_NORM, vjp_autodiff = nothing,
