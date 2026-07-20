@@ -12,7 +12,8 @@ run_tests(;
     env = "NONLINEARSOLVE_TEST_GROUP",
     core = function ()
         @safetestset "AllRoots" include("allroots.jl")
-        return @safetestset "Single Root" include("single_root.jl")
+        @safetestset "Single Root" include("single_root.jl")
+        return @safetestset "Taylor Polynomialize" include("taylor_polynomialize.jl")
     end,
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
     # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
