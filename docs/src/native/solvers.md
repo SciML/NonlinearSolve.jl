@@ -54,6 +54,7 @@ LimitedMemoryBroyden
 
 ```@docs
 HomotopySweep
+KantorovichHomotopy
 ArcLengthContinuation
 HomotopyPolyAlgorithm
 ```
