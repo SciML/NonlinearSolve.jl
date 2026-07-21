@@ -7,3 +7,4 @@
 @safetestset "LimitedMemoryBroyden" include("core_tests__item7.jl")
 @safetestset "LimitedMemoryBroyden: Iterator Interface" include("core_tests__item8.jl")
 @safetestset "LimitedMemoryBroyden Termination Conditions" include("core_tests__item9.jl")
+@safetestset "Bad Broyden with a triangular true Jacobian" include("core_tests__item10.jl")
