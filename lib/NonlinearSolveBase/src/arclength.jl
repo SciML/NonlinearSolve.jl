@@ -829,10 +829,10 @@ function CommonSolve.solve(
         # and discovers the winner) instead of re-failing the cheaper ladder members
         # on every warm-started step.
         reinit_retaining!(corr_cache, xpred)
-        last_sol = CommonSolve.solve!(corr_cache)
+        last_sol = _solve_without_solution!(corr_cache)
 
-        if SciMLBase.successful_retcode(last_sol)
-            xnew = last_sol.u
+        if _solve_result_successful(last_sol)
+            xnew = _solve_result_u(last_sol)
             # realized chord, built in the (currently free) secant scratch
             @. tscratch = xnew - xcur
             nchord = _theta_norm(tscratch, wu, wλ, n)
@@ -892,7 +892,8 @@ function CommonSolve.solve(
             # sweep — see `_effort_growth_factor`), giving the arclength driver an effort
             # signal alongside the purely geometric bend-angle test.
             if alg.adaptive
-                nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
+                result_stats = _solve_result_stats(last_sol)
+                nit = result_stats === nothing ? -1 : Int(result_stats.nsteps)
                 if _effort_wants_shrink(nit, budget)
                     ds / 2 >= min_ds && (ds = ds / 2)
                     streak = 0
@@ -913,7 +914,8 @@ function CommonSolve.solve(
         else
             return build_solution_less_specialize(
                 prob, alg, u, nothing;
-                retcode = last_sol.retcode, original = last_sol,
+                retcode = _solve_result_retcode(last_sol),
+                original = _solve_result_original(last_sol),
                 store_original = alg.store_original
             )
         end

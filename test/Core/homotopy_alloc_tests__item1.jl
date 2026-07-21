@@ -34,6 +34,25 @@ wrapped = NLB.maybe_wrap_nonlinear_f(inner_prob)
 @test NLB.is_fw_wrapped(wrapped)
 @test isconcretetype(only(Base.return_types(NLB.maybe_wrap_nonlinear_f, (typeof(inner_prob),))))
 
+# Measure the cache-only solve independently of the end-to-end continuation slopes below.
+function cache_only_solve_allocations(prob)
+    u0 = copy(prob.u0)
+    cache = SciMLBase.init(prob, NewtonRaphson())
+    result = NLB._solve_without_solution!(cache)
+    SciMLBase.reinit!(cache, u0)
+    NLB._solve_without_solution!(cache)
+    SciMLBase.reinit!(cache, u0)
+    GC.gc()
+    allocs = @allocated NLB._solve_without_solution!(cache)
+    return result, result === cache, allocs
+end
+
+cache_result, same_cache, cache_solve_allocs = cache_only_solve_allocations(inner_prob)
+@test cache_result isa NLB.AbstractNonlinearSolveCache
+@test same_cache
+@test SciMLBase.successful_retcode(cache_result.retcode)
+VERSION >= v"1.11" && @test cache_solve_allocs == 0
+
 # --- end-to-end per-step allocation with a clean `NewtonRaphson` inner. The slope between two
 # fixed-step runs cancels compile/one-time-init cost, leaving pure per-step allocation. Gated
 # on Julia 1.11+: the LinearSolve factorization-workspace reuse that removes the last
