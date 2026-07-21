@@ -104,3 +104,23 @@ prob = NonlinearProblem(
         @test JᵀJv ≈ JᵀJv_analytic atol = 1.0e-5
     end
 end
+
+rectangular_residual(u, p) = reshape(
+    [u[1] + u[2], 2 * u[1] - u[2], u[1] - 3 * u[2]], 3, 1
+)
+rectangular_jacobian(u, p) = [1 1; 2 -1; 1 -3]
+rectangular_u = [2.0, 1.0]
+rectangular_fu = rectangular_residual(rectangular_u, nothing)
+rectangular_prob = NonlinearLeastSquaresProblem(
+    NonlinearFunction{false}(rectangular_residual; jac = rectangular_jacobian), rectangular_u
+)
+
+@testset "Rectangular Analytic Jacobian" begin
+    jac_op = JacobianOperator(rectangular_prob, rectangular_fu, rectangular_u)
+    sop = StatefulJacobianOperator(jac_op, rectangular_u, rectangular_prob.p)
+    v = [3.0, 2.0]
+
+    Jv = sop * v
+    @test size(Jv) == size(rectangular_fu)
+    @test Jv ≈ reshape(rectangular_jacobian(rectangular_u, nothing) * v, 3, 1)
+end

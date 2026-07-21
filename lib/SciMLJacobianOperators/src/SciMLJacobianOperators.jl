@@ -387,7 +387,7 @@ function prepare_jvp(
                 return
             end
         else
-            return @closure (v, u, p) -> reshape(f.jac(u, p) * vec(v), size(u))
+            return @closure (v, u, p) -> reshape(f.jac(u, p) * vec(v), size(fu))
         end
     end
 
