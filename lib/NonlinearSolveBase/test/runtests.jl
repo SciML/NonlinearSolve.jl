@@ -126,6 +126,10 @@ run_tests(;
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
+        @safetestset "Jacobian and restructure allocation fast paths" include(
+            "allocation_fastpaths.jl"
+        )
+
         @safetestset "Operator Jacobian cache dispatch" begin
             using NonlinearSolveBase, SciMLBase, SciMLOperators
 

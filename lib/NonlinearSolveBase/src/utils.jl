@@ -111,7 +111,7 @@ function restructure(
     @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
     return x
 end
-restructure(y, x) = ArrayInterface.restructure(y, x)
+restructure(y, x) = y === x ? x : ArrayInterface.restructure(y, x)
 
 function safe_similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
