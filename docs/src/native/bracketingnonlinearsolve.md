@@ -12,6 +12,7 @@ These methods are suited for interval (scalar) root-finding problems,
 i.e. [`IntervalNonlinearProblem`](@ref).
 
 ```@docs
+BracketingNonlinearSolve
 Alefeld
 Bisection
 Brent

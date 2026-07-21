@@ -1,3 +1,21 @@
+"""
+    BracketingNonlinearSolve
+
+Interval root-finding algorithms for `IntervalNonlinearProblem`.
+
+This subpackage provides scalar bracketing methods such as `Bisection`, `Brent`,
+`ITP`, and `Ridder`. Use these algorithms when the root is known to lie inside an
+interval and the problem can be represented as an `IntervalNonlinearProblem`.
+
+### Example
+
+```julia
+using BracketingNonlinearSolve, SciMLBase
+
+prob = IntervalNonlinearProblem((u, p) -> u^2 - p, (0.0, 2.0), 2.0)
+sol = solve(prob, ITP())
+```
+"""
 module BracketingNonlinearSolve
 
 using ConcreteStructs: @concrete

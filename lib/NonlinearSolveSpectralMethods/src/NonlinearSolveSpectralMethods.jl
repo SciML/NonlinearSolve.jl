@@ -1,3 +1,21 @@
+"""
+    NonlinearSolveSpectralMethods
+
+Spectral residual methods for nonlinear systems.
+
+This subpackage provides `DFSane` and the generalized spectral residual
+implementation used by NonlinearSolve.jl. Use it for derivative-free nonlinear
+solves where a spectral residual method is appropriate.
+
+### Example
+
+```julia
+using NonlinearSolveSpectralMethods, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, DFSane())
+```
+"""
 module NonlinearSolveSpectralMethods
 
 using ConcreteStructs: @concrete

@@ -26,6 +26,7 @@ The algorithms which are non-allocating can be used directly inside GPU Kernels[
 See [ParallelParticleSwarms.jl](https://github.com/SciML/ParallelParticleSwarms.jl) for more details.
 
 ```@docs
+SimpleNonlinearSolve
 SimpleNewtonRaphson
 SimpleGaussNewton
 SimpleBroyden

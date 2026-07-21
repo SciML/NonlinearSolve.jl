@@ -84,6 +84,14 @@ FastShortcutNLLSPolyalg
 RobustMultiNewton
 ```
 
+## Solver Subpackages
+
+```@docs
+NonlinearSolveFirstOrder
+NonlinearSolveQuasiNewton
+NonlinearSolveSpectralMethods
+```
+
 ## Advanced Solvers
 
 All of the previously mentioned solvers are wrappers around the following solvers. These

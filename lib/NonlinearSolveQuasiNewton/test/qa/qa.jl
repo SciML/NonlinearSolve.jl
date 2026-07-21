@@ -1,5 +1,12 @@
 using SciMLTesting, NonlinearSolveQuasiNewton, Test
 
+const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
+
+const QUASI_NEWTON_EXTERNAL_REEXPORTS = union(
+    public_api_names(NonlinearSolveQuasiNewton.SciMLBase),
+    (:SciMLBase,),
+)
+
 run_qa(
     NonlinearSolveQuasiNewton;
     explicit_imports = true,
@@ -7,6 +14,12 @@ run_qa(
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),
         ambiguities = (; recursive = false),
+    ),
+    api_docs_kwargs = (;
+        rendered = true,
+        docs_src = NONLINEARSOLVE_DOCS_SRC,
+        ignore = QUASI_NEWTON_EXTERNAL_REEXPORTS,
+        rendered_ignore = QUASI_NEWTON_EXTERNAL_REEXPORTS,
     ),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;

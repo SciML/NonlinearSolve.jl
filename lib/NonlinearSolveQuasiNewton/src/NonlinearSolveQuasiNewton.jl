@@ -1,3 +1,22 @@
+"""
+    NonlinearSolveQuasiNewton
+
+Quasi-Newton nonlinear solver algorithms.
+
+This subpackage implements quasi-Newton methods such as `Broyden`, `Klement`, and
+`LimitedMemoryBroyden`. These algorithms are re-exported by NonlinearSolve.jl, but
+the subpackage can also be loaded directly by packages that only need quasi-Newton
+solver implementations.
+
+### Example
+
+```julia
+using NonlinearSolveQuasiNewton, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, Broyden())
+```
+"""
 module NonlinearSolveQuasiNewton
 
 using ConcreteStructs: @concrete
