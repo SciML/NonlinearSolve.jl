@@ -12,7 +12,7 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[d12716ef] </span>DocumenterInterLinks v1.1.0
   <span class="sgr90">[40713840] </span>IncompleteLU v0.2.1
   <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.12
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.0.0
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.0.1
   <span class="sgr90">[da04e1cc] </span>MPI v0.20.26
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v4.22.0 `~/_work/NonlinearSolve.jl/NonlinearSolve.jl`
   <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.36.0 `../lib/NonlinearSolveBase`
@@ -24,7 +24,8 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v2.1.0
   <span class="sgr90">[ace2c81b] </span>PETSc v0.4.10
   <span class="sgr90">[91a5bcdd] </span>Plots v1.41.6
-  <span class="sgr90">[0bca4576] </span>SciMLBase v3.36.0
+  <span class="sgr90">[9dfe8606] </span>SCCNonlinearSolve v1.13.3
+  <span class="sgr90">[0bca4576] </span>SciMLBase v3.36.1
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.16 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v2.13.0 `../lib/SimpleNonlinearSolve`
   <span class="sgr90">[9f842d2f] </span>SparseConnectivityTracer v1.2.2
@@ -41,9 +42,9 @@ Build Info:
   Official https://julialang.org release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 128 × AMD EPYC 7513 32-Core Processor
+  CPU: 40 × Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
   WORD_SIZE: 64
-  LLVM: libLLVM-18.1.7 (ORCJIT, znver3)
+  LLVM: libLLVM-18.1.7 (ORCJIT, skylake-avx512)
   GC: Built with stock GC
 Threads: 1 default, 1 interactive, 1 GC (on 4 virtual cores)
 Environment:
@@ -172,7 +173,7 @@ Environment:
   <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.12
   <span class="sgr90">[d3d80556] </span>LineSearches v7.7.1
   <span class="sgr90">[9b3f67b0] </span>LinearAlgebraX v0.2.11
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.0.0
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.0.1
 <span class="sgr32">⌃</span> <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.29
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.2.0
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.174
@@ -207,7 +208,7 @@ Environment:
   <span class="sgr90">[4d8831e6] </span>OpenSSL v1.6.1
   <span class="sgr90">[429524aa] </span>Optim v2.2.1
 <span class="sgr33">⌅</span> <span class="sgr90">[bac558e1] </span>OrderedCollections v1.8.2
-  <span class="sgr90">[bbf590c4] </span>OrdinaryDiffEqCore v4.7.1
+  <span class="sgr90">[bbf590c4] </span>OrdinaryDiffEqCore v4.8.0
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v2.1.0
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.40
   <span class="sgr90">[ace2c81b] </span>PETSc v0.4.10
@@ -246,9 +247,10 @@ Environment:
   <span class="sgr90">[79098fc4] </span>Rmath v0.9.0
   <span class="sgr90">[f2b01f46] </span>Roots v3.0.6
   <span class="sgr90">[7e49a35a] </span>RuntimeGeneratedFunctions v0.5.22
+  <span class="sgr90">[9dfe8606] </span>SCCNonlinearSolve v1.13.3
   <span class="sgr90">[94e857df] </span>SIMDTypes v0.1.0
   <span class="sgr90">[476501e8] </span>SLEEFPirates v0.6.46
-  <span class="sgr90">[0bca4576] </span>SciMLBase v3.36.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v3.36.1
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.16 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[a6db7da4] </span>SciMLLogging v2.0.3
   <span class="sgr90">[c0aeaf25] </span>SciMLOperators v1.24.4
@@ -471,4 +473,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.15.0+0
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.64.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.7.0+0
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.22.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.22.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 21 July 2026 04:22">Tuesday 21 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.22.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.22.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 21 July 2026 15:17">Tuesday 21 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
