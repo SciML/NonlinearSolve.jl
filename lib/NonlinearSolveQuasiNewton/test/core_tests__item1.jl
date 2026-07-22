@@ -32,6 +32,12 @@ end
 
     @test SciMLBase.successful_retcode(sol)
     @test maximum(abs, sol.resid) < 1.0e-9
+
+    reinit!(cache; u0 = ones(10))
+    @test !cache.update_rule_cache.tight_step_limit
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test maximum(abs, sol.resid) < 1.0e-9
 end
 
 u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)

@@ -122,6 +122,11 @@ end
     tight_step_limit::Bool
 end
 
+function InternalAPI.reinit!(cache::BroydenUpdateRuleCache; kwargs...)
+    cache.tight_step_limit = false
+    return
+end
+
 function unglobalized_step_size(cache::BroydenUpdateRuleCache, u, du, first_step::Bool)
     cache.rule isa BadBroydenUpdateRule || return true
     du_norm = cache.internalnorm(du)
@@ -130,9 +135,10 @@ function unglobalized_step_size(cache::BroydenUpdateRuleCache, u, du, first_step
     if first_step
         cache.tight_step_limit = du_norm > 10 * u_scale
     end
+    cache.tight_step_limit || return true
     # Bad Broyden updates propagate the first displacement through every later inverse
     # update, so retain a state-scale bound when the initial inverse produces a gross step.
-    step_limit = cache.tight_step_limit ? u_scale : 10 * u_scale
+    step_limit = u_scale
     du_norm ≤ step_limit && return true
     return step_limit / du_norm
 end
