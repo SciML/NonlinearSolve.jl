@@ -215,20 +215,30 @@ function CommonSolve.solve(
     return
 end
 
-# A `HomotopyProblem` handed a *standard* nonlinear algorithm cannot be driven by it: the
-# residual is the λ-extended `f(u, p, λ)`, not a plain `f(u, p)`, so the ordinary
-# `AbstractNonlinearProblem` solve pipeline (which would call `f(u, p)`) does not apply.
-# Route any such call to the continuation `HomotopyPolyAlgorithm` default. This lets init
-# paths that select a *default* nonlinear solver for the problem — SciMLBase's OverrideInit,
-# SteadyStateDiffEq, etc., all of which see a `HomotopyProblem` as the `AbstractNonlinearProblem`
-# it subtypes — solve it robustly by continuation without any per-caller glue.
+# A `HomotopyProblem` at its target `λ` (`λspan[2]` — `λ = 1`, the `actual` system, for the
+# default `(0, 1)` span) is an ordinary `NonlinearProblem`: the λ-swept residual `f(u, p, λ)`
+# reduces to that system when `λ` is fixed. So a *standard* nonlinear algorithm handed a
+# `HomotopyProblem` solves exactly that system by fixing `λ` — the requested algorithm is
+# honored, and continuation stays opt-in via `nothing`, `HomotopySweep`,
+# `ArcLengthContinuation`, or `HomotopyPolyAlgorithm` (each of which has its own, strictly
+# more specific `solve(::HomotopyProblem, ::T)` method). This fallback therefore fires only
+# for non-continuation algorithms, and it never recurses because it dispatches on the
+# constructed `NonlinearProblem`, not on `prob`.
 #
-# `HomotopySweep`, `ArcLengthContinuation`, and `HomotopyPolyAlgorithm` each have their own,
-# strictly more specific `solve(::HomotopyProblem, ::T)` methods, so this fallback fires only
-# for non-continuation algorithms; the `solve(prob, HomotopyPolyAlgorithm())` call below
-# dispatches to the specific method, so there is no recursion.
+# `_sweep_nonlinear_function` fixes `λ` across the residual and every derivative field it
+# carries (`jac`/`jac_prototype`/`sparsity`/`colorvec`) — the same λ-fixed
+# `NonlinearFunction` the sweep hands its own inner solver at each step. The result is
+# rebuilt against the original `HomotopyProblem` so the returned solution keeps its symbolic
+# indexing (`prob.f.sys`).
 function CommonSolve.solve(
-        prob::SciMLBase.HomotopyProblem, ::AbstractNonlinearSolveAlgorithm, args...; kwargs...
+        prob::SciMLBase.HomotopyProblem{uType, iip},
+        alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...
+    ) where {uType, iip}
+    fixλ = FixLambda(prob.f, prob.λspan[2])
+    f = _sweep_nonlinear_function(Val(iip), prob.f, fixλ)
+    nlprob = NonlinearProblem{iip}(f, copy(prob.u0), prob.p)
+    sol = CommonSolve.solve(nlprob, alg, args...; prob.kwargs..., kwargs...)
+    return build_solution_less_specialize(
+        prob, alg, sol.u, sol.resid; retcode = sol.retcode, stats = sol.stats
     )
-    return CommonSolve.solve(prob, HomotopyPolyAlgorithm(), args...; kwargs...)
 end
