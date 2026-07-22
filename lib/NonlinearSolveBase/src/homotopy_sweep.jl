@@ -17,7 +17,14 @@ The inner solver is initialized once and re-driven each step through the
 `init`/`reinit!`/`solve!` cache interface, so the continuation loop reuses the inner
 solver's workspace (Jacobian buffers, linear-solver storage) instead of reconstructing
 the solver every step; the sweep's own per-step state lives in a fixed set of
-preallocated buffers. When the inner solver is a polyalgorithm (as the default is),
+preallocated buffers. The complete sweep also supports the standard
+`init`/`reinit!`/`solve!` interface: initialize once, optionally update `u0` and `p`
+with `reinit!`, and call `solve!` repeatedly to reuse both the continuation buffers
+and the inner nonlinear-solver cache across homotopy problems of the same type. Solver
+options such as `abstol` can also be updated when the option was supplied to `init`
+and its type is unchanged.
+
+When the inner solver is a polyalgorithm (as the default is),
 the warm-started tracking steps additionally arm best-subalgorithm retention on that
 cache (see [`NonlinearSolvePolyAlgorithm`](@ref)): each step resumes from the
 subalgorithm that produced the previous step's success instead of re-running the
@@ -134,8 +141,8 @@ Keyword arguments:
 When the sweep cannot reach the end of `λspan`, the returned solution carries a failure
 retcode: its `u` is the last converged iterate (at some ``λ`` short of `λspan[2]`, or
 `u0` itself if the initial `λspan[1]` anchor solve failed), while `resid` comes from the
-failed step (`nothing` on the `ReturnCode.Stalled` and `ReturnCode.MaxIters` paths,
-where no failed step is available).
+most recent inner solve. On the `ReturnCode.Stalled` and `ReturnCode.MaxIters` paths no
+new failed corrector is available, so the residual is from the last accepted point.
 
 This is the embedding-homotopy / continuation analogue used to robustly initialize
 systems whose target form is hard to solve cold; it is unrelated to the polynomial
@@ -259,6 +266,22 @@ mutable struct FixLambda{F, T}
     λ::T
 end
 (fl::FixLambda)(args...) = fl.f(args..., fl.λ)
+
+@concrete mutable struct HomotopySweepCache
+    prob <: SciMLBase.HomotopyProblem
+    alg
+    args <: Tuple
+    kwargs <: NamedTuple
+    fixλ <: FixLambda
+    inner_cache
+    u
+    u_prev
+    guess
+    virtual
+    budget::Int
+    cap_active::Bool
+    tol_active::Bool
+end
 
 # λ-fixing wrapper for the user's analytic Jacobian `jac(u, p, λ)` / `jac(J, u, p, λ)`,
 # exposing the standard 2/3-argument form to the inner solver. It reads λ from the
@@ -530,9 +553,100 @@ function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem,
         alg::Union{HomotopySweep, KantorovichHomotopy}, args...; kwargs...
     )
-    sol, _ = _homotopy_sweep_solve(prob, alg, args...; kwargs...)
-    return sol
+    return CommonSolve.solve!(SciMLBase.init(prob, alg, args...; kwargs...))
 end
+
+function _homotopy_sweep_init(
+        prob::SciMLBase.HomotopyProblem{uType, iip},
+        alg::Union{HomotopySweep, KantorovichHomotopy}, args...; kwargs...
+    ) where {uType, iip}
+    λ = float(first(prob.λspan))
+    budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
+    track_abstol, tol_active = _tracking_tolerance(
+        alg.tracking_abstol, prob.kwargs, kwargs
+    )
+
+    u = copy(prob.u0)
+    u_prev = copy(u)
+    guess = copy(u)
+    virtual = Utils.safe_similar(u)
+    fixλ = FixLambda(prob.f, λ)
+    fλ = _sweep_nonlinear_function(Val(iip), prob.f, fixλ)
+    inner_prob = NonlinearProblem{iip}(fλ, guess, prob.p)
+    inner_cache = if cap_active && tol_active
+        init(
+            inner_prob, alg.inner, args...;
+            prob.kwargs..., kwargs..., maxiters = budget, abstol = track_abstol
+        )
+    elseif cap_active
+        init(
+            inner_prob, alg.inner, args...;
+            prob.kwargs..., kwargs..., maxiters = budget
+        )
+    elseif tol_active
+        init(
+            inner_prob, alg.inner, args...;
+            prob.kwargs..., kwargs..., abstol = track_abstol
+        )
+    else
+        init(inner_prob, alg.inner, args...; prob.kwargs..., kwargs...)
+    end
+
+    return HomotopySweepCache(
+        prob, alg, args, (; kwargs...), fixλ, inner_cache,
+        u, u_prev, guess, virtual, budget, cap_active, tol_active
+    )
+end
+
+function SciMLBase.init(
+        prob::SciMLBase.HomotopyProblem,
+        alg::Union{HomotopySweep, KantorovichHomotopy}, args...;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
+    _u0 = u0 === nothing ? prob.u0 : u0
+    _p = p === nothing ? prob.p : p
+    _prob = _u0 === prob.u0 && _p === prob.p ? prob : SciMLBase.remake(prob; u0 = _u0, p = _p)
+    return _homotopy_sweep_init(_prob, alg, args...; kwargs...)
+end
+
+function SciMLBase.reinit!(
+        cache::HomotopySweepCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
+    )
+    if !isempty(kwargs)
+        merged_kwargs = merge(cache.kwargs, (; kwargs...))
+        typeof(merged_kwargs) === typeof(cache.kwargs) || throw(
+            ArgumentError(
+                "`reinit!` can update existing homotopy solver options without " *
+                    "changing their types; pass every option that will be updated to `init`."
+            )
+        )
+        cache.kwargs = merged_kwargs
+        cache.budget = first(
+            _tracking_budget(cache.alg.tracking_maxiters, cache.prob.kwargs, merged_kwargs)
+        )
+        guess = _sweep_warmstart!(cache.guess, u0)
+        SciMLBase.reinit!(cache.inner_cache, guess; p, kwargs...)
+    end
+    cache.prob = SciMLBase.remake(cache.prob; u0, p)
+    return cache
+end
+
+function CommonSolve.solve!(cache::HomotopySweepCache)
+    return _homotopy_sweep_solve!(cache, Val(false))
+end
+
+function _store_sweep_state!(cache::HomotopySweepCache, u, u_prev, guess, virtual)
+    cache.u = u
+    cache.u_prev = u_prev
+    cache.guess = guess
+    cache.virtual = virtual
+    return nothing
+end
+
+_sweep_original(result, ::Val{false}) = nothing
+_sweep_original(result, ::Val{true}) = _solve_result_original(result)
+_sweep_return(sol, λ, ::Val{false}) = sol
+_sweep_return(sol, λ, ::Val{true}) = (sol, λ)
 
 # Internal driver returning `(sol, λ_last)`. `λ_last` is the λ of the sweep's last
 # ACCEPTED point when the sweep fails past the anchor (so `sol.u` is a converged
@@ -544,6 +658,12 @@ function _homotopy_sweep_solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},
         alg::Union{HomotopySweep, KantorovichHomotopy}, args...; kwargs...
     ) where {uType, iip}
+    return _homotopy_sweep_solve!(SciMLBase.init(prob, alg, args...; kwargs...), Val(true))
+end
+
+function _homotopy_sweep_solve!(sweep_cache::HomotopySweepCache, return_λ::Val)
+    (; prob, alg, args, kwargs, fixλ, inner_cache, budget, cap_active, tol_active) =
+        sweep_cache
     λ0, λ1 = prob.λspan
     λ = float(λ0)
     λT = typeof(λ)
@@ -554,49 +674,12 @@ function _homotopy_sweep_solve(
     max_dλ = λT(alg.max_step_factor) * span     # carries span's sign, like dλ
     expand_factor = alg isa HomotopySweep ? λT(alg.expand_factor) : one(λT)
     abs(dλ) > abs(max_dλ) && (dλ = max_dλ)
-    u = copy(prob.u0)
-    budget, cap_active = _tracking_budget(alg.tracking_maxiters, prob.kwargs, kwargs)
-    track_abstol, tol_active = _tracking_tolerance(
-        alg.tracking_abstol, prob.kwargs, kwargs
-    )
-
-    # One inner-solver cache, built once around the mutable `FixLambda` and reused for
-    # every solve of the sweep (the anchor below and each continuation step): advancing
-    # λ is a field write plus a `reinit!` with the new warm start, so the inner solver's
-    # workspace is reused instead of reconstructed. `guess` is handed to the cache and
-    # may be iterated in place when aliasing is forwarded; `u` is a separately-owned
-    # buffer the inner solver never writes, so a FAILED attempt leaves the last
-    # converged iterate intact for retries and the failure returns below. When the
-    # tracking cap / loose tracking tolerance are active they are baked into this
-    # cache (the many interior steps all run capped/loose; `abstol` cannot reliably be
-    # changed through `reinit!` — e.g. the default polyalgorithm's cache `reinit!`
-    # accepts no tolerance kwargs); the anchor and the final landing are exempted
-    # through the `_sweep_exempt_solve` calls below rather than a second full-fidelity
-    # cache, so the happy path keeps a single inner workspace.
-    fixλ = FixLambda(prob.f, λ)
-    fλ = _sweep_nonlinear_function(Val(iip), prob.f, fixλ)
-    guess = copy(u)
-    cache = if cap_active && tol_active
-        init(
-            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
-            prob.kwargs..., kwargs..., maxiters = budget, abstol = track_abstol
-        )
-    elseif cap_active
-        init(
-            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
-            prob.kwargs..., kwargs..., maxiters = budget
-        )
-    elseif tol_active
-        init(
-            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
-            prob.kwargs..., kwargs..., abstol = track_abstol
-        )
-    else
-        init(
-            NonlinearProblem{iip}(fλ, guess, prob.p), alg.inner, args...;
-            prob.kwargs..., kwargs...
-        )
-    end
+    u = _sweep_warmstart!(sweep_cache.u, prob.u0)
+    u_prev = _sweep_warmstart!(sweep_cache.u_prev, prob.u0)
+    guess = _sweep_warmstart!(sweep_cache.guess, prob.u0)
+    virtual = sweep_cache.virtual
+    fixλ.λ = λ
+    SciMLBase.reinit!(inner_cache, guess; p = prob.p)
 
     # Anchor: solve the system at λ = λspan[1] from u0 BEFORE stepping. For the
     # canonical (0, 1) span this is the pure `simplified` system — the one the
@@ -612,37 +695,43 @@ function _homotopy_sweep_solve(
         # also covers the tracking-cap exemption). A one-time cost when opting in.
         _sweep_exempt_solve(prob, alg.inner, u, λ, args...; kwargs...)
     else
-        CommonSolve.solve!(cache)
+        _solve_without_solution!(inner_cache)
     end
-    if cap_active && !tol_active && !SciMLBase.successful_retcode(last_sol)
+    if cap_active && !tol_active && !_solve_result_successful(last_sol)
         # The anchor is exempt from the tracking cap — it is the one cold-start solve
         # the homotopy contract is designed around, so it may legitimately need many
         # more iterations than a warm-started tracking step. Rerun it with the full
         # user budget before declaring the homotopy premise broken.
         last_sol = _sweep_exempt_solve(prob, alg.inner, u, λ, args...; kwargs...)
     end
-    if !SciMLBase.successful_retcode(last_sol)
+    if !_solve_result_successful(last_sol)
         # the λ = λspan[1] system itself failed from u0: the homotopy premise is
         # broken, so no continuation is possible. `u` stays u0. No accepted point
         # exists, so there is nothing to hand off.
-        return build_solution_less_specialize(
-                prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol,
-                store_original = alg.store_original
-            ), nothing
+        _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+        sol = build_solution_less_specialize(
+            prob, alg, u, _solve_result_resid(last_sol);
+            retcode = _solve_result_retcode(last_sol),
+            original = _sweep_original(last_sol, alg.store_original),
+            store_original = alg.store_original
+        )
+        return _sweep_return(sol, nothing, return_λ)
     end
-    u = copy(last_sol.u)
+    u = _sweep_warmstart!(u, _solve_result_u(last_sol))
     # Zero-width λspan (λ0 == λend): the anchor IS the single target solve.
-    λ == λend && return SciMLBase.build_solution(
-            prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
-        ), nothing
+    if λ == λend
+        _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+        sol = SciMLBase.build_solution(
+            prob, alg, u, _solve_result_resid(last_sol); retcode = ReturnCode.Success
+        )
+        return _sweep_return(sol, nothing, return_λ)
+    end
 
     # Reused across every step: `u`/`u_prev` are the last two accepted iterates (their
     # buffers are swapped, never reallocated); `virtual` is scratch for the secant
     # quality gate. λ_prev == λ means there is no history yet and the predictor falls
     # back to a constant warm start.
-    u_prev = copy(u)
-    virtual = Utils.safe_similar(u)
+    u_prev = _sweep_warmstart!(u_prev, u)
     λ_prev = λ
     streak = 0
     # Consecutive accepted steps whose measured secant quality was good. The secant is
@@ -659,17 +748,23 @@ function _homotopy_sweep_solve(
             # Cap on total attempts (accepted steps plus bisection retries), mirroring
             # ArcLengthContinuation's guard: without it the loop is bounded only by
             # span/min_dλ ≈ 7×10⁷ accepted steps.
-            return SciMLBase.build_solution(
-                    prob, alg, u, nothing; retcode = ReturnCode.MaxIters
-                ), λ
+            _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+            sol = SciMLBase.build_solution(
+                prob, alg, u, _solve_result_resid(last_sol);
+                retcode = ReturnCode.MaxIters
+            )
+            return _sweep_return(sol, λ, return_λ)
         end
         next_λ = abs(λend - λ) <= abs(dλ) ? λend : λ + dλ
         if next_λ == λ && next_λ != λend
             # dλ underflowed below eps(λ) mid-continuation: no further progress is
             # possible (the zero-width span is already handled by the anchor above).
-            return SciMLBase.build_solution(
-                    prob, alg, u, nothing; retcode = ReturnCode.Stalled
-                ), λ
+            _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+            sol = SciMLBase.build_solution(
+                prob, alg, u, _solve_result_resid(last_sol);
+                retcode = ReturnCode.Stalled
+            )
+            return _sweep_return(sol, λ, return_λ)
         end
         used_secant = alg.predictor === :secant && trust >= 2 && λ_prev != λ
         guess = if used_secant
@@ -684,9 +779,9 @@ function _homotopy_sweep_solve(
         # Retaining reinit!: a polyalgorithm inner resumes from the subalgorithm that
         # won the previous solve (the anchor's full-ladder run discovers the winner)
         # instead of re-failing the cheaper ladder members on every warm-started step.
-        reinit_retaining!(cache, guess)
+        reinit_retaining!(inner_cache, guess, prob.p)
         last_sol, first_Θ, rejected_Θ, has_Θ, contraction_rejected =
-            _homotopy_corrector!(cache, alg, λT)
+            _homotopy_corrector!(inner_cache, alg, λT)
 
         if next_λ == λend
             if cap_active && !_solve_result_successful(last_sol)
@@ -777,18 +872,22 @@ function _homotopy_sweep_solve(
                 # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
                 retcode = strict_rejection ? ReturnCode.ConvergenceFailure :
                     _solve_result_retcode(last_sol)
-                return build_solution_less_specialize(
-                        prob, alg, u, _solve_result_resid(last_sol);
-                        retcode, original = _solve_result_original(last_sol),
-                        store_original = alg.store_original
-                    ), λ
+                _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+                sol = build_solution_less_specialize(
+                    prob, alg, u, _solve_result_resid(last_sol);
+                    retcode, original = _sweep_original(last_sol, alg.store_original),
+                    store_original = alg.store_original
+                )
+                return _sweep_return(sol, λ, return_λ)
             end
         end
     end
 
-    return SciMLBase.build_solution(
-            prob, alg, u, _solve_result_resid(last_sol); retcode = ReturnCode.Success
-        ), nothing
+    _store_sweep_state!(sweep_cache, u, u_prev, guess, virtual)
+    sol = SciMLBase.build_solution(
+        prob, alg, u, _solve_result_resid(last_sol); retcode = ReturnCode.Success
+    )
+    return _sweep_return(sol, nothing, return_λ)
 end
 
 # A HomotopyProblem with no algorithm defaults to the staged polyalgorithm (sweep first,
