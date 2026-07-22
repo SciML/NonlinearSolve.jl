@@ -1,7 +1,17 @@
 using NonlinearSolveBase: NonlinearSolveBase, Utils
+using ArrayInterface
 using LinearSolve  # linsolve_identity!! routes matrices through the LinearSolve default
 using LinearAlgebra
 using Test
+
+struct NoFastScalarMatrix{T} <: AbstractMatrix{T}
+    data::Matrix{T}
+end
+
+Base.size(A::NoFastScalarMatrix) = size(A.data)
+Base.getindex(A::NoFastScalarMatrix, i::Int, j::Int) = A.data[i, j]
+Base.copy(A::NoFastScalarMatrix) = copy(A.data)
+ArrayInterface.fast_scalar_indexing(::Type{<:NoFastScalarMatrix}) = false
 
 @testset "nonsingular input matches inv" begin
     n = 20
@@ -27,6 +37,13 @@ using Test
         @test Utils.linsolve_identity!!(workspace, Utils.linsolve_identity!!(workspace, A)) ≈
             A_orig
     end
+end
+
+@testset "arrays without fast scalar indexing use pinv" begin
+    A = NoFastScalarMatrix(rand(5, 5))
+    workspace, A_ret = Utils.linsolve_workspace(A)
+    @test workspace === nothing && A_ret === A
+    @test Utils.linsolve_identity!!(workspace, A) ≈ pinv(A.data)
 end
 
 @testset "singular input takes the pivoted-QR rescue" begin
