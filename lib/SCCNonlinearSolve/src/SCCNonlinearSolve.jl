@@ -2,6 +2,7 @@ module SCCNonlinearSolve
 
 import SciMLBase
 import CommonSolve
+import NonlinearSolveBase
 import SymbolicIndexingInterface
 import SciMLBase: NonlinearProblem, NonlinearLeastSquaresProblem, LinearProblem
 
@@ -92,7 +93,18 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
             SciMLBase.build_solution(nlprob, nothing, sol.u, resid, retcode = sol.retcode)
         )
     else
-        sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
+        # A `HomotopyProblem` block (e.g. a Modelica `homotopy` operator block from
+        # ModelingToolkit) is solved by continuation, not by the SCC's nonlinear algorithm
+        # directly: that algorithm would only solve the block's target-λ system (see
+        # `solve(::HomotopyProblem, ::AbstractNonlinearSolveAlgorithm)`). It is threaded in
+        # as the *inner corrector* instead, so its autodiff / linear-solver choices are
+        # honored while the block is swept from `simplified` to `actual`.
+        blockalg = if prob isa SciMLBase.HomotopyProblem
+            NonlinearSolveBase.HomotopyPolyAlgorithm(; inner = alg.nlalg)
+        else
+            alg.nlalg
+        end
+        sol = SciMLBase.solve(prob, blockalg; kwargs...)
         SciMLBase.strip_solution(
             SciMLBase.build_solution(
                 prob, nothing, sol.u, sol.resid, retcode = sol.retcode
