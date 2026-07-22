@@ -121,6 +121,17 @@ end
     rule <: Union{BadBroydenUpdateRule, GoodBroydenUpdateRule}
 end
 
+function unglobalized_step_size(cache::BroydenUpdateRuleCache, u, du)
+    cache.rule isa BadBroydenUpdateRule || return true
+    du_norm = cache.internalnorm(du)
+    iszero(du_norm) && return one(du_norm)
+    u_scale = max(cache.internalnorm(u), one(du_norm))
+    # Bad Broyden updates can magnify an oversized displacement in every later inverse
+    # update, so bound unglobalized steps to one order of magnitude relative to the state.
+    step_limit = 10 * u_scale
+    return min(one(du_norm), step_limit / du_norm)
+end
+
 function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹, fu, u, du; kwargs...
     )

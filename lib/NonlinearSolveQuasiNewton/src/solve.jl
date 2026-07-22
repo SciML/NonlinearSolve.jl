@@ -113,6 +113,8 @@ function NonlinearSolveBase.get_reltol(cache::QuasiNewtonCache)
     return NonlinearSolveBase.get_reltol(cache.termination_cache)
 end
 
+unglobalized_step_size(cache, u, du) = true
+
 function InternalAPI.reinit_self!(
         cache::QuasiNewtonCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
@@ -427,10 +429,11 @@ function InternalAPI.step!(
             α = true
         elseif cache.globalization isa Val{:None}
             @static_timeit cache.timer "step" begin
+                α = unglobalized_step_size(cache.update_rule_cache, cache.u, δu)
+                @bb @. δu *= α
                 @bb axpy!(1, δu, cache.u)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
-            α = true
         else
             error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
                    are (:LineSearch, :TrustRegion, :None)")
