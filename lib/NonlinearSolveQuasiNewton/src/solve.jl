@@ -113,7 +113,7 @@ function NonlinearSolveBase.get_reltol(cache::QuasiNewtonCache)
     return NonlinearSolveBase.get_reltol(cache.termination_cache)
 end
 
-unglobalized_step_size(cache, u, du) = true
+unglobalized_step_size(cache, u, du, first_step) = true
 
 function InternalAPI.reinit_self!(
         cache::QuasiNewtonCache, args...; p = cache.p, u0 = cache.u,
@@ -429,8 +429,12 @@ function InternalAPI.step!(
             α = true
         elseif cache.globalization isa Val{:None}
             @static_timeit cache.timer "step" begin
-                α = unglobalized_step_size(cache.update_rule_cache, cache.u, δu)
-                @bb @. δu *= α
+                α = unglobalized_step_size(
+                    cache.update_rule_cache, cache.u, δu, iszero(cache.nsteps)
+                )
+                if α !== true
+                    @bb @. δu *= α
+                end
                 @bb axpy!(1, δu, cache.u)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
