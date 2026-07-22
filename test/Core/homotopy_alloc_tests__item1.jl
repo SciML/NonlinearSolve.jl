@@ -1,5 +1,6 @@
 using NonlinearSolve
 
+using CommonSolve
 using SciMLBase
 
 import NonlinearSolveBase as NLB
@@ -52,6 +53,26 @@ cache_result, same_cache, cache_solve_allocs = cache_only_solve_allocations(inne
 @test same_cache
 @test SciMLBase.successful_retcode(cache_result.retcode)
 VERSION >= v"1.11" && @test cache_solve_allocs == 0
+
+function cached_sweep_retcode!(cache, u0, p, abstol)
+    SciMLBase.reinit!(cache, u0; p, abstol)
+    return CommonSolve.solve!(cache).retcode
+end
+
+function cached_sweep_allocations(prob)
+    alg = HomotopySweep(; inner = NewtonRaphson(), adaptive = false, nsteps = 10)
+    cache = SciMLBase.init(prob, alg; abstol = 0.0)
+    abstol = 1.0e-10
+    cached_sweep_retcode!(cache, prob.u0, prob.p, abstol)
+    cached_sweep_retcode!(cache, prob.u0, prob.p, abstol)
+    GC.gc()
+    allocs = @allocated cached_sweep_retcode!(cache, prob.u0, prob.p, abstol)
+    return cache, allocs
+end
+
+sweep_cache, sweep_cache_allocs = cached_sweep_allocations(prob)
+@test SciMLBase.successful_retcode(CommonSolve.solve!(sweep_cache))
+VERSION >= v"1.11" && @test sweep_cache_allocs == 0
 
 # --- end-to-end per-step allocation with a clean `NewtonRaphson` inner. The slope between two
 # fixed-step runs cancels compile/one-time-init cost, leaving pure per-step allocation. Gated

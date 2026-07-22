@@ -87,6 +87,7 @@ else
             @time @safetestset "HomotopySweep secant predictor reduces corrector work" include("Core/homotopy_sweep_tests__item20.jl")
             @time @safetestset "HomotopySweep regrows the step after bisecting a hard region" include("Core/homotopy_sweep_tests__item21.jl")
             @time @safetestset "Continuation drivers return concretely-typed solutions (no Any-typed original)" include("Core/homotopy_sweep_tests__item22.jl")
+            @time @safetestset "HomotopySweep init/reinit!/solve! cache reuse" include("Core/homotopy_sweep_tests__item23.jl")
             @time @safetestset "Kantorovich homotopy controller" include("Core/kantorovich_homotopy_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation construction + defaults" include("Core/arclength_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation happy path (fold-free, matches sweep)" include("Core/arclength_tests__item2.jl")
