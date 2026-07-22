@@ -12,6 +12,28 @@ if isempty(VERSION.prerelease) && VERSION < v"1.12"
     using Enzyme
 end
 
+@testset "Bad Broyden oversized-step safeguard" begin
+    function brown_almost_linear!(du, u, p)
+        n = length(u)
+        u_sum = sum(u)
+        for i in 1:(n - 1)
+            du[i] = u[i] + u_sum - (n + 1)
+        end
+        du[n] = prod(u) - 1
+        return nothing
+    end
+
+    prob = NonlinearProblem{true}(brown_almost_linear!, fill(0.5, 10))
+    alg = Broyden(
+        init_jacobian = Val(:true_jacobian), update_rule = Val(:bad_broyden)
+    )
+    cache = init(prob, alg; abstol = 1.0e-10, reltol = 1.0e-10)
+    sol = solve!(cache)
+
+    @test SciMLBase.successful_retcode(sol)
+    @test maximum(abs, sol.resid) < 1.0e-9
+end
+
 u0s = ([1.0, 1.0], @SVector[1.0, 1.0], 1.0)
 
 # Filter autodiff backends based on Julia version
