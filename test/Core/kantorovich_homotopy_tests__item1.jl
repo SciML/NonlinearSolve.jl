@@ -143,6 +143,7 @@ corrector_prob = NonlinearProblem((u, p) -> [u[1] - 1], [0.0])
 corrector_cache = init(corrector_prob, SlowContractionAlgorithm(); maxiters = 2)
 corrector_sol, first_Θ, rejected_Θ, has_Θ, contraction_rejected =
     NonlinearSolveBase._homotopy_corrector!(corrector_cache, alg, Float64)
+@test corrector_sol isa SciMLBase.NonlinearSolution
 @test SciMLBase.successful_retcode(corrector_sol)
 @test has_Θ
 @test first_Θ ≈ 0.99

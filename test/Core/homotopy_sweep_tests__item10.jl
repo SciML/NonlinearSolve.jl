@@ -12,4 +12,5 @@ prob = HomotopyProblem(H, [0.0]; λspan = (1.0e9, 2.0e9))
 sol = solve(prob, HomotopySweep(; inner = NewtonRaphson()); maxiters = 5)
 @test sol.retcode == SciMLBase.ReturnCode.Stalled
 @test !SciMLBase.successful_retcode(sol)
-@test sol.resid === nothing
+@test sol.resid !== nothing
+@test all(isfinite, sol.resid)

@@ -32,6 +32,12 @@ end
     sol = solve!(cache)
     @test all(sol.u .>= 3.0)
     @test all(sol.u .<= 10.0)
+
+    cache = init(prob, alg)
+    sol = NonlinearSolveBase._solve_without_solution!(cache)
+    @test !(sol isa NonlinearSolveBase.AbstractNonlinearSolveCache)
+    @test all(sol.u .>= 3.0)
+    @test all(sol.u .<= 10.0)
 end
 
 # Test in-place version — use FullSpecialize for bounds compatibility
