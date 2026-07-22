@@ -13,9 +13,25 @@ const NONLINEARSOLVE_EXTERNAL_REEXPORTS = union(
     (:ADTypes, :SciMLBase, :LineSearch, :LinearSolve),
 )
 
+const NONLINEARSOLVE_REEXPORTS = union(
+    NONLINEARSOLVE_EXTERNAL_REEXPORTS,
+    public_api_names(NonlinearSolve.NonlinearSolveBase),
+    public_api_names(NonlinearSolve.NonlinearSolveFirstOrder),
+    public_api_names(NonlinearSolve.NonlinearSolveSpectralMethods),
+    public_api_names(NonlinearSolve.NonlinearSolveQuasiNewton),
+    public_api_names(NonlinearSolve.SimpleNonlinearSolve),
+    public_api_names(NonlinearSolve.BracketingNonlinearSolve),
+    (
+        :NonlinearSolveBase, :NonlinearSolveFirstOrder,
+        :NonlinearSolveSpectralMethods, :NonlinearSolveQuasiNewton,
+        :SimpleNonlinearSolve, :BracketingNonlinearSolve,
+    ),
+)
+
 run_qa(
     NonlinearSolve;
     explicit_imports = true,
+    reexports_allow = NONLINEARSOLVE_REEXPORTS,
     aqua_kwargs = (;
         # stale_deps / deps_compat are checked on the SimpleNonlinearSolve facade
         # below (with the SciMLJacobianOperators ignore); persistent_tasks stays off

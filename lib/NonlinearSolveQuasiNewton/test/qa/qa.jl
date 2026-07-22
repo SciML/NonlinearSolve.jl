@@ -7,9 +7,16 @@ const QUASI_NEWTON_EXTERNAL_REEXPORTS = union(
     (:SciMLBase,),
 )
 
+const QUASI_NEWTON_REEXPORTS = union(
+    QUASI_NEWTON_EXTERNAL_REEXPORTS,
+    public_api_names(NonlinearSolveQuasiNewton.NonlinearSolveBase),
+    (:NonlinearSolveBase,),
+)
+
 run_qa(
     NonlinearSolveQuasiNewton;
     explicit_imports = true,
+    reexports_allow = QUASI_NEWTON_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),
