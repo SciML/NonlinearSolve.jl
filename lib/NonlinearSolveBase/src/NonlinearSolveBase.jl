@@ -1,3 +1,23 @@
+"""
+    NonlinearSolveBase
+
+Shared implementation layer for NonlinearSolve.jl solver packages.
+
+`NonlinearSolveBase` defines the common cache, tracing, automatic differentiation,
+termination, and developer-extension interfaces used by the nonlinear solver
+subpackages. Most users should access these capabilities through `NonlinearProblem`,
+`NonlinearLeastSquaresProblem`, `solve`, and `init` from the public SciML interface.
+Solver-package authors may extend the documented developer APIs on this page.
+
+### Example
+
+```julia
+using NonlinearSolve
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveBase
 
 using Compat: @compat
@@ -65,6 +85,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("kantorovich_homotopy.jl")
 include("homotopy_sweep.jl")
 include("arclength.jl")
 include("homotopy_polyalg.jl")
@@ -118,7 +139,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
-export HomotopySweep, ArcLengthContinuation, HomotopyPolyAlgorithm
+export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAlgorithm
 
 export NonlinearVerbosity
 

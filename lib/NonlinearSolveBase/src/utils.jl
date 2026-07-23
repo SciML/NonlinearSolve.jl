@@ -235,6 +235,9 @@ linsolve_workspace(A::Diagonal) = nothing, A
 linsolve_workspace(A::SMatrix) = nothing, A
 function linsolve_workspace(A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
+    # Backends without fast scalar indexing may not implement factorization solves with
+    # a matrix right-hand side. Leave those arrays on their native `pinv` path.
+    ArrayInterface.fast_scalar_indexing(A) || return nothing, A
     # the linear solve promotes e.g. integer eltypes; the buffers must hold the promoted
     # values. The `size` form of `similar` gives a dense buffer for structured input
     # (e.g. Tridiagonal), which the generically-dense inverse and identity RHS need.
@@ -283,15 +286,20 @@ end
 function linsolve_identity!!(workspace, A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
     # a `nothing` workspace (the preinverted-init path in NonlinearSolveQuasiNewton)
-    # builds a transient linear-solve cache; it allocates, but runs at most once per solve
-    ws = workspace === nothing ? first(linsolve_workspace(A)) : workspace
+    # builds a transient linear-solve cache; it allocates, but runs at most once per solve.
+    # Sparse dispatch gets a chance to construct its dense workspace here, while backend
+    # arrays that cannot use the cached matrix-RHS solve stay on their native `pinv`.
+    if workspace === nothing
+        workspace, workspace_A = linsolve_workspace(A)
+        workspace === nothing && return pinv(workspace_A)
+    end
     # the previous solve may have consumed the RHS buffer, so refill it with I. The
     # lincache call copies A into its internal buffer before overwriting the solution
     # buffer, so A is never mutated and passing the previously returned inverse as A is
     # safe. On singular A the default algorithm's pivoted-QR rescue returns a finite
     # least-squares generalized inverse (not the SVD `pinv`).
-    make_identity!!(ws.rhs, true)
-    return ws.lincache(; A, b = ws.rhs).u
+    make_identity!!(workspace.rhs, true)
+    return workspace.lincache(; A, b = workspace.rhs).u
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)

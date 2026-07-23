@@ -339,7 +339,7 @@ function InternalAPI.step!(
                 Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
-            InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)
+            InternalAPI.step!(cache; recompute_jacobian = true)
             return
         end
     end

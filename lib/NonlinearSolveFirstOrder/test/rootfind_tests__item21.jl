@@ -127,6 +127,38 @@ end
     end
 end
 
+# `reinit!` must restore the damping state (α⁻¹, and the scaled matrix D when a mass matrix
+# is used), otherwise the re-solve silently runs as a nearly undamped Newton method.
+@testset "reinit! resets damping state" begin
+    prob = NonlinearProblem{false}(quadratic_f, [1.0, 1.0], 2.0)
+
+    cache = init(prob, PseudoTransient(; alpha_initial = 1.0e-2); abstol = 1.0e-10)
+    dc = cache.descent_cache.damping_fn_cache
+    α⁻¹₀ = dc.α⁻¹
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    iters = cache.nsteps
+    @test dc.α⁻¹ != α⁻¹₀
+
+    reinit!(cache, [1.0, 1.0]; p = 2.0)
+    @test dc.α⁻¹ == α⁻¹₀
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test cache.nsteps == iters  # identical problem must take identical iterations
+
+    cache = init(
+        prob, PseudoTransient(; alpha_initial = 1.0e-2, mass_matrix = Diagonal([2.0, 3.0]));
+        abstol = 1.0e-10
+    )
+    dc = cache.descent_cache.damping_fn_cache
+    D₀ = copy(dc.D)
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test !(dc.D ≈ D₀)
+    reinit!(cache, [1.0, 1.0]; p = 2.0)
+    @test dc.D ≈ D₀
+end
+
 # A mass matrix whose size does not match the number of unknowns must error clearly rather
 # than reading out of bounds.
 @testset "size-mismatched mass matrix errors" begin

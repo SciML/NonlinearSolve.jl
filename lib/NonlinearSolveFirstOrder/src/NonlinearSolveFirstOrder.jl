@@ -1,3 +1,22 @@
+"""
+    NonlinearSolveFirstOrder
+
+First-order nonlinear and nonlinear least-squares solver algorithms.
+
+This subpackage implements Newton, Gauss-Newton, trust-region, pseudo-transient,
+and related algorithms that are re-exported by NonlinearSolve.jl. Users typically
+load `NonlinearSolve` and pass these algorithms to `solve`; solver-package authors
+may depend on this package directly when they need the first-order implementations.
+
+### Example
+
+```julia
+using NonlinearSolveFirstOrder, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveFirstOrder
 
 using ConcreteStructs: @concrete

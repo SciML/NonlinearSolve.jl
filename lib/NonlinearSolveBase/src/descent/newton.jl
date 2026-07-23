@@ -63,7 +63,7 @@ function InternalAPI.init(
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
     @bb δu = similar(u)
-    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:N) do i
+    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
             @bb δu_ = similar(u)
     end
     normal_form = needs_square_A(alg.linsolve, u)

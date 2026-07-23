@@ -87,6 +87,7 @@ else
             @time @safetestset "HomotopySweep secant predictor reduces corrector work" include("Core/homotopy_sweep_tests__item20.jl")
             @time @safetestset "HomotopySweep regrows the step after bisecting a hard region" include("Core/homotopy_sweep_tests__item21.jl")
             @time @safetestset "Continuation drivers return concretely-typed solutions (no Any-typed original)" include("Core/homotopy_sweep_tests__item22.jl")
+            @time @safetestset "Kantorovich homotopy controller" include("Core/kantorovich_homotopy_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation construction + defaults" include("Core/arclength_tests__item1.jl")
             @time @safetestset "ArcLengthContinuation happy path (fold-free, matches sweep)" include("Core/arclength_tests__item2.jl")
             @time @safetestset "ArcLengthContinuation rounds a fold (non-monotone λ)" include("Core/arclength_tests__item3.jl")
@@ -104,7 +105,8 @@ else
             @time @safetestset "PolyAlgorithm best-subalgorithm retention (reinit! retain_best)" include("Core/polyalg_retention_tests__item1.jl")
             @time @safetestset "Homotopy drivers retain the winning inner subalgorithm" include("Core/homotopy_retention_tests__item1.jl")
             @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
-            return @time @safetestset "HomotopyPolyAlgorithm warm sweep→fallback handoff" include("Core/homotopy_polyalg_tests__item2.jl")
+            @time @safetestset "HomotopyPolyAlgorithm warm sweep→fallback handoff" include("Core/homotopy_polyalg_tests__item2.jl")
+            return @time @safetestset "HomotopyProblem + standard nonlinear alg routes to continuation" include("Core/homotopy_polyalg_tests__item3.jl")
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()

@@ -7,7 +7,14 @@ not the recommended user-facing API for solving nonlinear systems.
 ## Developer API Namespace
 
 ```@docs
+NonlinearSolveBase
 NonlinearSolveBase.InternalAPI
+```
+
+## SCC Interface
+
+```@docs
+SCCNonlinearSolve.scc_solve_up
 ```
 
 ## Solvers

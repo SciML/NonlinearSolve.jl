@@ -1,10 +1,23 @@
 using SciMLTesting, NonlinearSolveSciPy, Test
 using JET
 
+const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
+
+const SCIPY_EXTERNAL_REEXPORTS = union(
+    public_api_names(NonlinearSolveSciPy.SciMLBase),
+    (:SciMLBase,),
+)
+
 run_qa(
     NonlinearSolveSciPy;
     explicit_imports = true,
     jet_kwargs = (; target_defined_modules = true),
+    api_docs_kwargs = (;
+        rendered = true,
+        docs_src = NONLINEARSOLVE_DOCS_SRC,
+        ignore = SCIPY_EXTERNAL_REEXPORTS,
+        rendered_ignore = SCIPY_EXTERNAL_REEXPORTS,
+    ),
     # persistent_tasks: intermittently errors on Julia >=1.11 because the registered
     # NonlinearSolveBase ships a leaked `[sources]` (SciMLJacobianOperators =
     # {path = "../SciMLJacobianOperators"}) that Pkg >=1.11 honors during Aqua's

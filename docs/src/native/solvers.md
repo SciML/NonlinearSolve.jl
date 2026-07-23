@@ -54,6 +54,7 @@ LimitedMemoryBroyden
 
 ```@docs
 HomotopySweep
+KantorovichHomotopy
 ArcLengthContinuation
 HomotopyPolyAlgorithm
 ```
@@ -81,6 +82,14 @@ NonlinearSolvePolyAlgorithm
 FastShortcutNonlinearPolyalg
 FastShortcutNLLSPolyalg
 RobustMultiNewton
+```
+
+## Solver Subpackages
+
+```@docs
+NonlinearSolveFirstOrder
+NonlinearSolveQuasiNewton
+NonlinearSolveSpectralMethods
 ```
 
 ## Advanced Solvers
