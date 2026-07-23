@@ -1,4 +1,5 @@
 using NonlinearSolveBase, SciMLBase, RespecializeParams, ForwardDiff, Test
+using SymbolicIndexingInterface: SymbolCache
 
 # An `isbits` struct parameter. Under `AutoDePSpecialize`, `get_concrete_problem`
 # should pack `p` into a `RespecializeParams.OpaqueParams` and wrap the residual
@@ -74,6 +75,26 @@ u0 = [1.0, 1.0]
         fvec!(res, u, p::Vector{Float64}) = (res[1] = u[1]^2 - p[1]; nothing)
         cpv = concretize(deprob(fvec!, u0, [2.0]))
         @test cpv.p isa RespecializeParams.OpaqueRef
+    end
+
+    @testset "symbolic-system problems are declined (MTK safety)" begin
+        # A problem whose `f` carries a symbolic system (`has_sys`, as every
+        # ModelingToolkit problem does) must NOT be opaque-ified: its `p` has to
+        # stay concrete for initialization and symbolic parameter indexing.
+        # `SymbolCache` stands in for an MTK `System` without the dependency.
+        fsym!(res, u, p) = (res[1] = u[1]^2 - 2.0; res[2] = u[2]^2 - 3.0; nothing)
+        ff = NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+            fsym!; sys = SymbolCache([:x, :y], [:a, :b])
+        )
+        @test SciMLBase.has_sys(ff)
+
+        cp = concretize(NonlinearProblem(ff, u0, VecQ([2.0])))   # non-isbits p
+        @test cp.p isa VecQ
+        @test !(cp.p isa RespecializeParams.OpaqueRef)
+
+        cpi = concretize(NonlinearProblem(ff, u0, DePP(2.0, 3.0)))  # isbits p
+        @test cpi.p isa DePP
+        @test !(cpi.p isa RespecializeParams.OpaqueParams)
     end
 
     @testset "already-packed p is not re-wrapped (idempotent)" begin
