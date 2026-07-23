@@ -101,6 +101,26 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
+    # AutoDePSpecialize opaque-p path: an isbits `p` packs into an `OpaqueParams`
+    # and a non-isbits `p` into an `OpaqueRef`. Each container gives a single
+    # wrapped-residual signature shared across all parameter types of that kind,
+    # so precompiling one solve per container lets first solves with struct/array
+    # parameters skip compilation entirely.
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ), [0.1], (a = 2.0,)
+        )
+    )
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ), [0.1], [2.0]
+        )
+    )
+
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
