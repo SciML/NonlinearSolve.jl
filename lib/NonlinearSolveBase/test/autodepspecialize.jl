@@ -17,6 +17,10 @@ struct DePP2
 end
 resid_dep2!(res, u, q::DePP2) = (res[1] = u[1]^2 - q.x; res[2] = u[2]^2 - q.y; nothing)
 
+struct VecQ
+    c::Vector{Float64}
+end
+
 deprob(f, u0, p) = NonlinearProblem(
     NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(f), u0, p
 )
@@ -55,10 +59,28 @@ u0 = [1.0, 1.0]
         @test cp.p isa SciMLBase.NullParameters
     end
 
-    @testset "non-isbits p is not opaque-ified (plain wrap fallback)" begin
+    @testset "non-isbits p is de-specialized via OpaqueRef" begin
+        # non-isbits struct (Vector field) → packed by reference into an OpaqueRef
+        fvecp!(res, u, p::VecQ) = (res[1] = u[1]^2 - p.c[1]; nothing)
+        cp = concretize(deprob(fvecp!, u0, VecQ([2.0])))
+        @test cp.p isa RespecializeParams.OpaqueRef
+        @test cp.f.f isa NonlinearSolveBase.AutoDePSpecializeCallable
+        res = [0.0]
+        cp.f.f(res, [3.0], cp.p)
+        @test res[1] ≈ 9.0 - 2.0
+        @test RespecializeParams.unpack(cp.p, VecQ).c == [2.0]
+
+        # a bare Vector parameter is likewise de-specialized into an OpaqueRef
         fvec!(res, u, p::Vector{Float64}) = (res[1] = u[1]^2 - p[1]; nothing)
-        cp = concretize(deprob(fvec!, u0, [2.0]))
-        @test cp.p isa Vector{Float64}
+        cpv = concretize(deprob(fvec!, u0, [2.0]))
+        @test cpv.p isa RespecializeParams.OpaqueRef
+    end
+
+    @testset "already-packed p is not re-wrapped (idempotent)" begin
+        cp = concretize(deprob(resid_dep!, u0, DePP(2.0, 3.0)))
+        cp2 = concretize(cp)
+        @test cp2.p isa RespecializeParams.OpaqueParams
+        @test typeof(cp2.f.f) === typeof(cp.f.f)
     end
 
     @testset "different struct p types share the wrapped-residual type" begin
