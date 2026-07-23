@@ -68,6 +68,8 @@ run_tests(;
             @test outp === adp
         end
 
+        @safetestset "AutoDePSpecialize opaque-p" include("autodepspecialize.jl")
+
         @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
             # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
             # builds Dual-eltype signatures via `similar(u0, ::DualT)`, so it works

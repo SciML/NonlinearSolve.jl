@@ -8,6 +8,7 @@ using FastClosures: @closure
 using ForwardDiff: ForwardDiff, Dual, pickchunksize
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
+import RespecializeParams
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, IntervalNonlinearProblem,
     NonlinearProblem, NonlinearLeastSquaresProblem, ImmutableNonlinearProblem, remake
 using Setfield: @set
@@ -109,6 +110,23 @@ end
         Tuple{VdT, VdT, T3},
         Tuple{VdT, VdT, VdT},
         Tuple{VdT, T2, VdT},
+    )
+end
+
+# Opaque-`p` variant of `wrapfun_iip` for the AutoDePSpecialize path: same
+# dual-aware shapes as above but with the parameter slot de-specialized to
+# `RespecializeParams.OpaqueParams` (via `wrap_void_opaque`, which substitutes
+# the third slot). `p` is never a `Dual` on this path (opaque-ification is
+# skipped for dual state/params), so only the plain and Jacobian-`Dual`-`u`
+# signatures are needed.
+@inline function NonlinearSolveBase.wrapfun_iip_opaque(
+        ff, ::Type{P}, inputs::Tuple{T1, T2, T3}
+    ) where {P, T1 <: AbstractArray, T2 <: AbstractArray, T3}
+    T = eltype(T1)
+    dT = dualgen(T)
+    VdT = typeof(similar(inputs[1], dT))
+    return RespecializeParams.wrap_void_opaque(
+        ff, P, (Tuple{T1, T2, T3}, Tuple{VdT, VdT, T3})
     )
 end
 
