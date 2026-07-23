@@ -90,3 +90,49 @@ function FastShortcutNonlinearPolyalg(
     end
     return NonlinearSolvePolyAlgorithm(algs; start_index)
 end
+
+"""
+    FastShortcutHomotopyPolyalg(
+        ::Type{T} = Float64;
+        autodiff = nothing, concrete_jac = nothing, linsolve = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing,
+        warm_handoff::Bool = true, store_original::Val = Val(false)
+    ) where {T}
+
+The recommended default [`HomotopyPolyAlgorithm`](@ref) for solving a
+[`SciMLBase.HomotopyProblem`](@ref) — e.g. a Modelica `homotopy(actual, simplified)`
+initialization system — by continuation. It is the homotopy analogue of
+[`FastShortcutNonlinearPolyalg`](@ref): a fast [`HomotopySweep`](@ref) (natural-parameter
+continuation) escalating to a robust [`ArcLengthContinuation`](@ref) (pseudo-arclength) on
+failure, with a [`FastShortcutNonlinearPolyalg`](@ref) built from the requested `autodiff`
+threaded in as the *inner corrector* of both stages.
+
+Solving a `HomotopyProblem` with a plain nonlinear algorithm instead fixes ``λ`` at the
+target and solves only the `actual` system, which can converge to the wrong branch. This
+sweeps ``λ`` from the `simplified` anchor to the `actual` system, tracking the intended
+branch.
+
+### Arguments
+
+  - `T`: the eltype of the initial guess, forwarded to the inner
+    [`FastShortcutNonlinearPolyalg`](@ref). Defaults to `Float64`.
+
+### Keyword Arguments
+
+  - `autodiff`, `concrete_jac`, `linsolve`, `vjp_autodiff`, `jvp_autodiff`: forwarded to the
+    inner [`FastShortcutNonlinearPolyalg`](@ref) that corrects each continuation step — this
+    is where the differentiation backend is chosen. A `HomotopyProblem` whose residual is not
+    ForwardDiff-safe is solved by passing `autodiff = AutoFiniteDiff()`.
+  - `warm_handoff`, `store_original`: forwarded to [`HomotopyPolyAlgorithm`](@ref).
+"""
+function FastShortcutHomotopyPolyalg(
+        ::Type{T} = Float64;
+        autodiff = nothing, concrete_jac = nothing, linsolve = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing,
+        warm_handoff::Bool = true, store_original::Val = Val(false)
+    ) where {T}
+    inner = FastShortcutNonlinearPolyalg(
+        T; autodiff, concrete_jac, linsolve, vjp_autodiff, jvp_autodiff
+    )
+    return HomotopyPolyAlgorithm(; inner, warm_handoff, store_original)
+end

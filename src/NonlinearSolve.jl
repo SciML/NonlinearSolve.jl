@@ -151,7 +151,7 @@ end
 @reexport using LinearSolve
 
 # Poly Algorithms
-export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg
+export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutHomotopyPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,
