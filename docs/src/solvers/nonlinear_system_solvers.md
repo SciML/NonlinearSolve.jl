@@ -21,6 +21,14 @@ attempts a set of the most robust methods in succession and only fails if all of
 fail to converge. Additionally, [`DynamicSS`](@ref) can be a good choice for high stability
 if the root corresponds to a stable equilibrium.
 
+For ill-conditioned problems where even the robust Newton-type methods diverge — such as
+power-flow equations — [`SICNM`](@ref) (the semi-implicit continuous Newton method) is a
+strong fallback. It reformulates `f(u) = 0` as a differential-algebraic equation whose
+equilibrium is the root and drives it to steady state with a stiffly stable ODE solver, so
+it converges from starting points where a direct Newton step would overshoot the basin of
+attraction. It is more expensive per solve than the direct methods, so it is best reserved
+for the hard, ill-conditioned cases rather than used as a default.
+
 As a balance, [`NewtonRaphson`](@ref) is a good choice for most problems that aren't too
 difficult yet need high performance, and  [`TrustRegion`](@ref) is a bit less performant but
 more stable. If the problem is well-conditioned, [`Klement`](@ref) or [`Broyden`](@ref) may
@@ -121,6 +129,13 @@ often more computationally expensive than direct methods.
     terminates when close to the steady state.
   - [`SSRootfind()`](@ref): Uses a NonlinearSolve compatible solver to find the steady
     state.
+  - [`SICNM()`](@ref): The semi-implicit continuous Newton method. Reformulates the
+    nonlinear system as a differential-algebraic equation, `ẏ = z, 0 = J(y) z + f(y)`, and
+    integrates it to steady state with a stiffly stable ODE solver. Highly robust on
+    ill-conditioned problems where Newton-type methods diverge (e.g. power flow); more
+    expensive than direct methods, so best used as a robustness fallback. The recommended
+    ODE engine is `Rodas3d` (constructed for this method) or another stiffly accurate
+    Rosenbrock method such as `Rodas5P`: `SICNM(Rodas3d())`.
 
 ### NLsolve.jl
 

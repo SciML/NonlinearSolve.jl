@@ -22,4 +22,5 @@ Pages = ["steadystatediffeq.md"]
 ```@docs
 DynamicSS
 SSRootfind
+SICNM
 ```
