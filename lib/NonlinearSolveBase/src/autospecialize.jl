@@ -219,12 +219,26 @@ end
 """
     should_opaque_p(p) -> Bool
 
-Policy for whether the AutoDePSpecialize path de-specializes `p`: `true` for an
-`isbits` non-`NullParameters` payload, `false` otherwise. Defined locally rather
-than taken from SciMLBase so this does not depend on an unreleased SciMLBase
-symbol.
+Policy for whether the AutoDePSpecialize path de-specializes `p`: `true` for any
+payload except a `NullParameters` sentinel or an already-packed container.
+`isbits` payloads pack into a `RespecializeParams.OpaqueParams` (byte copy),
+everything else into a `RespecializeParams.OpaqueRef` (by reference). Defined
+locally rather than taken from SciMLBase so this does not depend on an unreleased
+SciMLBase symbol.
+
+De-specializing makes the concretized `prob.p` an opaque container, so the level
+is a forward-solve latency tool: reverse-mode AD of `p` and symbolic parameter
+indexing read the concrete parameter and are not supported (reverse-mode support
+is a planned follow-up). Recover the payload with
+`RespecializeParams.unpack(sol.prob.p, typeof(p))`.
+
+Problems carrying a symbolic system (`SciMLBase.has_sys(prob.f)`, e.g.
+ModelingToolkit) are declined in [`maybe_opaque_wrap`] rather than here, since
+that policy needs the function, not just `p`: their `p` must stay concrete for
+initialization and symbolic indexing.
 """
-@inline should_opaque_p(p) = isbits(p) && !(p isa SciMLBase.NullParameters)
+@inline should_opaque_p(p) = !(p isa SciMLBase.NullParameters) &&
+    !(p isa RespecializeParams.OpaqueParams) && !(p isa RespecializeParams.OpaqueRef)
 
 """
     AutoDePSpecializeCallable{FW}
@@ -287,11 +301,17 @@ function maybe_opaque_wrap(prob::AbstractNonlinearProblem)
     u0 isa AbstractArray || return nothing
     SciMLBase.isdualtype(eltype(u0)) && return nothing
     should_opaque_p(p) || return nothing
+    # Symbolic-system problems (`has_sys`, e.g. ModelingToolkit): decline. Their
+    # `p` (MTKParameters) must stay concrete for the initialization pipeline and
+    # symbolic parameter indexing; an opaque container breaks both. They gain
+    # nothing (structured params are non-isbits and already type-uniform), so
+    # falling back to the normal specialization is the correct no-op.
+    SciMLBase.has_sys(prob.f) && return nothing
 
     P = typeof(p)
     orig = prob.f.f
     fw = wrapfun_iip_opaque(orig, P, (u0, u0, p))
     newprob = @set prob.f.f = AutoDePSpecializeCallable{typeof(fw)}(fw, orig, P)
-    @set! newprob.p = RespecializeParams.pack(p)
+    @set! newprob.p = RespecializeParams.pack_auto(p)
     return newprob
 end

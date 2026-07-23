@@ -48,6 +48,25 @@ include("solve.jl")
         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
     end
 
+    # AutoDePSpecialize opaque-p path: an isbits `p` packs into an `OpaqueParams`
+    # and a non-isbits `p` into an `OpaqueRef`, each a single wrapped-residual
+    # signature shared across all parameter types of that kind, so one
+    # precompiled solve per container serves first solves with struct/array `p`.
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ), [0.1], (a = 2.0,)
+        )
+    )
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ), [0.1], [2.0]
+        )
+    )
+
     algs = [DFSane()]
 
     @compile_workload begin
