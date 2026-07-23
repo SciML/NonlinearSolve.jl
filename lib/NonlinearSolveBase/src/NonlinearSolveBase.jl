@@ -32,6 +32,7 @@ using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
+import RespecializeParams
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
 using CommonSolve: CommonSolve, init

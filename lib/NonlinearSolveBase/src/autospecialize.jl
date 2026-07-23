@@ -94,9 +94,24 @@ This should be called early in `__init` so that all downstream AD-related constr
 (Jacobian cache, trust region operators, linesearch, forcing) receive the unwrapped problem.
 """
 function maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
-    is_fw_wrapped(prob.f.f) || return prob
+    f = prob.f.f
+    is_fw_wrapped(f) || return prob
+    # For the opaque path, Enzyme cannot differentiate through the OpaqueParams
+    # byte unpacking, so fully revert: raw residual + the concrete `p` unpacked
+    # from the opaque container.
+    if f isa AutoDePSpecializeCallable
+        for ad in autodiffs
+            if _uses_enzyme_ad(ad)
+                P = _autodep_paramtype(f)
+                rawp = RespecializeParams.unpack(prob.p, P)
+                prob = @set prob.f.f = f.orig
+                return @set prob.p = rawp
+            end
+        end
+        return prob
+    end
     for ad in autodiffs
-        _uses_enzyme_ad(ad) && return @set prob.f.f = get_raw_f(prob.f.f)
+        _uses_enzyme_ad(ad) && return @set prob.f.f = get_raw_f(f)
     end
     return prob
 end
@@ -171,11 +186,112 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # `nodual_value`.
     SciMLBase.isdualtype(eltype(u0)) && return prob.f.f
 
-    # Only wrap when AutoSpecialize is active (the default).
+    # Only wrap when AutoSpecialize (the default) or AutoDePSpecialize is active.
     # FullSpecialize opts out of wrapping, keeping the exact function type.
-    SciMLBase.specialization(prob.f) === SciMLBase.AutoSpecialize || return prob.f.f
+    # (The opaque-`p` sub-case of AutoDePSpecialize is handled earlier in
+    # `maybe_wrap_f` via `maybe_opaque_wrap`; reaching here under
+    # AutoDePSpecialize means `p` was not opaque-ified, so wrap like
+    # AutoSpecialize.)
+    spec = SciMLBase.specialization(prob.f)
+    (spec === SciMLBase.AutoSpecialize || spec === SciMLBase.AutoDePSpecialize) ||
+        return prob.f.f
 
     orig = prob.f.f
     inputs = (u0, u0, p)
     return AutoSpecializeCallable(wrapfun_iip(orig, inputs), orig)
+end
+
+# ---------------------------------------------------------------------------
+# AutoDePSpecialize: de-specialize the parameter object.
+#
+# When `p` is an `isbits` non-`NullParameters` payload, pack it into a
+# `RespecializeParams.OpaqueParams` container and wrap the residual so its
+# `FunctionWrappersWrapper` signature carries `OpaqueParams` in the `p` slot
+# (via `RespecializeParams.OpaqueVoid`). The concretized problem type — and the
+# solver compilation — becomes independent of the user's parameter struct type,
+# so one precompiled solve is shared across all such types, while the residual
+# still runs fully specialized on `p` (recovered by a type-stable,
+# allocation-free unpack). Mirrors DiffEqBase's AutoDePSpecialize path; the
+# marker and the mechanism (`OpaqueVoid`, `wrap_void_opaque`) are shared with
+# it via SciMLBase and RespecializeParams.
+# ---------------------------------------------------------------------------
+
+"""
+    should_opaque_p(p) -> Bool
+
+Policy for whether the AutoDePSpecialize path de-specializes `p`: `true` for an
+`isbits` non-`NullParameters` payload, `false` otherwise. Defined locally rather
+than taken from SciMLBase so this does not depend on an unreleased SciMLBase
+symbol.
+"""
+@inline should_opaque_p(p) = isbits(p) && !(p isa SciMLBase.NullParameters)
+
+"""
+    AutoDePSpecializeCallable{FW}
+
+Like [`AutoSpecializeCallable`](@ref) but for the AutoDePSpecialize path: `fw` is
+a `FunctionWrappersWrapper` whose signatures carry `RespecializeParams.OpaqueParams`
+in the parameter slot, `orig` is the raw user residual, and `ptype` records the
+concrete parameter type so fallback paths can unpack the opaque container back to
+it. Both `orig` and `ptype` are type-erased fields (not type parameters) so the
+callable's Julia type is `FW` only — problems whose parameter struct types differ
+share the same `AutoDePSpecializeCallable{FW}`, which is the whole point.
+"""
+struct AutoDePSpecializeCallable{FW}
+    fw::FW
+    orig::Any     # type-erased so all wrapped residuals share one Julia type
+    ptype::DataType
+end
+
+@inline (f::AutoDePSpecializeCallable)(args...) = f.fw(args...)
+
+is_fw_wrapped(::AutoDePSpecializeCallable) = true
+
+# A non-FunctionWrapper callable that still accepts the OpaqueParams `p`: it
+# unpacks to the concrete `ptype` and forwards to the raw residual. Used by
+# AD/DI fallbacks that need a differentiable callable rather than the wrapper.
+get_raw_f(f::AutoDePSpecializeCallable) = RespecializeParams.OpaqueVoid(f.ptype, f.orig)
+
+_autodep_paramtype(f::AutoDePSpecializeCallable) = f.ptype
+
+# Base (no ForwardDiff) opaque wrapper: single-signature. The ForwardDiff
+# extension overrides this with the dual-aware variants.
+function wrapfun_iip_opaque(ff, ::Type{P}, inputs::Tuple) where {P}
+    sig = Tuple{typeof(inputs[1]), typeof(inputs[2]), typeof(inputs[3])}
+    return RespecializeParams.wrap_void_opaque(ff, P, (sig,))
+end
+
+"""
+    maybe_opaque_wrap(prob) -> prob or nothing
+
+If `prob` opts into `AutoDePSpecialize` and its `p` is opaque-able, return a copy
+of `prob` with the residual wrapped through `OpaqueVoid` and `p` packed into an
+`OpaqueParams`. Otherwise return `nothing` (the caller then falls back to the
+plain [`maybe_wrap_nonlinear_f`](@ref) path).
+
+Scoped to in-place `NonlinearProblem`/`ImmutableNonlinearProblem` with array,
+non-dual state, outside Enzyme AD. `NonlinearLeastSquaresProblem` and the
+Enzyme/dual paths keep the existing behavior; recovering the original `p` from a
+solved problem's `sol.prob.p` is `RespecializeParams.unpack(sol.prob.p, P)`.
+"""
+function maybe_opaque_wrap(prob::AbstractNonlinearProblem)
+    SciMLBase.specialization(prob.f) === SciMLBase.AutoDePSpecialize || return nothing
+    EnzymeCore.within_autodiff() && return nothing
+    is_fw_wrapped(prob.f.f) && return nothing
+    (prob isa NonlinearProblem || prob isa SciMLBase.ImmutableNonlinearProblem) ||
+        return nothing
+    SciMLBase.isinplace(prob) || return nothing
+
+    u0 = prob.u0
+    p = prob.p
+    u0 isa AbstractArray || return nothing
+    SciMLBase.isdualtype(eltype(u0)) && return nothing
+    should_opaque_p(p) || return nothing
+
+    P = typeof(p)
+    orig = prob.f.f
+    fw = wrapfun_iip_opaque(orig, P, (u0, u0, p))
+    newprob = @set prob.f.f = AutoDePSpecializeCallable{typeof(fw)}(fw, orig, P)
+    @set! newprob.p = RespecializeParams.pack(p)
+    return newprob
 end

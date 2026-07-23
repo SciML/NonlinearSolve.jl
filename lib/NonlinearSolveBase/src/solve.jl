@@ -834,6 +834,9 @@ function _solve_forward(
 end
 
 function maybe_wrap_f(prob::AbstractNonlinearProblem)
+    # AutoDePSpecialize opaque-`p` path (packs `p` + wraps `f` together).
+    opaque = maybe_opaque_wrap(prob)
+    opaque === nothing || return opaque
     wrapped_f = maybe_wrap_nonlinear_f(prob)
     wrapped_f === prob.f.f && return prob
     @set! prob.f.f = wrapped_f
