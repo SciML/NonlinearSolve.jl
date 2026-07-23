@@ -1,6 +1,6 @@
 """
     HomotopyPolyAlgorithm(algs::Tuple; warm_handoff = true, store_original = Val(false))
-    HomotopyPolyAlgorithm(; warm_handoff = true, store_original = Val(false))
+    HomotopyPolyAlgorithm(; inner = nothing, warm_handoff = true, store_original = Val(false))
 
 A polyalgorithm for [`SciMLBase.HomotopyProblem`](@ref): a container for a tuple of
 continuation algorithms that are tried in order until one returns a solution with a
@@ -73,6 +73,11 @@ below) — by default it is dropped so the returned solution stays concretely ty
 
 ### Keyword Arguments
 
+  - `inner`: an inner nonlinear algorithm threaded into both default stages
+    ([`HomotopySweep`](@ref) and [`ArcLengthContinuation`](@ref)) as their corrector, so a
+    `HomotopyProblem` is continued with that specific algorithm — e.g. one carrying a chosen
+    autodiff backend. `nothing` (default) leaves each stage its own default inner. Ignored
+    when `algs` is passed explicitly.
   - `warm_handoff`: when `true` (default), a stage following a partway-failed
     [`HomotopySweep`](@ref) or [`KantorovichHomotopy`](@ref) first attempts the remaining
     `(λ_h, λspan[2])` stretch from the natural-parameter stage's last accepted iterate
@@ -111,11 +116,14 @@ function HomotopyPolyAlgorithm(
 end
 
 function HomotopyPolyAlgorithm(;
-        warm_handoff::Bool = true, store_original::Val = Val(false)
+        inner = nothing, warm_handoff::Bool = true, store_original::Val = Val(false)
     )
-    return HomotopyPolyAlgorithm(
-        (HomotopySweep(), ArcLengthContinuation()); warm_handoff, store_original
-    )
+    # `inner` threads a shared inner corrector into the default stages — used to solve a
+    # `HomotopyProblem` by continuation with a specific inner algorithm (e.g. one carrying a
+    # chosen autodiff backend). `nothing` keeps each stage's own default inner.
+    sweep = inner === nothing ? HomotopySweep() : HomotopySweep(; inner)
+    arclength = inner === nothing ? ArcLengthContinuation() : ArcLengthContinuation(; inner)
+    return HomotopyPolyAlgorithm((sweep, arclength); warm_handoff, store_original)
 end
 
 # Step-size *caps* of the bundled continuation stages are fractions of the λspan
