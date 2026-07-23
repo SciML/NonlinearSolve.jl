@@ -57,6 +57,7 @@ HomotopySweep
 KantorovichHomotopy
 ArcLengthContinuation
 HomotopyPolyAlgorithm
+FastShortcutHomotopyPolyalg
 ```
 
 ## Nonlinear Least Squares Solvers
