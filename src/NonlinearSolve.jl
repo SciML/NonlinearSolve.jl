@@ -10,7 +10,7 @@ using CommonSolve: CommonSolve, init, solve, solve!
 using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-    NonlinearSolvePolyAlgorithm, pickchunksize, NonlinearVerbosity
+    NonlinearSolvePolyAlgorithm, HomotopyPolyAlgorithm, pickchunksize, NonlinearVerbosity
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
     NonlinearFunction,

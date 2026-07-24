@@ -13,9 +13,31 @@ const NONLINEARSOLVE_EXTERNAL_REEXPORTS = union(
     (:ADTypes, :SciMLBase, :LineSearch, :LinearSolve),
 )
 
+# NonlinearSolve is a facade: it deliberately re-exports the whole solver stack, so every
+# public name of a sublibrary (and the sublibrary module names themselves) is an intended
+# public re-export rather than an accidental one. This is the allow-list for
+# `check_reexports`; the external re-exports above are intended in the same way.
+const NONLINEARSOLVE_SUBLIBRARY_REEXPORTS = union(
+    public_api_names(NonlinearSolve.NonlinearSolveBase),
+    public_api_names(NonlinearSolve.NonlinearSolveFirstOrder),
+    public_api_names(NonlinearSolve.NonlinearSolveSpectralMethods),
+    public_api_names(NonlinearSolve.NonlinearSolveQuasiNewton),
+    public_api_names(NonlinearSolve.SimpleNonlinearSolve),
+    public_api_names(NonlinearSolve.BracketingNonlinearSolve),
+    (
+        :NonlinearSolveBase, :NonlinearSolveFirstOrder, :NonlinearSolveSpectralMethods,
+        :NonlinearSolveQuasiNewton, :SimpleNonlinearSolve, :BracketingNonlinearSolve,
+    ),
+)
+
+const NONLINEARSOLVE_ALLOWED_REEXPORTS = union(
+    NONLINEARSOLVE_EXTERNAL_REEXPORTS, NONLINEARSOLVE_SUBLIBRARY_REEXPORTS
+)
+
 run_qa(
     NonlinearSolve;
     explicit_imports = true,
+    reexports_allow = NONLINEARSOLVE_ALLOWED_REEXPORTS,
     aqua_kwargs = (;
         # stale_deps / deps_compat are checked on the SimpleNonlinearSolve facade
         # below (with the SciMLJacobianOperators ignore); persistent_tasks stays off
@@ -28,6 +50,9 @@ run_qa(
             treat_as_own = [
                 NonlinearProblem, NonlinearLeastSquaresProblem,
                 SciMLBase.AbstractNonlinearProblem,
+                # `initialization_alg` is dispatched here for the continuation problem
+                # type too, alongside the `AbstractNonlinearProblem` method above.
+                SciMLBase.HomotopyProblem,
                 SimpleNonlinearSolve.AbstractSimpleNonlinearSolveAlgorithm,
             ],
         ),
