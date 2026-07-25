@@ -121,10 +121,9 @@ include("forward_diff.jl")
     # AutoDePSpecialize opaque-p path. Both containers are covered: an isbits `p`
     # packs into an `OpaqueParams` and a non-isbits `p` into an `OpaqueRef`, each
     # a single wrapped-residual signature shared across every parameter type of
-    # its kind. These go through the polyalgorithm / no-algorithm sweeps below as
-    # well as the per-algorithm ones, since `solve(prob)` runs default algorithm
-    # selection — a separate code path from `solve(prob, alg)`.
-    depspecialize_problems = NonlinearProblem[
+    # its kind.
+    push!(
+        nonlinear_problems,
         NonlinearProblem(
             NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
                 (du, u, p) -> (du .= u .* u .- p.a)
@@ -132,6 +131,9 @@ include("forward_diff.jl")
             [0.1],
             (a = 2.0,),
         ),
+    )
+    push!(
+        nonlinear_problems,
         NonlinearProblem(
             NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
                 (du, u, p) -> (du .= u .* u .- p[1])
@@ -139,8 +141,7 @@ include("forward_diff.jl")
             [0.1],
             [2.0],
         ),
-    ]
-    append!(nonlinear_problems, depspecialize_problems)
+    )
 
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
@@ -167,10 +168,12 @@ include("forward_diff.jl")
 
             # `solve(prob)` with no keyword arguments is a distinct
             # specialization from the kwarg-carrying calls above (the keyword
-            # NamedTuple's type participates), and it is what most user code
-            # writes. Measured on an opaque-p problem: 0.61s for the kwarg form
-            # against 1.68s bare, before this sweep was added.
-            for prob in depspecialize_problems
+            # NamedTuple's type participates), and it is the form most user code
+            # writes, so every problem gets a bare sweep too.
+            for prob in nonlinear_problems
+                Threads.@spawn CommonSolve.solve(prob)
+            end
+            for prob in nlls_problems
                 Threads.@spawn CommonSolve.solve(prob)
             end
         end
