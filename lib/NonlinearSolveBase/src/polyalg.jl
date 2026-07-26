@@ -132,8 +132,6 @@ end
 function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
     return NonlinearSolveBase.get_reltol(cache.caches[cache.current])
 end
-# A polyalgorithm cache holds `u`/`fu` on its active subcache rather than at top level,
-# so the generic `cache.u`/`cache.fu` fallbacks throw. Delegate to the active subcache.
 function NonlinearSolveBase.get_u(cache::NonlinearSolvePolyAlgorithmCache)
     return NonlinearSolveBase.get_u(cache.caches[cache.current])
 end
@@ -211,10 +209,6 @@ function InternalAPI.reinit!(
     end
     InternalAPI.reinit!(cache.stats)
     cache.nsteps = 0
-    # A converged solve leaves `force_stop`/`retcode` set; `solve!` drives the subcaches
-    # directly and is unaffected, but `not_terminated` (and thus `step!`-based drivers)
-    # reads them off the polyalgorithm cache, so a warm-started `reinit!` + `step!` loop
-    # would otherwise no-op immediately and reuse the stale iterate.
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     return cache.total_time = 0.0
