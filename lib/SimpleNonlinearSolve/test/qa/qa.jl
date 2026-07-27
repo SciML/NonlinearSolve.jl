@@ -6,12 +6,15 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 const SIMPLE_EXTERNAL_REEXPORTS = union(
     public_api_names(SimpleNonlinearSolve.ADTypes),
     public_api_names(SimpleNonlinearSolve.SciMLBase),
-    (:ADTypes, :SciMLBase),
+    public_api_names(SimpleNonlinearSolve.BracketingNonlinearSolve),
+    public_api_names(SimpleNonlinearSolve.NonlinearSolveBase),
+    (:ADTypes, :SciMLBase, :BracketingNonlinearSolve, :NonlinearSolveBase),
 )
 
 run_qa(
     SimpleNonlinearSolve;
     explicit_imports = true,
+    reexports_allow = SIMPLE_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),

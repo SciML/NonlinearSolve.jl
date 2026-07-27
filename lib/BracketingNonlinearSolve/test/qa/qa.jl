@@ -5,12 +5,14 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 const BRACKETING_EXTERNAL_REEXPORTS = union(
     public_api_names(BracketingNonlinearSolve.SciMLBase),
-    (:SciMLBase,),
+    public_api_names(BracketingNonlinearSolve.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
 )
 
 run_qa(
     BracketingNonlinearSolve;
     explicit_imports = true,
+    reexports_allow = BRACKETING_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),

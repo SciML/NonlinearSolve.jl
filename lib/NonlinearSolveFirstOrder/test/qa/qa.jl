@@ -4,12 +4,14 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 const FIRST_ORDER_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveFirstOrder.SciMLBase),
-    (:SciMLBase,),
+    public_api_names(NonlinearSolveFirstOrder.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
 )
 
 run_qa(
     NonlinearSolveFirstOrder;
     explicit_imports = true,
+    reexports_allow = FIRST_ORDER_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         piracies = (; treat_as_own = [NonlinearLeastSquaresProblem]),
         ambiguities = (; recursive = false),
