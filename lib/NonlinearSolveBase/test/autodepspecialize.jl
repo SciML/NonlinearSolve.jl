@@ -1,5 +1,5 @@
 using NonlinearSolveBase, SciMLBase, RespecializeParams, ForwardDiff, Test
-using SymbolicIndexingInterface: SymbolCache
+using SymbolicIndexingInterface: SymbolicIndexingInterface, SymbolCache
 
 # An `isbits` struct parameter. Under `AutoDePSpecialize`, `get_concrete_problem`
 # should pack `p` into a `RespecializeParams.OpaqueParams` and wrap the residual
@@ -38,6 +38,18 @@ u0 = [1.0, 1.0]
         res = [0.0, 0.0]
         cp.f.f(res, [2.0, 3.0], cp.p)
         @test res ≈ [4.0 - 2.0, 9.0 - 3.0]
+
+        DualT = ForwardDiff.Dual{
+            ForwardDiff.Tag{NonlinearSolveBase.NonlinearSolveTag, Float64}, Float64, 1,
+        }
+        dual_u = DualT[
+            DualT(2.0, ForwardDiff.Partials((1.0,))),
+            DualT(3.0, ForwardDiff.Partials((0.0,))),
+        ]
+        dual_res = similar(dual_u)
+        cp.f.f(dual_res, dual_u, cp.p)
+        @test ForwardDiff.value.(dual_res) ≈ res
+        @test first.(ForwardDiff.partials.(dual_res)) ≈ [4.0, 0.0]
     end
 
     @testset "AutoSpecialize / FullSpecialize leave p untouched" begin
@@ -86,7 +98,7 @@ u0 = [1.0, 1.0]
         ff = NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
             fsym!; sys = SymbolCache([:x, :y], [:a, :b])
         )
-        @test SciMLBase.has_sys(ff)
+        @test !isempty(SymbolicIndexingInterface.all_symbols(ff))
 
         cp = concretize(NonlinearProblem(ff, u0, VecQ([2.0])))   # non-isbits p
         @test cp.p isa VecQ
