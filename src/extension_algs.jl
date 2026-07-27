@@ -115,15 +115,15 @@ The keyword argument `method` can take on different value depending on which met
 `fsolve` you are calling. The standard choices of `method` are:
 
   - `:hybr`: Modified version of Powell's algorithm. Uses MINPACK routine
-    [`hybrd1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd1.c)
+    [`hybrd1`](https://devernay.github.io/cminpack/hybrd_.html)
   - `:lm`: Levenberg-Marquardt. Uses MINPACK routine
-    [`lmdif1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif1.c)
+    [`lmdif1`](https://devernay.github.io/cminpack/lmdif_.html)
   - `:lmdif`: Advanced Levenberg-Marquardt (more options available with `; kwargs...`). See
-    MINPACK routine [`lmdif`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif.c)
+    MINPACK routine [`lmdif`](https://devernay.github.io/cminpack/lmdif_.html)
     for more information
   - `:hybrd`: Advanced modified version of Powell's algorithm (more options available with
     `; kwargs...`). See MINPACK routine
-    [`hybrd`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd.c)
+    [`hybrd`](https://devernay.github.io/cminpack/hybrd_.html)
     for more information
 
 If a Jacobian is supplied as part of the [`NonlinearFunction`](@ref nonlinearfunctions),
@@ -131,11 +131,11 @@ then the following methods are allowed:
 
   - `:hybr`: Advanced modified version of Powell's algorithm with user supplied Jacobian.
     Additional arguments are available via `; kwargs...`. See MINPACK routine
-    [`hybrj`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrj.c)
+    [`hybrj`](https://devernay.github.io/cminpack/hybrj_.html)
     for more information
   - `:lm`: Advanced Levenberg-Marquardt with user supplied Jacobian. Additional arguments
     are available via `; kwargs...`. See MINPACK routine
-    [`lmder`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c)
+    [`lmder`](https://devernay.github.io/cminpack/lmder_.html)
     for more information
 
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
