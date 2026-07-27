@@ -336,6 +336,12 @@ function _run_cache_to_completion!(
 end
 
 function solve_cache!(cache::AbstractNonlinearSolveCache; step_observer = nothing)
+    applicable(InternalAPI.step!, cache) || throw(
+        ArgumentError(
+            "`solve_cache!` requires an algorithm that supports the nonlinear " *
+                "solver iterator interface."
+        )
+    )
     _run_cache_to_completion!(cache, step_observer)
     return cache.retcode
 end

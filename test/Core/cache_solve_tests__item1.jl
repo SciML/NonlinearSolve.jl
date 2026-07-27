@@ -2,6 +2,8 @@ using NonlinearSolve, SciMLBase, SymbolicIndexingInterface, Test
 using ADTypes: AutoFiniteDiff
 using NonlinearSolveBase: solve_cache!
 
+struct UnsupportedCache <: NonlinearSolveBase.AbstractNonlinearSolveCache end
+
 mutable struct StepObserver
     iterations::Int
     residual_norm::Float64
@@ -45,3 +47,5 @@ reinit!(cache, [1.0])
 allocations = cache_solve_allocations(cache, observer)
 @test SciMLBase.successful_retcode(cache.retcode)
 VERSION ≥ v"1.11" && @test allocations == 0
+
+@test_throws ArgumentError solve_cache!(UnsupportedCache())

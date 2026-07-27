@@ -72,10 +72,11 @@ Drive an initialized nonlinear solver cache to termination without constructing 
 `NonlinearSolution`.
 
 This allocation-sensitive interface is intended for nested solvers that already own a
-cache from `init`. `step_observer`, when provided, is called after every nonlinear
-iteration as `step_observer(u, fu, iteration)`. The state and residual arguments alias
-the solver cache and must not be mutated. The returned `SciMLBase.ReturnCode` reports
-the final solver status; the final state remains available through
+cache from `init` and whose algorithm supports the nonlinear solver iterator interface.
+`step_observer`, when provided, is called after every nonlinear iteration as
+`step_observer(u, fu, iteration)`. The state and residual arguments alias the solver
+cache and must not be mutated. The returned `SciMLBase.ReturnCode` reports the final
+solver status; the final state remains available through
 `SymbolicIndexingInterface.state_values(cache)`.
 
 Unlike `solve!(cache)`, this function does not transform a bounded problem's internal
