@@ -304,10 +304,18 @@ function SciMLBase.__solve(
     return sol
 end
 
-function _run_cache_to_completion!(cache::AbstractNonlinearSolveCache)
+@inline _observe_nonlinear_step!(::Nothing, cache) = nothing
+@inline function _observe_nonlinear_step!(step_observer, cache)
+    return step_observer(get_u(cache), get_fu(cache), cache.nsteps)
+end
+
+function _run_cache_to_completion!(
+        cache::AbstractNonlinearSolveCache, step_observer = nothing
+    )
     cache.retcode == ReturnCode.InitialFailure && return cache
     while not_terminated(cache)
         CommonSolve.step!(cache)
+        _observe_nonlinear_step!(step_observer, cache)
     end
 
     # The solver might have set a different `retcode`
@@ -325,6 +333,11 @@ function _run_cache_to_completion!(cache::AbstractNonlinearSolveCache)
     )
 
     return cache
+end
+
+function solve_cache!(cache::AbstractNonlinearSolveCache; step_observer = nothing)
+    _run_cache_to_completion!(cache, step_observer)
+    return cache.retcode
 end
 
 @inline function _has_bounded_wrapper(cache::AbstractNonlinearSolveCache)
