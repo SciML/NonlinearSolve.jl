@@ -60,7 +60,8 @@ residual cost from one evaluation per subalgorithm to one per subalgorithm actua
 attempted (usually just the retained one). A consequence is that the shared `stats`
 of a solution produced after mid-solve escalation only reflect the subalgorithms run
 since the last deferred reinitialization, i.e. effectively the winning subalgorithm's
-own effort.
+own effort. Updating solver options in the same `reinit!` eagerly updates every
+subcache so that later escalation observes the new values.
 """
 @concrete struct NonlinearSolvePolyAlgorithm <: AbstractNonlinearSolveAlgorithm
     static_length <: Val
@@ -175,7 +176,7 @@ const RETAIN_REPROBE_INTERVAL = 8
 
 function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0,
-        retain_best::Bool = false
+        retain_best::Bool = false, kwargs...
     )
     cache.retain_best = retain_best
     cache.retain_count = retain_best ? cache.retain_count + 1 : 0
@@ -186,19 +187,21 @@ function InternalAPI.reinit!(
     cache.start_current = cache.current
     cache.wrapped = false
     if retain_best
+        cache.deferred_u0 = u0
+        cache.deferred_p = p
+    end
+    if retain_best && isempty(kwargs)
         # Lazy subcache reinitialization: every subcache `reinit!` evaluates the
         # residual at the new `u0` (`Utils.reinit_common!`), so eagerly
         # reinitializing all N subcaches costs N residual calls per warm-started
         # solve even though a retained solve usually runs only the starting
         # subalgorithm. Reinitialize just that one here and defer the rest to the
         # moment escalation actually reaches them (`deferred_subcache_reinit!`).
-        cache.deferred_u0 = u0
-        cache.deferred_p = p
         subcache = cache.caches[cache.current]
-        InternalAPI.reinit!(subcache, args...; u = get_u(subcache), p, u0)
+        InternalAPI.reinit!(subcache, args...; u = get_u(subcache), p, u0, kwargs...)
     else
         foreach(cache.caches) do cache
-            InternalAPI.reinit!(cache, args...; u = get_u(cache), p, u0)
+            InternalAPI.reinit!(cache, args...; u = get_u(cache), p, u0, kwargs...)
         end
     end
     InternalAPI.reinit!(cache.stats)
@@ -224,6 +227,10 @@ end
 reinit_retaining!(cache, u0) = SciMLBase.reinit!(cache, u0)
 function reinit_retaining!(cache::NonlinearSolvePolyAlgorithmCache, u0)
     return SciMLBase.reinit!(cache, u0; retain_best = true)
+end
+reinit_retaining!(cache, u0, p) = SciMLBase.reinit!(cache, u0; p)
+function reinit_retaining!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
+    return SciMLBase.reinit!(cache, u0; p, retain_best = true)
 end
 
 function SciMLBase.__init(

@@ -3,6 +3,7 @@
 # subcache reinitialization, upward escalation, wrap-around floored at the
 # algorithm's `start_index`, and exact status-quo behavior when retention is off.
 using NonlinearSolve, SciMLBase
+using NonlinearSolveBase: get_abstol
 
 using Test
 
@@ -122,4 +123,17 @@ end
     sol2 = solve!(cache)
     @test SciMLBase.successful_retcode(sol2)
     @test sol2.u[1] ≈ ROOT atol = 1.0e-6
+end
+
+@testset "solver option updates reach every retained subcache" begin
+    alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), Broyden()))
+    prob = NonlinearProblem(fcubic, [0.0])
+    cache = init(prob, alg; abstol = 0.0)
+    cache.best = 2
+
+    NF[] = 0
+    reinit!(cache, [1.2]; retain_best = true, abstol = 1.0e-8)
+    @test cache.current == 2
+    @test NF[] == 2
+    @test all(subcache -> get_abstol(subcache) == 1.0e-8, cache.caches)
 end

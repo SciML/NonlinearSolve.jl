@@ -106,7 +106,10 @@ include("solve.jl")
 include("forward_diff.jl")
 
 # Unexported Public API
-@compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
+@compat(
+    public,
+    (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance, solve_cache!)
+)
 
 @compat(public, (get_abstol, get_reltol))
 @compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
