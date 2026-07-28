@@ -38,6 +38,20 @@ u0 = [1.0, 1.0]
         res = [0.0, 0.0]
         cp.f.f(res, [2.0, 3.0], cp.p)
         @test res ≈ [4.0 - 2.0, 9.0 - 3.0]
+
+        # The Jacobian shape — `Dual` state against the still-opaque `p` — is the
+        # second signature the opaque wrapper carries, and the only one AD reaches.
+        DualT = ForwardDiff.Dual{
+            ForwardDiff.Tag{NonlinearSolveBase.NonlinearSolveTag, Float64}, Float64, 1,
+        }
+        dual_u = DualT[
+            DualT(2.0, ForwardDiff.Partials((1.0,))),
+            DualT(3.0, ForwardDiff.Partials((0.0,))),
+        ]
+        dual_res = similar(dual_u)
+        cp.f.f(dual_res, dual_u, cp.p)
+        @test ForwardDiff.value.(dual_res) ≈ res
+        @test first.(ForwardDiff.partials.(dual_res)) ≈ [4.0, 0.0]
     end
 
     @testset "AutoSpecialize / FullSpecialize leave p untouched" begin

@@ -292,8 +292,7 @@ function maybe_opaque_wrap(prob::AbstractNonlinearProblem)
     SciMLBase.specialization(prob.f) === SciMLBase.AutoDePSpecialize || return nothing
     EnzymeCore.within_autodiff() && return nothing
     is_fw_wrapped(prob.f.f) && return nothing
-    (prob isa NonlinearProblem || prob isa SciMLBase.ImmutableNonlinearProblem) ||
-        return nothing
+    (prob isa NonlinearProblem || prob isa ImmutableNonlinearProblem) || return nothing
     SciMLBase.isinplace(prob) || return nothing
 
     u0 = prob.u0

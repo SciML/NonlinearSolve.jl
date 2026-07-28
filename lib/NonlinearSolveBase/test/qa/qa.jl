@@ -64,8 +64,8 @@ run_qa(
             ),
         ),
         # Still non-public in their owning packages. AbstractODEIntegrator / __init /
-        # __solve dropped here: now public in SciMLBase.
-        #   SciMLBase: ImmutableNonlinearProblem, KeywordArgError, NoDefaultAlgorithmError,
+        # __solve / ImmutableNonlinearProblem dropped here: now public in SciMLBase.
+        #   SciMLBase: KeywordArgError, NoDefaultAlgorithmError,
         #     NonSolverError, _concrete_solve_adjoint, _concrete_solve_forward, checkkwargs,
         #     extract_alg, get_concrete_p, get_concrete_u0, get_root_indp, has_kwargs,
         #     promote_u0, wrap_sol
@@ -73,17 +73,17 @@ run_qa(
         #   StaticArraysCore: StaticArray
         #   NonlinearSolveBase (own internal): NonlinearSolveForwardDiffCache,
         #     NonlinearSolveTag, Utils, is_fw_wrapped, standardize_forwarddiff_tag,
-        #     wrapfun_iip
+        #     wrapfun_iip, wrapfun_iip_opaque
         all_explicit_imports_are_public = (;
             ignore = (
-                :ImmutableNonlinearProblem, :KeywordArgError,
+                :KeywordArgError,
                 :NoDefaultAlgorithmError, :NonSolverError,
                 :_concrete_solve_adjoint, :_concrete_solve_forward, :checkkwargs,
                 :extract_alg, :get_concrete_p, :get_concrete_u0, :get_root_indp, :has_kwargs,
                 :promote_u0, :wrap_sol, :Dual, :pickchunksize,
                 :AbstractSparseMatrixCSC, :StaticArray, :NonlinearSolveForwardDiffCache,
                 :NonlinearSolveTag, :Utils, :is_fw_wrapped, :standardize_forwarddiff_tag,
-                :wrapfun_iip,
+                :wrapfun_iip, :wrapfun_iip_opaque,
             ),
         ),
     ),

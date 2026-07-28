@@ -18,7 +18,7 @@ using NonlinearSolveBase: NonlinearSolveBase, Utils, InternalAPI,
     NonlinearSolvePolyAlgorithm, NonlinearSolveForwardDiffCache,
     NonlinearSolveTag, is_fw_wrapped
 
-import NonlinearSolveBase: wrapfun_iip, standardize_forwarddiff_tag
+import NonlinearSolveBase: wrapfun_iip, wrapfun_iip_opaque, standardize_forwarddiff_tag
 
 const DI = DifferentiationInterface
 
@@ -64,17 +64,18 @@ function standardize_forwarddiff_tag(
     return _wrapped_forwarddiff_ad(eltype(prob.u0))
 end
 
-# Construct the `FunctionWrappersWrapper` bypassing the convenience constructor, mirroring
-# DiffEqBase's `_make_fww` (ext/DiffEqBaseForwardDiffExt.jl). The convenience constructor
-# builds its wrapper tuple with `map(argtypes, rettypes) do A, R; …; end`, whose closure
-# leaves `A`/`R` inferred as the join of the heterogeneous `argtypes` tuple, so the wrapper
-# type — and every cache built from the wrapped problem — widens to abstract whenever the
-# wrapped callable is one inference cannot see through: a functor such as the homotopy
-# drivers' `FixLambda` / `AugmentedHomotopy` / `HomotopyResidual` residuals (the same reason
-# DiffEqBase hit this with many-parameter `ODEFunction`s). Binding each arglist as a
-# `::Type{A}` type parameter makes `FunctionWrapper{Nothing, A}(vff)` fully inferrable, so
-# `typeof(fwt)` — and the wrapper — stays concrete. `vff` is `@nospecialize`d because it is
-# already type-erased through `Void` (that is what makes the norecompile path precompile).
+# Build the `FunctionWrapper` tuple here rather than handing `argtypes`/`rettypes` to the
+# `FunctionWrappersWrapper(f, argtypes, rettypes)` constructor, mirroring DiffEqBase's
+# `_make_fww` (ext/DiffEqBaseForwardDiffExt.jl). That constructor builds its wrapper tuple
+# with `map(argtypes, rettypes) do A, R; …; end`, whose closure leaves `A`/`R` inferred as
+# the join of the heterogeneous `argtypes` tuple, so the wrapper type — and every cache built
+# from the wrapped problem — widens to abstract whenever the wrapped callable is one
+# inference cannot see through: a functor such as the homotopy drivers' `FixLambda` /
+# `AugmentedHomotopy` / `HomotopyResidual` residuals (the same reason DiffEqBase hit this
+# with many-parameter `ODEFunction`s). Binding each arglist as a `::Type{A}` type parameter
+# makes `FunctionWrapper{Nothing, A}(vff)` fully inferrable, so `typeof(fwt)` — and the
+# wrapper — stays concrete. `vff` is `@nospecialize`d because it is already type-erased
+# through `Void` (that is what makes the norecompile path precompile).
 function _make_fww_iip(
         @nospecialize(vff), ::Type{A1}, ::Type{A2}, ::Type{A3}, ::Type{A4}
     ) where {A1, A2, A3, A4}
@@ -83,10 +84,9 @@ function _make_fww_iip(
         FW{Nothing, A1}(vff), FW{Nothing, A2}(vff),
         FW{Nothing, A3}(vff), FW{Nothing, A4}(vff),
     )
-    cs = FunctionWrappersWrappers.SingleCacheStorage()
-    return FunctionWrappersWrappers.FunctionWrappersWrapper{
-        typeof(fwt), FunctionWrappersWrappers.AllowNonIsBits, typeof(cs),
-    }(fwt, cs)
+    return FunctionWrappersWrappers.FunctionWrappersWrapper(
+        fwt; policy = FunctionWrappersWrappers.AllowNonIsBits()
+    )
 end
 
 # IIP wrapfun: wraps f(du, u, p) with dual-aware type combinations.
@@ -119,7 +119,7 @@ end
 # the third slot). `p` is never a `Dual` on this path (opaque-ification is
 # skipped for dual state/params), so only the plain and Jacobian-`Dual`-`u`
 # signatures are needed.
-@inline function NonlinearSolveBase.wrapfun_iip_opaque(
+@inline function wrapfun_iip_opaque(
         ff, ::Type{P}, inputs::Tuple{T1, T2, T3}
     ) where {P, T1 <: AbstractArray, T2 <: AbstractArray, T3}
     T = eltype(T1)
