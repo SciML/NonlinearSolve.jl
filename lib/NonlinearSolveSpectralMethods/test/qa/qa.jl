@@ -4,12 +4,14 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 const SPECTRAL_METHODS_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveSpectralMethods.SciMLBase),
-    (:SciMLBase,),
+    public_api_names(NonlinearSolveSpectralMethods.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
 )
 
 run_qa(
     NonlinearSolveSpectralMethods;
     explicit_imports = true,
+    reexports_allow = SPECTRAL_METHODS_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),
