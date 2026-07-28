@@ -6,7 +6,7 @@ ModAB (Modified Anderson-Bjork)
 Use the [ModAB method](https://iopscience.iop.org/article/10.1088/1757-899X/1276/1/012010/) to find a root of a bracketed
 function, with a convergence rate between 1.7 and 1.8.
 
-This method was introduced in the paper "Modified Anderson-Bjork’s method for solving non-linear equations 
+The method was introduced in the paper "Modified Anderson-Bjork’s method for solving non-linear equations 
 in structural mechanics" (https://doi.org/10.1088/1757-899X/1276/1/012010) by
 N Ganchovski and A Traykov.
 
@@ -56,14 +56,15 @@ function SciMLBase.__solve(
     i = 1
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
     C = 16 # safety factor for threshold corresponding to 4 iterations = 2^4
+    f1, f2 = y1, y2 # the unmodified function values for correct calculation of symmetry factor after bisection fallback
     while i < maxiters
         local x3, y3
         if bisecting # Bisection method is used
             x3 = (x1 + x2) / 2
             y3 = f(x3) # Function value at midpoint
-            ym = (y1 + y2) / 2 # Ordinate of chord at midpoint
+            ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
             # calculate k on each bisection step with account for local function properties and symmetry
-            r = 1 - abs(ym / (y2 - y1)) # Symmetry factor
+            r = 1 - abs(ym / (f2 - f1)) # Symmetry factor
             k = r * r # Deviation factor
             # Check if the function is close enough to linear
             if abs(ym - y3) < k * (abs(ym) + abs(y3))
@@ -88,7 +89,7 @@ function SciMLBase.__solve(
             elseif !bisecting
                 side = 1
             end
-            x1, y1 = x3, y3
+            x1, y1, f1 = x3, y3, y3
         else
             if side == -1  # Apply Anderson-Bjork correction on the left side
                 m = 1 - y3 / y2
@@ -96,13 +97,13 @@ function SciMLBase.__solve(
             elseif !bisecting
                 side = -1
             end
-            x2, y2 = x3, y3
+            x2, y2, f2 = x3, y3, y3
         end
         if nextfloat(x1) == x2
             return build_bracketing_solution(prob, alg, x2, f(x2), x1, x2, ReturnCode.FloatingPointLimit)
         end
         i += 1
-        if x2 - x1 > threshold # Ff AB fails to shrink the interval enough
+        if x2 - x1 > threshold # If AB fails to shrink the interval enough
             bisecting = true   # reset to bisection
             side = 0
         end
