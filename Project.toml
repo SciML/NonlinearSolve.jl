@@ -1,6 +1,6 @@
 name = "NonlinearSolve"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "4.23.1"
+version = "4.24.0"
 authors = ["SciML"]
 
 [deps]
@@ -98,7 +98,7 @@ NLSolvers = "0.5"
 NLsolve = "4.5"
 NaNMath = "1"
 NonlinearProblemLibrary = "0.1.2"
-NonlinearSolveBase = "2.37"
+NonlinearSolveBase = "2.38"
 NonlinearSolveFirstOrder = "2"
 NonlinearSolveQuasiNewton = "1.12"
 NonlinearSolveSpectralMethods = "1.6"

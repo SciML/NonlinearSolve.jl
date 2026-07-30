@@ -4,12 +4,14 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 const QUASI_NEWTON_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveQuasiNewton.SciMLBase),
-    (:SciMLBase,),
+    public_api_names(NonlinearSolveQuasiNewton.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
 )
 
 run_qa(
     NonlinearSolveQuasiNewton;
     explicit_imports = true,
+    reexports_allow = QUASI_NEWTON_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),

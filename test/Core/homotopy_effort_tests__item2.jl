@@ -14,6 +14,7 @@ sol = solve(prob, HomotopySweep(; initial_step_factor = 1.0e-4, expand_factor = 
 @test !SciMLBase.successful_retcode(sol)
 @test isfinite(sol.u[1])
 @test 0 < sol.u[1] < 1
+@test sol.resid !== nothing
 
 Hs(u, p, λ) = SA[u[1] - λ]
 probs = HomotopyProblem(Hs, SA[0.0]; λspan = (0.0, 1.0))

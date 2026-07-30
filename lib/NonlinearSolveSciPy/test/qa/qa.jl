@@ -5,12 +5,14 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 const SCIPY_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveSciPy.SciMLBase),
-    (:SciMLBase,),
+    public_api_names(NonlinearSolveSciPy.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
 )
 
 run_qa(
     NonlinearSolveSciPy;
     explicit_imports = true,
+    reexports_allow = SCIPY_EXTERNAL_REEXPORTS,
     jet_kwargs = (; target_defined_modules = true),
     api_docs_kwargs = (;
         rendered = true,

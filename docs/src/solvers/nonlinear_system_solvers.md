@@ -22,7 +22,7 @@ fail to converge. Additionally, [`DynamicSS`](@ref) can be a good choice for hig
 if the root corresponds to a stable equilibrium.
 
 For ill-conditioned problems where even the robust Newton-type methods diverge — such as
-power-flow equations — [`SICNM`](@ref) (the semi-implicit continuous Newton method) is a
+power-flow equations — `SICNM` (the semi-implicit continuous Newton method) is a
 strong fallback. It reformulates `f(u) = 0` as a differential-algebraic equation whose
 equilibrium is the root and drives it to steady state with a stiffly stable ODE solver, so
 it converges from starting points where a direct Newton step would overshoot the basin of
@@ -129,7 +129,7 @@ often more computationally expensive than direct methods.
     terminates when close to the steady state.
   - [`SSRootfind()`](@ref): Uses a NonlinearSolve compatible solver to find the steady
     state.
-  - [`SICNM()`](@ref): The semi-implicit continuous Newton method. Reformulates the
+  - `SICNM()`: The semi-implicit continuous Newton method. Reformulates the
     nonlinear system as a differential-algebraic equation, `ẏ = z, 0 = J(y) z + f(y)`, and
     integrates it to steady state with a stiffly stable ODE solver. Highly robust on
     ill-conditioned problems where Newton-type methods diverge (e.g. power flow); more
