@@ -133,6 +133,12 @@ end
 function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
     return NonlinearSolveBase.get_reltol(cache.caches[cache.current])
 end
+function NonlinearSolveBase.get_u(cache::NonlinearSolvePolyAlgorithmCache)
+    return NonlinearSolveBase.get_u(cache.caches[cache.current])
+end
+function NonlinearSolveBase.get_fu(cache::NonlinearSolvePolyAlgorithmCache)
+    return NonlinearSolveBase.get_fu(cache.caches[cache.current])
+end
 
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
     return cache.caches[cache.current]
@@ -206,6 +212,8 @@ function InternalAPI.reinit!(
     end
     InternalAPI.reinit!(cache.stats)
     cache.nsteps = 0
+    cache.force_stop = false
+    cache.retcode = ReturnCode.Default
     return cache.total_time = 0.0
 end
 

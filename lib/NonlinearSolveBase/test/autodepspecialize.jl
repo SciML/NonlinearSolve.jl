@@ -1,5 +1,5 @@
 using NonlinearSolveBase, SciMLBase, RespecializeParams, ForwardDiff, Test
-using SymbolicIndexingInterface: SymbolCache
+using SymbolicIndexingInterface: SymbolCache, symbolic_container
 
 # An `isbits` struct parameter. Under `AutoDePSpecialize`, `get_concrete_problem`
 # should pack `p` into a `RespecializeParams.OpaqueParams` and wrap the residual
@@ -38,6 +38,18 @@ u0 = [1.0, 1.0]
         res = [0.0, 0.0]
         cp.f.f(res, [2.0, 3.0], cp.p)
         @test res ≈ [4.0 - 2.0, 9.0 - 3.0]
+
+        DualT = ForwardDiff.Dual{
+            ForwardDiff.Tag{NonlinearSolveBase.NonlinearSolveTag, Float64}, Float64, 1,
+        }
+        dual_u = DualT[
+            DualT(2.0, ForwardDiff.Partials((1.0,))),
+            DualT(3.0, ForwardDiff.Partials((0.0,))),
+        ]
+        dual_res = similar(dual_u)
+        cp.f.f(dual_res, dual_u, cp.p)
+        @test ForwardDiff.value.(dual_res) ≈ res
+        @test first.(ForwardDiff.partials.(dual_res)) ≈ [4.0, 0.0]
     end
 
     @testset "AutoSpecialize / FullSpecialize leave p untouched" begin
@@ -78,23 +90,23 @@ u0 = [1.0, 1.0]
     end
 
     @testset "symbolic-system problems are declined (MTK safety)" begin
-        # A problem whose `f` carries a symbolic system (`has_sys`, as every
-        # ModelingToolkit problem does) must NOT be opaque-ified: its `p` has to
+        # A problem whose `f` carries a symbolic system, as every ModelingToolkit
+        # problem does, must NOT be opaque-ified: its `p` has to
         # stay concrete for initialization and symbolic parameter indexing.
         # `SymbolCache` stands in for an MTK `System` without the dependency.
         fsym!(res, u, p) = (res[1] = u[1]^2 - 2.0; res[2] = u[2]^2 - 3.0; nothing)
-        ff = NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
-            fsym!; sys = SymbolCache([:x, :y], [:a, :b])
-        )
-        @test SciMLBase.has_sys(ff)
+        for sys in (SymbolCache([:x, :y], [:a, :b]), SymbolCache())
+            ff = NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(fsym!; sys)
+            @test symbolic_container(ff) === sys
 
-        cp = concretize(NonlinearProblem(ff, u0, VecQ([2.0])))   # non-isbits p
-        @test cp.p isa VecQ
-        @test !(cp.p isa RespecializeParams.OpaqueRef)
+            cp = concretize(NonlinearProblem(ff, u0, VecQ([2.0])))   # non-isbits p
+            @test cp.p isa VecQ
+            @test !(cp.p isa RespecializeParams.OpaqueRef)
 
-        cpi = concretize(NonlinearProblem(ff, u0, DePP(2.0, 3.0)))  # isbits p
-        @test cpi.p isa DePP
-        @test !(cpi.p isa RespecializeParams.OpaqueParams)
+            cpi = concretize(NonlinearProblem(ff, u0, DePP(2.0, 3.0)))  # isbits p
+            @test cpi.p isa DePP
+            @test !(cpi.p isa RespecializeParams.OpaqueParams)
+        end
     end
 
     @testset "already-packed p is not re-wrapped (idempotent)" begin
