@@ -232,8 +232,8 @@ indexing read the concrete parameter and are not supported (reverse-mode support
 is a planned follow-up). Recover the payload with
 `RespecializeParams.unpack(sol.prob.p, typeof(p))`.
 
-Problems carrying a symbolic system (`SciMLBase.has_sys(prob.f)`, e.g.
-ModelingToolkit) are declined in [`maybe_opaque_wrap`] rather than here, since
+Problems carrying a symbolic system (e.g. ModelingToolkit) are declined in
+[`maybe_opaque_wrap`] rather than here, since
 that policy needs the function, not just `p`: their `p` must stay concrete for
 initialization and symbolic indexing.
 """
@@ -268,12 +268,8 @@ get_raw_f(f::AutoDePSpecializeCallable) = RespecializeParams.OpaqueVoid(f.ptype,
 
 _autodep_paramtype(f::AutoDePSpecializeCallable) = f.ptype
 
-# Base (no ForwardDiff) opaque wrapper: single-signature. The ForwardDiff
-# extension overrides this with the dual-aware variants.
-function wrapfun_iip_opaque(ff, ::Type{P}, inputs::Tuple) where {P}
-    sig = Tuple{typeof(inputs[1]), typeof(inputs[2]), typeof(inputs[3])}
-    return RespecializeParams.wrap_void_opaque(ff, P, (sig,))
-end
+@inline _has_symbolic_system(f) =
+    hasfield(typeof(f), :sys) && getfield(f, :sys) !== nothing
 
 """
     maybe_opaque_wrap(prob) -> prob or nothing
@@ -292,8 +288,7 @@ function maybe_opaque_wrap(prob::AbstractNonlinearProblem)
     SciMLBase.specialization(prob.f) === SciMLBase.AutoDePSpecialize || return nothing
     EnzymeCore.within_autodiff() && return nothing
     is_fw_wrapped(prob.f.f) && return nothing
-    (prob isa NonlinearProblem || prob isa SciMLBase.ImmutableNonlinearProblem) ||
-        return nothing
+    SciMLBase.problem_type(prob) isa SciMLBase.StandardNonlinearProblem || return nothing
     SciMLBase.isinplace(prob) || return nothing
 
     u0 = prob.u0
@@ -301,17 +296,19 @@ function maybe_opaque_wrap(prob::AbstractNonlinearProblem)
     u0 isa AbstractArray || return nothing
     SciMLBase.isdualtype(eltype(u0)) && return nothing
     should_opaque_p(p) || return nothing
-    # Symbolic-system problems (`has_sys`, e.g. ModelingToolkit): decline. Their
+    # Symbolic-system problems (e.g. ModelingToolkit): decline. Their
     # `p` (MTKParameters) must stay concrete for the initialization pipeline and
     # symbolic parameter indexing; an opaque container breaks both. They gain
     # nothing (structured params are non-isbits and already type-uniform), so
     # falling back to the normal specialization is the correct no-op.
-    SciMLBase.has_sys(prob.f) && return nothing
+    _has_symbolic_system(prob.f) && return nothing
 
     P = typeof(p)
     orig = prob.f.f
-    fw = wrapfun_iip_opaque(orig, P, (u0, u0, p))
+    opaque_p = RespecializeParams.pack_auto(p)
+    opaque_f = RespecializeParams.OpaqueVoid(P, orig)
+    fw = wrapfun_iip(opaque_f, (u0, u0, opaque_p))
     newprob = @set prob.f.f = AutoDePSpecializeCallable{typeof(fw)}(fw, orig, P)
-    @set! newprob.p = RespecializeParams.pack_auto(p)
+    @set! newprob.p = opaque_p
     return newprob
 end
