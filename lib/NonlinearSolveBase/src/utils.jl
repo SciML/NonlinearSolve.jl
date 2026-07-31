@@ -172,27 +172,29 @@ maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 can_setindex(x) = ArrayInterface.can_setindex(x)
 can_setindex(::Number) = false
 
-function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
+# `iip` is a type parameter, so these dispatch rather than branch at runtime. That
+# matters on GPUs: an out-of-place solve must not have `similar(u)` anywhere in the
+# method body it compiles, even on a branch that constant-folding would drop, and the
+# out-of-place path must stay inlineable so an isbits problem (e.g.
+# `ImmutableNonlinearProblem`) can be solved inside a kernel without allocating.
+@inline function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
     return evaluate_f!!(prob.f, fu, u, p)
 end
 
-function evaluate_f!!(f::NonlinearFunction, fu, u, p)
-    if SciMLBase.isinplace(f)
-        f(fu, u, p)
-        return fu
-    end
-    return f(u, p)
+@inline evaluate_f!!(f::NonlinearFunction{false}, fu, u, p) = f(u, p)
+
+function evaluate_f!!(f::NonlinearFunction{true}, fu, u, p)
+    f(fu, u, p)
+    return fu
 end
 
-function evaluate_f(prob::AbstractNonlinearProblem, u)
-    if SciMLBase.isinplace(prob)
-        fu = prob.f.resid_prototype === nothing ? similar(u) :
-            similar(prob.f.resid_prototype)
-        prob.f(fu, u, prob.p)
-        return fu
-    else
-        return prob.f(u, prob.p)
-    end
+@inline evaluate_f(prob::AbstractNonlinearProblem{<:Any, false}, u) = prob.f(u, prob.p)
+
+function evaluate_f(prob::AbstractNonlinearProblem{<:Any, true}, u)
+    fu = prob.f.resid_prototype === nothing ? similar(u) :
+        similar(prob.f.resid_prototype)
+    prob.f(fu, u, prob.p)
+    return fu
 end
 
 function evaluate_f!(cache, u, p)
