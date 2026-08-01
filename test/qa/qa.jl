@@ -1,9 +1,33 @@
 using SciMLTesting, NonlinearSolve, SimpleNonlinearSolve, SciMLBase, Aqua, Test
 # Load the wrapper packages so NonlinearSolve's solver extensions are present for
-# ExplicitImports to analyze (matches the pre-run_qa explicit_imports.jl set).
+# ExplicitImports to analyze. An extension module only exists once every one of its
+# triggers is loaded, and ExplicitImports skips extensions that do not exist, so a
+# missing trigger here silently drops that extension from every check below.
+# LineSearches is the second trigger of NonlinearSolveNLsolveExt: NLsolve happens to
+# depend on it today, but list it explicitly so the coverage does not hinge on that.
+# NonlinearSolvePETScExt stays unscanned: PETSc/MPI need an external MPI + PETSc
+# installation, which is not something the QA environment can resolve.
 using ADTypes
-import FastLevenbergMarquardt, FixedPointAcceleration, LeastSquaresOptim, MINPACK,
-    NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping
+import FastLevenbergMarquardt, FixedPointAcceleration, LeastSquaresOptim, LineSearches,
+    MINPACK, NLsolve, NLSolvers, SIAMFANLEquations, SpeedMapping, Sundials
+
+# ExplicitImports silently skips an extension that fails to load, so assert the extension
+# modules actually exist rather than trusting a green run_qa.
+@testset "Extensions loaded" begin
+    for ext in (
+            :NonlinearSolveFastLevenbergMarquardtExt,
+            :NonlinearSolveFixedPointAccelerationExt,
+            :NonlinearSolveLeastSquaresOptimExt,
+            :NonlinearSolveMINPACKExt,
+            :NonlinearSolveNLSolversExt,
+            :NonlinearSolveNLsolveExt,
+            :NonlinearSolveSIAMFANLEquationsExt,
+            :NonlinearSolveSpeedMappingExt,
+            :NonlinearSolveSundialsExt,
+        )
+        @test Base.get_extension(NonlinearSolve, ext) !== nothing
+    end
+end
 
 const NONLINEARSOLVE_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolve.ADTypes),
@@ -84,10 +108,13 @@ run_qa(
         #   ForwardDiff: Dual;  StaticArraysCore: StaticArray
         #   NonlinearSolveFirstOrder: RUS;  NLsolve (re-export, owner NLSolversBase):
         #     NonDifferentiable
+        #   NonlinearSolve (own internal): DualNonlinearProblem, the dispatch alias the
+        #     Sundials extension needs to attach its ForwardDiff-over-KINSOL methods to.
+        #     There is no public spelling of it and it is not part of the user-facing API.
         all_explicit_imports_are_public = (;
             ignore = (
                 :AbstractNonlinearSolveAlgorithm, :Utils, :get_raw_f, :is_fw_wrapped, :Dual,
-                :StaticArray, :RUS, :NonDifferentiable,
+                :StaticArray, :RUS, :NonDifferentiable, :DualNonlinearProblem,
             ),
         ),
     ),
