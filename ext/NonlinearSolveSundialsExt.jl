@@ -6,7 +6,7 @@ using CommonSolve: CommonSolve
 using NonlinearSolveBase: NonlinearSolveBase, nonlinearsolve_forwarddiff_solve,
     nonlinearsolve_dual_solution, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, DualNonlinearProblem
-using SciMLBase: SciMLBase, remake
+using SciMLBase: SciMLBase
 using Setfield: @set
 
 function SciMLBase.__solve(prob::DualNonlinearProblem, alg::KINSOL, args...; kwargs...)
