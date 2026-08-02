@@ -6,7 +6,6 @@ const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs
 
 run_qa(
     NonlinearSolveBase;
-    explicit_imports = true,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:TimerOutputs]),
         piracies = (;
@@ -16,7 +15,7 @@ run_qa(
         ),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (; rendered = true, docs_src = NONLINEARSOLVE_DOCS_SRC),
+    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # SciMLLogging preset names reached only through the @verbosity_specifier macro
         # expansion (None/Minimal/Standard/Detailed/All as bare constructors in

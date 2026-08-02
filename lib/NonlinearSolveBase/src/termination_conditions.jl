@@ -27,6 +27,48 @@ end
 get_abstol(cache::NonlinearTerminationModeCache) = cache.abstol
 get_reltol(cache::NonlinearTerminationModeCache) = cache.reltol
 
+function termination_condition_result(cache::NonlinearTerminationModeCache, args...)
+    return termination_condition_result(cache.mode, cache, args...)
+end
+
+function termination_condition_result(
+        ::AbstractNonlinearTerminationMode, cache, fallback_u, fallback_t, solver_retcode
+    )
+    retcode = ifelse(
+        solver_retcode == ReturnCode.Terminated, ReturnCode.Success, ReturnCode.Failure
+    )
+    return fallback_u, fallback_t, retcode
+end
+
+function termination_condition_result(
+        ::AbstractSafeNonlinearTerminationMode, cache, fallback_u, fallback_t, solver_retcode
+    )
+    retcode = if solver_retcode == ReturnCode.Terminated
+        ifelse(cache.retcode != ReturnCode.Default, cache.retcode, ReturnCode.Success)
+    elseif solver_retcode == ReturnCode.Success
+        ReturnCode.Failure
+    else
+        solver_retcode
+    end
+    return fallback_u, fallback_t, retcode
+end
+
+function termination_condition_result(
+        ::AbstractSafeBestNonlinearTerminationMode, cache, fallback_u, fallback_t,
+        solver_retcode
+    )
+    u = cache.u === nothing ? fallback_u : copy(cache.u)
+    t = cache.saved_values === nothing ? fallback_t : only(cache.saved_values)
+    retcode = if solver_retcode == ReturnCode.Terminated
+        ifelse(cache.retcode != ReturnCode.Default, cache.retcode, ReturnCode.Success)
+    elseif solver_retcode == ReturnCode.Success
+        ReturnCode.Failure
+    else
+        solver_retcode
+    end
+    return u, t, retcode
+end
+
 function update_u!!(cache::NonlinearTerminationModeCache, u)
     cache.u === nothing && return
     return if cache.u isa AbstractArray && ArrayInterface.can_setindex(cache.u)

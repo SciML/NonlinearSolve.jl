@@ -43,7 +43,7 @@ makedocs(;
         NonlinearSolve, SteadyStateDiffEq,
     ],
     clean = true,
-    doctest = false,
+    doctest = true,
     linkcheck = true,
     linkcheck_ignore = [
         "https://twitter.com/ChrisRackauckas/status/1544743542094020615",
