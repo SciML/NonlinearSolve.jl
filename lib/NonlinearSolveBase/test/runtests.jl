@@ -43,7 +43,12 @@ run_tests(;
                     termination_condition_result
                 using SciMLBase: NonlinearProblem, ReturnCode, init
 
-                @test Base.ispublic(NonlinearSolveBase, :termination_condition_result)
+                # `public` (and `Base.ispublic`) only exist on Julia >= 1.11; on the
+                # 1.10 LTS `@compat public` expands to nothing, so there is no
+                # publicness marker to inspect.
+                @static if VERSION ≥ v"1.11"
+                    @test Base.ispublic(NonlinearSolveBase, :termination_condition_result)
+                end
 
                 prob = NonlinearProblem((u, p) -> u, [1.0])
                 internalnorm = x -> maximum(abs, x)
