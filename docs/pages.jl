@@ -61,6 +61,7 @@ pages = [
     ],
     "Development Documentation" => [
         "devdocs/internal_interfaces.md",
+        "devdocs/termination_cache.md",
         "devdocs/linear_solve.md",
         "devdocs/jacobian.md",
         "devdocs/operators.md",

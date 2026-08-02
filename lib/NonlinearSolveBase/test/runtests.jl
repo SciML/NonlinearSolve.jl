@@ -24,6 +24,7 @@ run_tests(;
 
         @safetestset "Termination Conditions" begin
             using NonlinearSolveBase, SciMLBase
+
             @testset "reinit! with AbsTerminationMode" begin
                 mode = NonlinearSolveBase.AbsTerminationMode()
                 u_unaliased = nothing
@@ -35,6 +36,33 @@ run_tests(;
                 du = [1.0, 1.0]
                 u = [1.1, 1.1]
                 @test_nowarn SciMLBase.reinit!(cache, du, u)
+            end
+
+            @testset "termination_condition_result public contract" begin
+                using NonlinearSolveBase: AbsNormSafeBestTerminationMode, AbsNormTerminationMode,
+                    termination_condition_result
+                using SciMLBase: NonlinearProblem, ReturnCode, init
+
+                @test Base.ispublic(NonlinearSolveBase, :termination_condition_result)
+
+                prob = NonlinearProblem((u, p) -> u, [1.0])
+                internalnorm = x -> maximum(abs, x)
+                standard = init(
+                    prob, AbsNormTerminationMode(internalnorm), [1.0], [1.0];
+                    abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                @test termination_condition_result(
+                    standard, [2.0], 2.0, ReturnCode.Terminated
+                ) == ([2.0], 2.0, ReturnCode.Success)
+
+                safe_best = init(
+                    prob, AbsNormSafeBestTerminationMode(internalnorm), [1.0], [1.0], 0.0;
+                    abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                @test safe_best([0.0], [0.5], [1.0], 3.0)
+                @test termination_condition_result(
+                    safe_best, [2.0], 2.0, ReturnCode.Terminated
+                ) == ([0.5], 3.0, ReturnCode.Success)
             end
         end
 
