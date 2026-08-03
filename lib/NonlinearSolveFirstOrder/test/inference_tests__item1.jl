@@ -3,6 +3,7 @@ using NonlinearSolveFirstOrder
 using ADTypes, NonlinearSolveBase, NonlinearSolveFirstOrder, SciMLBase, Test
 
 f_iip = NonlinearFunction{true}((du, u, p) -> du .= u .^ 2 .- p)
+f_oop = NonlinearFunction{false}((u, p) -> u .^ 2 .- p)
 
 u0 = [1.0, 2.0]
 p = [1.0, 4.0]
@@ -10,6 +11,7 @@ fu = similar(u0)
 f_iip(fu, u0, p)
 
 prob_iip = NonlinearProblem(f_iip, u0, p)
+prob_oop = NonlinearProblem(f_oop, u0, p)
 
 stats = NonlinearSolveBase.NLStats(0, 0, 0, 0, 0)
 alg = TrustRegion(autodiff = AutoFiniteDiff())
@@ -18,6 +20,12 @@ autodiff = AutoFiniteDiff()
 @testset "In-place, no analytic Jacobian" begin
     @inferred NonlinearSolveBase.construct_jacobian_cache(
         prob_iip, alg, prob_iip.f, fu, u0, p; stats, autodiff
+    )
+end
+
+@testset "Out-of-place, no analytic Jacobian" begin
+    @inferred NonlinearSolveBase.construct_jacobian_cache(
+        prob_oop, alg, prob_oop.f, fu, u0, p; stats, autodiff
     )
 end
 
@@ -35,10 +43,9 @@ end
     )
 end
 
-@testset "Full init: TrustRegion + AutoFiniteDiff" begin
-    @inferred SciMLBase.init(prob_iip, TrustRegion(autodiff = AutoFiniteDiff()))
-end
+@testset "Full init: $name, $(nameof(alg_ctor))" for (name, prob) in (
+            "in-place" => prob_iip, "out-of-place" => prob_oop,
+        ), alg_ctor in (TrustRegion, NewtonRaphson)
 
-@testset "Full init: NewtonRaphson + AutoFiniteDiff" begin
-    @inferred SciMLBase.init(prob_iip, NewtonRaphson(autodiff = AutoFiniteDiff()))
+    @inferred SciMLBase.init(prob, alg_ctor(autodiff = AutoFiniteDiff()))
 end
