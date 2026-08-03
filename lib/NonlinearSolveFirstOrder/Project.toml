@@ -1,7 +1,7 @@
 name = "NonlinearSolveFirstOrder"
 uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
-version = "2.2.3"
+version = "2.2.4"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -36,7 +36,7 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 DifferentiationInterface = "0.7.3"
 Enzyme = "0.13.90"
-FiniteDiff = "2.24"
+FiniteDiff = "2.32.1"
 ForwardDiff = "0.10.36, 1"
 InteractiveUtils = "<0.0.1, 1"
 LineSearch = "0.1.4"
