@@ -86,6 +86,7 @@ function construct_linear_solver(
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
+    local linprob::LinearProblem
     if alias !== nothing
         # caller-forced aliasing: the caller owns A/b outright (e.g. the inverse-Jacobian
         # workspace), so no defensive copy of A is made
