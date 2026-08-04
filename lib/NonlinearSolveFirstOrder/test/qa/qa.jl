@@ -1,11 +1,26 @@
 using SciMLTesting, NonlinearSolveFirstOrder, Test
 
+const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
+
+const FIRST_ORDER_EXTERNAL_REEXPORTS = union(
+    public_api_names(NonlinearSolveFirstOrder.SciMLBase),
+    public_api_names(NonlinearSolveFirstOrder.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
+)
+
 run_qa(
     NonlinearSolveFirstOrder;
     explicit_imports = true,
+    reexports_allow = FIRST_ORDER_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         piracies = (; treat_as_own = [NonlinearLeastSquaresProblem]),
         ambiguities = (; recursive = false),
+    ),
+    api_docs_kwargs = (;
+        rendered = true,
+        docs_src = NONLINEARSOLVE_DOCS_SRC,
+        ignore = FIRST_ORDER_EXTERNAL_REEXPORTS,
+        rendered_ignore = FIRST_ORDER_EXTERNAL_REEXPORTS,
     ),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;

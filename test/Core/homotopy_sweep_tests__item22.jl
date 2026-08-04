@@ -38,7 +38,7 @@ prob = HomotopyProblem(H!, [4.0], [4.0])
 # By default the drivers drop `original`, so their returned solution is concretely typed
 # (its `original` slot is `Nothing`, not `Any`), and the full `solve` no longer infers as
 # `Any`.
-for alg in (HomotopySweep(), ArcLengthContinuation())
+for alg in (HomotopySweep(), KantorovichHomotopy(), ArcLengthContinuation())
     sol = solve(prob, alg)
     @test SciMLBase.successful_retcode(sol)
     @test sol.u[1] ≈ 2.0 atol = 1.0e-6
@@ -52,9 +52,11 @@ end
 
 # The `store_original` field is carried and defaults to `Val(false)`.
 @test HomotopySweep().store_original === Val(false)
+@test KantorovichHomotopy().store_original === Val(false)
 @test ArcLengthContinuation().store_original === Val(false)
 @test HomotopyPolyAlgorithm().store_original === Val(false)
 @test HomotopySweep(; store_original = Val(true)).store_original === Val(true)
+@test KantorovichHomotopy(; store_original = Val(true)).store_original === Val(true)
 @test ArcLengthContinuation(; store_original = Val(true)).store_original === Val(true)
 @test HomotopyPolyAlgorithm(; store_original = Val(true)).store_original === Val(true)
 

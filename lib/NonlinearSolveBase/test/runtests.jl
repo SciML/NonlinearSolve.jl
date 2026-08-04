@@ -24,6 +24,7 @@ run_tests(;
 
         @safetestset "Termination Conditions" begin
             using NonlinearSolveBase, SciMLBase
+
             @testset "reinit! with AbsTerminationMode" begin
                 mode = NonlinearSolveBase.AbsTerminationMode()
                 u_unaliased = nothing
@@ -35,6 +36,38 @@ run_tests(;
                 du = [1.0, 1.0]
                 u = [1.1, 1.1]
                 @test_nowarn SciMLBase.reinit!(cache, du, u)
+            end
+
+            @testset "termination_condition_result public contract" begin
+                using NonlinearSolveBase: AbsNormSafeBestTerminationMode, AbsNormTerminationMode,
+                    termination_condition_result
+                using SciMLBase: NonlinearProblem, ReturnCode, init
+
+                # `public` (and `Base.ispublic`) only exist on Julia >= 1.11; on the
+                # 1.10 LTS `@compat public` expands to nothing, so there is no
+                # publicness marker to inspect.
+                @static if VERSION ≥ v"1.11"
+                    @test Base.ispublic(NonlinearSolveBase, :termination_condition_result)
+                end
+
+                prob = NonlinearProblem((u, p) -> u, [1.0])
+                internalnorm = x -> maximum(abs, x)
+                standard = init(
+                    prob, AbsNormTerminationMode(internalnorm), [1.0], [1.0];
+                    abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                @test termination_condition_result(
+                    standard, [2.0], 2.0, ReturnCode.Terminated
+                ) == ([2.0], 2.0, ReturnCode.Success)
+
+                safe_best = init(
+                    prob, AbsNormSafeBestTerminationMode(internalnorm), [1.0], [1.0], 0.0;
+                    abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                @test safe_best([0.0], [0.5], [1.0], 3.0)
+                @test termination_condition_result(
+                    safe_best, [2.0], 2.0, ReturnCode.Terminated
+                ) == ([0.5], 3.0, ReturnCode.Success)
             end
         end
 
@@ -67,6 +100,8 @@ run_tests(;
             outp = NonlinearSolveBase.standardize_forwarddiff_tag(adp, prob)
             @test outp === adp
         end
+
+        @safetestset "AutoDePSpecialize opaque-p" include("autodepspecialize.jl")
 
         @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
             # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
@@ -126,6 +161,10 @@ run_tests(;
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
+        @safetestset "Jacobian and restructure allocation fast paths" include(
+            "allocation_fastpaths.jl"
+        )
+
         @safetestset "Operator Jacobian cache dispatch" begin
             using NonlinearSolveBase, SciMLBase, SciMLOperators
 
@@ -139,6 +178,10 @@ run_tests(;
 
             @test_throws ErrorException cache(nothing)
         end
+
+        @safetestset "dampen_jacobian!! touches only the diagonal" include(
+            "dampen_jacobian.jl"
+        )
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"

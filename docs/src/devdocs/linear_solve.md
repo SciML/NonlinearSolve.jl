@@ -3,6 +3,7 @@
 ```@docs
 NonlinearSolveBase.AbstractLinearSolverCache
 NonlinearSolveBase.construct_linear_solver
+NonlinearSolveBase.get_linear_cache
 NonlinearSolveBase.needs_square_A
 NonlinearSolveBase.needs_concrete_A
 ```

@@ -1,12 +1,27 @@
 using SciMLTesting, NonlinearSolveSpectralMethods, Test
 
+const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
+
+const SPECTRAL_METHODS_EXTERNAL_REEXPORTS = union(
+    public_api_names(NonlinearSolveSpectralMethods.SciMLBase),
+    public_api_names(NonlinearSolveSpectralMethods.NonlinearSolveBase),
+    (:SciMLBase, :NonlinearSolveBase),
+)
+
 run_qa(
     NonlinearSolveSpectralMethods;
     explicit_imports = true,
+    reexports_allow = SPECTRAL_METHODS_EXTERNAL_REEXPORTS,
     aqua_kwargs = (;
         stale_deps = (; ignore = [:SciMLJacobianOperators]),
         deps_compat = (; ignore = [:SciMLJacobianOperators]),
         ambiguities = (; recursive = false),
+    ),
+    api_docs_kwargs = (;
+        rendered = true,
+        docs_src = NONLINEARSOLVE_DOCS_SRC,
+        ignore = SPECTRAL_METHODS_EXTERNAL_REEXPORTS,
+        rendered_ignore = SPECTRAL_METHODS_EXTERNAL_REEXPORTS,
     ),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;

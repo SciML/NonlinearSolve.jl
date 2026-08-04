@@ -7,6 +7,7 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface, parameter_values,
 using LinearAlgebra: LinearAlgebra, norm
 using ADTypes: ADTypes, AutoEnzyme, AutoFiniteDiff, AutoForwardDiff
 using TaylorDiff: TaylorDiff, TaylorScalar
+import TaylorSeries as TS
 using DocStringExtensions: DocStringExtensions, FIELDS, TYPEDEF, TYPEDFIELDS,
     TYPEDSIGNATURES
 import CommonSolve
@@ -15,7 +16,7 @@ import DifferentiationInterface as DI
 
 using ConcreteStructs: @concrete
 
-export HomotopyContinuationJL, HomotopyNonlinearFunction
+export HomotopyContinuationJL, TaylorHomotopyContinuationJL, HomotopyNonlinearFunction
 
 """
     HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...)
@@ -68,5 +69,6 @@ end
 include("interface_types.jl")
 include("jacobian_handling.jl")
 include("solve.jl")
+include("taylor_polynomialize.jl")
 
 end

@@ -1,3 +1,22 @@
+"""
+    NonlinearSolveFirstOrder
+
+First-order nonlinear and nonlinear least-squares solver algorithms.
+
+This subpackage implements Newton, Gauss-Newton, trust-region, pseudo-transient,
+and related algorithms that are re-exported by NonlinearSolve.jl. Users typically
+load `NonlinearSolve` and pass these algorithms to `solve`; solver-package authors
+may depend on this package directly when they need the first-order implementations.
+
+### Example
+
+```julia
+using NonlinearSolveFirstOrder, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveFirstOrder
 
 using ConcreteStructs: @concrete
@@ -81,6 +100,26 @@ include("forward_diff.jl")
     for (fn, u0) in nonlinear_functions
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
+
+    # AutoDePSpecialize opaque-p path: an isbits `p` packs into an `OpaqueParams`
+    # and a non-isbits `p` into an `OpaqueRef`. Each container gives a single
+    # wrapped-residual signature shared across all parameter types of that kind,
+    # so precompiling one solve per container lets first solves with struct/array
+    # parameters skip compilation entirely.
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ), [0.1], (a = 2.0,)
+        )
+    )
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ), [0.1], [2.0]
+        )
+    )
 
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]

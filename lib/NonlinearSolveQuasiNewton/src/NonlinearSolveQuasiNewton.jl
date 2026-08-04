@@ -1,3 +1,22 @@
+"""
+    NonlinearSolveQuasiNewton
+
+Quasi-Newton nonlinear solver algorithms.
+
+This subpackage implements quasi-Newton methods such as `Broyden`, `Klement`, and
+`LimitedMemoryBroyden`. These algorithms are re-exported by NonlinearSolve.jl, but
+the subpackage can also be loaded directly by packages that only need quasi-Newton
+solver implementations.
+
+### Example
+
+```julia
+using NonlinearSolveQuasiNewton, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, Broyden())
+```
+"""
 module NonlinearSolveQuasiNewton
 
 using ConcreteStructs: @concrete
@@ -45,6 +64,25 @@ include("solve.jl")
     for (fn, u0) in nonlinear_functions
         push!(nonlinear_problems, NonlinearProblem(fn, u0, 2.0))
     end
+
+    # AutoDePSpecialize opaque-p path: an isbits `p` packs into an `OpaqueParams`
+    # and a non-isbits `p` into an `OpaqueRef`, each a single wrapped-residual
+    # signature shared across all parameter types of that kind, so one
+    # precompiled solve per container serves first solves with struct/array `p`.
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ), [0.1], (a = 2.0,)
+        )
+    )
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ), [0.1], [2.0]
+        )
+    )
 
     algs = [Broyden(), Klement()]
 

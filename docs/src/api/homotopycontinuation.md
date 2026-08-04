@@ -15,5 +15,6 @@ import NonlinearSolve as NLS
 
 ```@docs
 NonlinearSolveHomotopyContinuation.HomotopyContinuationJL
+NonlinearSolveHomotopyContinuation.TaylorHomotopyContinuationJL
 SciMLBase.HomotopyNonlinearFunction
 ```

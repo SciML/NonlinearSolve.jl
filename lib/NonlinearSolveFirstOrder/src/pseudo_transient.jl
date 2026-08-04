@@ -76,9 +76,11 @@ Cache for the [`SwitchedEvolutionRelaxation`](@ref) method.
 @concrete mutable struct SwitchedEvolutionRelaxationCache <: AbstractDampingFunctionCache
     res_norm
     α⁻¹
+    initial_α⁻¹
     internalnorm
     mass_matrix
     D
+    needs_reset::Bool
 end
 
 function NonlinearSolveBase.requires_normal_form_jacobian(
@@ -115,7 +117,16 @@ function InternalAPI.init(
         )
     end
     D = M === nothing ? nothing : α⁻¹ .* M
-    return SwitchedEvolutionRelaxationCache(internalnorm(fu), α⁻¹, internalnorm, M, D)
+    return SwitchedEvolutionRelaxationCache(internalnorm(fu), α⁻¹, α⁻¹, internalnorm, M, D, false)
+end
+
+function InternalAPI.reinit!(cache::SwitchedEvolutionRelaxationCache, args...; kwargs...)
+    cache.α⁻¹ = cache.initial_α⁻¹
+    if cache.D !== nothing
+        cache.D = scale_mass_matrix!!(cache.D, cache.α⁻¹, cache.mass_matrix)
+    end
+    cache.needs_reset = true
+    return
 end
 
 # Resolve the mass matrix used for damping: an explicit one always wins, otherwise fall
@@ -149,6 +160,10 @@ function InternalAPI.solve!(
         damping::SwitchedEvolutionRelaxationCache, J, fu, args...; kwargs...
     )
     res_norm = damping.internalnorm(fu)
+    if damping.needs_reset
+        damping.res_norm = res_norm
+        damping.needs_reset = false
+    end
     damping.α⁻¹ *= res_norm / damping.res_norm
     damping.res_norm = res_norm
     damping.mass_matrix === nothing && return damping.α⁻¹

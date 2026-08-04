@@ -113,7 +113,7 @@ function InternalAPI.solve!(
 
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.safe_dot(cache.δu_cache_mul, cache.δu_cache_mul)
+        δuJᵀJδu = Utils.safe_dot(δu_cauchy, cache.δu_cache_mul)
     else
         δu_cauchy = InternalAPI.solve!(
             cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...

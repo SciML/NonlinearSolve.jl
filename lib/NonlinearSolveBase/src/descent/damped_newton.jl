@@ -344,7 +344,7 @@ dampen_jacobian!!(::Any, J::Union{AbstractSciMLOperator, Number}, D) = J + D
 
 # Scalar damping (identity-style `(1/α) I` damping) only touches the diagonal of `J`.
 function dampen_jacobian!!(J_cache, J::AbstractMatrix, D::Number)
-    ArrayInterface.can_setindex(J_cache) || return J .+ D
+    ArrayInterface.can_setindex(J_cache) || return J + D * LinearAlgebra.I
     J_cache !== J && copyto!(J_cache, J)
     if ArrayInterface.fast_scalar_indexing(J_cache)
         @simd ivdep for i in axes(J_cache, 1)

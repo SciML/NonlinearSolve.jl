@@ -10,7 +10,7 @@ using CommonSolve: CommonSolve, init, solve, solve!
 using LinearAlgebra: LinearAlgebra
 using LineSearch: BackTracking
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-    NonlinearSolvePolyAlgorithm, pickchunksize, NonlinearVerbosity
+    NonlinearSolvePolyAlgorithm, HomotopyPolyAlgorithm, pickchunksize, NonlinearVerbosity
 
 using SciMLBase: SciMLBase, ReturnCode, AbstractNonlinearProblem,
     NonlinearFunction,
@@ -118,6 +118,31 @@ include("forward_diff.jl")
         ),
     )
 
+    # AutoDePSpecialize opaque-p path. Both containers are covered: an isbits `p`
+    # packs into an `OpaqueParams` and a non-isbits `p` into an `OpaqueRef`, each
+    # a single wrapped-residual signature shared across every parameter type of
+    # its kind.
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ),
+            [0.1],
+            (a = 2.0,),
+        ),
+    )
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ),
+            [0.1],
+            [2.0],
+        ),
+    )
+
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 
@@ -140,6 +165,17 @@ include("forward_diff.jl")
             for prob in nlls_problems
                 Threads.@spawn CommonSolve.solve(prob; abstol = 1.0e-2, verbose = NonlinearVerbosity())
             end
+
+            # `solve(prob)` with no keyword arguments is a distinct
+            # specialization from the kwarg-carrying calls above (the keyword
+            # NamedTuple's type participates), and it is the form most user code
+            # writes, so every problem gets a bare sweep too.
+            for prob in nonlinear_problems
+                Threads.@spawn CommonSolve.solve(prob)
+            end
+            for prob in nlls_problems
+                Threads.@spawn CommonSolve.solve(prob)
+            end
         end
     end
 end
@@ -151,7 +187,7 @@ end
 @reexport using LinearSolve
 
 # Poly Algorithms
-export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg
+export NonlinearSolvePolyAlgorithm, FastShortcutNonlinearPolyalg, FastShortcutHomotopyPolyalg
 
 # Extension Algorithms
 export LeastSquaresOptimJL, FastLevenbergMarquardtJL, NLsolveJL, NLSolversJL,

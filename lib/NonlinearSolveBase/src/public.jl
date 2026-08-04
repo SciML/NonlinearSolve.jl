@@ -66,6 +66,25 @@ NonlinearSolveBase.L2_NORM([3.0, 4.0])
 function L2_NORM end
 
 """
+    solve_cache!(cache; step_observer = nothing) -> ReturnCode
+
+Drive an initialized nonlinear solver cache to termination without constructing a
+`NonlinearSolution`.
+
+This allocation-sensitive interface is intended for nested solvers that already own a
+cache from `init` and whose algorithm supports the nonlinear solver iterator interface.
+`step_observer`, when provided, is called after every nonlinear iteration as
+`step_observer(u, fu, iteration)`. The state and residual arguments alias the solver
+cache and must not be mutated. The returned `SciMLBase.ReturnCode` reports the final
+solver status; the final state remains available through
+`SymbolicIndexingInterface.state_values(cache)`.
+
+Unlike `solve!(cache)`, this function does not transform a bounded problem's internal
+unconstrained state back to the bounded coordinates.
+"""
+function solve_cache! end
+
+"""
     Linf_NORM(u)
 
 Compute the infinity norm used by NonlinearSolve internals.
@@ -189,6 +208,56 @@ See also [`RelNormSafeTerminationMode`](@ref), [`AbsNormSafeTerminationMode`](@r
 [`RelNormSafeBestTerminationMode`](@ref), and [`AbsNormSafeBestTerminationMode`](@ref).
 """
 abstract type AbstractSafeNonlinearTerminationMode <: AbstractNonlinearTerminationMode end
+
+"""
+    termination_condition_result(cache, fallback_u, fallback_t, solver_retcode) -> (u, t, retcode)
+
+Return the state, time or iteration marker, and return code selected by a nonlinear
+termination cache.
+
+This developer API is for solver packages that drive an
+`AbstractNonlinearTerminationMode` cache outside NonlinearSolve's standard solve loop.
+It applies the cache's termination policy without exposing cache storage. Safe-best modes
+return their recorded best state and saved marker when one is available; other modes
+return `fallback_u` and `fallback_t`.
+
+# Arguments
+
+  - `cache`: A cache returned by `SciMLBase.init` for a public nonlinear termination mode.
+  - `fallback_u`: Final state produced by the enclosing solver.
+  - `fallback_t`: Time or iteration marker associated with `fallback_u`.
+  - `solver_retcode`: Unmodified return code produced by the enclosing solver.
+
+# Returns
+
+  - `u`: The selected state. A safe-best cache returns a copy of its retained best state
+    when available; otherwise this is `fallback_u`.
+  - `t`: Marker associated with `u`. A safe-best cache returns its saved marker when
+    available; otherwise this is `fallback_t`.
+  - `retcode`: The cache-adjusted solver return code. A standard termination event maps
+    to `ReturnCode.Success`; safe modes preserve a more specific cached result.
+
+# Developer Contract
+
+Call this only after the final update of a cache returned by
+`SciMLBase.init(prob, termination_condition, du, u; kwargs...)`. The fallback values must
+describe the enclosing solver's actual final result. This is a consumer API, not an
+extension point: solver packages must not extend it or access the cache's fields directly.
+
+# Example
+
+```julia
+using NonlinearSolveBase, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u, [1.0])
+cache = init(prob, AbsNormTerminationMode(NonlinearSolveBase.Linf_NORM), [1.0], [1.0])
+termination_condition_result(cache, [0.0], 1.0, ReturnCode.Terminated)
+```
+"""
+function termination_condition_result end
+
+@compat(public, (termination_condition_result,))
+
 abstract type AbstractSafeBestNonlinearTerminationMode <:
 AbstractSafeNonlinearTerminationMode end
 

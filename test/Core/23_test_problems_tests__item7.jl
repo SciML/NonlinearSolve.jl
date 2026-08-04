@@ -11,7 +11,16 @@ alg_ops = (
 
 broken_tests = Dict(alg => Int[] for alg in alg_ops)
 broken_tests[alg_ops[2]] = [1, 5, 8, 11, 18]
-broken_tests[alg_ops[4]] = [5, 6, 8, 11]
+broken_tests[alg_ops[4]] = [5, 6, 11]
+
+# Problems #1 (Generalized Rosenbrock) and #8 (Brown almost linear) with bad_broyden +
+# true_jacobian sit on a knife-edge: ulp-level differences in the Jacobian inverse
+# initialization flip them between converging and not, so which side they land on is
+# BLAS/CPU dependent. Skip rather than mark broken, since an unexpected pass would also
+# error — both have failed in both directions across runners. See
+# SciML/NonlinearSolve.jl#1083 and SciML/NonlinearSolve.jl#1096.
+skip_tests = Dict(alg => Int[] for alg in alg_ops)
+skip_tests[alg_ops[4]] = [1, 8]
 if Sys.isapple()
     broken_tests[alg_ops[1]] = [1, 5, 11]
     broken_tests[alg_ops[3]] = [1, 5, 6, 9, 11]
@@ -29,4 +38,4 @@ else
     broken_tests[alg_ops[5]] = [1, 5, 11]
 end
 
-test_on_library(problems, dicts, alg_ops, broken_tests, 1.0e-3)
+test_on_library(problems, dicts, alg_ops, broken_tests, 1.0e-3; skip_tests)

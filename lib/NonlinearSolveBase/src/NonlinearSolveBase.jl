@@ -1,3 +1,23 @@
+"""
+    NonlinearSolveBase
+
+Shared implementation layer for NonlinearSolve.jl solver packages.
+
+`NonlinearSolveBase` defines the common cache, tracing, automatic differentiation,
+termination, and developer-extension interfaces used by the nonlinear solver
+subpackages. Most users should access these capabilities through `NonlinearProblem`,
+`NonlinearLeastSquaresProblem`, `solve`, and `init` from the public SciML interface.
+Solver-package authors may extend the documented developer APIs on this page.
+
+### Example
+
+```julia
+using NonlinearSolve
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveBase
 
 using Compat: @compat
@@ -12,6 +32,7 @@ using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
+import RespecializeParams
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
 
 using CommonSolve: CommonSolve, init
@@ -65,6 +86,7 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("kantorovich_homotopy.jl")
 include("homotopy_sweep.jl")
 include("arclength.jl")
 include("homotopy_polyalg.jl")
@@ -84,7 +106,10 @@ include("solve.jl")
 include("forward_diff.jl")
 
 # Unexported Public API
-@compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
+@compat(
+    public,
+    (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance, solve_cache!)
+)
 
 @compat(public, (get_abstol, get_reltol))
 @compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
@@ -96,7 +121,7 @@ include("forward_diff.jl")
 
 # public for NonlinearSolve.jl and subpackages to use
 @compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
-@compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
+@compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
 @compat(public, (construct_jacobian_cache, reused_jacobian))
 @compat(
     public,
@@ -118,7 +143,7 @@ export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogle
 
 export NonlinearSolvePolyAlgorithm
 
-export HomotopySweep, ArcLengthContinuation, HomotopyPolyAlgorithm
+export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAlgorithm
 
 export NonlinearVerbosity
 

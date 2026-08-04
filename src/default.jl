@@ -52,3 +52,12 @@ end
 function NonlinearSolveBase.initialization_alg(::AbstractNonlinearProblem, autodiff)
     return FastShortcutNonlinearPolyalg(; autodiff)
 end
+
+# A `HomotopyProblem` initialization system (e.g. a Modelica `homotopy` operator) must be
+# continued, not solved at the target `λ`: the `AbstractNonlinearProblem` method above would
+# hand it a plain nonlinear polyalgorithm that fixes `λ` and solves only the `actual` system
+# (see `solve(::HomotopyProblem, ::AbstractNonlinearSolveAlgorithm)`), which can land on the
+# wrong branch. Route it to the continuation default instead, carrying the same `autodiff`.
+function NonlinearSolveBase.initialization_alg(::SciMLBase.HomotopyProblem, autodiff)
+    return FastShortcutHomotopyPolyalg(; autodiff)
+end

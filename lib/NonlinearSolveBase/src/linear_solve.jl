@@ -161,6 +161,36 @@ function set_lincache_u!(cache, u::SArray)
     return cache.lincache.u = u
 end
 
+"""
+    get_linear_cache(cache) -> Union{Nothing, LinearSolve.LinearCache}
+
+Return the `LinearSolve.jl` `LinearCache` the solver holds its Jacobian (and, for a
+factorization, that factorization) in, or `nothing` when there is no single reusable linear
+cache.
+
+This is a read-only accessor: it hands back the cache the solver already maintains so a
+caller can reuse the current Jacobian for an auxiliary linear solve `J x = b` (for example a
+smoothed error estimate) instead of building and factorizing a second copy. It does **not**
+refactorize; the returned cache is in exactly the state the last `step!`/`solve!` left it, so
+call it after the solve for the current point. Reuse it through the normal LinearSolve caching
+interface (set `b`/`u` and `solve!`, passing no new `A`), which reuses the existing
+factorization for a direct solver and re-runs the iterative solve for a Krylov cache.
+
+Returns `nothing` for algorithms with no single descent linear solve (e.g. polyalgorithms)
+and for the native `\\`/`SMatrix`/`Number`/`Diagonal` paths that hold no reusable
+`LinearCache`; callers should fall back accordingly.
+"""
+get_linear_cache(::Any) = nothing
+function get_linear_cache(cache::AbstractNonlinearSolveCache)
+    return hasproperty(cache, :descent_cache) ? get_linear_cache(cache.descent_cache) :
+        nothing
+end
+function get_linear_cache(cache::AbstractDescentCache)
+    return hasproperty(cache, :lincache) ? get_linear_cache(cache.lincache) : nothing
+end
+get_linear_cache(cache::LinearSolveJLCache) = cache.lincache
+get_linear_cache(::NativeJLLinearSolveCache) = nothing
+
 function wrap_preconditioners(Pl, Pr, u)
     Pl = Pl === nothing ? IdentityOperator(length(u)) : Pl
     Pr = Pr === nothing ? IdentityOperator(length(u)) : Pr

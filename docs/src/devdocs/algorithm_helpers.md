@@ -62,6 +62,7 @@ NonlinearSolveFirstOrder.GenericTrustRegionScheme
 ```@docs
 NonlinearSolveBase.callback_into_cache!
 NonlinearSolveBase.concrete_jac
+NonlinearSolveBase.solve_cache!
 NonlinearSolveBase.assert_extension_supported_termination_condition
 NonlinearSolveBase.construct_extension_function_wrapper
 NonlinearSolveBase.construct_extension_jac

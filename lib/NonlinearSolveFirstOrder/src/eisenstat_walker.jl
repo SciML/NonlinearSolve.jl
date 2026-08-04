@@ -45,6 +45,7 @@ function pre_step_forcing!(cache::EisenstatWalkerForcing2Cache, descend_cache::N
     # On the first iteration we initialize η with the default initial value and stop.
     if iter == 0
         cache.η = cache.p.η₀
+        cache.rnorm = cache.rnorm_prev = cache.internalnorm(fu)
         @SciMLMessage("Eisenstat-Walker initial iteration to η=$(cache.η).", cache.verbosity, :forcing)
         LinearSolve.update_tolerances!(descend_cache.lincache; reltol = cache.η)
         return nothing
@@ -100,8 +101,7 @@ function InternalAPI.init(
 end
 
 
-function InternalAPI.reinit!(
-        cache::EisenstatWalkerForcing2Cache; p = cache.p, kwargs...
-    )
-    return cache.p = p
+function InternalAPI.reinit!(cache::EisenstatWalkerForcing2Cache, args...; kwargs...)
+    cache.η = cache.p.η₀
+    return nothing
 end
