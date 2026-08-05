@@ -152,9 +152,10 @@ function Enzyme.EnzymeRules.augmented_primal(
     end
     primal = EnzymeRules.needs_primal(config) ? res[1] : nothing
     shadow = EnzymeRules.needs_shadow(config) ? dres : nothing
-    tup = (dres, res[2])
+    # Keep SciMLSensitivity's pullback closure out of the concrete Enzyme tape type.
+    tape = Any[dres, res[2]]
     RetType = Enzyme.EnzymeRules.augmented_rule_return_type(config, RT)
-    return RetType(primal, shadow, tup::Any)
+    return RetType(primal, shadow, tape)
 end
 
 function Enzyme.EnzymeRules.reverse(
