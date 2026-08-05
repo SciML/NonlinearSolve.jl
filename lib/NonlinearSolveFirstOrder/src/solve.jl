@@ -93,6 +93,8 @@ end
     verbose
 end
 
+NonlinearSolveBase.supports_postcondition(::GeneralizedFirstOrderAlgorithm) = true
+
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
     return SciMLBase.get_du(cache.descent_cache)
 end
@@ -364,6 +366,9 @@ function InternalAPI.step!(
             end
             @static_timeit cache.timer "step" begin
                 @bb axpy!(α, δu, cache.u)
+                cache.u = NonlinearSolveBase.apply_postcondition!!(
+                    cache.u, cache.u_cache, cache
+                )
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
         elseif cache.globalization isa Val{:TrustRegion}
@@ -374,7 +379,14 @@ function InternalAPI.step!(
                 )
                 if tr_accepted
                     @bb copyto!(cache.u, u_new)
-                    @bb copyto!(cache.fu, fu_new)
+                    if NonlinearSolveBase.get_postcondition(cache) === nothing
+                        @bb copyto!(cache.fu, fu_new)
+                    else
+                        cache.u = NonlinearSolveBase.apply_postcondition!!(
+                            cache.u, cache.u_cache, cache
+                        )
+                        Utils.evaluate_f!(cache, cache.u, cache.p)
+                    end
                     α = true
                 else
                     α = false
@@ -389,6 +401,9 @@ function InternalAPI.step!(
         elseif cache.globalization isa Val{:None}
             @static_timeit cache.timer "step" begin
                 @bb axpy!(1, δu, cache.u)
+                cache.u = NonlinearSolveBase.apply_postcondition!!(
+                    cache.u, cache.u_cache, cache
+                )
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
