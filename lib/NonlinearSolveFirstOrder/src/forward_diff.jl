@@ -15,7 +15,7 @@ function SciMLBase.__init(
     )
     p = NonlinearSolveBase.nodual_value(prob.p)
     newprob = SciMLBase.remake(prob; u0 = NonlinearSolveBase.nodual_value(prob.u0), p)
-    cache = init(newprob, alg, args...; kwargs...)
+    cache = init(newprob::AbstractNonlinearProblem, alg, args...; kwargs...)
     return NonlinearSolveForwardDiffCache(
         cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p)
     )
