@@ -3,6 +3,8 @@ module ConditioningTests
 using Test
 using NonlinearSolveBase
 using SciMLBase
+using NonlinearSolveBase: NonlinearVerbosity
+using SciMLLogging: SciMLLogging
 using NonlinearSolveBase: needs_conditioning, transform_conditioned_problem,
     PreconditionWrapper, apply_postcondition!!, get_precondition, get_postcondition
 
@@ -25,7 +27,7 @@ const FIIP = (du, u, p) -> (du .= u .^ 2 .- p; nothing)
     # solve-time wins over the problem's stored option, matching `alias`
     @test get_precondition(probk, (; precondition = G2)) === G2
 
-    H = (up, uprev, p) -> up
+    H = (up, uprev, p, cache) -> up
     @test get_postcondition(NonlinearProblem(F, [1.0], 2.0; postcondition = H), (;)) === H
 end
 
@@ -33,8 +35,8 @@ end
     prob = NonlinearProblem(F, [1.0], 2.0)
     @test !needs_conditioning(prob, (;))
     @test needs_conditioning(prob, (; precondition = (fu, u, p) -> fu))
-    @test needs_conditioning(prob, (; postcondition = (up, uprev, p) -> up))
-    @test needs_conditioning(NonlinearProblem(F, [1.0], 2.0; postcondition = (a, b, c) -> a), (;))
+    @test needs_conditioning(prob, (; postcondition = (up, uprev, p, cache) -> up))
+    @test needs_conditioning(NonlinearProblem(F, [1.0], 2.0; postcondition = (a, b, c, d) -> a), (;))
 end
 
 @testset "precondition composes into the residual (oop and iip)" begin
@@ -66,13 +68,13 @@ end
 end
 
 @testset "postcondition corrects the initial guess" begin
-    H = (up, uprev, p) -> clamp.(up, 0.5, 1.0)
+    H = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
     tprob = transform_conditioned_problem(
         NonlinearProblem(F, [2.0], 3.0), SupportedAlg(), (; postcondition = H)
     )
     @test tprob.u0 ≈ [1.0]
 
-    Hiip = (up, uprev, p) -> (up .= clamp.(up, 0.5, 1.0); nothing)
+    Hiip = (up, uprev, p, cache) -> (up .= clamp.(up, 0.5, 1.0); nothing)
     probi = NonlinearProblem(FIIP, [2.0], 3.0)
     tprobi = transform_conditioned_problem(probi, SupportedAlg(), (; postcondition = Hiip))
     @test tprobi.u0 ≈ [1.0]
@@ -88,10 +90,10 @@ end
     prob = NonlinearProblem(F, [1.0], 2.0)
     probi = NonlinearProblem(FIIP, [1.0], 2.0)
 
-    H = (up, uprev, p) -> up .+ uprev
+    H = (up, uprev, p, cache) -> up .+ uprev
     @test apply_postcondition!!([3.0], [1.0], FakeCache(prob, (; postcondition = H))) ≈ [4.0]
 
-    Hiip = (up, uprev, p) -> (up .+= uprev; nothing)
+    Hiip = (up, uprev, p, cache) -> (up .+= uprev; nothing)
     u = [3.0]
     @test apply_postcondition!!(u, [1.0], FakeCache(probi, (; postcondition = Hiip))) === u
     @test u ≈ [4.0]
@@ -108,15 +110,30 @@ end
     @test seen[] === fc
 end
 
-@testset "guards: unsupported algorithm and bounds" begin
-    H = (up, uprev, p) -> up
+@testset "unsupported algorithms and bounds are reported, not rejected" begin
+    H = (up, uprev, p, cache) -> up
     kw = (; postcondition = H)
     prob = NonlinearProblem(F, [1.0], 2.0)
-    @test_throws ArgumentError transform_conditioned_problem(prob, UnsupportedAlg(), kw)
+
+    # an algorithm that cannot apply the corrector reports it at ErrorLevel, which
+    # SciMLLogging raises after logging — so it still stops the solve by default
+    @test_throws ErrorException transform_conditioned_problem(prob, UnsupportedAlg(), kw)
+    # ... but unlike a bare `throw` it is a verbosity toggle, so it can be turned down
+    silent = (; postcondition = H, verbose = NonlinearVerbosity(SciMLLogging.None()))
+    @test transform_conditioned_problem(prob, UnsupportedAlg(), silent) isa
+        SciMLBase.AbstractNonlinearProblem
     @test transform_conditioned_problem(prob, SupportedAlg(), kw).u0 ≈ [1.0]
 
-    prob_bounds = NonlinearProblem(F, [1.0], 2.0; lb = [0.0], ub = [2.0])
-    @test_throws ArgumentError transform_conditioned_problem(prob_bounds, SupportedAlg(), kw)
+    # bounds compose with the corrector, with a warning that it now acts on the
+    # bounds-transformed iterate; the initial-guess correction is skipped so that every
+    # application happens in the same coordinates
+    Hc = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
+    prob_bounds = NonlinearProblem(F, [2.0], 3.0; lb = [0.0], ub = [4.0])
+    tprob = transform_conditioned_problem(
+        prob_bounds, SupportedAlg(), (; postcondition = Hc)
+    )
+    @test tprob.u0 ≈ [2.0]
+    @test tprob.lb == prob_bounds.lb
 end
 
 end

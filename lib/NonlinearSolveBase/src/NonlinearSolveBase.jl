@@ -54,7 +54,7 @@ using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible,
     update_coefficients!
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
     AbstractVerbositySpecifier, AbstractVerbosityPreset, MessageLevel,
-    None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel
+    None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel, ErrorLevel
 
 using PreallocationTools: FixedSizeDiffCache, get_tmp
 

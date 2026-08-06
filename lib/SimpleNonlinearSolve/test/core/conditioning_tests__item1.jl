@@ -1,4 +1,6 @@
 using SimpleNonlinearSolve, SciMLBase
+import NonlinearSolveBase
+using SciMLLogging: SciMLLogging
 
 # `precondition` is a problem transformation, so it composes even on the bypass `solve`
 # entries of the simple solvers: plain Newton needs ~60 creeping steps from v0 = 2.
@@ -14,8 +16,14 @@ sol = solve(
 @test SciMLBase.successful_retcode(sol)
 @test abs(sol.u - vstar) < 1.0e-8
 
-# `postcondition` has no iterate-commit support in the simple solvers, so it must error
-# rather than be silently ignored.
-@test_throws ArgumentError solve(
-    prob, SimpleNewtonRaphson(); postcondition = (up, uprev, p) -> up
+# `postcondition` has no iterate-commit support in the simple solvers, so it is reported
+# at ErrorLevel rather than silently ignored — and, being a verbosity toggle, it can be
+# turned down when that is deliberate.
+@test_throws ErrorException solve(
+    prob, SimpleNewtonRaphson(); postcondition = (up, uprev, p, cache) -> up
 )
+sol_silenced = solve(
+    prob, SimpleNewtonRaphson(); postcondition = (up, uprev, p, cache) -> up,
+    verbose = NonlinearSolveBase.NonlinearVerbosity(SciMLLogging.None()), maxiters = 200
+)
+@test SciMLBase.successful_retcode(sol_silenced)

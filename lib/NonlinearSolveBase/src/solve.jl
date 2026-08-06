@@ -34,6 +34,26 @@ problems.
 
 These tolerances are interpreted by the termination condition.
 
+### Nonlinear Preconditioning
+
+* `precondition`: a left preconditioner `G` applied to the residual, giving the
+  root-equivalent system `G(f(u, p), u, p) = 0`. Out-of-place problems return the
+  transformed residual, `Gfu = precondition(fu, u, p)`; in-place problems overwrite the
+  first argument, `precondition(fu, u, p) -> nothing`. The composition is what the solver
+  evaluates and differentiates, so termination and `sol.resid` are measured on it. `G`
+  must be root-preserving: `G(r, u, p) = 0` if and only if `r = 0`.
+* `postcondition`: an iterate corrector `H` applied to every accepted iterate before the
+  residual is evaluated or convergence tested there, and once to the initial guess.
+  Out-of-place problems return the corrected iterate,
+  `u_new = postcondition(u_proposed, u_prev, p, cache)`; in-place problems overwrite the
+  first argument, `postcondition(u_proposed, u_prev, p, cache) -> nothing`. The fourth
+  argument is the solver cache — `nothing` for the initial-guess correction, since that
+  runs before a cache exists — and correctors that do not need solver state simply ignore
+  it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
+
+Both are ordinary solver options: pass them to `solve`/`init`, or carry them on the
+problem and have them forwarded like any other keyword.
+
 ### Miscellaneous
 
 * `maxiters`: Maximum number of iterations before stopping. Defaults to 1000.

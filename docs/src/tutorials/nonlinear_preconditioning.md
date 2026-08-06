@@ -97,8 +97,11 @@ the option a natural place for residual weighting.
 
 ## Iterate limiting for a circuit model: the PCNR method
 
-Now the classic circuit-simulation problem: a voltage source `Vs` in series with a
-resistor `R` feeding a diode to ground. SPICE-family simulators solve the nodal equations
+Now the classic circuit-simulation problem, following Aadithya, Keiter & Mei,
+*Predictor/Corrector Newton-Raphson (PCNR): A Simple, Flexible, Scalable, Modular, and
+Consistent Replacement for Limiting in Circuit Simulation*, Scientific Computing in
+Electrical Engineering (2020): a voltage source `Vs` in series with a resistor `R`
+feeding a diode to ground. SPICE-family simulators solve the nodal equations
 with Newton-Raphson plus *junction-voltage limiting* (`pnjlim`): a proposed update to a
 diode voltage is clipped to a logarithmic move relative to the previous iterate, since a
 volt-sized overshoot puts `exp(v/Vt)` far outside the region where the linearization
@@ -145,7 +148,7 @@ end
 vcrit = cp.Vt * log(cp.Vt / (sqrt(2) * cp.Is))
 
 # corrector: limit the junction voltage update, leave the node voltage alone
-H!(up, uprev, p) = (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
+H!(up, uprev, p, cache) = (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
 
 sol_c_lim = solve(prob_c, NewtonRaphson(); postcondition = H!, maxiters = 1000)
 sol_c_lim.retcode, sol_c_lim.stats.nsteps
@@ -174,12 +177,12 @@ sol_both = solve(
 sol_both.retcode, sol_both.stats.nsteps
 ```
 
-### Solver-state-aware correctors: the four-argument form
+### Solver-state-aware correctors
 
-Production limiting strategies are often staged over the Newton sequence — Xyce-style
-simulators relax or disable limiting as the iteration proceeds. For this, a
-`postcondition` may accept the solver cache as a fourth argument (analogous to PETSc's
-post-check receiving the `SNES` object):
+A corrector always receives the solver cache as its fourth argument (analogous to PETSc's
+post-check receiving the `SNES` object); the correctors above simply ignore it. That
+argument is what staged limiting needs — Xyce-style simulators relax or disable limiting
+as the iteration proceeds:
 
 ```@example preconditioning
 H_staged! = function (up, uprev, p, cache)
@@ -195,8 +198,7 @@ sol_staged = solve(prob_c, NewtonRaphson(); postcondition = H_staged!, maxiters 
 sol_staged.retcode, sol_staged.stats.nsteps
 ```
 
-When methods for both arities exist, the four-argument form is preferred. Treat the cache
-as **read-only through its public accessors** — `NonlinearSolveBase.get_u`,
+Treat the cache as **read-only through its public accessors** — `NonlinearSolveBase.get_u`,
 `NonlinearSolveBase.get_fu` (the residual at the *previous* accepted iterate at the time
 the corrector runs), `NonlinearSolveBase.get_nsteps`, `NonlinearSolveBase.get_abstol`,
 and `NonlinearSolveBase.get_reltol` — everything else on the cache is internal and
@@ -212,27 +214,22 @@ the negative domain:
 
 ```@example preconditioning
 flog(u, p) = log.(u) .- p
-Hpos(up, uprev, p) = clamp.(up, 1.0e-8, Inf)
+Hpos(up, uprev, p, cache) = clamp.(up, 1.0e-8, Inf)
 
 sol_pos = solve(NonlinearProblem(flog, [10.0], -2.0), NewtonRaphson(); postcondition = Hpos)
 sol_pos.retcode, sol_pos.u
 ```
 
 For simple box bounds, prefer the native `lb`/`ub` support described in the
-[bound constraints tutorial](bound_constraints.md); `postcondition` combined with
-`lb`/`ub` is rejected since the bounds transform changes the iterate coordinates the
-corrector would act on.
+[bound constraints tutorial](bound_constraints.md). The two do compose, but bounds are
+handled by transforming to an unconstrained variable, so a corrector combined with
+`lb`/`ub` is imposed on the *transformed* iterate rather than on your original variable —
+which is rarely what a limiting rule means. NonlinearSolve reports that through the
+`postcondition_bounds_transform` verbosity toggle; silence it once you have accounted for
+the change of coordinates.
 
 ## Semantics and caveats
 
-  - **Signatures.** Out-of-place problems use `Gfu = G(fu, u, p)` and
-    `u_new = H(u_proposed, u_prev, p)`; in-place problems mutate the first argument:
-    `G(fu, u, p) -> nothing` overwrites `fu`, `H(u_proposed, u_prev, p) -> nothing`
-    overwrites `u_proposed`.
-  - **Precedence.** A value passed to `solve`/`init` overrides one carried on the
-    problem; it does not compose with it. If a model-generating package (for example a
-    ModelingToolkit component library with device limiting) attached a corrector to the
-    problem, passing your own at solve time replaces it entirely.
   - **Where `H` acts.** `postcondition` is applied to *accepted* iterates. Line searches
     and trust regions evaluate their merit/reduction models at the unlimited trial
     points, matching PETSc post-check semantics. Limiting therefore pairs most naturally
@@ -246,8 +243,10 @@ corrector would act on.
   - **Solver support.** The first-order (`NewtonRaphson`, `TrustRegion`,
     `LevenbergMarquardt`, ...), quasi-Newton (`Broyden`, `Klement`, ...), and spectral
     (`DFSane`) families and poly-algorithms composed of them support `postcondition`;
-    unsupported solvers (e.g. SimpleNonlinearSolve or external wrappers) throw an
-    `ArgumentError` rather than silently ignoring it. `precondition` is a problem
+    unsupported solvers (e.g. SimpleNonlinearSolve or external wrappers) report the
+    unapplied corrector through the `unsupported_postcondition` verbosity toggle, which
+    raises by default rather than silently ignoring it and can be turned down through
+    SciMLLogging when that is deliberate. `precondition` is a problem
     transformation and works with every solver that consumes the problem function,
     including SimpleNonlinearSolve.
 

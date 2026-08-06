@@ -20,7 +20,7 @@ function circuit!(r, u, p)
     r[2] = u[2] - u[1]
     return nothing
 end
-H! = (up, uprev, p) -> (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
+H! = (up, uprev, p, cache) -> (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
 
 sol = solve(NonlinearProblem(circuit!, zeros(2), cp); postcondition = H!, maxiters = 1000)
 @test SciMLBase.successful_retcode(sol)

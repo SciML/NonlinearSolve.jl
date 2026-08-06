@@ -43,7 +43,7 @@ get_precondition(prob, kwargs) = _conditioning_option(prob, kwargs, :preconditio
 """
     get_postcondition(prob, kwargs)
 
-The iterate corrector `H(u_proposed, u_prev, p[, cache])` in effect for this solve, or
+The iterate corrector `H(u_proposed, u_prev, p, cache)` in effect for this solve, or
 `nothing`.
 """
 get_postcondition(prob, kwargs) = _conditioning_option(prob, kwargs, :postcondition)
@@ -98,32 +98,39 @@ function transform_conditioned_problem(prob, alg, kwargs)
     pre = get_precondition(prob, kwargs)
     post = get_postcondition(prob, kwargs)
 
+    verbose = get(kwargs, :verbose, NonlinearVerbosity())
+    bounds_transformed = false
     if post !== nothing
         if alg !== nothing && alg isa AbstractNonlinearSolveAlgorithm &&
                 !supports_postcondition(alg)
-            throw(
-                ArgumentError(
-                    "the `postcondition` solver option is not supported by \
-                    $(typeof(alg).name.name). Use a solver that applies iterate \
-                    corrections (e.g. the native NonlinearSolve.jl first-order, \
-                    quasi-Newton, or spectral methods)."
-                )
+            @SciMLMessage(
+                "The `postcondition` solver option is not supported by \
+                $(typeof(alg).name.name), so the corrector will not be applied. Use a \
+                solver that applies iterate corrections (e.g. the native \
+                NonlinearSolve.jl first-order, quasi-Newton, or spectral methods).",
+                verbose, :unsupported_postcondition
             )
         end
         if hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
-                (prob.lb !== nothing || prob.ub !== nothing)
-            throw(
-                ArgumentError(
-                    "the `postcondition` solver option cannot be combined with `lb`/`ub` \
-                    bounds: the bounds transform changes the iterate coordinates the \
-                    corrector would act on. Enforce the bounds inside the `postcondition` \
-                    instead."
-                )
+                (prob.lb !== nothing || prob.ub !== nothing) &&
+                needs_bounds_transform(prob, alg)
+            # The bounds transform reparametrizes the iterate, and it runs after this
+            # pass, so every in-loop application of the corrector sees the unconstrained
+            # coordinate rather than the user's variable. Composing is allowed, but the
+            # coordinate change has to be flagged; the initial-guess correction is
+            # skipped so that every application happens in the same (transformed) space.
+            bounds_transformed = true
+            @SciMLMessage(
+                "The `postcondition` corrector is combined with `lb`/`ub` bounds. The \
+                bounds are handled by transforming to an unconstrained variable, so the \
+                corrector is imposed on the *transformed* iterate, not on the original \
+                bounded variable.",
+                verbose, :postcondition_bounds_transform
             )
         end
     end
 
-    u0 = if post === nothing
+    u0 = if post === nothing || bounds_transformed
         prob.u0
     elseif SciMLBase.isinplace(prob)
         u0c = copy(prob.u0)
@@ -155,11 +162,10 @@ in-place problems). Solver families must call this at every iterate-commit point
 evaluating the residual or testing convergence there, so residuals and Jacobians stay
 consistent with the corrected iterates.
 
-Correctors may opt into solver-state access by accepting a fourth argument,
-`H(u_proposed, u_prev, p, cache)`; when both arities exist the four-argument form is
-preferred. Only the documented cache accessors (`get_u`, `get_fu`, `get_nsteps`,
-`get_abstol`, `get_reltol`) should be used on it. The argument is `nothing` for the
-initial-guess correction, which runs before any cache exists.
+Correctors always take the solver cache as their fourth argument; a corrector that does
+not need it simply ignores the parameter. Only the documented cache accessors (`get_u`,
+`get_fu`, `get_nsteps`, `get_abstol`, `get_reltol`) should be used on it. The argument is
+`nothing` for the initial-guess correction, which runs before any cache exists.
 """
 function apply_postcondition!!(u, u_prev, cache)
     post = get_postcondition(cache)
@@ -170,10 +176,6 @@ function apply_postcondition!!(u, u_prev, cache)
 end
 
 function _apply_postcondition!!(post::F, u, u_prev, p, cache, iip::Bool) where {F}
-    if applicable(post, u, u_prev, p, cache)
-        iip && (post(u, u_prev, p, cache); return u)
-        return post(u, u_prev, p, cache)
-    end
-    iip && (post(u, u_prev, p); return u)
-    return post(u, u_prev, p)
+    iip && (post(u, u_prev, p, cache); return u)
+    return post(u, u_prev, p, cache)
 end

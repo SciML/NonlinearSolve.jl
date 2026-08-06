@@ -1,4 +1,5 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, StaticArrays
+using SciMLLogging: SciMLLogging
 
 # PCNR-style iterate limiting (Aadithya, Keiter & Mei): a voltage source, resistor and
 # diode in the augmented unknowns [v, vj], where the junction voltage is an explicit
@@ -24,7 +25,7 @@ function circuit!(r, u, p)
     r[2] = u[2] - u[1]
     return nothing
 end
-H! = (up, uprev, p) -> (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
+H! = (up, uprev, p, cache) -> (up[2] = pnjlim(up[2], uprev[2], p.Vt, vcrit); nothing)
 resid_norm(u) = (r = zeros(2); circuit!(r, u, cp); maximum(abs, r))
 
 prob = NonlinearProblem(NonlinearFunction(circuit!), zeros(2), cp)
@@ -69,7 +70,7 @@ f_s = (u, p) -> SA[(u[1] - p.Vs) / p.R + p.Is * expm1(u[2] / p.Vt), u[2] - u[1]]
 sol_s = solve(
     NonlinearProblem(f_s, SA[0.0, 0.0], cp), NewtonRaphson();
     precondition = (fu, u, p) -> SA[asinh(fu[1]), fu[2]],
-    postcondition = (up, uprev, p) -> SA[up[1], pnjlim(up[2], uprev[2], p.Vt, vcrit)],
+    postcondition = (up, uprev, p, cache) -> SA[up[1], pnjlim(up[2], uprev[2], p.Vt, vcrit)],
     maxiters = 1000
 )
 @test SciMLBase.successful_retcode(sol_s) && resid_norm(Vector(sol_s.u)) < 1.0e-8
@@ -78,13 +79,19 @@ sol_s = solve(
 fproj! = (du, u, p) -> (du[1] = u[1] - 1; du[2] = u[2]^2 - u[1] - 3; nothing)
 sol_proj = solve(
     NonlinearProblem(fproj!, [5.0, 5.0]), NewtonRaphson();
-    postcondition = (up, uprev, p) -> (up[1] = 1.0; nothing)
+    postcondition = (up, uprev, p, cache) -> (up[1] = 1.0; nothing)
 )
 @test SciMLBase.successful_retcode(sol_proj)
 @test sol_proj.u[1] == 1.0 && abs(sol_proj.u[2] - 2.0) < 1.0e-8
 
-# bounds and the corrector are mutually exclusive
+# bounds compose with the corrector: the bounds are handled by transforming to an
+# unconstrained variable, so the corrector acts on the transformed iterate (reported
+# through the `postcondition_bounds_transform` verbosity toggle, silenced here)
 prob_b = NonlinearProblem(
     NonlinearFunction(circuit!), zeros(2), cp; lb = [-10.0, -10.0], ub = [10.0, 10.0]
 )
-@test_throws ArgumentError solve(prob_b, NewtonRaphson(); postcondition = H!)
+sol_b = solve(
+    prob_b, NewtonRaphson(); postcondition = H!, maxiters = 1000,
+    verbose = NonlinearSolveBase.NonlinearVerbosity(SciMLLogging.None())
+)
+@test SciMLBase.successful_retcode(sol_b)
