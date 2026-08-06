@@ -55,6 +55,10 @@ function CommonSolve.solve(
         prob::IntervalNonlinearProblem,
         alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...
     )
+    # IntervalNonlinearProblem kwargs are solver options (SciMLBase contract). Merge
+    # here so they bind before __solve defaults (e.g. abstol = nothing). Solve kwargs
+    # override problem kwargs, matching NonlinearSolveBase.solve_call.
+    kwargs = isempty(prob.kwargs) ? kwargs : merge(values(prob.kwargs)::NamedTuple, kwargs)
     return bracketingnonlinear_solve_up(
         prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...
     )

@@ -4,3 +4,4 @@
 @safetestset "ForwardDiff with Duals in tspan" include("rootfind_tests__item4.jl")
 @safetestset "ModAB non-shrinking iteration" include("rootfind_tests__item5.jl")
 @safetestset "Flipped Signs and Reversed Tspan" include("rootfind_tests__item6.jl")
+@safetestset "Problem kwargs forwarded to solvers" include("rootfind_tests__item7.jl")
