@@ -34,6 +34,26 @@ problems.
 
 These tolerances are interpreted by the termination condition.
 
+### Nonlinear Preconditioning
+
+* `precondition`: a left preconditioner `G` applied to the residual, giving the
+  root-equivalent system `G(f(u, p), u, p) = 0`. Out-of-place problems return the
+  transformed residual, `Gfu = precondition(fu, u, p)`; in-place problems overwrite the
+  first argument, `precondition(fu, u, p) -> nothing`. The composition is what the solver
+  evaluates and differentiates, so termination and `sol.resid` are measured on it. `G`
+  must be root-preserving: `G(r, u, p) = 0` if and only if `r = 0`.
+* `postcondition`: an iterate corrector `H` applied to every accepted iterate before the
+  residual is evaluated or convergence tested there, and once to the initial guess.
+  Out-of-place problems return the corrected iterate,
+  `u_new = postcondition(u_proposed, u_prev, p, cache)`; in-place problems overwrite the
+  first argument, `postcondition(u_proposed, u_prev, p, cache) -> nothing`. The fourth
+  argument is the solver cache — `nothing` for the initial-guess correction, since that
+  runs before a cache exists — and correctors that do not need solver state simply ignore
+  it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
+
+Both are ordinary solver options: pass them to `solve`/`init`, or carry them on the
+problem and have them forwarded like any other keyword.
+
 ### Miscellaneous
 
 * `maxiters`: Maximum number of iterations before stopping. Defaults to 1000.
@@ -151,6 +171,16 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    # Compose the nonlinear preconditioning options. Done here (in addition to the
+    # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
+    # (SimpleNonlinearSolve, extension wrappers) see the composed residual and unsupported
+    # `postcondition` usage errors instead of being silently ignored.
+    if needs_conditioning(_prob, kwargs)
+        _prob = transform_conditioned_problem(
+            _prob, length(args) > 0 ? args[1] : nothing, kwargs
+        )
+    end
 
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
@@ -275,9 +305,16 @@ function init_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
+    alg = length(args) > 0 ? args[1] : nothing
+
+    # Compose the nonlinear preconditioning options before any bounds transform, so the
+    # composition acts in the original iterate coordinates.
+    if needs_conditioning(_prob, kwargs)
+        _prob = transform_conditioned_problem(_prob, alg, kwargs)
+    end
+
     # Forward bounds transform: if the algorithm doesn't natively support bounds,
     # apply a variable transformation so the solver operates in unconstrained space.
-    alg = length(args) > 0 ? args[1] : nothing
     if needs_bounds_transform(_prob, alg)
         _prob = transform_bounded_problem(_prob, alg)
     end
@@ -293,10 +330,15 @@ end
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::AbstractNonlinearSolveAlgorithm, args...; kwargs...
     )
-    _prob = if needs_bounds_transform(prob, alg)
-        transform_bounded_problem(prob, alg)
+    _prob = if needs_conditioning(prob, kwargs)
+        transform_conditioned_problem(prob, alg, kwargs)
     else
         prob
+    end
+    _prob = if needs_bounds_transform(_prob, alg)
+        transform_bounded_problem(_prob, alg)
+    else
+        _prob
     end
     cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
     sol = CommonSolve.solve!(cache)

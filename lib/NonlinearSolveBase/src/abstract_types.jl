@@ -331,6 +331,7 @@ Abstract Type for all NonlinearSolveBase Caches.
   - `get_fu(cache)`: get the residual.
 
   - `get_u(cache)`: get the current state.
+  - `get_nsteps(cache)`: get the number of steps taken so far.
   - `set_fu!(cache, fu)`: set the residual.
   - `has_time_limit(cache)`: whether or not the solver has a maximum time limit.
   - `not_terminated(cache)`: whether or not the solver has terminated.
@@ -366,6 +367,7 @@ abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+get_nsteps(cache::AbstractNonlinearSolveCache) = cache.nsteps
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 

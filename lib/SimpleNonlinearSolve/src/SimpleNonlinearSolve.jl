@@ -82,6 +82,9 @@ function CommonSolve.solve(
     if prob.u0 === nothing
         return NonlinearSolveBase.build_null_solution(prob, args...; kwargs...)
     end
+    if NonlinearSolveBase.needs_conditioning(prob, kwargs)
+        prob = NonlinearSolveBase.transform_conditioned_problem(prob, alg, kwargs)
+    end
     prob = convert(ImmutableNonlinearProblem, prob)
     return solve(prob, alg, args...; kwargs...)
 end
@@ -119,6 +122,9 @@ function CommonSolve.solve(
     )
     if prob.u0 === nothing
         return NonlinearSolveBase.build_null_solution(prob, args...; kwargs...)
+    end
+    if NonlinearSolveBase.needs_conditioning(prob, kwargs)
+        prob = NonlinearSolveBase.transform_conditioned_problem(prob, alg, kwargs)
     end
     alg = configure_autodiff(prob, alg)
     cache = SciMLBase.__init(prob, alg, args...; initializealg, kwargs...)
