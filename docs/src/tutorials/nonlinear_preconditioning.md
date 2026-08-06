@@ -162,11 +162,6 @@ method:
     actually evaluated at. (Traditional device-level limiting breaks exactly this
     property, which is the inconsistency PCNR was designed to remove.)
 
-The remaining ingredient of the PCNR paper — a Schur complement that eliminates the
-augmented unknowns from the linear solve so it stays at the original MNA size — is a
-linear-algebra optimization: pass a specialized solver/preconditioner via `linsolve` if
-your augmented block is large.
-
 Since the residual is evaluated at the limited iterate, the two options compose. Here is
 the same circuit with selective `asinh` compression of the exponential KCL row on top of
 the limiter:
