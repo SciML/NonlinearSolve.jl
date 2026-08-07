@@ -133,6 +133,7 @@ include("forward_diff.jl")
 @compat(public, (get_u, get_fu, get_nsteps))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
 @compat(public, (construct_jacobian_cache, reused_jacobian))
+@compat(public, (reset_update_rule_state!,))
 @compat(
     public,
     (

@@ -201,8 +201,10 @@ end
 """
     BroydenLowRankJacobian{T}(U, Vᵀ, idx, cache, alpha)
 
-Low Rank Approximation of the Jacobian Matrix. Currently only used for
-[`LimitedMemoryBroyden`](@ref). This computes the Jacobian as ``U \\times V^T``.
+Low Rank Approximation of the inverse Jacobian. Currently only used for
+[`LimitedMemoryBroyden`](@ref). This computes the inverse Jacobian as
+``\\alpha I + U \\times V^T``, matching the ``\\alpha I`` seed
+[`IdentityInitialization`](@ref) hands the other quasi-Newton methods after inversion.
 """
 @concrete mutable struct BroydenLowRankJacobian{T} <: AbstractSciMLOperator{T}
     U
@@ -246,38 +248,38 @@ function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
 end
 
 function Base.:*(J::BroydenLowRankJacobian, x::AbstractVector)
-    J.idx == 0 && return -x
+    J.idx == 0 && return J.alpha .* x
     _, U, Vᵀ = get_components(J)
-    return U * (Vᵀ * x) .- J.alpha .* x
+    return U * (Vᵀ * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::AbstractVector)
     if J.idx == 0
-        @. y = -J.alpha * x
+        @. y = J.alpha * x
         return y
     end
     cache, U, Vᵀ = get_components(J)
     @bb cache = Vᵀ × x
     LinearAlgebra.mul!(y, U, cache)
-    @bb @. y -= J.alpha * x
+    @bb @. y += J.alpha * x
     return y
 end
 
 function Base.:*(x::AbstractVector, J::BroydenLowRankJacobian)
-    J.idx == 0 && return -x
+    J.idx == 0 && return J.alpha .* x
     _, U, Vᵀ = get_components(J)
-    return Vᵀ' * (U' * x) .- J.alpha .* x
+    return Vᵀ' * (U' * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowRankJacobian)
     if J.idx == 0
-        @. y = -J.alpha * x
+        @. y = J.alpha * x
         return y
     end
     cache, U, Vᵀ = get_components(J)
     @bb cache = transpose(U) × x
     LinearAlgebra.mul!(y, transpose(Vᵀ), cache)
-    @bb @. y -= J.alpha * x
+    @bb @. y += J.alpha * x
     return y
 end
 

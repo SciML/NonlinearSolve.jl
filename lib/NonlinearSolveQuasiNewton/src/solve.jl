@@ -123,6 +123,10 @@ function InternalAPI.reinit_self!(
     )
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
+    NonlinearSolveBase.reset_update_rule_state!(
+        cache.update_rule_cache, NonlinearSolveBase.get_fu(cache)
+    )
+
     InternalAPI.reinit!(cache.stats)
     cache.nsteps = 0
     cache.nresets = 0

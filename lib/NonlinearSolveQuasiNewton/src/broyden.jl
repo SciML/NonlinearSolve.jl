@@ -121,6 +121,11 @@ end
     rule <: Union{BadBroydenUpdateRule, GoodBroydenUpdateRule}
 end
 
+function NonlinearSolveBase.reset_update_rule_state!(cache::BroydenUpdateRuleCache, fu)
+    @bb copyto!(cache.dfu, fu)
+    return
+end
+
 function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹, fu, u, du; kwargs...
     )

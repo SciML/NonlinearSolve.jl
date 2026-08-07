@@ -588,6 +588,8 @@ Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearS
 ### Interface Functions
 
   - `store_inverse_jacobian(cache)`: Return `store_inverse_jacobian(cache.rule)`
+  - `reset_update_rule_state!(cache, fu)`: Reseed any residual the cache carries between
+    iterations with `fu`.
 
 ### `InternalAPI.solve!` specification
 
@@ -602,6 +604,21 @@ abstract type AbstractApproximateJacobianUpdateRuleCache <: AbstractNonlinearSol
 function store_inverse_jacobian(cache::AbstractApproximateJacobianUpdateRuleCache)
     return store_inverse_jacobian(cache.rule)
 end
+
+"""
+    reset_update_rule_state!(cache::AbstractApproximateJacobianUpdateRuleCache, fu)
+
+Reseed the update rule cache with `fu`, the residual at the iterate the enclosing solver
+cache is being (re)initialized at, exactly as `InternalAPI.init` seeds it.
+
+Secant-type update rules difference the current residual against the previous iterate's,
+which they store across iterations. That stored residual is not reachable from
+`InternalAPI.reinit_self!`, which runs on the nested caches before the enclosing cache has
+evaluated the residual at the new iterate, so the enclosing cache calls this afterwards
+instead. The default is a no-op, which is correct for update rules whose cache holds only
+scratch buffers.
+"""
+reset_update_rule_state!(::AbstractApproximateJacobianUpdateRuleCache, fu) = nothing
 
 """
     AbstractResetCondition
