@@ -24,6 +24,22 @@ NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
 NonlinearSolveBase.AbstractNonlinearSolveCache
 ```
 
+## Nonlinear Preconditioning
+
+Hooks backing the `precondition` and `postcondition` solve options described in
+[Nonlinear Preconditioning](@ref nonlinear_preconditioning). `transform_conditioned_problem`
+runs at the `solve`/`init` funnels, while `apply_postcondition!!` is called by each solver
+family at its iterate-commit points.
+
+```@docs
+NonlinearSolveBase.get_precondition
+NonlinearSolveBase.get_postcondition
+NonlinearSolveBase.needs_conditioning
+NonlinearSolveBase.transform_conditioned_problem
+NonlinearSolveBase.apply_postcondition!!
+NonlinearSolveBase.supports_postcondition
+```
+
 ## Descent Directions
 
 ```@docs
@@ -62,6 +78,17 @@ NonlinearSolveBase.AbstractDampingFunctionCache
 ```@docs
 NonlinearSolveBase.AbstractTrustRegionMethod
 NonlinearSolveBase.AbstractTrustRegionMethodCache
+```
+
+## Cache State
+
+Accessors for the state of a running solve. These are the only cache accessors a
+`postcondition` corrector should use on the cache it is handed.
+
+```@docs
+NonlinearSolveBase.get_u
+NonlinearSolveBase.get_fu
+NonlinearSolveBase.get_nsteps
 ```
 
 ## Cache Tolerances

@@ -14,3 +14,13 @@ MTK = "MTK"
 # NonlinearSolve specific terms
 LSO = "LSO"  # Legitimate abbreviation used in optimization contexts
 clos = "clos"  # Variable name for closure in Enzyme extension
+
+# Deliberate misspellings that are the point of the code they appear in. Scoped to
+# `*.jl` and to the exact identifier: an `extend-identifiers` entry is case-sensitive
+# and matches the whole identifier, so it cannot mask the same typo inside a compound
+# name or in prose. Extending the built-in `jl` type merges with it rather than
+# replacing it.
+[type.jl.extend-identifiers]
+# test/Core/core_tests__item23.jl asserts that a typo'd keyword name is rejected by
+# SciMLBase's common keyword whitelist, so the misspelling has to stay misspelled.
+postcondtion = "postcondtion"
