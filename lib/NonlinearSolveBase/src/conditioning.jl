@@ -249,9 +249,7 @@ function apply_postcondition!!(u, u_prev, cache)
     bw = bounded_wrapper(cache)
     (bw === nothing || postcondition_space(post) === PostconditionSpace.Transformed) &&
         return _apply_postcondition!!(post, u, u_prev, cache.prob.p, cache, iip)
-    return _apply_postcondition_bounded!!(
-        post, u, u_prev, cache.prob.p, cache, iip, bw.lb, bw.ub
-    )
+    return _apply_postcondition_bounded!!(post, u, u_prev, cache.prob.p, cache, iip, bw)
 end
 
 # In-place and out-of-place are dispatched rather than branched on so the unused
@@ -269,21 +267,27 @@ end
 # unconstrained one. `_clamp_to_bounds` is load-bearing on the way back: a corrector that
 # clamps exactly *onto* a bound sits at ±Inf in the transformed variable, so it has to be
 # nudged into the interior first.
+#
+# The IIP path writes into the preallocated `BoundedWrapper` temps so the commit-point
+# corrector is allocation-free. The OOP path still allocates the mapped inputs and the
+# mapped return — that is the out-of-place contract.
 function _apply_postcondition_bounded!!(
-        post::F, u, u_prev, p, cache, ::Val{true}, lb, ub
+        post::F, u, u_prev, p, cache, ::Val{true}, bw
     ) where {F}
-    u_orig = _from_unbounded.(u, lb, ub)
-    u_prev_orig = _from_unbounded.(u_prev, lb, ub)
+    u_orig = _bounds_tmp(bw.u_cache, u)
+    u_prev_orig = _bounds_tmp(bw.u_prev_cache, u_prev)
+    @. u_orig = _from_unbounded(u, bw.lb, bw.ub)
+    @. u_prev_orig = _from_unbounded(u_prev, bw.lb, bw.ub)
     post(u_orig, u_prev_orig, p, cache)
-    @. u = _to_unbounded(_clamp_to_bounds(u_orig, lb, ub), lb, ub)
+    @. u = _to_unbounded(_clamp_to_bounds(u_orig, bw.lb, bw.ub), bw.lb, bw.ub)
     return u
 end
 
 function _apply_postcondition_bounded!!(
-        post::F, u, u_prev, p, cache, ::Val{false}, lb, ub
+        post::F, u, u_prev, p, cache, ::Val{false}, bw
     ) where {F}
-    u_orig = _from_unbounded.(u, lb, ub)
-    u_prev_orig = _from_unbounded.(u_prev, lb, ub)
+    u_orig = _from_unbounded.(u, bw.lb, bw.ub)
+    u_prev_orig = _from_unbounded.(u_prev, bw.lb, bw.ub)
     u_new = post(u_orig, u_prev_orig, p, cache)
-    return _to_unbounded.(_clamp_to_bounds.(u_new, lb, ub), lb, ub)
+    return _to_unbounded.(_clamp_to_bounds.(u_new, bw.lb, bw.ub), bw.lb, bw.ub)
 end

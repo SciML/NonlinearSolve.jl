@@ -212,6 +212,15 @@ end
     ) === u_iip
     @test _from_unbounded.(u_iip, lb, ub) ≈ [1.0]
 
+    # IIP original-space path must reuse the BoundedWrapper temps, not allocate the
+    # two mapped-back buffers on every commit
+    u_iip2 = copy(u)
+    fc_iip = FakeCache(tprob_iip, (; postcondition = Hc_iip))
+    apply_postcondition!!(u_iip2, u_prev, fc_iip)  # warm up
+    u_iip2 .= u
+    allocs = @allocated apply_postcondition!!(u_iip2, u_prev, fc_iip)
+    @test allocs == 0
+
     # the previous iterate reaches the corrector in the original variable too
     seen = Ref(NaN)
     Hprev = (up, uprev, p, cache) -> (seen[] = uprev[1]; up)

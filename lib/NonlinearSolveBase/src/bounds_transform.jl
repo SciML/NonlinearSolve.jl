@@ -73,18 +73,25 @@ function _normalize_bounds(lb, ub, u0)
     return new_lb, new_ub
 end
 
-# Wrapper that contains the bounds and a cache to use for storing the
-# transformed bounds.
+# Wrapper that contains the bounds and caches for mapped-back iterates.
+# `u_cache` is the residual-evaluation temporary (and the postcondition `u` buffer);
+# `u_prev_cache` is a second temporary so the original-space postcondition path can map
+# both the proposed and previous iterates without allocating.
 @concrete struct BoundedWrapper{isinplace}
     f
     lb
     ub
     u_cache
+    u_prev_cache
+end
+
+@inline function _bounds_tmp(cache, u)
+    return cache isa FixedSizeDiffCache ? get_tmp(cache, u) : cache
 end
 
 function _transform_u(w::BoundedWrapper, u)
-    tmp = w.u_cache isa FixedSizeDiffCache ? get_tmp(w.u_cache, u) : w.u_cache
-    tmp .= _from_unbounded.(u, w.lb, w.ub)
+    tmp = _bounds_tmp(w.u_cache, u)
+    @. tmp = _from_unbounded(u, w.lb, w.ub)
     return tmp
 end
 
@@ -144,11 +151,13 @@ function transform_bounded_problem(prob, alg)
     # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
     # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
     alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
-    u_cache = if alg_ad === nothing || alg_ad isa AutoForwardDiff
-        FixedSizeDiffCache(prob.u0)
+    make_u_cache = if alg_ad === nothing || alg_ad isa AutoForwardDiff
+        () -> FixedSizeDiffCache(prob.u0)
     else
-        similar(prob.u0)
+        () -> similar(prob.u0)
     end
+    u_cache = make_u_cache()
+    u_prev_cache = make_u_cache()
 
     orig_f = prob.f
     # Unwrap AutoSpecializeCallable before wrapping in BoundedWrapper.
@@ -158,7 +167,9 @@ function transform_bounded_problem(prob, alg)
     else
         orig_f
     end
-    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(unwrapped_orig_f, lb, ub, u_cache)
+    wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(
+        unwrapped_orig_f, lb, ub, u_cache, u_prev_cache
+    )
 
     new_f = if orig_f isa NonlinearFunction
         @set orig_f.f = wrapped
