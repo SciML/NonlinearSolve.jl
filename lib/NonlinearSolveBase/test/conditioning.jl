@@ -5,12 +5,23 @@ using NonlinearSolveBase
 using SciMLBase
 using NonlinearSolveBase: NonlinearVerbosity
 using SciMLLogging: SciMLLogging
+# Load ForwardDiff so PreallocationTools' `FixedSizeDiffCache` dual-cache extension is
+# active: the bounds transform builds one for the default/ForwardDiff autodiff path.
+import ForwardDiff
 using NonlinearSolveBase: needs_conditioning, transform_conditioned_problem,
-    PreconditionWrapper, apply_postcondition!!, get_precondition, get_postcondition
+    PreconditionWrapper, apply_postcondition!!, get_precondition, get_postcondition,
+    PostconditionSpecifier, PostconditionSpace, postcondition_space,
+    transform_bounded_problem, _to_unbounded, _from_unbounded
 
 struct UnsupportedAlg <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm end
 struct SupportedAlg <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm end
 NonlinearSolveBase.supports_postcondition(::SupportedAlg) = true
+
+# minimal cache stand-in exposing the fields the corrector path reads
+struct FakeCache{P, K}
+    prob::P
+    kwargs::K
+end
 
 const F = (u, p) -> u .^ 2 .- p
 const FIIP = (du, u, p) -> (du .= u .^ 2 .- p; nothing)
@@ -82,11 +93,6 @@ end
 end
 
 @testset "apply_postcondition!! follows the in-place convention and passes the cache" begin
-    # minimal cache stand-in exposing the two fields the helper reads
-    struct FakeCache{P, K}
-        prob::P
-        kwargs::K
-    end
     prob = NonlinearProblem(F, [1.0], 2.0)
     probi = NonlinearProblem(FIIP, [1.0], 2.0)
 
@@ -124,16 +130,116 @@ end
         SciMLBase.AbstractNonlinearProblem
     @test transform_conditioned_problem(prob, SupportedAlg(), kw).u0 ≈ [1.0]
 
-    # bounds compose with the corrector, with a warning that it now acts on the
-    # bounds-transformed iterate; the initial-guess correction is skipped so that every
-    # application happens in the same coordinates
+    # bounds compose with the corrector; the initial guess is still in the original
+    # coordinates here, so an Original-space corrector (the default) corrects it and a
+    # Transformed one is skipped
     Hc = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
     prob_bounds = NonlinearProblem(F, [2.0], 3.0; lb = [0.0], ub = [4.0])
     tprob = transform_conditioned_problem(
         prob_bounds, SupportedAlg(), (; postcondition = Hc)
     )
-    @test tprob.u0 ≈ [2.0]
+    @test tprob.u0 ≈ [1.0]
     @test tprob.lb == prob_bounds.lb
+
+    kw_transformed = (;
+        postcondition = PostconditionSpecifier(
+            Hc; space = PostconditionSpace.Transformed
+        ),
+    )
+    @test transform_conditioned_problem(
+        prob_bounds, SupportedAlg(), kw_transformed
+    ).u0 ≈ [2.0]
+end
+
+@testset "PostconditionSpecifier declares the corrector's coordinates" begin
+    H = (up, uprev, p, cache) -> up .+ 1
+
+    @test postcondition_space(H) === PostconditionSpace.Original
+    @test postcondition_space(PostconditionSpecifier(H)) === PostconditionSpace.Original
+    @test postcondition_space(
+        PostconditionSpecifier(H; space = PostconditionSpace.Transformed)
+    ) === PostconditionSpace.Transformed
+    @test_throws TypeError PostconditionSpecifier(H; space = :bounded)
+
+    # the wrapper is transparent: it forwards the corrector call unchanged
+    @test PostconditionSpecifier(H)([1.0], [0.0], nothing, nothing) ≈ [2.0]
+end
+
+@testset "bounded problems: the corrector acts in the space it declares" begin
+    lb, ub = [0.0], [4.0]
+    Hc = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
+    Hc_iip = (up, uprev, p, cache) -> (up .= clamp.(up, 0.5, 1.0); nothing)
+
+    tprob = transform_bounded_problem(
+        NonlinearProblem(F, [2.0], 3.0; lb, ub), SupportedAlg()
+    )
+    tprob_iip = transform_bounded_problem(
+        NonlinearProblem(FIIP, [2.0], 3.0; lb, ub), SupportedAlg()
+    )
+    # the solver iterates on the unconstrained variable, so the commit-point iterates
+    # are the transforms of the physical values 3.0 (proposed) and 2.0 (previous)
+    u = _to_unbounded.([3.0], lb, ub)
+    u_prev = _to_unbounded.([2.0], lb, ub)
+
+    # Original: the clamp lands on the physical value it names
+    corrected = apply_postcondition!!(
+        copy(u), u_prev, FakeCache(tprob, (; postcondition = Hc))
+    )
+    @test _from_unbounded.(corrected, lb, ub) ≈ [1.0]
+
+    # Transformed: the same clamp applies to the unconstrained coordinate, which is a
+    # different physical correction
+    spec_t = PostconditionSpecifier(Hc; space = PostconditionSpace.Transformed)
+    corrected_t = apply_postcondition!!(
+        copy(u), u_prev, FakeCache(tprob, (; postcondition = spec_t))
+    )
+    @test corrected_t ≈ clamp.(u, 0.5, 1.0)
+    @test !isapprox(_from_unbounded.(corrected_t, lb, ub), [1.0])
+
+    # the mapped path is dispatched on the in-place convention rather than branching on
+    # it, so the solver's `cache.u = apply_postcondition!!(...)` sees a concrete type
+    @test (
+        @inferred apply_postcondition!!(
+            copy(u), u_prev, FakeCache(tprob, (; postcondition = Hc))
+        )
+    ) isa Vector{Float64}
+
+    # in-place: the transformed iterate is still mutated in place and returned
+    u_iip = copy(u)
+    @test apply_postcondition!!(
+        u_iip, u_prev, FakeCache(tprob_iip, (; postcondition = Hc_iip))
+    ) === u_iip
+    @test _from_unbounded.(u_iip, lb, ub) ≈ [1.0]
+
+    # IIP original-space path must reuse the BoundedWrapper temps, not allocate the
+    # two mapped-back buffers on every commit
+    u_iip2 = copy(u)
+    fc_iip = FakeCache(tprob_iip, (; postcondition = Hc_iip))
+    apply_postcondition!!(u_iip2, u_prev, fc_iip)  # warm up
+    u_iip2 .= u
+    allocs = @allocated apply_postcondition!!(u_iip2, u_prev, fc_iip)
+    @test allocs == 0
+
+    # the previous iterate reaches the corrector in the original variable too
+    seen = Ref(NaN)
+    Hprev = (up, uprev, p, cache) -> (seen[] = uprev[1]; up)
+    apply_postcondition!!(copy(u), u_prev, FakeCache(tprob, (; postcondition = Hprev)))
+    @test seen[] ≈ 2.0
+
+    # a correction landing exactly *on* a bound is at infinity in the transformed
+    # variable, so it has to be nudged into the interior before the inverse map
+    Hbound = (up, uprev, p, cache) -> [ub[1]]
+    at_bound = apply_postcondition!!(
+        copy(u), u_prev, FakeCache(tprob, (; postcondition = Hbound))
+    )
+    @test all(isfinite, at_bound)
+    @test _from_unbounded.(at_bound, lb, ub) ≈ ub
+
+    # without bounds there is no coordinate change and the declaration is inert
+    prob = NonlinearProblem(F, [1.0], 2.0)
+    spec = PostconditionSpecifier(Hc; space = PostconditionSpace.Transformed)
+    @test apply_postcondition!!([3.0], [2.0], FakeCache(prob, (; postcondition = spec))) ≈
+        [1.0]
 end
 
 end

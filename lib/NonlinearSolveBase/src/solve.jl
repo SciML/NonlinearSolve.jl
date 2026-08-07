@@ -51,6 +51,12 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
+  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
+  reparameterization of `u`, and `H` is applied in the original bounded variable by
+  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
+  applies it to the unconstrained iterate instead.
+
 Both are ordinary solver options: pass them to `solve`/`init`, or carry them on the
 problem and have them forwarded like any other keyword.
 
@@ -389,8 +395,7 @@ function solve_cache!(cache::AbstractNonlinearSolveCache; step_observer = nothin
 end
 
 @inline function _has_bounded_wrapper(cache::AbstractNonlinearSolveCache)
-    return hasfield(typeof(cache.prob), :f) &&
-        hasfield(typeof(cache.prob.f), :f) && cache.prob.f.f isa BoundedWrapper
+    return bounded_wrapper(cache) !== nothing
 end
 
 function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_bounds::Bool)

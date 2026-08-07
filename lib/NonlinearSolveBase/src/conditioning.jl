@@ -41,10 +41,73 @@ The left preconditioner `G(fu, u, p)` in effect for this solve, or `nothing`.
 get_precondition(prob, kwargs) = _conditioning_option(prob, kwargs, :precondition)
 
 """
+    PostconditionSpace
+
+Enum declaring which coordinates a `postcondition` corrector is written in when the
+problem also carries `lb`/`ub` bounds. Bounds are handled by reparameterizing the
+iterate to an unconstrained variable, so the two coordinate systems differ.
+
+  - `PostconditionSpace.Original` (the default, and what a bare corrector gets): `H`
+    sees the original bounded variable. The iterate is mapped back through the bounds
+    transform, corrected, and mapped forward again at every commit point, so a limiting
+    rule written for a physical quantity — a junction voltage in volts, a saturation in
+    `[0, 1]` — means what it says. A correction landing exactly on a bound is nudged into
+    the interior before the inverse map, since the bound itself is at infinity in the
+    transformed variable.
+  - `PostconditionSpace.Transformed`: `H` sees the unconstrained variable the solver
+    iterates on. Use this for corrections that are statements about the solver's step
+    (damping a raw update, say), not about the model. The initial guess is then left
+    uncorrected, since it is still in the original coordinates when the corrector would
+    run.
+
+Without `lb`/`ub` the two are identical.
+"""
+EnumX.@enumx PostconditionSpace begin
+    Original
+    Transformed
+end
+
+"""
+    PostconditionSpecifier(corrector; space = PostconditionSpace.Original)
+
+Wrapper for the `postcondition` solver option that declares which coordinates the iterate
+corrector `H(u_proposed, u_prev, p, cache)` is written in when the problem also carries
+`lb`/`ub` bounds. See [`PostconditionSpace`](@ref) for the meaning of each value.
+
+Without `lb`/`ub` the two spaces are identical and the wrapper is unnecessary.
+
+```julia
+solve(prob, NewtonRaphson(); postcondition = H)   # PostconditionSpace.Original
+solve(
+    prob, NewtonRaphson();
+    postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)
+)
+```
+"""
+struct PostconditionSpecifier{space, F}
+    corrector::F
+end
+
+function PostconditionSpecifier(
+        corrector; space::PostconditionSpace.T = PostconditionSpace.Original
+    )
+    return PostconditionSpecifier{space, typeof(corrector)}(corrector)
+end
+
+function (spec::PostconditionSpecifier)(u, u_prev, p, cache)
+    return spec.corrector(u, u_prev, p, cache)
+end
+
+# Bare correctors are Original: with no bounds the two spaces coincide, and with
+# bounds the original variable is the one the corrector was written for.
+postcondition_space(_) = PostconditionSpace.Original
+postcondition_space(::PostconditionSpecifier{space}) where {space} = space
+
+"""
     get_postcondition(prob, kwargs)
 
 The iterate corrector `H(u_proposed, u_prev, p, cache)` in effect for this solve, or
-`nothing`.
+`nothing`. It may be wrapped in a [`PostconditionSpecifier`](@ref).
 """
 get_postcondition(prob, kwargs) = _conditioning_option(prob, kwargs, :postcondition)
 
@@ -89,54 +152,49 @@ end
     transform_conditioned_problem(prob, alg, kwargs)
 
 Compose the `precondition` option into the problem's residual and apply the
-`postcondition` option once to the initial guess as `H(u0, u0, p)`, so solves start from a
-corrected iterate. Throws an `ArgumentError` when a `postcondition` is combined with an
-algorithm that does not apply it (see [`supports_postcondition`](@ref)) or with `lb`/`ub`
-bounds.
+`postcondition` option once to the initial guess as `H(u0, u0, p, nothing)`, so solves
+start from a corrected iterate. Reports a `postcondition` combined with an algorithm that
+does not apply it (see [`supports_postcondition`](@ref)) through the
+`unsupported_postcondition` verbosity toggle, which raises by default.
+
+The initial guess is skipped only for a `PostconditionSpace.Transformed` corrector on a
+bounded problem: `prob.u0` is still in the original coordinates here, since this pass
+runs before the bounds transform.
 """
 function transform_conditioned_problem(prob, alg, kwargs)
     pre = get_precondition(prob, kwargs)
     post = get_postcondition(prob, kwargs)
 
-    verbose = get(kwargs, :verbose, NonlinearVerbosity())
-    bounds_transformed = false
-    if post !== nothing
-        if alg !== nothing && alg isa AbstractNonlinearSolveAlgorithm &&
-                !supports_postcondition(alg)
-            @SciMLMessage(
-                "The `postcondition` solver option is not supported by \
-                $(typeof(alg).name.name), so the corrector will not be applied. Use a \
-                solver that applies iterate corrections (e.g. the native \
-                NonlinearSolve.jl first-order, quasi-Newton, or spectral methods).",
-                verbose, :unsupported_postcondition
-            )
-        end
-        if hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
-                (prob.lb !== nothing || prob.ub !== nothing) &&
-                needs_bounds_transform(prob, alg)
-            # The bounds transform reparametrizes the iterate, and it runs after this
-            # pass, so every in-loop application of the corrector sees the unconstrained
-            # coordinate rather than the user's variable. Composing is allowed, but the
-            # coordinate change has to be flagged; the initial-guess correction is
-            # skipped so that every application happens in the same (transformed) space.
-            bounds_transformed = true
-            @SciMLMessage(
-                "The `postcondition` corrector is combined with `lb`/`ub` bounds. The \
-                bounds are handled by transforming to an unconstrained variable, so the \
-                corrector is imposed on the *transformed* iterate, not on the original \
-                bounded variable.",
-                verbose, :postcondition_bounds_transform
-            )
-        end
+    if post !== nothing &&
+            alg !== nothing && alg isa AbstractNonlinearSolveAlgorithm &&
+            !supports_postcondition(alg)
+        verbose = get(kwargs, :verbose, NonlinearVerbosity())
+        @SciMLMessage(
+            "The `postcondition` solver option is not supported by \
+            $(typeof(alg).name.name), so the corrector will not be applied. Use a \
+            solver that applies iterate corrections (e.g. the native \
+            NonlinearSolve.jl first-order, quasi-Newton, or spectral methods).",
+            verbose, :unsupported_postcondition
+        )
     end
 
-    u0 = if post === nothing || bounds_transformed
+    # Skip the initial-guess correction for a Transformed-space corrector on a bounded
+    # problem: the bounds transform runs after this pass, so `prob.u0` is still in the
+    # original coordinates and applying H here would mix spaces.
+    skip_initial = post === nothing || (
+        postcondition_space(post) === PostconditionSpace.Transformed &&
+            hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
+            (prob.lb !== nothing || prob.ub !== nothing) &&
+            needs_bounds_transform(prob, alg)
+    )
+
+    u0 = if skip_initial
         prob.u0
     elseif SciMLBase.isinplace(prob)
         u0c = copy(prob.u0)
-        _apply_postcondition!!(post, u0c, prob.u0, prob.p, nothing, true)
+        _apply_postcondition!!(post, u0c, prob.u0, prob.p, nothing, Val(true))
     else
-        _apply_postcondition!!(post, prob.u0, prob.u0, prob.p, nothing, false)
+        _apply_postcondition!!(post, prob.u0, prob.u0, prob.p, nothing, Val(false))
     end
 
     if pre === nothing || (hasfield(typeof(prob.f), :f) && prob.f.f isa PreconditionWrapper)
@@ -166,16 +224,59 @@ Correctors always take the solver cache as their fourth argument; a corrector th
 not need it simply ignores the parameter. Only the documented cache accessors (`get_u`,
 `get_fu`, `get_nsteps`, `get_abstol`, `get_reltol`) should be used on it. The argument is
 `nothing` for the initial-guess correction, which runs before any cache exists.
+
+On a bounded problem the solver iterates on the unconstrained variable produced by the
+`lb`/`ub` transform, so `u` here is in transformed coordinates. Unless the corrector was
+declared `PostconditionSpace.Transformed` (see [`PostconditionSpecifier`](@ref)), it is
+applied in the original bounded variable: the iterates are mapped back, corrected, and
+mapped forward again.
 """
 function apply_postcondition!!(u, u_prev, cache)
     post = get_postcondition(cache)
     post === nothing && return u
-    return _apply_postcondition!!(
-        post, u, u_prev, cache.prob.p, cache, SciMLBase.isinplace(cache.prob)
-    )
+    iip = Val(SciMLBase.isinplace(cache.prob))
+    bw = bounded_wrapper(cache)
+    (bw === nothing || postcondition_space(post) === PostconditionSpace.Transformed) &&
+        return _apply_postcondition!!(post, u, u_prev, cache.prob.p, cache, iip)
+    return _apply_postcondition_bounded!!(post, u, u_prev, cache.prob.p, cache, iip, bw)
 end
 
-function _apply_postcondition!!(post::F, u, u_prev, p, cache, iip::Bool) where {F}
-    iip && (post(u, u_prev, p, cache); return u)
+# In-place and out-of-place are dispatched rather than branched on so the unused
+# convention's return type does not leak into the caller's inference.
+function _apply_postcondition!!(post::F, u, u_prev, p, cache, ::Val{true}) where {F}
+    post(u, u_prev, p, cache)
+    return u
+end
+
+function _apply_postcondition!!(post::F, u, u_prev, p, cache, ::Val{false}) where {F}
     return post(u, u_prev, p, cache)
+end
+
+# Apply the corrector in the original bounded variable while the solver iterates on the
+# unconstrained one. `_clamp_to_bounds` is load-bearing on the way back: a corrector that
+# clamps exactly *onto* a bound sits at ±Inf in the transformed variable, so it has to be
+# nudged into the interior first.
+#
+# The IIP path writes into the preallocated `BoundedWrapper` temps so the commit-point
+# corrector is allocation-free. The OOP path still allocates the mapped inputs and the
+# mapped return — that is the out-of-place contract.
+function _apply_postcondition_bounded!!(
+        post::F, u, u_prev, p, cache, ::Val{true}, bw
+    ) where {F}
+    u_orig = _bounds_tmp(bw.u_cache, u)
+    u_prev_orig = _bounds_tmp(bw.u_prev_cache, u_prev)
+    @. u_orig = _from_unbounded(u, bw.lb, bw.ub)
+    @. u_prev_orig = _from_unbounded(u_prev, bw.lb, bw.ub)
+    post(u_orig, u_prev_orig, p, cache)
+    @. u = _to_unbounded(_clamp_to_bounds(u_orig, bw.lb, bw.ub), bw.lb, bw.ub)
+    return u
+end
+
+function _apply_postcondition_bounded!!(
+        post::F, u, u_prev, p, cache, ::Val{false}, bw
+    ) where {F}
+    u_orig = _from_unbounded.(u, bw.lb, bw.ub)
+    u_prev_orig = _from_unbounded.(u_prev, bw.lb, bw.ub)
+    u_new = post(u_orig, u_prev_orig, p, cache)
+    return _to_unbounded.(_clamp_to_bounds.(u_new, bw.lb, bw.ub), bw.lb, bw.ub)
 end

@@ -25,6 +25,19 @@ solve(::NonlinearProblem, args...; kwargs...)
     `AbsNormSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsNormTerminationMode()` for
     `SimpleNonlinearSolve.jl`.
 
+## Nonlinear Preconditioning
+
+The `precondition` and `postcondition` options are documented in the `solve` docstring
+above and in the [nonlinear preconditioning tutorial](@ref nonlinear_preconditioning).
+On a problem with `lb`/`ub` bounds, an iterate corrector can be declared in either the
+original bounded variable (the default) or the unconstrained variable the solver iterates
+on:
+
+```@docs
+PostconditionSpecifier
+PostconditionSpace
+```
+
 ## Tracing Controls
 
 These are exclusively available for native `NonlinearSolve.jl` solvers.

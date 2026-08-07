@@ -37,3 +37,24 @@ sol_G = solve(NonlinearProblem(f_diode, 2.0, p); precondition = (fu, u, p) -> as
 @test_throws SciMLBase.CommonKwargError solve(
     NonlinearProblem(circuit!, zeros(2), cp); postcondtion = H!
 )
+
+# through the polyalgorithm on a bounded problem: bounds are handled by reparameterizing
+# the iterate, but the corrector acts on the original variable by default, so the
+# junction-voltage limiting still limits volts
+prob_b = NonlinearProblem(
+    circuit!, zeros(2), cp; lb = [-10.0, -10.0], ub = [10.0, 10.0]
+)
+sol_b = solve(prob_b; postcondition = H!, maxiters = 1000)
+@test SciMLBase.successful_retcode(sol_b)
+r_b = zeros(2); circuit!(r_b, sol_b.u, cp)
+@test maximum(abs, r_b) < 1.0e-8
+
+# `PostconditionSpecifier` is reexported, and declaring a space is inert without bounds
+sol_spec = solve(
+    NonlinearProblem(circuit!, zeros(2), cp);
+    postcondition = PostconditionSpecifier(
+        H!; space = PostconditionSpace.Transformed
+    ), maxiters = 1000
+)
+@test SciMLBase.successful_retcode(sol_spec)
+@test sol_spec.stats.nsteps == sol.stats.nsteps
