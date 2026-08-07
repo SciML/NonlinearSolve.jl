@@ -13,8 +13,9 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 - `termination_condition`: Messages about termination conditions
 - `unsupported_postcondition`: Messages when a `postcondition` corrector is supplied to a
   solver that cannot apply it (the corrector is then ignored)
-- `postcondition_bounds_transform`: Messages when a `postcondition` corrector is combined
-  with `lb`/`ub` bounds, so it acts on the bounds-transformed iterate
+- `postcondition_bounds_transform`: Messages when a `postcondition` corrector declared
+  with `space = :transformed` is combined with `lb`/`ub` bounds, so it acts on the
+  bounds-transformed iterate and the initial-guess correction is skipped
 
 ## Numerical Group
 - `threshold_state`: Messages about threshold state in low-rank methods

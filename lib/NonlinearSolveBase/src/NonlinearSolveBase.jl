@@ -156,6 +156,8 @@ export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAl
 
 export NonlinearVerbosity
 
+export PostconditionSpecifier
+
 export pickchunksize
 
 end

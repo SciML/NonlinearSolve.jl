@@ -101,6 +101,15 @@ end
 
 SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
 
+# The `BoundedWrapper` a cache's problem function was wrapped in, or `nothing` when the
+# solve is not running in transformed coordinates. Every check is on types, so the whole
+# lookup constant-folds away for problems without bounds.
+@inline function bounded_wrapper(cache)
+    wrapped = hasfield(typeof(cache.prob), :f) && hasfield(typeof(cache.prob.f), :f) &&
+        cache.prob.f.f isa BoundedWrapper
+    return wrapped ? cache.prob.f.f : nothing
+end
+
 # Check if bounds transform is needed for a given problem and algorithm.
 function needs_bounds_transform(_prob, alg)
     return (

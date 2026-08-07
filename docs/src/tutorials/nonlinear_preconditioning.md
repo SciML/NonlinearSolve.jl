@@ -15,10 +15,11 @@ G\big(f(H(\tilde{u}, u_k), p), \tilde{u}, p\big) = 0
     `u -> G(f(u, p), u, p)` *everywhere*: function evaluations, automatic-differentiation
     Jacobians, line-search merit functions, and termination criteria. `G` must be
     root-preserving: `G(r, u, p) = 0` if and only if `r = 0`.
-  - `postcondition` — a right preconditioner / corrector `H(u_proposed, u_prev, p)`
+  - `postcondition` — a right preconditioner / corrector `H(u_proposed, u_prev, p, cache)`
     applied to every iterate a solver is about to accept, *before* the residual is
     evaluated or convergence is tested there (the initial guess is corrected once as
-    `H(u0, u0, p)`). `H` must leave solutions fixed: `H(u, u, p) = u` at any root.
+    `H(u0, u0, p, nothing)`). `H` must leave solutions fixed: `H(u, u, p, cache) = u` at
+    any root.
 
 Both are ordinary solve keywords, like `abstol` or `termination_condition`. They can be
 passed at `solve`/`init` time, or carried on the problem and forwarded like any other
@@ -220,13 +221,45 @@ sol_pos = solve(NonlinearProblem(flog, [10.0], -2.0), NewtonRaphson(); postcondi
 sol_pos.retcode, sol_pos.u
 ```
 
+### Correctors on bounded problems
+
 For simple box bounds, prefer the native `lb`/`ub` support described in the
-[bound constraints tutorial](bound_constraints.md). The two do compose, but bounds are
-handled by transforming to an unconstrained variable, so a corrector combined with
-`lb`/`ub` is imposed on the *transformed* iterate rather than on your original variable —
-which is rarely what a limiting rule means. NonlinearSolve reports that through the
-`postcondition_bounds_transform` verbosity toggle; silence it once you have accounted for
-the change of coordinates.
+[bound constraints tutorial](bound_constraints.md). The two compose, but bounds are
+handled by reparameterizing the iterate to an unconstrained variable, so there are two
+different things a corrector could mean — and which one you get is an option:
+
+```@example preconditioning
+prob_bounded = NonlinearProblem(
+    (u, p) -> [u[1] - 1, u[2]^2 - u[1] - 3], [5.0, 5.0];
+    lb = [0.0, 0.0], ub = [10.0, 10.0]
+)
+Hpin(up, uprev, p, cache) = [1.0, up[2]]   # pin the first component to 1
+
+sol_orig = solve(prob_bounded, NewtonRaphson(); postcondition = Hpin, maxiters = 100)
+sol_transformed = solve(
+    prob_bounded, NewtonRaphson(); maxiters = 100,
+    postcondition = PostconditionSpecifier(Hpin; space = :transformed)
+)
+sol_orig.u[1], sol_transformed.u[1]
+```
+
+By default (`space = :original`) `H` acts on your original bounded variable: each iterate
+is mapped back through the bounds transform, corrected, and mapped forward again. A
+limiting rule written for a physical quantity — `pnjlim` on a junction voltage in volts,
+a saturation clamped into `[0, 1]` — therefore means what it says, and the pin above
+lands on `1`. Under `space = :transformed` the same corrector pins the *unconstrained*
+coordinate to 1, which is the physical value `lb + (ub - lb) * logistic(1) ≈ 7.31`.
+
+Two consequences follow from the change of coordinates in `:transformed` mode: the
+initial-guess correction is skipped (the initial guess is still in the original variable
+at the point where it would run), and NonlinearSolve reports the choice through the
+`postcondition_bounds_transform` verbosity toggle, which you can silence once you have
+accounted for it.
+
+A correction that lands exactly *on* a bound sits at infinity in the transformed
+variable. Rather than committing an infinite iterate, NonlinearSolve nudges it into the
+interior by a relative `eps^(3/4)` — the same nudge the bounds transform applies to `u0`
+— so clamping onto a bound is safe.
 
 ## Semantics and caveats
 
