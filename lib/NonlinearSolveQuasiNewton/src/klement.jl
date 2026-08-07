@@ -99,6 +99,11 @@ end
     rule <: KlementUpdateRule
 end
 
+function NonlinearSolveBase.reset_update_rule_state!(cache::KlementUpdateRuleCache, fu)
+    @bb copyto!(cache.fu_cache, fu)
+    return
+end
+
 function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::Number, fu, u, du; kwargs...
     )
