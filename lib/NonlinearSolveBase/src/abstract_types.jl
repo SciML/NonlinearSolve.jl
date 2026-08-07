@@ -365,9 +365,40 @@ the cache:
 """
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    get_u(cache)
+
+Return the current iterate held by a nonlinear solver cache.
+
+Defaults to the cache's `u` field. Caches that keep the iterate elsewhere should overload
+this hook: a `NonlinearSolvePolyAlgorithmCache` forwards to whichever subsolver is
+currently active, and the ForwardDiff cache forwards to the wrapped primal cache.
+"""
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
+
+"""
+    get_fu(cache)
+
+Return the residual stored in a nonlinear solver cache: the most recent value of the
+problem's residual function the solver evaluated (the full residual vector, not its norm,
+for a `NonlinearLeastSquaresProblem`).
+
+Defaults to the cache's `fu` field, with the same overloading convention as
+[`get_u`](@ref). Between steps this is the residual at [`get_u`](@ref), but a solver
+mid-step commits the new iterate before re-evaluating there — a `postcondition` corrector
+runs at exactly such a point and so sees the residual at the previous accepted iterate.
+"""
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+
+"""
+    get_nsteps(cache)
+
+Return the number of solver iterations the cache has taken so far. This is the count
+checked against `maxiters`, and it counts steps of the solver loop rather than function
+or Jacobian evaluations, which are tracked separately in `cache.stats`.
+"""
 get_nsteps(cache::AbstractNonlinearSolveCache) = cache.nsteps
+
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
