@@ -63,6 +63,7 @@ NonlinearSolveBase.AbstractApproximateJacobianStructure
 NonlinearSolveBase.AbstractJacobianInitialization
 NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
 NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
+NonlinearSolveBase.reset_update_rule_state!
 NonlinearSolveBase.AbstractResetCondition
 ```
 
