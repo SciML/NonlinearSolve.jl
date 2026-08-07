@@ -132,7 +132,7 @@ end
 
     # bounds compose with the corrector; the initial guess is still in the original
     # coordinates here, so an Original-space corrector (the default) corrects it and a
-    # Transformed one is skipped and reported
+    # Transformed one is skipped
     Hc = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
     prob_bounds = NonlinearProblem(F, [2.0], 3.0; lb = [0.0], ub = [4.0])
     tprob = transform_conditioned_problem(
@@ -145,7 +145,6 @@ end
         postcondition = PostconditionSpecifier(
             Hc; space = PostconditionSpace.Transformed
         ),
-        verbose = NonlinearVerbosity(SciMLLogging.None()),
     )
     @test transform_conditioned_problem(
         prob_bounds, SupportedAlg(), kw_transformed

@@ -165,41 +165,30 @@ function transform_conditioned_problem(prob, alg, kwargs)
     pre = get_precondition(prob, kwargs)
     post = get_postcondition(prob, kwargs)
 
-    verbose = get(kwargs, :verbose, NonlinearVerbosity())
-    corrects_transformed = false
-    if post !== nothing
-        if alg !== nothing && alg isa AbstractNonlinearSolveAlgorithm &&
-                !supports_postcondition(alg)
-            @SciMLMessage(
-                "The `postcondition` solver option is not supported by \
-                $(typeof(alg).name.name), so the corrector will not be applied. Use a \
-                solver that applies iterate corrections (e.g. the native \
-                NonlinearSolve.jl first-order, quasi-Newton, or spectral methods).",
-                verbose, :unsupported_postcondition
-            )
-        end
-        if postcondition_space(post) === PostconditionSpace.Transformed &&
-                hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
-                (prob.lb !== nothing || prob.ub !== nothing) &&
-                needs_bounds_transform(prob, alg)
-            # The corrector was declared in the coordinates the bounds transform iterates
-            # on, and that transform runs after this pass — `prob.u0` here is still the
-            # original bounded variable, so the initial-guess correction is skipped to
-            # keep every application in the same space.
-            corrects_transformed = true
-            @SciMLMessage(
-                "The `postcondition` corrector was declared with \
-                `space = PostconditionSpace.Transformed`, so it is imposed on the \
-                unconstrained variable the `lb`/`ub` transform iterates on rather than on \
-                the original bounded variable, and the initial-guess correction is \
-                skipped (the initial guess is still in the original coordinates at that \
-                point).",
-                verbose, :postcondition_bounds_transform
-            )
-        end
+    if post !== nothing &&
+            alg !== nothing && alg isa AbstractNonlinearSolveAlgorithm &&
+            !supports_postcondition(alg)
+        verbose = get(kwargs, :verbose, NonlinearVerbosity())
+        @SciMLMessage(
+            "The `postcondition` solver option is not supported by \
+            $(typeof(alg).name.name), so the corrector will not be applied. Use a \
+            solver that applies iterate corrections (e.g. the native \
+            NonlinearSolve.jl first-order, quasi-Newton, or spectral methods).",
+            verbose, :unsupported_postcondition
+        )
     end
 
-    u0 = if post === nothing || corrects_transformed
+    # Skip the initial-guess correction for a Transformed-space corrector on a bounded
+    # problem: the bounds transform runs after this pass, so `prob.u0` is still in the
+    # original coordinates and applying H here would mix spaces.
+    skip_initial = post === nothing || (
+        postcondition_space(post) === PostconditionSpace.Transformed &&
+            hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
+            (prob.lb !== nothing || prob.ub !== nothing) &&
+            needs_bounds_transform(prob, alg)
+    )
+
+    u0 = if skip_initial
         prob.u0
     elseif SciMLBase.isinplace(prob)
         u0c = copy(prob.u0)

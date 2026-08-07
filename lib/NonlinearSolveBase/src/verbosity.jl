@@ -13,9 +13,6 @@ diagnostic messages, warnings, and errors during nonlinear system solution.
 - `termination_condition`: Messages about termination conditions
 - `unsupported_postcondition`: Messages when a `postcondition` corrector is supplied to a
   solver that cannot apply it (the corrector is then ignored)
-- `postcondition_bounds_transform`: Messages when a `postcondition` corrector declared
-  with `space = PostconditionSpace.Transformed` is combined with `lb`/`ub` bounds, so it
-  acts on the bounds-transformed iterate and the initial-guess correction is skipped
 
 ## Numerical Group
 - `threshold_state`: Messages about threshold state in low-rank methods
@@ -75,7 +72,6 @@ NonlinearVerbosity
         :non_enclosing_interval, :alias_u0_immutable,
         :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing,
         :sensitivity_vjp_choice, :unsupported_postcondition,
-        :postcondition_bounds_transform,
     )
 
     presets = (
@@ -89,7 +85,6 @@ NonlinearVerbosity
             forcing = Silent(),
             sensitivity_vjp_choice = Silent(),
             unsupported_postcondition = Silent(),
-            postcondition_bounds_transform = Silent(),
         ),
         Minimal = (
             linear_verbosity = None(),
@@ -101,7 +96,6 @@ NonlinearVerbosity
             forcing = Silent(),
             sensitivity_vjp_choice = Silent(),
             unsupported_postcondition = ErrorLevel(),
-            postcondition_bounds_transform = Silent(),
         ),
         Standard = (
             linear_verbosity = None(),
@@ -113,7 +107,6 @@ NonlinearVerbosity
             forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel(),
             unsupported_postcondition = ErrorLevel(),
-            postcondition_bounds_transform = WarnLevel(),
         ),
         Detailed = (
             linear_verbosity = Detailed(),
@@ -125,7 +118,6 @@ NonlinearVerbosity
             forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel(),
             unsupported_postcondition = ErrorLevel(),
-            postcondition_bounds_transform = WarnLevel(),
         ),
         All = (
             linear_verbosity = Detailed(),
@@ -137,7 +129,6 @@ NonlinearVerbosity
             forcing = InfoLevel(),
             sensitivity_vjp_choice = WarnLevel(),
             unsupported_postcondition = ErrorLevel(),
-            postcondition_bounds_transform = WarnLevel(),
         ),
     )
 

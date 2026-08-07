@@ -1,5 +1,4 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, StaticArrays
-using SciMLLogging: SciMLLogging
 
 # PCNR-style iterate limiting (Aadithya, Keiter & Mei): a voltage source, resistor and
 # diode in the augmented unknowns [v, vj], where the junction voltage is an explicit
@@ -111,7 +110,6 @@ sol_transformed = solve(
     postcondition = PostconditionSpecifier(
         Hpin!; space = PostconditionSpace.Transformed
     ),
-    verbose = NonlinearSolveBase.NonlinearVerbosity(SciMLLogging.None())
 )
 # the pinned transformed coordinate 1.0 maps back to lb + (ub - lb) * logistic(1)
 @test sol_transformed.u[1] ≈ ub_p[1] / (1 + exp(-1.0))

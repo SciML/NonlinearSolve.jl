@@ -253,11 +253,9 @@ the pin above lands on `1`. Under `space = PostconditionSpace.Transformed` the s
 corrector pins the *unconstrained* coordinate to 1, which is the physical value
 `lb + (ub - lb) * logistic(1) ≈ 7.31`.
 
-Two consequences follow from the change of coordinates in
-`PostconditionSpace.Transformed` mode: the initial-guess correction is skipped (the
-initial guess is still in the original variable at the point where it would run), and
-NonlinearSolve reports the choice through the `postcondition_bounds_transform` verbosity
-toggle, which you can silence once you have accounted for it.
+One consequence of `PostconditionSpace.Transformed` mode is that the initial-guess
+correction is skipped: the initial guess is still in the original variable at the point
+where it would run.
 
 A correction that lands exactly *on* a bound sits at infinity in the transformed
 variable. Rather than committing an infinite iterate, NonlinearSolve nudges it into the
