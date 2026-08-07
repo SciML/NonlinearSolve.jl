@@ -10,8 +10,8 @@ using SciMLLogging: SciMLLogging
 import ForwardDiff
 using NonlinearSolveBase: needs_conditioning, transform_conditioned_problem,
     PreconditionWrapper, apply_postcondition!!, get_precondition, get_postcondition,
-    PostconditionSpecifier, postcondition_space, transform_bounded_problem,
-    _to_unbounded, _from_unbounded
+    PostconditionSpecifier, PostconditionSpace, postcondition_space,
+    transform_bounded_problem, _to_unbounded, _from_unbounded
 
 struct UnsupportedAlg <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm end
 struct SupportedAlg <: NonlinearSolveBase.AbstractNonlinearSolveAlgorithm end
@@ -131,8 +131,8 @@ end
     @test transform_conditioned_problem(prob, SupportedAlg(), kw).u0 ≈ [1.0]
 
     # bounds compose with the corrector; the initial guess is still in the original
-    # coordinates here, so an `:original` corrector (the default) corrects it and a
-    # `:transformed` one is skipped and reported
+    # coordinates here, so an Original-space corrector (the default) corrects it and a
+    # Transformed one is skipped and reported
     Hc = (up, uprev, p, cache) -> clamp.(up, 0.5, 1.0)
     prob_bounds = NonlinearProblem(F, [2.0], 3.0; lb = [0.0], ub = [4.0])
     tprob = transform_conditioned_problem(
@@ -142,7 +142,9 @@ end
     @test tprob.lb == prob_bounds.lb
 
     kw_transformed = (;
-        postcondition = PostconditionSpecifier(Hc; space = :transformed),
+        postcondition = PostconditionSpecifier(
+            Hc; space = PostconditionSpace.Transformed
+        ),
         verbose = NonlinearVerbosity(SciMLLogging.None()),
     )
     @test transform_conditioned_problem(
@@ -153,11 +155,12 @@ end
 @testset "PostconditionSpecifier declares the corrector's coordinates" begin
     H = (up, uprev, p, cache) -> up .+ 1
 
-    @test postcondition_space(H) === :original
-    @test postcondition_space(PostconditionSpecifier(H)) === :original
-    @test postcondition_space(PostconditionSpecifier(H; space = :transformed)) ===
-        :transformed
-    @test_throws ArgumentError PostconditionSpecifier(H; space = :bounded)
+    @test postcondition_space(H) === PostconditionSpace.Original
+    @test postcondition_space(PostconditionSpecifier(H)) === PostconditionSpace.Original
+    @test postcondition_space(
+        PostconditionSpecifier(H; space = PostconditionSpace.Transformed)
+    ) === PostconditionSpace.Transformed
+    @test_throws TypeError PostconditionSpecifier(H; space = :bounded)
 
     # the wrapper is transparent: it forwards the corrector call unchanged
     @test PostconditionSpecifier(H)([1.0], [0.0], nothing, nothing) ≈ [2.0]
@@ -179,15 +182,15 @@ end
     u = _to_unbounded.([3.0], lb, ub)
     u_prev = _to_unbounded.([2.0], lb, ub)
 
-    # `:original`: the clamp lands on the physical value it names
+    # Original: the clamp lands on the physical value it names
     corrected = apply_postcondition!!(
         copy(u), u_prev, FakeCache(tprob, (; postcondition = Hc))
     )
     @test _from_unbounded.(corrected, lb, ub) ≈ [1.0]
 
-    # `:transformed`: the same clamp applies to the unconstrained coordinate, which is a
+    # Transformed: the same clamp applies to the unconstrained coordinate, which is a
     # different physical correction
-    spec_t = PostconditionSpecifier(Hc; space = :transformed)
+    spec_t = PostconditionSpecifier(Hc; space = PostconditionSpace.Transformed)
     corrected_t = apply_postcondition!!(
         copy(u), u_prev, FakeCache(tprob, (; postcondition = spec_t))
     )
@@ -226,7 +229,7 @@ end
 
     # without bounds there is no coordinate change and the declaration is inert
     prob = NonlinearProblem(F, [1.0], 2.0)
-    spec = PostconditionSpecifier(Hc; space = :transformed)
+    spec = PostconditionSpecifier(Hc; space = PostconditionSpace.Transformed)
     @test apply_postcondition!!([3.0], [2.0], FakeCache(prob, (; postcondition = spec))) ≈
         [1.0]
 end

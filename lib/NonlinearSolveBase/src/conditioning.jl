@@ -41,32 +41,46 @@ The left preconditioner `G(fu, u, p)` in effect for this solve, or `nothing`.
 get_precondition(prob, kwargs) = _conditioning_option(prob, kwargs, :precondition)
 
 """
-    PostconditionSpecifier(corrector; space = :original)
+    PostconditionSpace
+
+Enum declaring which coordinates a `postcondition` corrector is written in when the
+problem also carries `lb`/`ub` bounds. Bounds are handled by reparameterizing the
+iterate to an unconstrained variable, so the two coordinate systems differ.
+
+  - `PostconditionSpace.Original` (the default, and what a bare corrector gets): `H`
+    sees the original bounded variable. The iterate is mapped back through the bounds
+    transform, corrected, and mapped forward again at every commit point, so a limiting
+    rule written for a physical quantity — a junction voltage in volts, a saturation in
+    `[0, 1]` — means what it says. A correction landing exactly on a bound is nudged into
+    the interior before the inverse map, since the bound itself is at infinity in the
+    transformed variable.
+  - `PostconditionSpace.Transformed`: `H` sees the unconstrained variable the solver
+    iterates on. Use this for corrections that are statements about the solver's step
+    (damping a raw update, say), not about the model. The initial guess is then left
+    uncorrected, since it is still in the original coordinates when the corrector would
+    run.
+
+Without `lb`/`ub` the two are identical.
+"""
+EnumX.@enumx PostconditionSpace begin
+    Original
+    Transformed
+end
+
+"""
+    PostconditionSpecifier(corrector; space = PostconditionSpace.Original)
 
 Wrapper for the `postcondition` solver option that declares which coordinates the iterate
 corrector `H(u_proposed, u_prev, p, cache)` is written in when the problem also carries
-`lb`/`ub` bounds. Bounds are handled by reparameterizing the iterate to an unconstrained
-variable, so the two coordinate systems differ:
+`lb`/`ub` bounds. See [`PostconditionSpace`](@ref) for the meaning of each value.
 
-  - `space = :original` (the default, and what a bare corrector gets): `H` sees the
-    original bounded variable. The iterate is mapped back through the bounds transform,
-    corrected, and mapped forward again at every commit point, so a limiting rule written
-    for a physical quantity — a junction voltage in volts, a saturation in `[0, 1]` —
-    means what it says. A correction landing exactly on a bound is nudged into the
-    interior before the inverse map, since the bound itself is at infinity in the
-    transformed variable.
-  - `space = :transformed`: `H` sees the unconstrained variable the solver iterates on.
-    Use this for corrections that are statements about the solver's step (damping a raw
-    update, say), not about the model. The initial guess is then left uncorrected, since
-    it is still in the original coordinates when the corrector would run.
-
-Without `lb`/`ub` the two are identical and the wrapper is unnecessary.
+Without `lb`/`ub` the two spaces are identical and the wrapper is unnecessary.
 
 ```julia
-solve(prob, NewtonRaphson(); postcondition = H)   # :original
+solve(prob, NewtonRaphson(); postcondition = H)   # PostconditionSpace.Original
 solve(
     prob, NewtonRaphson();
-    postcondition = PostconditionSpecifier(H; space = :transformed)
+    postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)
 )
 ```
 """
@@ -74,13 +88,8 @@ struct PostconditionSpecifier{space, F}
     corrector::F
 end
 
-function PostconditionSpecifier(corrector; space::Symbol = :original)
-    space in (:original, :transformed) || throw(
-        ArgumentError(
-            "`space` must be `:original` (the corrector is written in the problem's own \
-            bounded variable) or `:transformed` (it is written in the unconstrained \
-            variable the bounds transform iterates on), got $(repr(space))."
-        )
+function PostconditionSpecifier(
+        corrector; space::PostconditionSpace.T = PostconditionSpace.Original
     )
     return PostconditionSpecifier{space, typeof(corrector)}(corrector)
 end
@@ -89,9 +98,9 @@ function (spec::PostconditionSpecifier)(u, u_prev, p, cache)
     return spec.corrector(u, u_prev, p, cache)
 end
 
-# Bare correctors are `:original`: with no bounds the two spaces coincide, and with
+# Bare correctors are Original: with no bounds the two spaces coincide, and with
 # bounds the original variable is the one the corrector was written for.
-postcondition_space(_) = :original
+postcondition_space(_) = PostconditionSpace.Original
 postcondition_space(::PostconditionSpecifier{space}) where {space} = space
 
 """
@@ -148,9 +157,9 @@ start from a corrected iterate. Reports a `postcondition` combined with an algor
 does not apply it (see [`supports_postcondition`](@ref)) through the
 `unsupported_postcondition` verbosity toggle, which raises by default.
 
-The initial guess is skipped only for a `:transformed`-space corrector on a bounded
-problem: `prob.u0` is still in the original coordinates here, since this pass runs before
-the bounds transform.
+The initial guess is skipped only for a `PostconditionSpace.Transformed` corrector on a
+bounded problem: `prob.u0` is still in the original coordinates here, since this pass
+runs before the bounds transform.
 """
 function transform_conditioned_problem(prob, alg, kwargs)
     pre = get_precondition(prob, kwargs)
@@ -169,7 +178,7 @@ function transform_conditioned_problem(prob, alg, kwargs)
                 verbose, :unsupported_postcondition
             )
         end
-        if postcondition_space(post) === :transformed &&
+        if postcondition_space(post) === PostconditionSpace.Transformed &&
                 hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
                 (prob.lb !== nothing || prob.ub !== nothing) &&
                 needs_bounds_transform(prob, alg)
@@ -179,11 +188,12 @@ function transform_conditioned_problem(prob, alg, kwargs)
             # keep every application in the same space.
             corrects_transformed = true
             @SciMLMessage(
-                "The `postcondition` corrector was declared with `space = :transformed`, \
-                so it is imposed on the unconstrained variable the `lb`/`ub` transform \
-                iterates on rather than on the original bounded variable, and the \
-                initial-guess correction is skipped (the initial guess is still in the \
-                original coordinates at that point).",
+                "The `postcondition` corrector was declared with \
+                `space = PostconditionSpace.Transformed`, so it is imposed on the \
+                unconstrained variable the `lb`/`ub` transform iterates on rather than on \
+                the original bounded variable, and the initial-guess correction is \
+                skipped (the initial guess is still in the original coordinates at that \
+                point).",
                 verbose, :postcondition_bounds_transform
             )
         end
@@ -228,16 +238,16 @@ not need it simply ignores the parameter. Only the documented cache accessors (`
 
 On a bounded problem the solver iterates on the unconstrained variable produced by the
 `lb`/`ub` transform, so `u` here is in transformed coordinates. Unless the corrector was
-declared `:transformed` (see [`PostconditionSpecifier`](@ref)), it is applied in the
-original bounded variable: the iterates are mapped back, corrected, and mapped forward
-again.
+declared `PostconditionSpace.Transformed` (see [`PostconditionSpecifier`](@ref)), it is
+applied in the original bounded variable: the iterates are mapped back, corrected, and
+mapped forward again.
 """
 function apply_postcondition!!(u, u_prev, cache)
     post = get_postcondition(cache)
     post === nothing && return u
     iip = Val(SciMLBase.isinplace(cache.prob))
     bw = bounded_wrapper(cache)
-    (bw === nothing || postcondition_space(post) === :transformed) &&
+    (bw === nothing || postcondition_space(post) === PostconditionSpace.Transformed) &&
         return _apply_postcondition!!(post, u, u_prev, cache.prob.p, cache, iip)
     return _apply_postcondition_bounded!!(
         post, u, u_prev, cache.prob.p, cache, iip, bw.lb, bw.ub

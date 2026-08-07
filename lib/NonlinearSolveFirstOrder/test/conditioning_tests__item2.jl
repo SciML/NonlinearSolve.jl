@@ -96,8 +96,8 @@ sol_b = solve(prob_b, NewtonRaphson(); postcondition = H!, maxiters = 1000)
 @test resid_norm(sol_b.u) < 1.0e-8
 
 # the space the corrector acts in is the user's choice. A corrector that pins a component
-# to a physical value lands on that value under `:original` (the default) and on its
-# image under the bounds transform under `:transformed`.
+# to a physical value lands on that value under Original (the default) and on its
+# image under the bounds transform under Transformed.
 lb_p, ub_p = [0.0, 0.0], [10.0, 10.0]
 prob_p = NonlinearProblem(fproj!, [5.0, 5.0]; lb = lb_p, ub = ub_p)
 Hpin! = (up, uprev, p, cache) -> (up[1] = 1.0; nothing)
@@ -108,7 +108,9 @@ sol_orig = solve(prob_p, NewtonRaphson(); postcondition = Hpin!, maxiters = 100)
 
 sol_transformed = solve(
     prob_p, NewtonRaphson(); maxiters = 100,
-    postcondition = PostconditionSpecifier(Hpin!; space = :transformed),
+    postcondition = PostconditionSpecifier(
+        Hpin!; space = PostconditionSpace.Transformed
+    ),
     verbose = NonlinearSolveBase.NonlinearVerbosity(SciMLLogging.None())
 )
 # the pinned transformed coordinate 1.0 maps back to lb + (ub - lb) * logistic(1)

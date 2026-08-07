@@ -54,8 +54,8 @@ These tolerances are interpreted by the termination condition.
   On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
   reparameterization of `u`, and `H` is applied in the original bounded variable by
   default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
-  `postcondition = PostconditionSpecifier(H; space = :transformed)` applies it to the
-  unconstrained iterate instead.
+  `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
+  applies it to the unconstrained iterate instead.
 
 Both are ordinary solver options: pass them to `solve`/`init`, or carry them on the
 problem and have them forwarded like any other keyword.

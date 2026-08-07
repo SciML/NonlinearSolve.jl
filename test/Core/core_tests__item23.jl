@@ -52,7 +52,9 @@ r_b = zeros(2); circuit!(r_b, sol_b.u, cp)
 # `PostconditionSpecifier` is reexported, and declaring a space is inert without bounds
 sol_spec = solve(
     NonlinearProblem(circuit!, zeros(2), cp);
-    postcondition = PostconditionSpecifier(H!; space = :transformed), maxiters = 1000
+    postcondition = PostconditionSpecifier(
+        H!; space = PostconditionSpace.Transformed
+    ), maxiters = 1000
 )
 @test SciMLBase.successful_retcode(sol_spec)
 @test sol_spec.stats.nsteps == sol.stats.nsteps

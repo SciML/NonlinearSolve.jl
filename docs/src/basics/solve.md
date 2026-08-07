@@ -35,6 +35,7 @@ on:
 
 ```@docs
 PostconditionSpecifier
+PostconditionSpace
 ```
 
 ## Tracing Controls

@@ -238,23 +238,26 @@ Hpin(up, uprev, p, cache) = [1.0, up[2]]   # pin the first component to 1
 sol_orig = solve(prob_bounded, NewtonRaphson(); postcondition = Hpin, maxiters = 100)
 sol_transformed = solve(
     prob_bounded, NewtonRaphson(); maxiters = 100,
-    postcondition = PostconditionSpecifier(Hpin; space = :transformed)
+    postcondition = PostconditionSpecifier(
+        Hpin; space = PostconditionSpace.Transformed
+    )
 )
 sol_orig.u[1], sol_transformed.u[1]
 ```
 
-By default (`space = :original`) `H` acts on your original bounded variable: each iterate
-is mapped back through the bounds transform, corrected, and mapped forward again. A
-limiting rule written for a physical quantity — `pnjlim` on a junction voltage in volts,
-a saturation clamped into `[0, 1]` — therefore means what it says, and the pin above
-lands on `1`. Under `space = :transformed` the same corrector pins the *unconstrained*
-coordinate to 1, which is the physical value `lb + (ub - lb) * logistic(1) ≈ 7.31`.
+By default (`space = PostconditionSpace.Original`) `H` acts on your original bounded
+variable: each iterate is mapped back through the bounds transform, corrected, and mapped
+forward again. A limiting rule written for a physical quantity — `pnjlim` on a junction
+voltage in volts, a saturation clamped into `[0, 1]` — therefore means what it says, and
+the pin above lands on `1`. Under `space = PostconditionSpace.Transformed` the same
+corrector pins the *unconstrained* coordinate to 1, which is the physical value
+`lb + (ub - lb) * logistic(1) ≈ 7.31`.
 
-Two consequences follow from the change of coordinates in `:transformed` mode: the
-initial-guess correction is skipped (the initial guess is still in the original variable
-at the point where it would run), and NonlinearSolve reports the choice through the
-`postcondition_bounds_transform` verbosity toggle, which you can silence once you have
-accounted for it.
+Two consequences follow from the change of coordinates in
+`PostconditionSpace.Transformed` mode: the initial-guess correction is skipped (the
+initial guess is still in the original variable at the point where it would run), and
+NonlinearSolve reports the choice through the `postcondition_bounds_transform` verbosity
+toggle, which you can silence once you have accounted for it.
 
 A correction that lands exactly *on* a bound sits at infinity in the transformed
 variable. Rather than committing an infinite iterate, NonlinearSolve nudges it into the

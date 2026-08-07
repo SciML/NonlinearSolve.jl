@@ -22,6 +22,7 @@ module NonlinearSolveBase
 
 using Compat: @compat
 using ConcreteStructs: @concrete
+import EnumX
 using FastClosures: @closure
 using Preferences: @load_preference, @set_preferences!
 
@@ -156,7 +157,7 @@ export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAl
 
 export NonlinearVerbosity
 
-export PostconditionSpecifier
+export PostconditionSpecifier, PostconditionSpace
 
 export pickchunksize
 
