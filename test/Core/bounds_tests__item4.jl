@@ -23,3 +23,22 @@ if pkgversion(NonlinearSolveBase) >= v"2.30.3"
         @test 0.0 <= sol.u[1] <= 2.0
     end
 end
+
+@testset "bounded interior roots recover after a stalled transform" begin
+    f!(r, u, p) = begin
+        r[1] = cos(u[2]) + sin(u[1]) - 0.5
+        r[2] = sin(u[2]) + cos(u[1]) - 0.3
+        r
+    end
+    prob = NonlinearProblem(
+        NonlinearFunction(f!), [0.3, 1.0], nothing;
+        lb = [-100.0, 0.0], ub = [100.0, 10.0]
+    )
+
+    for alg in (nothing, NewtonRaphson(), TrustRegion(), Broyden(), LevenbergMarquardt())
+        sol = alg === nothing ? solve(prob) : solve(prob, alg)
+        @test SciMLBase.successful_retcode(sol)
+        @test maximum(abs, sol.resid) < 1.0e-8
+        @test all((prob.lb .<= sol.u) .& (sol.u .<= prob.ub))
+    end
+end

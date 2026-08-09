@@ -341,15 +341,15 @@ function SciMLBase.__solve(
     else
         prob
     end
-    _prob = if needs_bounds_transform(_prob, alg)
-        transform_bounded_problem(_prob, alg)
-    else
-        _prob
+    if needs_bounds_transform(_prob, alg)
+        _prob = transform_bounded_problem(_prob, alg)
+        cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
+        sol = CommonSolve.solve!(cache)
+        return bounded_retry_solution(_prob, sol, alg, args, kwargs)
     end
-    cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
-    sol = CommonSolve.solve!(cache)
 
-    return sol
+    cache = SciMLBase.__init(_prob, alg, args...; kwargs...)
+    return CommonSolve.solve!(cache)
 end
 
 @inline _observe_nonlinear_step!(::Nothing, cache) = nothing

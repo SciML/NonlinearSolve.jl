@@ -81,6 +81,7 @@ end
     f
     lb
     ub
+    original_u0
     u_cache
     u_prev_cache
 end
@@ -111,10 +112,14 @@ SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
 # The `BoundedWrapper` a cache's problem function was wrapped in, or `nothing` when the
 # solve is not running in transformed coordinates. Every check is on types, so the whole
 # lookup constant-folds away for problems without bounds.
+@inline function bounded_wrapper_from_problem(prob)
+    wrapped = hasfield(typeof(prob), :f) && hasfield(typeof(prob.f), :f) &&
+        prob.f.f isa BoundedWrapper
+    return wrapped ? prob.f.f : nothing
+end
+
 @inline function bounded_wrapper(cache)
-    wrapped = hasfield(typeof(cache.prob), :f) && hasfield(typeof(cache.prob.f), :f) &&
-        cache.prob.f.f isa BoundedWrapper
-    return wrapped ? cache.prob.f.f : nothing
+    return bounded_wrapper_from_problem(cache.prob)
 end
 
 # Check if bounds transform is needed for a given problem and algorithm.
@@ -168,7 +173,7 @@ function transform_bounded_problem(prob, alg)
         orig_f
     end
     wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(
-        unwrapped_orig_f, lb, ub, u_cache, u_prev_cache
+        unwrapped_orig_f, lb, ub, copy(prob.u0), u_cache, u_prev_cache
     )
 
     new_f = if orig_f isa NonlinearFunction
@@ -183,6 +188,51 @@ function transform_bounded_problem(prob, alg)
     )
 
     return transformed_prob
+end
+
+function bounded_retry_u0(bw, original_u0)
+    retry_u0 = similar(original_u0)
+    @inbounds for i in eachindex(retry_u0)
+        lb, ub, u = bw.lb[i], bw.ub[i], original_u0[i]
+        retry_u0[i] = if isfinite(lb) && isfinite(ub)
+            lb + (ub - lb) / 2
+        elseif isfinite(lb)
+            lb + 5 * max(abs(u - lb), one(u))
+        elseif isfinite(ub)
+            ub - 5 * max(abs(ub - u), one(u))
+        else
+            u
+        end
+    end
+    return _to_unbounded.(retry_u0, bw.lb, bw.ub)
+end
+
+function bounded_retry_converged(prob, sol)
+    SciMLBase.successful_retcode(sol) && return true
+    sol.retcode == ReturnCode.Stalled || return false
+    threshold = 2 * (get_abstol(prob) + get_reltol(prob) * max(one(eltype(prob.u0)), Linf_NORM(sol.u)))
+    return Linf_NORM(sol.resid) ≤ threshold
+end
+
+function bounded_retry_solution(prob, sol, alg, args, kwargs)
+    if bounded_retry_converged(prob, sol)
+        sol.retcode == ReturnCode.Stalled && (@set! sol.retcode = ReturnCode.Success)
+        return sol
+    end
+    hasfield(typeof(prob), :f) && hasfield(typeof(prob.f), :f) || return sol
+    bw = prob.f.f isa BoundedWrapper ? prob.f.f : nothing
+    bw === nothing && return sol
+
+    retry_u0 = bounded_retry_u0(bw, bw.original_u0)
+    retry_prob = remake(prob; u0 = retry_u0)
+    retry_cache = SciMLBase.__init(retry_prob, alg, args...; kwargs...)
+    retry_sol = CommonSolve.solve!(retry_cache)
+    if bounded_retry_converged(retry_prob, retry_sol)
+        retry_sol.retcode == ReturnCode.Stalled && (@set! retry_sol.retcode = ReturnCode.Success)
+        @set! retry_sol.prob = remake(retry_sol.prob; u0 = bw.original_u0)
+        return retry_sol
+    end
+    return sol
 end
 
 # Run problem initialization (if any) in the original bounded coordinates so that the
