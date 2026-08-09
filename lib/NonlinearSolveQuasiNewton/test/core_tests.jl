@@ -8,3 +8,4 @@
 @safetestset "LimitedMemoryBroyden: Iterator Interface" include("core_tests__item8.jl")
 @safetestset "LimitedMemoryBroyden Termination Conditions" include("core_tests__item9.jl")
 @safetestset "Postcondition iterate correction" include("core_tests__item10.jl")
+@safetestset "LimitedMemoryBroyden: continuation from a nearby root" include("core_tests__item11.jl")
