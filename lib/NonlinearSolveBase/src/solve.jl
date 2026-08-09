@@ -821,11 +821,29 @@ function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs..
     return res
 end
 
-# Some algorithms don't support creating a cache and doing `solve!`, this unfortunately
-# makes it difficult to write generic code that supports caching. For the algorithms that
-# don't have a `__init` function defined, we create a "Fake Cache", which just calls
-# `__solve` from `solve!`
-# Warning: This doesn't implement all the necessary interface functions
+"""
+    NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
+
+The cache `init(prob, alg)` returns for an algorithm that defines no `SciMLBase.__init`
+method — every `SimpleNonlinearSolve` algorithm, for instance. It stores the problem and
+the solve options and does nothing else, so that generic code can call `init` on any
+algorithm.
+
+Unlike a stepping cache it holds no iteration state, and it implements only part of the
+[`AbstractNonlinearSolveCache`](@ref) interface:
+
+  - `solve!(cache)` runs the *complete* solve and returns its `SciMLBase.NonlinearSolution`.
+    That returned solution is the only record of the solve; nothing about it is written back
+    into the cache.
+  - `get_u(cache)` reads the problem's `u0`, i.e. the *initial* iterate — it does not track
+    a running one.
+  - `SciMLBase.reinit!`, `get_abstol`, `get_reltol` and the `SymbolicIndexingInterface`
+    accessors work as usual.
+  - `CommonSolve.step!`, `get_fu`, `get_nsteps` and `cache.stats` are **not** available.
+
+Public so that code driving an `AbstractNonlinearSolveCache` one `step!` at a time can
+detect this cache and run a full `solve!` instead.
+"""
 @concrete mutable struct NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
     prob
     alg
