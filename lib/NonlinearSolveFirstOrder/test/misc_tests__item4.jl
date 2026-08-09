@@ -32,3 +32,27 @@ if isempty(VERSION.prerelease) && VERSION < v"1.12"
     sol = solve(prob, alg)
     @test SciMLBase.successful_retcode(sol)
 end
+
+struct AnalyticJacResidual end
+function (::AnalyticJacResidual)(res, u, p)
+    eltype(u) === Float64 || error("residual must not be differentiated")
+    @. res = u^2 - p
+    return nothing
+end
+function analytic_jacobian!(J, u, p)
+    fill!(J, 0)
+    for i in eachindex(u)
+        J[i, i] = 2 * u[i]
+    end
+    return nothing
+end
+
+analytic_prob = NonlinearLeastSquaresProblem(
+    NonlinearFunction(
+        AnalyticJacResidual(); jac = analytic_jacobian!, jac_prototype = zeros(n, n),
+        resid_prototype = zeros(n)
+    ), u0, p
+)
+analytic_sol = solve(analytic_prob, GaussNewton(; linesearch = BackTracking()))
+@test SciMLBase.successful_retcode(analytic_sol)
+@test analytic_sol.u ≈ sqrt.(p)
