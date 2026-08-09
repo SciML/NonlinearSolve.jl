@@ -52,6 +52,11 @@ though often computationally more expensive than direct methods.
     internally uses the `TerminateSteadyState` callback from the Callback Library. The
     simulated time, for which the ODE is solved, can be limited by `tspan`.  If `tspan` is a
     number, it is equivalent to passing `(zero(tspan), tspan)`.
+  - [`SICNM`](@ref): The semi-implicit continuous Newton method. Reformulates the
+    steady-state problem as a differential-algebraic equation and integrates it to the
+    root with a stiffly stable ODE solver. It is particularly useful for ill-conditioned
+    problems where direct Newton methods diverge, though it is more expensive per solve.
+    `Rodas3d` is the recommended ODE algorithm: `SICNM(Rodas3d())`.
 
 Example usage:
 
@@ -63,6 +68,9 @@ sol = NLS.solve(prob, SSDE.DynamicSS(ODE.Tsit5()))
 
 import Sundials
 sol = NLS.solve(prob, SSDE.DynamicSS(Sundials.CVODE_BDF()), dt = 1.0)
+
+import OrdinaryDiffEqRosenbrock: Rodas3d
+sol = NLS.solve(prob, SSDE.SICNM(Rodas3d()))
 ```
 
 !!! note
