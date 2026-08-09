@@ -22,6 +22,7 @@ SCCNonlinearSolve.scc_solve_up
 ```@docs
 NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
 NonlinearSolveBase.AbstractNonlinearSolveCache
+NonlinearSolveBase.NonlinearSolveNoInitCache
 ```
 
 ## Nonlinear Preconditioning
