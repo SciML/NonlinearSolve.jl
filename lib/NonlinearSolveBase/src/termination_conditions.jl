@@ -5,6 +5,23 @@ const AbsNormModes = Union{
     AbsNormTerminationMode, AbsNormSafeTerminationMode, AbsNormSafeBestTerminationMode,
 }
 
+"""
+    residual_only_termination_mode(mode) -> Bool
+
+Whether `mode` decides termination from the residual alone, reading neither the iterate nor
+the displacement from the previous one, and keeping no per-step history.
+
+This is the condition under which a solver may honour `evaluate_residual = false` (see
+[`supports_deferred_residual`](@ref)): a deferred step reports `u - uprev == 0` and reaches
+the termination check only when the driver asks for the residual, so a mode that reads
+either would be answering about a step that never happened. `false` for every mode that
+does, including all `AbstractSafeNonlinearTerminationMode`s, whose stall and patience
+counters are exactly such a history.
+"""
+residual_only_termination_mode(::AbstractNonlinearTerminationMode) = false
+residual_only_termination_mode(::AbsTerminationMode) = true
+residual_only_termination_mode(::AbsNormTerminationMode) = true
+
 # Core Implementation
 @concrete mutable struct NonlinearTerminationModeCache{uType, T}
     u::uType

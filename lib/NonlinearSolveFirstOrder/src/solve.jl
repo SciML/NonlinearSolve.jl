@@ -80,6 +80,9 @@ end
 
     # State Affect
     make_new_jacobian::Bool
+    # Whether `fu` still belongs to the iterate before the last step, because that step was
+    # taken with `evaluate_residual = false`.
+    fu_deferred::Bool
 
     # Termination & Tracking
     termination_cache
@@ -118,6 +121,7 @@ function InternalAPI.reinit_self!(
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     cache.make_new_jacobian = true
+    cache.fu_deferred = false
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(
@@ -287,7 +291,7 @@ function SciMLBase.__init(
             fu, u, u_cache, prob.p, alg, prob, globalization,
             jac_cache, descent_cache, forcing_cache, linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
-            0.0, true, termination_cache, trace, ReturnCode.Default, false, kwargs,
+            0.0, true, false, termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
@@ -296,10 +300,40 @@ function SciMLBase.__init(
     return cache
 end
 
+function NonlinearSolveBase.supports_deferred_residual(
+        cache::GeneralizedFirstOrderAlgorithmCache
+    )
+    # Only the unglobalized step ends on a residual evaluation whose sole purpose is to
+    # prime the next step; a line search or trust region consumes the residual as it goes.
+    cache.globalization isa Val{:None} || return false
+    # A deferred step reports no displacement and reaches the termination check only when
+    # the driver asks for the residual, so only a residual-only mode keeps its meaning.
+    NonlinearSolveBase.residual_only_termination_mode(cache.termination_cache.mode) ||
+        return false
+    # The trace records the residual at the iterate the step landed on.
+    return !NonlinearSolveBase.trace_is_active(cache.trace)
+end
+
+function NonlinearSolveBase.refresh_residual!(cache::GeneralizedFirstOrderAlgorithmCache)
+    cache.fu_deferred || return nothing
+    cache.fu_deferred = false
+    Utils.evaluate_f!(cache, cache.u, cache.p)
+    NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    return nothing
+end
+
 function InternalAPI.step!(
         cache::GeneralizedFirstOrderAlgorithmCache;
-        recompute_jacobian::Union{Nothing, Bool} = nothing
+        recompute_jacobian::Union{Nothing, Bool} = nothing,
+        evaluate_residual::Bool = true
     )
+    # The descent has to be taken from the residual at the iterate it starts from, so an
+    # outstanding deferral is settled here rather than left for the driver to remember.
+    NonlinearSolveBase.refresh_residual!(cache)
+    # `evaluate_residual` is a hint, not an instruction: a cache that cannot defer without
+    # the deferral becoming observable ignores it.
+    defer_residual = !evaluate_residual &&
+        NonlinearSolveBase.supports_deferred_residual(cache)
     @static_timeit cache.timer "jacobian" begin
         if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
             J = cache.jac_cache(cache.u)
@@ -342,7 +376,7 @@ function InternalAPI.step!(
                 Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             # In the 2nd call the `new_jacobian` is guaranteed to be `true`.
             cache.make_new_jacobian = true
-            InternalAPI.step!(cache; recompute_jacobian = true)
+            InternalAPI.step!(cache; recompute_jacobian = true, evaluate_residual)
             return
         end
     end
@@ -405,14 +439,18 @@ function InternalAPI.step!(
                 cache.u = NonlinearSolveBase.apply_postcondition!!(
                     cache.u, cache.u_cache, cache
                 )
-                Utils.evaluate_f!(cache, cache.u, cache.p)
+                defer_residual || Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
         else
             error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
                    are (:LineSearch, :TrustRegion, :None)")
         end
-        NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+        if defer_residual
+            cache.fu_deferred = true
+        else
+            NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+        end
     else
         α = false
         cache.make_new_jacobian = false

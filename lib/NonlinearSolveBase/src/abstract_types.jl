@@ -399,6 +399,38 @@ or Jacobian evaluations, which are tracked separately in `cache.stats`.
 """
 get_nsteps(cache::AbstractNonlinearSolveCache) = cache.nsteps
 
+"""
+    supports_deferred_residual(cache) -> Bool
+
+Whether `cache` honours `step!(cache; evaluate_residual = false)`, that is, whether it can
+end a step without evaluating the residual at the iterate the step landed on and leave
+[`refresh_residual!`](@ref) to supply it on demand.
+
+`false` for a cache that always evaluates, which is also the safe answer: a cache is free
+to ignore `evaluate_residual = false`, and a driver that gets `false` here simply reads a
+residual that is already current. A cache may only answer `true` where deferral is
+unobservable — in particular where its termination condition depends on nothing but the
+residual, since a deferred step reports no displacement and reaches the termination check
+once per [`refresh_residual!`](@ref) rather than once per step.
+"""
+supports_deferred_residual(::AbstractNonlinearSolveCache) = false
+
+"""
+    refresh_residual!(cache)
+
+Settle a residual evaluation deferred by `step!(cache; evaluate_residual = false)`: evaluate
+the problem's residual at [`get_u`](@ref), store it, and run the convergence check the step
+would have run there, leaving `cache` in the state a plain `step!` would have left it in.
+Does nothing when no evaluation is outstanding, so a driver may call it whenever it wants to
+read [`get_fu`](@ref) without tracking which of its steps deferred — including on a cache
+that never defers, which the default here covers. A cache that answers
+[`supports_deferred_residual`](@ref) with `true` must override it.
+
+The next `step!` settles an outstanding deferral itself, so a driver that only ever steps
+again never needs to call this.
+"""
+refresh_residual!(::AbstractNonlinearSolveCache) = nothing
+
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
