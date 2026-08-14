@@ -43,6 +43,7 @@ else
             @time @safetestset "Infeasible" include("Core/core_tests__item12.jl")
             @time @safetestset "NoInit Caching" include("Core/core_tests__item13.jl")
             @time @safetestset "Allocation-free cache solve" include("Core/cache_solve_tests__item1.jl")
+            @time @safetestset "AutoDespecialize dynamic parameters" include("Core/autodespecialize_tests__item1.jl")
             @time @safetestset "Singular Systems -- Auto Linear Solve Switching" include("Core/core_tests__item16.jl")
             @time @safetestset "No PolyesterForwardDiff for SArray" include("Core/core_tests__item17.jl")
             @time @safetestset "NonlinearLeastSquares ReturnCode" include("Core/core_tests__item18.jl")

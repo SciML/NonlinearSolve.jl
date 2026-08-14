@@ -3,3 +3,4 @@
 @safetestset "SCC Residuals Transfer" include("core_tests__item3.jl")
 @safetestset "Vector-form SCCNonlinearProblem with FunctionWrappers" include("core_tests__item4.jl")
 @safetestset "HomotopyProblem SCC block is continued (autodiff threaded)" include("core_tests__item5.jl")
+@safetestset "AutoDespecialize SCC subproblems" include("core_tests__item6.jl")
