@@ -11,6 +11,12 @@ NonlinearSolveBase
 NonlinearSolveBase.InternalAPI
 ```
 
+## Problem Concretization
+
+```@docs
+NonlinearSolveBase.get_concrete_problem
+```
+
 ## SCC Interface
 
 ```@docs

@@ -927,8 +927,12 @@ function _solve_adjoint(
     # same (unwrapped) type as Enzyme's traced forward, otherwise the custom
     # `solve_up` rule's returned primal type mismatches the inferred return type
     # (`EnzymeRuntimeException: Expected return type of primal to be ...`).
-    if originator isa SciMLBase.EnzymeOriginator && is_fw_wrapped(_prob.f.f)
-        @set! _prob.f.f = get_raw_f(_prob.f.f)
+    if originator isa SciMLBase.EnzymeOriginator
+        if _prob.p isa SciMLBase.DespecializedParameters
+            _prob = _unwrap_despecialized_problem(_prob)
+        elseif is_fw_wrapped(_prob.f.f)
+            @set! _prob.f.f = get_raw_f(_prob.f.f)
+        end
     end
 
     if has_kwargs(_prob)
@@ -972,13 +976,22 @@ function maybe_wrap_f(prob::AbstractNonlinearProblem)
     # AutoDePSpecialize opaque-`p` path (packs `p` + wraps `f` together).
     opaque = maybe_opaque_wrap(prob)
     opaque === nothing || return opaque
+    prob = _despecialize_parameters(prob)
     wrapped_f = maybe_wrap_nonlinear_f(prob)
     wrapped_f === prob.f.f && return prob
-    @set! prob.f.f = wrapped_f
-    return prob
+    f = SciMLBase.unwrapped_f(prob.f, wrapped_f)
+    return SciMLBase.remake(prob; f)
 end
 
 
+"""
+    get_concrete_problem(prob; kwargs...)
+
+Return the concrete nonlinear problem used by solver initialization after applying state
+and parameter overrides, numeric promotion, symbolic updates, and the problem function's
+specialization policy. Solver packages can use this developer API before constructing a
+cache or composing nonlinear subproblems.
+"""
 function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
@@ -1009,7 +1022,8 @@ function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, prob.p, nothing)
     p = get_concrete_p(prob, kwargs)
-    return remake(prob; u0 = u0, p = p)
+    prob = remake(prob; u0 = u0, p = p)
+    return maybe_wrap_f(prob)
 end
 
 function get_concrete_problem(prob::SteadyStateProblem; kwargs...)

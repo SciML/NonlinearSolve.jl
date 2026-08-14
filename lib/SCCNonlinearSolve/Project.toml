@@ -1,6 +1,6 @@
 name = "SCCNonlinearSolve"
 uuid = "9dfe8606-65a1-4bb3-9748-cb89d1561431"
-version = "1.14.1"
+version = "1.15.0"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -35,7 +35,7 @@ InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
 NonlinearProblemLibrary = "0.1.2"
 NonlinearSolve = "4.8"
-NonlinearSolveBase = "2.37"
+NonlinearSolveBase = "2.44"
 NonlinearSolveFirstOrder = "2.1.2"
 PrecompileTools = "1.2"
 SciMLBase = "3.46"

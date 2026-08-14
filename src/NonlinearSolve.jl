@@ -143,6 +143,17 @@ include("forward_diff.jl")
         ),
     )
 
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDespecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ),
+            [0.1],
+            (a = 2.0,),
+        ),
+    )
+
     nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
     nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
 

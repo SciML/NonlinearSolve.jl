@@ -67,8 +67,15 @@ function scc_solve_up(
         prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
         kwargs...
     )
-    return _scc_solve(prob, alg; kwargs...)
+    probs = map(_concrete_scc_problem, prob.probs)
+    concrete_prob = SciMLBase.remake(prob; probs)
+    return _scc_solve(concrete_prob, alg; kwargs...)
 end
+
+function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem})
+    return NonlinearSolveBase.get_concrete_problem(prob)
+end
+_concrete_scc_problem(prob) = prob
 
 probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
@@ -76,8 +83,8 @@ probvec(prob::LinearProblem) = prob.b
 iteratively_build_sols(alg, sols; kwargs...) = sols
 
 function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
-    explicitfun(
-        prob.p, sols
+    SciMLBase.invoke_with_despecialized_parameters(
+        explicitfun, (prob.p, sols)
     )
 
     _sol = if prob isa SciMLBase.LinearProblem
@@ -147,8 +154,9 @@ end
 end
 
 function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs...)
-    explicitfun(
-        SymbolicIndexingInterface.parameter_values(prob), sols
+    p = SymbolicIndexingInterface.parameter_values(prob)
+    SciMLBase.invoke_with_despecialized_parameters(
+        explicitfun, (p, sols)
     )
 
     _sol = if prob isa SciMLBase.LinearProblem
