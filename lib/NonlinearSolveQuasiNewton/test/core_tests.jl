@@ -10,3 +10,4 @@
 @safetestset "Postcondition iterate correction" include("core_tests__item10.jl")
 @safetestset "LimitedMemoryBroyden: continuation from a nearby root" include("core_tests__item11.jl")
 @safetestset "reinit! resets the update rule state" include("core_tests__item12.jl")
+@safetestset "Bad Broyden with a triangular true Jacobian" include("core_tests__item13.jl")
