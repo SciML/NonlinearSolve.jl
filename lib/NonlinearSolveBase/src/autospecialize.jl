@@ -90,7 +90,7 @@ end
 
 function _unwrap_despecialized_problem(prob)
     p = SciMLBase.unwrap_parameters(prob.p)
-    residual = get_raw_f(prob.f.f)
+    residual = _unwrap_parameter_callback(get_raw_f(prob.f.f))
     f = _map_parameter_callbacks(_unwrap_parameter_callback, prob.f, residual)
     return SciMLBase.remake(prob; f, p)
 end

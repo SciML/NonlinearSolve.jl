@@ -1,3 +1,4 @@
+using ADTypes: AutoEnzyme
 using NonlinearSolveBase, SciMLBase, Test
 
 struct DynamicParameters
@@ -70,6 +71,11 @@ end
     remade = NonlinearSolveBase.get_concrete_problem(first_prob)
     @test typeof(remade) === typeof(first_prob)
     @test remade.p === first_prob.p
+
+    @test first_prob.f.f !== dynamic_residual!
+    enzyme_prob = NonlinearSolveBase.maybe_unwrap_prob_for_enzyme(first_prob, AutoEnzyme())
+    @test enzyme_prob.p isa DynamicParameters
+    @test enzyme_prob.f.f === dynamic_residual!
 end
 
 
