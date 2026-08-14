@@ -40,9 +40,70 @@ struct AutoSpecializeCallable{FW}
     orig::Any  # type-erased: all wrapped functions share the same Julia type
 end
 
+struct ParameterDespecializationWrapper
+    f::Any
+end
+
+function (f::ParameterDespecializationWrapper)(args...)
+    return SciMLBase.invoke_with_despecialized_parameters(f.f, args)
+end
+
+SciMLBase.unwrapped_f(f::ParameterDespecializationWrapper) = SciMLBase.unwrapped_f(f.f)
+
+_wrap_parameter_callback(::Nothing) = nothing
+_wrap_parameter_callback(f::ParameterDespecializationWrapper) = f
+_wrap_parameter_callback(f) = ParameterDespecializationWrapper(f)
+
+_unwrap_parameter_callback(f::ParameterDespecializationWrapper) = f.f
+_unwrap_parameter_callback(f) = f
+
+function _map_parameter_callbacks(transform, f, residual = f.f)
+    return SciMLBase.NonlinearFunction{
+        SciMLBase.isinplace(f), SciMLBase.specialization(f),
+    }(
+        residual;
+        mass_matrix = f.mass_matrix,
+        analytic = transform(f.analytic),
+        tgrad = transform(f.tgrad),
+        jac = transform(f.jac),
+        jvp = transform(f.jvp),
+        vjp = transform(f.vjp),
+        jac_prototype = f.jac_prototype,
+        sparsity = f.sparsity,
+        Wfact = transform(f.Wfact),
+        Wfact_t = transform(f.Wfact_t),
+        paramjac = transform(f.paramjac),
+        observed = transform(f.observed),
+        colorvec = f.colorvec,
+        sys = f.sys,
+        resid_prototype = f.resid_prototype,
+        initialization_data = f.initialization_data
+    )
+end
+
+function _despecialize_parameters(prob)
+    SciMLBase.specialization(prob.f) === SciMLBase.AutoDespecialize || return prob
+    f = _map_parameter_callbacks(_wrap_parameter_callback, prob.f)
+    p = SciMLBase.DespecializedParameters(prob.p)
+    return SciMLBase.remake(prob; f, p)
+end
+
+function _unwrap_despecialized_problem(prob)
+    p = SciMLBase.unwrap_parameters(prob.p)
+    residual = get_raw_f(prob.f.f)
+    f = _map_parameter_callbacks(_unwrap_parameter_callback, prob.f, residual)
+    return SciMLBase.remake(prob; f, p)
+end
+
 # Call through FunctionWrappersWrapper. All argument types that reach here have
 # matching wrapper signatures (wrapping is only applied for supported types).
 @inline (f::AutoSpecializeCallable)(args...) = f.fw(args...)
+
+function SciMLBase.invoke_with_despecialized_parameters(
+        f::AutoSpecializeCallable, args::Tuple; kwargs...
+    )
+    return isempty(kwargs) ? f(args...) : f(args...; kwargs...)
+end
 
 """
     is_fw_wrapped(f) -> Bool
@@ -95,6 +156,12 @@ This should be called early in `__init` so that all downstream AD-related constr
 """
 function maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
     f = prob.f.f
+    if prob.p isa SciMLBase.DespecializedParameters
+        for ad in autodiffs
+            _uses_enzyme_ad(ad) && return _unwrap_despecialized_problem(prob)
+        end
+        return prob
+    end
     is_fw_wrapped(f) || return prob
     # For the opaque path, Enzyme cannot differentiate through the OpaqueParams
     # byte unpacking, so fully revert: raw residual + the concrete `p` unpacked
@@ -146,8 +213,8 @@ standardize_forwarddiff_tag(ad, prob) = ad
 Attempt to wrap an in-place problem function with `FunctionWrappersWrapper` for the
 norecompile (AutoSpecialize) pathway. Returns an `AutoSpecializeCallable` wrapping both
 the `FunctionWrappersWrapper` and the original function if the problem is IIP with
-array-typed state, non-dual eltype, and has opted in to `AutoSpecialize`; otherwise
-returns the original function unchanged.
+array-typed state, non-dual eltype, and has opted in to `AutoSpecialize` or
+`AutoDespecialize`; otherwise returns the original function unchanged.
 
 OOP functions are not wrapped because guessing the return type is unreliable.
 Non-array state (e.g. scalar `Number` u0) is not wrapped because the Dual-aware
@@ -186,17 +253,22 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # `nodual_value`.
     SciMLBase.isdualtype(eltype(u0)) && return prob.f.f
 
-    # Only wrap when AutoSpecialize (the default) or AutoDePSpecialize is active.
+    # Only wrap when AutoSpecialize (the default), AutoDespecialize, or
+    # AutoDePSpecialize is active.
     # FullSpecialize opts out of wrapping, keeping the exact function type.
     # (The opaque-`p` sub-case of AutoDePSpecialize is handled earlier in
     # `maybe_wrap_f` via `maybe_opaque_wrap`; reaching here under
     # AutoDePSpecialize means `p` was not opaque-ified, so wrap like
     # AutoSpecialize.)
     spec = SciMLBase.specialization(prob.f)
-    (spec === SciMLBase.AutoSpecialize || spec === SciMLBase.AutoDePSpecialize) ||
+    (
+        spec === SciMLBase.AutoSpecialize || spec === SciMLBase.AutoDespecialize ||
+            spec === SciMLBase.AutoDePSpecialize
+    ) ||
         return prob.f.f
 
     orig = prob.f.f
+    spec === SciMLBase.AutoDespecialize && (orig = ParameterDespecializationWrapper(orig))
     inputs = (u0, u0, p)
     return AutoSpecializeCallable(wrapfun_iip(orig, inputs), orig)
 end
