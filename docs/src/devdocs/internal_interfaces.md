@@ -99,6 +99,19 @@ NonlinearSolveBase.get_fu
 NonlinearSolveBase.get_nsteps
 ```
 
+## Deferred Residual Evaluation
+
+A solver whose step ends by evaluating the residual at the iterate it just produced spends
+that evaluation on the *next* step's right-hand side. A driver that stops stepping — an
+implicit ODE integrator taking one Newton iteration per outer iteration, say — throws the
+last one away. These two let it ask for that evaluation to be skipped and take it later only
+if it turns out to want it.
+
+```@docs
+NonlinearSolveBase.supports_deferred_residual
+NonlinearSolveBase.refresh_residual!
+```
+
 ## Cache Tolerances
 
 ```@docs

@@ -130,6 +130,18 @@ reset!(trace::NonlinearSolveTrace) = reset!(trace.history)
 reset!(::Nothing) = nothing
 reset!(history::Vector) = empty!(history)
 
+"""
+    trace_is_active(trace) -> Bool
+
+Whether `update_trace!` would record or print anything for `trace`. An inactive trace lets a
+solver skip work whose only consumer is the trace — the residual `update_trace!` reads, for
+one.
+"""
+trace_is_active(::Union{Nothing, Missing}) = false
+function trace_is_active(trace::NonlinearSolveTrace)
+    return !(trace.show_trace isa Val{false} && trace.store_trace isa Val{false})
+end
+
 function Base.show(io::IO, ::MIME"text/plain", trace::NonlinearSolveTrace)
     return if trace.history !== nothing
         foreach(trace.history) do entry
