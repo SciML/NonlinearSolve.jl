@@ -165,6 +165,8 @@ run_tests(;
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
+        @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
+
         @safetestset "Jacobian and restructure allocation fast paths" include(
             "allocation_fastpaths.jl"
         )
