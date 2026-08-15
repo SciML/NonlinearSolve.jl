@@ -11,7 +11,7 @@ run_qa(
         piracies = (; treat_as_own = [SCCNonlinearSolve.SciMLBase.solve]),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (; rendered = true, docs_src = NONLINEARSOLVE_DOCS_SRC),
+    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # Still non-public in their owning packages after the make-public round:
         #   SciMLBase: build_linear_solution, strip_solution;  Base: Cartesian

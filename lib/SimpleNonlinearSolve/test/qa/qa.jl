@@ -25,12 +25,7 @@ run_qa(
         ),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (;
-        rendered = true,
-        docs_src = NONLINEARSOLVE_DOCS_SRC,
-        ignore = SIMPLE_EXTERNAL_REEXPORTS,
-        rendered_ignore = SIMPLE_EXTERNAL_REEXPORTS,
-    ),
+    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # Still non-public in their owning packages, across the main module and the
         # Tracker / ReverseDiff / ChainRulesCore extensions. __init / __solve dropped:

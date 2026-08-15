@@ -16,12 +16,7 @@ run_qa(
         piracies = (; treat_as_own = [NonlinearLeastSquaresProblem]),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (;
-        rendered = true,
-        docs_src = NONLINEARSOLVE_DOCS_SRC,
-        ignore = FIRST_ORDER_EXTERNAL_REEXPORTS,
-        rendered_ignore = FIRST_ORDER_EXTERNAL_REEXPORTS,
-    ),
+    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;
         # the sublibrary builds on it by design). __init / __solve dropped: now public in
