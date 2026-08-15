@@ -32,9 +32,9 @@ function InternalAPI.init(
     if Utils.unwrap_val(pre_inverted)
         @assert length(fu) == length(u) "Non-Square Jacobian Inverse doesn't make sense."
     end
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
     if Utils.unwrap_val(pre_inverted)
 

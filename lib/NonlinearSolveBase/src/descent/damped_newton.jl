@@ -74,9 +74,9 @@ function InternalAPI.init(
     length(fu) != length(u) &&
         @assert pre_inverted isa Val{false} "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
 
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
@@ -147,7 +147,7 @@ function InternalAPI.init(
             J_cache = JᵀJ
         end
         J_damped = dampen_jacobian!!(J_cache, JᵀJ, D)
-        @bb z_cache = similar(fu)
+        @bb z_cache = zero(fu)
 
         A, b = Utils.maybe_symmetric(J_damped), Utils.safe_vec(fu)
         Jᵀfu, rhs_cache = nothing, nothing
