@@ -25,6 +25,93 @@ end
 
 SciMLBase.isinplace(w::PreconditionWrapper{iip}) where {iip} = iip
 
+"""
+    compose_precondition(f, pre, ::Val{iip})
+
+Compose the left preconditioner `G` into the residual of the problem function `f`, returning
+the composed function.
+
+This is the extension point for function types that wrap a `NonlinearFunction`. Composition
+cannot be done generically by rewriting the innermost callable: for a wrapper, the field
+holding the callable is a whole `NonlinearFunction` carrying its own `jac`, `jac_prototype`
+and `resid_prototype`, and replacing it with a bare composed callable silently discards them.
+Types that know how to compose safely define a method; everything else is refused.
+"""
+function compose_precondition end
+
+"""
+    has_composed_precondition(f)
+
+Whether `f`'s residual has already been composed with a left preconditioner. This is what
+keeps [`transform_conditioned_problem`](@ref) idempotent across the nested
+`solve`/`init`/`__solve` entry points, so define it alongside any
+[`compose_precondition`](@ref) method that composes into a different place than the default.
+"""
+has_composed_precondition(f) = hasfield(typeof(f), :f) && f.f isa PreconditionWrapper
+
+function compose_precondition(
+        f::SciMLBase.NonlinearFunction, pre, ::Val{iip}
+    ) where {iip}
+    # Composing `G` changes the residual but leaves `f.jac`/`f.jvp`/`f.vjp` describing the
+    # *uncomposed* map, so the solver would differentiate one function while evaluating
+    # another — `J·δu = -G(f)` is not a Newton step for `G∘f`. Earlier versions did exactly
+    # that and returned a converged-looking wrong answer, so this refuses instead. Compose
+    # `G` into your residual and its derivative yourself if you need both.
+    if SciMLBase.has_jac(f) || SciMLBase.has_jvp(f) || SciMLBase.has_vjp(f)
+        throw(
+            ArgumentError(
+                "`precondition` cannot be combined with an analytic `jac`, `jvp` or `vjp`. \
+                 The preconditioner is composed into the residual, but the supplied \
+                 derivative still describes the uncomposed residual, so the two would \
+                 disagree and the solve would converge to the wrong point. Compose the \
+                 preconditioner into your residual and its derivative yourself, or drop the \
+                 analytic derivative and let the solver differentiate the composed residual."
+            )
+        )
+    end
+    # Unwrap AutoSpecializeCallable before composing: the jacobian construction's Enzyme
+    # unwrap path checks `is_fw_wrapped(prob.f.f)`, which cannot see a FunctionWrapper
+    # hidden inside the composition.
+    raw_f = is_fw_wrapped(f.f) ? get_raw_f(f.f) : f.f
+    return @set f.f = PreconditionWrapper{iip}(raw_f, pre)
+end
+
+function compose_precondition(f::SciMLBase.AbstractNonlinearFunction, pre, ::Val)
+    throw(
+        ArgumentError(
+            "`precondition` is not supported for a `$(nameof(typeof(f)))`. Composing the \
+             preconditioner would have to rewrite the wrapped residual, which discards the \
+             `jac`/`jac_prototype` the wrapper carries. Define \
+             `NonlinearSolveBase.compose_precondition` for this function type, or compose \
+             the preconditioner into your residual yourself."
+        )
+    )
+end
+
+"""
+    AppliedInitialCorrection(corrector)
+
+Marker recording that the `postcondition` corrector has already been applied to a problem's
+initial guess. It forwards every call to the corrector it wraps.
+
+`transform_conditioned_problem` runs at more than one funnel — `solve_call`, so that
+algorithms with their own `__solve` see the composed problem, and again in `__solve` and
+`init_call` — and a polyalgorithm re-enters `__solve` once per subsolver. Without a marker,
+`H(u0, u0, p, nothing)` is applied once per pass, which for a non-idempotent corrector moves
+the starting point somewhere the user never asked for.
+"""
+struct AppliedInitialCorrection{P}
+    corrector::P
+end
+
+(applied::AppliedInitialCorrection)(u, u_prev, p, cache) =
+    applied.corrector(u, u_prev, p, cache)
+
+function initial_correction_applied(prob)
+    has_kwargs(prob) || return false
+    return get(prob.kwargs, :postcondition, nothing) isa AppliedInitialCorrection
+end
+
 # Solve keywords take precedence over the problem's stored keywords, matching `alias`.
 function _conditioning_option(prob, kwargs, key::Symbol)
     val = get(kwargs, key, nothing)
@@ -102,6 +189,7 @@ end
 # bounds the original variable is the one the corrector was written for.
 postcondition_space(_) = PostconditionSpace.Original
 postcondition_space(::PostconditionSpecifier{space}) where {space} = space
+postcondition_space(applied::AppliedInitialCorrection) = postcondition_space(applied.corrector)
 
 """
     get_postcondition(prob, kwargs)
@@ -141,10 +229,13 @@ function needs_conditioning(prob, kwargs)
             prob isa SciMLBase.NonlinearLeastSquaresProblem ||
             prob isa SciMLBase.ImmutableNonlinearProblem
     ) || return false
-    if get_precondition(prob, kwargs) !== nothing &&
-            !(hasfield(typeof(prob.f), :f) && prob.f.f isa PreconditionWrapper)
+    if get_precondition(prob, kwargs) !== nothing && !has_composed_precondition(prob.f)
         return true
     end
+    # Deliberately not gated on `initial_correction_applied`: the transform also reports an
+    # unsupported `postcondition`, and the first funnel to run may not know the algorithm yet
+    # (`solve(prob; postcondition = H)` resolves it later). Re-entering is cheap — the
+    # transform skips the correction itself via the same marker.
     return get_postcondition(prob, kwargs) !== nothing
 end
 
@@ -181,7 +272,7 @@ function transform_conditioned_problem(prob, alg, kwargs)
     # Skip the initial-guess correction for a Transformed-space corrector on a bounded
     # problem: the bounds transform runs after this pass, so `prob.u0` is still in the
     # original coordinates and applying H here would mix spaces.
-    skip_initial = post === nothing || (
+    skip_initial = post === nothing || initial_correction_applied(prob) || (
         postcondition_space(post) === PostconditionSpace.Transformed &&
             hasfield(typeof(prob), :lb) && hasfield(typeof(prob), :ub) &&
             (prob.lb !== nothing || prob.ub !== nothing) &&
@@ -197,18 +288,22 @@ function transform_conditioned_problem(prob, alg, kwargs)
         _apply_postcondition!!(post, prob.u0, prob.u0, prob.p, nothing, Val(false))
     end
 
-    if pre === nothing || (hasfield(typeof(prob.f), :f) && prob.f.f isa PreconditionWrapper)
-        return u0 === prob.u0 ? prob : remake(prob; u0)
+    # Record the initial-guess correction on the problem so the later funnels — and a
+    # polyalgorithm's per-subsolver `__solve` — do not apply it again.
+    newkwargs = skip_initial ? missing : _mark_initial_correction(prob, post)
+
+    if pre === nothing || has_composed_precondition(prob.f)
+        return (u0 === prob.u0 && newkwargs === missing) ? prob :
+            remake(prob; u0, kwargs = newkwargs)
     end
 
-    orig_f = prob.f
-    # Unwrap AutoSpecializeCallable before composing: the jacobian construction's Enzyme
-    # unwrap path checks `is_fw_wrapped(prob.f.f)`, which cannot see a FunctionWrapper
-    # hidden inside the composition.
-    raw_f = is_fw_wrapped(orig_f.f) ? get_raw_f(orig_f.f) : orig_f.f
-    wrapped = PreconditionWrapper{SciMLBase.isinplace(prob)}(raw_f, pre)
+    composed = compose_precondition(prob.f, pre, Val(SciMLBase.isinplace(prob)))
+    return remake(prob; f = composed, u0, kwargs = newkwargs)
+end
 
-    return remake(prob; f = @set(orig_f.f = wrapped), u0)
+function _mark_initial_correction(prob, post)
+    base = has_kwargs(prob) ? values(prob.kwargs) : NamedTuple()
+    return merge(base, (; postcondition = AppliedInitialCorrection(post)))
 end
 
 """

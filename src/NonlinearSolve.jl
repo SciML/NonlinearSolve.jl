@@ -32,6 +32,7 @@ using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
 using BracketingNonlinearSolve: BracketingNonlinearSolve
 using LineSearch: LineSearch
 using LinearSolve: LinearSolve
+using MultiLevelNonlinearSolve: MultiLevelNonlinearSolve
 using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, GeneralizedFirstOrderAlgorithm
 using NonlinearSolveQuasiNewton: NonlinearSolveQuasiNewton, QuasiNewtonAlgorithm
 using NonlinearSolveSpectralMethods: NonlinearSolveSpectralMethods, GeneralizedDFSane
@@ -183,7 +184,8 @@ end
 # Rexexports
 @reexport using SciMLBase, NonlinearSolveBase, LineSearch, ADTypes
 @reexport using NonlinearSolveFirstOrder, NonlinearSolveSpectralMethods,
-    NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve
+    NonlinearSolveQuasiNewton, SimpleNonlinearSolve, BracketingNonlinearSolve,
+    MultiLevelNonlinearSolve
 @reexport using LinearSolve
 
 # Poly Algorithms

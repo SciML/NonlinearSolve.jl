@@ -1,0 +1,10 @@
+[Core]
+versions = ["lts", "1", "pre"]
+
+# Ferrite-backed demonstration of both variants; runs in its own sub-env under
+# test/downstream so the FEM stack never enters the Core resolution.
+[Downstream]
+versions = ["lts", "1"]
+
+[QA]
+versions = ["lts", "1"]

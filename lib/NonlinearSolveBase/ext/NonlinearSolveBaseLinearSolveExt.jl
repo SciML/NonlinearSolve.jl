@@ -74,8 +74,18 @@ function update_A!(cache::LinearSolveJLCache, A, reuse)
 end
 
 function update_A!(cache::LinearSolveJLCache, alg, A, reuse)
-    # Not a Factorization Algorithm so don't update `nfactors`
+    # Not a Factorization Algorithm so don't update `nfactors`.
+    #
+    # Installing `A` marks the preconditioner stale (LinearSolve common.jl:279-281), so
+    # `precs` was rebuilt on every step even when the caller reused the Jacobian and `A`
+    # therefore describes the same operator. For a Krylov `precs` that setup (ILU, AMG) is
+    # usually the dominant cost per step, which defeats the point of reusing the Jacobian.
+    # Only the preconditioner flag is restored: `A` is still installed, because `isfresh`
+    # drives more than the preconditioner and skipping the assignment regresses
+    # `LevenbergMarquardt` with a `KrylovJL` linear solver.
+    precs_pending = cache.lincache.precsisfresh
     set_lincache_A!(cache.lincache, A)
+    reuse && (cache.lincache.precsisfresh = precs_pending)
     return cache
 end
 function update_A!(cache::LinearSolveJLCache, ::LinearSolve.AbstractFactorization, A, reuse)

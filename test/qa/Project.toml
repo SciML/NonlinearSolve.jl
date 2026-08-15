@@ -13,6 +13,7 @@ NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+MultiLevelNonlinearSolve = "2a5508f1-6543-40a2-a163-d724be46c8c6"
 NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
 SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
@@ -27,6 +28,7 @@ BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
+MultiLevelNonlinearSolve = {path = "../../lib/MultiLevelNonlinearSolve"}
 NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
 SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
 
@@ -45,6 +47,7 @@ NonlinearSolve = "4.19"
 NonlinearSolveBase = "2.20"
 NonlinearSolveFirstOrder = "2"
 NonlinearSolveQuasiNewton = "1.12"
+MultiLevelNonlinearSolve = "1"
 NonlinearSolveSpectralMethods = "1.6"
 SIAMFANLEquations = "1.0.1"
 SciMLBase = "2.154, 3"

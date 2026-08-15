@@ -1,0 +1,32 @@
+[deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+MultiLevelNonlinearSolve = "2a5508f1-6543-40a2-a163-d724be46c8c6"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Tensors = "48a634ad-e948-5137-8d70-aa71f2a747f4"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../../../NonlinearSolveFirstOrder"}
+
+[compat]
+ADTypes = "1.13.0"
+Ferrite = "1.6"
+ForwardDiff = "0.10.36, 1"
+LinearAlgebra = "1.10"
+LinearSolve = "5.4"
+MultiLevelNonlinearSolve = "1"
+NonlinearSolveBase = "2.43"
+NonlinearSolveFirstOrder = "2.3.2"
+SciMLBase = "3.46"
+SparseArrays = "1.10"
+Tensors = "1.16"
+Test = "1.10"
+julia = "1.10"

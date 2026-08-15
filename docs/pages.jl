@@ -11,6 +11,7 @@ pages = [
         "tutorials/modelingtoolkit.md",
         "tutorials/small_compile.md",
         "tutorials/iterator_interface.md",
+        "tutorials/multilevel_newton.md",
         "tutorials/optimizing_parameterized_ode.md",
         "tutorials/nonlinear_solve_gpus.md",
         "tutorials/snes_ex2.md",
@@ -36,6 +37,7 @@ pages = [
     ],
     "Native Functionalities" => Any[
         "native/solvers.md",
+        "native/multilevelnonlinearsolve.md",
         "native/simplenonlinearsolve.md",
         "native/bracketingnonlinearsolve.md",
         "native/steadystatediffeq.md",
