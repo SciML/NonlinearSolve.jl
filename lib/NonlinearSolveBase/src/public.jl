@@ -264,7 +264,7 @@ AbstractSafeNonlinearTerminationMode end
 #! format: off
 const TERM_DOCS = Dict(
     :Norm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|`` or ``\| Δu \| ≤ abstol``",
-    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | u | \right)``",
+    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | Δu + u | \right)``",
     :RelNorm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|``",
     :Abs => doc"``\mathrm{all} \left( | Δu | ≤ abstol \right)``",
     :AbsNorm => doc"``\| Δu \| ≤ abstol``"
