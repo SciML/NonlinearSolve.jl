@@ -129,17 +129,31 @@ implementation. User-facing solver options should use `TraceMinimal`,
 
 # Arguments
 
-- `show_trace`: Whether trace information is printed during the solve.
-- `store_trace`: Whether trace entries are retained in `history`.
+- `show_trace::Val{Bool}`: Whether trace information is printed during the solve.
+- `store_trace::Val{Bool}`: Whether trace entries are retained in `history`.
 - `history`: Storage for retained trace entries, or `nothing` when storage is disabled.
-- `trace_level`: A `NonlinearSolveTracing` value describing the information to record.
-- `prob`: The nonlinear problem associated with the trace.
+- `trace_level::NonlinearSolveTracing`: The information and frequency to record.
+- `prob::AbstractNonlinearProblem`: The nonlinear problem associated with the trace.
+
+# Fields
+
+- `show_trace`: The compile-time flag controlling terminal output.
+- `store_trace`: The compile-time flag controlling history allocation and storage.
+- `history`: A vector of `NonlinearSolveTraceEntry` values, or `nothing`.
+- `trace_level`: The trace mode and print/store frequencies.
+- `prob`: The associated nonlinear problem.
+
+# Returns
+
+A `NonlinearSolveTrace` value that can be passed to the tracing hooks.
 
 # Examples
 
 ```julia
+using NonlinearSolveBase
+
 trace = NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
-trace_is_active(trace) # false
+NonlinearSolveBase.trace_is_active(trace) # false
 ```
 """
 @concrete struct NonlinearSolveTrace
