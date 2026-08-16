@@ -118,6 +118,30 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
     )
 end
 
+"""
+    NonlinearSolveTrace(show_trace, store_trace, history, trace_level, prob)
+
+State used by the nonlinear solver tracing utilities.
+
+This is a developer API used by solver packages that integrate with the built-in tracing
+implementation. User-facing solver options should use `TraceMinimal`,
+`TraceWithJacobianConditionNumber`, or `TraceAll` instead.
+
+# Arguments
+
+- `show_trace`: Whether trace information is printed during the solve.
+- `store_trace`: Whether trace entries are retained in `history`.
+- `history`: Storage for retained trace entries, or `nothing` when storage is disabled.
+- `trace_level`: A `NonlinearSolveTracing` value describing the information to record.
+- `prob`: The nonlinear problem associated with the trace.
+
+# Examples
+
+```julia
+trace = NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
+trace_is_active(trace) # false
+```
+"""
 @concrete struct NonlinearSolveTrace
     show_trace <: Union{Val{false}, Val{true}}
     store_trace <: Union{Val{false}, Val{true}}
