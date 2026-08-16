@@ -19,13 +19,14 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceI, upstream_subdirs: "."}
-          - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceII, upstream_subdirs: "."}
-          - {user: SciML, repo: ModelingToolkit.jl, group: Initialization, upstream_subdirs: "."}
-          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Interface, upstream_subdirs: "."}
-          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression, upstream_subdirs: "."}
-          - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All, upstream_subdirs: "lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder"}
-          - {user: SciML, repo: DiffEqCallbacks.jl, group: Core, upstream_subdirs: "."}
+          - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceI, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: ModelingToolkit.jl, group: InterfaceII, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: ModelingToolkit.jl, group: Initialization, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: InterfaceI, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: InterfaceII, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: OrdinaryDiffEq.jl, group: Regression_I, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: BoundaryValueDiffEq.jl, group: All, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
+          - {user: SciML, repo: DiffEqCallbacks.jl, group: Core, upstream_subdirs: ".,lib/NonlinearSolveBase,lib/SciMLJacobianOperators,lib/NonlinearSolveFirstOrder,lib/SimpleNonlinearSolve"}
     uses: "SciML/.github/.github/workflows/downstream.yml@v1"
     with:
       owner: "${{ matrix.package.user }}"
