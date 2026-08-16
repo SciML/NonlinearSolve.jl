@@ -139,15 +139,20 @@ This developer trait lets a solver skip work whose only consumer is tracing. It 
 the deferred-residual interface: a solver must not defer a residual when an active trace
 would need to record the resulting iterate.
 
-### Arguments
+This is a developer API for packages that provide a trace implementation. For a custom trace
+type, add a method that returns `true` whenever its trace-update operation would record or
+print the current step. Returning `false` for an active trace can make deferred residuals
+observable to users.
 
-  - `trace`: A nonlinear solve trace, `nothing`, or `missing`.
+# Arguments
 
-### Returns
+- `trace`: A [`NonlinearSolveTrace`](@ref), `nothing`, or `missing`.
+
+# Returns
 
 `true` when `trace` records or prints trace data, otherwise `false`.
 
-### Examples
+# Examples
 
 ```julia
 using NonlinearSolveBase

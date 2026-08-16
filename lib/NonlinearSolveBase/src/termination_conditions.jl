@@ -16,27 +16,28 @@ solver may honor `evaluate_residual = false`. A deferred step reports no displac
 reaches the termination check only when the driver requests the residual, so a mode that
 reads displacement or retains step history would observe a step that did not occur.
 
-### Arguments
+This is a developer API for packages implementing a
+[`AbstractNonlinearTerminationMode`](@ref), not a user-facing solver option. A custom mode
+may return `true` only when its convergence decision depends on the current residual and
+tolerances, not on the iterate, displacement, or per-step history.
 
-  - `mode`: An [`AbstractNonlinearTerminationMode`](@ref) instance.
+# Arguments
 
-### Returns
+- `mode::AbstractNonlinearTerminationMode`: The termination mode to inspect.
+
+# Returns
 
 `true` for residual-only modes and `false` for modes that inspect displacement or retain
-per-step state. The default implementation returns `false`; solver packages may add methods
-for new termination modes that satisfy the residual-only contract.
+per-step state. The default implementation returns `false`; solver packages should add a
+method for a new termination mode only when it satisfies the residual-only contract.
 
-### Examples
+# Examples
 
 ```julia
 using NonlinearSolveBase
 
-NonlinearSolveBase.residual_only_termination_mode(
-    NonlinearSolveBase.AbsTerminationMode()
-) # true
-NonlinearSolveBase.residual_only_termination_mode(
-    NonlinearSolveBase.RelTerminationMode()
-) # false
+NonlinearSolveBase.residual_only_termination_mode(AbsTerminationMode()) # true
+NonlinearSolveBase.residual_only_termination_mode(RelTerminationMode()) # false
 ```
 """
 residual_only_termination_mode(::AbstractNonlinearTerminationMode) = false

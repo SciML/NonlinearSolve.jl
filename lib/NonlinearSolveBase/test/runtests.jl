@@ -135,8 +135,12 @@ run_tests(;
             end
 
             @testset "deferred residual helper contracts" begin
-                using NonlinearSolveBase: AbsTerminationMode, RelTerminationMode,
+                using NonlinearSolveBase: AbstractNonlinearTerminationMode,
+                    AbsTerminationMode, NonlinearSolveTrace, RelTerminationMode, TraceMinimal,
                     residual_only_termination_mode, trace_is_active
+
+                struct ResidualOnlyTestMode <: AbstractNonlinearTerminationMode end
+                NonlinearSolveBase.residual_only_termination_mode(::ResidualOnlyTestMode) = true
 
                 @static if VERSION ≥ v"1.11"
                     @test Base.ispublic(
@@ -147,8 +151,18 @@ run_tests(;
 
                 @test residual_only_termination_mode(AbsTerminationMode())
                 @test !residual_only_termination_mode(RelTerminationMode())
+                @test residual_only_termination_mode(ResidualOnlyTestMode())
                 @test !trace_is_active(nothing)
                 @test !trace_is_active(missing)
+                @test !trace_is_active(
+                    NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
+                )
+                @test trace_is_active(
+                    NonlinearSolveTrace(Val(true), Val(false), nothing, TraceMinimal(), nothing)
+                )
+                @test trace_is_active(
+                    NonlinearSolveTrace(Val(false), Val(true), nothing, TraceMinimal(), nothing)
+                )
             end
         end
 
