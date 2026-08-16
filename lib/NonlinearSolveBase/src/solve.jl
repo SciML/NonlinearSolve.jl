@@ -373,6 +373,9 @@ function _run_cache_to_completion!(
         )
     end
 
+    # A driver may have stepped with `evaluate_residual = false`; the residual has to be
+    # brought forward before it is reported, since nothing downstream re-evaluates it.
+    refresh_residual!(cache)
     update_from_termination_cache!(cache.termination_cache, cache)
 
     update_trace!(

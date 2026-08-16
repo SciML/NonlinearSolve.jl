@@ -37,7 +37,9 @@ residual_only_termination_mode(::AbsNormTerminationMode) = true
     u0_norm
     step_norm_trace
     max_stalled_steps
-    u_diff_cache::uType
+    # Scratch for `u - uprev`. It is sized from `u`, whereas `uType` is the type of the
+    # retained best iterate, which is `nothing` for every non-`Best` mode.
+    u_diff_cache
     leastsq::Bool
 end
 
@@ -95,6 +97,18 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
     end
 end
 
+"""
+    alloc_u_diff_cache(u)
+
+Scratch to hold `u - uprev` for the stall test. Sized from `u`, since the retained best
+iterate a `Best` mode carries is absent from every other mode. When `u` cannot be written
+into in place the difference is rebuilt each step, so this only has to fix the type.
+"""
+function alloc_u_diff_cache(u)
+    (u isa Number || !ArrayInterface.can_setindex(u)) && return u .- u
+    return similar(u)
+end
+
 function CommonSolve.init(
         prob::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
         saved_value_prototype...; abstol = nothing, reltol = nothing, kwargs...
@@ -113,19 +127,13 @@ function CommonSolve.init(
             u0_norm = nothing
         else
             initial_objective = Utils.apply_norm(mode.internalnorm, du) /
-                (Utils.apply_norm(mode.internalnorm, du, u) + eps(reltol))
+                (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
             u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
         end
         objectives_trace = Vector{TT}(undef, mode.patience_steps)
         step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
             Vector{TT}(undef, mode.max_stalled_steps)
-        if step_norm_trace !== nothing &&
-                ArrayInterface.can_setindex(u_unaliased) &&
-                !(u_unaliased isa Number)
-            u_diff_cache = similar(u_unaliased)
-        else
-            u_diff_cache = u_unaliased
-        end
+        u_diff_cache = step_norm_trace === nothing ? nothing : alloc_u_diff_cache(u)
         best_value = initial_objective
         max_stalled_steps = mode.max_stalled_steps
     else
@@ -135,7 +143,7 @@ function CommonSolve.init(
         step_norm_trace = nothing
         best_value = Utils.convert_real(T, Inf)
         max_stalled_steps = nothing
-        u_diff_cache = u_unaliased
+        u_diff_cache = nothing
     end
 
     length(saved_value_prototype) == 0 && (saved_value_prototype = nothing)
@@ -251,7 +259,6 @@ function (cache::NonlinearTerminationModeCache)(
 
     # Terminate if we haven't improved for the last `patience_steps`
     cache.nsteps += 1
-    cache.nsteps == 1 && (cache.initial_objective = objective)
     cache.objectives_trace[mod1(cache.nsteps, length(cache.objectives_trace))] = objective
 
     if objective ≤ mode.patience_objective_multiplier * criteria &&
@@ -275,7 +282,8 @@ function (cache::NonlinearTerminationModeCache)(
 
     # Test for stalling if that is enabled
     if cache.step_norm_trace !== nothing
-        if ArrayInterface.can_setindex(cache.u_diff_cache) && !(u isa Number)
+        if cache.u_diff_cache !== nothing && !(u isa Number) &&
+                ArrayInterface.can_setindex(cache.u_diff_cache)
             @. cache.u_diff_cache = u - uprev
         else
             cache.u_diff_cache = u .- uprev
@@ -402,12 +410,18 @@ end
 function update_from_termination_cache!(
         tc_cache, cache, ::AbstractNonlinearTerminationMode, u = get_u(cache)
     )
-    return Utils.evaluate_f!(cache, u, cache.p)
+    # The residual handed to the termination check is the one at the current iterate, so
+    # `cache.fu` already describes `u` and there is nothing to recompute.
+    return nothing
 end
 
 function update_from_termination_cache!(
         tc_cache, cache, ::AbstractSafeBestNonlinearTerminationMode, u = get_u(cache)
     )
+    # `Best` modes retain the lowest-objective iterate, which is usually the one the solve
+    # ended on; only a genuine rollback needs the residual recomputed.
+    tc_cache.u === nothing && return nothing
+    get_u(cache) == tc_cache.u && return nothing
     if SciMLBase.isinplace(cache)
         copyto!(get_u(cache), tc_cache.u)
     else

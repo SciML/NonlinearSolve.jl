@@ -24,6 +24,7 @@ run_tests(;
 
         @safetestset "Termination Conditions" begin
             using NonlinearSolveBase, SciMLBase
+            using StaticArrays: SA
 
             @testset "reinit! with AbsTerminationMode" begin
                 mode = NonlinearSolveBase.AbsTerminationMode()
@@ -68,6 +69,69 @@ run_tests(;
                 @test termination_condition_result(
                     safe_best, [2.0], 2.0, ReturnCode.Terminated
                 ) == ([0.5], 3.0, ReturnCode.Success)
+            end
+
+            # `max_stalled_steps` is a documented constructor option on every safe mode,
+            # but the non-`Best` ones retain no iterate, so the step scratch cannot be
+            # sized from one.
+            @testset "max_stalled_steps: $modename, u0::$(typeof(u0))" for (
+                        modename, mode,
+                    ) in (
+                        (
+                            "AbsNormSafe", NonlinearSolveBase.AbsNormSafeTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "RelNormSafe", NonlinearSolveBase.RelNormSafeTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "AbsNormSafeBest", NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "RelNormSafeBest", NonlinearSolveBase.RelNormSafeBestTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                    ),
+                    u0 in ([1.0, 1.0], 1.0, SA[1.0, 1.0])
+
+                du = u0 isa Number ? 1.0 : (u0 .* 0 .+ 1.0)
+                prob = SciMLBase.NonlinearProblem((u, p) -> du, u0)
+                cache = SciMLBase.init(
+                    prob, mode, du, u0; abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                # The iterate stops moving while the residual stays far above `abstol`:
+                # the stall safeguard is exactly what must fire.
+                terminated = false
+                for _ in 1:5
+                    terminated = cache(du, u0, u0)
+                end
+                @test terminated
+                @test cache.retcode == SciMLBase.ReturnCode.Stalled
+            end
+
+            @testset "protective_threshold measures against the initial residual" begin
+                mode = NonlinearSolveBase.AbsNormSafeTerminationMode(
+                    Base.Fix1(maximum, abs); protective_threshold = 1.0
+                )
+                prob = SciMLBase.NonlinearProblem((u, p) -> [100.0], [1.0])
+                cache = SciMLBase.init(
+                    prob, mode, [100.0], [1.0]; abstol = 1.0e-10, reltol = 1.0e-10
+                )
+                @test cache.initial_objective == 100.0
+
+                @test !cache([1.0e-3], [1.1], [1.0])
+                @test cache.initial_objective == 100.0
+
+                # 5.0 is twenty times *below* the initial residual, so nothing about it
+                # is divergence.
+                @test !cache([5.0], [1.2], [1.1])
+                @test cache.retcode != SciMLBase.ReturnCode.Unstable
             end
         end
 
