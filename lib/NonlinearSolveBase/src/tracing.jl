@@ -133,9 +133,27 @@ reset!(history::Vector) = empty!(history)
 """
     trace_is_active(trace) -> Bool
 
-Whether `update_trace!` would record or print anything for `trace`. An inactive trace lets a
-solver skip work whose only consumer is the trace — the residual `update_trace!` reads, for
-one.
+Return whether `update_trace!` would record or print anything for `trace`.
+
+This developer trait lets a solver skip work whose only consumer is tracing. It is part of
+the deferred-residual interface: a solver must not defer a residual when an active trace
+would need to record the resulting iterate.
+
+### Arguments
+
+  - `trace`: A nonlinear solve trace, `nothing`, or `missing`.
+
+### Returns
+
+`true` when `trace` records or prints trace data, otherwise `false`.
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.trace_is_active(nothing) # false
+```
 """
 trace_is_active(::Union{Nothing, Missing}) = false
 function trace_is_active(trace::NonlinearSolveTrace)

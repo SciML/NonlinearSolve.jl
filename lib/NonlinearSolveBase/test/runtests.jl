@@ -133,6 +133,23 @@ run_tests(;
                 @test !cache([5.0], [1.2], [1.1])
                 @test cache.retcode != SciMLBase.ReturnCode.Unstable
             end
+
+            @testset "deferred residual helper contracts" begin
+                using NonlinearSolveBase: AbsTerminationMode, RelTerminationMode,
+                    residual_only_termination_mode, trace_is_active
+
+                @static if VERSION ≥ v"1.11"
+                    @test Base.ispublic(
+                        NonlinearSolveBase, :residual_only_termination_mode
+                    )
+                    @test Base.ispublic(NonlinearSolveBase, :trace_is_active)
+                end
+
+                @test residual_only_termination_mode(AbsTerminationMode())
+                @test !residual_only_termination_mode(RelTerminationMode())
+                @test !trace_is_active(nothing)
+                @test !trace_is_active(missing)
+            end
         end
 
         @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin

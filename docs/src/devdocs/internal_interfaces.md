@@ -110,6 +110,8 @@ if it turns out to want it.
 ```@docs
 NonlinearSolveBase.supports_deferred_residual
 NonlinearSolveBase.refresh_residual!
+NonlinearSolveBase.residual_only_termination_mode
+NonlinearSolveBase.trace_is_active
 ```
 
 ## Cache Tolerances
