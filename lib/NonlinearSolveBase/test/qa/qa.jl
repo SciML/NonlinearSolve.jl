@@ -2,7 +2,6 @@ using SciMLTesting, NonlinearSolveBase, Test
 using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem, SciMLBase
 import ForwardDiff, SparseArrays
 
-const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
 
 run_qa(
     NonlinearSolveBase;
@@ -15,7 +14,6 @@ run_qa(
         ),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # SciMLLogging preset names reached only through the @verbosity_specifier macro
         # expansion (None/Minimal/Standard/Detailed/All as bare constructors in

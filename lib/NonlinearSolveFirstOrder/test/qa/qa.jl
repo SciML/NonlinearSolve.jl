@@ -1,6 +1,5 @@
 using SciMLTesting, NonlinearSolveFirstOrder, Test
 
-const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
 
 const FIRST_ORDER_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveFirstOrder.SciMLBase),
@@ -16,7 +15,6 @@ run_qa(
         piracies = (; treat_as_own = [NonlinearLeastSquaresProblem]),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;
         # the sublibrary builds on it by design). __init / __solve dropped: now public in

@@ -1,6 +1,5 @@
 using SciMLTesting, NonlinearSolveQuasiNewton, Test
 
-const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
 
 const QUASI_NEWTON_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveQuasiNewton.SciMLBase),
@@ -17,7 +16,6 @@ run_qa(
         deps_compat = (; ignore = [:SciMLJacobianOperators]),
         ambiguities = (; recursive = false),
     ),
-    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     ei_kwargs = (;
         # Still non-public in their owning packages (NonlinearSolveBase's own internal API;
         # the sublibrary builds on it by design). __init dropped: now public in SciMLBase.
