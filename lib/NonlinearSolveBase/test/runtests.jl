@@ -92,6 +92,11 @@ run_tests(;
                                 Base.Fix1(maximum, abs); max_stalled_steps = 3
                             ),
                         ),
+                        (
+                            "RelNormSafeBest", NonlinearSolveBase.RelNormSafeBestTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
                     ),
                     u0 in ([1.0, 1.0], 1.0, SA[1.0, 1.0])
 

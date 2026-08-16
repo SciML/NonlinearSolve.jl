@@ -127,7 +127,7 @@ function CommonSolve.init(
             u0_norm = nothing
         else
             initial_objective = Utils.apply_norm(mode.internalnorm, du) /
-                (Utils.apply_norm(mode.internalnorm, du, u) + eps(reltol))
+                (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
             u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
         end
         objectives_trace = Vector{TT}(undef, mode.patience_steps)
