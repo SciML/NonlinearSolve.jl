@@ -126,6 +126,15 @@ include("forward_diff.jl")
 @compat(
     public,
     (
+        last_step_accepted, preinverted_jacobian, normal_form,
+        requires_normal_form_jacobian, requires_normal_form_rhs, returns_norm_form_damping,
+        stores_full_jacobian, get_full_jacobian, jacobian_initialized_preinverted,
+        store_inverse_jacobian,
+    )
+)
+@compat(
+    public,
+    (
         needs_conditioning, transform_conditioned_problem, apply_postcondition!!,
         get_precondition, get_postcondition, supports_postcondition,
     )

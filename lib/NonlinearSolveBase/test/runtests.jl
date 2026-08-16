@@ -135,6 +135,61 @@ run_tests(;
             end
         end
 
+        @safetestset "Abstract interface trait contracts" begin
+            using NonlinearSolveBase, Test
+
+            mutable struct TraitDescentCache <: NonlinearSolveBase.AbstractDescentCache
+                δu::Vector{Float64}
+                δus::Vector{Vector{Float64}}
+                preinverted_jacobian::Val{false}
+                normal_form::Val{false}
+                last_step_accepted::Bool
+            end
+
+            struct TraitStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+            struct TraitInitialization <: NonlinearSolveBase.AbstractJacobianInitialization end
+            struct TraitUpdateRule <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
+                store_inverse_jacobian::Bool
+            end
+            struct TraitUpdateCache <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
+                rule::TraitUpdateRule
+            end
+            struct TraitDamping <: NonlinearSolveBase.AbstractDampingFunction end
+
+            NonlinearSolveBase.requires_normal_form_jacobian(::TraitDamping) = true
+            NonlinearSolveBase.requires_normal_form_rhs(::TraitDamping) = false
+
+            cache = TraitDescentCache(
+                [1.0], [[1.0], [2.0]], Val(false), Val(false), false
+            )
+            @test NonlinearSolveBase.last_step_accepted(cache) === false
+            @test NonlinearSolveBase.preinverted_jacobian(cache) === false
+            @test NonlinearSolveBase.normal_form(cache) === false
+
+            @test NonlinearSolveBase.stores_full_jacobian(TraitStructure()) === false
+            @test_throws ErrorException NonlinearSolveBase.get_full_jacobian(
+                nothing, TraitStructure(), [1.0]
+            )
+            @test NonlinearSolveBase.jacobian_initialized_preinverted(TraitInitialization()) ===
+                false
+
+            rule = TraitUpdateRule(true)
+            @test NonlinearSolveBase.store_inverse_jacobian(rule) === true
+            @test NonlinearSolveBase.store_inverse_jacobian(TraitUpdateCache(rule)) === true
+            @test NonlinearSolveBase.returns_norm_form_damping(TraitDamping()) === true
+
+            @static if VERSION ≥ v"1.11"
+                for name in (
+                        :last_step_accepted, :preinverted_jacobian, :normal_form,
+                        :requires_normal_form_jacobian, :requires_normal_form_rhs,
+                        :returns_norm_form_damping, :stores_full_jacobian, :get_full_jacobian,
+                        :jacobian_initialized_preinverted, :store_inverse_jacobian,
+                    )
+                    @test Base.ispublic(NonlinearSolveBase, name)
+                end
+            end
+        end
+
         @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
             # Regression for SciML/OrdinaryDiffEq.jl#3381: under FullSpecialize (or
             # any path where the user function was not wrapped via AutoSpecialize),

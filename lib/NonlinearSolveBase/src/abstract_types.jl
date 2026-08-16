@@ -216,17 +216,62 @@ set_du!(cache::AbstractDescentCache, δu) = (cache.δu = δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{1}) = set_du!(cache, δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
 
+"""
+    last_step_accepted(cache::AbstractDescentCache) -> Bool
+
+Return whether the most recent descent step was accepted.
+
+The default reads `cache.last_step_accepted` when that field exists and returns `true`
+otherwise. Trust-region and damping cache implementations should overload this hook when
+acceptance is stored outside that field.
+
+# Arguments
+
+- `cache`: A descent or trust-region cache.
+
+# Examples
+
+```julia
+mutable struct MyDescentCache <: NonlinearSolveBase.AbstractDescentCache
+    δu::Vector{Float64}
+    last_step_accepted::Bool
+end
+
+cache = MyDescentCache([1.0], false)
+NonlinearSolveBase.last_step_accepted(cache) # false
+```
+"""
 function last_step_accepted(cache::AbstractDescentCache)
     hasfield(typeof(cache), :last_step_accepted) && return cache.last_step_accepted
     return true
 end
 
-for fname in (:preinverted_jacobian, :normal_form)
-    @eval function $(fname)(alg::AbstractDescentCache)
-        res = Utils.unwrap_val(Utils.safe_getproperty(alg, Val($(QuoteNode(fname)))))
-        res === missing && return false
-        return res
-    end
+"""
+    preinverted_jacobian(cache::AbstractDescentCache) -> Bool
+
+Return whether the cache stores an inverse Jacobian rather than the Jacobian itself.
+
+The default reads the cache's `preinverted_jacobian` field and treats `missing` as `false`.
+Descent cache implementations should provide that field or overload this hook.
+"""
+function preinverted_jacobian(cache::AbstractDescentCache)
+    res = Utils.unwrap_val(Utils.safe_getproperty(cache, Val(:preinverted_jacobian)))
+    res === missing && return false
+    return res
+end
+
+"""
+    normal_form(cache::AbstractDescentCache) -> Bool
+
+Return whether the cache's linear solve uses normal-form equations.
+
+The default reads the cache's `normal_form` field and treats `missing` as `false`.
+Descent cache implementations should provide that field or overload this hook.
+"""
+function normal_form(cache::AbstractDescentCache)
+    res = Utils.unwrap_val(Utils.safe_getproperty(cache, Val(:normal_form)))
+    res === missing && return false
+    return res
 end
 
 """
@@ -277,8 +322,45 @@ Returns the damping factor.
 """
 abstract type AbstractDampingFunctionCache <: AbstractNonlinearAlgorithm end
 
+"""
+    requires_normal_form_jacobian(alg) -> Bool
+
+Return whether a damping function requires the Jacobian in normal form, ``JᵀJ``.
+
+Every concrete [`AbstractDampingFunction`](@ref) must define this trait. It is queried
+before the damping cache is initialized, so it must not depend on cache state.
+"""
 function requires_normal_form_jacobian end
+
+"""
+    requires_normal_form_rhs(alg) -> Bool
+
+Return whether a damping function requires the residual in normal form, ``Jᵀfu``.
+
+Every concrete [`AbstractDampingFunction`](@ref) must define this trait. It is queried
+before the damping cache is initialized, so it must not depend on cache state.
+"""
 function requires_normal_form_rhs end
+
+"""
+    returns_norm_form_damping(alg) -> Bool
+
+Return whether the damping function returns a normal-form damping factor.
+
+The default is `requires_normal_form_jacobian(alg) || requires_normal_form_rhs(alg)`. A
+concrete damping function may overload this when its returned factor uses a different
+representation.
+
+# Examples
+
+```julia
+struct MyDamping <: NonlinearSolveBase.AbstractDampingFunction end
+NonlinearSolveBase.requires_normal_form_jacobian(::MyDamping) = true
+NonlinearSolveBase.requires_normal_form_rhs(::MyDamping) = false
+
+NonlinearSolveBase.returns_norm_form_damping(MyDamping()) # true
+```
+"""
 function returns_norm_form_damping(f::F) where {F}
     return requires_normal_form_jacobian(f) || requires_normal_form_rhs(f)
 end
@@ -553,7 +635,24 @@ Abstract Type for all Approximate Jacobian Structures used in NonlinearSolve.jl.
 """
 abstract type AbstractApproximateJacobianStructure <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    stores_full_jacobian(alg::AbstractApproximateJacobianStructure) -> Bool
+
+Return whether an approximate-Jacobian structure retains the full Jacobian.
+
+The default is `false`. A structure that retains a full Jacobian must overload this trait
+and provide the corresponding [`get_full_jacobian`](@ref) behavior.
+"""
 stores_full_jacobian(::AbstractApproximateJacobianStructure) = false
+
+"""
+    get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
+
+Return the full Jacobian represented by an approximate-Jacobian cache.
+
+The default returns `J` when [`stores_full_jacobian`](@ref) is true and throws otherwise.
+Implementations that store the full Jacobian in a separate buffer should overload this hook.
+"""
 function get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
     stores_full_jacobian(alg) && return J
     error("This algorithm does not store the full Jacobian. Define `get_full_jacobian` for \
@@ -586,6 +685,14 @@ All subtypes need to define
 """
 abstract type AbstractJacobianInitialization <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    jacobian_initialized_preinverted(alg::AbstractJacobianInitialization) -> Bool
+
+Return whether a Jacobian initialization algorithm produces an inverse Jacobian.
+
+The default is `false`; an initialization algorithm that constructs an inverse directly must
+overload this trait so the enclosing solver interprets the cache correctly.
+"""
 jacobian_initialized_preinverted(::AbstractJacobianInitialization) = false
 
 """
@@ -608,6 +715,14 @@ InternalAPI.init(
 """
 abstract type AbstractApproximateJacobianUpdateRule <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    store_inverse_jacobian(rule) -> Bool
+
+Return whether an approximate-Jacobian update rule stores an inverse Jacobian.
+
+The default for a concrete rule reads its `store_inverse_jacobian` field. Update-rule cache
+implementations delegate to the rule, so the same contract applies to both forms.
+"""
 function store_inverse_jacobian(rule::AbstractApproximateJacobianUpdateRule)
     return rule.store_inverse_jacobian
 end

@@ -55,6 +55,9 @@ NonlinearSolveBase.AbstractDescentCache
 NonlinearSolveBase.supports_line_search
 NonlinearSolveBase.supports_trust_region
 NonlinearSolveBase.set_du!
+NonlinearSolveBase.last_step_accepted
+NonlinearSolveBase.preinverted_jacobian
+NonlinearSolveBase.normal_form
 ```
 
 ### Descent Results
@@ -72,6 +75,10 @@ NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
 NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
 NonlinearSolveBase.reset_update_rule_state!
 NonlinearSolveBase.AbstractResetCondition
+NonlinearSolveBase.stores_full_jacobian
+NonlinearSolveBase.get_full_jacobian
+NonlinearSolveBase.jacobian_initialized_preinverted
+NonlinearSolveBase.store_inverse_jacobian
 ```
 
 ## Damping Algorithms
@@ -79,6 +86,9 @@ NonlinearSolveBase.AbstractResetCondition
 ```@docs
 NonlinearSolveBase.AbstractDampingFunction
 NonlinearSolveBase.AbstractDampingFunctionCache
+NonlinearSolveBase.requires_normal_form_jacobian
+NonlinearSolveBase.requires_normal_form_rhs
+NonlinearSolveBase.returns_norm_form_damping
 ```
 
 ## Trust Region
