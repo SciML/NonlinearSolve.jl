@@ -41,7 +41,7 @@ run_qa(
         #   FunctionWrappers: FunctionWrapper
         #   NonlinearSolveBase(.Utils/.InternalAPI): additional_incompatible_backend_check,
         #     condition_number, get_raw_f, get_u, linsolve_workspace,
-        #     is_extension_loaded, make_sparse, maybe_symmetric,
+        #     is_extension_loaded, make_sparse, maybe_symmetric, init_similar_array!!,
         #     nlls_generate_vjp_function, nodual_value, nonlinearsolve_∂f_∂p,
         #     nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape, safe_similar,
         #     sparse_or_structured_prototype, structural_sparse
@@ -55,7 +55,7 @@ run_qa(
                 :partials, :pickchunksize, :value, :add_sum, :Compiler, :return_type, :inv!,
                 :FunctionWrapper, :additional_incompatible_backend_check, :condition_number,
                 :get_raw_f, :get_u, :linsolve_workspace, :is_extension_loaded,
-                :make_sparse,
+                :make_sparse, :init_similar_array!!,
                 :maybe_symmetric, :nlls_generate_vjp_function, :nodual_value,
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
