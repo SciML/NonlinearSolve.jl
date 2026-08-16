@@ -147,6 +147,7 @@ run_tests(;
             end
 
             struct TraitStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+            struct TraitFullStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
             struct TraitInitialization <: NonlinearSolveBase.AbstractJacobianInitialization end
             struct TraitUpdateRule <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
                 store_inverse_jacobian::Bool
@@ -158,6 +159,7 @@ run_tests(;
 
             NonlinearSolveBase.requires_normal_form_jacobian(::TraitDamping) = true
             NonlinearSolveBase.requires_normal_form_rhs(::TraitDamping) = false
+            NonlinearSolveBase.stores_full_jacobian(::TraitFullStructure) = true
 
             cache = TraitDescentCache(
                 [1.0], [[1.0], [2.0]], Val(false), Val(false), false
@@ -166,10 +168,18 @@ run_tests(;
             @test NonlinearSolveBase.preinverted_jacobian(cache) === false
             @test NonlinearSolveBase.normal_form(cache) === false
 
+            @test NonlinearSolveBase.last_step_accepted(
+                TraitDescentCache([1.0], [[1.0]], Val(false), Val(false), true)
+            )
+
             @test NonlinearSolveBase.stores_full_jacobian(TraitStructure()) === false
             @test_throws ErrorException NonlinearSolveBase.get_full_jacobian(
                 nothing, TraitStructure(), [1.0]
             )
+            J = [1.0 0.0; 0.0 1.0]
+            @test NonlinearSolveBase.get_full_jacobian(
+                nothing, TraitFullStructure(), J
+            ) === J
             @test NonlinearSolveBase.jacobian_initialized_preinverted(TraitInitialization()) ===
                 false
 
