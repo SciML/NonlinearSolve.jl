@@ -84,7 +84,7 @@ end
 # wrapped callable is one inference cannot see through: a functor such as the homotopy
 # drivers' `FixLambda` / `AugmentedHomotopy` / `HomotopyResidual` residuals (the same reason
 # DiffEqBase hit this with many-parameter `ODEFunction`s). Binding each arglist as a
-# `::Type{A}` type parameter makes `FunctionWrapper{Nothing, A}(vff)` fully inferrable, so
+# `::Type{A}` type parameter makes `FunctionWrapper{Nothing, A}(vff)` fully inferable, so
 # `typeof(fwt)` — and the wrapper — stays concrete. `vff` is `@nospecialize`d because it is
 # already type-erased through `Void` (that is what makes the norecompile path precompile).
 function _make_fww_iip(
