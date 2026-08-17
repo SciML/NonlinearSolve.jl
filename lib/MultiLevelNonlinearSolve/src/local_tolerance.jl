@@ -11,11 +11,9 @@ global iterate is still far from the root. Perturbed-Newton theory bounds the gl
 `e_{k+1} ≲ C₁e_k² + C₂L_q·ε_k + C₃ε_k·e_k` for a local accuracy `ε_k`, so the global rate
 survives as long as `ε_k` shrinks at least as fast as the rate being claimed:
 
-| `schedule`   | `ε_k`             | pair with              |
-|:-------------|:------------------|:-----------------------|
-| `:quadratic` | `C·‖R̄_k‖²`        | `jacobian_reuse = :always` |
-| `:linear`    | `C·‖R̄_k‖`         | `jacobian_reuse = :chord`  |
-| `:fixed`     | `tol_init`        | either                     |
+`:quadratic` gives `ε_k = C·‖R̄_k‖²` and pairs with `jacobian_reuse = :always`; `:linear`
+gives `ε_k = C·‖R̄_k‖` and pairs with `:chord`; `:fixed` holds `tol_init`. The tutorial's
+local-forcing section has the full table and what each pairing costs.
 
 The tolerance is clamped to `[floor_rel * abstol, ceil]`. The floor bounds how accurate the
 committed internal variables can ever be, so the residual of the *unreduced* problem at the
@@ -52,9 +50,9 @@ function LocalToleranceSchedule(;
     return LocalToleranceSchedule(schedule, C, ceil, tol_init, floor_rel)
 end
 
-"Exponent of `‖R̄‖` in the schedule; `0` marks a schedule that never updates."
-local_forcing_exponent(s::LocalToleranceSchedule) =
-    s.schedule === :quadratic ? 2 : s.schedule === :linear ? 1 : 0
+"The tolerance a schedule starts from, never below the floor resolved for this solve."
+initial_local_tolerance(s::LocalToleranceSchedule, floor, ::Type{T}) where {T} =
+    max(T(s.tol_init), T(floor))
 
 """
     LocalForcingParameters(p, tol)

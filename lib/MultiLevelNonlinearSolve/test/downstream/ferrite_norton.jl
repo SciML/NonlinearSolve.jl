@@ -60,7 +60,10 @@
 using MultiLevelNonlinearSolve, Test
 using Ferrite, Tensors
 using ADTypes: AutoForwardDiff
+using StaticArrays: SVector, SMatrix
 using LinearAlgebra, SparseArrays
+
+include("../convergence_helpers.jl")
 
 # ── Material ────────────────────────────────────────────────────────────────────────────
 
@@ -70,25 +73,25 @@ struct NortonModel{T}
     η₁::T
     m::T
     e₀::T
-    C6::Matrix{T}      # ℂ in Mandel form; the whole local problem is 6-vector algebra
+    C6::SMatrix{6, 6, T, 36}   # ℂ in Mandel form; the whole local problem is 6-vector algebra
 end
 
 function NortonModel(; E₀ = 70.0e3, E₁ = 20.0e3, η₁ = 1.0e3, m = 3.0, e₀ = 2.0e-3, ν = 0.3)
     I2 = one(SymmetricTensor{2, 3})
     ℂ = ν / ((ν + 1) * (1 - 2ν)) * I2 ⊗ I2 + 1 / (1 + ν) * one(SymmetricTensor{4, 3})
-    return NortonModel(E₀, E₁, η₁, m, e₀, tomandel(ℂ))
+    return NortonModel(E₀, E₁, η₁, m, e₀, SMatrix{6, 6}(tomandel(ℂ)))
 end
 
 "Viscous strain rate `g(ε, q)` in Mandel components."
 function rate(model::NortonModel, ε6, q)
-    e = ε6 .- q
+    e = SVector{6}(ε6) .- SVector{6}(q)
     fac = (model.E₁ / model.η₁) * (dot(e, e) / model.e₀^2)^((model.m - 1) / 2)
     return fac .* (model.C6 * e)
 end
 
 "Cauchy stress in Mandel components."
 stress(model::NortonModel, ε6, q) =
-    model.C6 * (model.E₀ .* ε6 .+ model.E₁ .* (ε6 .- q))
+    model.C6 * (model.E₀ .* SVector{6}(ε6) .+ model.E₁ .* (SVector{6}(ε6) .- SVector{6}(q)))
 
 """
     local_tangents(model, ε6, q) -> (∂g∂q, ∂g∂ε, ∂σ∂q, ∂σ∂ε)
@@ -98,7 +101,7 @@ tangent; the Schur corrector below turns it into the effective one.
 """
 function local_tangents(model::NortonModel, ε6, q)
     C6, k = model.C6, model.E₁ / model.η₁
-    e = ε6 .- q
+    e = SVector{6}(ε6) .- SVector{6}(q)
     s2 = dot(e, e)
     fac = k * (s2 / model.e₀^2)^((model.m - 1) / 2)
     # d(fac)/de = (m−1)·fac/‖e‖² · e, written without the division so it is finite at e = 0.
@@ -124,6 +127,8 @@ struct NortonProblem{DH, CH, CV, B}
     model::NortonModel{Float64}
     cellvalues::Vector{CV}          # one per chunk: `reinit!` mutates it
     ue::Vector{Vector{Float64}}     # per-chunk element dof scratch
+    cdofs::Vector{Vector{Int}}      # per-chunk `celldofs!` scratch
+    ccoords::Vector{Vector{Vec{3, Float64}}}
     buffer::B                       # committed/trial internal state, 6 × n_qp
     ensemble::LocalEnsemble         # partition of the CELLS (a cell owns `nqp` points)
     q_ref::Vector{Float64}          # internal state at the previous accepted time step
@@ -136,11 +141,15 @@ struct NortonProblem{DH, CH, CV, B}
     n_internal::Int
     Δt::Float64
     Sproto::SparseMatrixCSC{Float64, Int}
-    bc_scratch::Vector{Float64}
     bc_values::Vector{Float64}
     local_tol::Float64
     local_maxiter::Int
     nassembly::Base.RefValue{Int}
+    # What the last ensemble sweep solved. `commit_internal!` and `assemble_S!` are both
+    # called at an iterate the residual has just been evaluated at, so without this the
+    # ensemble runs three times per accepted iterate instead of once.
+    last_key::Vector{Float64}          # the ū it ran at, plus the tolerance it ran at
+    last_valid::Base.RefValue{Bool}
 end
 
 function NortonProblem(;
@@ -179,12 +188,15 @@ function NortonProblem(;
         dh, ch, model,
         [CellValues(qr, ip) for _ in 1:nc],
         [zeros(ndofs_per_cell(dh, 1)) for _ in 1:nc],
+        [zeros(Int, ndofs_per_cell(dh, 1)) for _ in 1:nc],
+        [getcoordinates(grid, 1) for _ in 1:nc],
         LocalStateBuffer(zeros(6, ncells * nqp)), ensemble,
         zeros(n_internal),
         zeros(SymmetricTensor{2, 3, Float64, 6}, ncells * nqp),
         zeros(SymmetricTensor{4, 3, Float64, 36}, ncells * nqp),
         fill(true, nc), zeros(Int, nc), nqp, n_primary, n_internal, Δt,
-        Ferrite.allocate_matrix(dh), zeros(n_primary), zeros(length(ch.prescribed_dofs)), local_tol, local_maxiter, Ref(0)
+        Ferrite.allocate_matrix(dh), zeros(length(ch.prescribed_dofs)), local_tol,
+        local_maxiter, Ref(0), fill(NaN, n_primary + 1), Ref(false)
     )
 end
 
@@ -193,12 +205,20 @@ end
 # ── The local problem: `q = q_ref + Δt·g(ε, q)` at one quadrature point ─────────────────
 
 function solve_qp!(q, p::NortonProblem, ε6, q_ref)
+    # Static all the way through: this is the kernel a real material model would put here, and
+    # a per-quadrature-point solve that allocates is the usual reason an elimination costs
+    # more than the assembly it saves.
+    qs, qr = SVector{6}(q), SVector{6}(q_ref)
     for it in 1:(p.local_maxiter)
-        r = q .- q_ref .- p.Δt .* rate(p.model, ε6, q)
-        norm(r, Inf) ≤ p.local_tol && return (it - 1, true)
-        ∂g∂q, = local_tangents(p.model, ε6, q)
-        q .-= (I - p.Δt .* ∂g∂q) \ r
+        r = qs .- qr .- p.Δt .* rate(p.model, ε6, qs)
+        if norm(r, Inf) ≤ p.local_tol
+            q .= qs
+            return (it - 1, true)
+        end
+        ∂g∂q, = local_tangents(p.model, ε6, qs)
+        qs -= (I - p.Δt .* ∂g∂q) \ r
     end
+    q .= qs
     return (p.local_maxiter, false)
 end
 
@@ -214,26 +234,35 @@ quadrature points' stresses), while the scatter-add into the global residual and
 where cells overlap on shared dofs — happens serially in the caller. Regrouping those sums
 across threads would change the rounding; this way repeated threaded runs agree exactly.
 """
-function eliminate!(p::NortonProblem, ū; tangents::Bool = false)
-    fill!(p.chunk_ok, true)
-    fill!(p.chunk_iters, 0)
-    ensemble_foreach(p.ensemble, ū, tangents, p) do cells, ichunk, ū, tangents, p
+function eliminate!(p::NortonProblem, ū; tangents::Bool = false, solve::Bool = true)
+    ensemble_foreach(p.ensemble, ū, tangents, solve, p) do cells, ichunk, ū, tangents,
+            solve, p
         cv, ue = p.cellvalues[ichunk], p.ue[ichunk]
+        dofs, coords = p.cdofs[ichunk], p.ccoords[ichunk]
+        iters, ok = 0, true
         for cellid in cells
-            Ferrite.reinit!(cv, getcells(p.dh.grid, cellid), getcoordinates(p.dh.grid, cellid))
-            dofs = celldofs(p.dh, cellid)
+            celldofs!(dofs, p.dh, cellid)
+            getcoordinates!(coords, p.dh.grid, cellid)
+            Ferrite.reinit!(cv, getcells(p.dh.grid, cellid), coords)
             for a in eachindex(dofs)
                 ue[a] = ū[dofs[a]]
             end
             for qp in 1:getnquadpoints(cv)
                 idx = qpindex(p, cellid, qp)
                 ε6 = tomandel(function_symmetric_gradient(cv, qp, ue))
-                # C1: warm-start from the committed state, write only to scratch.
-                q = trial_state(p.buffer, idx)
-                q_ref = view(p.q_ref, (6 * (idx - 1) + 1):(6idx))
-                its, ok = solve_qp!(q, p, ε6, q_ref)
-                p.chunk_iters[ichunk] += its
-                ok || (p.chunk_ok[ichunk] = false)
+                if solve
+                    # C1: warm-start from the committed state, write only to scratch.
+                    q = trial_state(p.buffer, idx)
+                    its, converged = solve_qp!(
+                        q, p, ε6, view(p.q_ref, (6 * (idx - 1) + 1):(6idx))
+                    )
+                    iters += its
+                    ok &= converged
+                else
+                    # C3: the committed state already solves the local problems at this `ū`,
+                    # so a tangent sweep may read it instead of re-solving.
+                    q = committed_state(p.buffer, idx)
+                end
                 p.σ[idx] = frommandel(SymmetricTensor{2, 3}, stress(p.model, ε6, q))
                 if tangents
                     ∂g∂q, ∂g∂ε, ∂σ∂q, ∂σ∂ε = local_tangents(p.model, ε6, q)
@@ -244,9 +273,42 @@ function eliminate!(p::NortonProblem, ū; tangents::Bool = false)
                 end
             end
         end
+        # One write per chunk rather than one per point: neighbouring reduction slots share a
+        # cache line, and updating them inside the point loop makes every chunk invalidate its
+        # neighbours' copies on every point.
+        p.chunk_iters[ichunk] = iters
+        p.chunk_ok[ichunk] = ok
     end
+    solve && record_sweep!(p, ū)
     return all(p.chunk_ok)
 end
+
+"""
+    sweep_is_current(p, ū) / record_sweep!(p, ū)
+
+Whether the last ensemble sweep already solved the local problems at this `ū` *and* at the
+tolerance now in force. The tolerance belongs in the key because the solver deliberately
+re-commits at a tighter one when it converges — a stale hit there would return the loose
+answer as if it were the tight one.
+"""
+function sweep_is_current(p::NortonProblem, ū)
+    p.last_valid[] || return false
+    p.last_key[end] == p.local_tol || return false
+    @inbounds for i in eachindex(ū)
+        p.last_key[i] == ū[i] || return false
+    end
+    return true
+end
+
+function record_sweep!(p::NortonProblem, ū)
+    copyto!(view(p.last_key, 1:length(ū)), ū)
+    p.last_key[end] = p.local_tol
+    p.last_valid[] = true
+    return p
+end
+
+"Invalidate the sweep key: the committed state or `q_ref` moved under a fixed `ū`."
+invalidate_sweep!(p::NortonProblem) = (p.last_valid[] = false; p)
 
 # ── The three multi-level callbacks ─────────────────────────────────────────────────────
 
@@ -283,13 +345,12 @@ end
 The Schur-condensed tangent, assembled element-wise with a stock Ferrite assembler from the
 effective quadrature-point tangent `∂σ/∂ε + ∂σ/∂q · dq/dε`.
 
-The committed internal state is guaranteed consistent with this `ū`, so `eliminate!` is called
-only for the tangents — the local solves it runs converge immediately from the committed warm
-start.
+Contract C3 guarantees the committed internal state already solves the local problems at this
+`ū`, so this is a tangents-only sweep: it reads the committed state rather than re-solving it.
 """
 function assemble_S!(S, ū, p::NortonProblem)
     p.nassembly[] += 1
-    eliminate!(p, ū; tangents = true)
+    eliminate!(p, ū; tangents = true, solve = false)
     cv, Ke = p.cellvalues[1], zeros(ndofs_per_cell(p.dh, 1), ndofs_per_cell(p.dh, 1))
     assembler = start_assemble(S)
     for cellid in 1:getncells(p.dh.grid)
@@ -307,16 +368,25 @@ function assemble_S!(S, ū, p::NortonProblem)
         end
         assemble!(assembler, celldofs(p.dh, cellid), Ke)
     end
-    # Identity rows/columns on the constrained dofs. The scratch right-hand side is discarded:
-    # the residual already went through `apply_zero!`, so there is nothing to eliminate into.
-    fill!(p.bc_scratch, 0)
-    apply_zero!(S, p.bc_scratch, p.ch)
+    # Identity rows and columns on the constrained dofs. The matrix-only `apply!` is the right
+    # one here: the residual already went through `apply_zero!`, so there is no right-hand
+    # side left to eliminate into.
+    apply!(S, p.ch)
     return nothing
 end
 
-"Commit step: promote the eliminated internal state at the accepted `ū`."
+"""
+    commit_internal!(q_dest, ū, p)
+
+Commit step: promote the eliminated internal state at the accepted `ū`.
+
+The solver has just evaluated the residual here, so the scratch state is already the solution
+at this `ū` and the commit is a promote. Re-solving would be the third full ensemble sweep at
+one iterate — the residual's, this one, and the next tangent assembly's. Idempotent either
+way, which is what the commit contract asks for.
+"""
 function commit_internal!(q_dest, ū, p::NortonProblem)
-    ok = eliminate!(p, ū)
+    ok = sweep_is_current(p, ū) ? all(p.chunk_ok) : eliminate!(p, ū)
     commit_local_state!(p.buffer)
     copyto!(q_dest, vec(p.buffer.committed))
     return ok
@@ -383,6 +453,7 @@ end
 "Prepare `p` and the full state for the step ending at `t`: freeze `q_ref`, impose the BCs."
 function begin_step!(u, p::NortonProblem, t)
     copyto!(p.q_ref, vec(p.buffer.committed))
+    invalidate_sweep!(p)          # the local problems changed under an unchanged `ū`
     update!(p.ch, t)
     apply!(view(u, 1:(p.n_primary)), p.ch)
     for (i, d) in enumerate(p.ch.prescribed_dofs)
@@ -461,6 +532,7 @@ function reset!(p::NortonProblem)
     fill!(p.buffer.scratch, 0)
     fill!(p.q_ref, 0)
     p.nassembly[] = 0
+    invalidate_sweep!(p)
     return p
 end
 
@@ -534,20 +606,10 @@ end
         NonlinearProblem(multilevel_function(p), u, p),
         MultiLevelNewton(; jacobian_reuse = :always); abstol = 1.0e-12, maxiters = 50
     )
-    primary = 1:(p.n_primary)
-    residuals = [norm(view(NonlinearSolveBase.get_fu(cache), primary), Inf)]
-    while NonlinearSolveBase.not_terminated(cache) && length(residuals) < 20
-        step!(cache)
-        push!(residuals, norm(view(NonlinearSolveBase.get_fu(cache), primary), Inf))
-    end
+    residuals = residual_history(cache; maxsteps = 20)
     @test SciMLBase.successful_retcode(cache.retcode)
-
-    # Observed order on the last triple above the roundoff floor.
-    clean = findall(>(1.0e-13), residuals)
-    k = last(clean) - 1
-    @test k ≥ 2
-    order = log(residuals[k + 1] / residuals[k]) / log(residuals[k] / residuals[k - 1])
-    @test order > 1.8
+    @test length(residuals) ≥ 4                      # enough for an order estimate at all
+    @test tail_order(residuals; floor = 1.0e-13) > 1.8
 
     # One assembly per iteration under `:always`, and nothing assembles behind the cache's back.
     @test p.nassembly[] == cache.stats.njacs

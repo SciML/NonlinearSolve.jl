@@ -38,7 +38,6 @@ function SchurOperator(S::AbstractMatrix, primary, internal)
 end
 
 Base.size(op::SchurOperator) = (op.n, op.n)
-Base.size(op::SchurOperator, d::Int) = d ≤ 2 ? op.n : 1
 SciMLOperators.isconstant(::SchurOperator) = false
 
 function LinearAlgebra.mul!(v::AbstractVector, op::SchurOperator, u::AbstractVector)
@@ -64,16 +63,28 @@ Base.:*(op::SchurOperator, u::AbstractVector) = LinearAlgebra.mul!(similar(u), o
 # `MethodError` about an operator the user never constructed.
 SciMLOperators.isconvertible(::SchurOperator) = false
 
+# The three sites below are backstops for the same scope rule, each covering a different way
+# an unsupported configuration reaches the code first:
+#   * `convert`         — a trust region, whose steepest-descent leg wants a concrete matrix;
+#   * `SchurAssembly`   — a line search, whose slope is formed outside the Jacobian cache;
+#   * `check_none_globalization` — anything that reaches the corrector with a globalization
+#     still set, which the two above normally intercept first.
+function _globalization_unsupported(site::AbstractString)
+    return ArgumentError(
+        site * " The full-space multi-level arm supports no globalization: a line search \
+         scores the step on the unprojected residual, whose internal rows grow with the step \
+         length, and a trust region's Dogleg builds its Cauchy leg outside the linear solver, \
+         so the internal block of the step would stop being zero. Use a plain \
+         `NewtonRaphson()` here, or switch to `MultiLevelNewton`, which globalizes on the \
+         condensed problem."
+    )
+end
+
 function Base.convert(::Type{AbstractMatrix}, ::SchurOperator)
     throw(
-        ArgumentError(
+        _globalization_unsupported(
             "a `SchurOperator` cannot be converted to a matrix: it stands for an `n × n` \
-             Jacobian that is never formed, and only its `n̄ × n̄` primary block exists. This \
-             is reached when the full-space multi-level arm is paired with a trust region, \
-             whose steepest-descent leg builds its step outside the linear solver and so \
-             would not keep the internal block of the step at zero. Use a plain \
-             `NewtonRaphson()` here, or switch to `MultiLevelNewton`, which globalizes on \
-             the condensed problem."
+             Jacobian that is never formed, and only its `n̄ × n̄` primary block exists."
         )
     )
 end
@@ -182,9 +193,11 @@ The `postcondition` corrector for the full-space arm: at every accepted iterate 
 It is idempotent — committing twice at the same `ū` gives the same `q` — and the trial
 contract C1 is satisfied for free, since the step never moves `q` for a trial to disturb.
 
-A commit that reports failure is not silently ignored: `q` then does not solve its local
-problems, the internal rows of the residual do not vanish, and the solve fails to converge
-rather than returning a wrong root.
+A commit that reports failure has no direct channel on this arm: the internal residual rows
+are zero by construction, so nothing observes the flag at the point it is raised. It surfaces
+one iteration later, when the next trial evaluates the condensed residual at an internal state
+that does not solve its local problems and writes `Inf` into the *primary* rows. There is no
+`ConvergenceFailure` equivalent here — that is `MultiLevelNewton`'s, which owns the commit.
 """
 struct MultiLevelProjection{P, I, C}
     primary::P
@@ -207,27 +220,16 @@ function check_none_globalization(cache)
     globalization = Utils.safe_getproperty(cache, Val(:globalization))
     (globalization === missing || globalization isa Val{:None}) && return nothing
     throw(
-        ArgumentError(
-            "the full-space multi-level arm supports no globalization, and this solver is \
-             using $(globalization). A line search scores the step on the unprojected \
-             residual, whose internal rows grow with the step length, and a trust region's \
-             Dogleg bypasses the linear solver entirely, so the internal block of the step \
-             would stop being zero. Use a plain `NewtonRaphson()` here, or switch to \
-             `MultiLevelNewton`, which globalizes on the condensed problem."
+        _globalization_unsupported(
+            "the projection was reached with the globalization $(globalization) in effect."
         )
     )
 end
 
 # `fullspace_problem` builds a *plain* `NonlinearFunction` rather than a
 # `MultiLevelNonlinearFunction`: the Jacobian path is typed to `NonlinearFunction`, so a
-# wrapper type never reaches it. These two adapters are what let the same user callbacks
-# serve both arms.
-struct FullSpaceResidual{F}
-    mlnf::F
-end
-
-(residual::FullSpaceResidual)(res, u, p) = residual.mlnf(res, u, p)
-
+# wrapper type never reaches it. The wrapper is still the residual — it is already callable at
+# full length — it just travels as the plain function's callable rather than as its type.
 struct SchurAssembly{J, P}
     jac::J
     primary::P
@@ -244,13 +246,9 @@ end
 # configuration error rather than a performance one, so say which.
 function (::SchurAssembly)(J, u, p)
     throw(
-        ArgumentError(
+        _globalization_unsupported(
             "the Schur tangent was requested in a dense `$(nameof(typeof(J)))` rather than \
-             the `SchurOperator` it is assembled into. This is reached when the full-space \
-             multi-level arm is paired with a line search, which scores the step on the \
-             unprojected residual — whose internal rows grow with the step length — and \
-             forms its slope outside the Jacobian cache. Use a plain `NewtonRaphson()` here, \
-             or switch to `MultiLevelNewton`, which globalizes on the condensed problem."
+             the `SchurOperator` it is assembled into."
         )
     )
 end
@@ -294,7 +292,7 @@ function fullspace_problem(
         )
     )
     f = SciMLBase.NonlinearFunction{true}(
-        FullSpaceResidual(mlnf);
+        mlnf;
         jac = SchurAssembly(mlnf.f.jac, mlnf.primary),
         jac_prototype = SchurOperator(
             copy(mlnf.f.jac_prototype), mlnf.primary, mlnf.internal

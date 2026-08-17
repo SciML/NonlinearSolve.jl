@@ -33,7 +33,11 @@ run_qa(
                 :safe_getproperty, :safe_similar, :set_du!, :step!,
                 :supports_postcondition, :update_from_termination_cache!, :update_trace!,
                 :AbstractNonlinearTerminationMode,
-                :AbstractSafeBestNonlinearTerminationMode, :L2_NORM,
+                :AbstractSafeBestNonlinearTerminationMode, :L2_NORM, :Linf_NORM,
+                :apply_norm, :normalize_verbosity, :needs_bounds_transform,
+                # `structdiff` filters the forwarded solve keywords; the public alternatives
+                # are all generator-based and opaque to inference at that call site.
+                :structdiff,
                 # `Base.RefValue` is the concrete cell type the local-tolerance and
                 # last-assembled-S fields are declared as; `Ref` itself is abstract.
                 :RefValue,

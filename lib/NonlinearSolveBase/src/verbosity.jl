@@ -141,3 +141,21 @@ NonlinearVerbosity
         sensitivity = (:sensitivity_vjp_choice,),
     )
 end
+
+"""
+    normalize_verbosity(verbose) -> NonlinearVerbosity
+
+Resolve the `verbose` solve keyword to a `NonlinearVerbosity`, accepting the two shorthands
+solvers have to keep taking: a `Bool` and a bare `SciMLLogging` preset.
+
+Every solver `__init` needs this before storing `verbose` in its cache. The sibling
+libraries (`NonlinearSolveFirstOrder`, `NonlinearSolveQuasiNewton`,
+`NonlinearSolveSpectralMethods`, `NonlinearSolveBase`'s own `polyalg.jl` and `arclength.jl`)
+each still open-code it; they are candidates for this helper but are not part of the change
+that introduced it.
+"""
+function normalize_verbosity(verbose)
+    verbose isa Bool && return verbose ? NonlinearVerbosity() : NonlinearVerbosity(None())
+    verbose isa AbstractVerbosityPreset && return NonlinearVerbosity(verbose)
+    return verbose
+end

@@ -24,7 +24,13 @@ fixed `ū`. [`MultiLevelNewton`](@ref) solves the resulting condensed problem ov
   - `internal`: indices of `q` in the full state.
   - `commit_internal!`: `(q_dest, ū, p) -> Bool`. Promotes the local state at the accepted
     `ū` to committed, writes it into `q_dest`, and reports whether every local solve
-    converged. Called exactly once per accepted global iterate.
+    converged.
+
+    It must be **idempotent at fixed `ū`**: re-solving from the committed state and promoting
+    again has to leave the same `q`. The solver calls it more than once at the same iterate —
+    at `init`, after a corrector moves `ū`, when tightening the elimination at convergence,
+    and when restoring a best iterate — so a commit that *appends* to a history rather than
+    recomputing it will drift.
   - `local_tolerance`: a [`LocalToleranceSchedule`](@ref) or `nothing`.
 
 The function is callable at *full* length: it writes the condensed residual into the primary
@@ -121,9 +127,9 @@ end
 # assembler would not even accept the dense destination. `last_S` records whatever storage
 # the framework hands the assembler, so the slope is taken at the last assembled `S`: the
 # chord slope, which is what `jacobian_reuse` promises in any case.
-struct TrackedSchurAssembly{J}
+struct TrackedSchurAssembly{J, R}
     jac::J
-    last_S::Base.RefValue{Any}
+    last_S::R
 end
 
 function (assembly::TrackedSchurAssembly)(S, ū, p)
@@ -132,8 +138,8 @@ function (assembly::TrackedSchurAssembly)(S, ū, p)
     return nothing
 end
 
-struct SchurJacVecProduct
-    last_S::Base.RefValue{Any}
+struct SchurJacVecProduct{R}
+    last_S::R
 end
 
 function (jvp::SchurJacVecProduct)(Jv, v, ū, p)
@@ -155,14 +161,22 @@ function (jvp::SchurJacVecProduct)(Jv, v, ū, p)
 end
 
 """
-    wire_condensed_function(f, last_S)
+    wire_condensed_function(f)
 
 Return the condensed function the global solver is built from: the user's `f` with the Schur
 assembler tracked and an analytic `jvp` installed, unless the user supplied a `jvp` already.
-Both wrappers share the `last_S` cell, which is per cache.
+Both wrappers share one cell, created here and owned by the cache being built.
+
+The cell is typed on the Jacobian storage rather than left as `Any`, because the Jacobian
+cache stores `similar(jac_prototype)`; that keeps the product's `mul!` from dispatching
+dynamically on every line-search step. `Nothing` stays in the union to preserve the
+"nothing assembled yet" branch.
 """
-function wire_condensed_function(f::SciMLBase.NonlinearFunction, last_S::Base.RefValue{Any})
+function wire_condensed_function(f::SciMLBase.NonlinearFunction)
     (SciMLBase.has_jvp(f) || !SciMLBase.has_jac(f)) && return f
+    S = f.jac_prototype
+    last_S = S === nothing ? Base.RefValue{Any}(nothing) :
+        Base.RefValue{Union{Nothing, typeof(S)}}(nothing)
     return SciMLBase.remake(
         f; jac = TrackedSchurAssembly(f.jac, last_S), jvp = SchurJacVecProduct(last_S)
     )

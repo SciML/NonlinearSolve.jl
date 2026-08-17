@@ -11,6 +11,9 @@
 #
 using MultiLevelNonlinearSolve
 using LinearAlgebra, SparseArrays
+using StaticArrays: SVector, SMatrix
+
+include("convergence_helpers.jl")
 
 const GAMMA = 0.7
 const E_MOD = 1.0
@@ -26,15 +29,19 @@ const C_VEC = [2.0, -3.0, 2.5]
 # `Dt(ū₀)/Dt(ū*)` approaches 2 and the frozen-Jacobian contraction factor
 # `|1 - Dt(ū*)/Dt(ū₀)|` exceeds 1. Any replacement fixture needs the same property.
 const D_MAT = [0.25 0.10 -0.15; 0.10 0.20 0.10; -0.15 0.10 0.30]
+# The local problem is three equations. Static arrays keep its Newton loop off the heap, and
+# they are the shape a real material kernel wants — a per-quadrature-point solve that
+# allocates is the usual reason an elimination is slower than the assembly it saves.
+const C_S = SVector{3}(C_VEC)
+const D_S = SMatrix{3, 3}(D_MAT)
+const M_S = SVector{3}(M_VEC)
 
 mutable struct BarCounters
-    nresidual::Int      # condensed residual evaluations
     nassembly::Int      # `assemble_S!` calls, including any the framework makes itself
-    ncommit::Int        # commit steps
     nlocaliter::Int     # total local Newton iterations
     assembly_types::Vector{Any}
 end
-BarCounters() = BarCounters(0, 0, 0, 0, Any[])
+BarCounters() = BarCounters(0, 0, Any[])
 
 """
     BarModel(; kwargs...)
@@ -81,7 +88,7 @@ end
 
 @inline strain(ū, model::BarModel, i::Int) =
     (ū[i] - (i == 1 ? zero(eltype(ū)) : ū[i - 1])) / model.h
-@inline elem_c(model::BarModel, i::Int) = C_VEC .* model.cscale[i]
+@inline elem_c(model::BarModel, i::Int) = C_S .* model.cscale[i]
 
 """
     local_solve!(q, model, ε, c, tol) -> (iterations, residual)
@@ -94,24 +101,30 @@ return map falling outside its admissible region.
 """
 function local_solve!(q, model::BarModel, ε, c, tol)
     abs(ε) > model.fail_above && return (0, Inf)
+    qs = SVector{3}(q)
     res = Inf
-    for it in 1:model.local_maxiter
-        g = tanh.(c .* ε .+ D_MAT * q)
-        r = q .- GAMMA .* g
+    for it in 1:(model.local_maxiter)
+        g = tanh.(c .* ε .+ D_S * qs)
+        r = qs .- GAMMA .* g
         res = norm(r, Inf)
-        res ≤ tol && return (it - 1, res)
+        if res ≤ tol
+            q .= qs
+            return (it - 1, res)
+        end
         s = 1 .- g .^ 2
-        q .-= (I - GAMMA .* (s .* D_MAT)) \ r
+        qs -= (I - GAMMA .* (s .* D_S)) \ r
     end
+    q .= qs
     return (model.local_maxiter, res)
 end
 
 "`dq/dε = (I - γ·∂g/∂q) \\ (γ·∂g/∂ε)`, then `Dt = dσ/dε = E·(1 - m·dq/dε)`."
 function element_tangent(model::BarModel, ε, q, c)
-    g = tanh.(c .* ε .+ D_MAT * q)
+    qs = SVector{3}(q)
+    g = tanh.(c .* ε .+ D_S * qs)
     s = 1 .- g .^ 2
-    dqdε = ((I - GAMMA .* (s .* D_MAT)) \ (GAMMA .* (s .* c))) .* model.corrector_scale
-    return E_MOD * (1 - dot(M_VEC, dqdε))
+    dqdε = ((I - GAMMA .* (s .* D_S)) \ (GAMMA .* (s .* c))) .* model.corrector_scale
+    return E_MOD * (1 - dot(M_S, dqdε))
 end
 
 """
@@ -122,18 +135,22 @@ fill `model.σ`. Each chunk writes only its own points and its own reduction slo
 reductions themselves are folded serially afterwards, so a threaded run is reproducible.
 """
 function solve_local_ensemble!(model::BarModel, ū, tol)
-    fill!(model.chunk_ok, true)
-    fill!(model.chunk_iters, 0)
     ensemble_foreach(model.ensemble, ū, tol, model; threaded = model.threaded) do chunk,
             ichunk, ū, tol, model
+        # Accumulated locally and written to the chunk's slot once: the reduction slots of
+        # neighbouring chunks share a cache line, so updating them inside the point loop has
+        # every chunk invalidating its neighbours' copies on every point.
+        iters, ok = 0, true
         for i in chunk
             ε = strain(ū, model, i)
             q = trial_state(model.buffer, i)
             its, res = local_solve!(q, model, ε, elem_c(model, i), tol)
-            model.chunk_iters[ichunk] += its
-            res ≤ tol || (model.chunk_ok[ichunk] = false)
-            model.σ[i] = E_MOD * (ε - dot(M_VEC, q))
+            iters += its
+            ok &= res ≤ tol
+            model.σ[i] = E_MOD * (ε - dot(M_S, q))
         end
+        model.chunk_iters[ichunk] = iters
+        model.chunk_ok[ichunk] = ok
     end
     model.counters.nlocaliter += sum(model.chunk_iters)
     return all(model.chunk_ok)
@@ -148,7 +165,6 @@ backtracking line search burn its whole iteration budget at a `NaN` state).
 """
 function Rbar!(res, ū, p)
     model = user_parameters(p)
-    model.counters.nresidual += 1
     tol = something(local_tolerance(p), model.local_tol)
     if !solve_local_ensemble!(model, ū, tol)
         fill!(res, Inf)
@@ -196,7 +212,6 @@ report whether they all converged.
 """
 function commit_internal!(q_dest, ū, p)
     model = user_parameters(p)
-    model.counters.ncommit += 1
     tol = something(local_tolerance(p), model.local_tol)
     ok = solve_local_ensemble!(model, ū, tol)
     commit_local_state!(model.buffer)
@@ -244,59 +259,6 @@ end
 "The monolithic twin of `bar_problem`, over the same full state."
 function monolithic_problem(model::BarModel)
     return NonlinearProblem(NonlinearFunction(monolithic!), zeros(4 * model.n), model)
-end
-
-"Observed order of each residual triple: `log(e_{k+1}/e_k) / log(e_k/e_{k-1})`."
-observed_orders(e) = [log(e[k + 1] / e[k]) / log(e[k] / e[k - 1]) for k in 2:(length(e) - 1)]
-
-"""
-    residual_history(cache; kwargs...)
-
-Drive `cache` one `step!` at a time, recording `‖R̄‖_∞` per global iteration.
-`chord_after` leading steps recompute the Jacobian; later steps pass
-`recompute_jacobian = false`.
-"""
-function residual_history(cache; chord_after = 0, maxsteps = 200)
-    primary = cache.prob.f.primary
-    e = [norm(view(NonlinearSolveBase.get_fu(cache), primary), Inf)]
-    k = 0
-    while NonlinearSolveBase.not_terminated(cache) && k < maxsteps
-        k += 1
-        chord_after == 0 ? step!(cache) :
-            step!(cache; recompute_jacobian = k <= chord_after)
-        push!(e, norm(view(NonlinearSolveBase.get_fu(cache), primary), Inf))
-    end
-    return e
-end
-
-"""
-    tail_order(e; floor = 1e-14)
-
-Observed order over the last triple whose three residuals are all above the roundoff floor.
-Fitting the floored tail instead would report a linear rate no matter what the method does.
-"""
-function tail_order(e; floor = 1.0e-14)
-    q = observed_orders(e)
-    isempty(q) && return NaN
-    clean = findall(k -> e[k + 2] > floor, 1:(length(e) - 2))
-    return q[isempty(clean) ? length(q) : last(clean)]
-end
-
-"""
-    is_superlinear(e; floor = 1e-14)
-
-Whether the residual ratios `e_{k+1}/e_k` strictly decrease over the pre-floor segment.
-
-This is the distinction that survives on a fixture converging in four iterations: a fitted
-order needs an asymptotic window this problem never has, but a linear method (frozen
-Jacobian) holds its ratio constant while a superlinear one keeps shrinking it.
-"""
-function is_superlinear(e; floor = 1.0e-14)
-    keep = findall(>(floor), e)
-    idx = first(keep):min(last(keep), length(e) - 1)
-    length(idx) < 3 && return false
-    r = [e[k + 1] / e[k] for k in idx]
-    return all(r[k + 1] < r[k] for k in 1:(length(r) - 1))
 end
 
 const HETEROGENEOUS_CSCALE = [0.7 + 0.6 * (i - 1) / 39 for i in 1:40]

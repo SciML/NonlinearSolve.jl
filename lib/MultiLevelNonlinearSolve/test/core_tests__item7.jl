@@ -75,10 +75,7 @@ end
     @test forcing !== nothing
 
     ηs = Float64[]
-    while NonlinearSolveBase.not_terminated(cache) && length(ηs) < 50
-        step!(cache)
-        push!(ηs, forcing.η)
-    end
+    run_steps!(cache; maxsteps = 50, each = _ -> push!(ηs, forcing.η))
     @test SciMLBase.successful_retcode(cache.retcode)
     @test length(unique(ηs)) > 1
     @test any(!=(0.5), ηs)     # η₀ = 0.5 frozen for the whole solve is the failure mode

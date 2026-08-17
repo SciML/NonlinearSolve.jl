@@ -14,7 +14,7 @@ NonlinearSolveFirstOrder = {path = "../../../NonlinearSolveFirstOrder"}
 [compat]
 Aqua = "0.8"
 MultiLevelNonlinearSolve = "1"
-NonlinearSolveBase = "2.43"
+NonlinearSolveBase = "2.44"
 NonlinearSolveFirstOrder = "2.3.2"
 SciMLOperators = "1.24"
 SciMLTesting = "2.8"

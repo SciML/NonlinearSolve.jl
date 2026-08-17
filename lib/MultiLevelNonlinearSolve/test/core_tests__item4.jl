@@ -24,11 +24,7 @@ using LinearAlgebra
     # The condensed solve never sees it.
     @test !haskey(cache.global_cache.kwargs, :postcondition)
 
-    nsteps = 0
-    while NonlinearSolveBase.not_terminated(cache) && nsteps < 50
-        nsteps += 1
-        step!(cache)
-    end
+    nsteps = run_steps!(cache; maxsteps = 50)
     @test SciMLBase.successful_retcode(cache.retcode)
     @test all(==(n_full), seen_lengths)
     # Once per accepted iterate, plus the initial-guess correction the conditioning machinery

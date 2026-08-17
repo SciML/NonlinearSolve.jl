@@ -10,7 +10,6 @@ Chunks, not threads, are the unit of work: a task may migrate between threads mi
 workspaces by `length(ensemble.chunks)` instead.
 """
 struct LocalEnsemble
-    npoints::Int
     chunks::Vector{UnitRange{Int}}
 end
 
@@ -25,10 +24,8 @@ function LocalEnsemble(npoints::Int; nchunks::Int = Threads.nthreads())
         stop += base + (i ≤ rem)
         chunks[i] = start:stop
     end
-    return LocalEnsemble(npoints, chunks)
+    return LocalEnsemble(chunks)
 end
-
-nchunks(ensemble::LocalEnsemble) = length(ensemble.chunks)
 
 """
     ensemble_foreach(f, ensemble, args...; threaded = true)

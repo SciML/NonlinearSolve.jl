@@ -89,19 +89,29 @@ function compose_precondition(f::SciMLBase.AbstractNonlinearFunction, pre, ::Val
 end
 
 """
-    AppliedInitialCorrection(corrector)
+    AppliedInitialCorrection(corrector, applied_u0)
 
 Marker recording that the `postcondition` corrector has already been applied to a problem's
-initial guess. It forwards every call to the corrector it wraps.
+initial guess, and to *which* initial guess. It forwards every call to the corrector it wraps.
 
 `transform_conditioned_problem` runs at more than one funnel — `solve_call`, so that
 algorithms with their own `__solve` see the composed problem, and again in `__solve` and
 `init_call` — and a polyalgorithm re-enters `__solve` once per subsolver. Without a marker,
 `H(u0, u0, p, nothing)` is applied once per pass, which for a non-idempotent corrector moves
 the starting point somewhere the user never asked for.
+
+The marker outlives the solve: it is stored on the problem, so it travels into `sol.prob` and
+into anything `remake`d from it. Recording the corrected `u0` is what keeps that honest —
+`remake(sol.prob; u0 = new)` no longer matches, so the correction runs again on the new guess
+instead of being silently skipped.
+
+Wrapping costs trait forwarding: `postcondition_space` is forwarded below, and any future
+corrector trait must be forwarded here too or it will read the wrapper instead of the
+corrector.
 """
-struct AppliedInitialCorrection{P}
+struct AppliedInitialCorrection{P, U}
     corrector::P
+    applied_u0::U
 end
 
 (applied::AppliedInitialCorrection)(u, u_prev, p, cache) =
@@ -109,7 +119,8 @@ end
 
 function initial_correction_applied(prob)
     has_kwargs(prob) || return false
-    return get(prob.kwargs, :postcondition, nothing) isa AppliedInitialCorrection
+    marker = get(prob.kwargs, :postcondition, nothing)
+    return marker isa AppliedInitialCorrection && marker.applied_u0 === prob.u0
 end
 
 # Solve keywords take precedence over the problem's stored keywords, matching `alias`.
@@ -290,7 +301,7 @@ function transform_conditioned_problem(prob, alg, kwargs)
 
     # Record the initial-guess correction on the problem so the later funnels — and a
     # polyalgorithm's per-subsolver `__solve` — do not apply it again.
-    newkwargs = skip_initial ? missing : _mark_initial_correction(prob, post)
+    newkwargs = skip_initial ? missing : _mark_initial_correction(prob, post, u0)
 
     if pre === nothing || has_composed_precondition(prob.f)
         return (u0 === prob.u0 && newkwargs === missing) ? prob :
@@ -301,9 +312,10 @@ function transform_conditioned_problem(prob, alg, kwargs)
     return remake(prob; f = composed, u0, kwargs = newkwargs)
 end
 
-function _mark_initial_correction(prob, post)
+function _mark_initial_correction(prob, post, u0)
     base = has_kwargs(prob) ? values(prob.kwargs) : NamedTuple()
-    return merge(base, (; postcondition = AppliedInitialCorrection(post)))
+    corrector = post isa AppliedInitialCorrection ? post.corrector : post
+    return merge(base, (; postcondition = AppliedInitialCorrection(corrector, u0)))
 end
 
 """

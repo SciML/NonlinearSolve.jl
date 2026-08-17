@@ -1,28 +1,22 @@
 """
     MultiLevelNonlinearSolve
 
-Multi-level Newton solvers for nonlinear systems whose unknowns split into a global block
-`ū` and an internal block `q` that decouples into one small independent problem per point.
-Typical shape of FEM problems with internal variables (plasticity, damage, viscoelasticity).
+Multi-level Newton solvers for nonlinear systems whose unknowns split into a globally coupled
+block `ū` and an internal block `q` that decouples into one small independent problem per
+point.
 
-[`MultiLevelNewton`](@ref) eliminates `q` at fixed `ū` with a local solve per point, then
-takes a Newton step on the Schur-condensed system `S·δū = -R̄`. The cross blocks
-`J_ūq`/`J_qq`/`J_qū` are never formed: the user assembles `S` from per-point correctors,
-exactly as an element-level tangent is assembled.
-
-### Example
+[`MultiLevelNewton`](@ref) eliminates `q` at fixed `ū` and takes a Newton step on the
+Schur-condensed system `S·δū = -R̄`, with `S` assembled from per-point correctors. See the
+Multi-Level Newton tutorial for the trial/commit contract, the four accuracy knobs, and a
+worked example.
 
 ```julia
-using MultiLevelNonlinearSolve
-
 f = MultiLevelNonlinearFunction(
     NonlinearFunction(Rbar!; jac = assemble_S!, jac_prototype = S);
     primary = 1:n̄, internal = (n̄ + 1):n, commit_internal!
 )
-sol = solve(NonlinearProblem(f, u0, p), MultiLevelNewton())
+sol = solve(NonlinearProblem(f, u0, p), MultiLevelNewton())   # sol.u is the full [ū; q]
 ```
-
-`sol.u` is the full `[ū; q]`.
 """
 module MultiLevelNonlinearSolve
 
@@ -36,7 +30,6 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     get_timer_output, @static_timeit
 using NonlinearSolveFirstOrder: NonlinearSolveFirstOrder, NewtonRaphson
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode
-using SciMLLogging: AbstractVerbosityPreset, None
 using SciMLOperators: SciMLOperators
 
 include("local_tolerance.jl")

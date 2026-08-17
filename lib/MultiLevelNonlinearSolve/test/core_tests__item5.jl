@@ -73,8 +73,9 @@ end
     )
     sol = solve(prob, MultiLevelNewton(); abstol = 1.0e-12, maxiters = 30)
     @test !SciMLBase.successful_retcode(sol)
-    @test sol.retcode in
-        (ReturnCode.MaxIters, ReturnCode.Stalled, ReturnCode.ConvergenceFailure)
+    # Specifically the demotion branch: the condensed solve *did* report success, and
+    # re-measuring through the tightened elimination is what takes it back.
+    @test sol.retcode == ReturnCode.Stalled
     # And the reported residual is the honest one — measured through the tightened
     # elimination, not the loose one that made the solve look converged.
     @test maximum(abs, view(sol.resid, 1:model.n)) > 1.0e-12

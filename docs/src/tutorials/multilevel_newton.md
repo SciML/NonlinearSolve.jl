@@ -315,7 +315,12 @@ an integrator applying its own error control to the internal variables, or a con
 scheme that wants the whole state — and for solvers reached only through the `postcondition`
 option. Its cost is that **it supports no globalization**: plain Newton only.
 
-That restriction is not a missing feature, it is what the arrangement implies. A line search
+It also has no failure channel of its own: the internal residual rows are zero by
+construction, so a commit that fails is not observed where it happens. It surfaces one
+iteration later as an `Inf` in the *primary* rows, and there is no `ConvergenceFailure`
+equivalent — that belongs to [`MultiLevelNewton`](@ref), which owns the commit.
+
+The globalization restriction is not a missing feature, it is what the arrangement implies. A line search
 scores the step on the residual *before* the corrector runs, and at that point the internal
 rows are `R_q(ū + αδū, q_prev)`, which grow with `α` — so the Armijo condition can fail on a
 perfectly well-posed problem. A trust region is worse: its Dogleg builds the Cauchy leg from

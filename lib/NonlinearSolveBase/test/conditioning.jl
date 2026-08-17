@@ -242,4 +242,60 @@ end
         [1.0]
 end
 
+@testset "compose_precondition" begin
+    G(res, u, p) = (res .*= 10)
+    f!(du, u, p) = (du .= u .^ 2 .- 2)
+
+    # Composing `G` rewrites the residual but not an analytic derivative, so a solver would
+    # differentiate one function while evaluating another. Refused rather than mis-solved.
+    withjac = NonlinearProblem(NonlinearFunction(f!; jac = (J, u, p) -> (J[1, 1] = 2u[1])), [1.0], nothing)
+    @test_throws ArgumentError transform_conditioned_problem(withjac, nothing, (; precondition = G))
+    withjvp = NonlinearProblem(NonlinearFunction(f!; jvp = (Jv, v, u, p) -> (Jv .= 2 .* u .* v)), [1.0], nothing)
+    @test_throws ArgumentError transform_conditioned_problem(withjvp, nothing, (; precondition = G))
+
+    # Without one, composition proceeds and is idempotent across the nested entry points.
+    plain = NonlinearProblem(f!, [1.0], nothing)
+    composed = transform_conditioned_problem(plain, nothing, (; precondition = G))
+    @test composed.f.f isa PreconditionWrapper
+    @test NonlinearSolveBase.has_composed_precondition(composed.f)
+    @test !NonlinearSolveBase.has_composed_precondition(plain.f)
+    @test !needs_conditioning(composed, (; precondition = G))
+
+    # A wrapper function type cannot be composed by rewriting its inner callable — that would
+    # discard the `jac`/`jac_prototype` the wrapper carries — so it is refused by name.
+    struct OpaqueWrapper{F} <: SciMLBase.AbstractNonlinearFunction{true}
+        f::F
+    end
+    @test_throws ArgumentError NonlinearSolveBase.compose_precondition(
+        OpaqueWrapper(f!), G, Val(true)
+    )
+end
+
+@testset "the initial-guess correction is applied once per starting point" begin
+    calls = Ref(0)
+    H(u, u_prev, p, cache) = (cache === nothing && (calls[] += 1); u)
+    f!(du, u, p) = (du .= u .^ 2 .- 2)
+    prob = NonlinearProblem(f!, [1.0], nothing)
+
+    # `transform_conditioned_problem` runs at several funnels; only the first corrects.
+    calls[] = 0
+    once = transform_conditioned_problem(prob, nothing, (; postcondition = H))
+    @test calls[] == 1
+    @test NonlinearSolveBase.initial_correction_applied(once)
+    transform_conditioned_problem(once, nothing, (; postcondition = H))
+    @test calls[] == 1
+
+    # The marker travels with the problem, so it has to be tied to the `u0` it was applied
+    # to: a `remake`d starting point is a new guess and must be corrected again.
+    remade = SciMLBase.remake(once; u0 = [7.0])
+    @test !NonlinearSolveBase.initial_correction_applied(remade)
+    transform_conditioned_problem(remade, nothing, (; postcondition = H))
+    @test calls[] == 2
+
+    # The wrapper forwards what a corrector is asked about.
+    spec = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)
+    wrapped = NonlinearSolveBase.AppliedInitialCorrection(spec, [1.0])
+    @test postcondition_space(wrapped) === PostconditionSpace.Transformed
+end
+
 end
