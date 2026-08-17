@@ -285,7 +285,10 @@ for name in (:Rel, :Abs)
 
         Terminates if $($doctring).
 
-        ``\\Delta u`` denotes the increment computed by the nonlinear solver and ``u`` denotes the solution.
+        ``\\Delta u`` is the quantity the caller passes as the first argument. Every solver in
+        this package passes the **residual** ``f(u)`` there, not the Newton increment, so these
+        criteria are residual tests. The name is inherited from the step-based use of the same
+        machinery in DifferentialEquations.jl. ``u`` denotes the current iterate.
         """
         struct $(struct_name) <: AbstractNonlinearTerminationMode end
     end
@@ -301,7 +304,20 @@ for name in (:Norm, :RelNorm, :AbsNorm)
 
         Terminates if $($doctring).
 
-        ``\\Delta u`` denotes the increment computed by the inner nonlinear solver.
+        ``\\Delta u`` is the quantity the caller passes as the first argument. Every solver in
+        this package passes the **residual** ``f(u)`` there, not the Newton increment, so these
+        criteria are residual tests. The name is inherited from the step-based use of the same
+        machinery in DifferentialEquations.jl.
+
+        !!! warning
+
+            The relative criteria therefore compare a residual against ``\\|f(u) + u\\|``, which
+            adds a residual to an iterate. That is not a meaningful relative measure: it is
+            satisfied whenever ``\\|u\\|`` happens to be large, it is *not* satisfied for a
+            converged solve with a small ``\\|u\\|``, and it diverges when ``u \\approx -f(u)``
+            makes the denominator cancel. See
+            [#1149](https://github.com/SciML/NonlinearSolve.jl/issues/1149). Prefer the
+            absolute modes until this is resolved.
 
         ## Constructor
 
