@@ -1,6 +1,5 @@
 using SciMLTesting, NonlinearSolveHomotopyContinuation, Test
 
-const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
 
 const HOMOTOPY_EXTERNAL_REEXPORTS = (:HomotopyNonlinearFunction,)
 
@@ -8,7 +7,6 @@ run_qa(
     NonlinearSolveHomotopyContinuation;
     explicit_imports = true,
     reexports_allow = HOMOTOPY_EXTERNAL_REEXPORTS,
-    api_docs_kwargs = (; docs_src = NONLINEARSOLVE_DOCS_SRC),
     # persistent_tasks: intermittently errors on Julia >=1.11 because the registered
     # NonlinearSolveBase ships a leaked `[sources]` (SciMLJacobianOperators =
     # {path = "../SciMLJacobianOperators"}) that Pkg >=1.11 honors during Aqua's
