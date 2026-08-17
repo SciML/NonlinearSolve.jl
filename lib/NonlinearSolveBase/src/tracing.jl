@@ -118,6 +118,44 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
     )
 end
 
+"""
+    NonlinearSolveTrace(show_trace, store_trace, history, trace_level, prob)
+
+State used by the nonlinear solver tracing utilities.
+
+This is a developer API used by solver packages that integrate with the built-in tracing
+implementation. User-facing solver options should use `TraceMinimal`,
+`TraceWithJacobianConditionNumber`, or `TraceAll` instead.
+
+# Arguments
+
+- `show_trace::Val{Bool}`: Whether trace information is printed during the solve.
+- `store_trace::Val{Bool}`: Whether trace entries are retained in `history`.
+- `history`: Storage for retained trace entries, or `nothing` when storage is disabled.
+- `trace_level::NonlinearSolveTracing`: The information and frequency to record.
+- `prob::AbstractNonlinearProblem`: The nonlinear problem associated with the trace.
+
+# Fields
+
+- `show_trace`: The compile-time flag controlling terminal output.
+- `store_trace`: The compile-time flag controlling history allocation and storage.
+- `history`: A vector of `NonlinearSolveTraceEntry` values, or `nothing`.
+- `trace_level`: The trace mode and print/store frequencies.
+- `prob`: The associated nonlinear problem.
+
+# Returns
+
+A `NonlinearSolveTrace` value that can be passed to the tracing hooks.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+trace = NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
+NonlinearSolveBase.trace_is_active(trace) # false
+```
+"""
 @concrete struct NonlinearSolveTrace
     show_trace <: Union{Val{false}, Val{true}}
     store_trace <: Union{Val{false}, Val{true}}
@@ -133,9 +171,32 @@ reset!(history::Vector) = empty!(history)
 """
     trace_is_active(trace) -> Bool
 
-Whether `update_trace!` would record or print anything for `trace`. An inactive trace lets a
-solver skip work whose only consumer is the trace — the residual `update_trace!` reads, for
-one.
+Return whether `update_trace!` would record or print anything for `trace`.
+
+This developer trait lets a solver skip work whose only consumer is tracing. It is part of
+the deferred-residual interface: a solver must not defer a residual when an active trace
+would need to record the resulting iterate.
+
+This is a developer API for packages that provide a trace implementation. For a custom trace
+type, add a method that returns `true` whenever its trace-update operation would record or
+print the current step. Returning `false` for an active trace can make deferred residuals
+observable to users.
+
+# Arguments
+
+- `trace`: A [`NonlinearSolveTrace`](@ref), `nothing`, or `missing`.
+
+# Returns
+
+`true` when `trace` records or prints trace data, otherwise `false`.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.trace_is_active(nothing) # false
+```
 """
 trace_is_active(::Union{Nothing, Missing}) = false
 function trace_is_active(trace::NonlinearSolveTrace)

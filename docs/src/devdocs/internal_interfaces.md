@@ -108,8 +108,11 @@ last one away. These two let it ask for that evaluation to be skipped and take i
 if it turns out to want it.
 
 ```@docs
+NonlinearSolveBase.NonlinearSolveTrace
 NonlinearSolveBase.supports_deferred_residual
 NonlinearSolveBase.refresh_residual!
+NonlinearSolveBase.residual_only_termination_mode
+NonlinearSolveBase.trace_is_active
 ```
 
 ## Cache Tolerances
