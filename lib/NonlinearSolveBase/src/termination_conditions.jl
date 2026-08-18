@@ -462,11 +462,25 @@ gradient_stationarity_retcode(leastsq::Bool) = ifelse(
     leastsq, ReturnCode.Success, ReturnCode.Stalled
 )
 
+# The objective a mode ranks iterates by. `Rel*` modes rank on a relative quantity, so
+# comparing a bare residual norm against their `best_objective_value` mixes two scales.
+mode_objective(mode, fu, u, reltol) = Utils.apply_norm(mode.internalnorm, fu)
+function mode_objective(
+        mode::Union{
+            RelNormSafeTerminationMode, RelNormSafeBestTerminationMode,
+        }, fu, u, reltol
+    )
+    return Utils.apply_norm(mode.internalnorm, fu) /
+        (Utils.apply_norm(mode.internalnorm, fu, u) + eps(typeof(reltol)))
+end
+
 # A `Best` mode reports the lowest-objective iterate, which need not be the one the
 # Jacobian was formed at; firing elsewhere would attach the verdict to an untested point.
-at_best_iterate(_, ::AbstractNonlinearTerminationMode, _) = true
-function at_best_iterate(tc_cache, mode::AbstractSafeBestNonlinearTerminationMode, fu)
-    return Utils.apply_norm(mode.internalnorm, fu) ≤ tc_cache.best_objective_value
+at_best_iterate(_, ::AbstractNonlinearTerminationMode, _, _, _) = true
+function at_best_iterate(
+        tc_cache, mode::AbstractSafeBestNonlinearTerminationMode, fu, u, reltol
+    )
+    return mode_objective(mode, fu, u, reltol) ≤ tc_cache.best_objective_value
 end
 
 function check_gradient_and_update!(cache, J, fu, u)
@@ -474,13 +488,17 @@ function check_gradient_and_update!(cache, J, fu, u)
     gtol = gradient_tolerance(tc_cache.mode)
     gtol === nothing && return false
     gradient_measure_supported(J) || return false
-    at_best_iterate(tc_cache, tc_cache.mode, fu) || return false
+    at_best_iterate(tc_cache, tc_cache.mode, fu, u, tc_cache.reltol) || return false
     measure = gradient_stationarity_measure(J, fu)
     # Written as `≤` rather than `> ... && return`: a non-finite Jacobian makes the measure
     # `NaN`, and only this direction refuses to terminate on it.
     (measure === nothing || !(measure ≤ gtol)) && return false
     tc_cache.retcode = gradient_stationarity_retcode(tc_cache.leastsq)
     cache.retcode = tc_cache.retcode
+    # The retained best is only replaced on a strict improvement, so on a tie it still holds
+    # an earlier iterate. Report the one the measure was computed at, or the verdict would
+    # describe a point that was never tested.
+    update_u!!(tc_cache, u)
     update_from_termination_cache!(tc_cache, cache, tc_cache.mode, u)
     cache.force_stop = true
     return true
