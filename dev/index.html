@@ -3,7 +3,7 @@
 Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><ul><li><p>Please refer to the <a href="https://github.com/SciML/ColPrac/blob/master/README.md">SciML ColPrac: Contributor&#39;s Guide on Collaborative Practices for Community Packages</a> for guidance on PRs, issues, and other matters relating to contributing to SciML.</p></li><li><p>See the <a href="https://github.com/SciML/SciMLStyle">SciML Style Guide</a> for common coding practices and other style decisions.</p></li><li><p>There are a few community forums:</p><ul><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.org/slack/">Julia Slack</a></li><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged">Julia Zulip</a></li><li>On the <a href="https://discourse.julialang.org">Julia Discourse forums</a></li><li>See also <a href="https://sciml.ai/community/">SciML Community page</a></li></ul></li></ul><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `~/work/NonlinearSolve.jl/NonlinearSolve.jl/docs/Project.toml`
   <span class="sgr90">[47edcb42] </span>ADTypes v1.23.0
 <span class="sgr32">⌃</span> <span class="sgr90">[2169fc97] </span>AlgebraicMultigrid v0.5.1
-  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.29.0
+  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.30.0
   <span class="sgr90">[6e4b80f9] </span>BenchmarkTools v1.8.0
   <span class="sgr90">[70df07ce] </span>BracketingNonlinearSolve v1.12.5 `../lib/BracketingNonlinearSolve`
   <span class="sgr90">[a0c0ee7d] </span>DifferentiationInterface v0.7.21
@@ -11,22 +11,22 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[daee34ce] </span>DocumenterCitations v1.4.1
   <span class="sgr90">[d12716ef] </span>DocumenterInterLinks v1.1.0
   <span class="sgr90">[40713840] </span>IncompleteLU v0.2.1
-  <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.14
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.10.0
+  <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.15
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.11.0
   <span class="sgr90">[da04e1cc] </span>MPI v0.20.26
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v4.27.0 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
-  <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.45.0 `../lib/NonlinearSolveBase`
+  <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.46.0 `../lib/NonlinearSolveBase`
   <span class="sgr90">[5959db7a] </span>NonlinearSolveFirstOrder v2.4.0 `../lib/NonlinearSolveFirstOrder`
   <span class="sgr90">[2ac3b008] </span>NonlinearSolveHomotopyContinuation v0.1.11 `../lib/NonlinearSolveHomotopyContinuation`
   <span class="sgr90">[9a2c21bd] </span>NonlinearSolveQuasiNewton v1.15.1 `../lib/NonlinearSolveQuasiNewton`
   <span class="sgr90">[4827a3aa] </span>NonlinearSolveSciPy v1.3.4 `../lib/NonlinearSolveSciPy`
   <span class="sgr90">[26075421] </span>NonlinearSolveSpectralMethods v1.8.0 `../lib/NonlinearSolveSpectralMethods`
-  <span class="sgr90">[43230ef6] </span>OrdinaryDiffEqRosenbrock v2.6.5
+  <span class="sgr90">[43230ef6] </span>OrdinaryDiffEqRosenbrock v2.6.6
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v2.1.3
   <span class="sgr90">[ace2c81b] </span>PETSc v0.4.10
   <span class="sgr90">[91a5bcdd] </span>Plots v1.41.6
   <span class="sgr90">[9dfe8606] </span>SCCNonlinearSolve v1.15.0
-  <span class="sgr90">[0bca4576] </span>SciMLBase v3.49.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v3.49.1
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.17 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[727e6d20] </span>SimpleNonlinearSolve v2.14.0 `../lib/SimpleNonlinearSolve`
   <span class="sgr90">[9f842d2f] </span>SparseConnectivityTracer v1.2.2
@@ -43,9 +43,9 @@ Build Info:
   Official https://julialang.org release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 4 × AMD EPYC 7763 64-Core Processor
+  CPU: 4 × AMD EPYC 9V74 80-Core Processor
   WORD_SIZE: 64
-  LLVM: libLLVM-18.1.7 (ORCJIT, znver3)
+  LLVM: libLLVM-18.1.7 (ORCJIT, znver4)
   GC: Built with stock GC
 Threads: 1 default, 1 interactive, 1 GC (on 4 virtual cores)
 Environment:
@@ -62,7 +62,7 @@ Environment:
   <span class="sgr90">[66dad0bd] </span>AliasTables v1.1.3
   <span class="sgr90">[fb37089c] </span>Arblib v1.8.0
   <span class="sgr90">[ec485272] </span>ArnoldiMethod v0.4.0
-  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.29.0
+  <span class="sgr90">[4fba245c] </span>ArrayInterface v7.30.0
   <span class="sgr90">[6e4b80f9] </span>BenchmarkTools v1.8.0
 <span class="sgr33">⌅</span> <span class="sgr90">[2027ae74] </span>BibInternal v0.3.8
 <span class="sgr33">⌅</span> <span class="sgr90">[13533e5b] </span>BibParser v0.2.4
@@ -101,7 +101,7 @@ Environment:
   <span class="sgr90">[864edb3b] </span>DataStructures v0.19.6
   <span class="sgr90">[e2d170a0] </span>DataValueInterfaces v1.0.0
   <span class="sgr90">[8bb1440f] </span>DelimitedFiles v1.9.1
-  <span class="sgr90">[2b5f629d] </span>DiffEqBase v7.15.0
+  <span class="sgr90">[2b5f629d] </span>DiffEqBase v7.16.0
   <span class="sgr90">[459566f4] </span>DiffEqCallbacks v4.19.2
   <span class="sgr90">[163ba53b] </span>DiffResults v1.1.0
   <span class="sgr90">[b552c78f] </span>DiffRules v1.16.0
@@ -164,15 +164,15 @@ Environment:
   <span class="sgr90">[ae98c720] </span>Jieko v0.2.1
   <span class="sgr90">[ba0b0d4f] </span>Krylov v0.10.9
   <span class="sgr90">[8ac3fa9e] </span>LRUCache v1.6.2
-  <span class="sgr90">[b964fa9f] </span>LaTeXStrings v1.4.0
-  <span class="sgr90">[23fbe1c1] </span>Latexify v0.16.11
+  <span class="sgr90">[b964fa9f] </span>LaTeXStrings v1.4.1
+  <span class="sgr90">[23fbe1c1] </span>Latexify v0.16.12
   <span class="sgr90">[10f19ff3] </span>LayoutPointers v0.1.17
   <span class="sgr90">[0e77f7df] </span>LazilyInitializedFields v1.3.0
   <span class="sgr90">[9c8b4983] </span>LightXML v0.9.3
-  <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.14
+  <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.15
   <span class="sgr90">[d3d80556] </span>LineSearches v7.7.1
   <span class="sgr90">[9b3f67b0] </span>LinearAlgebraX v0.2.11
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.10.0
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.11.0
 <span class="sgr32">⌃</span> <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.29
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.2.0
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.174
@@ -194,10 +194,10 @@ Environment:
   <span class="sgr90">[3b2b4ff1] </span>Multisets v0.4.6
   <span class="sgr90">[102ac46a] </span>MultivariatePolynomials v0.5.19
   <span class="sgr90">[d8a4904e] </span>MutableArithmetics v1.8.0
-  <span class="sgr90">[d41bc354] </span>NLSolversBase v8.0.0
+  <span class="sgr90">[d41bc354] </span>NLSolversBase v8.0.1
   <span class="sgr90">[77ba4419] </span>NaNMath v1.1.4
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v4.27.0 `~/work/NonlinearSolve.jl/NonlinearSolve.jl`
-  <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.45.0 `../lib/NonlinearSolveBase`
+  <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.46.0 `../lib/NonlinearSolveBase`
   <span class="sgr90">[5959db7a] </span>NonlinearSolveFirstOrder v2.4.0 `../lib/NonlinearSolveFirstOrder`
   <span class="sgr90">[2ac3b008] </span>NonlinearSolveHomotopyContinuation v0.1.11 `../lib/NonlinearSolveHomotopyContinuation`
   <span class="sgr90">[9a2c21bd] </span>NonlinearSolveQuasiNewton v1.15.1 `../lib/NonlinearSolveQuasiNewton`
@@ -205,11 +205,11 @@ Environment:
   <span class="sgr90">[26075421] </span>NonlinearSolveSpectralMethods v1.8.0 `../lib/NonlinearSolveSpectralMethods`
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.17.0
   <span class="sgr90">[4d8831e6] </span>OpenSSL v1.6.1
-  <span class="sgr90">[429524aa] </span>Optim v2.2.1
+  <span class="sgr90">[429524aa] </span>Optim v2.2.2
 <span class="sgr33">⌅</span> <span class="sgr90">[bac558e1] </span>OrderedCollections v1.8.2
   <span class="sgr90">[bbf590c4] </span>OrdinaryDiffEqCore v4.14.3
-  <span class="sgr90">[4302a76b] </span>OrdinaryDiffEqDifferentiation v3.7.0
-  <span class="sgr90">[43230ef6] </span>OrdinaryDiffEqRosenbrock v2.6.5
+  <span class="sgr90">[4302a76b] </span>OrdinaryDiffEqDifferentiation v3.9.0
+  <span class="sgr90">[43230ef6] </span>OrdinaryDiffEqRosenbrock v2.6.6
   <span class="sgr90">[b4bd8bb3] </span>OrdinaryDiffEqRosenbrockTableaus v2.4.1
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v2.1.3
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.41
@@ -253,7 +253,7 @@ Environment:
   <span class="sgr90">[9dfe8606] </span>SCCNonlinearSolve v1.15.0
   <span class="sgr90">[94e857df] </span>SIMDTypes v0.1.0
   <span class="sgr90">[476501e8] </span>SLEEFPirates v0.6.46
-  <span class="sgr90">[0bca4576] </span>SciMLBase v3.49.0
+  <span class="sgr90">[0bca4576] </span>SciMLBase v3.49.1
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.17 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[a6db7da4] </span>SciMLLogging v2.0.4
   <span class="sgr90">[c0aeaf25] </span>SciMLOperators v1.27.0
@@ -476,4 +476,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.15.0+0
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.64.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.7.0+0
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.27.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.27.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 17 August 2026 08:18">Monday 17 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.27.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.27.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 18 August 2026 09:47">Tuesday 18 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
