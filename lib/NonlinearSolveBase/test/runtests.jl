@@ -166,6 +166,10 @@ run_tests(;
             end
         end
 
+        @safetestset "Gradient stationarity termination" include(
+            "gradient_termination.jl"
+        )
+
         @safetestset "Abstract interface trait contracts" begin
             using NonlinearSolveBase, Test
 
