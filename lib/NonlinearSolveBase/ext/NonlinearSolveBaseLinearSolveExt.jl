@@ -7,11 +7,16 @@ using LinearSolve: LinearSolve, QRFactorization, SciMLLinearSolveAlgorithm
 using SciMLBase: SciMLBase, ReturnCode, LinearProblem, LinearAliasSpecifier
 using SciMLLogging: @SciMLMessage
 
-using LinearAlgebra: ColumnNorm, Symmetric
+using LinearAlgebra: BlasFloat, ColumnNorm, Symmetric
 
 using NonlinearSolveBase: NonlinearSolveBase, LinearSolveJLCache, LinearSolveResult, Utils, NonlinearVerbosity, InternalAPI, LinearSolveParameters
 
 Utils.is_extension_loaded(::Val{:LinearSolve}) = true
+Utils.inverse_jacobian_linsolve(::StridedMatrix{<:BlasFloat}) = LinearSolve.LUFactorization()
+function Utils.inverse_jacobian_linsolve_failure(A::StridedMatrix{<:BlasFloat}, rhs)
+    prob = LinearProblem(A, rhs)
+    return CommonSolve.solve(prob, LinearSolve.QRFactorization(ColumnNorm())).u
+end
 
 function (cache::LinearSolveJLCache)(;
         A = nothing, b = nothing, linu = nothing,

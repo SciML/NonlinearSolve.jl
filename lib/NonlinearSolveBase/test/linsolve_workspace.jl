@@ -39,6 +39,20 @@ ArrayInterface.fast_scalar_indexing(::Type{<:NoFastScalarMatrix}) = false
     end
 end
 
+@testset "BLAS matrices use explicit LU factorization" begin
+    A = [
+        5601.0 600.0 0.0 0.0
+        1200.0 220.2 0.0 19.8
+        0.0 0.0 5041.0 540.0
+        0.0 19.8 1080.0 200.2
+    ]
+    rhs = Matrix{Float64}(I, 4, 4)
+    workspace, _ = Utils.linsolve_workspace(A)
+    X = Utils.linsolve_identity!!(workspace, A)
+    X_lu = solve(LinearProblem(A, rhs), LUFactorization()).u
+    @test X == X_lu
+end
+
 @testset "arrays without fast scalar indexing use pinv" begin
     A = NoFastScalarMatrix(rand(5, 5))
     workspace, A_ret = Utils.linsolve_workspace(A)
@@ -47,8 +61,8 @@ end
 end
 
 @testset "singular input takes the pivoted-QR rescue" begin
-    # The result is the LinearSolve default algorithm's least-squares generalized
-    # inverse from its singular-LU → pivoted-QR rescue, NOT the SVD `pinv` (an
+    # The result is LinearSolve's least-squares generalized inverse from a pivoted-QR
+    # rescue, NOT the SVD `pinv` (an
     # intentional semantics change: same fitness for quasi-Newton initialization,
     # different finite matrix).
     n = 20

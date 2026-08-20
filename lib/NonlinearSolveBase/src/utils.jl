@@ -235,6 +235,8 @@ condition_number(::Any) = -1
 linsolve_workspace(A) = nothing, A
 linsolve_workspace(A::Diagonal) = nothing, A
 linsolve_workspace(A::SMatrix) = nothing, A
+inverse_jacobian_linsolve(A) = nothing
+inverse_jacobian_linsolve_failure(A, rhs) = pinv(A)
 function linsolve_workspace(A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
     # Backends without fast scalar indexing may not implement factorization solves with
@@ -248,14 +250,13 @@ function linsolve_workspace(A::AbstractMatrix)
     copyto!(A_buf, A)
     rhs = make_identity!!(similar(A_buf, T), true)
     u = similar(A_buf, T)
-    # One factorization + a multi-RHS solve against an identity RHS gives X = A⁻¹, and the
-    # default algorithm's singular-LU → pivoted-QR rescue handles rank-deficient input.
+    # One factorization + a multi-RHS solve against an identity RHS gives X = A⁻¹.
     # All buffers are workspace-owned, so aliasing is opted into to let the LU
     # refactorize A_buf in place instead of copying it on every call. Requires LinearSolve
     # to be loaded (as does any use of `construct_linear_solver` without a native fast
     # path).
     lincache = NonlinearSolveBase.construct_linear_solver(
-        nothing, nothing, A_buf, rhs, u, nothing;
+        nothing, inverse_jacobian_linsolve(A), A_buf, rhs, u, nothing;
         stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
         alias = SciMLBase.LinearAliasSpecifier(alias_A = true, alias_b = true)
     )
@@ -298,10 +299,11 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     # the previous solve may have consumed the RHS buffer, so refill it with I. The
     # lincache call copies A into its internal buffer before overwriting the solution
     # buffer, so A is never mutated and passing the previously returned inverse as A is
-    # safe. On singular A the default algorithm's pivoted-QR rescue returns a finite
-    # least-squares generalized inverse (not the SVD `pinv`).
+    # safe. A failed solve is handled by the backend-specific rescue below.
     make_identity!!(workspace.rhs, true)
-    return workspace.lincache(; A, b = workspace.rhs).u
+    linres = workspace.lincache(; A, b = workspace.rhs)
+    linres.success && return linres.u
+    return inverse_jacobian_linsolve_failure(A, workspace.rhs)
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
