@@ -92,7 +92,6 @@ include("homotopy_sweep.jl")
 include("arclength.jl")
 include("homotopy_polyalg.jl")
 
-
 include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
