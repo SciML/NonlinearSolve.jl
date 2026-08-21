@@ -41,12 +41,20 @@ end
 ```
 
 Code that accepts any nonlinear algorithm can detect the second form and choose the complete
-solve path:
+solve path. The stepping branch can use `solve_cache!` when it needs the allocation-sensitive
+cache result:
 
 ```@example iterator_interface
-simple_cache = NLS.init(probB, NLS.SimpleNewtonRaphson())
-simple_cache isa NLSB.NonlinearSolveNoInitCache
-simple_sol = NLS.solve!(simple_cache)
+function solve_any(prob, alg)
+    cache = NLS.init(prob, alg)
+    if cache isa NLSB.NonlinearSolveNoInitCache
+        return NLS.solve!(cache)
+    end
+    NLSB.solve_cache!(cache)
+    return NLS.solve!(cache)
+end
+
+simple_sol = solve_any(probB, NLS.SimpleNewtonRaphson())
 ```
 
 We currently don't implement a `Base.iterate` interface but that will be added in the

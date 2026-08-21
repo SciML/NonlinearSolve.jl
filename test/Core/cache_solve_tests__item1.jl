@@ -28,6 +28,15 @@ function cache_solve_allocations(cache, observer)
     return @allocated cache_solve!(cache, observer)
 end
 
+function solve_any_cache(prob, alg)
+    cache = init(prob, alg)
+    if cache isa NonlinearSolveBase.NonlinearSolveNoInitCache
+        return solve!(cache)
+    end
+    solve_cache!(cache)
+    return solve!(cache)
+end
+
 function cache_problem!(resid, u, p)
     resid[1] = u[1]^2 - p
     return nothing
@@ -49,6 +58,18 @@ step!(interface_cache)
 @test get_fu(interface_cache) != [-1.0]
 @test all(isfinite, get_u(interface_cache))
 @test all(isfinite, get_fu(interface_cache))
+
+generic_simple_sol = solve_any_cache(
+    prob, SimpleNewtonRaphson(; autodiff = AutoFiniteDiff())
+)
+@test SciMLBase.successful_retcode(generic_simple_sol)
+@test only(generic_simple_sol.u) ≈ √2
+
+generic_stepping_sol = solve_any_cache(
+    prob, NewtonRaphson(; autodiff = AutoFiniteDiff())
+)
+@test SciMLBase.successful_retcode(generic_stepping_sol)
+@test only(generic_stepping_sol.u) ≈ √2
 
 retcode = cache_solve!(cache, observer)
 @test SciMLBase.successful_retcode(retcode)
