@@ -1,6 +1,7 @@
 using NonlinearSolve, SciMLBase, SymbolicIndexingInterface, Test
 using ADTypes: AutoFiniteDiff
-using NonlinearSolveBase: solve_cache!
+using NonlinearSolveBase: get_fu, get_nsteps, get_u, refresh_residual!, solve_cache!,
+    supports_deferred_residual
 
 struct UnsupportedCache <: NonlinearSolveBase.AbstractNonlinearSolveCache end
 
@@ -35,6 +36,19 @@ end
 prob = NonlinearProblem(cache_problem!, [1.0], 2.0)
 cache = init(prob, NewtonRaphson(; autodiff = AutoFiniteDiff()))
 observer = StepObserver(0, Inf)
+
+interface_cache = init(prob, NewtonRaphson(; autodiff = AutoFiniteDiff()))
+@test get_u(interface_cache) == [1.0]
+@test get_fu(interface_cache) == [-1.0]
+@test get_nsteps(interface_cache) == 0
+@test !supports_deferred_residual(interface_cache)
+@test refresh_residual!(interface_cache) === nothing
+step!(interface_cache)
+@test get_nsteps(interface_cache) == 1
+@test get_u(interface_cache) != [1.0]
+@test get_fu(interface_cache) != [-1.0]
+@test all(isfinite, get_u(interface_cache))
+@test all(isfinite, get_fu(interface_cache))
 
 retcode = cache_solve!(cache, observer)
 @test SciMLBase.successful_retcode(retcode)

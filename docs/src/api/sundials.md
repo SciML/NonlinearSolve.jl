@@ -14,6 +14,4 @@ These methods can be used independently of the rest of NonlinearSolve.jl.
 
 ## Solver API
 
-```@docs
-KINSOL
-```
+The `KINSOL` algorithm is defined and documented by Sundials.

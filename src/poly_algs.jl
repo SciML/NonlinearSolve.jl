@@ -100,7 +100,7 @@ end
     ) where {T}
 
 The recommended default [`HomotopyPolyAlgorithm`](@ref) for solving a
-[`SciMLBase.HomotopyProblem`](@ref) — e.g. a Modelica `homotopy(actual, simplified)`
+`SciMLBase.HomotopyProblem` — e.g. a Modelica `homotopy(actual, simplified)`
 initialization system — by continuation. It is the homotopy analogue of
 [`FastShortcutNonlinearPolyalg`](@ref): a fast [`HomotopySweep`](@ref) (natural-parameter
 continuation) escalating to a robust [`ArcLengthContinuation`](@ref) (pseudo-arclength) on
