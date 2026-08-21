@@ -252,7 +252,7 @@ It applies the cache's termination policy without exposing cache storage. Safe-b
 return their recorded best state and saved marker when one is available; other modes
 return `fallback_u` and `fallback_t`.
 
-# Termination Arguments
+# Arguments
 
   - `cache`: A cache returned by `SciMLBase.init` for a public nonlinear termination mode.
   - `fallback_u`: Final state produced by the enclosing solver.
@@ -349,7 +349,7 @@ sol = solve(prob, NewtonRaphson(); termination_condition = MODE)
 """
 
 const TERM_NORM_ARGS = """
-# Arguments
+# Constructor Arguments
 
 - `internalnorm`: Callable used to reduce the residual and the residual-plus-iterate pair to
   scalar objectives. It may be `norm`, `norm(_, 2)`, `norm(_, Inf)`, `maximum(abs, _)`, or a
