@@ -221,7 +221,7 @@ It applies the cache's termination policy without exposing cache storage. Safe-b
 return their recorded best state and saved marker when one is available; other modes
 return `fallback_u` and `fallback_t`.
 
-# Arguments
+# Termination Arguments
 
   - `cache`: A cache returned by `SciMLBase.init` for a public nonlinear termination mode.
   - `fallback_u`: Final state produced by the enclosing solver.
@@ -263,21 +263,101 @@ AbstractSafeNonlinearTerminationMode end
 
 #! format: off
 const TERM_DOCS = Dict(
-    :Norm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|`` or ``\| Δu \| ≤ abstol``",
-    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | Δu + u | \right)``",
-    :RelNorm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|``",
-    :Abs => doc"``\mathrm{all} \left( | Δu | ≤ abstol \right)``",
-    :AbsNorm => doc"``\| Δu \| ≤ abstol``"
+    :Norm => doc"``\| r \| ≤ reltol × \| r + u \|`` or ``\| r \| ≤ abstol``",
+    :Rel => doc"``\mathrm{all} \left(| r_i | ≤ reltol × | r_i + u_i | \right)``",
+    :RelNorm => doc"``\| r \| ≤ reltol × \| r + u \|``",
+    :Abs => doc"``\mathrm{all} \left( | r_i | ≤ abstol \right)``",
+    :AbsNorm => doc"``\| r \| ≤ abstol``"
 )
 
 const TERM_INTERNALNORM_DOCS = """
-where `internalnorm` is the norm to use for the termination condition. Special handling is
-done for `norm(_, 2)`, `norm`, `norm(_, Inf)`, and `maximum(abs, _)`"""
+where `internalnorm` is a callable norm to use for the termination condition. Special handling
+is done for `norm(_, 2)`, `norm`, `norm(_, Inf)`, and `maximum(abs, _)`."""
+
+const TERM_INTERFACE_DOCS = """
+The nonlinear solver evaluates this mode through a termination cache. The cache is called as
+`cache(du, u, uprev)`, where `du` is the current residual `f(u)`, `u` is the current iterate,
+and `uprev` is the previous accepted iterate. The solver supplies `abstol` and `reltol` when
+the cache is initialized. The name `du` is retained for compatibility with the step-based
+termination interface in DifferentialEquations.jl; it is not a Newton increment here.
+
+# Arguments
+
+- `du`: Current residual `f(u)`.
+- `u`: Current iterate.
+- `uprev`: Previous accepted iterate. Plain modes ignore it; safe modes use it only when
+  `max_stalled_steps` is enabled.
+
+# Returns
+
+- `Bool`: `true` when the mode's convergence or safety criterion requests termination, and
+  `false` when the solver should continue. The solver records `ReturnCode.Success` for a
+  tolerance-based termination. Safe modes can instead record `ReturnCode.Unstable`,
+  `ReturnCode.Stalled`, or `ReturnCode.StalledSuccess` when a safety criterion fires.
+"""
+
+const TERM_RELATIVE_WARNING = """
+!!! warning
+
+    The relative criterion compares the residual with `r + u`, rather than with a step and the
+    next iterate. This is the behavior currently implemented by NonlinearSolve. It can produce
+    a misleading relative measure when the residual and iterate have very different scales.
+    Prefer an absolute mode when this behavior is not appropriate. See
+    [#1149](https://github.com/SciML/NonlinearSolve.jl/issues/1149).
+"""
+
+const TERM_EXAMPLE = """
+# Examples
+
+```julia
+using NonlinearSolve, NonlinearSolveBase
+
+prob = NonlinearProblem((u, p) -> [u[1]^2 - 2], [1.0])
+sol = solve(prob, NewtonRaphson(); termination_condition = MODE)
+```
+"""
+
+const TERM_NORM_ARGS = """
+# Arguments
+
+- `internalnorm`: Callable used to reduce the residual and the residual-plus-iterate pair to
+  scalar objectives. It may be `norm`, `norm(_, 2)`, `norm(_, Inf)`, `maximum(abs, _)`, or a
+  custom callable with the corresponding inputs.
+"""
+
+const TERM_SAFE_KEYWORDS = """
+# Keywords
+
+- `protective_threshold`: Optional multiplier for the initial objective. When set, a current
+  objective larger than `protective_threshold * initial_objective * length(du)` returns
+  `ReturnCode.Unstable`. Defaults to `nothing`, which disables this check.
+- `patience_steps::Int`: Number of objective evaluations retained for the no-improvement check.
+  Defaults to `100`.
+- `patience_objective_multiplier`: Enables the no-improvement check only while the current
+  objective is at most this multiple of the requested tolerance. Defaults to `3`.
+- `min_max_factor`: Declares the objective stalled when the minimum objective in the retained
+  history is less than this factor times the maximum. Defaults to `1.3`.
+- `max_stalled_steps`: Optional number of steps after which a step-size stall is checked.
+  `nothing` disables this additional check. Defaults to `nothing`.
+"""
+
+const TERM_SAFE_SEMANTICS = """
+# Termination semantics
+
+In addition to the base tolerance criterion, safe modes terminate when the objective is not
+improving under the configured patience settings, when the objective is nonfinite, or when an
+enabled protective or step-stall check fires. A non-least-squares problem receives
+`ReturnCode.Stalled` for an objective or step stall; a least-squares problem receives
+`ReturnCode.StalledSuccess`. A `SafeBest` mode retains the iterate with the best objective seen
+so far and returns that iterate when the termination cache is used to build the solution.
+"""
 #! format: on
 
 for name in (:Rel, :Abs)
     struct_name = Symbol(name, :TerminationMode)
     doctring = TERM_DOCS[name]
+    criterion = name == :Rel ? TERM_RELATIVE_WARNING : ""
+    example = replace(TERM_EXAMPLE, "MODE" => "$(struct_name)()")
 
     @eval begin
         """
@@ -285,10 +365,20 @@ for name in (:Rel, :Abs)
 
         Terminates if $($doctring).
 
-        ``\\Delta u`` is the quantity the caller passes as the first argument. Every solver in
-        this package passes the **residual** ``f(u)`` there, not the Newton increment, so these
-        criteria are residual tests. The name is inherited from the step-based use of the same
-        machinery in DifferentialEquations.jl. ``u`` denotes the current iterate.
+        Here `r` denotes the residual `f(u)` supplied by the nonlinear solver and `u` denotes
+        the current iterate. This is a residual criterion, not a Newton-step criterion.
+
+        $($TERM_INTERFACE_DOCS)
+
+        # Constructor
+
+            $($struct_name)()
+
+        This constructor takes no arguments.
+
+        $($criterion)
+
+        $($example)
         """
         struct $(struct_name) <: AbstractNonlinearTerminationMode end
     end
@@ -297,6 +387,11 @@ end
 for name in (:Norm, :RelNorm, :AbsNorm)
     struct_name = Symbol(name, :TerminationMode)
     doctring = TERM_DOCS[name]
+    criterion = name == :RelNorm ? TERM_RELATIVE_WARNING : ""
+    example = replace(
+        TERM_EXAMPLE,
+        "MODE" => "$(struct_name)(Base.Fix1(maximum, abs))"
+    )
 
     @eval begin
         """
@@ -304,26 +399,22 @@ for name in (:Norm, :RelNorm, :AbsNorm)
 
         Terminates if $($doctring).
 
-        ``\\Delta u`` is the quantity the caller passes as the first argument. Every solver in
-        this package passes the **residual** ``f(u)`` there, not the Newton increment, so these
-        criteria are residual tests. The name is inherited from the step-based use of the same
-        machinery in DifferentialEquations.jl.
+        Here `r` denotes the residual `f(u)` supplied by the nonlinear solver and `u` denotes
+        the current iterate. This is a residual criterion, not a Newton-step criterion.
 
-        !!! warning
-
-            The relative criteria therefore compare a residual against ``\\|f(u) + u\\|``, which
-            adds a residual to an iterate. That is not a meaningful relative measure: it is
-            satisfied whenever ``\\|u\\|`` happens to be large, it is *not* satisfied for a
-            converged solve with a small ``\\|u\\|``, and it diverges when ``u \\approx -f(u)``
-            makes the denominator cancel. See
-            [#1149](https://github.com/SciML/NonlinearSolve.jl/issues/1149). Prefer the
-            absolute modes until this is resolved.
+        $($TERM_INTERFACE_DOCS)
 
         ## Constructor
 
-            $($struct_name)(internalnorm = nothing)
+            $($struct_name)(internalnorm)
 
-        $($TERM_INTERNALNORM_DOCS).
+        $($TERM_INTERNALNORM_DOCS)
+
+        $($TERM_NORM_ARGS)
+
+        $($criterion)
+
+        $($example)
         """
         struct $(struct_name){F} <: AbstractNonlinearTerminationMode
             internalnorm::F
@@ -340,6 +431,13 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
 
     struct_name = Symbol(norm_type, safety, :TerminationMode)
     supertype_name = Symbol(:Abstract, safety, :NonlinearTerminationMode)
+    criterion = norm_type == :AbsNorm ?
+        "The base criterion is ``\\|r\\| ≤ abstol``." :
+        "The base criterion is ``\\|r\\| / (\\|r + u\\| + \\epsilon(reltol)) ≤ reltol``."
+    example = replace(
+        TERM_EXAMPLE,
+        "MODE" => "$(struct_name)(Base.Fix1(maximum, abs); max_stalled_steps = 10)"
+    )
 
     doctring = safety == :Safe ?
         "Essentially [`$(norm_type)TerminationMode`](@ref) + terminate if there \
@@ -354,6 +452,10 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
 
         $($doctring)
 
+        $($criterion)
+
+        $($TERM_INTERFACE_DOCS)
+
         ## Constructor
 
             $($struct_name)(
@@ -362,7 +464,15 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
                 min_max_factor = 1.3, max_stalled_steps = nothing
             )
 
-        $($TERM_INTERNALNORM_DOCS).
+        $($TERM_INTERNALNORM_DOCS)
+
+        $($TERM_NORM_ARGS)
+
+        $($TERM_SAFE_KEYWORDS)
+
+        $($TERM_SAFE_SEMANTICS)
+
+        $($example)
         """
         @concrete struct $(struct_name) <: $(supertype_name)
             internalnorm
