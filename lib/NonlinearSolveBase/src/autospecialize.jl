@@ -121,6 +121,7 @@ Otherwise return `f` unchanged.
 """
 get_raw_f(f) = f
 get_raw_f(f::AutoSpecializeCallable) = f.orig
+SciMLBase.unwrapped_f(f::AutoSpecializeCallable) = f.orig
 
 """
     _uses_enzyme_ad(ad) -> Bool
