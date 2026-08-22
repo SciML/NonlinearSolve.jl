@@ -1,4 +1,5 @@
 using NonlinearSolve
+import NonlinearSolveBase
 
 using LinearAlgebra
 
@@ -10,6 +11,7 @@ prob = NonlinearProblem((u, p) -> u .^ 2 .- p, [0.1, 0.3], 2.0)
 
 for alg in solvers
     cache = init(prob, alg)
+    @test cache isa NonlinearSolveBase.NonlinearSolveNoInitCache
     sol = solve!(cache)
     @test SciMLBase.successful_retcode(sol)
     @test norm(sol.resid, Inf) ≤ 1.0e-6

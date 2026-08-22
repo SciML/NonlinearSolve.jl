@@ -26,21 +26,20 @@ bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 interlinks = InterLinks(
     "ADTypes" => "https://docs.sciml.ai/ADTypes/dev/",
-    "LineSearch" => "https://docs.sciml.ai/LineSearch/dev/"
+    "LineSearch" => "https://docs.sciml.ai/LineSearch/dev/",
 )
 
 makedocs(;
     sitename = "NonlinearSolve.jl",
     authors = "SciML",
     modules = [
-        NonlinearSolveBase, SciMLBase,
+        NonlinearSolveBase,
         SimpleNonlinearSolve, BracketingNonlinearSolve,
         NonlinearSolveFirstOrder, NonlinearSolveQuasiNewton, NonlinearSolveSpectralMethods,
         NonlinearSolveHomotopyContinuation,
-        Sundials, LineSearch,
         SciMLJacobianOperators, NonlinearSolveSciPy,
         SCCNonlinearSolve,
-        NonlinearSolve, SteadyStateDiffEq,
+        NonlinearSolve,
     ],
     clean = true,
     doctest = true,
@@ -55,7 +54,6 @@ makedocs(;
         "https://iopscience.iop.org/article/10.1088/1757-899X/1276/1/012010/",  # IOP redirects to PerimeterX bot validator from CI
     ],
     checkdocs = :exports,
-    warnonly = [:missing_docs],
     plugins = [bib, interlinks],
     format = Documenter.HTML(
         assets = ["assets/favicon.ico", "assets/citations.css"],

@@ -5,7 +5,7 @@
         predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
         maxsteps = 10000, store_original = Val(false))
 
-Natural-parameter continuation solver for a [`SciMLBase.HomotopyProblem`](@ref). The
+Natural-parameter continuation solver for `SciMLBase.HomotopyProblem`. The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep
 first solves the system at `λspan[1]` (for the canonical `(0, 1)` span, the
 `simplified` system — the form the homotopy is designed to make solvable from a cold
@@ -33,7 +33,7 @@ when the retained subalgorithm fails. The cold anchor solve at `λspan[1]` alway
 the full ladder — that is where the winning subalgorithm is discovered.
 
 Optional derivative fields of the problem's `NonlinearFunction` (which
-[`SciMLBase.HomotopyProblem`](@ref) requires to follow the same λ-extended argument
+`SciMLBase.HomotopyProblem` requires to follow the same λ-extended argument
 convention as the residual) are consumed by this solver: an analytic `jac(u, p, λ)` /
 `jac(J, u, p, λ)` is λ-fixed exactly like the residual and handed to the inner solver
 as a standard 2/3-argument Jacobian (so e.g. the default polyalgorithm selects its

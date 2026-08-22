@@ -475,80 +475,177 @@ function show_nonlinearsolve_algorithm(
 end
 
 """
-    AbstractNonlinearSolveCache
+    AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI
 
-Abstract Type for all NonlinearSolveBase Caches.
+Abstract supertype for caches returned by `init(prob, alg; kwargs...)` for nonlinear
+algorithms with a stepping implementation.
 
-### Interface Functions
+This is a developer-facing interface for packages that implement nonlinear solver
+algorithms. It is not a replacement for the user-facing `solve` and `init` APIs. An
+algorithm that does not provide a stepping implementation should use
+[`NonlinearSolveNoInitCache`](@ref) instead of constructing a partial stepping cache.
 
-  - `get_fu(cache)`: get the residual.
+# Fields
 
-  - `get_u(cache)`: get the current state.
-  - `get_nsteps(cache)`: get the number of steps taken so far.
-  - `set_fu!(cache, fu)`: set the residual.
-  - `has_time_limit(cache)`: whether or not the solver has a maximum time limit.
-  - `not_terminated(cache)`: whether or not the solver has terminated.
-  - `SciMLBase.set_u!(cache, u)`: set the current state.
-  - `SciMLBase.reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state
-    `u0` and any additional keyword arguments.
-  - `SciMLBase.isinplace(cache)`: whether or not the solver is inplace.
-  - `CommonSolve.step!(cache; kwargs...)`: See [`CommonSolve.step!`](@ref) for more details.
-  - `get_abstol(cache)`: get the `abstol` provided to the cache.
-  - `get_reltol(cache)`: get the `reltol` provided to the cache.
+The default `CommonSolve.step!`, `CommonSolve.solve!`, and
+`SymbolicIndexingInterface` methods read the following fields from a stepping cache:
 
-Additionally implements `SymbolicIndexingInterface` interface Functions.
+- `prob::AbstractNonlinearProblem`: the problem being solved.
+- `alg::AbstractNonlinearSolveAlgorithm`: the algorithm associated with the cache.
+- `p`: the current parameter values.
+- `u`: the current iterate, used by the default [`get_u`](@ref) method.
+- `fu`: the residual at the current iterate, used by the default [`get_fu`](@ref) method.
+- `nsteps::Integer`: the number of completed solver steps.
+- `maxiters::Integer`: the maximum number of solver steps.
+- `force_stop::Bool`: whether a caller or the solver has requested termination.
+- `retcode::SciMLBase.ReturnCode.T`: the current solver status.
+- `stats::SciMLBase.NLStats`: counters for function, Jacobian, factorization, and step work.
+- `termination_cache`: the cache used by the termination-condition implementation.
+- `trace`: the optional nonlinear solver trace.
+- `timer`: the timer used by the default `step!` wrapper.
+- `verbose`: the verbosity specification used by solver messages.
 
-#### Expected Fields in Sub-Types
+`maxtime` and `total_time` are also required when the cache reports a time limit through
+`has_time_limit`. A cache may store any of these values elsewhere, but then it must
+override every accessor or driver method that otherwise reads the default field.
 
-For the default interface implementations we expect the following fields to be present in
-the cache:
+# Interface
 
-  - `fu`: the residual.
-  - `u`: the current state.
-  - `maxiters`: the maximum number of iterations.
-  - `nsteps`: the number of steps taken.
-  - `force_stop`: whether or not the solver has been forced to stop.
-  - `retcode`: the return code.
-  - `stats`: `NLStats` object.
-  - `alg`: the algorithm.
-  - `maxtime`: the maximum time limit for the solver. (Optional)
-  - `timer`: the timer for the solver. (Optional)
-  - `total_time`: the total time taken by the solver. (Optional)
-  - `verbose`: a verbosity object that contains options determining what log messages are emitted. 
+- [`get_u`](@ref): return the current iterate.
+- [`get_fu`](@ref): return the current residual vector.
+- [`get_nsteps`](@ref): return the number of completed steps.
+- [`CommonSolve.step!`](@ref): advance the cache by one step.
+- `CommonSolve.solve!(cache)`: run a stepping cache to termination and return a
+  `SciMLBase.NonlinearSolution`.
+- `SciMLBase.reinit!(cache, u0; kwargs...)`: reset the cache for a new initial state and
+  solve options.
+- [`get_abstol`](@ref) and [`get_reltol`](@ref): return the active tolerances.
+- `SciMLBase.set_u!`, `set_fu!`, `SciMLBase.isinplace`, and the
+  `SymbolicIndexingInterface` accessors: update or inspect the cache state.
+- [`supports_deferred_residual`](@ref) and [`refresh_residual!`](@ref): coordinate an
+  optional deferred residual evaluation.
+
+# Extension Rules
+
+- Implement `NonlinearSolveBase.InternalAPI.step!(cache::YourCache; kwargs...)`; the
+  public `CommonSolve.step!` wrapper handles termination, timing, and the top-level step
+  counters.
+- Override [`get_u`](@ref) and [`get_fu`](@ref) when the iterate or residual is stored in a
+  nested cache or another representation. These accessors must describe the same state
+  that `step!` and `reinit!` operate on.
+- Implement `NonlinearSolveBase.InternalAPI.reinit!` and preserve the cache's documented
+  invariants when `SciMLBase.reinit!` is called.
+- Return `true` from [`supports_deferred_residual`](@ref) only when deferring the residual
+  cannot change termination or trace semantics, and implement [`refresh_residual!`](@ref)
+  for that cache.
+- Generic drivers should use the documented accessors rather than reaching into
+  algorithm-specific fields. Solver packages may add internal fields without making them
+  part of this interface.
+
+# Examples
+
+```julia
+import NonlinearSolve
+import NonlinearSolveBase
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.NewtonRaphson())
+NonlinearSolve.step!(cache)
+u = NonlinearSolveBase.get_u(cache)
+```
 """
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
 """
-    get_u(cache)
+    get_u(cache::AbstractNonlinearSolveCache) -> u
 
 Return the current iterate held by a nonlinear solver cache.
 
-Defaults to the cache's `u` field. Caches that keep the iterate elsewhere should overload
-this hook: a `NonlinearSolvePolyAlgorithmCache` forwards to whichever subsolver is
-currently active, and the ForwardDiff cache forwards to the wrapped primal cache.
+The default returns `cache.u`. Caches that keep the iterate elsewhere should overload this
+hook, such as a polyalgorithm forwarding to its active subsolver or a ForwardDiff cache
+forwarding to its wrapped primal cache.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose current iterate is requested.
+
+# Returns
+
+The current iterate in the representation used by the cache's solver.
+
+# Extension Rules
+
+An overload must return the iterate that the cache will update on its next step. Generic
+drivers should call this accessor rather than reading `cache.u` directly.
+
+# Examples
+
+```julia
+u = NonlinearSolveBase.get_u(cache)
+```
 """
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
 
 """
-    get_fu(cache)
+    get_fu(cache::AbstractNonlinearSolveCache) -> fu
 
 Return the residual stored in a nonlinear solver cache: the most recent value of the
 problem's residual function the solver evaluated (the full residual vector, not its norm,
 for a `NonlinearLeastSquaresProblem`).
 
-Defaults to the cache's `fu` field, with the same overloading convention as
-[`get_u`](@ref). Between steps this is the residual at [`get_u`](@ref), but a solver
-mid-step commits the new iterate before re-evaluating there — a `postcondition` corrector
-runs at exactly such a point and so sees the residual at the previous accepted iterate.
+The default returns `cache.fu`, with the same overloading convention as [`get_u`](@ref).
+Between steps this is the residual at [`get_u`](@ref), but a solver mid-step commits the
+new iterate before re-evaluating there. A `postcondition` corrector runs at exactly such a
+point and therefore sees the residual at the previous accepted iterate.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose residual is requested.
+
+# Returns
+
+The full residual vector, not its norm, including for a
+`NonlinearLeastSquaresProblem`.
+
+# Extension Rules
+
+An overload must use the same residual convention as the default and remain synchronized
+with [`get_u`](@ref) at cache step boundaries. Generic drivers should call this accessor
+instead of reading an algorithm-specific residual field.
+
+# Examples
+
+```julia
+fu = NonlinearSolveBase.get_fu(cache)
+```
 """
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
 
 """
-    get_nsteps(cache)
+    get_nsteps(cache::AbstractNonlinearSolveCache) -> Int
 
 Return the number of solver iterations the cache has taken so far. This is the count
 checked against `maxiters`, and it counts steps of the solver loop rather than function
 or Jacobian evaluations, which are tracked separately in `cache.stats`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose step count is requested.
+
+# Returns
+
+The number of completed solver steps as an integer.
+
+# Extension Rules
+
+An overload must use the same count that controls the cache's iteration limit. Function and
+Jacobian evaluations belong in `cache.stats` and must not be reported as solver steps.
+
+# Examples
+
+```julia
+nsteps = NonlinearSolveBase.get_nsteps(cache)
+```
 """
 get_nsteps(cache::AbstractNonlinearSolveCache) = cache.nsteps
 
@@ -565,6 +662,21 @@ residual that is already current. A cache may only answer `true` where deferral 
 unobservable — in particular where its termination condition depends on nothing but the
 residual, since a deferred step reports no displacement and reaches the termination check
 once per [`refresh_residual!`](@ref) rather than once per step.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose deferred-residual capability is
+  queried.
+
+# Returns
+
+`true` only when the cache supports the deferred-residual protocol; otherwise `false`.
+
+# Extension Rules
+
+The default is `false`. An overload returning `true` must also implement
+[`refresh_residual!`](@ref) and preserve the termination and trace semantics described
+above.
 """
 supports_deferred_residual(::AbstractNonlinearSolveCache) = false
 
@@ -581,6 +693,21 @@ that never defers, which the default here covers. A cache that answers
 
 The next `step!` settles an outstanding deferral itself, so a driver that only ever steps
 again never needs to call this.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose deferred residual should be settled.
+
+# Returns
+
+`nothing`. The cache is updated in place.
+
+# Extension Rules
+
+The default is a no-op for caches that never defer. A cache that returns `true` from
+[`supports_deferred_residual`](@ref) must evaluate and store the residual at
+[`get_u`](@ref), perform the corresponding convergence update, and make repeated calls
+safe when no evaluation is outstanding.
 """
 refresh_residual!(::AbstractNonlinearSolveCache) = nothing
 
@@ -606,24 +733,60 @@ end
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
 
 """
-    get_abstol(cache)
+    get_abstol(cache::AbstractNonlinearSolveCache) -> Real
 
 Return the absolute tolerance currently stored in a nonlinear solver cache or problem.
 
-Solver caches should overload this hook when the tolerance is not stored in the default
-`termination_cache` location.
+The default reads the cache's `termination_cache`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose absolute tolerance is requested.
+
+# Returns
+
+The active absolute tolerance used by the cache's termination condition.
+
+# Extension Rules
+
+Override this method when the cache stores its termination state somewhere other than
+`termination_cache`. The returned value must agree with the tolerance used by `step!`.
+
+# Examples
+
+```julia
+abstol = NonlinearSolveBase.get_abstol(cache)
+```
 """
 function get_abstol(cache::AbstractNonlinearSolveCache)
     return get_abstol(cache.termination_cache)
 end
 
 """
-    get_reltol(cache)
+    get_reltol(cache::AbstractNonlinearSolveCache) -> Real
 
 Return the relative tolerance currently stored in a nonlinear solver cache or problem.
 
-Solver caches should overload this hook when the tolerance is not stored in the default
-`termination_cache` location.
+The default reads the cache's `termination_cache`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose relative tolerance is requested.
+
+# Returns
+
+The active relative tolerance used by the cache's termination condition.
+
+# Extension Rules
+
+Override this method when the cache stores its termination state somewhere other than
+`termination_cache`. The returned value must agree with the tolerance used by `step!`.
+
+# Examples
+
+```julia
+reltol = NonlinearSolveBase.get_reltol(cache)
+```
 """
 function get_reltol(cache::AbstractNonlinearSolveCache)
     return get_reltol(cache.termination_cache)

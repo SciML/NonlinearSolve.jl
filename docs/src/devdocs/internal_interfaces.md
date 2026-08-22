@@ -109,6 +109,18 @@ NonlinearSolveBase.get_fu
 NonlinearSolveBase.get_nsteps
 ```
 
+## Cache Drivers
+
+The stepping driver is used for iterative caches. `solve_cache!` is the allocation-sensitive
+completion path; it is not available for `NonlinearSolveNoInitCache`.
+
+The public stepping entry point is `CommonSolve.step!`, while the
+allocation-sensitive completion entry point is `NonlinearSolveBase.solve_cache!`.
+
+```@docs
+NonlinearSolveBase.solve_cache!
+```
+
 ## Deferred Residual Evaluation
 
 A solver whose step ends by evaluating the residual at the iterate it just produced spends

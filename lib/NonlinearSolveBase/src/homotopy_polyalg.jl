@@ -2,7 +2,7 @@
     HomotopyPolyAlgorithm(algs::Tuple; warm_handoff = true, store_original = Val(false))
     HomotopyPolyAlgorithm(; inner = nothing, warm_handoff = true, store_original = Val(false))
 
-A polyalgorithm for [`SciMLBase.HomotopyProblem`](@ref): a container for a tuple of
+A polyalgorithm for `SciMLBase.HomotopyProblem`: a container for a tuple of
 continuation algorithms that are tried in order until one returns a solution with a
 successful retcode. The first success is returned immediately — later stages never run.
 If every stage fails, the *last* stage's failed solution is returned, so its `retcode`

@@ -9,7 +9,7 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
 
 ### Arguments
 
-  - `prob`: A [`NonlinearProblem`](@ref) or a [`NonlinearLeastSquaresProblem`](@ref).
+  - `prob`: A `NonlinearProblem` or a `NonlinearLeastSquaresProblem` from SciMLBase.
   - `alg`: A [`AbstractNonlinearSolveAlgorithm`](@ref). Used to check for
     [`concrete_jac`](@ref).
   - `f`: The function to compute the Jacobian of.
