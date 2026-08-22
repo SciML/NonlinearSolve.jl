@@ -733,6 +733,42 @@ end
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
 
 """
+    get_trace(cache::AbstractNonlinearSolveCache)
+
+Return the trace object a solver cache records its iteration history into.
+
+The default returns `cache.trace`. Caches that keep it elsewhere should overload this hook,
+such as a polyalgorithm forwarding to its active subsolver.
+
+# Examples
+
+```julia
+trace = NonlinearSolveBase.get_trace(cache)
+```
+"""
+function get_trace(cache::AbstractNonlinearSolveCache)
+    return cache.trace
+end
+
+"""
+    get_termination_cache(cache::AbstractNonlinearSolveCache)
+
+Return the termination-condition cache through which a solver cache reports its status.
+
+The default returns `cache.termination_cache`. Caches that keep it elsewhere should overload
+this hook, such as a polyalgorithm forwarding to its active subsolver.
+
+# Examples
+
+```julia
+tc = NonlinearSolveBase.get_termination_cache(cache)
+```
+"""
+function get_termination_cache(cache::AbstractNonlinearSolveCache)
+    return cache.termination_cache
+end
+
+"""
     get_abstol(cache::AbstractNonlinearSolveCache) -> Real
 
 Return the absolute tolerance currently stored in a nonlinear solver cache or problem.
@@ -759,7 +795,7 @@ abstol = NonlinearSolveBase.get_abstol(cache)
 ```
 """
 function get_abstol(cache::AbstractNonlinearSolveCache)
-    return get_abstol(cache.termination_cache)
+    return get_abstol(get_termination_cache(cache))
 end
 
 """
@@ -789,7 +825,7 @@ reltol = NonlinearSolveBase.get_reltol(cache)
 ```
 """
 function get_reltol(cache::AbstractNonlinearSolveCache)
-    return get_reltol(cache.termination_cache)
+    return get_reltol(get_termination_cache(cache))
 end
 
 ## SII Interface
