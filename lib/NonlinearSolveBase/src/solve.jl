@@ -577,7 +577,7 @@ end
     end
     push!(
         calls, quote
-            fus = tuple($(Tuple(resids)...))
+            fus = Base.tuple($(Tuple(resids)...))
             # Use findmin_resids directly since fus already contains residual vectors from get_fu
             minfu, idx = findmin_resids(cache.prob, fus)
         end
@@ -752,7 +752,7 @@ end
 
     push!(
         calls, quote
-            resids = tuple($(Tuple(resids)...))
+            resids = Base.tuple($(Tuple(resids)...))
             minfu, idx = findmin_resids(prob, resids)
         end
     )
