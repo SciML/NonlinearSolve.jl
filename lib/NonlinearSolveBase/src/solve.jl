@@ -784,20 +784,53 @@ end
 end
 
 """
-    step!(
-        cache::AbstractNonlinearSolveCache;
-        recompute_jacobian::Union{Nothing, Bool} = nothing
-    )
+    step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
 
-Performs one step of the nonlinear solver.
+Perform one step of a nonlinear solver and mutate `cache` in place.
 
-### Keyword Arguments
+The public wrapper first checks whether the cache is still active, then calls
+`NonlinearSolveBase.InternalAPI.step!`, updates the step counters, and enforces a time
+limit when one is configured. It returns the value produced by the algorithm-specific
+implementation, which is commonly `nothing`.
 
-  - `recompute_jacobian`: allows controlling whether the jacobian is recomputed at the
-    current step. If `nothing`, then the algorithm determines whether to recompute the
-    jacobian. If `true` or `false`, then the jacobian is recomputed or not recomputed,
-    respectively. For algorithms that don't use jacobian information, this keyword is
-    ignored with a one-time warning.
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the initialized stepping cache to advance.
+- `args...`: positional arguments forwarded to the algorithm-specific implementation.
+
+# Keywords
+
+- `recompute_jacobian::Union{Nothing, Bool} = nothing`: whether to recompute a Jacobian
+  when the algorithm uses one. `nothing` delegates the choice to the algorithm. This
+  keyword is ignored or rejected by algorithms according to their own interface.
+- `evaluate_residual::Bool = true`: a hint that the algorithm may skip the residual
+  evaluation at the newly accepted iterate. It is honored only when
+  [`supports_deferred_residual`](@ref) returns `true`; call [`refresh_residual!`](@ref)
+  before reading a deferred residual.
+- `kwargs...`: additional algorithm-specific keyword arguments.
+
+# Returns
+
+The value returned by `InternalAPI.step!`. The cache is mutated in place. Calling `step!`
+on a terminated cache does nothing and returns `nothing`.
+
+# Extension Rules
+
+Solver packages implement `InternalAPI.step!`, not this `CommonSolve.step!` method. The
+implementation must leave the cache state consistent with [`get_u`](@ref),
+[`get_fu`](@ref), and the termination cache. The wrapper owns the top-level `nsteps` and
+`stats.nsteps` increments, so an implementation should not increment those counters for
+the same step.
+
+# Examples
+
+```julia
+import NonlinearSolve
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.NewtonRaphson())
+NonlinearSolve.step!(cache)
+```
 """
 function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     not_terminated(cache) || return
@@ -827,25 +860,50 @@ end
 """
     NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
 
-The cache `init(prob, alg)` returns for an algorithm that defines no `SciMLBase.__init`
-method — every `SimpleNonlinearSolve` algorithm, for instance. It stores the problem and
-the solve options and does nothing else, so that generic code can call `init` on any
-algorithm.
+Cache returned by `init(prob, alg; kwargs...)` when `alg` has no algorithm-specific
+`SciMLBase.__init` method. Every `SimpleNonlinearSolve` algorithm uses this form, for
+example. It stores the problem and solve options so generic code can call `init` on any
+nonlinear algorithm.
 
-Unlike a stepping cache it holds no iteration state, and it implements only part of the
-[`AbstractNonlinearSolveCache`](@ref) interface:
+Unlike a stepping cache, it holds no iteration state and implements only part of the
+[`AbstractNonlinearSolveCache`](@ref) interface. `solve!(cache)` runs the complete solve
+and returns a `SciMLBase.NonlinearSolution`; that solution is the only record of the
+iterations, and no iteration state is written back into the cache. `get_u(cache)` reads
+the problem's initial state, while `SciMLBase.reinit!`, `get_abstol`, `get_reltol`, and the
+`SymbolicIndexingInterface` accessors operate on the stored problem as usual.
 
-  - `solve!(cache)` runs the *complete* solve and returns its `SciMLBase.NonlinearSolution`.
-    That returned solution is the only record of the solve; nothing about it is written back
-    into the cache.
-  - `get_u(cache)` reads the problem's `u0`, i.e. the *initial* iterate — it does not track
-    a running one.
-  - `SciMLBase.reinit!`, `get_abstol`, `get_reltol` and the `SymbolicIndexingInterface`
-    accessors work as usual.
-  - `CommonSolve.step!`, `get_fu`, `get_nsteps` and `cache.stats` are **not** available.
+`CommonSolve.step!`, `get_fu`, `get_nsteps`, and `cache.stats` are not available for this
+cache. Generic code that drives caches one step at a time must detect this type and call
+`solve!(cache)` instead.
 
-Public so that code driving an `AbstractNonlinearSolveCache` one `step!` at a time can
-detect this cache and run a full `solve!` instead.
+# Fields
+
+- `prob::AbstractNonlinearProblem`: the problem passed to `init`.
+- `alg::AbstractNonlinearSolveAlgorithm`: the algorithm passed to `init`.
+- `args::Tuple`: positional arguments forwarded to the eventual solve.
+- `kwargs::Any`: keyword options forwarded to the eventual solve, including tolerances.
+- `initializealg`: the initialization algorithm used before the solve.
+- `retcode::SciMLBase.ReturnCode.T`: the initialization status, if initialization ran.
+- `verbose`: the verbosity specification forwarded to the solve.
+
+# Extension Rules
+
+This cache is the fallback produced by the package's generic initialization method; solver
+packages should not add `step!` methods to it to imitate a stepping cache. Use `isa
+NonlinearSolveNoInitCache` only to select the complete `solve!` path, and use the generic
+accessors for all other supported operations.
+
+# Examples
+
+```julia
+import NonlinearSolve
+import NonlinearSolveBase
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.SimpleNewtonRaphson())
+cache isa NonlinearSolveBase.NonlinearSolveNoInitCache
+sol = NonlinearSolve.solve!(cache)
+```
 """
 @concrete mutable struct NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
     prob
