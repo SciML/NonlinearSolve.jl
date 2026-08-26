@@ -139,7 +139,7 @@ include("forward_diff.jl")
         get_precondition, get_postcondition, supports_postcondition,
     )
 )
-@compat(public, (get_u, get_fu, get_nsteps))
+@compat(public, (get_u, get_fu, get_nsteps, get_termination_cache, get_trace))
 @compat(public, (supports_deferred_residual, refresh_residual!))
 @compat(public, (residual_only_termination_mode, trace_is_active))
 @compat(public, (NonlinearSolveNoInitCache,))

@@ -123,6 +123,17 @@ end
     verbose
 end
 
+# A polyalgorithm holds no termination cache of its own; the subsolver it is currently
+# running owns one. Forwarding lets `solve_cache!`, `get_abstol` and `get_reltol` work on a
+# polyalgorithm cache instead of throwing `has no field termination_cache`.
+function get_termination_cache(cache::NonlinearSolvePolyAlgorithmCache)
+    return get_termination_cache(cache.caches[cache.current])
+end
+
+function get_trace(cache::NonlinearSolvePolyAlgorithmCache)
+    return get_trace(cache.caches[cache.current])
+end
+
 function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
     foreach(cache.caches) do subcache
         update_initial_values!(subcache, u0, p)
