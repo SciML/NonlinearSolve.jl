@@ -11,7 +11,8 @@ This solves the equations sequentially. Newton method to solve
 import NonlinearSolve as NLS
 import PETSc
 import LinearAlgebra
-import SparseConnectivityTracer
+import ADTypes
+import DifferentiationInterface: DenseSparsityDetector
 import BenchmarkTools: @benchmark
 
 u0 = fill(0.5, 128)
@@ -39,7 +40,8 @@ details.
 ```@example snes_ex2
 nlfunc_dense = NLS.NonlinearFunction(form_residual!)
 nlfunc_sparse = NLS.NonlinearFunction(
-    form_residual!; sparsity = SparseConnectivityTracer.TracerSparsityDetector())
+    form_residual!;
+    sparsity = DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4))
 
 nlprob_dense = NLS.NonlinearProblem(nlfunc_dense, u0)
 nlprob_sparse = NLS.NonlinearProblem(nlfunc_sparse, u0)

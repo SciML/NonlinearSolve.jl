@@ -144,11 +144,12 @@ nothing # hide
 ```
 
 ```@example ill_conditioned_nlprob
-import SparseConnectivityTracer: TracerSparsityDetector
+import DifferentiationInterface: DenseSparsityDetector
 import SparseMatrixColorings
 
 prob_brusselator_2d_autosparse = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
+    NLS.NonlinearFunction(brusselator_2d_loop;
+        sparsity = DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4)),
     u0, p; abstol = 1e-10, reltol = 1e-10
 )
 
@@ -179,16 +180,17 @@ arguments, and it will kick out a sparse matrix with our pattern, that we can tu
 
 !!! tip
 
-    External packages like `SparseConnectivityTracer.jl` and `Symbolics.jl` provide the
-    actual implementation of sparsity detection.
+    `DifferentiationInterface.jl` (`DenseSparsityDetector`) and `Symbolics.jl`
+    (`SymbolicsSparsityDetector`) implement sparsity detection via the ADTypes interface.
 
 ```@example ill_conditioned_nlprob
-import SparseConnectivityTracer: TracerSparsityDetector
+import DifferentiationInterface: DenseSparsityDetector
 import ADTypes
 
 f! = (du, u) -> brusselator_2d_loop(du, u, p)
 du0 = similar(u0)
-jac_sparsity = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
+jac_sparsity = ADTypes.jacobian_sparsity(
+    f!, du0, u0, DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4))
 ```
 
 Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
@@ -312,28 +314,6 @@ end
         linsolve = LS.KrylovJL_GMRES(precs = algebraicmultigrid2), concrete_jac = true
     )
 );
-nothing # hide
-```
-
-## Let's compare the Sparsity Detection Methods
-
-We benchmarked the solvers before with approximate and exact sparsity detection. However,
-for the exact sparsity detection case, we left out the time it takes to perform exact
-sparsity detection. Let's compare the two by setting the sparsity detection algorithms.
-
-```@example ill_conditioned_nlprob
-import DifferentiationInterface: DenseSparsityDetector
-
-prob_brusselator_2d_exact_tracer = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
-    u0, p; abstol = 1e-10, reltol = 1e-10)
-prob_brusselator_2d_approx_di = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop;
-        sparsity = DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4)),
-    u0, p; abstol = 1e-10, reltol = 1e-10)
-
-@btime NLS.solve(prob_brusselator_2d_exact_tracer, NLS.NewtonRaphson());
-@btime NLS.solve(prob_brusselator_2d_approx_di, NLS.NewtonRaphson());
 nothing # hide
 ```
 

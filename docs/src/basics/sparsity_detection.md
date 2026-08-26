@@ -71,8 +71,9 @@ prob = NonlinearProblem(
     NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetector()), x0)  # Remember to have Symbolics.jl loaded
 # OR
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = TracerSparsityDetector()), x0) # From SparseConnectivityTracer.jl
+    NonlinearFunction(nlfunc;
+        sparsity = DenseSparsityDetector(AutoForwardDiff(); atol = 1e-5)), x0) # From DifferentiationInterface.jl
 ```
 
-Refer to the documentation of DifferentiationInterface.jl and SparseConnectivityTracer.jl
+Refer to the documentation of DifferentiationInterface.jl and ADTypes.jl
 for more information on sparsity detection algorithms.

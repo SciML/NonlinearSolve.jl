@@ -1,7 +1,6 @@
 using NonlinearSolveFirstOrder
 
-using LinearAlgebra, SparseArrays, SparseConnectivityTracer, ADTypes,
-    SparseMatrixColorings
+using LinearAlgebra, SparseArrays, ADTypes, SparseMatrixColorings
 using DifferentiationInterface: DenseSparsityDetector
 
 const N = 32
@@ -54,13 +53,6 @@ prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)
 sol = solve(prob_brusselator_2d, NewtonRaphson(); abstol = 1.0e-8)
 @test norm(sol.resid, Inf) < 1.0e-8
 
-prob_brusselator_2d_sparse = NonlinearProblem(
-    NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
-    u0, p
-)
-sol = solve(prob_brusselator_2d_sparse, NewtonRaphson(); abstol = 1.0e-8)
-@test norm(sol.resid, Inf) < 1.0e-8
-
 # AD-based sparsity detection (DenseSparsityDetector) differentiates the function with its
 # own tag. Combined with the default AutoSpecialize FunctionWrapper this used to throw
 # "No matching function wrapper was found!"; the Jacobian cache must unwrap to the raw
@@ -78,7 +70,9 @@ sol = solve(prob_brusselator_2d_dense_di, NewtonRaphson(); abstol = 1.0e-8)
 
 f! = (du, u) -> brusselator_2d_loop(du, u, p)
 du0 = similar(u0)
-jac_prototype = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
+jac_prototype = ADTypes.jacobian_sparsity(
+    f!, du0, u0, DenseSparsityDetector(AutoForwardDiff(); atol = 1.0e-4)
+)
 
 ff_iip = NonlinearFunction(brusselator_2d_loop; jac_prototype)
 prob_brusselator_2d = NonlinearProblem(ff_iip, u0, p)

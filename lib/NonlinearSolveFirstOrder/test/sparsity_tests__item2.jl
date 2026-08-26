@@ -1,7 +1,7 @@
 using NonlinearSolveFirstOrder
 
-using SparseConnectivityTracer, BandedMatrices, LinearAlgebra, SparseArrays,
-    SparseMatrixColorings
+using BandedMatrices, LinearAlgebra, SparseArrays, SparseMatrixColorings, ADTypes
+using DifferentiationInterface: DenseSparsityDetector
 
 N = 16
 p = rand(N)
@@ -34,7 +34,10 @@ for nlf in (f, f!)
 
     @testset "Unstructured Sparse AD" begin
         nlprob_autosparse = NonlinearProblem(
-            NonlinearFunction(nlf; sparsity = TracerSparsityDetector()),
+            NonlinearFunction(
+                nlf;
+                sparsity = DenseSparsityDetector(AutoForwardDiff(); atol = 1.0e-4)
+            ),
             u0, p
         )
 
