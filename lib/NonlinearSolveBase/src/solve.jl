@@ -936,6 +936,7 @@ get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 function SciMLBase.reinit!(
         cache::NonlinearSolveNoInitCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
     )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
     cache.prob = SciMLBase.remake(cache.prob; u0, p)
     cache.kwargs = merge(cache.kwargs, kwargs)
     return cache

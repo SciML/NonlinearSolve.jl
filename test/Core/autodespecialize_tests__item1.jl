@@ -1,4 +1,5 @@
 using NonlinearSolve, SciMLBase, Test
+using SymbolicIndexingInterface: parameter_values
 
 struct SolveDynamicParameters
     rate::Float64
@@ -34,3 +35,14 @@ second_sol = solve!(second_cache)
 @test SciMLBase.successful_retcode(second_sol)
 @test first_sol.u[1] ≈ sqrt(2.0)
 @test second_sol.u[1] ≈ sqrt(3.0)
+
+replacement_parameters = SolveOtherDynamicParameters(4.0, 2)
+for alg in (NewtonRaphson(), SimpleNewtonRaphson(), nothing)
+    cache = init(first_prob, alg)
+    reinit!(cache, [1.0]; p = replacement_parameters)
+    @test parameter_values(cache) isa SciMLBase.DespecializedParameters
+    @test SciMLBase.unwrap_parameters(parameter_values(cache)) === replacement_parameters
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u[1] ≈ 2.0
+end

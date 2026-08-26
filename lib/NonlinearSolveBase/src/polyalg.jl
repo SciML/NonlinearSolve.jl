@@ -179,11 +179,17 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
     return NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
 end
 
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache; kwargs...)
-    return InternalAPI.reinit!(cache; kwargs...)
+function SciMLBase.reinit!(
+        cache::NonlinearSolvePolyAlgorithmCache; p = cache.prob.p, kwargs...
+    )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
+    return InternalAPI.reinit!(cache; p, kwargs...)
 end
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, u0; kwargs...)
-    return InternalAPI.reinit!(cache; u0, kwargs...)
+function SciMLBase.reinit!(
+        cache::NonlinearSolvePolyAlgorithmCache, u0; p = cache.prob.p, kwargs...
+    )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
+    return InternalAPI.reinit!(cache; u0, p, kwargs...)
 end
 # Every RETAIN_REPROBE_INTERVAL-th retained `reinit!` whose retained subalgorithm sits
 # above `start_index` starts one solve from `start_index` again instead. Without this,

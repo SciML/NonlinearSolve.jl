@@ -723,11 +723,17 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.nsteps < cache.maxiters
 end
 
-function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; kwargs...)
-    return InternalAPI.reinit!(cache; u = get_u(cache), kwargs...)
+_prepare_reinit_parameters(p, ::Any) = p
+_prepare_reinit_parameters(p, ::SciMLBase.DespecializedParameters) =
+    SciMLBase.DespecializedParameters(p)
+
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; p = cache.p, kwargs...)
+    p = _prepare_reinit_parameters(p, cache.p)
+    return InternalAPI.reinit!(cache; u = get_u(cache), p, kwargs...)
 end
-function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
-    return InternalAPI.reinit!(cache; u0, u = get_u(cache), kwargs...)
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; p = cache.p, kwargs...)
+    p = _prepare_reinit_parameters(p, cache.p)
+    return InternalAPI.reinit!(cache; u0, u = get_u(cache), p, kwargs...)
 end
 
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
