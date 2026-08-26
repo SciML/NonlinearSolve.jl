@@ -349,6 +349,9 @@ run_tests(;
             "dampen_jacobian.jl"
         )
         @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
+        @safetestset "Non-finite objective protective break" include(
+            "nonfinite_objective.jl"
+        )
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
