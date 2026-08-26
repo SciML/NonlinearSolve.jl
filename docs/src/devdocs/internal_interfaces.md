@@ -118,6 +118,8 @@ The public stepping entry point is `CommonSolve.step!`, while the
 allocation-sensitive completion entry point is `NonlinearSolveBase.solve_cache!`.
 
 ```@docs
+NonlinearSolveBase.get_termination_cache
+NonlinearSolveBase.get_trace
 NonlinearSolveBase.solve_cache!
 ```
 
