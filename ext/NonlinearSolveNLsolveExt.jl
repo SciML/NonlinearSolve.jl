@@ -1,5 +1,6 @@
 module NonlinearSolveNLsolveExt
 
+using ADTypes: AutoFiniteDiff, AutoForwardDiff
 using LineSearches: Static
 using NLsolve: NLsolve, NonDifferentiable, OnceDifferentiable, nlsolve
 
@@ -7,6 +8,9 @@ using NonlinearSolveBase: NonlinearSolveBase, Utils, TraceMinimal, is_fw_wrapped
 using NonlinearSolve: NonlinearSolve, NLsolveJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
 using Setfield: @set
+
+_nlsolve_autodiff(::Val{:central}) = AutoFiniteDiff(; fdtype = Val(:central))
+_nlsolve_autodiff(::Val{:forward}) = AutoForwardDiff()
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::NLsolveJL, args...;
@@ -34,7 +38,8 @@ function SciMLBase.__solve(
     if alg.method in (:anderson, :broyden)
         df = NonDifferentiable(f!, Utils.safe_vec(u0), Utils.safe_vec(resid); inplace = true)
     elseif prob.f.jac === nothing && alg.autodiff isa Symbol
-        df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
+        autodiff = _nlsolve_autodiff(Val(alg.autodiff))
+        df = OnceDifferentiable(f!, u0, resid; autodiff)
     else
         autodiff = alg.autodiff isa Symbol ? nothing : alg.autodiff
         jac! = NonlinearSolveBase.construct_extension_jac(prob, alg, u0, resid; autodiff)
