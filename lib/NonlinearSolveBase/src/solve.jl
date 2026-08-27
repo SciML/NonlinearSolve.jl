@@ -506,7 +506,8 @@ end
         end
         cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
         $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
-        if SciMLBase.successful_retcode($(sol_syms[i]))
+        if SciMLBase.successful_retcode($(sol_syms[i])) &&
+                $(sol_syms[i]).retcode != ReturnCode.StalledSuccess
             stats = $(sol_syms[i]).stats
             cache.best = $(i)
             if cache.alias_u0
