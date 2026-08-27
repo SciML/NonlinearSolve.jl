@@ -142,6 +142,13 @@ include("forward_diff.jl")
 @compat(public, (get_u, get_fu, get_nsteps, get_termination_cache, get_trace))
 @compat(public, (supports_deferred_residual, refresh_residual!))
 @compat(public, (residual_only_termination_mode, trace_is_active))
+@compat(
+    public,
+    (
+        check_gradient_and_update!, default_gradient_tolerance,
+        gradient_measure_supported, gradient_stationarity_measure,
+    )
+)
 @compat(public, (NonlinearSolveNoInitCache,))
 @compat(public, (get_concrete_problem,))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
