@@ -52,3 +52,11 @@ for container in (:tuple, :vector)
         @test typeof(first_sol.original[1].prob) === typeof(second_sol.original[1].prob)
     end
 end
+
+@testset "AutoSpecialize remains unconcretized at the SCC boundary" begin
+    f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(scc_dynamic_residual!)
+    subproblem = NonlinearProblem(f, [1.0], SCCDynamicParameters(2.0))
+    problem = SciMLBase.SCCNonlinearProblem((subproblem,), (scc_explicit!,))
+    solution = solve(problem, alg)
+    @test solution.prob.probs[1].f.f === scc_dynamic_residual!
+end
