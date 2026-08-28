@@ -66,13 +66,11 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, NLsolveJL(autodiff = :central))
-@test maximum(abs, sol.resid) < 1.0e-6
+@testset "NLsolveJL autodiff = $autodiff" for autodiff in (:central, :forward)
+    sol = solve(prob, NLsolveJL(; autodiff))
+    @test maximum(abs, sol.resid) < 1.0e-6
+end
 sol = solve(prob, SIAMFANLEquationsJL())
-@test maximum(abs, sol.resid) < 1.0e-6
-
-# Test the autodiff technique
-sol = solve(prob, NLsolveJL(autodiff = :forward))
 @test maximum(abs, sol.resid) < 1.0e-6
 
 # Custom Jacobian
