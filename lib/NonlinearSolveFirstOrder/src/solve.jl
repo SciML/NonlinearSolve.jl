@@ -412,7 +412,7 @@ function InternalAPI.step!(
                     jacobian_is_stale(cache.jacobian_reuse_cache)
                 @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
                 cache.make_new_jacobian = true
-                InternalAPI.step!(cache; recompute_jacobian = true, cache.kwargs...)
+                InternalAPI.step!(cache; recompute_jacobian = true)
                 return
             elseif linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed

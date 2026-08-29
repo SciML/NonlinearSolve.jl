@@ -134,7 +134,9 @@ end
         );
         abstol = 1.0e-14,
         reltol = 1.0e-14,
-        verbose = false
+        verbose = false,
+        # Retained in `cache.kwargs`, so the retry must not splat them into `step!`.
+        alias_u0 = false
     )
 
     step!(cache)
