@@ -1,5 +1,6 @@
 import CommonSolve
-using LinearAlgebra, NonlinearSolveFirstOrder, SciMLBase
+using LinearAlgebra, LinearSolve, NonlinearSolveFirstOrder, SciMLBase
+using NonlinearSolveBase: AbsNormTerminationMode
 
 struct FailAfterFirstLineSearch end
 
@@ -148,6 +149,32 @@ end
     @test jacobian_calls[] == 2
     @test cache.retcode == ReturnCode.InternalLineSearchFailed
     @test cache.force_stop
+end
+
+@testset "deferred residual still drives the policy" begin
+    jacobian_calls = Ref(0)
+    prob = counted_problem(jacobian_calls)
+    cache = init(
+        prob, NewtonRaphson(jacobian_reuse = JacobianReuse(max_age = 2));
+        abstol = 1.0e-14, termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
+    )
+    step!(cache; evaluate_residual = false)
+    @test cache.fu_deferred
+    @test jacobian_calls[] == 1
+    step!(cache; evaluate_residual = false)
+    @test jacobian_calls[] == 1
+    step!(cache)
+    @test jacobian_calls[] == 2
+end
+
+@testset "matrix-free Jacobians disable the policy" begin
+    prob = NonlinearProblem((u, p) -> u .* u .- p, ones(2), 2.0)
+    cache = init(
+        prob, NewtonRaphson(linsolve = KrylovJL_GMRES(), jacobian_reuse = true);
+        abstol = 1.0e-10
+    )
+    @test cache.jacobian_reuse_cache === nothing
+    @test SciMLBase.successful_retcode(solve!(cache))
 end
 
 @testset "manual override and reinit" begin

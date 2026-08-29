@@ -7,7 +7,7 @@ continues to improve, subject to a maximum Jacobian age. Solvers of an unchanged
 linear system also reuse its factorization; damped and matrix-free systems retain their own
 linear-solver update behavior.
 
-The Jacobian is refreshed when either of these conditions holds:
+The Jacobian is refreshed when any of these conditions holds:
 
   - `max_age` accepted steps have used the current Jacobian;
   - the new residual norm is not strictly less than `max_residual_ratio` times the previous
@@ -21,7 +21,8 @@ The Jacobian is refreshed when either of these conditions holds:
 
 Pass `jacobian_reuse = JacobianReuse()` (or `jacobian_reuse = true`) to
 [`NewtonRaphson`](@ref), [`TrustRegion`](@ref), or another first-order solver to enable the
-policy. Jacobian reuse is disabled by default.
+policy. Jacobian reuse is disabled by default. A matrix-free Jacobian operator is bound to
+the current iterate on every step, so there is nothing to reuse and the policy is inert.
 """
 struct JacobianReuse{R <: Real}
     max_age::Int
@@ -54,14 +55,16 @@ function normalize_jacobian_reuse(reuse)
 end
 
 @concrete mutable struct JacobianReuseCache
+    policy <: JacobianReuse
     residual_norm
     age::Int
     internalnorm
 end
 
-init_jacobian_reuse_cache(::Nothing, fu, internalnorm) = nothing
-function init_jacobian_reuse_cache(::JacobianReuse, fu, internalnorm)
-    return JacobianReuseCache(internalnorm(fu), 0, internalnorm)
+init_jacobian_reuse_cache(::Nothing, J, fu, internalnorm) = nothing
+init_jacobian_reuse_cache(::JacobianReuse, ::StatefulJacobianOperator, fu, internalnorm) = nothing
+function init_jacobian_reuse_cache(policy::JacobianReuse, J, fu, internalnorm)
+    return JacobianReuseCache(policy, internalnorm(fu), 0, internalnorm)
 end
 
 reset_jacobian_reuse!(::Nothing, fu) = nothing
@@ -71,15 +74,12 @@ function reset_jacobian_reuse!(cache::JacobianReuseCache, fu)
     return nothing
 end
 
-mark_jacobian_refresh!(cache, fu) = reset_jacobian_reuse!(cache, fu)
-
 jacobian_is_stale(::Nothing) = false
 jacobian_is_stale(cache::JacobianReuseCache) = cache.age > 0
 
-function prepare_next_jacobian!(::Nothing, ::Nothing, fu)
-    return true
-end
-function prepare_next_jacobian!(cache::JacobianReuseCache, policy::JacobianReuse, fu)
+prepare_next_jacobian!(::Nothing, fu) = true
+function prepare_next_jacobian!(cache::JacobianReuseCache, fu)
+    (; policy) = cache
     residual_norm = cache.internalnorm(fu)
     cache.age += 1
     residual_improved = isfinite(residual_norm) && isfinite(cache.residual_norm) &&

@@ -292,7 +292,7 @@ function SciMLBase.__init(
         end
 
         jacobian_reuse_cache =
-            init_jacobian_reuse_cache(alg.jacobian_reuse, fu, internalnorm)
+            init_jacobian_reuse_cache(alg.jacobian_reuse, J, fu, internalnorm)
 
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du; kwargs...
@@ -330,7 +330,14 @@ function NonlinearSolveBase.refresh_residual!(cache::GeneralizedFirstOrderAlgori
     cache.fu_deferred || return nothing
     cache.fu_deferred = false
     Utils.evaluate_f!(cache, cache.u, cache.p)
+    schedule_next_jacobian!(cache)
     NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    return nothing
+end
+
+# Called once the residual at a newly accepted iterate is available.
+function schedule_next_jacobian!(cache::GeneralizedFirstOrderAlgorithmCache)
+    cache.make_new_jacobian = prepare_next_jacobian!(cache.jacobian_reuse_cache, cache.fu)
     return nothing
 end
 
@@ -355,7 +362,7 @@ function InternalAPI.step!(
             J = reused_jacobian(cache.jac_cache, cache.u)
         end
     end
-    new_jacobian && mark_jacobian_refresh!(cache.jacobian_reuse_cache, cache.fu)
+    new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
@@ -408,8 +415,7 @@ function InternalAPI.step!(
                 linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
                 α = linesearch_sol.step_size
             end
-            if linesearch_failed && !new_jacobian &&
-                    jacobian_is_stale(cache.jacobian_reuse_cache)
+            if linesearch_failed && jacobian_is_stale(cache.jacobian_reuse_cache)
                 @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
                 cache.make_new_jacobian = true
                 InternalAPI.step!(cache; recompute_jacobian = true)
@@ -470,15 +476,9 @@ function InternalAPI.step!(
                    are (:LineSearch, :TrustRegion, :None)")
         end
         if defer_residual
-            # The policy needs the residual at the new iterate, which is not available yet.
-            cache.make_new_jacobian = true
             cache.fu_deferred = true
         else
-            if accepted_step
-                cache.make_new_jacobian = prepare_next_jacobian!(
-                    cache.jacobian_reuse_cache, cache.alg.jacobian_reuse, cache.fu
-                )
-            end
+            accepted_step && schedule_next_jacobian!(cache)
             NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
         end
     else
