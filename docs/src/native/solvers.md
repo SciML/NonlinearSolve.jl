@@ -123,17 +123,17 @@ sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse()))
 ```
 
 The same policy works with `TrustRegion`, `GaussNewton`, `LevenbergMarquardt`, and
-`PseudoTransient`. Damped and matrix-free systems retain their normal linear-solver update
-behavior. Rejected trust-region steps reuse a fresh Jacobian because the nonlinear state did
-not change; a rejected step based on stale Jacobian information requests a refresh.
+`PseudoTransient`. Damped descents (`LevenbergMarquardt`, `PseudoTransient`) rebuild their
+damped system every step, so reuse saves only the Jacobian evaluation there. Matrix-free
+Jacobian operators are rebound to the current iterate on every step, so the policy has no
+effect on them. Rejected trust-region steps keep a fresh Jacobian because the nonlinear
+state did not change; a rejected step based on stale Jacobian information requests a
+refresh.
 
-The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An outer
-solver that owns a related but distinct operator should keep using the explicit
-`step!(cache; recompute_jacobian = ...)` interface. In particular,
-OrdinaryDiffEqNonlinearSolve distinguishes the ODE Jacobian `J` from
-the iteration matrix `W` assembled from `J`, the mass matrix, `γ`, and `dt`; it decides
-independently when each must be rebuilt and retains convergence information across time
-steps. Its explicit decision takes precedence over this standalone policy.
+The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An explicit
+`step!(cache; recompute_jacobian = true/false)` always takes precedence, so an outer solver
+that manages its own Jacobian lifecycle (such as OrdinaryDiffEq's nonlinear solvers) is
+unaffected.
 
 ## [Forcing Term Strategies](@id forcing_strategies)
 
