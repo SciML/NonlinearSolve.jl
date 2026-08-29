@@ -41,8 +41,7 @@ function SciMLBase.__solve(
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
-    iszero(fx) &&
-        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    solved = iszero(fx)
 
     @bb xo = copy(x)
     @bb δx = similar(x)
@@ -70,7 +69,11 @@ function SciMLBase.__solve(
 
     ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
 
-    for _ in 1:maxiters
+    retcode, iterations, x, xo, δx, δf, fprev, J⁻¹, J⁻¹δf, xᵀJ⁻¹, δJ⁻¹n,
+        δJ⁻¹ = Utils.init_loop_state(
+        ReturnCode.Default, x, xo, δx, δf, fprev, J⁻¹, J⁻¹δf, xᵀJ⁻¹, δJ⁻¹n, δJ⁻¹
+    )
+    ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
         @bb δx = J⁻¹ × vec(fprev)
         @bb δx .*= -1
 
@@ -86,8 +89,8 @@ function SciMLBase.__solve(
         @bb @. δf = fx - fprev
 
         # Termination Checks
-        solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        solved, retcode, fx, x = Utils.check_termination(tc_cache, fx, x, xo, prob)
+        fx, x = Utils.fresh(fx), Utils.fresh(x)
 
         @bb J⁻¹δf = J⁻¹ × vec(δf)
         d = dot(δx, J⁻¹δf)
@@ -102,7 +105,9 @@ function SciMLBase.__solve(
 
         @bb copyto!(xo, x)
         @bb copyto!(fprev, fx)
+        xo, fprev = Utils.fresh(xo), Utils.fresh(fprev)
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x, fx, retcode, solved)
 end

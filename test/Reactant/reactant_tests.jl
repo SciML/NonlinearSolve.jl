@@ -9,6 +9,14 @@ jac(u, p) = reshape(2 .* u, :, 1) .* Float32[1 0; 0 1]
 nonlinear_function = NonlinearFunction(f; jac)
 autodiff_nonlinear_function = NonlinearFunction(f)
 
+function solve_simple_broyden(u, p)
+    return solve(NonlinearProblem(nonlinear_function, u, p), SimpleBroyden())
+end
+
+function solve_simple_klement(u, p)
+    return solve(NonlinearProblem(nonlinear_function, u, p), SimpleKlement())
+end
+
 function solve_newton(u, p)
     return solve(NonlinearProblem(nonlinear_function, u, p), NewtonRaphson())
 end
@@ -52,6 +60,8 @@ end
 
 u0 = Reactant.to_rarray(Float32[1, 1])
 p0 = Reactant.to_rarray(Float32[2])
+compiled_broyden = Reactant.@compile solve_simple_broyden(u0, p0)
+compiled_klement = Reactant.@compile solve_simple_klement(u0, p0)
 compiled_newton = Reactant.@compile solve_newton(u0, p0)
 compiled_trust_region = Reactant.@compile solve_trust_region(u0, p0)
 compiled_default = Reactant.@compile solve_default(u0, p0)
@@ -60,6 +70,29 @@ compiled_autodiff_newton = Reactant.@compile solve_autodiff_newton(u0, p0)
 compiled_autodiff_trust_region = Reactant.@compile solve_autodiff_trust_region(u0, p0)
 compiled_autodiff_default = Reactant.@compile solve_autodiff_default(u0, p0)
 compiled_autodiff_gauss_newton = Reactant.@compile solve_autodiff_gauss_newton(u0, p0)
+
+for (compiled, Alg) in (
+        (compiled_broyden, SimpleBroyden), (compiled_klement, SimpleKlement),
+    )
+    sol = compiled(
+        Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
+    )
+    sol_far = compiled(
+        Reactant.to_rarray(Float32[10, 10]), Reactant.to_rarray(Float32[2])
+    )
+
+    @test sol.u isa Reactant.ConcreteRArray
+    @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
+    @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
+    @test sol.retcode == ReturnCode.Success
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.alg isa Alg
+    @test sol.prob === nothing
+    @test sol.stats === nothing
+
+    @test Array(sol_far.u) ≈ fill(sqrt(2.0f0), 2)
+    @test sol_far.retcode == ReturnCode.Success
+end
 
 
 # A polyalgorithm's members keep `autodiff = nothing`; the backend is chosen when each
@@ -92,6 +125,17 @@ for (compiled, name, uses_enzyme) in (
     @test sol.stats === nothing
 end
 
+sol_converged = compiled_broyden(
+    Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[1])
+)
+@test sol_converged.retcode == ReturnCode.Success
+@test Array(sol_converged.u) == Float32[1, 1]
+
+function solve_one_step(u, p)
+    return solve(
+        NonlinearProblem(nonlinear_function, u, p), SimpleKlement(); maxiters = 1
+    )
+end
 
 function solve_newton_one_step(u, p)
     return solve(
@@ -99,6 +143,11 @@ function solve_newton_one_step(u, p)
     )
 end
 
+sol_maxiters = Reactant.@jit solve_one_step(
+    Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
+)
+@test sol_maxiters.retcode == ReturnCode.MaxIters
+@test !SciMLBase.successful_retcode(sol_maxiters)
 
 sol_newton_maxiters = Reactant.@jit solve_newton_one_step(
     Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
@@ -133,6 +182,12 @@ reactant_solver_cases = (
         LevenbergMarquardt(; disable_geodesic = Val(true)),
     ),
     (:PseudoTransient, NonlinearProblem, PseudoTransient()),
+    (:SimpleNewtonRaphson, NonlinearProblem, SimpleNewtonRaphson()),
+    (:SimpleTrustRegion, NonlinearProblem, SimpleTrustRegion()),
+    (:SimpleBroyden, NonlinearProblem, SimpleBroyden()),
+    (:SimpleKlement, NonlinearProblem, SimpleKlement()),
+    (:SimpleLimitedMemoryBroyden, NonlinearProblem, SimpleLimitedMemoryBroyden()),
+    (:SimpleHalley, NonlinearProblem, SimpleHalley()),
     (
         :FastShortcutNonlinearPolyalg,
         NonlinearProblem,
@@ -151,6 +206,7 @@ reactant_solver_cases = (
         NonlinearLeastSquaresProblem,
         LevenbergMarquardt(),
     ),
+    (:SimpleGaussNewton, NonlinearLeastSquaresProblem, SimpleGaussNewton()),
 )
 
 @testset "Analytical Jacobian: $name" for (name, problem_type, alg) in reactant_solver_cases
