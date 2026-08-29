@@ -21,12 +21,13 @@ module NonlinearSolveFirstOrder
 
 using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using ReactantCore: ReactantCore
 using Reexport: @reexport
 using Setfield: @set!
 
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
-using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
+using LinearAlgebra: LinearAlgebra, Diagonal, diag, dot, diagind
 using LineSearch: BackTracking
 using StaticArraysCore: SArray
 

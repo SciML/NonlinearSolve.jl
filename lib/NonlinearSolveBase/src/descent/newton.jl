@@ -25,6 +25,7 @@ end
 
 @internal_caches NewtonDescentCache :lincache
 
+
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::NewtonDescent, J, fu, u; stats,
         shared = Val(1), pre_inverted::Val = Val(false), linsolve_kwargs = (;),

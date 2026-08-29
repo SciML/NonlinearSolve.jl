@@ -720,7 +720,7 @@ function has_time_limit(cache::AbstractNonlinearSolveCache)
 end
 
 function not_terminated(cache::AbstractNonlinearSolveCache)
-    return !cache.force_stop && cache.nsteps < cache.maxiters
+    return (!cache.force_stop) & (cache.nsteps < cache.maxiters)
 end
 
 _prepare_reinit_parameters(p, ::Any) = p
