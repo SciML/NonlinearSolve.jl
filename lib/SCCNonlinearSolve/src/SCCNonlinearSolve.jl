@@ -73,6 +73,7 @@ function scc_solve_up(
 end
 
 function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem})
+    SciMLBase.specialization(prob.f) === SciMLBase.AutoDespecialize || return prob
     return NonlinearSolveBase.get_concrete_problem(prob)
 end
 _concrete_scc_problem(prob) = prob
