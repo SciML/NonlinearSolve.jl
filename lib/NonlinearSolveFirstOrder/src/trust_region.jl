@@ -19,9 +19,10 @@ for large-scale and numerically-difficult nonlinear systems.
   - `radius_update_scheme`: the scheme used to update the trust region radius. Defaults to
     `RadiusUpdateSchemes.Simple`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
     review on trust region radius update schemes, see [yuan2015recent](@citet).
-  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
-    `nothing`/`false` to recompute after every accepted step. A rejected step computed from
-    a fresh Jacobian reuses that Jacobian at the unchanged state. Defaults to `nothing`.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
+    Jacobian reuses that Jacobian at the unchanged state.
 
 For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref)
 documentation.

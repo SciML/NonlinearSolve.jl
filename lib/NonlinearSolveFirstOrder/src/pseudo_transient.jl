@@ -32,9 +32,10 @@ are treated consistently with the DAE structure.
     `NonlinearFunction` carries a non-identity `mass_matrix`, that mass matrix is used
     automatically. A diagonal `M` (e.g. `Diagonal(...)`) uses an efficient diagonal update;
     a general sparse/dense `M` is supported as well. Intended for square DAE-derived systems.
-  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
-    `nothing`/`false` to recompute after every accepted step. The damped system is still
-    rebuilt when the pseudo-timestep changes. Defaults to `nothing`.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. The damped system is still rebuilt when the
+    pseudo-timestep changes.
 """
 function PseudoTransient(;
         concrete_jac = nothing, linesearch = missing, alpha_initial = 1.0e-3,

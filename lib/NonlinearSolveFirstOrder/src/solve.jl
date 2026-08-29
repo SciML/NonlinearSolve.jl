@@ -21,8 +21,8 @@ order of convergence.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
     before the algorithm terminates.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy for reusing the Jacobian across
-    accepted steps. `true` selects the default policy; `false` or `nothing` disables reuse.
-    Defaults to `nothing`.
+    accepted steps. `true` forces the default policy on and `false` forces it off. Defaults
+    to `nothing`, which resolves against `length(u0)` when the cache is built.
 """
 @concrete struct GeneralizedFirstOrderAlgorithm <: AbstractNonlinearSolveAlgorithm
     linesearch
@@ -354,9 +354,11 @@ function InternalAPI.step!(
     # the deferral becoming observable ignores it.
     defer_residual = !evaluate_residual &&
         NonlinearSolveBase.supports_deferred_residual(cache)
+    # A caller that pins the Jacobian owns that decision, so only a Jacobian the reuse
+    # policy chose to retain is a candidate for the stale-Jacobian retry below.
+    policy_driven = recompute_jacobian === nothing
     @static_timeit cache.timer "jacobian" begin
-        new_jacobian = recompute_jacobian === nothing ?
-            cache.make_new_jacobian : recompute_jacobian
+        new_jacobian = policy_driven ? cache.make_new_jacobian : recompute_jacobian
         if new_jacobian
             J = cache.jac_cache(cache.u)
         else
@@ -416,7 +418,8 @@ function InternalAPI.step!(
                 linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
                 α = linesearch_sol.step_size
             end
-            if linesearch_failed && jacobian_is_stale(cache.jacobian_reuse_cache)
+            if linesearch_failed && policy_driven &&
+                    jacobian_is_stale(cache.jacobian_reuse_cache)
                 @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
                 cache.make_new_jacobian = true
                 InternalAPI.step!(cache; recompute_jacobian = true)

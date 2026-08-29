@@ -1,7 +1,13 @@
 import CommonSolve
 using LinearAlgebra, LinearSolve, NonlinearSolveFirstOrder, SciMLBase
 using NonlinearSolveBase: AbsNormTerminationMode
-using NonlinearSolveFirstOrder: reuses_jacobian
+using NonlinearSolveFirstOrder: JACOBIAN_REUSE_SIZE_CUTOFF, resolve_jacobian_reuse,
+    reuses_jacobian
+
+# The default policy only reuses while the residual contracts hard, which the quadratically
+# converging problems below do only at the very end. Tests that assert a step-by-step reuse
+# pattern ask for the permissive policy instead.
+const REUSE_WHILE_IMPROVING = JacobianReuse(max_age = 10, max_residual_ratio = 1)
 
 struct FailAfterFirstLineSearch end
 
@@ -36,7 +42,7 @@ end
 @testset "configuration" begin
     default_policy = JacobianReuse()
     @test default_policy.max_age == 10
-    @test default_policy.max_residual_ratio == 1
+    @test 0 < default_policy.max_residual_ratio < 1
     @test reuses_jacobian(default_policy)
     @test !reuses_jacobian(JacobianReuse(max_age = 1))
     @test NewtonRaphson().jacobian_reuse === nothing
@@ -77,7 +83,7 @@ end
     exact_jacobian_calls = jacobian_calls[]
     jacobian_calls[] = 0
     reuse_sol = solve(
-        prob, NewtonRaphson(jacobian_reuse = true);
+        prob, NewtonRaphson(jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-10, reltol = 1.0e-10
     )
 
@@ -90,7 +96,10 @@ end
 
     jacobian_calls[] = 0
     cache = init(
-        prob, NewtonRaphson(jacobian_reuse = JacobianReuse(max_age = 2));
+        prob,
+        NewtonRaphson(
+            jacobian_reuse = JacobianReuse(max_age = 2, max_residual_ratio = 1)
+        );
         abstol = 1.0e-14, reltol = 1.0e-14
     )
     step!(cache)
@@ -119,7 +128,7 @@ end
         NonlinearFunction((u, p) -> u^3 - p; jac = (u, p) -> 3u^2), 0.5, 2.0
     )
     divergent_cache = init(
-        divergent_prob, NewtonRaphson(jacobian_reuse = true);
+        divergent_prob, NewtonRaphson(jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-14, reltol = 1.0e-14
     )
     initial_residual = abs(divergent_cache.fu)
@@ -134,7 +143,8 @@ end
     cache = init(
         prob,
         NewtonRaphson(
-            linesearch = FailAfterFirstLineSearch(), jacobian_reuse = true
+            linesearch = FailAfterFirstLineSearch(),
+            jacobian_reuse = REUSE_WHILE_IMPROVING
         );
         abstol = 1.0e-14,
         reltol = 1.0e-14,
@@ -158,7 +168,10 @@ end
     jacobian_calls = Ref(0)
     prob = counted_problem(jacobian_calls)
     cache = init(
-        prob, NewtonRaphson(jacobian_reuse = JacobianReuse(max_age = 2));
+        prob,
+        NewtonRaphson(
+            jacobian_reuse = JacobianReuse(max_age = 2, max_residual_ratio = 1)
+        );
         abstol = 1.0e-14, termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
     )
     step!(cache; evaluate_residual = false)
@@ -184,7 +197,7 @@ end
     jacobian_calls = Ref(0)
     prob = counted_problem(jacobian_calls)
     cache = init(
-        prob, NewtonRaphson(jacobian_reuse = true);
+        prob, NewtonRaphson(jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-14, reltol = 1.0e-14
     )
 
@@ -218,7 +231,7 @@ end
     jacobian_calls = Ref(0)
     prob = counted_problem(jacobian_calls)
     sol = solve(
-        prob, TrustRegion(jacobian_reuse = true);
+        prob, TrustRegion(jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-10, reltol = 1.0e-10
     )
 
@@ -230,7 +243,7 @@ end
         NonlinearFunction((u, p) -> u^3 - p; jac = (u, p) -> 3u^2), 0.5, 2.0
     )
     rejection_cache = init(
-        rejection_prob, TrustRegion(jacobian_reuse = true);
+        rejection_prob, TrustRegion(jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-14, reltol = 1.0e-14
     )
     step!(rejection_cache)
@@ -246,7 +259,7 @@ end
 
     for alg in (
             TrustRegion(step_threshold = 2),
-            TrustRegion(step_threshold = 2, jacobian_reuse = true),
+            TrustRegion(step_threshold = 2, jacobian_reuse = REUSE_WHILE_IMPROVING),
         )
         repeated_rejection_cache = init(
             rejection_prob, alg; abstol = 1.0e-14, reltol = 1.0e-14
@@ -263,7 +276,7 @@ end
 sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
 
 @testset "max_age = 1 reproduces exact Newton" begin
-    for n in (1, 4, 25)
+    for n in (1, JACOBIAN_REUSE_SIZE_CUTOFF - 1, JACOBIAN_REUSE_SIZE_CUTOFF)
         prob = sized_problem(n)
         for alg in (NewtonRaphson, TrustRegion)
             off = solve(
@@ -282,15 +295,57 @@ sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
 end
 
 @testset "the policy is a value, not a type" begin
-    # Spelling "reuse off" as `max_age = 1` is what lets a policy be picked from a runtime
-    # property of the problem without splitting the solver cache into two specializations.
-    small = sized_problem(4)
-    large = sized_problem(25)
+    # Spelling "reuse off" as `max_age = 1` is what lets the size-based default pick a
+    # policy without splitting the solver cache into two specializations.
+    small = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF - 1)
+    large = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF)
     for alg in (NewtonRaphson, TrustRegion)
         @test typeof(alg(jacobian_reuse = false)) === typeof(alg(jacobian_reuse = true))
         @test typeof(init(small, alg(); abstol = 1.0e-10)) ===
             typeof(init(large, alg(); abstol = 1.0e-10))
         @test typeof(@inferred solve(small, alg(); abstol = 1.0e-10, reltol = 1.0e-10)) ===
             typeof(@inferred solve(large, alg(); abstol = 1.0e-10, reltol = 1.0e-10))
+    end
+end
+
+@testset "size-based default" begin
+    below = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF - 1)
+    atcut = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF)
+
+    @test !reuses_jacobian(resolve_jacobian_reuse(nothing, below.u0))
+    @test reuses_jacobian(resolve_jacobian_reuse(nothing, atcut.u0))
+    # An explicit policy ignores the size entirely.
+    @test reuses_jacobian(resolve_jacobian_reuse(JacobianReuse(), below.u0))
+    @test !reuses_jacobian(resolve_jacobian_reuse(JacobianReuse(max_age = 1), atcut.u0))
+
+    for alg in (NewtonRaphson, TrustRegion, GaussNewton, PseudoTransient)
+        cache = init(below, alg(); abstol = 1.0e-10, reltol = 1.0e-10)
+        @test !reuses_jacobian(cache.jacobian_reuse_cache.policy)
+        cache = init(atcut, alg(); abstol = 1.0e-10, reltol = 1.0e-10)
+        @test reuses_jacobian(cache.jacobian_reuse_cache.policy)
+    end
+end
+
+@testset "a pinned Jacobian is never retried" begin
+    # The retry recovers from the policy's own decision to reuse. A caller that pinned the
+    # Jacobian owns that decision, whether or not the policy would also have reused, so
+    # driving `step!` by hand keeps its behavior now that the default turns reuse on.
+    for policy in (false, REUSE_WHILE_IMPROVING)
+        jacobian_calls = Ref(0)
+        prob = counted_problem(jacobian_calls)
+        cache = init(
+            prob,
+            NewtonRaphson(
+                linesearch = FailAfterFirstLineSearch(), jacobian_reuse = policy
+            );
+            abstol = 1.0e-14, reltol = 1.0e-14, verbose = false
+        )
+
+        step!(cache; recompute_jacobian = true)
+        @test jacobian_calls[] == 1
+        step!(cache; recompute_jacobian = false)
+        @test jacobian_calls[] == 1
+        @test cache.retcode == ReturnCode.InternalLineSearchFailed
+        @test cache.force_stop
     end
 end

@@ -29,8 +29,9 @@ nonlinear systems.
   - `disable_geodesic`: Disables Geodesic Acceleration if set to `Val(true)`. It provides
     a way to trade-off robustness for speed, though in most situations Geodesic Acceleration
     should not be disabled.
-  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
-    `nothing`/`false` to recompute after every accepted step. Defaults to `nothing`.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`.
 
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion`](@ref) documentations.

@@ -40,9 +40,11 @@ documentation.
     is solved at each Newton iteration. Defaults to `nothing` (fixed tolerance). See
     [Forcing Term Strategies](@ref forcing_strategies) for available options.
   - `jacobian_reuse`: controls whether a Jacobian can be reused across accepted nonlinear
-    iterations. `nothing` or `false` (the default) uses a fresh Jacobian after every accepted
-    step. `true` selects [`JacobianReuse()`](@ref), or a configured `JacobianReuse` policy can
-    be supplied directly. An unchanged concrete linear system also reuses its factorization.
+    iterations. The default, `nothing`, reuses on all but the smallest systems (see
+    [`JacobianReuse`](@ref) for the size cutoff) and uses a fresh Jacobian after every
+    accepted step below it. `false` forces exact Newton steps, `true` selects
+    [`JacobianReuse()`](@ref), and a configured `JacobianReuse` policy can be supplied
+    directly. An unchanged concrete linear system also reuses its factorization.
 
 ## Nonlinear Solvers
 
@@ -116,11 +118,18 @@ JacobianReuse
 
 Jacobian reuse is most useful when constructing or factorizing the Jacobian dominates the
 cost of evaluating the residual. It changes exact Newton iteration into a modified-Newton
-iteration, which can require more nonlinear steps, so it is opt-in. For example:
+iteration, which can require more nonlinear steps, so the default enables it only above a
+`length(u0)` cutoff documented with [`JacobianReuse`](@ref). Force the choice either way
+with:
 
 ```julia
-sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse()))
+sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse()))  # always reuse
+sol = solve(prob, NewtonRaphson(jacobian_reuse = false))            # never reuse
 ```
+
+`length(u0)` is a crude proxy for the quantity that actually decides the payoff, the cost
+of a Jacobian relative to the cost of a nonlinear step; see
+[issue #1216](https://github.com/SciML/NonlinearSolve.jl/issues/1216).
 
 The same policy works with `TrustRegion`, `GaussNewton`, `LevenbergMarquardt`, and
 `PseudoTransient`. Damped descents (`LevenbergMarquardt`, `PseudoTransient`) rebuild their

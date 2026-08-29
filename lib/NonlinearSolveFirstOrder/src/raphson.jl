@@ -26,8 +26,9 @@ for large-scale and numerically-difficult nonlinear systems.
     linear system is solved at each iteration. Use `EisenstatWalkerForcing2()` for the
     classical Eisenstat-Walker adaptive forcing strategy. Defaults to `nothing` (fixed
     tolerance from the termination condition).
-  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` for the default policy, or
-    `nothing`/`false` to recompute after every accepted step. Defaults to `nothing`.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`.
 """
 function NewtonRaphson(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,

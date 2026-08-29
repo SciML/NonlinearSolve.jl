@@ -1,5 +1,14 @@
 const DEFAULT_JACOBIAN_REUSE_MAX_AGE = 10
-const DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO = 1
+const DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO = 0.1
+
+"""
+    JACOBIAN_REUSE_SIZE_CUTOFF
+
+Smallest `length(u0)` for which the automatic [`JacobianReuse`](@ref) default enables reuse.
+Below it a Jacobian is cheap relative to an extra nonlinear iteration, so the default keeps
+exact Newton steps.
+"""
+const JACOBIAN_REUSE_SIZE_CUTOFF = 16
 
 """
     JacobianReuse(; max_age::Int = $(DEFAULT_JACOBIAN_REUSE_MAX_AGE),
@@ -7,9 +16,9 @@ const DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO = 1
 
 Reuse a Jacobian across accepted nonlinear iterations. This turns a first-order method into
 an adaptive modified-Newton method: the current Jacobian is reused while the residual norm
-continues to improve, subject to a maximum Jacobian age. Solvers of an unchanged concrete
-linear system also reuse its factorization; damped and matrix-free systems retain their own
-linear-solver update behavior.
+keeps contracting fast enough, subject to a maximum Jacobian age. Solvers of an unchanged
+concrete linear system also reuse its factorization; damped and matrix-free systems retain
+their own linear-solver update behavior.
 
 The Jacobian is refreshed when any of these conditions holds:
 
@@ -24,9 +33,10 @@ periodic refreshes. The reuse state is reset by `reinit!`; retaining a Jacobian 
 separate nonlinear solves requires the manual `step!(cache; recompute_jacobian = false)`
 interface.
 
-Pass `jacobian_reuse = JacobianReuse()` (or `jacobian_reuse = true`) to
-[`NewtonRaphson`](@ref), [`TrustRegion`](@ref), or another first-order solver to enable the
-policy. Jacobian reuse is disabled by default. A matrix-free Jacobian operator is bound to
+Pass `jacobian_reuse = JacobianReuse()` to [`NewtonRaphson`](@ref), [`TrustRegion`](@ref),
+or another first-order solver to force the policy on, and `jacobian_reuse = false` to force
+it off. The default, `jacobian_reuse = nothing`, enables reuse when
+`length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A matrix-free Jacobian operator is bound to
 the current iterate on every step, so there is nothing to reuse and the policy is inert.
 """
 struct JacobianReuse{R <: Real}
@@ -53,8 +63,8 @@ end
 
 reuses_jacobian(policy::JacobianReuse) = policy.max_age > 1
 
-# `nothing` defers the choice to `resolve_jacobian_reuse` at cache construction. Everything
-# else is fixed by the algorithm.
+# `nothing` defers the choice to `resolve_jacobian_reuse` at cache construction, where
+# `length(u0)` is known. Everything else is fixed by the algorithm.
 normalize_jacobian_reuse(::Nothing) = nothing
 normalize_jacobian_reuse(reuse::JacobianReuse) = reuse
 function normalize_jacobian_reuse(reuse::Bool)
@@ -71,10 +81,14 @@ function normalize_jacobian_reuse(reuse)
 end
 
 resolve_jacobian_reuse(policy::JacobianReuse, u) = policy
-# Disabling reuse is a `max_age` of 1 rather than a type of its own, so a policy chosen from
-# a runtime property of `u` would vary only in an `Int` field and could not split the solver
-# cache into two specializations.
-resolve_jacobian_reuse(::Nothing, u) = JacobianReuse(1, DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO)
+function resolve_jacobian_reuse(::Nothing, u)
+    # Only `max_age` varies, so the resolved policy has one concrete type and a runtime
+    # size check cannot destabilize the solver cache.
+    return JacobianReuse(
+        length(u) >= JACOBIAN_REUSE_SIZE_CUTOFF ? DEFAULT_JACOBIAN_REUSE_MAX_AGE : 1,
+        DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO
+    )
+end
 
 @concrete mutable struct JacobianReuseCache
     policy <: JacobianReuse
