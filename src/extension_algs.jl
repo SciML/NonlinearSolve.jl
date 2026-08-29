@@ -160,17 +160,19 @@ end
 
 """
     NLsolveJL(;
-        method = :trust_region, autodiff = :central, linesearch = Static(),
-        linsolve = (x, A, b) -> copyto!(x, A\\b), factor = one(Float64), autoscale = true,
-        m = 10, beta = one(Float64)
+        method = :trust_region, autodiff = AutoFiniteDiff(; fdtype = Val(:central)),
+        linesearch = Static(), linsolve = (x, A, b) -> copyto!(x, A\\b),
+        factor = one(Float64), autoscale = true, m = 10, beta = one(Float64)
     )
 
 ### Keyword Arguments
 
   - `method`: the choice of method for solving the nonlinear system.
-  - `autodiff`: the choice of method for generating the Jacobian. Defaults to `:central` or
-    central differencing via FiniteDiff.jl. The other choices are `:forward` or `ADTypes`
-    similar to other solvers in NonlinearSolve.
+  - `autodiff`: the choice of method for generating the Jacobian, given as an
+    [ADTypes.jl](https://github.com/SciML/ADTypes.jl) backend like the other solvers in
+    NonlinearSolve. Defaults to `AutoFiniteDiff(; fdtype = Val(:central))`, central
+    differencing via FiniteDiff.jl. The Symbols `:central` and `:forward` are deprecated
+    aliases for `AutoFiniteDiff(; fdtype = Val(:central))` and `AutoForwardDiff()`.
   - `linesearch`: the line search method to be used within the solver method. The choices
     are line search types from
     [LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl).
@@ -221,20 +223,36 @@ For more information on these arguments, consult the
 end
 
 function NLsolveJL(;
-        method = :trust_region, autodiff = :central, linesearch = missing, beta = 1.0,
+        method = :trust_region, autodiff = ADTypes.AutoFiniteDiff(; fdtype = Val(:central)),
+        linesearch = missing, beta = 1.0,
         linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0, autoscale = true, m = 10
     )
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing
         error("`NLsolveJL` requires `NLsolve.jl` to be loaded")
     end
 
-    if autodiff isa Symbol && autodiff !== :central && autodiff !== :forward
+    return NLsolveJL(
+        method, nlsolvejl_autodiff(autodiff), linesearch, linsolve, factor, autoscale,
+        m, beta, :NLsolveJL
+    )
+end
+
+nlsolvejl_autodiff(autodiff) = autodiff
+function nlsolvejl_autodiff(autodiff::Symbol)
+    if autodiff === :central
+        suggestion = "AutoFiniteDiff(; fdtype = Val(:central))"
+        replacement = ADTypes.AutoFiniteDiff(; fdtype = Val(:central))
+    elseif autodiff === :forward
+        suggestion = "AutoForwardDiff()"
+        replacement = ADTypes.AutoForwardDiff()
+    else
         error("`autodiff` must be `:central` or `:forward`.")
     end
-
-    return NLsolveJL(
-        method, autodiff, linesearch, linsolve, factor, autoscale, m, beta, :NLsolveJL
+    Base.depwarn(
+        "`NLsolveJL(autodiff = :$(autodiff))` is deprecated, pass `$(suggestion)` instead.",
+        :NLsolveJL
     )
+    return replacement
 end
 
 """
