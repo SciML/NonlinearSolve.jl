@@ -1,5 +1,9 @@
+const DEFAULT_JACOBIAN_REUSE_MAX_AGE = 10
+const DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO = 1
+
 """
-    JacobianReuse(; max_age::Int = 10, max_residual_ratio::Real = 1)
+    JacobianReuse(; max_age::Int = $(DEFAULT_JACOBIAN_REUSE_MAX_AGE),
+        max_residual_ratio::Real = $(DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO))
 
 Reuse a Jacobian across accepted nonlinear iterations. This turns a first-order method into
 an adaptive modified-Newton method: the current Jacobian is reused while the residual norm
@@ -14,10 +18,11 @@ The Jacobian is refreshed when any of these conditions holds:
     residual norm;
   - a linear solve or globalization step fails with stale Jacobian information.
 
-`max_age = 1` recomputes the Jacobian after every accepted step. Setting
-`max_residual_ratio = Inf` selects purely periodic refreshes. The reuse state is reset by
-`reinit!`; retaining a Jacobian across separate nonlinear solves requires the manual
-`step!(cache; recompute_jacobian = false)` interface.
+`max_age = 1` disables reuse entirely and recovers exact Newton steps; it is how
+`jacobian_reuse = false` is spelled. Setting `max_residual_ratio = Inf` selects purely
+periodic refreshes. The reuse state is reset by `reinit!`; retaining a Jacobian across
+separate nonlinear solves requires the manual `step!(cache; recompute_jacobian = false)`
+interface.
 
 Pass `jacobian_reuse = JacobianReuse()` (or `jacobian_reuse = true`) to
 [`NewtonRaphson`](@ref), [`TrustRegion`](@ref), or another first-order solver to enable the
@@ -39,13 +44,24 @@ struct JacobianReuse{R <: Real}
     end
 end
 
-function JacobianReuse(; max_age::Int = 10, max_residual_ratio::Real = 1)
+function JacobianReuse(;
+        max_age::Int = DEFAULT_JACOBIAN_REUSE_MAX_AGE,
+        max_residual_ratio::Real = DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO
+    )
     return JacobianReuse(max_age, max_residual_ratio)
 end
 
+reuses_jacobian(policy::JacobianReuse) = policy.max_age > 1
+
+# `nothing` defers the choice to `resolve_jacobian_reuse` at cache construction. Everything
+# else is fixed by the algorithm.
 normalize_jacobian_reuse(::Nothing) = nothing
 normalize_jacobian_reuse(reuse::JacobianReuse) = reuse
-normalize_jacobian_reuse(reuse::Bool) = reuse ? JacobianReuse() : nothing
+function normalize_jacobian_reuse(reuse::Bool)
+    return JacobianReuse(
+        reuse ? DEFAULT_JACOBIAN_REUSE_MAX_AGE : 1, DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO
+    )
+end
 function normalize_jacobian_reuse(reuse)
     throw(
         ArgumentError(
@@ -54,6 +70,12 @@ function normalize_jacobian_reuse(reuse)
     )
 end
 
+resolve_jacobian_reuse(policy::JacobianReuse, u) = policy
+# Disabling reuse is a `max_age` of 1 rather than a type of its own, so a policy chosen from
+# a runtime property of `u` would vary only in an `Int` field and could not split the solver
+# cache into two specializations.
+resolve_jacobian_reuse(::Nothing, u) = JacobianReuse(1, DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO)
+
 @concrete mutable struct JacobianReuseCache
     policy <: JacobianReuse
     residual_norm
@@ -61,7 +83,6 @@ end
     internalnorm
 end
 
-init_jacobian_reuse_cache(::Nothing, J, fu, internalnorm) = nothing
 init_jacobian_reuse_cache(::JacobianReuse, ::StatefulJacobianOperator, fu, internalnorm) = nothing
 function init_jacobian_reuse_cache(policy::JacobianReuse, J, fu, internalnorm)
     return JacobianReuseCache(policy, internalnorm(fu), 0, internalnorm)
@@ -69,17 +90,21 @@ end
 
 reset_jacobian_reuse!(::Nothing, fu) = nothing
 function reset_jacobian_reuse!(cache::JacobianReuseCache, fu)
-    cache.residual_norm = cache.internalnorm(fu)
     cache.age = 0
+    reuses_jacobian(cache.policy) || return nothing
+    cache.residual_norm = cache.internalnorm(fu)
     return nothing
 end
 
 jacobian_is_stale(::Nothing) = false
-jacobian_is_stale(cache::JacobianReuseCache) = cache.age > 0
+function jacobian_is_stale(cache::JacobianReuseCache)
+    return reuses_jacobian(cache.policy) && cache.age > 0
+end
 
 prepare_next_jacobian!(::Nothing, fu) = true
 function prepare_next_jacobian!(cache::JacobianReuseCache, fu)
     (; policy) = cache
+    reuses_jacobian(policy) || return true
     residual_norm = cache.internalnorm(fu)
     cache.age += 1
     residual_improved = isfinite(residual_norm) && isfinite(cache.residual_norm) &&

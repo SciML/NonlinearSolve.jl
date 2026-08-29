@@ -1,6 +1,7 @@
 import CommonSolve
 using LinearAlgebra, LinearSolve, NonlinearSolveFirstOrder, SciMLBase
 using NonlinearSolveBase: AbsNormTerminationMode
+using NonlinearSolveFirstOrder: reuses_jacobian
 
 struct FailAfterFirstLineSearch end
 
@@ -36,8 +37,10 @@ end
     default_policy = JacobianReuse()
     @test default_policy.max_age == 10
     @test default_policy.max_residual_ratio == 1
+    @test reuses_jacobian(default_policy)
+    @test !reuses_jacobian(JacobianReuse(max_age = 1))
     @test NewtonRaphson().jacobian_reuse === nothing
-    @test NewtonRaphson(jacobian_reuse = false).jacobian_reuse === nothing
+    @test NewtonRaphson(jacobian_reuse = false).jacobian_reuse == JacobianReuse(max_age = 1)
     @test NewtonRaphson(jacobian_reuse = true).jacobian_reuse isa JacobianReuse
     @test NewtonRaphson(jacobian_reuse = default_policy).jacobian_reuse === default_policy
 
@@ -254,5 +257,40 @@ end
         @test repeated_rejection_cache.u == initial_state
         @test !repeated_rejection_cache.make_new_jacobian
         @test repeated_rejection_cache.stats.njacs == 1
+    end
+end
+
+sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
+
+@testset "max_age = 1 reproduces exact Newton" begin
+    for n in (1, 4, 25)
+        prob = sized_problem(n)
+        for alg in (NewtonRaphson, TrustRegion)
+            off = solve(
+                prob, alg(jacobian_reuse = false); abstol = 1.0e-10, reltol = 1.0e-10
+            )
+            aged = solve(
+                prob, alg(jacobian_reuse = JacobianReuse(max_age = 1));
+                abstol = 1.0e-10, reltol = 1.0e-10
+            )
+            @test off.stats.njacs == aged.stats.njacs
+            @test off.stats.nfactors == aged.stats.nfactors
+            @test off.stats.nsteps == aged.stats.nsteps
+            @test off.u == aged.u
+        end
+    end
+end
+
+@testset "the policy is a value, not a type" begin
+    # Spelling "reuse off" as `max_age = 1` is what lets a policy be picked from a runtime
+    # property of the problem without splitting the solver cache into two specializations.
+    small = sized_problem(4)
+    large = sized_problem(25)
+    for alg in (NewtonRaphson, TrustRegion)
+        @test typeof(alg(jacobian_reuse = false)) === typeof(alg(jacobian_reuse = true))
+        @test typeof(init(small, alg(); abstol = 1.0e-10)) ===
+            typeof(init(large, alg(); abstol = 1.0e-10))
+        @test typeof(@inferred solve(small, alg(); abstol = 1.0e-10, reltol = 1.0e-10)) ===
+            typeof(@inferred solve(large, alg(); abstol = 1.0e-10, reltol = 1.0e-10))
     end
 end
