@@ -75,9 +75,8 @@ function InternalAPI.init(
         @assert pre_inverted isa Val{false} "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
     @bb δu = zero(u)
-    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = zero(u)
-    end
+    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing :
+        collect(ntuple(_ -> zero(u), Utils.unwrap_val(shared) - 1))
 
     normal_form_damping = returns_norm_form_damping(alg.damping_fn)
     normal_form_linsolve = needs_square_A(alg.linsolve, u)
@@ -276,7 +275,7 @@ function InternalAPI.solve!(
                     copyto!(@view(cache.J[1:size(J, 1), :]), J)
                     cache.J[(size(J, 1) + 1):end, :] .= sqrt.(D)
                 else
-                    cache.J = Utils.faster_vcat(J, sqrt.(D))
+                    cache.J = Utils.faster_vcat(J, sqrt_damping(D))
                 end
             end
             A = cache.J
@@ -339,6 +338,10 @@ function InternalAPI.solve!(
     set_du!(cache, δu, idx)
     return DescentResult(; δu)
 end
+
+sqrt_damping(D::Number) = sqrt(D)
+sqrt_damping(D::Diagonal) = Diagonal(sqrt.(D.diag))
+sqrt_damping(D) = sqrt.(D)
 
 dampen_jacobian!!(::Any, J::Union{AbstractSciMLOperator, Number}, D) = J + D
 

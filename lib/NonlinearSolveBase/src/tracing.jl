@@ -236,6 +236,10 @@ function init_nonlinearsolve_trace(
     J = uses_jac_inverse isa Val{true} ?
         (trace_level.trace_mode isa Val{:minimal} ? J : LinearAlgebra.pinv(J)) : J
     history = init_trace_history(prob, show_trace, trace_level, store_trace, u, fu, J, δu)
+    # Under Reactant the problem's arrays are traced and must not be carried by the trace:
+    # Reactant does not register them as loop-carried values, so `prob` would only be used
+    # for its type, and `nothing` selects the same code paths.
+    prob = ReactantCore.within_compile() ? nothing : prob
     return NonlinearSolveTrace(show_trace, store_trace, history, trace_level, prob)
 end
 

@@ -83,7 +83,7 @@ using DifferentiationInterface.jl and multiply by `v`.
 
 See also [`VecJacOperator`](@ref) and [`JacVecOperator`](@ref).
 """
-@concrete struct JacobianOperator{iip, T <: Real} <: AbstractJacobianOperator{T}
+@concrete struct JacobianOperator{iip, T <: Number} <: AbstractJacobianOperator{T}
     mode <: AbstractMode
 
     jvp_op

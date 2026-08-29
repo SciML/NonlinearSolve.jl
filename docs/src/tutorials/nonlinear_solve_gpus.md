@@ -9,7 +9,7 @@ NonlinearSolve.jl supports GPU acceleration on a wide array of devices, such as:
 | Intel            | OneAPI              | [OneAPI.jl](https://github.com/JuliaGPU/oneAPI.jl) | `oneAPI.oneAPIBackend()` |
 | Apple (M-Series) | Metal               | [Metal.jl](https://github.com/JuliaGPU/Metal.jl)   | `Metal.MetalBackend()`   |
 
-To use NonlinearSolve.jl on GPUs, there are two distinctly different approaches:
+To use NonlinearSolve.jl on GPUs, there are three distinctly different approaches:
 
  1. You can build a `NonlinearProblem` / `NonlinearLeastSquaresProblem` where the elements
     of the problem, i.e. `u0` and `p`, are defined on GPUs. This will make the evaluations
@@ -20,6 +20,9 @@ To use NonlinearSolve.jl on GPUs, there are two distinctly different approaches:
     system over a large number of inputs. This is useful for cases where you have a small
     `NonlinearProblem` / `NonlinearLeastSquaresProblem` which you want to solve over a large
     number of initial guesses or parameters.
+ 3. You can compile a complete `solve` call with
+    [Reactant.jl](https://enzymead.github.io/Reactant.jl/stable/). This keeps the nonlinear
+    iterations inside one compiled program and lets their count depend on runtime inputs.
 
 For a deeper dive into the computational difference between these techniques and why it
 leads to different pros/cons, see the
@@ -28,7 +31,7 @@ In particular, the second form is unique to NonlinearSolve.jl and offers orders 
 performance improvements over libraries in Jax and PyTorch which are restricted to only
 using the first form.
 
-In this tutorial we will highlight both use cases in separate parts.
+In this tutorial we will highlight these use cases in separate parts.
 
 !!! note
     
@@ -66,6 +69,46 @@ Notice a few things here. One, nothing is different except the input array types
 notice that `cu` arrays automatically default to `Float32` precision. Since NonlinearSolve.jl
 respects the user's chosen types, this changes NonlinearSolve.jl to use `Float32` precision,
 and thus the tolerances are adjusted accordingly.
+
+## Whole-solve compilation with Reactant.jl
+
+Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs:
+
+```julia
+import NonlinearSolve as NLS
+import Reactant
+
+f(u, p) = u .* u .- p
+
+function reactant_solve(u0, p)
+    prob = NLS.NonlinearProblem(f, u0, p)
+    return NLS.solve(prob, NLS.SimpleBroyden())
+end
+
+u0 = Reactant.to_rarray(Float32[1, 1])
+p = Reactant.to_rarray(Float32[2])
+sol = Reactant.@jit reactant_solve(u0, p)
+```
+
+The nonlinear iteration uses a traced `while` operation. The array shapes are fixed for a
+compiled executable, but convergence and the number of quasi-Newton steps are determined at
+runtime. Use `Reactant.@compile` instead of `Reactant.@jit` when the executable will be
+called repeatedly with new initial values or parameters of the same shape.
+
+Algorithms follow their normal `solve` dispatch during Reactant compilation. There is no
+separate allowlist or fallback algorithm: unsupported operations report their errors from
+Reactant or the package that implements them. `SimpleBroyden` and `SimpleKlement` are tested
+with square, out-of-place `NonlinearProblem`s. Jacobian-based algorithms additionally depend
+on Reactant support in their configured differentiation backend; NonlinearSolve.jl does not
+provide Reactant-specific differentiation overloads.
+
+The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
+arrays, and `retcode` is a device scalar (`ConcreteRNumber{ReturnCode.T}`) that can be
+compared against `ReturnCode` values or converted with `ReturnCode.T(sol.retcode)`;
+`SciMLBase.successful_retcode(sol)` works as usual. `stats` is `nothing`, since `NLStats`
+counts host evaluations, which inside a compiled program only happen once while tracing,
+and `prob` is `nothing`, since a problem's keyword arguments cannot be returned from a
+compiled program.
 
 ## GPU Acceleration over Large Parameter Searches using KernelAbstractions.jl
 
