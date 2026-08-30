@@ -43,8 +43,12 @@ run_qa(
         #     nlls_generate_vjp_function, nodual_value, nonlinearsolve_∂f_∂p,
         #     nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape, safe_similar,
         #     sparse_or_structured_prototype, structural_sparse
+        # ReactantCore: `is_traced` (the predicate behind `@trace`; not declared public
+        #   upstream, and it cannot be reproduced here because Reactant defines its
+        #   methods for the traced types)
         all_qualified_accesses_are_public = (;
             ignore = (
+                :is_traced,
                 :ChainRulesOriginator, :DAEInitializationAlgorithm, :EnzymeOriginator,
                 :NonNumberEltypeError, :OverrideInitData, :Void,
                 :get_root_indp, :has_colorvec, :isdualtype,

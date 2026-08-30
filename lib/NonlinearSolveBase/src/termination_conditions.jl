@@ -47,7 +47,7 @@ residual_only_termination_mode(::AbsNormTerminationMode) = true
 # Core Implementation
 @concrete mutable struct NonlinearTerminationModeCache{uType, T}
     u::uType
-    retcode::ReturnCode.T
+    retcode
     abstol::T
     reltol::T
     best_objective_value::T
@@ -172,7 +172,7 @@ function CommonSolve.init(
 
     leastsq = typeof(prob) <: NonlinearLeastSquaresProblem
     return NonlinearTerminationModeCache(
-        u_unaliased, ReturnCode.Default, abstol, reltol, best_value, mode,
+        u_unaliased, maybe_traced(ReturnCode.Default), abstol, reltol, best_value, mode,
         initial_objective, objectives_trace, 0, saved_value_prototype,
         u0_norm, step_norm_trace, max_stalled_steps, u_diff_cache, leastsq
     )
@@ -193,7 +193,7 @@ function SciMLBase.reinit!(
             cache.u .= u
         end
     end
-    cache.retcode = ReturnCode.Default
+    cache.retcode = maybe_traced(ReturnCode.Default)
 
     cache.abstol = get_tolerance(u, abstol, T)
     cache.reltol = get_tolerance(u, reltol, T)
@@ -233,11 +233,9 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
     )
-    if check_convergence(mode, du, u, uprev, abstol, reltol)
-        cache.retcode = ReturnCode.Success
-        return true
-    end
-    return false
+    converged = check_convergence(mode, du, u, uprev, abstol, reltol)
+    cache.retcode = ifelse(converged, ReturnCode.Success, cache.retcode)
+    return converged
 end
 
 function (cache::NonlinearTerminationModeCache)(
@@ -385,10 +383,13 @@ end
 function default_termination_mode(
         ::Union{ImmutableNonlinearProblem, NonlinearProblem}, ::Val{:regular}
     )
+    ReactantCore.within_compile() &&
+        return AbsNormTerminationMode(Base.Fix1(maximum, abs))
     return AbsNormSafeBestTerminationMode(Base.Fix1(maximum, abs); max_stalled_steps = 32)
 end
 
 function default_termination_mode(::NonlinearLeastSquaresProblem, ::Val{:regular})
+    ReactantCore.within_compile() && return AbsNormTerminationMode(Base.Fix2(norm, 2))
     return AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32)
 end
 
@@ -418,11 +419,14 @@ function check_and_update!(cache, fu, u, uprev)
 end
 
 function check_and_update!(tc_cache, cache, fu, u, uprev, mode)
-    return if tc_cache(fu, u, uprev)
-        cache.retcode = tc_cache.retcode
+    converged = tc_cache(fu, u, uprev)
+    cache.retcode = ifelse(converged, tc_cache.retcode, cache.retcode)
+    cache.force_stop = converged | cache.force_stop
+    # Only the best-iterate modes have anything to copy back; they are not traced.
+    if mode isa AbstractSafeBestNonlinearTerminationMode && converged
         update_from_termination_cache!(tc_cache, cache, mode, u)
-        cache.force_stop = true
     end
+    return nothing
 end
 
 function update_from_termination_cache!(tc_cache, cache, u = get_u(cache))

@@ -20,7 +20,22 @@ end
     stats::NLStats
 end
 
+@concrete mutable struct ReactantLinearSolveCache <: AbstractLinearSolverCache
+    A
+    b
+    u
+    p
+    linsolve
+    kwargs
+    stats::NLStats
+end
+
 SciMLBase.reinit!(::NativeJLLinearSolveCache; kwargs...) = nothing
+
+function _without_linear_tolerances(kwargs::NamedTuple)
+    names = filter(name -> name !== :abstol && name !== :reltol, keys(kwargs))
+    return NamedTuple{names}(map(name -> kwargs[name], names))
+end
 
 """
     construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
@@ -76,6 +91,9 @@ function construct_linear_solver(
     )
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
+    elseif ReactantCore.within_compile()
+        reactant_kwargs = _without_linear_tolerances((; kwargs...))
+        return ReactantLinearSolveCache(A, b, u, p, linsolve, reactant_kwargs, stats)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
@@ -115,6 +133,28 @@ function construct_linear_solver(
     end
     lincache = init(linprob, linsolve; alias, kwargs...)
     return LinearSolveJLCache(lincache, linsolve, stats)
+end
+
+function (cache::ReactantLinearSolveCache)(;
+        A = nothing, b = nothing, linu = nothing, reuse_A_if_factorization = false,
+        kwargs...
+    )
+    cache.stats.nsolve += 1
+    A === nothing || (cache.A = A)
+    b === nothing || (cache.b = b)
+    linu === nothing || (cache.u = linu)
+
+    linprob = LinearProblem(
+        cache.A, cache.b, LinearSolveParameters(cache.u, cache.p); u0 = cache.u
+    )
+    solve_kwargs = merge(cache.kwargs, (; kwargs...))
+    linres = cache.linsolve === nothing ?
+        SciMLBase.solve(linprob; solve_kwargs...) :
+        SciMLBase.solve(linprob, cache.linsolve; solve_kwargs...)
+    cache.u = linres.u
+    return LinearSolveResult(
+        ; u = linres.u, success = linres.retcode !== ReturnCode.Failure
+    )
 end
 
 """

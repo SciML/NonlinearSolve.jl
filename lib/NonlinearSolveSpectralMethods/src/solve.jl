@@ -56,7 +56,7 @@ NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
 
     # Counters
     stats::NLStats
-    nsteps::Int
+    nsteps
     maxiters::Int
     maxtime
 
@@ -67,8 +67,8 @@ NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
     # Termination & Tracking
     termination_cache
     trace
-    retcode::ReturnCode.T
-    force_stop::Bool
+    retcode
+    force_stop
     kwargs
 
     initializealg
@@ -114,11 +114,11 @@ function InternalAPI.reinit_self!(
     )
 
     InternalAPI.reinit!(cache.stats)
-    cache.nsteps = 0
+    cache.nsteps = NonlinearSolveBase.maybe_traced(0)
     cache.maxiters = maxiters
     cache.maxtime = maxtime
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
+    cache.force_stop = NonlinearSolveBase.maybe_traced(false)
+    cache.retcode = NonlinearSolveBase.maybe_traced(ReturnCode.Default)
     return
 end
 
@@ -189,8 +189,9 @@ function SciMLBase.__init(
         cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),
-            linesearch_cache, stats, 0, maxiters, maxtime, timer, 0.0,
-            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg, verbose
+            linesearch_cache, stats, NonlinearSolveBase.maybe_traced(0), maxiters, maxtime,
+            timer, 0.0, tc_cache, trace, NonlinearSolveBase.maybe_traced(ReturnCode.Default),
+            NonlinearSolveBase.maybe_traced(false), kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
