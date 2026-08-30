@@ -353,6 +353,10 @@ run_tests(;
             "nonfinite_objective.jl"
         )
 
+        @safetestset "enable_timer_outputs precompiles and times (#1224)" include(
+            "timer_outputs_enabled.jl"
+        )
+
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"
         )
