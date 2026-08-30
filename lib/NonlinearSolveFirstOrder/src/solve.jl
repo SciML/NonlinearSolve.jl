@@ -98,6 +98,24 @@ end
 
 NonlinearSolveBase.supports_postcondition(::GeneralizedFirstOrderAlgorithm) = true
 
+_trust_region_retcode!(cache, J, fu, u) = ReturnCode.Default
+
+function _validate_native_bounds(prob, alg, u)
+    SciMLBase.allowsbounds(alg) || return nothing
+    lb = hasproperty(prob, :lb) ? prob.lb : nothing
+    ub = hasproperty(prob, :ub) ? prob.ub : nothing
+    if lb !== nothing && !all(u .>= lb)
+        throw(ArgumentError("The initial guess must satisfy the lower bounds."))
+    end
+    if ub !== nothing && !all(u .<= ub)
+        throw(ArgumentError("The initial guess must satisfy the upper bounds."))
+    end
+    if lb !== nothing && ub !== nothing && !all(lb .<= ub)
+        throw(ArgumentError("Each lower bound must be less than or equal to its upper bound."))
+    end
+    return nothing
+end
+
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
     return SciMLBase.get_du(cache.descent_cache)
 end
@@ -111,6 +129,7 @@ function InternalAPI.reinit_self!(
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
     )
+    _validate_native_bounds(cache.prob, cache.alg, u0)
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
@@ -191,6 +210,7 @@ function SciMLBase.__init(
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        _validate_native_bounds(prob, alg, u)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
 
@@ -241,7 +261,7 @@ function SciMLBase.__init(
             trustregion_cache = InternalAPI.init(
                 _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
                 vjp_autodiff = _tr_vjp_ad, jvp_autodiff = _tr_jvp_ad,
-                stats, internalnorm, kwargs...
+                stats, internalnorm, abstol, reltol, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
@@ -342,6 +362,15 @@ function InternalAPI.step!(
             J = reused_jacobian(cache.jac_cache, cache.u)
             new_jacobian = false
         end
+    end
+
+    trust_region_retcode = _trust_region_retcode!(
+        cache.trustregion_cache, J, cache.fu, cache.u
+    )
+    if trust_region_retcode != ReturnCode.Default
+        cache.retcode = trust_region_retcode
+        cache.force_stop = true
+        return
     end
 
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)

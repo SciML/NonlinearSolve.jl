@@ -121,8 +121,8 @@ include("forward_diff.jl")
         )
     )
 
-    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+    nlp_algs = [NewtonRaphson(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
         @sync begin
@@ -142,7 +142,7 @@ end
 @reexport using SciMLBase, NonlinearSolveBase
 
 export NewtonRaphson, PseudoTransient
-export GaussNewton, LevenbergMarquardt, TrustRegion
+export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion
 
 export EisenstatWalkerForcing2
 
