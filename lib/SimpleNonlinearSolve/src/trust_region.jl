@@ -112,8 +112,8 @@ function SciMLBase.__solve(
     )
 
     # Set default trust region radius if not specified by user.
-    iszero(Δₘₐₓ) && (Δₘₐₓ = max(L2_NORM(fx), maximum(x) - minimum(x)))
-    if iszero(Δ)
+    Δₘₐₓ = ifelse(iszero(Δₘₐₓ), max(L2_NORM(fx), maximum(x) - minimum(x)), Δₘₐₓ)
+    if iszero(alg.initial_trust_radius)
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             norm_x = L2_NORM(x)
             Δ = T(ifelse(norm_x > 0, norm_x, 1))
@@ -136,66 +136,64 @@ function SciMLBase.__solve(
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
     )
-    solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+    retcode, iterations, x, xo, fx, J, H, g, Hδ, δsd, δN_δsd, δN = Utils.init_loop_state(
+        retcode, x, xo, fx, J, H, g, Hδ, δsd, δN_δsd, δN
+    )
+    dogleg_cache = (; δsd, δN_δsd, δN)
+    fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
+    shrink_counter = NonlinearSolveBase.maybe_traced(shrink_counter)
 
-    for _ in 1:maxiters
+    ReactantCore.@trace track_numbers = false while (!solved) &
+            (iterations < maxiters) & (shrink_counter ≤ max_shrink_times)
         # Solve the trust region subproblem.
         δ = dogleg_method!!(dogleg_cache, J, fx, g, Δ)
         @bb @. x = xo + δ
-
         fx = NLBUtils.evaluate_f!!(prob, fx, x)
-
         fₖ₊₁ = L2_NORM(fx)^2 / T(2)
 
         # Compute the ratio of the actual to predicted reduction.
         @bb Hδ = H × vec(δ)
         r = (fₖ₊₁ - fₖ) / (dot(δ, g) + (dot(δ, Hδ) / T(2)))
 
-        # Update the trust region radius.
-        if r ≥ η₂
-            shrink_counter = 0
-        else
-            Δ = t₁ * Δ
-            shrink_counter += 1
-            shrink_counter > max_shrink_times && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded
-            )
+        shrink = r < η₂
+        shrink_counter = ifelse(shrink, shrink_counter + 1, 0)
+        Δ = ifelse(shrink, t₁ * Δ, Δ)
+
+        # The step is only accepted, and termination only checked, for a sufficient
+        # reduction; the candidate quantities are always formed and then selected.
+        accepted = r ≥ η₁
+        candidate_solved, retcode, fx_sol,
+            x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
+        fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
+        solved = accepted & candidate_solved
+        @bb @. xo = ifelse(accepted, x, xo)
+        J_candidate = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
+        @bb @. J = ifelse(accepted, J_candidate, J)
+        if !NLBUtils.unwrap_val(alg.nlsolve_update_rule)
+            expand = accepted & (r > η₃)
+            Δ = ifelse(expand, min(t₂ * Δ, Δₘₐₓ), Δ)
         end
-
-        if r ≥ η₁
-            # Termination Checks
-            solved, retcode, fx_sol,
-                x_sol = Utils.check_termination(
-                tc_cache, fx, x, xo, prob
-            )
-            solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
-
-            # Take the step.
-            @bb copyto!(xo, x)
-
-            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
-            fx = NLBUtils.evaluate_f!!(prob, fx, x)
-
-            # Update the trust region radius.
-            if !NLBUtils.unwrap_val(alg.nlsolve_update_rule) && r > η₃
-                Δ = min(t₂ * Δ, Δₘₐₓ)
-            end
-            fₖ = fₖ₊₁
-
-            @bb H = transpose(J) × J
-            @bb g = transpose(J) × vec(fx)
-        end
+        fₖ = ifelse(accepted, fₖ₊₁, fₖ)
+        H_candidate = transpose(J) * J
+        g_candidate = NLBUtils.restructure(x, transpose(J) * NLBUtils.safe_vec(fx))
+        @bb @. H = ifelse(accepted, H_candidate, H)
+        @bb @. g = ifelse(accepted, g_candidate, g)
 
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
-            if r > η₃
-                Δ = t₂ * L2_NORM(δ)
-            elseif r > 0.5
-                Δ = max(Δ, t₂ * L2_NORM(δ))
-            end
+            expanded = t₂ * L2_NORM(δ)
+            Δ = ifelse(r > η₃, expanded, ifelse(r > 0.5, max(Δ, expanded), Δ))
         end
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    failure_retcode = ifelse(
+        shrink_counter > max_shrink_times, ReturnCode.ShrinkThresholdExceeded,
+        ReturnCode.MaxIters
+    )
+    return Utils.simple_solution(
+        prob, alg, x, fx, x_sol, fx_sol, retcode, solved; failure_retcode
+    )
 end
 
 function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
@@ -204,15 +202,18 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     # Compute the Newton step
     @bb δN .= NLBUtils.restructure(δN, J \ NLBUtils.safe_vec(f))
     @bb δN .*= -1
-    # Test if the full step is within the trust region
-    (L2_NORM(δN) ≤ Δ) && return δN
+
+    # Under Reactant no branch can be taken on the traced norms, so every candidate step is
+    # formed and the result selected at the end; on the ordinary path the early returns
+    # avoid the extra work.
+    newton_step = L2_NORM(δN) ≤ Δ
+    !ReactantCore.within_compile() && newton_step && return δN
 
     # Calculate Cauchy point, optimum along the steepest descent direction
-    @bb δsd .= g
-    @bb @. δsd *= -1
+    @bb @. δsd = -g
     norm_δsd = L2_NORM(δsd)
-
-    if (norm_δsd ≥ Δ)
+    cauchy_step = norm_δsd ≥ Δ
+    if !ReactantCore.within_compile() && cauchy_step
         @bb @. δsd *= Δ / norm_δsd
         return δsd
     end
@@ -223,7 +224,8 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     dot_δsd_δN_δsd = dot(δsd, δN_δsd)
     dot_δsd = dot(δsd, δsd)
     fact = dot_δsd_δN_δsd^2 - dot_δN_δsd * (dot_δsd - Δ^2)
-    tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
-    @bb @. δsd += tau * δN_δsd
-    return δsd
+    tau = (-dot_δsd_δN_δsd + sqrt(max(zero(fact), fact))) / dot_δN_δsd
+    @bb @. δN_δsd = δsd + tau * δN_δsd
+    @bb @. δN = ifelse(newton_step, δN, ifelse(cauchy_step, δsd * Δ / norm_δsd, δN_δsd))
+    return δN
 end

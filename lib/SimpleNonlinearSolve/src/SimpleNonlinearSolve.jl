@@ -21,6 +21,7 @@ module SimpleNonlinearSolve
 
 using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using ReactantCore: ReactantCore
 using Reexport: @reexport
 using Setfield: @set!
 
@@ -62,6 +63,7 @@ configure_autodiff(prob, alg::AbstractSimpleNonlinearSolveAlgorithm) = alg
 const NLBUtils = NonlinearSolveBase.Utils
 
 is_extension_loaded(::Val) = false
+
 
 include("utils.jl")
 

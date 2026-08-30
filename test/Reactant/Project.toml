@@ -1,0 +1,37 @@
+[deps]
+BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
+NonlinearSolveFirstOrder = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
+NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+NonlinearSolveSpectralMethods = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
+Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
+ReactantCore = "a3311ec8-5e00-46d5-b541-4f83e724a433"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
+NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
+NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
+NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
+SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
+
+[compat]
+BracketingNonlinearSolve = "1.6"
+DifferentiationInterface = "0.7.3"
+Enzyme = "0.13.90"
+NonlinearSolve = "4.28"
+NonlinearSolveBase = "2.47"
+NonlinearSolveFirstOrder = "2"
+NonlinearSolveQuasiNewton = "1.15.1"
+NonlinearSolveSpectralMethods = "1.6"
+Reactant = "0.2.284"
+SciMLBase = "3.37"
+SimpleNonlinearSolve = "2.14"
+Test = "1.10"
+julia = "1.10"

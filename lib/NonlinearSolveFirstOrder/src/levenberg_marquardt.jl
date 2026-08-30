@@ -84,7 +84,7 @@ function InternalAPI.init(
     else
         @bb J_diag_cache = similar(u)
     end
-    J_damped = T(initial_damping) .* DᵀD
+    J_damped = scale_levenberg_marquardt_diagonal(T(initial_damping), DᵀD)
     return LevenbergMarquardtDampingCache(
         T(f.increase_factor), T(f.decrease_factor), T(f.min_damping),
         T(f.increase_factor), T(initial_damping), DᵀD, J_diag_cache, J_damped, f,
@@ -115,7 +115,7 @@ function InternalAPI.reinit!(cache::LevenbergMarquardtDampingCache, args...; kwa
             cache.DᵀD = Diagonal(ones(typeof(cache.DᵀD.diag)) * cache.min_damping)
         end
     end
-    cache.J_damped = cache.λ .* cache.DᵀD
+    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
     return
 end
 
@@ -156,7 +156,7 @@ function InternalAPI.solve!(
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(
         cache.DᵀD, Utils.safe_vec(cache.J_diag_cache)
     )
-    @bb @. cache.J_damped = cache.λ * cache.DᵀD
+    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
     return cache.J_damped
 end
 
@@ -164,17 +164,16 @@ function InternalAPI.solve!(
         cache::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true}; kwargs...
     )
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(cache.DᵀD, JᵀJ)
-    @bb @. cache.J_damped = cache.λ * cache.DᵀD
+    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
     return cache.J_damped
 end
 
 function NonlinearSolveBase.callback_into_cache!(
         topcache, cache::LevenbergMarquardtDampingCache, args...
     )
-    if NonlinearSolveBase.last_step_accepted(topcache.trustregion_cache) &&
-            NonlinearSolveBase.last_step_accepted(topcache.descent_cache)
-        cache.λ_factor = 1 / cache.decrease_factor
-    end
+    accepted = NonlinearSolveBase.last_step_accepted(topcache.trustregion_cache) &
+        NonlinearSolveBase.last_step_accepted(topcache.descent_cache)
+    cache.λ_factor = ifelse(accepted, 1 / cache.decrease_factor, cache.λ_factor)
     cache.λ *= cache.λ_factor
     return cache.λ_factor = cache.increase_factor
 end
@@ -217,8 +216,9 @@ function InternalAPI.init(
     @bb v = copy(u)
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
+    last_step_accepted = NonlinearSolveBase.maybe_traced(false)
     return LevenbergMarquardtTrustRegionCache(
-        f, p, T(Inf), v, T(Inf), internalnorm, T(alg.β_uphill), false,
+        f, p, T(Inf), v, T(Inf), internalnorm, T(alg.β_uphill), last_step_accepted,
         u_cache, fu_cache, stats
     )
 end
@@ -232,7 +232,7 @@ end
     norm_v_old
     internalnorm
     β_uphill
-    last_step_accepted::Bool
+    last_step_accepted
     u_cache
     fu_cache
     stats::NLStats
@@ -262,13 +262,10 @@ function InternalAPI.solve!(
 
     loss = cache.internalnorm(cache.fu_cache)
 
-    if (1 - β)^cache.β_uphill * loss ≤ cache.loss_old  # Accept Step
-        cache.last_step_accepted = true
-        cache.norm_v_old = norm_v
-        @bb copyto!(cache.v_cache, v)
-    else
-        cache.last_step_accepted = false
-    end
+    accepted = (1 - β)^cache.β_uphill * loss ≤ cache.loss_old
+    cache.last_step_accepted = accepted
+    cache.norm_v_old = ifelse(accepted, norm_v, cache.norm_v_old)
+    @bb @. cache.v_cache = ifelse(accepted, v, cache.v_cache)
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end
@@ -296,7 +293,7 @@ function update_levenberg_marquardt_diagonal!!(y::Diagonal, x::AbstractVecOrMat)
         return y
     end
     ndims(x) == 1 && return Diagonal(max.(y.diag, x))
-    return Diagonal(max.(y.diag, @view(x[diagind(x)])))
+    return Diagonal(max.(y.diag, diag(x)))
 end
 
 init_levenberg_marquardt_diagonal(u::Number, v) = oftype(u, v)
@@ -305,4 +302,9 @@ function init_levenberg_marquardt_diagonal(u, v)
     d = similar(vec(u))
     d .= v
     return Diagonal(d)
+end
+
+scale_levenberg_marquardt_diagonal(λ, DᵀD::Number) = λ * DᵀD
+function scale_levenberg_marquardt_diagonal(λ, DᵀD::Diagonal)
+    return Diagonal(λ .* DᵀD.diag)
 end

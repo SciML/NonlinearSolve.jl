@@ -50,3 +50,7 @@ os = ["ubuntu-latest", "macos-latest"]
 [CUDA]
 versions = ["1"]
 runner = ["self-hosted", "Linux", "X64", "gpu"]
+
+[Reactant]
+versions = ["1"]
+os = ["ubuntu-latest"]

@@ -52,8 +52,7 @@ function SciMLBase.__solve(
     x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
-    iszero(fx) &&
-        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    solved = iszero(fx)
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -66,17 +65,22 @@ function SciMLBase.__solve(
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
-    for _ in 1:maxiters
+    retcode, iterations, x, fx, xo, J = Utils.init_loop_state(ReturnCode.Default, x, fx, xo, J)
+    fx_sol, x_sol = Utils.fresh(fx), Utils.fresh(x)
+
+    ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
         @bb copyto!(xo, x)
+        xo = Utils.fresh(xo)
         δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
         @bb x .-= δx
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
         fx = NLBUtils.evaluate_f!!(prob, fx, x)
         J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
 end

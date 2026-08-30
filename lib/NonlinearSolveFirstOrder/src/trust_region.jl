@@ -255,11 +255,14 @@ function InternalAPI.init(
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
+    last_step_accepted = NonlinearSolveBase.maybe_traced(false)
+    shrink_counter = NonlinearSolveBase.maybe_traced(0)
 
     return GenericTrustRegionSchemeCache(
         alg.method, f, p, mtr, itr, itr, stt, sht, et, shf, ef,
         p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache,
-        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg
+        δu_cache, internalnorm, u_cache, fu_cache, last_step_accepted, shrink_counter,
+        stats, alg
     )
 end
 
@@ -289,8 +292,8 @@ end
     internalnorm
     u_cache
     fu_cache
-    last_step_accepted::Bool
-    shrink_counter::Int
+    last_step_accepted
+    shrink_counter
     stats::NLStats
     alg
 end
@@ -317,9 +320,9 @@ function InternalAPI.reinit!(
             cache.initial_trust_radius = T(cache.p1 * cache.internalnorm(cache.Jᵀfu_cache))
         end
     end
-    cache.last_step_accepted = false
+    cache.last_step_accepted = zero(cache.last_step_accepted)
     cache.trust_region = cache.initial_trust_radius
-    return cache.shrink_counter = 0
+    return cache.shrink_counter = zero(cache.shrink_counter)
 end
 
 # Defaults
@@ -407,8 +410,18 @@ function InternalAPI.solve!(
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.stats.nf += 1
 
-    if hasfield(typeof(descent_stats), :δuJᵀJδu) && !isnan(descent_stats.δuJᵀJδu)
-        δuJᵀJδu = descent_stats.δuJᵀJδu
+    if hasfield(typeof(descent_stats), :δuJᵀJδu)
+        # `isnan` of a traced value cannot pick a branch, so under Reactant the product is
+        # always formed and selected from.
+        if ReactantCore.within_compile() || isnan(descent_stats.δuJᵀJδu)
+            @bb cache.Jδu_cache = J × vec(δu)
+            computed_δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
+            δuJᵀJδu = ifelse(
+                isnan(descent_stats.δuJᵀJδu), computed_δuJᵀJδu, descent_stats.δuJᵀJδu
+            )
+        else
+            δuJᵀJδu = descent_stats.δuJᵀJδu
+        end
     else
         @bb cache.Jδu_cache = J × vec(δu)
         δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
@@ -418,83 +431,88 @@ function InternalAPI.solve!(
     denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
     cache.ρ = num / denom
 
-    if cache.ρ > cache.step_threshold
-        cache.last_step_accepted = true
-    else
-        cache.last_step_accepted = false
-    end
+    cache.last_step_accepted = cache.ρ > cache.step_threshold
 
     if cache.method isa RUS.__Simple
-        if cache.ρ < cache.shrink_threshold
-            cache.trust_region *= cache.shrink_factor
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            if cache.ρ > cache.expand_threshold && cache.ρ > cache.step_threshold
-                cache.trust_region = cache.expand_factor * cache.trust_region
-            end
-        end
+        shrink = cache.ρ < cache.shrink_threshold
+        expand = (cache.ρ > cache.expand_threshold) & (cache.ρ > cache.step_threshold)
+        cache.trust_region = ifelse(
+            shrink, cache.shrink_factor * cache.trust_region,
+            ifelse(expand, cache.expand_factor * cache.trust_region, cache.trust_region)
+        )
+        cache.shrink_counter = ifelse(
+            shrink, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
     elseif cache.method isa RUS.__NLsolve
-        if cache.ρ < cache.shrink_threshold
-            cache.trust_region *= cache.shrink_factor
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            if cache.ρ ≥ cache.expand_threshold
-                cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
-            elseif cache.ρ ≥ cache.p1
-                cache.trust_region = max(
-                    cache.trust_region, cache.expand_factor * cache.internalnorm(δu)
+        shrink = cache.ρ < cache.shrink_threshold
+        δu_norm = cache.internalnorm(δu)
+        cache.trust_region = ifelse(
+            shrink, cache.shrink_factor * cache.trust_region,
+            ifelse(
+                cache.ρ ≥ cache.expand_threshold, cache.expand_factor * δu_norm,
+                ifelse(
+                    cache.ρ ≥ cache.p1, max(cache.trust_region, cache.expand_factor * δu_norm),
+                    cache.trust_region
                 )
-            end
-        end
+            )
+        )
+        cache.shrink_counter = ifelse(
+            shrink, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
     elseif cache.method isa RUS.__NocedalWright
-        if cache.ρ < cache.shrink_threshold
-            cache.trust_region = cache.shrink_factor * cache.internalnorm(δu)
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            if cache.ρ > cache.expand_threshold &&
-                    abs(cache.internalnorm(δu) - cache.trust_region) < 1.0e-6 * cache.trust_region
-                cache.trust_region = cache.expand_factor * cache.trust_region
-            end
-        end
+        shrink = cache.ρ < cache.shrink_threshold
+        δu_norm = cache.internalnorm(δu)
+        expand = (cache.ρ > cache.expand_threshold) &
+            (abs(δu_norm - cache.trust_region) < 1.0e-6 * cache.trust_region)
+        cache.trust_region = ifelse(
+            shrink, cache.shrink_factor * δu_norm,
+            ifelse(expand, cache.expand_factor * cache.trust_region, cache.trust_region)
+        )
+        cache.shrink_counter = ifelse(
+            shrink, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
     elseif cache.method isa RUS.__Hei
         tr_new = rfunc_adaptive_trust_region(
             cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4, cache.p2
         ) * cache.internalnorm(δu)
-        if tr_new < cache.trust_region
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-        end
+        cache.shrink_counter = ifelse(
+            tr_new < cache.trust_region, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
         cache.trust_region = tr_new
     elseif cache.method isa RUS.__Yuan
-        if cache.ρ < cache.shrink_threshold
-            cache.p1 = cache.p2 * cache.p1
-            cache.shrink_counter += 1
-        else
-            if cache.ρ ≥ cache.expand_threshold &&
-                    2 * cache.internalnorm(δu) > cache.trust_region
-                cache.p1 = cache.p3 * cache.p1
-            end
-            cache.shrink_counter = 0
-        end
+        shrink = cache.ρ < cache.shrink_threshold
+        expand = (cache.ρ ≥ cache.expand_threshold) &
+            (2 * cache.internalnorm(δu) > cache.trust_region)
+        cache.p1 = ifelse(
+            shrink, cache.p2 * cache.p1, ifelse(expand, cache.p3 * cache.p1, cache.p1)
+        )
+        cache.shrink_counter = ifelse(
+            shrink, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
         operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
         @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
         cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
     elseif cache.method isa RUS.__Fan
-        if cache.ρ < cache.shrink_threshold
-            cache.p1 *= cache.p2
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            cache.ρ > cache.expand_threshold &&
-                (cache.p1 = min(cache.p1 * cache.p3, cache.p4))
-        end
+        shrink = cache.ρ < cache.shrink_threshold
+        cache.p1 = ifelse(
+            shrink, cache.p1 * cache.p2,
+            ifelse(cache.ρ > cache.expand_threshold, min(cache.p1 * cache.p3, cache.p4), cache.p1)
+        )
+        cache.shrink_counter = ifelse(
+            shrink, cache.shrink_counter + one(cache.shrink_counter),
+            zero(cache.shrink_counter)
+        )
         cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^T(0.99))
     elseif cache.method isa RUS.__Bastin
-        if cache.ρ > cache.step_threshold
+        accepted = cache.ρ > cache.step_threshold
+        # The operator products are only needed for an accepted step; under Reactant they
+        # are always formed and the result selected.
+        if ReactantCore.within_compile() || accepted
             jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache, cache.p)
             vjp_op = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
             @bb cache.Jδu_cache = jvp_op × vec(cache.δu_cache)
@@ -504,14 +522,15 @@ function InternalAPI.solve!(
             denom_2 = dot(Utils.safe_vec(cache.Jᵀfu_cache), cache.Jᵀfu_cache)
             denom = denom_1 + denom_2 / 2
             ρ = num / denom
-            if ρ ≥ cache.expand_threshold
-                cache.trust_region = cache.p1 * cache.internalnorm(cache.δu_cache)
-            end
-            cache.shrink_counter = 0
-        else
-            cache.trust_region *= cache.p2
-            cache.shrink_counter += 1
+            expand = accepted & (ρ ≥ cache.expand_threshold)
+            cache.trust_region = ifelse(
+                expand, cache.p1 * cache.internalnorm(cache.δu_cache), cache.trust_region
+            )
         end
+        cache.trust_region = ifelse(accepted, cache.trust_region, cache.trust_region * cache.p2)
+        cache.shrink_counter = ifelse(
+            accepted, zero(cache.shrink_counter), cache.shrink_counter + one(cache.shrink_counter)
+        )
     end
 
     cache.trust_region = min(cache.trust_region, cache.max_trust_radius)

@@ -75,7 +75,7 @@ end
 
     # Counters
     stats::NLStats
-    nsteps::Int
+    nsteps
     nresets::Int
     max_resets::Int
     maxiters::Int
@@ -90,8 +90,8 @@ end
     # Termination & Tracking
     termination_cache
     trace
-    retcode::ReturnCode.T
-    force_stop::Bool
+    retcode
+    force_stop
     force_reinit::Bool
     kwargs
 
@@ -128,15 +128,15 @@ function InternalAPI.reinit_self!(
     )
 
     InternalAPI.reinit!(cache.stats)
-    cache.nsteps = 0
+    cache.nsteps = NonlinearSolveBase.maybe_traced(0)
     cache.nresets = 0
     cache.steps_since_last_reset = 0
     cache.maxiters = maxiters
     cache.maxtime = maxtime
     cache.total_time = 0.0
-    cache.force_stop = false
+    cache.force_stop = NonlinearSolveBase.maybe_traced(false)
     cache.force_reinit = false
-    cache.retcode = ReturnCode.Default
+    cache.retcode = NonlinearSolveBase.maybe_traced(ReturnCode.Default)
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(
@@ -283,9 +283,10 @@ function SciMLBase.__init(
             fu, u, u_cache, prob.p, J, alg, prob, globalization,
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
-            linsolve_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
-            alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs, initializealg, verbose
+            linsolve_workspace, stats, NonlinearSolveBase.maybe_traced(0), 0,
+            alg.max_resets, maxiters, maxtime, alg.max_shrink_times, 0, timer, 0.0,
+            termination_cache, trace, NonlinearSolveBase.maybe_traced(ReturnCode.Default),
+            NonlinearSolveBase.maybe_traced(false), false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
