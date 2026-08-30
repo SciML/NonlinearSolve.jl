@@ -42,6 +42,64 @@ function TrustRegion(;
     )
 end
 
+"""
+    BoundedTrustRegion(;
+        concrete_jac = nothing, linsolve = nothing,
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32,
+        gtol = nothing, vjp_autodiff = nothing, autodiff = nothing,
+        jvp_autodiff = nothing,
+    )
+
+A bound-constrained trust-region method for nonlinear systems and nonlinear least-squares
+problems. Bounds are handled directly in the original coordinates. The method compares a
+projected dogleg step with a feasible projected-Cauchy step and selects the step with the
+larger predicted reduction.
+
+Unlike a coordinate transformation, this method permits iterates exactly on a bound and
+does not multiply the problem Jacobian by a transformation derivative that vanishes there.
+The initial guess must satisfy the problem bounds.
+
+For a `NonlinearLeastSquaresProblem`, convergence is also detected when the infinity norm
+of the projected gradient is below `gtol`. This defaults to `sqrt(eps(T))`, where `T` is the
+working element type. Projected-gradient termination is disabled by default for a
+`NonlinearProblem`, because a constrained stationary point need not be a root. Setting
+`gtol` explicitly enables the check and reports such a point as `ReturnCode.Stalled` unless
+the residual has already converged.
+
+### Keyword Arguments
+
+  - `max_trust_radius`: the maximum trust-region radius. A value of zero selects `Inf`.
+  - `initial_trust_radius`: the initial radius. A value of zero selects
+    `max(norm(u0), one(T))`.
+  - `step_threshold`: minimum actual-to-predicted reduction ratio for accepting a step.
+  - `shrink_threshold`, `expand_threshold`: reduction-ratio thresholds for changing the
+    radius.
+  - `shrink_factor`, `expand_factor`: factors used to change the radius.
+  - `gtol`: projected-gradient tolerance for constrained stationarity.
+"""
+function BoundedTrustRegion(;
+        concrete_jac = nothing, linsolve = nothing,
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32,
+        gtol = nothing, autodiff = nothing, vjp_autodiff = nothing,
+        jvp_autodiff = nothing,
+    )
+    descent = Dogleg(; linsolve)
+    trustregion = BoundedTrustRegionScheme(;
+        max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
+        expand_threshold, shrink_factor, expand_factor, gtol
+    )
+    return GeneralizedFirstOrderAlgorithm(;
+        trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
+        concrete_jac, name = :BoundedTrustRegion
+    )
+end
+
 # Don't Pollute the namespace
 """
     RadiusUpdateSchemes
@@ -508,6 +566,214 @@ function InternalAPI.solve!(
         end
     end
 
+    cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
+
+    return cache.last_step_accepted, cache.u_cache, cache.fu_cache
+end
+
+@kwdef @concrete struct BoundedTrustRegionScheme <: AbstractTrustRegionMethod
+    step_threshold = 1 // 10000
+    shrink_threshold = 1 // 4
+    expand_threshold = 3 // 4
+    shrink_factor = 1 // 4
+    expand_factor = 2 // 1
+    max_trust_radius = 0 // 1
+    initial_trust_radius = 0 // 1
+    gtol = nothing
+end
+
+SciMLBase.allowsbounds(alg::GeneralizedFirstOrderAlgorithm) =
+    alg.trustregion isa BoundedTrustRegionScheme
+
+function _bounded_tr_bound(bound, fill_value, u::Number)
+    T = eltype(u)
+    bound === nothing && return T(fill_value)
+    bound isa Number && return T(bound)
+    return only(T.(bound))
+end
+
+function _bounded_tr_bound(bound, fill_value, u)
+    T = eltype(u)
+    bound === nothing && return map(Returns(T(fill_value)), u)
+    bound isa Number && return map(Returns(T(bound)), u)
+    return T.(bound)
+end
+
+function InternalAPI.init(
+        prob::AbstractNonlinearProblem, alg::BoundedTrustRegionScheme, f, fu, u, p,
+        args...; stats, internalnorm::F = L2_NORM, abstol = nothing, reltol = nothing,
+        kwargs...
+    ) where {F}
+    T = promote_type(eltype(u), eltype(fu))
+    lb = _bounded_tr_bound(hasproperty(prob, :lb) ? prob.lb : nothing, -Inf, u)
+    ub = _bounded_tr_bound(hasproperty(prob, :ub) ? prob.ub : nothing, Inf, u)
+    max_radius = iszero(alg.max_trust_radius) ? T(Inf) : T(alg.max_trust_radius)
+    initial_radius = if iszero(alg.initial_trust_radius)
+        max(T(internalnorm(u)), one(T))
+    else
+        T(alg.initial_trust_radius)
+    end
+    initial_radius = min(initial_radius, max_radius)
+    least_squares = prob isa NonlinearLeastSquaresProblem
+    gtol = if alg.gtol === nothing
+        least_squares ? sqrt(eps(T)) : nothing
+    else
+        T(alg.gtol)
+    end
+
+    @bb gradient = similar(u)
+    @bb dogleg_step = similar(u)
+    @bb cauchy_direction = similar(u)
+    @bb cauchy_step = similar(u)
+    @bb Jdogleg = similar(fu)
+    @bb Jcauchy = similar(fu)
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
+
+    return BoundedTrustRegionSchemeCache(
+        f, p, lb, ub, max_radius, initial_radius, initial_radius,
+        T(alg.step_threshold), T(alg.shrink_threshold), T(alg.expand_threshold),
+        T(alg.shrink_factor), T(alg.expand_factor), gtol, internalnorm,
+        gradient, dogleg_step, cauchy_direction, cauchy_step, Jdogleg, Jcauchy,
+        u_cache, fu_cache, false, 0, stats, alg,
+        least_squares
+    )
+end
+
+@concrete mutable struct BoundedTrustRegionSchemeCache <: AbstractTrustRegionMethodCache
+    f
+    p
+    lb
+    ub
+    max_trust_radius
+    initial_trust_radius
+    trust_region
+    step_threshold
+    shrink_threshold
+    expand_threshold
+    shrink_factor
+    expand_factor
+    gtol
+    internalnorm
+    gradient
+    dogleg_step
+    cauchy_direction
+    cauchy_step
+    Jdogleg
+    Jcauchy
+    u_cache
+    fu_cache
+    last_step_accepted::Bool
+    shrink_counter::Int
+    stats::NLStats
+    alg
+    least_squares::Bool
+end
+
+function InternalAPI.reinit!(
+        cache::BoundedTrustRegionSchemeCache; p = cache.p, u0 = nothing, kwargs...
+    )
+    cache.p = p
+    if u0 !== nothing
+        T = promote_type(eltype(u0), eltype(cache.fu_cache))
+        cache.initial_trust_radius = if iszero(cache.alg.initial_trust_radius)
+            min(max(T(cache.internalnorm(u0)), one(T)), cache.max_trust_radius)
+        else
+            min(T(cache.alg.initial_trust_radius), cache.max_trust_radius)
+        end
+    end
+    cache.trust_region = cache.initial_trust_radius
+    cache.last_step_accepted = false
+    cache.shrink_counter = 0
+    return nothing
+end
+
+function _projected_gradient!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
+    @bb cache.gradient = transpose(J) × Utils.safe_vec(fu)
+    @bb @. cache.cauchy_step = clamp(u - cache.gradient, cache.lb, cache.ub) - u
+    return _bounded_tr_linf(cache.cauchy_step)
+end
+
+_bounded_tr_linf(x::Number) = abs(x)
+_bounded_tr_linf(x) = maximum(abs, x)
+
+function _trust_region_retcode!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
+    cache.gtol === nothing && return ReturnCode.Default
+    _projected_gradient!(cache, J, fu, u) <= cache.gtol || return ReturnCode.Default
+    return cache.least_squares ? ReturnCode.Success : ReturnCode.Stalled
+end
+
+function _quadratic_model_value(fu, Jstep, step, gradient)
+    return Utils.safe_dot(step, gradient) + Utils.safe_dot(Jstep, Jstep) / 2
+end
+
+function InternalAPI.solve!(
+        cache::BoundedTrustRegionSchemeCache, J, fu, u, δu, descent_stats
+    )
+    _projected_gradient!(cache, J, fu, u)
+
+    @bb @. cache.dogleg_step = clamp(u + δu, cache.lb, cache.ub) - u
+    @bb cache.Jdogleg = J × Utils.safe_vec(cache.dogleg_step)
+    dogleg_model = _quadratic_model_value(
+        fu, cache.Jdogleg, cache.dogleg_step, cache.gradient
+    )
+
+    @bb @. cache.cauchy_direction = ifelse(
+        (u <= cache.lb && cache.gradient > 0) ||
+            (u >= cache.ub && cache.gradient < 0),
+        zero(eltype(cache.cauchy_direction)), -cache.gradient
+    )
+    direction_norm = cache.internalnorm(cache.cauchy_direction)
+    if iszero(direction_norm)
+        @bb @. cache.cauchy_step = zero(eltype(cache.cauchy_step))
+        @bb @. cache.Jcauchy = zero(eltype(cache.Jcauchy))
+        cauchy_model = zero(dogleg_model)
+    else
+        @bb cache.Jcauchy = J × Utils.safe_vec(cache.cauchy_direction)
+        curvature = Utils.safe_dot(cache.Jcauchy, cache.Jcauchy)
+        slope = Utils.safe_dot(cache.cauchy_direction, cache.gradient)
+        radius_scale = cache.trust_region / direction_norm
+        model_scale = iszero(curvature) ? radius_scale : -slope / curvature
+        α = clamp(model_scale, zero(model_scale), radius_scale)
+        @bb @. cache.cauchy_step =
+            clamp(u + α * cache.cauchy_direction, cache.lb, cache.ub) - u
+        @bb cache.Jcauchy = J × Utils.safe_vec(cache.cauchy_step)
+        cauchy_model = _quadratic_model_value(
+            fu, cache.Jcauchy, cache.cauchy_step, cache.gradient
+        )
+    end
+
+    if cauchy_model < dogleg_model
+        @bb copyto!(cache.dogleg_step, cache.cauchy_step)
+        @bb copyto!(cache.Jdogleg, cache.Jcauchy)
+        predicted_reduction = -cauchy_model
+    else
+        predicted_reduction = -dogleg_model
+    end
+
+    @bb @. cache.u_cache = u + cache.dogleg_step
+    cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
+    cache.stats.nf += 1
+
+    actual_reduction = (
+        cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2
+    ) / 2
+    finite_residual = cache.fu_cache isa Number ? isfinite(cache.fu_cache) :
+        all(isfinite, cache.fu_cache)
+    ρ = predicted_reduction > 0 && finite_residual ?
+        actual_reduction / predicted_reduction : -one(predicted_reduction)
+    cache.last_step_accepted = ρ > cache.step_threshold && actual_reduction > 0
+
+    if ρ < cache.shrink_threshold
+        cache.trust_region *= cache.shrink_factor
+        cache.shrink_counter += 1
+    else
+        cache.shrink_counter = 0
+        step_norm = cache.internalnorm(cache.dogleg_step)
+        if ρ > cache.expand_threshold && step_norm >= 0.95 * cache.trust_region
+            cache.trust_region *= cache.expand_factor
+        end
+    end
     cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache

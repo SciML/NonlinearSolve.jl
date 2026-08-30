@@ -71,6 +71,7 @@ GaussNewton
 These solvers can be used for both nonlinear and nonlinear least squares problems.
 
 ```@docs
+BoundedTrustRegion
 TrustRegion
 LevenbergMarquardt
 PseudoTransient

@@ -11,8 +11,11 @@ When you pass `lb` and/or `ub` to a problem, NonlinearSolve checks whether the c
 algorithm natively supports bounds. If it does not, the solver automatically applies a
 **variable transformation** that maps the bounded variables into unconstrained space using
 the logistic/logit functions. After solving, the solution is mapped back to the original
-bounded space. This means you can use any algorithm — `NewtonRaphson`, `TrustRegion`,
-`LevenbergMarquardt`, etc. — with bounds, without changing anything about your solver setup.
+bounded space. This means you can use algorithms such as `NewtonRaphson`, `TrustRegion`,
+and `LevenbergMarquardt` with bounds without changing the solver setup.
+
+[`BoundedTrustRegion`](@ref) instead handles bounds directly. It keeps every iterate in the
+original coordinates and can converge to a least-squares optimum exactly on a bound.
 
 ## Basic Example: Nonlinear System with Bounds
 
@@ -35,6 +38,32 @@ We can verify the solution satisfies the bounds:
 ```@example bounds
 all(0.0 .<= sol.u .<= 10.0)
 ```
+
+## Native Bound Handling
+
+Use [`BoundedTrustRegion`](@ref) when the solver should operate directly in the bounded
+coordinates:
+
+```@example bounds
+import NonlinearSolve as NLS
+
+residual(u, p) = [u[1] - 2.0, 1.0]
+prob_native = NLS.NonlinearLeastSquaresProblem(
+    residual, [0.0], nothing; lb = [-1.0], ub = [1.0]
+)
+sol_native = NLS.solve(prob_native, NLS.BoundedTrustRegion())
+sol_native.u
+```
+
+The unconstrained minimum is outside the box, so the constrained optimum is exactly on the
+upper bound:
+
+```@example bounds
+sol_native.u == [1.0]
+```
+
+`BoundedTrustRegion` is a local solver. Like other local least-squares methods, bounds do
+not guarantee that it will select a different basin containing a lower minimum or a root.
 
 ## Curve Fitting with Bounded Parameters
 
@@ -150,4 +179,5 @@ sol.prob.lb, sol.prob.ub
     $$x = \ell + (u - \ell)\,\sigma(t)$$ where $$\sigma$$ is the logistic function. For
     one-sided bounds, a simple $$\log$$/$$\exp$$ transform is used.
   - **Initial guess.** If `u0` is exactly on a bound, it is automatically nudged into the
-    strict interior to avoid numerical issues.
+    strict interior before a coordinate transformation. `BoundedTrustRegion` accepts an
+    initial guess exactly on a bound, but rejects an initial guess outside the feasible box.

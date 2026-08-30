@@ -64,6 +64,8 @@ features, but have a bit of overhead on very small problems.
     methods with adaptive forcing via [`EisenstatWalkerForcing2`](@ref).
   - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+  - [`BoundedTrustRegion()`](@ref): A projected dogleg trust-region method that handles box
+    bounds directly in the original coordinates.
   - [`LevenbergMarquardt()`](@ref): An advanced Levenberg-Marquardt implementation with the
     improvements suggested in the [transtrum2012improvements](@citet). Designed for
     large-scale and numerically-difficult nonlinear systems.
