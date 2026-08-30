@@ -1,8 +1,8 @@
 import CommonSolve
 using LinearAlgebra, LinearSolve, NonlinearSolveFirstOrder, SciMLBase
 using NonlinearSolveBase: AbsNormTerminationMode
-using NonlinearSolveFirstOrder: JACOBIAN_REUSE_SIZE_CUTOFF, resolve_jacobian_reuse,
-    reuses_jacobian
+using NonlinearSolveFirstOrder: JACOBIAN_REUSE_AUTO, JACOBIAN_REUSE_SIZE_CUTOFF,
+    is_automatic, resolve_jacobian_reuse, reuses_jacobian
 
 # The default policy only reuses while the residual contracts hard, which the quadratically
 # converging problems below do only at the very end. Tests that assert a step-by-step reuse
@@ -44,10 +44,12 @@ end
     @test default_policy.max_age == 10
     @test 0 < default_policy.max_residual_ratio < 1
     @test reuses_jacobian(default_policy)
+    @test !reuses_jacobian(JacobianReuse(max_age = 0))
     @test !reuses_jacobian(JacobianReuse(max_age = 1))
-    @test NewtonRaphson().jacobian_reuse === nothing
-    @test NewtonRaphson(jacobian_reuse = false).jacobian_reuse == JacobianReuse(max_age = 1)
-    @test NewtonRaphson(jacobian_reuse = true).jacobian_reuse isa JacobianReuse
+    # `nothing` defers to `length(u0)`; everything else fixes the policy at construction.
+    @test is_automatic(NewtonRaphson().jacobian_reuse)
+    @test NewtonRaphson(jacobian_reuse = false).jacobian_reuse == JacobianReuse(max_age = 0)
+    @test NewtonRaphson(jacobian_reuse = true).jacobian_reuse == default_policy
     @test NewtonRaphson(jacobian_reuse = default_policy).jacobian_reuse === default_policy
 
     for alg in (
@@ -67,10 +69,10 @@ end
         FastShortcutNLLSPolyalg(jacobian_reuse = true).algs
     )
 
-    @test_throws ArgumentError JacobianReuse(max_age = 0)
+    @test_throws ArgumentError JacobianReuse(max_age = JACOBIAN_REUSE_AUTO - 1)
     @test_throws ArgumentError JacobianReuse(max_residual_ratio = -1)
     @test_throws ArgumentError JacobianReuse(max_residual_ratio = NaN)
-    @test_throws ArgumentError JacobianReuse(0, 1)
+    @test_throws ArgumentError JacobianReuse(-2, 1)
     @test_throws ArgumentError JacobianReuse(1, NaN)
     @test_throws ArgumentError NewtonRaphson(jacobian_reuse = :invalid)
 end
@@ -189,7 +191,7 @@ end
         prob, NewtonRaphson(linsolve = KrylovJL_GMRES(), jacobian_reuse = true);
         abstol = 1.0e-10
     )
-    @test cache.jacobian_reuse_cache === nothing
+    @test !reuses_jacobian(cache.jacobian_reuse_cache.policy)
     @test SciMLBase.successful_retcode(solve!(cache))
 end
 
@@ -275,7 +277,7 @@ end
 
 sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
 
-@testset "max_age = 1 reproduces exact Newton" begin
+@testset "max_age = 0 reproduces exact Newton" begin
     for n in (1, JACOBIAN_REUSE_SIZE_CUTOFF - 1, JACOBIAN_REUSE_SIZE_CUTOFF)
         prob = sized_problem(n)
         for alg in (NewtonRaphson, TrustRegion)
@@ -283,7 +285,7 @@ sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
                 prob, alg(jacobian_reuse = false); abstol = 1.0e-10, reltol = 1.0e-10
             )
             aged = solve(
-                prob, alg(jacobian_reuse = JacobianReuse(max_age = 1));
+                prob, alg(jacobian_reuse = JacobianReuse(max_age = 0));
                 abstol = 1.0e-10, reltol = 1.0e-10
             )
             @test off.stats.njacs == aged.stats.njacs
@@ -295,8 +297,13 @@ sized_problem(n) = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
 end
 
 @testset "the policy is a value, not a type" begin
-    # Spelling "reuse off" as `max_age = 1` is what lets the size-based default pick a
-    # policy without splitting the solver cache into two specializations.
+    # Every spelling of the keyword lands on the same concrete policy type, which is what
+    # lets the size-based default pick a policy without splitting the solver cache into two
+    # specializations.
+    for alg in (NewtonRaphson, TrustRegion)
+        @test typeof(alg()) === typeof(alg(jacobian_reuse = false)) ===
+            typeof(alg(jacobian_reuse = true)) === typeof(alg(jacobian_reuse = JacobianReuse()))
+    end
     small = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF - 1)
     large = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF)
     for alg in (NewtonRaphson, TrustRegion)
@@ -312,11 +319,12 @@ end
     below = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF - 1)
     atcut = sized_problem(JACOBIAN_REUSE_SIZE_CUTOFF)
 
-    @test !reuses_jacobian(resolve_jacobian_reuse(nothing, below.u0))
-    @test reuses_jacobian(resolve_jacobian_reuse(nothing, atcut.u0))
+    auto = NewtonRaphson().jacobian_reuse
+    @test !reuses_jacobian(resolve_jacobian_reuse(auto, below.u0))
+    @test reuses_jacobian(resolve_jacobian_reuse(auto, atcut.u0))
     # An explicit policy ignores the size entirely.
     @test reuses_jacobian(resolve_jacobian_reuse(JacobianReuse(), below.u0))
-    @test !reuses_jacobian(resolve_jacobian_reuse(JacobianReuse(max_age = 1), atcut.u0))
+    @test !reuses_jacobian(resolve_jacobian_reuse(JacobianReuse(max_age = 0), atcut.u0))
 
     for alg in (NewtonRaphson, TrustRegion, GaussNewton, PseudoTransient)
         cache = init(below, alg(); abstol = 1.0e-10, reltol = 1.0e-10)
