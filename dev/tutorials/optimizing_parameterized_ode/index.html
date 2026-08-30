@@ -23,7 +23,7 @@ prob = ODE.ODEProblem(lotka_volterra!, u0, tspan, p)
 sol = ODE.solve(prob, ODE.Tsit5(); saveat = tsteps)
 
 # Plot the solution
-Plots.plot(sol; linewidth = 3)</code></pre><img src="bbec66ef.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
+Plots.plot(sol; linewidth = 3)</code></pre><img src="70ff8e72.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
     sol = ODE.solve(prob, ODE.Tsit5(); p = ode_param, saveat = tsteps)
     return vec(reduce(hcat, sol.u)) .- data
 end
@@ -54,6 +54,10 @@ Algorithm: <span class="sgr32"><span class="sgr1">LevenbergMarquardt(</span></sp
 <span class="sgr32"><span class="sgr1">        ),</span></span>
 <span class="sgr32"><span class="sgr1">        finite_diff_step_geodesic = 0.1,</span></span>
 <span class="sgr32"><span class="sgr1">        α = 0.75</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    jacobian_reuse = JacobianReuse(</span></span>
+<span class="sgr32"><span class="sgr1">        max_age = -1,</span></span>
+<span class="sgr32"><span class="sgr1">        max_residual_ratio = 0.1</span></span>
 <span class="sgr32"><span class="sgr1">    ),</span></span>
 <span class="sgr32"><span class="sgr1">    autodiff = AutoForwardDiff(),</span></span>
 <span class="sgr32"><span class="sgr1">    vjp_autodiff = AutoFiniteDiff(</span></span>
@@ -99,6 +103,10 @@ Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 <span class="sgr32"><span class="sgr1">        newton_descent = NewtonDescent(),</span></span>
 <span class="sgr32"><span class="sgr1">        steepest_descent = SteepestDescent()</span></span>
 <span class="sgr32"><span class="sgr1">    ),</span></span>
+<span class="sgr32"><span class="sgr1">    jacobian_reuse = JacobianReuse(</span></span>
+<span class="sgr32"><span class="sgr1">        max_age = -1,</span></span>
+<span class="sgr32"><span class="sgr1">        max_residual_ratio = 0.1</span></span>
+<span class="sgr32"><span class="sgr1">    ),</span></span>
 <span class="sgr32"><span class="sgr1">    max_shrink_times = 32,</span></span>
 <span class="sgr32"><span class="sgr1">    autodiff = AutoForwardDiff(),</span></span>
 <span class="sgr32"><span class="sgr1">    vjp_autodiff = AutoFiniteDiff(</span></span>
@@ -126,4 +134,4 @@ u: 4-element Vector{Float64}:
 sol_fit = ODE.solve(prob2, ODE.Tsit5(); p = res.u)
 sol_true = ODE.solve(prob2, ODE.Tsit5(); p = p)
 Plots.plot(sol_true; linewidth = 3)
-Plots.plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="886682db.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 30 August 2026 02:47">Sunday 30 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+Plots.plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="8324ad2e.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 30 August 2026 10:31">Sunday 30 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
