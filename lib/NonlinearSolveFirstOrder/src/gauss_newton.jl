@@ -9,10 +9,11 @@ An advanced GaussNewton implementation with support for efficient handling of sp
 matrices via colored automatic differentiation and preconditioned linear solvers. Designed
 for large-scale and numerically-difficult nonlinear systems.
 
-The Jacobian and its factorization are adaptively reused across accepted steps when
-`length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`; pass
-`jacobian_reuse = false` to force exact Gauss-Newton steps, or a [`JacobianReuse`](@ref)
-policy to configure the reuse.
+### Keyword Arguments
+
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`.
 """
 function GaussNewton(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,

@@ -40,11 +40,11 @@ documentation.
     is solved at each Newton iteration. Defaults to `nothing` (fixed tolerance). See
     [Forcing Term Strategies](@ref forcing_strategies) for available options.
   - `jacobian_reuse`: controls whether a Jacobian can be reused across accepted nonlinear
-    iterations. The default, `nothing`, reuses on all but the smallest systems (see
-    [`JacobianReuse`](@ref) for the size cutoff) and uses a fresh Jacobian after every
-    accepted step below it. `false` forces exact Newton steps, `true` selects
-    [`JacobianReuse()`](@ref), and a configured `JacobianReuse` policy can be supplied
-    directly. An unchanged concrete linear system also reuses its factorization.
+    iterations. The default, `nothing`, reuses on all but the smallest systems and uses a
+    fresh Jacobian after every accepted step below the size cutoff given in
+    [`JacobianReuse`](@ref). `false` forces exact Newton steps, `true` selects the default
+    policy, and a configured `JacobianReuse` can be supplied directly. An unchanged
+    concrete linear system also reuses its factorization.
 
 ## Nonlinear Solvers
 
@@ -118,14 +118,19 @@ JacobianReuse
 
 Jacobian reuse is most useful when constructing or factorizing the Jacobian dominates the
 cost of evaluating the residual. It changes exact Newton iteration into a modified-Newton
-iteration, which can require more nonlinear steps, so the default enables it only above a
-`length(u0)` cutoff documented with [`JacobianReuse`](@ref). Force the choice either way
-with:
+iteration, which can require more nonlinear steps, so the default enables it only once
+`length(u0)` reaches the cutoff given in [`JacobianReuse`](@ref). Force the choice either
+way, or configure it:
 
 ```julia
-sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse()))  # always reuse
-sol = solve(prob, NewtonRaphson(jacobian_reuse = false))            # never reuse
+sol = solve(prob, NewtonRaphson(jacobian_reuse = true))   # always reuse, default policy
+sol = solve(prob, NewtonRaphson(jacobian_reuse = false))  # never reuse, exact Newton
+sol = solve(prob, NewtonRaphson(jacobian_reuse = JacobianReuse(max_age = 3)))
 ```
+
+A single `JacobianReuse` covers all three cases: `max_age` is the number of accepted steps
+one Jacobian may serve, and `max_age = 0` disables reuse. Every spelling of the keyword
+produces the same algorithm type, so switching between them does not recompile the solver.
 
 `length(u0)` is a crude proxy for the quantity that actually decides the payoff, the cost
 of a Jacobian relative to the cost of a nonlinear step; see

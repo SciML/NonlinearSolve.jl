@@ -4,9 +4,11 @@ const DEFAULT_JACOBIAN_REUSE_RESIDUAL_RATIO = 0.1
 """
     JACOBIAN_REUSE_SIZE_CUTOFF
 
-Smallest `length(u0)` for which [`JACOBIAN_REUSE_AUTO`](@ref) enables reuse. Below it a
-Jacobian is cheap relative to an extra nonlinear iteration, so the default keeps exact
+Smallest `length(u0)` for which an automatic [`JacobianReuse`](@ref) enables reuse. Below
+it a Jacobian is cheap relative to an extra nonlinear iteration, so the default keeps exact
 Newton steps.
+
+Internal: not part of the public API, and the value moves with the benchmarks.
 """
 const JACOBIAN_REUSE_SIZE_CUTOFF = 16
 
@@ -15,8 +17,10 @@ const JACOBIAN_REUSE_SIZE_CUTOFF = 16
 
 The `max_age` of a [`JacobianReuse`](@ref) that has not committed to a decision yet. It is
 resolved against `length(u0)` when the solver cache is built, to
-[`DEFAULT_JACOBIAN_REUSE_MAX_AGE`](@ref) at or above
-[`JACOBIAN_REUSE_SIZE_CUTOFF`](@ref) and to `0` below it.
+`DEFAULT_JACOBIAN_REUSE_MAX_AGE` ($(DEFAULT_JACOBIAN_REUSE_MAX_AGE)) at or above
+`JACOBIAN_REUSE_SIZE_CUTOFF` ($(JACOBIAN_REUSE_SIZE_CUTOFF)) and to `0` below it.
+
+Internal: not part of the public API.
 """
 const JACOBIAN_REUSE_AUTO = -1
 
@@ -46,10 +50,10 @@ refreshed when any of these conditions holds:
 
 Pass `jacobian_reuse = JacobianReuse()` to [`NewtonRaphson`](@ref), [`TrustRegion`](@ref),
 or another first-order solver to force the policy on, and `jacobian_reuse = false` to force
-it off. The default, `jacobian_reuse = nothing`, leaves `max_age` at
-[`JACOBIAN_REUSE_AUTO`](@ref) so that it resolves against `length(u0)`. A matrix-free
-Jacobian operator is bound to the current iterate on every step, so there is nothing to
-reuse and reuse is switched off for it.
+it off. The default, `jacobian_reuse = nothing`, decides from the problem size: reuse is
+enabled when `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)` and disabled below it. A
+matrix-free Jacobian operator is bound to the current iterate on every step, so there is
+nothing to reuse and reuse is switched off for it.
 """
 struct JacobianReuse{R <: Real}
     max_age::Int
