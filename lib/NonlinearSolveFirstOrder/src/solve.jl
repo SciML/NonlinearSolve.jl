@@ -3,7 +3,7 @@
         descent, linesearch = missing,
         trustregion = missing, autodiff = nothing, vjp_autodiff = nothing,
         jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), name::Symbol = :unknown
+        concrete_jac = Val(false), jacobian_reuse = nothing, name::Symbol = :unknown
     )
 
 This is a Generalization of First-Order (uses Jacobian) Nonlinear Solve Algorithms. The most
@@ -20,12 +20,16 @@ order of convergence.
     [`NonlinearSolveBase.AbstractDescentDirection`](@ref) interface.
   - `max_shrink_times`: The maximum number of times the trust region radius can be shrunk
     before the algorithm terminates.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy for reusing the Jacobian across
+    accepted steps. `true` forces the default policy on and `false` forces it off. Defaults
+    to `nothing`, which resolves against `length(u0)` when the cache is built.
 """
 @concrete struct GeneralizedFirstOrderAlgorithm <: AbstractNonlinearSolveAlgorithm
     linesearch
     trustregion
     descent
     forcing
+    jacobian_reuse
     max_shrink_times::Int
 
     autodiff
@@ -39,12 +43,14 @@ end
 function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), forcing = nothing, name::Symbol = :unknown
+        concrete_jac = Val(false), forcing = nothing, jacobian_reuse = nothing,
+        name::Symbol = :unknown
     )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
         (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
+    jacobian_reuse = normalize_jacobian_reuse(jacobian_reuse)
     return GeneralizedFirstOrderAlgorithm(
-        linesearch, trustregion, descent, forcing, max_shrink_times,
+        linesearch, trustregion, descent, forcing, jacobian_reuse, max_shrink_times,
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac, name
     )
@@ -64,6 +70,7 @@ end
     jac_cache
     descent_cache
     forcing_cache
+    jacobian_reuse_cache
     linesearch_cache
     trustregion_cache
 
@@ -122,6 +129,7 @@ function InternalAPI.reinit_self!(
     cache.retcode = ReturnCode.Default
     cache.make_new_jacobian = true
     cache.fu_deferred = false
+    reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(
@@ -283,13 +291,18 @@ function SciMLBase.__init(
             )
         end
 
+        jacobian_reuse_cache = init_jacobian_reuse_cache(
+            resolve_jacobian_reuse(alg.jacobian_reuse, u), J, fu, internalnorm
+        )
+
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du; kwargs...
         )
 
         cache = GeneralizedFirstOrderAlgorithmCache(
             fu, u, u_cache, prob.p, alg, prob, globalization,
-            jac_cache, descent_cache, forcing_cache, linesearch_cache, trustregion_cache,
+            jac_cache, descent_cache, forcing_cache, jacobian_reuse_cache,
+            linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true, false, termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
@@ -318,7 +331,14 @@ function NonlinearSolveBase.refresh_residual!(cache::GeneralizedFirstOrderAlgori
     cache.fu_deferred || return nothing
     cache.fu_deferred = false
     Utils.evaluate_f!(cache, cache.u, cache.p)
+    schedule_next_jacobian!(cache)
     NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    return nothing
+end
+
+# Called once the residual at a newly accepted iterate is available.
+function schedule_next_jacobian!(cache::GeneralizedFirstOrderAlgorithmCache)
+    cache.make_new_jacobian = prepare_next_jacobian!(cache.jacobian_reuse_cache, cache.fu)
     return nothing
 end
 
@@ -334,15 +354,18 @@ function InternalAPI.step!(
     # the deferral becoming observable ignores it.
     defer_residual = !evaluate_residual &&
         NonlinearSolveBase.supports_deferred_residual(cache)
+    # A caller that pins the Jacobian owns that decision, so only a Jacobian the reuse
+    # policy chose to retain is a candidate for the stale-Jacobian retry below.
+    policy_driven = recompute_jacobian === nothing
     @static_timeit cache.timer "jacobian" begin
-        if (recompute_jacobian === nothing || recompute_jacobian) && cache.make_new_jacobian
+        new_jacobian = policy_driven ? cache.make_new_jacobian : recompute_jacobian
+        if new_jacobian
             J = cache.jac_cache(cache.u)
-            new_jacobian = true
         else
             J = reused_jacobian(cache.jac_cache, cache.u)
-            new_jacobian = false
         end
     end
+    new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
@@ -388,14 +411,20 @@ function InternalAPI.step!(
             post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
         end
 
-        cache.make_new_jacobian = true
+        accepted_step = false
         if cache.globalization isa Val{:LineSearch}
             @static_timeit cache.timer "linesearch" begin
                 linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
                 linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
                 α = linesearch_sol.step_size
             end
-            if linesearch_failed
+            if linesearch_failed && policy_driven &&
+                    jacobian_is_stale(cache.jacobian_reuse_cache)
+                @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
+                cache.make_new_jacobian = true
+                InternalAPI.step!(cache; recompute_jacobian = true)
+                return
+            elseif linesearch_failed
                 cache.retcode = ReturnCode.InternalLineSearchFailed
                 cache.force_stop = true
             end
@@ -406,6 +435,7 @@ function InternalAPI.step!(
                 )
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
+            accepted_step = !linesearch_failed
         elseif cache.globalization isa Val{:TrustRegion}
             @static_timeit cache.timer "trustregion" begin
                 tr_accepted, u_new,
@@ -423,9 +453,11 @@ function InternalAPI.step!(
                         Utils.evaluate_f!(cache, cache.u, cache.p)
                     end
                     α = true
+                    accepted_step = true
                 else
                     α = false
-                    cache.make_new_jacobian = false
+                    cache.make_new_jacobian =
+                        jacobian_is_stale(cache.jacobian_reuse_cache)
                 end
                 if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
                         cache.trustregion_cache.shrink_counter > cache.max_shrink_times
@@ -442,6 +474,7 @@ function InternalAPI.step!(
                 defer_residual || Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
+            accepted_step = true
         else
             error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
                    are (:LineSearch, :TrustRegion, :None)")
@@ -449,11 +482,12 @@ function InternalAPI.step!(
         if defer_residual
             cache.fu_deferred = true
         else
+            accepted_step && schedule_next_jacobian!(cache)
             NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
         end
     else
         α = false
-        cache.make_new_jacobian = false
+        cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
     end
 
     update_trace!(cache, α)

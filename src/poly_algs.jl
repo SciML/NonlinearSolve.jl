@@ -6,6 +6,7 @@
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing,
         u0_len::Union{Int, Nothing} = nothing
     ) where {T}
 
@@ -22,6 +23,7 @@ for more performance and then tries more robust techniques if the faster ones fa
   - `u0_len`: The length of the initial guess. If this is `nothing`, then the length of the
     initial guess is not checked. If this is an integer and it is less than `25`, we use
     jacobian based methods.
+  - `jacobian_reuse`: forwarded to each first-order method in the polyalgorithm.
 """
 function FastShortcutNonlinearPolyalg(
         ::Type{T} = Float64;
@@ -30,11 +32,16 @@ function FastShortcutNonlinearPolyalg(
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing,
         u0_len::Union{Int, Nothing} = nothing
     ) where {T}
     start_index = 1
-    common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
-    common_kwargs_nocj = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (;
+        concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse,
+    )
+    common_kwargs_nocj = (;
+        linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse,
+    )
     if must_use_jacobian isa Val{true}
         if T <: Complex
             algs = (NewtonRaphson(; common_kwargs...),)
