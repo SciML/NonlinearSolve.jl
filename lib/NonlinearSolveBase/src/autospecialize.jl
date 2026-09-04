@@ -83,6 +83,8 @@ end
 
 function _despecialize_parameters(prob)
     SciMLBase.specialization(prob.f) === SciMLBase.AutoDespecialize || return prob
+    # Already despecialized and wrapped (e.g. concretized at construction): skip the `remake`.
+    prob.p isa SciMLBase.DespecializedParameters && is_fw_wrapped(prob.f.f) && return prob
     f = _map_parameter_callbacks(_wrap_parameter_callback, prob.f)
     p = SciMLBase.DespecializedParameters(prob.p)
     return SciMLBase.remake(prob; f, p)
@@ -222,7 +224,9 @@ Non-array state (e.g. scalar `Number` u0) is not wrapped because the Dual-aware
 because `promote_u0` upgrades `u0` to a `Dual`-eltype array whenever the user's
 outer-AD pass injected duals into `p`; in that case the wrapper's signatures would
 be keyed off the outer Dual tag and miss the inner value-typed dispatch that the
-forward-diff extension builds via `Utils.value` / `nodual_value`.
+forward-diff extension builds via `Utils.value` / `nodual_value`. For the same reason an
+already-wrapped function is unwrapped (via [`get_raw_f`](@ref)) when `u0` has since been
+promoted to a Dual eltype, e.g. by `remake` of a problem that was wrapped at construction.
 """
 function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     u0 = prob.u0
@@ -235,8 +239,13 @@ function maybe_wrap_nonlinear_f(prob::AbstractNonlinearProblem)
     # constructed on the outer-AD path. The unwrapped function works fine.
     EnzymeCore.within_autodiff() && return prob.f.f
 
-    # Already wrapped — idempotent
-    is_fw_wrapped(prob.f.f) && return prob.f.f
+    # Already wrapped — idempotent, unless `remake`/`promote_u0` has since injected an
+    # outer-AD Dual eltype into `u0`: the stored wrapper has no signature for it, so hand
+    # back the raw callable and let the value-typed inner solve rebuild the wrapper.
+    if is_fw_wrapped(prob.f.f)
+        SciMLBase.isdualtype(eltype(u0)) && return get_raw_f(prob.f.f)
+        return prob.f.f
+    end
 
     # Only wrap IIP functions. OOP wrapping requires guessing the return type,
     # which doesn't always work (see DiffEqBase for precedent).

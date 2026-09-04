@@ -311,6 +311,36 @@ run_tests(;
             )
         end
 
+        @safetestset "maybe_wrap_nonlinear_f unwraps a pre-wrapped f under a Dual u0" begin
+            # A problem wrapped at construction (`get_concrete_problem`) and later
+            # `remake`d with an outer-AD Dual `u0`/`p` must not keep the wrapper: its
+            # signatures were built for the value eltype and cannot be called with
+            # the outer Dual, so the raw callable has to be handed back instead.
+            using NonlinearSolveBase, SciMLBase, ForwardDiff
+
+            resid!(du, u, p) = (du .= u .^ 2 .- p.k; nothing)
+            DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 1}
+            dual(v, ∂) = DualF(v, ForwardDiff.Partials((∂,)))
+            for spec in (SciMLBase.AutoSpecialize, SciMLBase.AutoDespecialize)
+                f = NonlinearFunction{true, spec}(resid!)
+                wrapped = NonlinearSolveBase.get_concrete_problem(
+                    NonlinearProblem(f, [1.0, 2.0], (; k = 2.0))
+                )
+                @test NonlinearSolveBase.is_fw_wrapped(wrapped.f.f)
+                @test NonlinearSolveBase.maybe_wrap_f(wrapped) === wrapped
+
+                u0 = [dual(1.0, 1.0), dual(2.0, 0.0)]
+                p = (; k = dual(2.0, 1.0))
+                dualprob = SciMLBase.remake(wrapped; u0, p)
+                concrete = NonlinearSolveBase.get_concrete_problem(dualprob)
+                @test !NonlinearSolveBase.is_fw_wrapped(concrete.f.f)
+                du = similar(concrete.u0)
+                concrete.f(du, concrete.u0, concrete.p)
+                @test ForwardDiff.value.(du) == [-1.0, 2.0]
+                @test ForwardDiff.partials.(du, 1) == [1.0, -1.0]
+            end
+        end
+
         @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
         @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
