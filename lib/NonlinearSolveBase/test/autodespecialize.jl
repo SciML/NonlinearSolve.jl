@@ -1,4 +1,4 @@
-using ADTypes: AutoEnzyme
+using ADTypes: AutoEnzyme, AutoForwardDiff
 using NonlinearSolveBase, SciMLBase, Test
 
 struct DynamicParameters
@@ -78,6 +78,21 @@ end
     @test enzyme_prob.f.f === dynamic_residual!
 end
 
+@testset "Jacobian cache preserves raw parameter storage" begin
+    p = DynamicParameters(2.0)
+    prob = dynamic_problem(p)
+    fu = zeros(1)
+    prob.f(fu, prob.u0, p)
+    cache = NonlinearSolveBase.construct_jacobian_cache(
+        prob, nothing, prob.f, fu;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
+        autodiff = AutoForwardDiff(),
+    )
+
+    wrapped = SciMLBase.DespecializedParameters(p)
+    NonlinearSolveBase.InternalAPI.reinit!(cache; p = wrapped)
+    @test cache.p === p
+end
 
 @testset "AutoDespecialize out-of-place residual" begin
     first_prob = NonlinearSolveBase.get_concrete_problem(
