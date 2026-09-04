@@ -1,6 +1,6 @@
 name = "NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "2.49.2"
+version = "2.49.3"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -59,7 +59,7 @@ NonlinearSolveBaseEnzymeExt = ["ChainRulesCore", "Enzyme"]
 NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
 NonlinearSolveBaseLineSearchExt = "LineSearch"
 NonlinearSolveBaseLinearSolveExt = "LinearSolve"
-NonlinearSolveBaseMooncakeExt = "Mooncake"
+NonlinearSolveBaseMooncakeExt = ["ChainRulesCore", "Mooncake"]
 NonlinearSolveBaseReverseDiffExt = "ReverseDiff"
 NonlinearSolveBaseSparseArraysExt = "SparseArrays"
 NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
