@@ -22,6 +22,16 @@ import SciMLStructures
 # returns a structured cotangent whose gradient contribution may live in
 # non-Tunable fields such as `caches` (e.g. SCC sub-problem buffers feeding
 # `explicitfuns!`), so those fields are walked in as well.
+_unwrap_despecialized_tangent(darg) = SciMLBase.unwrap_parameters(darg)
+_unwrap_despecialized_tangent(darg::NamedTuple{(:params,)}) = darg.params
+
+function _accum_tangent!(
+        dval::SciMLBase.DespecializedParameters, darg; diff_tunables::Bool = true
+    )
+    darg = _unwrap_despecialized_tangent(darg)
+    return _accum_tangent!(dval.params, darg; diff_tunables)
+end
+
 function _accum_tangent!(dval, darg; diff_tunables::Bool = true)
     if SciMLStructures.isscimlstructure(dval) && !(dval isa AbstractArray)
         if SciMLStructures.isscimlstructure(darg)
@@ -84,8 +94,18 @@ function _accum_nested!(dst::Tuple, src::Tuple)
     end
     return nothing
 end
+function _accum_nested!(dst, src::NamedTuple)
+    for field in fieldnames(typeof(src))
+        value = getfield(src, field)
+        value === nothing && continue
+        hasfield(typeof(dst), field) || continue
+        _accum_nested!(getfield(dst, field), value)
+    end
+    return nothing
+end
 _accum_nested!(::Any, ::Nothing) = nothing
 _accum_nested!(::Nothing, ::Any) = nothing
+_accum_nested!(::Nothing, ::NamedTuple) = nothing
 _accum_nested!(::Nothing, ::Nothing) = nothing
 
 # `solve_up`'s differentiable inputs (prob/u0/p) are positional; its keyword
@@ -176,7 +196,8 @@ function Enzyme.EnzymeRules.reverse(
     # SCCNonlinearProblem's `explicitfuns!` coupling). Reproducing that
     # predicate here lets the accumulator walk every non-Tunable field of a
     # structured `darg` so the meaningful cotangent isn't dropped.
-    diff_tunables = let s = sensealg.val, pv = p.val
+    diff_tunables = let s = sensealg.val,
+            pv = SciMLBase.unwrap_parameters(p.val)
         if s isa SciMLBase.AbstractSensitivityAlgorithm &&
                 hasproperty(s, :diff_tunables)
             !(getproperty(s, :diff_tunables) isa Val{false})
