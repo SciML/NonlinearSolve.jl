@@ -298,6 +298,8 @@ end
 function InternalAPI.reinit!(
         cache::GenericTrustRegionSchemeCache; p = cache.p, u0 = nothing, kwargs...
     )
+    p = cache.p isa SciMLBase.DespecializedParameters ?
+        SciMLBase.DespecializedParameters(p) : SciMLBase.unwrap_parameters(p)
     cache.p = p
     if u0 !== nothing
         u0_norm = cache.internalnorm(u0)
