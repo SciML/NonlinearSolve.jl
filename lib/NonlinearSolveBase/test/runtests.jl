@@ -311,6 +311,51 @@ run_tests(;
             )
         end
 
+        @safetestset "maybe_wrap_nonlinear_f rebuilds a pre-wrapped f whose signatures do not match u0" begin
+            # A problem wrapped at construction (`get_concrete_problem`) carries signatures
+            # for the state/parameter types it was wrapped with. After `remake` with other
+            # types the wrapper must not be reused as-is: it is rebuilt for a new value
+            # eltype, and dropped in favour of the raw callable for an outer-AD Dual eltype.
+            using NonlinearSolveBase, SciMLBase, ForwardDiff
+
+            resid!(du, u, p) = (du .= u .^ 2 .- p.k; nothing)
+            DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 1}
+            dual(v, ∂) = DualF(v, ForwardDiff.Partials((∂,)))
+            for spec in (SciMLBase.AutoSpecialize, SciMLBase.AutoDespecialize)
+                f = NonlinearFunction{true, spec}(resid!)
+                wrapped = NonlinearSolveBase.get_concrete_problem(
+                    NonlinearProblem(f, [1.0, 2.0], (; k = 2.0))
+                )
+                @test NonlinearSolveBase.is_fw_wrapped(wrapped.f.f)
+                @test NonlinearSolveBase.wrapper_accepts(
+                    wrapped.f.f, (wrapped.u0, wrapped.u0, wrapped.p)
+                )
+                @test NonlinearSolveBase.maybe_wrap_f(wrapped) === wrapped
+
+                # Different value eltype: the old wrapper has no signature, a new one is built.
+                u0 = Float32[1, 2]
+                p = (; k = 2.0f0)
+                @test !NonlinearSolveBase.wrapper_accepts(wrapped.f.f, (u0, u0, wrapped.p))
+                f32 = NonlinearSolveBase.get_concrete_problem(SciMLBase.remake(wrapped; u0, p))
+                @test NonlinearSolveBase.is_fw_wrapped(f32.f.f)
+                @test NonlinearSolveBase.wrapper_accepts(f32.f.f, (f32.u0, f32.u0, f32.p))
+                du = similar(f32.u0)
+                f32.f(du, f32.u0, f32.p)
+                @test du == Float32[-1, 2]
+
+                # Outer-AD Dual eltype: no wrapper at all, the raw callable is handed back.
+                u0 = [dual(1.0, 1.0), dual(2.0, 0.0)]
+                p = (; k = dual(2.0, 1.0))
+                dualprob = SciMLBase.remake(wrapped; u0, p)
+                concrete = NonlinearSolveBase.get_concrete_problem(dualprob)
+                @test !NonlinearSolveBase.is_fw_wrapped(concrete.f.f)
+                du = similar(concrete.u0)
+                concrete.f(du, concrete.u0, concrete.p)
+                @test ForwardDiff.value.(du) == [-1.0, 2.0]
+                @test ForwardDiff.partials.(du, 1) == [1.0, -1.0]
+            end
+        end
+
         @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
         @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
