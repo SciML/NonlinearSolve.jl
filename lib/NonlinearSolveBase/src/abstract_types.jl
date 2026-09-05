@@ -723,7 +723,7 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.nsteps < cache.maxiters
 end
 
-_prepare_reinit_parameters(p, ::Any) = p
+_prepare_reinit_parameters(p, ::Any) = SciMLBase.unwrap_parameters(p)
 _prepare_reinit_parameters(p, ::SciMLBase.DespecializedParameters) =
     SciMLBase.DespecializedParameters(p)
 

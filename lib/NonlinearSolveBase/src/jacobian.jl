@@ -182,7 +182,7 @@ jacobian_destination(J, autodiff) = J
 end
 
 function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
-    return cache.p = p
+    return cache.p = _prepare_reinit_parameters(p, cache.p)
 end
 
 # Deprecations
