@@ -46,7 +46,7 @@ get_linear_solver(alg::GeodesicAcceleration) = get_linear_solver(alg.descent)
     Jv
     fu_cache
     u_cache
-    last_step_accepted::Bool
+    last_step_accepted
 end
 
 function InternalAPI.reinit_self!(cache::GeodesicAccelerationCache; p = cache.p, kwargs...)
@@ -77,9 +77,8 @@ function InternalAPI.init(
     ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     @bb δu = zero(u)
-    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = zero(u)
-    end
+    δus = Utils.unwrap_val(shared) ≤ 1 ? nothing :
+        collect(ntuple(_ -> zero(u), Utils.unwrap_val(shared) - 1))
     descent_cache = InternalAPI.init(
         prob, alg.descent, J, fu, u;
         shared = Val(2 * Utils.unwrap_val(shared)), pre_inverted, linsolve_kwargs,
@@ -89,9 +88,10 @@ function InternalAPI.init(
     @bb Jv = similar(fu)
     @bb fu_cache = copy(fu)
     @bb u_cache = similar(u)
+    last_step_accepted = maybe_traced(false)
     return GeodesicAccelerationCache(
         δu, δus, descent_cache, prob.f, prob.p, T(alg.α), internalnorm,
-        T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, false
+        T(alg.finite_diff_step_geodesic), Jv, fu_cache, u_cache, last_step_accepted
     )
 end
 
@@ -124,13 +124,9 @@ function InternalAPI.solve!(
     norm_v = cache.internalnorm(v)
     norm_a = cache.internalnorm(a)
 
-    if 2 * norm_a ≤ norm_v * cache.α
-        @bb @. δu = v + a / 2
-        set_du!(cache, δu, idx)
-        cache.last_step_accepted = true
-    else
-        cache.last_step_accepted = false
-    end
+    cache.last_step_accepted = 2 * norm_a ≤ norm_v * cache.α
+    @bb @. δu = ifelse(cache.last_step_accepted, v + a / 2, δu)
+    set_du!(cache, δu, idx)
 
     return DescentResult(; δu, success = cache.last_step_accepted, extras = (; a, v))
 end

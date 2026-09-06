@@ -20,13 +20,13 @@ Construct a `DescentResult` object.
 @concrete struct DescentResult
     δu
     u
-    success::Bool
+    success
     linsolve_success::Bool
     extras
 end
 
 function DescentResult(;
-        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        δu = missing, u = missing, success = true, linsolve_success::Bool = true,
         extras = (;)
     )
     @assert δu !== missing || u !== missing

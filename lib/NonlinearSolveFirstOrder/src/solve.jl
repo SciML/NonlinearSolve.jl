@@ -76,7 +76,7 @@ end
 
     # Counters
     stats::NLStats
-    nsteps::Int
+    nsteps
     maxiters::Int
     maxtime
     max_shrink_times::Int
@@ -94,8 +94,8 @@ end
     # Termination & Tracking
     termination_cache
     trace
-    retcode::ReturnCode.T
-    force_stop::Bool
+    retcode
+    force_stop
     kwargs
 
     initializealg
@@ -121,12 +121,12 @@ function InternalAPI.reinit_self!(
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
-    cache.nsteps = 0
+    cache.nsteps = NonlinearSolveBase.maybe_traced(0)
     cache.maxiters = maxiters
     cache.maxtime = maxtime
     cache.total_time = 0.0
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
+    cache.force_stop = NonlinearSolveBase.maybe_traced(false)
+    cache.retcode = NonlinearSolveBase.maybe_traced(ReturnCode.Default)
     cache.make_new_jacobian = true
     cache.fu_deferred = false
     reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
@@ -291,9 +291,12 @@ function SciMLBase.__init(
             )
         end
 
-        jacobian_reuse_cache = init_jacobian_reuse_cache(
-            resolve_jacobian_reuse(alg.jacobian_reuse, u), J, fu, internalnorm
-        )
+        # A reuse decision compares residual norms, which are traced under Reactant; there
+        # the Jacobian is recomputed on every step instead.
+        jacobian_reuse = resolve_jacobian_reuse(alg.jacobian_reuse, u)
+        ReactantCore.within_compile() &&
+            (jacobian_reuse = without_jacobian_reuse(jacobian_reuse))
+        jacobian_reuse_cache = init_jacobian_reuse_cache(jacobian_reuse, J, fu, internalnorm)
 
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du; kwargs...
@@ -303,8 +306,10 @@ function SciMLBase.__init(
             fu, u, u_cache, prob.p, alg, prob, globalization,
             jac_cache, descent_cache, forcing_cache, jacobian_reuse_cache,
             linesearch_cache, trustregion_cache,
-            stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
-            0.0, true, false, termination_cache, trace, ReturnCode.Default, false, kwargs,
+            stats, NonlinearSolveBase.maybe_traced(0), maxiters, maxtime,
+            alg.max_shrink_times, timer, 0.0, true, false, termination_cache, trace,
+            NonlinearSolveBase.maybe_traced(ReturnCode.Default),
+            NonlinearSolveBase.maybe_traced(false), kwargs,
             initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
@@ -406,89 +411,18 @@ function InternalAPI.step!(
 
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-    if descent_result.success
-        if has_forcing
-            post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
-        end
-
-        accepted_step = false
-        if cache.globalization isa Val{:LineSearch}
-            @static_timeit cache.timer "linesearch" begin
-                linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
-                linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
-                α = linesearch_sol.step_size
-            end
-            if linesearch_failed && policy_driven &&
-                    jacobian_is_stale(cache.jacobian_reuse_cache)
-                @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
-                cache.make_new_jacobian = true
-                InternalAPI.step!(cache; recompute_jacobian = true)
-                return
-            elseif linesearch_failed
-                cache.retcode = ReturnCode.InternalLineSearchFailed
-                cache.force_stop = true
-            end
-            @static_timeit cache.timer "step" begin
-                @bb axpy!(α, δu, cache.u)
-                cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache
-                )
-                Utils.evaluate_f!(cache, cache.u, cache.p)
-            end
-            accepted_step = !linesearch_failed
-        elseif cache.globalization isa Val{:TrustRegion}
-            @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new,
-                    fu_new = InternalAPI.solve!(
-                    cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
-                )
-                if tr_accepted
-                    @bb copyto!(cache.u, u_new)
-                    if NonlinearSolveBase.get_postcondition(cache) === nothing
-                        @bb copyto!(cache.fu, fu_new)
-                    else
-                        cache.u = NonlinearSolveBase.apply_postcondition!!(
-                            cache.u, cache.u_cache, cache
-                        )
-                        Utils.evaluate_f!(cache, cache.u, cache.p)
-                    end
-                    α = true
-                    accepted_step = true
-                else
-                    α = false
-                    cache.make_new_jacobian =
-                        jacobian_is_stale(cache.jacobian_reuse_cache)
-                end
-                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                        cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
-                    cache.force_stop = true
-                end
-            end
-        elseif cache.globalization isa Val{:None}
-            @static_timeit cache.timer "step" begin
-                @bb axpy!(1, δu, cache.u)
-                cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache
-                )
-                defer_residual || Utils.evaluate_f!(cache, cache.u, cache.p)
-            end
-            α = true
-            accepted_step = true
-        else
-            error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
-                   are (:LineSearch, :TrustRegion, :None)")
-        end
-        if defer_residual
-            cache.fu_deferred = true
-        else
-            accepted_step && schedule_next_jacobian!(cache)
-            NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
-        end
+    α = NonlinearSolveBase.maybe_traced(false)
+    ReactantCore.@trace track_numbers = false if descent_result.success
+        α = _perform_first_order_step!(
+            cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
+        )
     else
-        α = false
-        cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
+        # Under Reactant every step is traced, so the Jacobian is always recomputed.
+        cache.make_new_jacobian = ReactantCore.within_compile() ||
+            jacobian_is_stale(cache.jacobian_reuse_cache)
     end
+    # The line search asked for a retry on a fresh Jacobian; that step already finished.
+    α === nothing && return
 
     update_trace!(cache, α)
     @bb copyto!(cache.u_cache, cache.u)
@@ -496,6 +430,91 @@ function InternalAPI.step!(
     NonlinearSolveBase.callback_into_cache!(cache)
 
     return nothing
+end
+
+function _perform_first_order_step!(
+        cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
+    )
+    if has_forcing
+        post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
+    end
+
+    # Under Reactant acceptance is traced and cannot be branched on, so every step counts
+    # as accepted for the Jacobian policy (which is switched off there anyway).
+    accepted_step = false
+    if cache.globalization isa Val{:LineSearch}
+        @static_timeit cache.timer "linesearch" begin
+            linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
+            linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+            α = linesearch_sol.step_size
+        end
+        if linesearch_failed && policy_driven &&
+                jacobian_is_stale(cache.jacobian_reuse_cache)
+            @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_stale_jac)
+            cache.make_new_jacobian = true
+            InternalAPI.step!(cache; recompute_jacobian = true)
+            return nothing
+        elseif linesearch_failed
+            cache.retcode = ReturnCode.InternalLineSearchFailed
+            cache.force_stop = true
+        end
+        @static_timeit cache.timer "step" begin
+            @bb axpy!(α, δu, cache.u)
+            cache.u = NonlinearSolveBase.apply_postcondition!!(
+                cache.u, cache.u_cache, cache
+            )
+            Utils.evaluate_f!(cache, cache.u, cache.p)
+        end
+        accepted_step = !linesearch_failed
+    elseif cache.globalization isa Val{:TrustRegion}
+        @static_timeit cache.timer "trustregion" begin
+            tr_accepted, u_new,
+                fu_new = InternalAPI.solve!(
+                cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
+            )
+            @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
+            if NonlinearSolveBase.get_postcondition(cache) === nothing
+                @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
+            elseif ReactantCore.within_compile() || tr_accepted
+                cache.u = NonlinearSolveBase.apply_postcondition!!(
+                    cache.u, cache.u_cache, cache
+                )
+                Utils.evaluate_f!(cache, cache.u, cache.p)
+            end
+            α = tr_accepted
+            accepted_step = ReactantCore.within_compile() || tr_accepted
+            accepted_step ||
+                (cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache))
+            if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                    cache.max_shrink_times < typemax(Int)
+                exceeded = cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                cache.retcode = ifelse(
+                    exceeded, ReturnCode.ShrinkThresholdExceeded, cache.retcode
+                )
+                cache.force_stop = exceeded | cache.force_stop
+            end
+        end
+    elseif cache.globalization isa Val{:None}
+        @static_timeit cache.timer "step" begin
+            @bb axpy!(1, δu, cache.u)
+            cache.u = NonlinearSolveBase.apply_postcondition!!(
+                cache.u, cache.u_cache, cache
+            )
+            defer_residual || Utils.evaluate_f!(cache, cache.u, cache.p)
+        end
+        α = true
+        accepted_step = true
+    else
+        error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
+               are (:LineSearch, :TrustRegion, :None)")
+    end
+    if defer_residual
+        cache.fu_deferred = true
+    else
+        accepted_step && schedule_next_jacobian!(cache)
+        NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    end
+    return α
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
