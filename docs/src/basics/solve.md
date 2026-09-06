@@ -65,8 +65,11 @@ solve(prob, alg; verbose = SciMLLogging.None())
 solve(prob, alg; verbose = SciMLLogging.All())
 
 # Custom configuration
-solve(prob, alg; verbose = NonlinearVerbosity(
-    alias_u0_immutable = SciMLLogging.WarnLevel(),
-    threshold_state = SciMLLogging.InfoLevel()
-))
+solve(
+    prob, alg;
+    verbose = NonlinearVerbosity(
+        alias_u0_immutable = SciMLLogging.WarnLevel(),
+        threshold_state = SciMLLogging.InfoLevel()
+    )
+)
 ```

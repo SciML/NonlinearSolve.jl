@@ -128,8 +128,10 @@ function f_ip!(resid, u, p)
 end
 
 nf = NLS.NonlinearFunction(f_ip!)
-prob = NLS.NonlinearLeastSquaresProblem(nf, [5.0, 5.0], [1.0, 2.0];
-    lb = [0.0, 0.0], ub = [10.0, 10.0])
+prob = NLS.NonlinearLeastSquaresProblem(
+    nf, [5.0, 5.0], [1.0, 2.0];
+    lb = [0.0, 0.0], ub = [10.0, 10.0]
+)
 
 sol = NLS.solve(prob, NLS.LevenbergMarquardt())
 sol.u
