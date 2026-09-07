@@ -374,10 +374,15 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
             $($struct_name)(
                 internalnorm; protective_threshold = nothing,
                 patience_steps = 100, patience_objective_multiplier = 3,
-                min_max_factor = 1.3, max_stalled_steps = nothing
+                min_max_factor = 1.3, max_stalled_steps = nothing, gtol = nothing
             )
 
         $($TERM_INTERNALNORM_DOCS).
+
+        `gtol` enables the gradient-stationarity criterion described in
+        [`gradient_stationarity_measure`](@ref). It is disabled by default; see
+        [`check_gradient_and_update!`](@ref) for how a solver supplies the Jacobian and
+        for the differing interpretation on square and least-squares problems.
         """
         @concrete struct $(struct_name) <: $(supertype_name)
             internalnorm
@@ -386,22 +391,179 @@ for norm_type in (:RelNorm, :AbsNorm), safety in (:Safe, :SafeBest)
             patience_objective_multiplier
             min_max_factor
             max_stalled_steps <: Union{Nothing, Int}
+            gtol <: Union{Nothing, Real}
 
             function $(struct_name)(
                     internalnorm::F; protective_threshold = nothing,
                     patience_steps = 100, patience_objective_multiplier = 3,
-                    min_max_factor = 1.3, max_stalled_steps = nothing
+                    min_max_factor = 1.3, max_stalled_steps = nothing, gtol = nothing
                 ) where {F}
                 norm = Utils.standardize_norm(internalnorm)
                 return new{
                     typeof(norm), typeof(protective_threshold),
                     typeof(patience_objective_multiplier),
-                    typeof(min_max_factor), typeof(max_stalled_steps),
+                    typeof(min_max_factor), typeof(max_stalled_steps), typeof(gtol),
                 }(
                     norm, protective_threshold, patience_steps,
-                    patience_objective_multiplier, min_max_factor, max_stalled_steps
+                    patience_objective_multiplier, min_max_factor, max_stalled_steps, gtol
                 )
             end
         end
     end
 end
+
+"""
+    gradient_stationarity_measure(J, fu) -> Union{Nothing, Real}
+
+Return the scale-free stationarity measure
+
+```math
+\\max_j \\frac{|(J^\\top F)_j|}{\\|J_j\\|_2 \\, \\|F\\|_2}
+```
+
+where ``J_j`` is the `j`-th column of `J`. This is the cosine of the angle between the
+residual and that column, so it is the criterion MINPACK exposes as `gtol` and the one
+Ceres and `scipy.optimize.least_squares` use.
+
+A least-squares solution satisfies ``J^\\top F = 0``, not ``F = 0``, so a residual test
+alone cannot certify convergence on a problem whose residual is nonzero at the optimum.
+Testing ``\\|J^\\top F\\|`` directly would not do either: it carries units of residual per
+unit of `u` and therefore moves under a rescaling of either. Dividing by
+``\\|J_j\\| \\|F\\|`` removes both, leaving a dimensionless quantity invariant under
+`u -> S u` for invertible diagonal `S`, under `F -> c F` for scalar `c`, and under an
+orthogonal transformation of the residual.
+
+# Arguments
+
+  - `J`: Jacobian at the current iterate. Must describe the same iterate as `fu`.
+  - `fu`: Residual at the current iterate.
+
+# Returns
+
+The measure, or `nothing` when it is not defined: `‖F‖ = 0` (the residual test already
+covers that case, and the ratio is `0/0`) or a non-finite residual.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+J = [1.0 0.0; 0.0 1.0]
+NonlinearSolveBase.gradient_stationarity_measure(J, [0.0, 1.0])
+```
+"""
+function gradient_stationarity_measure end
+
+"""
+    gradient_measure_supported(J) -> Bool
+
+Return whether [`gradient_stationarity_measure`](@ref) can be evaluated for a Jacobian
+representation `J`.
+
+The measure needs the individual column norms of `J`, so it is defined for stored matrices
+and for scalars, and undefined for a matrix-free operator. A solver that holds only an
+operator, or an approximation such as the secant Jacobian a quasi-Newton method carries,
+should not reach the gradient criterion at all; this predicate is what makes that
+degradation silent rather than an error.
+
+# Arguments
+
+  - `J`: A Jacobian representation held by a solver cache.
+
+# Returns
+
+`true` for `AbstractMatrix` and `Number`, `false` otherwise.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.gradient_measure_supported([1.0 0.0; 0.0 1.0]) # true
+```
+"""
+function gradient_measure_supported end
+
+"""
+    check_gradient_and_update!(cache, J, fu, u) -> Bool
+
+Apply the gradient-stationarity criterion of [`gradient_stationarity_measure`](@ref) to a
+solver cache and stop the solve when it is met.
+
+This is a developer API for solver packages. Call it from a stepping routine at a point
+where `J`, `fu` and `u` all describe the *same* iterate — in practice immediately after
+the Jacobian is formed and before a descent is taken from it. Supplying a Jacobian from a
+previous iterate would test stationarity at a point the solver has already left.
+
+The criterion is a disjunction with, not a replacement for, the residual test the
+termination mode already performs: the residual arm is cheap and it covers the
+zero-residual case, where the measure is a ratio of two quantities going to zero and
+carries no information.
+
+The verdict depends on the problem type, because the same measurement means different
+things:
+
+| | `JᵀF ≈ 0`, `F` small | `JᵀF ≈ 0`, `F` not small |
+|---|---|---|
+| `NonlinearLeastSquaresProblem` | `ReturnCode.Success` | `ReturnCode.Success` |
+| `NonlinearProblem` | `ReturnCode.Success` | `ReturnCode.Stalled` |
+
+For a least-squares problem a stationary point *is* the solution. For a square root-find
+it is a local minimum of `‖F‖` that is not a root, which is a failure — and reporting it
+as `ReturnCode.Stalled` turns a solve that would otherwise exhaust `maxiters` into a
+statement about what went wrong.
+
+# Arguments
+
+  - `cache`: A solver cache carrying `termination_cache`, `retcode` and `force_stop`.
+  - `J`: Jacobian at `u`.
+  - `fu`: Residual at `u`.
+  - `u`: Current iterate.
+
+# Returns
+
+`true` when the solve was stopped, `false` otherwise. It returns `false` without computing
+anything when the termination mode has no `gtol`, so a mode that does not opt in — which
+is every mode by default, including any user-defined one — pays nothing and behaves
+exactly as before.
+
+# Examples
+
+```julia
+using NonlinearSolve, NonlinearSolveBase
+
+prob = NonlinearLeastSquaresProblem((u, p) -> [u[1] - 1.0, 2.0], [0.0])
+cache = init(prob, LevenbergMarquardt())
+NonlinearSolveBase.check_gradient_and_update!(cache, [1.0; 0.0;;], get_fu(cache), get_u(cache))
+```
+"""
+function check_gradient_and_update! end
+
+"""
+    default_gradient_tolerance(T) -> Real
+
+Return the default `gtol` for the gradient-stationarity criterion at element type `T`.
+
+The measure of [`gradient_stationarity_measure`](@ref) is a cosine, so the tolerance is
+dimensionless and depends only on working precision. `sqrt(eps(T))` sits well above the
+`O(eps * sqrt(m))` floor that cancellation in `JᵀF` imposes, so the criterion stays
+attainable, while a cosine that small already certifies the residual as orthogonal to
+every column of the Jacobian.
+
+# Arguments
+
+  - `T`: Element type of the iterate.
+
+# Returns
+
+The default tolerance as a real number.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.default_gradient_tolerance(Float64)
+```
+"""
+function default_gradient_tolerance end

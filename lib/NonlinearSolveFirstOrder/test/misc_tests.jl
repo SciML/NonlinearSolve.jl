@@ -7,3 +7,4 @@
 @safetestset "Deferred residual evaluation" include("misc_tests__item7.jl")
 @safetestset "No redundant terminal residual evaluation" include("misc_tests__item8.jl")
 @safetestset "Adaptive Jacobian reuse" include("misc_tests__item9.jl")
+@safetestset "Gradient stationarity termination (#1149)" include("misc_tests__item10.jl")
