@@ -194,8 +194,7 @@ function _simple_sweep_nonlinear_function(::Val{iip}, f, λfix) where {iip}
     end
     jac = f.jac === nothing ? nothing : SimpleFixLambda(f.jac, λfix)
     return NonlinearFunction{iip}(
-        SimpleFixLambda(f, λfix); jac, jac_prototype = f.jac_prototype,
-        sparsity = f.sparsity, colorvec = f.colorvec
+        SimpleFixLambda(f, λfix); jac, f.jac_prototype, f.sparsity, f.colorvec
     )
 end
 
@@ -280,7 +279,7 @@ function CommonSolve.solve(
     if !SciMLBase.successful_retcode(last_sol)
         return SciMLBase.build_solution(
             prob, alg, u, last_sol.resid;
-            retcode = last_sol.retcode, original = last_sol
+            last_sol.retcode, original = last_sol
         )
     end
     u = _simple_sweep_guess(last_sol.u)
@@ -402,7 +401,7 @@ function CommonSolve.solve(
         else
             return SciMLBase.build_solution(
                 prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol
+                last_sol.retcode, original = last_sol
             )
         end
     end

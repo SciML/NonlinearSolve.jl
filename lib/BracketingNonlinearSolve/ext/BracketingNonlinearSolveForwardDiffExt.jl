@@ -131,7 +131,7 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
         return SciMLBase.build_solution(
             prob, alg, dual_u, sol.resid;
             sol.retcode, sol.stats, sol.original,
-            left = left, right = right
+            left, right
         )
     end
 end

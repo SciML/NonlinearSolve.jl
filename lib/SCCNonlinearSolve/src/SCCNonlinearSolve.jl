@@ -98,7 +98,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         nlprob = NonlinearProblem{true}(Returns(nothing), sol.u, prob.p)
         SciMLBase.strip_solution(
-            SciMLBase.build_solution(nlprob, nothing, sol.u, resid, retcode = sol.retcode)
+            SciMLBase.build_solution(nlprob, nothing, sol.u, resid; sol.retcode)
         )
     else
         # A `HomotopyProblem` block (e.g. a Modelica `homotopy` operator block from
@@ -115,7 +115,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         sol = SciMLBase.solve(prob, blockalg; kwargs...)
         SciMLBase.strip_solution(
             SciMLBase.build_solution(
-                prob, nothing, sol.u, sol.resid, retcode = sol.retcode
+                prob, nothing, sol.u, sol.resid; sol.retcode
             )
         )
     end
@@ -169,13 +169,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode
+            alg.linalg, sol.u, resid, nothing; sol.retcode
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
-        SciMLBase.build_solution(
-            prob, nothing, sol.u, sol.resid, retcode = sol.retcode
-        )
+        SciMLBase.build_solution(prob, nothing, sol.u, sol.resid; sol.retcode)
     end
 
     return iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)

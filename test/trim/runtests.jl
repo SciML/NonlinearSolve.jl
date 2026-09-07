@@ -38,9 +38,9 @@ end
         stdout_task = @async read(out, String)
         stderr_task = @async read(err, String)
         wait(process)
-        return (
+        return (;
             stdout = fetch(stdout_task), stderr = fetch(stderr_task),
-            exitcode = process.exitcode,
+            process.exitcode,
         )
     end
 
