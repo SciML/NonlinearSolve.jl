@@ -83,6 +83,17 @@ probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
 
+# SciMLBase ≥ 3.51 appends the return code type to `NonlinearSolution`'s parameters.
+let retcode_param = fieldtype(SciMLBase.NonlinearSolution, :retcode) === SciMLBase.ReturnCode.T ?
+        () : (SciMLBase.ReturnCode.T,)
+    @eval function nonlinear_solution_type(::Type{T}, ::Type{uType}, ::Type{rType}) where {T, uType, rType}
+        return SciMLBase.NonlinearSolution{
+            T, 1, uType, rType, NamedTuple{(:p,), Tuple{Nothing}},
+            Nothing, Nothing, Nothing, Nothing, Nothing, $(retcode_param...),
+        }
+    end
+end
+
 function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     SciMLBase.invoke_with_despecialized_parameters(
         explicitfun, (prob.p, sols)
@@ -131,10 +142,7 @@ function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::Abstra
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
+    ST = nonlinear_solution_type(T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST

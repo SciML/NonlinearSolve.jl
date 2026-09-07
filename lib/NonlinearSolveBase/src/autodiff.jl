@@ -25,7 +25,8 @@ Choose a forward-mode-compatible automatic differentiation backend for `prob`.
 
 If `ad` is an `AbstractADType`, the backend is returned when it is available and compatible
 with the problem. If `ad === nothing`, NonlinearSolveBase selects the first available
-compatible backend from its preferred forward-mode list.
+compatible backend from its preferred forward-mode list. During Reactant compilation,
+forward-mode `AutoEnzyme` is preferred when available.
 
 ### Arguments
 
@@ -76,6 +77,10 @@ function select_forward_mode_autodiff(
         prob::AbstractNonlinearProblem, ::Nothing;
         warn_check_mode::Bool = true
     )
+    if ReactantCore.within_compile()
+        ad = ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward)
+        !incompatible_backend_and_problem(prob, ad) && return ad
+    end
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
     idx !== nothing && return ForwardADs[idx]
     throw(ArgumentError("No forward mode AD backend is compatible with the chosen problem. \
@@ -142,7 +147,8 @@ Choose an automatic differentiation backend for constructing Jacobians for `prob
 
 If `ad === nothing`, NonlinearSolveBase prefers a compatible forward-mode backend that is
 not finite differencing, then falls back to compatible reverse-mode or finite-difference
-backends.
+backends. During Reactant compilation, forward-mode `AutoEnzyme` is preferred when
+available.
 
 ### Arguments
 
@@ -166,6 +172,10 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractAD
 end
 
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
+    if ReactantCore.within_compile()
+        ad = ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward)
+        !incompatible_backend_and_problem(prob, ad) && return ad
+    end
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
     idx !== nothing && !is_finite_differences_backend(ForwardADs[idx]) &&
         return ForwardADs[idx]

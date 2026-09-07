@@ -152,3 +152,14 @@ NonlinearSolveBase.get_reltol
 NonlinearSolveBase.AbstractNonlinearTerminationMode
 NonlinearSolveBase.AbstractSafeNonlinearTerminationMode
 ```
+
+## Reactant Support
+
+Helpers used by the solver packages so that their loops trace under `Reactant.@compile`.
+
+```@docs
+NonlinearSolveBase.maybe_traced
+NonlinearSolveBase.dealias_traced!
+NonlinearSolveBase.select
+NonlinearSolveBase.build_nonlinear_solution
+```
