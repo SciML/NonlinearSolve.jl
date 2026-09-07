@@ -50,6 +50,14 @@ end
 
 SciMLBase.unwrapped_f(f::ParameterDespecializationWrapper) = SciMLBase.unwrapped_f(f.f)
 
+# Both wrappers forward through a single `(args...)` method, which `SciMLBase.numargs`
+# would report as arity 1. Reporting the wrapped function's arity keeps
+# `SciMLBase.isinplace` on its arity fast path instead of the method-table introspection
+# fallback, which Enzyme cannot differentiate through when a wrapped problem is `remake`d
+# inside reverse-mode AD.
+SciMLBase.numargs(f::ParameterDespecializationWrapper) = SciMLBase.numargs(f.f)
+SciMLBase.numargs(f::AutoSpecializeCallable) = SciMLBase.numargs(f.orig)
+
 _wrap_parameter_callback(::Nothing) = nothing
 _wrap_parameter_callback(f::ParameterDespecializationWrapper) = f
 _wrap_parameter_callback(f) = ParameterDespecializationWrapper(f)
