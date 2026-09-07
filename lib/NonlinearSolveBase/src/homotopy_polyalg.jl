@@ -96,10 +96,12 @@ below) — by default it is dropped so the returned solution stays concretely ty
 using NonlinearSolve
 
 alg = HomotopyPolyAlgorithm() # HomotopySweep, then ArcLengthContinuation on failure
-alg = HomotopyPolyAlgorithm((
-    HomotopySweep(; inner = NewtonRaphson()),
-    ArcLengthContinuation(; predictor = :tangent),
-))
+alg = HomotopyPolyAlgorithm(
+    (
+        HomotopySweep(; inner = NewtonRaphson()),
+        ArcLengthContinuation(; predictor = :tangent),
+    )
+)
 alg = HomotopyPolyAlgorithm(; warm_handoff = false) # always restart stages cold
 ```
 """

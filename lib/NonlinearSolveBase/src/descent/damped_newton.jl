@@ -1,6 +1,8 @@
 """
-    DampedNewtonDescent(; linsolve = nothing, initial_damping, damping_fn,
-                          min_norm_mode = :auto)
+    DampedNewtonDescent(;
+        linsolve = nothing, initial_damping, damping_fn,
+        min_norm_mode = :auto
+    )
 
 A Newton descent algorithm with damping. The damping factor is computed using the
 `damping_fn` function. The descent direction is computed as ``(JᵀJ + λDᵀD) δu = -fu``. For

@@ -25,7 +25,7 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     construct_extension_function_wrapper
 
 """
-    SciPyLeastSquares(; method="trf", loss="linear")
+    SciPyLeastSquares(; method = "trf", loss = "linear")
 
 Wrapper over `scipy.optimize.least_squares` (via PythonCall) for solving
 `NonlinearLeastSquaresProblem`s.  The keyword arguments correspond to the
@@ -84,7 +84,7 @@ least-squares method.
 SciPyLeastSquaresLM() = SciPyLeastSquares(method = "lm")
 
 """
-    SciPyRoot(; method="hybr")
+    SciPyRoot(; method = "hybr")
 
 Wrapper over `scipy.optimize.root` for solving `NonlinearProblem`s.  Available
 methods include "hybr" (default), "lm", "broyden1", "broyden2", "anderson",
@@ -103,7 +103,7 @@ function SciPyRoot(; method::String = "hybr")
 end
 
 """
-    SciPyRootScalar(; method="brentq")
+    SciPyRootScalar(; method = "brentq")
 
 Wrapper over `scipy.optimize.root_scalar` for scalar `IntervalNonlinearProblem`s
 (bracketing problems).  The default method uses Brent's algorithm ("brentq").

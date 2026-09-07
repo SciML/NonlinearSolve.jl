@@ -16,19 +16,24 @@ myfun(x, lv) = x * sin(x) - lv
 
 function f(out, levels, u0)
     for i in 1:N
-        out[i] = NLS.solve(
-            NLS.IntervalNonlinearProblem{false}(
-                NLS.IntervalNonlinearFunction{false}(myfun), u0, levels[i]),
-            NLS.Falsi()).u
+        prob = NLS.IntervalNonlinearProblem{false}(
+            NLS.IntervalNonlinearFunction{false}(myfun), u0, levels[i]
+        )
+        sol = NLS.solve(prob, NLS.Falsi())
+        out[i] = sol.u
     end
+    return
 end
 
 function f2(out, levels, u0)
     for i in 1:N
-        out[i] = NLS.solve(
-            NLS.NonlinearProblem{false}(NLS.NonlinearFunction{false}(myfun), u0, levels[i]),
-            NLS.SimpleNewtonRaphson()).u
+        prob = NLS.NonlinearProblem{false}(
+            NLS.NonlinearFunction{false}(myfun), u0, levels[i]
+        )
+        sol = NLS.solve(prob, NLS.SimpleNewtonRaphson())
+        out[i] = sol.u
     end
+    return
 end
 
 BenchmarkTools.@btime f(out, levels, (0.0, 2.0))
@@ -62,7 +67,7 @@ v_init = v_true .+ Random.randn!(similar(v_true)) * 0.1
 
 prob_oop = NLS.NonlinearLeastSquaresProblem{false}(fff_incorrect, v_init)
 try
-    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
+    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1.0e-8)
 catch e
     @error e
 end
@@ -77,8 +82,10 @@ be a Dual number. This causes the error. To fix it:
     
     ```@example dual_error_faq
     import ADTypes
-    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(; autodiff = ADTypes.AutoFiniteDiff());
-        maxiters = 10000, abstol = 1e-8)
+    sol = NLS.solve(
+        prob_oop, NLS.LevenbergMarquardt(; autodiff = ADTypes.AutoFiniteDiff());
+        maxiters = 10000, abstol = 1.0e-8
+    )
     ```
     
     This worked but, Finite Differencing is not the recommended approach in any scenario.
@@ -93,9 +100,9 @@ be a Dual number. This causes the error. To fix it:
         xx[1] = var[1] - v_true[1]
         return xx - v_true
     end
-    
+
     prob_oop = NLS.NonlinearLeastSquaresProblem{false}(fff_correct, v_init)
-    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1e-8)
+    sol = NLS.solve(prob_oop, NLS.LevenbergMarquardt(); maxiters = 10000, abstol = 1.0e-8)
     ```
 
 ## I thought NonlinearSolve.jl was type-stable and fast. But it isn't, why?

@@ -1,9 +1,11 @@
 """
-    SimpleHomotopySweep(; inner = SimpleNewtonRaphson(), nsteps = nothing,
+    SimpleHomotopySweep(;
+        inner = SimpleNewtonRaphson(), nsteps = nothing,
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
         expand_quality = 0.25, predictor = :secant, tracking_maxiters = 10,
-        tracking_abstol = nothing, maxsteps = 10000)
+        tracking_abstol = nothing, maxsteps = 10000
+    )
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
 SimpleNonlinearSolve counterpart of `HomotopySweep`. The algorithm is the same —

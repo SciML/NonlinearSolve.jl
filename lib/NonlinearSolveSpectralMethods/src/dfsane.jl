@@ -1,6 +1,6 @@
 """
     DFSane(;
-        sigma_min = 1 // 10^10, sigma_max = 1e10, sigma_1 = 1, M::Int = 10,
+        sigma_min = 1 // 10^10, sigma_max = 1.0e10, sigma_1 = 1, M::Int = 10,
         gamma = 1 // 10^4, tau_min = 1 // 10, tau_max = 1 // 2, n_exp::Int = 2,
         max_inner_iterations::Int = 100, eta_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2
     )

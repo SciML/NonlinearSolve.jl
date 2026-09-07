@@ -1,9 +1,11 @@
 """
-    HomotopySweep(; inner = nothing, nsteps = nothing, adaptive = true,
+    HomotopySweep(;
+        inner = nothing, nsteps = nothing, adaptive = true,
         initial_step_factor = 0.1, min_dλ = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, expand_quality = 0.25,
         predictor = :secant, tracking_maxiters = 10, tracking_abstol = nothing,
-        maxsteps = 10000, store_original = Val(false))
+        maxsteps = 10000, store_original = Val(false)
+    )
 
 Natural-parameter continuation solver for `SciMLBase.HomotopyProblem`. The
 scalar continuation parameter ``λ`` is swept across the problem's `λspan`. The sweep

@@ -5,7 +5,7 @@ end
 
 """
 ```julia
-solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm,Nothing}; kwargs...)
+solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm, Nothing}; kwargs...)
 ```
 
 ## Arguments
