@@ -197,8 +197,8 @@ function CommonSolve.solve(
                 # inner stage solve infers as `Any`).
                 return build_solution_less_specialize(
                     prob, stage, hsol.u, hsol.resid;
-                    retcode = hsol.retcode, original = hsol, stats = hsol.stats,
-                    store_original = alg.store_original
+                    hsol.retcode, original = hsol, hsol.stats,
+                    alg.store_original
                 )
             end
             # Warm attempt failed (even the backed-off seed can be unlucky, e.g. on a
@@ -259,6 +259,6 @@ function CommonSolve.solve(
     nlprob = NonlinearProblem{iip}(f, copy(prob.u0), prob.p)
     sol = CommonSolve.solve(nlprob, alg, args...; prob.kwargs..., kwargs...)
     return build_solution_less_specialize(
-        prob, alg, sol.u, sol.resid; retcode = sol.retcode, stats = sol.stats
+        prob, alg, sol.u, sol.resid; sol.retcode, sol.stats
     )
 end

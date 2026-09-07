@@ -70,22 +70,22 @@ function _map_parameter_callbacks(transform, f, residual = f.f)
         SciMLBase.isinplace(f), SciMLBase.specialization(f),
     }(
         residual;
-        mass_matrix = f.mass_matrix,
+        f.mass_matrix,
         analytic = transform(f.analytic),
         tgrad = transform(f.tgrad),
         jac = transform(f.jac),
         jvp = transform(f.jvp),
         vjp = transform(f.vjp),
-        jac_prototype = f.jac_prototype,
-        sparsity = f.sparsity,
+        f.jac_prototype,
+        f.sparsity,
         Wfact = transform(f.Wfact),
         Wfact_t = transform(f.Wfact_t),
         paramjac = transform(f.paramjac),
         observed = transform(f.observed),
-        colorvec = f.colorvec,
-        sys = f.sys,
-        resid_prototype = f.resid_prototype,
-        initialization_data = f.initialization_data
+        f.colorvec,
+        f.sys,
+        f.resid_prototype,
+        f.initialization_data
     )
 end
 

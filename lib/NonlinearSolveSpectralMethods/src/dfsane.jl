@@ -26,7 +26,7 @@ function DFSane(;
         ) -> fn_1 / n^2
     ) where {F}
     linesearch = RobustNonMonotoneLineSearch(;
-        gamma = gamma, sigma_1 = sigma_1, M, tau_min = tau_min, tau_max = tau_max,
+        gamma, sigma_1, M, tau_min, tau_max,
         n_exp, η_strategy = eta_strategy, maxiters = max_inner_iterations
     )
     return GeneralizedDFSane(;

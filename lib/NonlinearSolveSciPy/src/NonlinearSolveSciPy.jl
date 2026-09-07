@@ -170,18 +170,18 @@ function SciMLBase.__solve(
     if bounds === nothing
         res = scipy_optimize[].least_squares(
             py_f, collect(prob.u0);
-            method = alg.method,
-            loss = alg.loss,
+            alg.method,
+            alg.loss,
             max_nfev = maxiters,
             scipy_kwargs...
         )
     else
         res = scipy_optimize[].least_squares(
             py_f, collect(prob.u0);
-            method = alg.method,
-            loss = alg.loss,
+            alg.method,
+            alg.loss,
             max_nfev = maxiters,
-            bounds = bounds,
+            bounds,
             scipy_kwargs...
         )
     end
@@ -205,8 +205,7 @@ function SciMLBase.__solve(
     stats = SciMLBase.NLStats(nfev, njev, 0, 0, nfev)
 
     return SciMLBase.build_solution(
-        prob, alg, u, resid; retcode = ret,
-        original = res, stats = stats
+        prob, alg, u, resid; retcode = ret, original = res, stats
     )
 end
 
@@ -232,7 +231,7 @@ function SciMLBase.__solve(
 
     res = scipy_optimize[].root(
         py_f, collect(u0);
-        method = alg.method,
+        alg.method,
         tol = tol,
         options = Dict("maxiter" => maxiters),
         scipy_kwargs...
@@ -257,8 +256,7 @@ function SciMLBase.__solve(
     stats = SciMLBase.NLStats(nfev, 0, 0, 0, niter)
 
     return SciMLBase.build_solution(
-        prob, alg, u_out, resid; retcode = ret,
-        original = res, stats = stats
+        prob, alg, u_out, resid; retcode = ret, original = res, stats
     )
 end
 
@@ -277,7 +275,7 @@ function CommonSolve.solve(
 
     res = scipy_optimize[].root_scalar(
         py_f;
-        method = alg.method,
+        alg.method,
         bracket = (a, b),
         maxiter = maxiters,
         xtol = abstol,
@@ -302,7 +300,7 @@ function CommonSolve.solve(
 
     return SciMLBase.build_solution(
         prob, alg, u_root, resid; retcode = ret,
-        original = res, stats = stats
+        original = res, stats
     )
 end
 

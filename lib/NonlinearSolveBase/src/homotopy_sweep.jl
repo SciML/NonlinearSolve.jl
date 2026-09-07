@@ -316,8 +316,7 @@ function _sweep_nonlinear_function(::Val{iip}, f, fixλ::FixLambda) where {iip}
     end
     jac = f.jac === nothing ? nothing : FixLambdaJac(fixλ)
     return SciMLBase.NonlinearFunction{iip}(
-        fixλ; jac, jac_prototype = f.jac_prototype,
-        sparsity = f.sparsity, colorvec = f.colorvec
+        fixλ; jac, f.jac_prototype, f.sparsity, f.colorvec
     )
 end
 
@@ -681,7 +680,7 @@ function _homotopy_sweep_solve!(sweep_cache::HomotopySweepCache, return_λ::Val)
     guess = _sweep_warmstart!(sweep_cache.guess, prob.u0)
     virtual = sweep_cache.virtual
     fixλ.λ = λ
-    SciMLBase.reinit!(inner_cache, guess; p = prob.p)
+    SciMLBase.reinit!(inner_cache, guess; prob.p)
 
     # Anchor: solve the system at λ = λspan[1] from u0 BEFORE stepping. For the
     # canonical (0, 1) span this is the pure `simplified` system — the one the

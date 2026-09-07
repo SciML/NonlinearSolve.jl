@@ -564,7 +564,7 @@ function _arclength_jac_cache(
     end
     autodiff = select_jacobian_autodiff(gprob, alg.autodiff)
     return construct_jacobian_cache(
-        gprob, alg, gf, fu, x, prob.p; stats, autodiff, linsolve = alg.linsolve
+        gprob, alg, gf, fu, x, prob.p; stats, autodiff, alg.linsolve
     )
 end
 
