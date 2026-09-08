@@ -1,4 +1,5 @@
 using SimpleNonlinearSolve
+using SciMLBase
 
 using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes, LineSearch
 using NonlinearSolveBase: ImmutableNonlinearProblem
@@ -52,5 +53,20 @@ if CUDA.functional()
                 true
             end
         end
+    end
+
+    @testset "Immutable problem without parameters" begin
+        prob = convert(
+            SciMLBase.ImmutableNonlinearProblem,
+            NonlinearProblem{false}((u, p) -> u .- 1.0f0, SVector(0.0f0))
+        )
+        function parameterless_kernel!(out, prob)
+            sol = solve(prob, SimpleNewtonRaphson())
+            out[1] = sol.u[1]
+            return nothing
+        end
+        out = CUDA.zeros(Float32, 1)
+        @cuda parameterless_kernel!(out, prob)
+        @test Array(out) ≈ [1.0f0]
     end
 end
