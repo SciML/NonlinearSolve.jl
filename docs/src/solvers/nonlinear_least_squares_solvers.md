@@ -25,6 +25,8 @@ fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
     autodiff methods for high performance on large and sparse systems.
   - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+  - [`BoundedTrustRegion()`](@ref): A projected dogleg trust-region method that handles box
+    bounds directly and detects constrained least-squares stationarity.
 
 ### SimpleNonlinearSolve.jl
 
