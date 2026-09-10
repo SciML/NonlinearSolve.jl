@@ -241,7 +241,7 @@ version = "0.1.6"
 deps = ["CommonSolve", "ConcreteStructs", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLLogging"]
 path = "../lib/BracketingNonlinearSolve"
 uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-version = "1.12.6"
+version = "1.12.7"
 weakdeps = ["ChainRulesCore", "ForwardDiff"]
 
     [deps.BracketingNonlinearSolve.extensions]
@@ -1443,10 +1443,10 @@ version = "0.9.3"
 
 [[deps.LineSearch]]
 deps = ["ADTypes", "CommonSolve", "ConcreteStructs", "FastClosures", "LinearAlgebra", "MaybeInplace", "PrecompileTools", "SciMLBase", "SciMLJacobianOperators", "StaticArraysCore"]
-git-tree-sha1 = "e3f00a2de8e2faf41381f583bd92ce8ebdff5c22"
+git-tree-sha1 = "c5bb4712cec0438e5d778920ad620e620dd80883"
 registries = "General"
 uuid = "87fe0de2-c867-4266-b59a-2f0a94fc965b"
-version = "0.1.16"
+version = "0.1.17"
 weakdeps = ["LineSearches"]
 
     [deps.LineSearch.extensions]
@@ -1862,7 +1862,7 @@ version = "4.30.0"
 deps = ["ADTypes", "Adapt", "ArrayInterface", "CommonSolve", "Compat", "ConcreteStructs", "DifferentiationInterface", "EnumX", "EnzymeCore", "FastClosures", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "LogExpFunctions", "Markdown", "MaybeInplace", "PreallocationTools", "PrecompileTools", "Preferences", "Printf", "RecursiveArrayTools", "RespecializeParams", "SciMLBase", "SciMLJacobianOperators", "SciMLLogging", "SciMLOperators", "SciMLStructures", "Setfield", "StaticArraysCore", "SymbolicIndexingInterface", "TimerOutputs"]
 path = "../lib/NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "2.49.4"
+version = "2.49.5"
 
     [deps.NonlinearSolveBase.extensions]
     NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
@@ -1900,7 +1900,7 @@ version = "2.6.0"
 deps = ["ADTypes", "CommonSolve", "ConcreteStructs", "DifferentiationInterface", "DocStringExtensions", "HomotopyContinuation", "LinearAlgebra", "NonlinearSolveBase", "SciMLBase", "SymbolicIndexingInterface", "TaylorDiff", "TaylorSeries"]
 path = "../lib/NonlinearSolveHomotopyContinuation"
 uuid = "2ac3b008-d579-4536-8c91-a1a5998c2f8b"
-version = "0.1.12"
+version = "0.1.13"
 
 [[deps.NonlinearSolveQuasiNewton]]
 deps = ["ArrayInterface", "CommonSolve", "ConcreteStructs", "LinearAlgebra", "LinearSolve", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLLogging", "SciMLOperators", "StaticArraysCore"]
@@ -1916,13 +1916,13 @@ weakdeps = ["ForwardDiff"]
 deps = ["CommonSolve", "ConcreteStructs", "NonlinearSolveBase", "PrecompileTools", "PythonCall", "Reexport", "SciMLBase"]
 path = "../lib/NonlinearSolveSciPy"
 uuid = "4827a3aa-8a82-4c61-8bd0-3c7d3e464ee5"
-version = "1.3.6"
+version = "1.3.7"
 
 [[deps.NonlinearSolveSpectralMethods]]
 deps = ["CommonSolve", "ConcreteStructs", "LineSearch", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLLogging"]
 path = "../lib/NonlinearSolveSpectralMethods"
 uuid = "26075421-4e9a-44e1-8bd1-420ed7ad02b2"
-version = "1.8.2"
+version = "1.8.3"
 weakdeps = ["ForwardDiff"]
 
     [deps.NonlinearSolveSpectralMethods.extensions]
@@ -2311,10 +2311,10 @@ version = "1.4.0"
 
 [[deps.PureKLU]]
 deps = ["LinearAlgebra", "PrecompileTools", "SparseArrays"]
-git-tree-sha1 = "ef341b8e734ffa12c0464a58ca1c8a214d7a4235"
+git-tree-sha1 = "b2b06e2fb7882a1f097f47fb6909c35c251102f5"
 registries = "General"
 uuid = "0c0d3e7f-3a8b-4f7e-b6f1-9a4d2e7c1f01"
-version = "1.4.1"
+version = "1.4.2"
 weakdeps = ["ForwardDiff"]
 
     [deps.PureKLU.extensions]
@@ -2727,7 +2727,7 @@ version = "0.8.10"
 deps = ["ADTypes", "ArrayInterface", "BracketingNonlinearSolve", "CommonSolve", "ConcreteStructs", "DifferentiationInterface", "FastClosures", "FiniteDiff", "ForwardDiff", "LineSearch", "LinearAlgebra", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLLogging", "Setfield", "StaticArraysCore"]
 path = "../lib/SimpleNonlinearSolve"
 uuid = "727e6d20-b764-4bd8-a329-72de5adea6c7"
-version = "2.14.2"
+version = "2.14.3"
 
     [deps.SimpleNonlinearSolve.extensions]
     SimpleNonlinearSolveChainRulesCoreExt = "ChainRulesCore"
