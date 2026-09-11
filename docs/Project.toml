@@ -68,7 +68,7 @@ path = "../lib/SimpleNonlinearSolve"
 
 [compat]
 ADTypes = "1.9.0"
-AlgebraicMultigrid = "0.5, 0.6, 1"
+AlgebraicMultigrid = "0.5, 0.6, 1, 2.0"
 ArrayInterface = "6, 7"
 BenchmarkTools = "1"
 BracketingNonlinearSolve = "1"
