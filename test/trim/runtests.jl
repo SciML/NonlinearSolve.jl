@@ -50,7 +50,11 @@ end
             "juliac.jl"
         )
     )
-    @test isfile(JULIAC)
+    # Julia 1.13 removed `juliac.jl` from the distribution; juliac now lives
+    # in the JuliaC package (a test dep of this project).
+    JULIAC_CMD = isfile(JULIAC) ? `$(JULIAC)` :
+        Cmd(["-e", "using JuliaC; JuliaC.main(ARGS)", "--"])
+    @test isfile(JULIAC) || VERSION ≥ v"1.13-"
 
     for (mainfile, expectedtopass) in [
             ("main_trimmable.jl", true),
@@ -62,7 +66,9 @@ end
             ("main_segfault.jl", false),
         ]
         binpath = tempname()
-        cmd = `$(Base.julia_cmd()) --project=. --depwarn=error $(JULIAC) --experimental --trim=unsafe-warn --output-exe $(binpath) $(mainfile)`
+        # JuliaC requires `--output-exe` to be a bare name, so run from the
+        # output directory and pass absolute paths for project and entry file.
+        cmd = `$(Base.julia_cmd()) --project=$(@__DIR__) --depwarn=error $(JULIAC_CMD) --experimental --trim=unsafe-warn --output-exe $(basename(binpath)) $(joinpath(@__DIR__, mainfile))`
 
         # since we are calling Julia from Julia, we first need to clean some
         # environment variables
@@ -72,7 +78,7 @@ end
         # We could just check for success, but then failures are hard to debug.
         # Instead we use `_execute` to also capture `stdout` and `stderr`.
         # @test success(setenv(cmd, clean_env))
-        trimcall = _execute(setenv(cmd, clean_env; dir = @__DIR__))
+        trimcall = _execute(setenv(cmd, clean_env; dir = dirname(binpath)))
         if trimcall.exitcode != 0 && expectedtopass
             @show trimcall.stdout
             @show trimcall.stderr
