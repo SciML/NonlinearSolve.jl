@@ -111,3 +111,6 @@ with an active set and a feasible line search.
 [`Dogbox()`](@ref) follows a dogleg path inside the intersection of the bounds and
 a rectangular trust region. Rank deficiency can cause slow convergence even when
 the minimum-norm linear solve succeeds.
+
+[`BoundedGaussNewton()`](@ref) solves on the free variables with projected line-search,
+trust-region, or trust-region-with-line-search-fallback globalization.

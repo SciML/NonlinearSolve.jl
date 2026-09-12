@@ -259,3 +259,22 @@ example, residuals `[u[1]^2, u[1]^2]` with a second unused variable give a rank-
 Jacobian: the dogleg repeatedly halves `u[1]` near the solution. A small iteration
 budget can therefore return `MaxIters`. Prefer [`BoundedLevenbergMarquardt`](@ref)
 when rank deficiency is expected.
+
+## Active-set Gauss–Newton
+
+[`BoundedGaussNewton`](@ref) holds fixed variables and outward-gradient active-bound
+variables fixed while solving the reduced linear least-squares problem. Choose
+`globalization = :linesearch`, `:trustregion`, or `:trustregion_linesearch`; the last
+option tries a projected line search when the trust-region trial is rejected.
+
+```@example bounds
+sol_bounded_gn = NLS.solve(
+    prob_reflective, NLS.BoundedGaussNewton(; globalization = :trustregion_linesearch)
+)
+sol_bounded_gn.u
+```
+
+The reduced systems preserve the selected Jacobian representation and linear solver.
+For square `NonlinearProblem`s, this
+provides a feasible reduced Newton path, retaining residual-based success. It does
+not solve complementarity conditions or use an exact Hessian of the merit function.
