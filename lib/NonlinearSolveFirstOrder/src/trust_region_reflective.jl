@@ -1,5 +1,6 @@
 """
-    TrustRegionReflective(; autodiff = nothing, gtol = nothing,
+    TrustRegionReflective(; autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing,
+        linsolve = nothing, concrete_jac = nothing, gtol = nothing,
         initial_trust_radius = 1, max_trust_radius = Inf)
 
 Coleman–Li interior reflective trust-region method for box-constrained nonlinear least
@@ -14,10 +15,20 @@ nonzero residual returns `ReturnCode.Stalled`, never success; the default `gtol`
 to avoid stopping near a root before residual convergence. `abstol` controls the default
 residual norm termination; other termination modes can be selected with `termination_condition`. Initial guesses must be feasible.
 
-`autodiff` selects the Jacobian backend; analytic Jacobians take precedence. `AutoFiniteDiff`
-uses bound-aware finite differences. The initial implementation materializes dense matrices
-and solves the scaled subproblem by SVD, including underdetermined and rank-deficient
-systems. Sparse Jacobians are accepted but densified; matrix-free solves are not supported.
+`linsolve`, `concrete_jac`, `autodiff`, `jvp_autodiff`, and `vjp_autodiff` use the same
+Jacobian and LinearSolve caches as [`GaussNewton`](@ref). A sparse `jac_prototype` stays
+sparse; choosing a Krylov solver constructs a Jacobian operator unless a concrete
+Jacobian is requested. Analytic `jvp` and `vjp` callbacks are supported. Square-only
+linear solvers use normal equations; rectangular least-squares solvers operate on the
+scaled, diagonally augmented system. Rank-deficient and underdetermined problems
+require a suitable linear solver, such as `SVDFactorization()` or `KrylovJL_LSMR()`.
+
+The trust-region subproblem uses the subspace spanned by the scaled gradient and the
+Gauss–Newton step. Only that one- or two-dimensional model is diagonalized. `AutoFiniteDiff`
+uses bound-aware stencils for both concrete Jacobians and operator products; fixed
+coordinates are never perturbed. `linsolve_kwargs` passed to `solve` or `init` are
+forwarded to the linear-solver cache, including tolerances and preconditioners.
+
 The positive `initial_trust_radius` is measured in scaled coordinates and is capped by
 `max_trust_radius`. Only real floating-point states and real residuals are supported.
 
@@ -26,10 +37,10 @@ Subject to Bounds*, SIAM J. Optimization 6 (1996), 418–445,
 [doi:10.1137/0806023](https://doi.org/10.1137/0806023).
 """
 function TrustRegionReflective(;
-        autodiff = nothing, gtol = nothing, initial_trust_radius = 1, max_trust_radius = Inf
+        autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing, linsolve = nothing, concrete_jac = nothing, gtol = nothing, initial_trust_radius = 1, max_trust_radius = Inf
     )
     return _native_bounded_algorithm(
-        Val(:reflective); autodiff, gtol, initial_trust_radius, max_trust_radius
+        Val(:reflective); autodiff, jvp_autodiff, vjp_autodiff, linsolve, concrete_jac, gtol, initial_trust_radius, max_trust_radius
     )
 end
 
@@ -47,15 +58,18 @@ function _reflective_scaling(x, g, lb, ub)
     return sqrt.(v), c
 end
 
+function _box_initial_model(::Val{:reflective}, alg, x, f, g, lb, ub)
+    d, c = _reflective_scaling(x, g, lb, ub)
+    return d, c + iszero.(d)
+end
+
 function _native_bounded_step!(::Val{:reflective}, cache, J, x, f, g)
     d, c = _reflective_scaling(x, g, cache.lb, cache.ub)
-    A = vcat(J * Diagonal(d), Diagonal(sqrt.(c)))
-    b = vcat(f, zeros(eltype(f), length(x)))
-    h = _box_lsq(A, b, cache.radius)
-    cache.stats.nfactors += 1
-    cache.stats.nsolve += 1
+    h = _box_lsq(cache, J, f, d, c + iszero.(d), cache.radius)
+    cache.force_stop && return false
     gh = d .* g
-    model(q) = dot(gh, q) + sum(abs2, A * q) / 2
+    product(q) = _box_vector(J * (d .* q))
+    model(q) = dot(gh, q) + (sum(abs2, product(q)) + dot(c, q .^ 2)) / 2
     pg = maximum(abs, _box_projected_gradient(x, g, cache.lb, cache.ub))
     theta = min(prevfloat(one(eltype(x))), max(eltype(x)(0.995), 1 - pg))
     hit = _box_limit(x, d .* h, cache.lb, cache.ub)
@@ -76,8 +90,8 @@ function _native_bounded_step!(::Val{:reflective}, cache, J, x, f, g)
         aa, ab = dot(direction, direction), dot(at_hit, direction)
         sphere = (sqrt(max(zero(aa), ab^2 + aa * (cache.radius^2 - dot(at_hit, at_hit)))) - ab) / aa
         limit = min(sphere, _box_limit(clamp.(point, cache.lb, cache.ub), d .* direction, cache.lb, cache.ub))
-        slope = dot(gh, direction) + dot(A * at_hit, A * direction)
-        curvature = sum(abs2, A * direction)
+        slope = dot(gh, direction) + dot(product(at_hit), product(direction)) + dot(c .* at_hit, direction)
+        curvature = sum(abs2, product(direction)) + dot(c, direction .^ 2)
         t = curvature > 0 ? clamp(-slope / curvature, zero(limit), limit) : limit
         reflected = theta * (at_hit + t * direction)
         value = model(reflected)
@@ -91,7 +105,7 @@ function _native_bounded_step!(::Val{:reflective}, cache, J, x, f, g)
         cache.radius / LinearAlgebra.norm(direction),
         theta * _box_limit(x, d .* direction, cache.lb, cache.ub)
     )
-    curvature = sum(abs2, A * direction)
+    curvature = sum(abs2, product(direction)) + dot(c, direction .^ 2)
     t = curvature > 0 ? min(dot(gh, gh) / curvature, limit) : limit
     cauchy = t * direction
     if model(cauchy) < bestvalue
