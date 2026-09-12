@@ -485,7 +485,7 @@ function _box_init_linear_cache(alg, J, f, u, p, lb, ub, stats, linsolve_kwargs)
     A = _box_system(model, normal_form, concrete)
     b = zeros(eltype(x), size(A, 1))
     lincache = NonlinearSolveBase.construct_linear_solver(
-        alg, alg.linsolve, A, b, zero(x), p; stats, linsolve_kwargs...
+        alg, alg.linsolve, A, b, x, p; stats, linsolve_kwargs...
     )
     return BoxLinearCache(model, A, lincache, normal_form, concrete)
 end
