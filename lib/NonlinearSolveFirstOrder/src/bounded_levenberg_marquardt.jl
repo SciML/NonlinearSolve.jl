@@ -75,24 +75,6 @@ function _box_constrained_lsq(cache, J, f, lo, hi, damping)
     return s
 end
 
-function _box_linesearch!(cache, x, g, direction, max_backtracks)
-    alpha = one(eltype(x))
-    cost = sum(abs2, cache.fu) / 2
-    for _ in 1:max_backtracks
-        trial = clamp.(x + alpha * direction, cache.lb, cache.ub)
-        step = trial - x
-        slope = dot(g, step)
-        slope < 0 || return false
-        u, fu = _box_trial(cache, trial)
-        if all(isfinite, fu) && sum(abs2, fu) / 2 <= cost + 1.0e-4 * slope
-            _box_accept!(cache, u, fu)
-            return true
-        end
-        alpha /= 2
-    end
-    return false
-end
-
 function _native_bounded_step!(::Val{:lm}, cache, J, x, f, g)
     lambda = cache.damping * max(LinearAlgebra.norm(f), eps(eltype(x)))
     s = _box_constrained_lsq(cache, J, f, cache.lb - x, cache.ub - x, lambda)

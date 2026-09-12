@@ -44,8 +44,8 @@ _box_matrix(J::Number) = reshape([J], 1, 1)
 _box_matrix(J) = J
 
 function _box_bounds(prob, u)
-    lb = _bounded_tr_bound(prob.lb, -Inf, u)
-    ub = _bounded_tr_bound(prob.ub, Inf, u)
+    lb = _box_bound(prob.lb, -Inf, u)
+    ub = _box_bound(prob.ub, Inf, u)
     length(lb) == length(u) == length(ub) ||
         throw(DimensionMismatch("Bounds must have the same length as u0."))
     return _box_vector(lb), _box_vector(ub)
@@ -340,10 +340,6 @@ function InternalAPI.reinit_self!(
     return nothing
 end
 
-_box_projected_gradient(x, g, lb, ub) = x - clamp.(x - g, lb, ub)
-_box_free(x, g, lb, ub) = (lb .< ub) .& .!(((x .<= lb) .& (g .> 0)) .| ((x .>= ub) .& (g .< 0)))
-_box_model(J, g, s) = dot(g, s) + sum(abs2, J * s) / 2
-
 function _box_limit(x, d, lb, ub)
     a = oftype(first(x), Inf)
     for i in eachindex(x)
@@ -371,14 +367,31 @@ function _box_accept!(cache, u, fu)
     return nothing
 end
 
+function _box_linesearch!(cache, x, g, direction, max_backtracks)
+    alpha = one(eltype(x))
+    cost = sum(abs2, cache.fu) / 2
+    for _ in 1:max_backtracks
+        trial = clamp.(x + alpha * direction, cache.lb, cache.ub)
+        step = trial - x
+        slope = dot(g, step)
+        slope < 0 || return false
+        u, fu = _box_trial(cache, trial)
+        if all(isfinite, fu) && sum(abs2, fu) / 2 <= cost + 1.0e-4 * slope
+            _box_accept!(cache, u, fu)
+            return true
+        end
+        alpha /= 2
+    end
+    return false
+end
+
 function _box_trust_update!(cache, u, fu, predicted, stepnorm; correction = 0)
     actual = (sum(abs2, cache.fu) - sum(abs2, fu)) / 2
     ratio = predicted > 0 && all(isfinite, fu) ? (actual - correction) / predicted : -Inf
-    if ratio < 0.25
-        cache.radius = min(cache.radius / 4, max(stepnorm / 4, eps(cache.radius)))
-    elseif ratio > 0.75 && stepnorm >= 0.95 * cache.radius
-        cache.radius = min(2 * cache.radius, cache.alg.max_trust_radius)
-    end
+    cache.radius, _ = _box_update_radius(
+        cache.radius, ratio, stepnorm, cache.alg.max_trust_radius;
+        shrink_radius = min(cache.radius / 4, max(stepnorm / 4, eps(cache.radius)))
+    )
     accepted = ratio > 1.0e-4 && actual > 0
     accepted && _box_accept!(cache, u, fu)
     if !accepted && (iszero(stepnorm) || cache.radius <= eps(eltype(cache.u)))
