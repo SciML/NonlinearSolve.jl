@@ -164,7 +164,8 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
-                    return @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
                 end,
             ),
             "CUDA" => (;
