@@ -34,7 +34,7 @@ function _native_bounded_step!(::Val{:dogbox}, cache, J, x, f, g)
         direction = -g .* free
         curvature = sum(abs2, J * direction)
         limit = _box_limit(x, direction, lo, hi)
-        alpha = curvature > 0 ? min(-dot(g, direction) / curvature, limit) : limit
+        alpha = _box_cauchy_length(dot(g, direction), curvature, limit)
         cauchy = _dogbox_segment(x, direction, alpha, lo, hi)
         toward_gn = x + gn - cauchy
         beta = min(one(eltype(x)), _box_limit(cauchy, toward_gn, lo, hi))

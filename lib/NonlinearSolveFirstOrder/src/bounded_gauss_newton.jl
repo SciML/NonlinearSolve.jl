@@ -46,7 +46,7 @@ function _native_bounded_step!(::Val{:gauss_newton}, cache, J, x, f, g)
         direction = -g .* free
         curvature = sum(abs2, J * direction)
         limit = radius / LinearAlgebra.norm(direction)
-        alpha = curvature > 0 ? min(-dot(g, direction) / curvature, limit) : limit
+        alpha = _box_cauchy_length(dot(g, direction), curvature, limit)
         cauchy = clamp.(x + alpha * direction, cache.lb, cache.ub) - x
         if _box_model(J, g, cauchy) < _box_model(J, g, step)
             step = cauchy
