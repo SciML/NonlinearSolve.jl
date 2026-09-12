@@ -421,8 +421,11 @@ end
     diagonal
 end
 
-function _box_system(model, normal_form)
+function _box_system(model, normal_form, concrete)
     J, d, c = model.J, model.scale, model.diagonal
+    if concrete && J isa SciMLOperators.AbstractSciMLOperator
+        J = convert(AbstractMatrix, J)
+    end
     if J isa AbstractMatrix
         A = J * Diagonal(d)
         return normal_form ? transpose(A) * A + Diagonal(c) :
@@ -455,6 +458,7 @@ end
     system
     lincache
     normal_form::Bool
+    concrete::Bool
 end
 
 function InternalAPI.reinit!(cache::BoxLinearCache; u = missing, u0 = u, kwargs...)
@@ -476,12 +480,14 @@ function _box_init_linear_cache(alg, J, f, u, p, lb, ub, stats, linsolve_kwargs)
     scale, diagonal = _box_initial_model(alg.method, alg, x, f, g, lb, ub)
     model = BoxLinearModel(J, scale, diagonal)
     normal_form = NonlinearSolveBase.needs_square_A(alg.linsolve, x)
-    A = _box_system(model, normal_form)
+    concrete = alg.concrete_jac === true || alg.concrete_jac === Val(true) || alg.linsolve === nothing ||
+        NonlinearSolveBase.needs_concrete_A(alg.linsolve)
+    A = _box_system(model, normal_form, concrete)
     b = zeros(eltype(x), size(A, 1))
     lincache = NonlinearSolveBase.construct_linear_solver(
         alg, alg.linsolve, A, b, zero(x), p; stats, linsolve_kwargs...
     )
-    return BoxLinearCache(model, A, lincache, normal_form)
+    return BoxLinearCache(model, A, lincache, normal_form, concrete)
 end
 
 function _box_linear_solve!(cache, J, b, scale, diagonal, lower_rhs)
@@ -489,8 +495,8 @@ function _box_linear_solve!(cache, J, b, scale, diagonal, lower_rhs)
     linear.model.J = J
     linear.model.scale .= scale
     linear.model.diagonal .= diagonal
-    if J isa AbstractMatrix
-        linear.system = _box_system(linear.model, linear.normal_form)
+    if J isa AbstractMatrix || linear.concrete
+        linear.system = _box_system(linear.model, linear.normal_form, linear.concrete)
     end
     rhs = linear.normal_form ?
         -(scale .* _box_vector(adjoint(J) * b) + sqrt.(diagonal) .* lower_rhs) :
