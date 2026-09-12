@@ -95,7 +95,12 @@ package `scipy` is available to PythonCall.
 `NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem`  and used
 with any solver of [Optimization.jl](https://github.com/SciML/Optimization.jl).
 
+### Native bounded methods
+
+These methods reuse the shared Jacobian and LinearSolve caches. Sparse prototypes remain
+sparse, and Krylov solvers use operators unless a concrete Jacobian is requested.
+Rank-deficient and underdetermined systems require a suitable linear solver.
+
 [`TrustRegionReflective()`](@ref) provides a Coleman–Li reflective method with strict
-feasibility and a corrected, bound-scaled quadratic model. Its dense SVD implementation
-supports rank-deficient and underdetermined systems; sparse Jacobians are currently
-densified. It is opt-in and does not change the default bounded solver.
+feasibility and a corrected, bound-scaled quadratic model. Its trust radius is enforced
+in a small projected subspace. It is opt-in and does not change the default bounded solver.
