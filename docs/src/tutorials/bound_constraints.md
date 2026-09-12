@@ -188,8 +188,8 @@ sol.prob.lb, sol.prob.ub
 
 [`TrustRegionReflective`](@ref) uses distance-to-bound scaling, a diagonal correction
 to the quadratic model, and reflected search directions. It moves exact-bound initial
-guesses into the strict interior and keeps fixed variables fixed. Its current SVD
-subproblem solver uses dense storage, including when the supplied Jacobian is sparse.
+guesses into the strict interior and keeps fixed variables fixed. Its scaled linear
+subproblem uses the same Jacobian and LinearSolve caches as `GaussNewton`.
 
 ```@example bounds
 prob_reflective = NLS.NonlinearLeastSquaresProblem(
@@ -203,3 +203,25 @@ An analytic Jacobian or an AD backend can be used. With `AutoFiniteDiff()`, fini
 difference stencils are restricted to the box and fixed coordinates are not perturbed.
 Least-squares convergence includes projected-gradient stationarity; a root problem
 still requires a small residual for success. The existing default is unchanged.
+
+Sparse prototypes and Krylov solvers follow the usual solver interface:
+
+```@example bounds
+using LinearSolve, SparseArrays
+f_sparse! = (r, u, p) -> (r .= u .- p)
+f_sparse = NLS.NonlinearFunction(f_sparse!; jac_prototype = spdiagm(0 => ones(20)))
+prob_sparse = NLS.NonlinearLeastSquaresProblem(
+    f_sparse, fill(0.5, 20), collect(range(-0.5, 1.5; length = 20)); lb = 0.0, ub = 1.0
+)
+sol_sparse = NLS.solve(prob_sparse, NLS.TrustRegionReflective())
+sol_operator = NLS.solve(prob_sparse, NLS.TrustRegionReflective(; linsolve = KrylovJL_LSMR()))
+maximum(abs, sol_sparse.u - sol_operator.u)
+```
+
+`concrete_jac = true` forces a concrete Jacobian even with a Krylov solver.
+`jvp_autodiff`, `vjp_autodiff`, or analytic `jvp`/`vjp` callbacks control operator
+products. Linear solvers that require square systems use normal equations;
+`KrylovJL_LSMR()` works on the augmented rectangular least-squares operator.
+The reflective trust-region
+radius is handled in a small gradient/Gauss–Newton subspace, without materializing
+an operator as a matrix.

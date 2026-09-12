@@ -1,4 +1,4 @@
-using NonlinearSolveFirstOrder, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
+using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, SciMLOperators, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
 
 # Dual comparisons include tangent components; feasibility concerns primal coordinates.
 const native_bounded_algorithms = [TrustRegionReflective]
@@ -172,5 +172,121 @@ end
             @test SciMLBase.successful_retcode(sol)
             @test sol.u ≈ one.(u0) atol = 1.0e-6
         end
+    end
+end
+
+@testset "Native bounds preserve sparse and matrix-free linear solves" begin
+    for constructor in native_bounded_algorithms
+        @testset "$(constructor), $(representation)" for representation in (:sparse, :operator, :normal, :sparse_iterative)
+            sparse_representation = representation in (:sparse, :sparse_iterative)
+            n = 32
+            target = collect(range(-0.5, 1.5; length = n))
+            products = Ref(0)
+            f! = (r, u, p) -> (r .= u .- p)
+            jac! = sparse_representation ? ((J, u, p) -> (J[diagind(J)] .= 1)) :
+                ((J, u, p) -> error("The Krylov path must not materialize the Jacobian"))
+            product! = (w, v, u, p) -> begin
+                products[] += 1
+                w .= v
+            end
+            f = NonlinearFunction(
+                f!; jac = jac!, jvp = product!, vjp = product!,
+                jac_prototype = spdiagm(0 => ones(n))
+            )
+            prob = NonlinearLeastSquaresProblem(f, fill(0.5, n), target; lb = 0.0, ub = 1.0)
+            precs_calls = Ref(0)
+            precs = (A, p) -> begin
+                precs_calls[] += 1
+                @test A isa SparseMatrixCSC
+                return Diagonal(ones(n)), LinearAlgebra.I
+            end
+            linsolve = representation === :sparse ? nothing :
+                (
+                    representation === :sparse_iterative ? LinearSolve.KrylovJL_GMRES(; precs) :
+                    (representation === :normal ? LinearSolve.KrylovJL_GMRES() : LinearSolve.KrylovJL_LSMR())
+                )
+            cache = init(
+                prob, constructor(; linsolve, concrete_jac = representation === :sparse_iterative);
+                linsolve_kwargs = (; abstol = 0.0, reltol = 1.0e-10)
+            )
+            J = NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u)
+            linear_cache = NonlinearSolveBase.get_linear_cache(cache)
+            @test sparse_representation ? J isa SparseMatrixCSC : J isa SciMLOperators.AbstractSciMLOperator
+            @test sparse_representation ? linear_cache.A isa SparseMatrixCSC : linear_cache.A isa SciMLOperators.AbstractSciMLOperator
+            sol = solve!(cache)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ clamp.(target, 0.0, 1.0) atol = 1.0e-6
+            @test sol.stats.nsolve > 0
+            @test sparse_representation || products[] > 0
+            @test representation !== :sparse_iterative || precs_calls[] > 0
+            reinit!(cache, fill(0.5, n); p = reverse(target))
+            @test solve!(cache).u ≈ clamp.(reverse(target), 0.0, 1.0) atol = 1.0e-6
+            @test NonlinearSolveBase.get_linear_cache(cache) === linear_cache
+        end
+    end
+end
+
+@testset "Sparse AD and feasible operator differences" begin
+    for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff()), concrete in (false, true)
+        @testset "$(constructor), $(ad), concrete=$(concrete)" begin
+            lb, ub = [0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 1.0]
+            f = (u, p) -> begin
+                @test all(lb .<= ForwardDiff.value.(u) .<= ub)
+                exp.(u) .- p
+            end
+            target = [1.0, 1.3, 4.0, 1.7]
+            prob = NonlinearLeastSquaresProblem(
+                NonlinearFunction(f; jac_prototype = spdiagm(0 => ones(4))),
+                zeros(4), target; lb, ub
+            )
+            cache = init(prob, constructor(; autodiff = ad, linsolve = LinearSolve.KrylovJL_LSMR(), concrete_jac = concrete))
+            @test concrete ? NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SparseMatrixCSC :
+                NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SciMLOperators.AbstractSciMLOperator
+            sol = solve!(cache)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ clamp.(log.(target), lb, ub) atol = 1.0e-6
+        end
+    end
+end
+
+@testset "Matrix-free mixed state and residual shapes" begin
+    for constructor in native_bounded_algorithms, prob in (
+                NonlinearLeastSquaresProblem((u, p) -> [u - p, 1.0], 0.0, 2.0; lb = 0.0, ub = 1.0),
+                NonlinearLeastSquaresProblem((u, p) -> sum(u) - p, [0.0, 0.0], 3.0; lb = 0.0, ub = 1.0),
+            )
+        cache = init(prob, constructor(; linsolve = LinearSolve.KrylovJL_LSMR()))
+        @test NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SciMLOperators.AbstractSciMLOperator
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ one.(prob.u0) atol = 1.0e-6
+    end
+end
+
+@testset "User-supplied Jacobian operators" begin
+    for constructor in native_bounded_algorithms, analytic in (false, true)
+        product = (v, u, p, t) -> p .* v
+        prototype = analytic ? SciMLOperators.FunctionOperator(
+                product, zeros(2); op_adjoint = product, u = zeros(2), p = [2.0, 3.0], islinear = true
+            ) : nothing
+        prob = NonlinearLeastSquaresProblem(
+            NonlinearFunction(
+                (u, p) -> p .* u .- 1; jac_prototype = prototype,
+                jac = analytic ? (
+                        (u, p) -> begin
+                            SciMLOperators.update_coefficients!(prototype, u, p, 0.0)
+                            prototype
+                        end
+                    ) : nothing
+            ),
+            zeros(2), [2.0, 3.0]; lb = 0.0, ub = 1.0
+        )
+        cache = init(prob, constructor(; linsolve = LinearSolve.KrylovJL_LSMR()))
+        @test analytic ? NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) === prototype :
+            NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SciMLOperators.AbstractSciMLOperator
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.5, 1 / 3] atol = 1.0e-6
+        reinit!(cache, zeros(2); p = [4.0, 5.0])
+        @test solve!(cache).u ≈ [0.25, 0.2] atol = 1.0e-6
     end
 end

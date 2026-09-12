@@ -1,6 +1,10 @@
 @concrete struct NativeBoundedAlgorithm <: AbstractNonlinearSolveAlgorithm
     method
     autodiff
+    jvp_autodiff
+    vjp_autodiff
+    linsolve
+    concrete_jac
     gtol
     initial_trust_radius
     max_trust_radius
@@ -10,7 +14,8 @@ end
 SciMLBase.allowsbounds(::NativeBoundedAlgorithm) = true
 
 function _native_bounded_algorithm(
-        method; autodiff = nothing, gtol = nothing, initial_trust_radius = 1,
+        method; autodiff = nothing, jvp_autodiff = nothing, vjp_autodiff = nothing,
+        linsolve = nothing, concrete_jac = nothing, gtol = nothing, initial_trust_radius = 1,
         max_trust_radius = Inf, options = (;)
     )
     initial_trust_radius > 0 && isfinite(initial_trust_radius) ||
@@ -20,9 +25,15 @@ function _native_bounded_algorithm(
     gtol === nothing || (isfinite(gtol) && gtol >= 0) ||
         throw(ArgumentError("gtol must be finite and nonnegative."))
     return NativeBoundedAlgorithm(
-        method, autodiff, gtol, initial_trust_radius, max_trust_radius, options
+        method, autodiff, jvp_autodiff, vjp_autodiff, linsolve, concrete_jac,
+        gtol, initial_trust_radius, max_trust_radius, options
     )
 end
+
+_box_initial_damping(alg) = haskey(alg.options, :damping) ? alg.options.damping : 1
+
+_box_dense_ad(ad) = ad
+_box_dense_ad(ad::ADTypes.AutoSparse) = ADTypes.dense_ad(ad)
 
 _box_vector(x::Number) = [x]
 _box_vector(x) = collect(vec(x))
@@ -30,7 +41,7 @@ _box_state(u::Number, x) = oftype(u, only(x))
 _box_state(u::SArray, x) = typeof(u)(x)
 _box_state(u, x) = reshape(eltype(u).(x), size(u))
 _box_matrix(J::Number) = reshape([J], 1, 1)
-_box_matrix(J) = Matrix(J)
+_box_matrix(J) = J
 
 function _box_bounds(prob, u)
     lb = _bounded_tr_bound(prob.lb, -Inf, u)
@@ -59,6 +70,30 @@ end
 _box_start(::Val, x, lb, ub) = x
 _box_start(::Val{:reflective}, x, lb, ub) = _box_interior(x, lb, ub; initial = true)
 
+function _box_difference_column(prob, fu, u, p, lb, ub, f0, i, stats)
+    x = _box_vector(u)
+    lb[i] == ub[i] && return zero(f0)
+    T = promote_type(eltype(x), eltype(f0))
+    h = cbrt(eps(T)) * max(one(T), abs(x[i]))
+    plus, minus = min(x[i] + h, ub[i]), max(x[i] - h, lb[i])
+    evaluate(x) = _box_vector(Utils.evaluate_f!!(prob, copy(fu), _box_state(u, x), p))
+    # Center only when both sides have comparable spacing inside the box.
+    if plus > x[i] && minus < x[i] && min(plus - x[i], x[i] - minus) >= h / 2
+        xp, xm = copy(x), copy(x)
+        xp[i], xm[i] = plus, minus
+        fp, fm = evaluate(xp), evaluate(xm)
+        stats.nf += 2
+        hp, hm = plus - x[i], x[i] - minus
+        return (hm / hp * (fp - f0) + hp / hm * (f0 - fm)) / (hp + hm)
+    end
+    xp = copy(x)
+    xp[i] = plus - x[i] >= x[i] - minus ? plus : minus
+    xp[i] == x[i] && return zero(f0)
+    fp = evaluate(xp)
+    stats.nf += 1
+    return (fp - f0) / (xp[i] - x[i])
+end
+
 @concrete mutable struct BoxDifferenceCache
     prob
     fu
@@ -66,45 +101,64 @@ _box_start(::Val{:reflective}, x, lb, ub) = _box_interior(x, lb, ub; initial = t
     lb
     ub
     stats
+    J
 end
 
 function (cache::BoxDifferenceCache)(u)
-    x = _box_vector(u)
     f0 = _box_vector(Utils.evaluate_f!!(cache.prob, copy(cache.fu), u, cache.p))
     cache.stats.nf += 1
-    T = promote_type(eltype(x), eltype(f0))
-    J = zeros(T, length(f0), length(x))
-    for i in eachindex(x)
-        cache.lb[i] == cache.ub[i] && continue
-        h = cbrt(eps(T)) * max(one(T), abs(x[i]))
-        plus = min(x[i] + h, cache.ub[i])
-        minus = max(x[i] - h, cache.lb[i])
-        # A centered stencil is used only when both sides have comparable spacing.
-        if plus > x[i] && minus < x[i] &&
-                min(plus - x[i], x[i] - minus) >= h / 2
-            xp, xm = copy(x), copy(x)
-            xp[i], xm[i] = plus, minus
-            fp = _box_vector(Utils.evaluate_f!!(cache.prob, copy(cache.fu), _box_state(u, xp), cache.p))
-            fm = _box_vector(Utils.evaluate_f!!(cache.prob, copy(cache.fu), _box_state(u, xm), cache.p))
-            cache.stats.nf += 2
-            hp, hm = plus - x[i], x[i] - minus
-            J[:, i] = (hm / hp * (fp - f0) + hp / hm * (f0 - fm)) / (hp + hm)
-        else
-            xp = copy(x)
-            xp[i] = plus - x[i] >= x[i] - minus ? plus : minus
-            xp[i] == x[i] && continue
-            fp = _box_vector(Utils.evaluate_f!!(cache.prob, copy(cache.fu), _box_state(u, xp), cache.p))
-            cache.stats.nf += 1
-            J[:, i] = (fp - f0) / (xp[i] - x[i])
-        end
+    for i in 1:length(u)
+        cache.J[:, i] = _box_difference_column(
+            cache.prob, cache.fu, u, cache.p, cache.lb, cache.ub, f0, i, cache.stats
+        )
     end
     cache.stats.njacs += 1
-    return J
+    return cache.J
 end
 
 function InternalAPI.reinit!(cache::BoxDifferenceCache; p = cache.p, kwargs...)
     cache.p = p
     return nothing
+end
+
+NonlinearSolveBase.reused_jacobian(cache::BoxDifferenceCache, u) = cache.J
+
+function _box_difference_product(prob, fu, u, p, lb, ub, stats, v, transposed)
+    f0 = _box_vector(Utils.evaluate_f!!(prob, copy(fu), u, p))
+    stats.nf += 1
+    result = zeros(eltype(f0), transposed ? length(u) : length(fu))
+    v = _box_vector(v)
+    for i in 1:length(u)
+        !transposed && iszero(v[i]) && continue
+        column = _box_difference_column(prob, fu, u, p, lb, ub, f0, i, stats)
+        if transposed
+            result[i] = dot(column, v)
+        else
+            result .+= column .* v[i]
+        end
+    end
+    return _box_state(transposed ? u : fu, result)
+end
+
+function _box_product_problem(prob, alg, fu, lb, ub, stats)
+    f = prob.f
+    for (name, ad, provided, transposed) in (
+            (:jvp, alg.jvp_autodiff, SciMLBase.has_jvp(f), false),
+            (:vjp, alg.vjp_autodiff, SciMLBase.has_vjp(f), true),
+        )
+        (provided || !(_box_dense_ad(ad) isa ADTypes.AutoFiniteDiff)) && continue
+        product = if SciMLBase.isinplace(prob)
+            (w, v, u, p) -> (w .= _box_difference_product(prob, fu, u, p, lb, ub, stats, v, transposed))
+        else
+            (v, u, p) -> _box_difference_product(prob, fu, u, p, lb, ub, stats, v, transposed)
+        end
+        if name === :jvp
+            @set! f.jvp = product
+        else
+            @set! f.vjp = product
+        end
+    end
+    return SciMLBase.remake(prob; f)
 end
 
 @concrete struct BoxShapeJacobianCache
@@ -118,6 +172,8 @@ _box_from_array(::Val{true}, x) = only(x)
 _box_from_array(::Val{false}, x) = x
 
 (cache::BoxShapeJacobianCache)(u) = cache.inner(_box_as_array(cache.scalar_input, u))
+NonlinearSolveBase.reused_jacobian(cache::BoxShapeJacobianCache, u) =
+    NonlinearSolveBase.reused_jacobian(cache.inner, _box_as_array(cache.scalar_input, u))
 
 function InternalAPI.reinit!(cache::BoxShapeJacobianCache; kwargs...)
     return InternalAPI.reinit!(cache.inner; kwargs...)
@@ -125,7 +181,8 @@ end
 
 function _box_construct_jacobian_cache(prob, alg, fu, u, ad, stats)
     (u isa Number) == (fu isa Number) && return NonlinearSolveBase.construct_jacobian_cache(
-        prob, alg, prob.f, fu, u, prob.p; stats, autodiff = ad
+        prob, alg, prob.f, fu, u, prob.p; stats, autodiff = ad,
+        alg.linsolve, alg.jvp_autodiff, alg.vjp_autodiff
     )
     scalar_input, scalar_output = Val(u isa Number), Val(fu isa Number)
     original = prob.f
@@ -148,9 +205,22 @@ function _box_construct_jacobian_cache(prob, alg, fu, u, ad, stats)
     @set! wrapped_f.f = f
     @set! wrapped_f.jac = jac
     @set! wrapped_f.resid_prototype = output
+    if !SciMLBase.isinplace(prob)
+        if SciMLBase.has_jvp(original)
+            @set! wrapped_f.jvp = (v, x, p) -> _box_as_array(
+                scalar_output, original.jvp(_box_from_array(scalar_input, v), _box_from_array(scalar_input, x), p)
+            )
+        end
+        if SciMLBase.has_vjp(original)
+            @set! wrapped_f.vjp = (v, x, p) -> _box_as_array(
+                scalar_input, original.vjp(_box_from_array(scalar_output, v), _box_from_array(scalar_input, x), p)
+            )
+        end
+    end
     wrapped_prob = SciMLBase.remake(prob; f = wrapped_f, u0 = input)
     inner = NonlinearSolveBase.construct_jacobian_cache(
-        wrapped_prob, alg, wrapped_f, output, input, prob.p; stats, autodiff = ad
+        wrapped_prob, alg, wrapped_f, output, input, prob.p; stats, autodiff = ad,
+        alg.linsolve, alg.jvp_autodiff, alg.vjp_autodiff
     )
     return BoxShapeJacobianCache(inner, scalar_input)
 end
@@ -166,6 +236,7 @@ end
     lb
     ub
     jac_cache
+    linear_cache
     radius
     damping
     gtol
@@ -184,14 +255,16 @@ end
 end
 
 SciMLBase.get_du(cache::NativeBoundedCache) = cache.du
-NonlinearSolveBase.@internal_caches NativeBoundedCache :jac_cache
+NonlinearSolveBase.@internal_caches NativeBoundedCache :jac_cache :linear_cache
+NonlinearSolveBase.get_linear_cache(cache::NativeBoundedCache) =
+    NonlinearSolveBase.get_linear_cache(cache.linear_cache)
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::NativeBoundedAlgorithm, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000, maxtime = nothing,
         termination_condition = NonlinearSolveBase.AbsNormTerminationMode(L2_NORM),
         stats = NLStats(0, 0, 0, 0, 0), verbose = NonlinearVerbosity(),
-        initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
+        initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), linsolve_kwargs = (;), kwargs...
     )
     _validate_native_bounds(prob, alg, prob.u0)
     u = copy(prob.u0)
@@ -203,20 +276,39 @@ function SciMLBase.__init(
     stats.nf += 1
     eltype(fu) <: Real || throw(ArgumentError("Native bounded methods require real residuals."))
     ad = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
-    jac_cache = if ADTypes.dense_ad(ad) isa ADTypes.AutoFiniteDiff && !SciMLBase.has_jac(prob.f)
-        BoxDifferenceCache(prob, fu, prob.p, lb, ub, stats)
-    else
-        _box_construct_jacobian_cache(prob, alg, fu, u, ad, stats)
-    end
+    @set! alg.autodiff = ad
+    @set! alg.jvp_autodiff = NonlinearSolveBase.select_forward_mode_autodiff(
+        prob, alg.jvp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ForwardMode, ADTypes.ForwardOrReverseMode} ? ad : alg.jvp_autodiff
+    )
+    @set! alg.vjp_autodiff = NonlinearSolveBase.select_reverse_mode_autodiff(
+        prob, alg.vjp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ReverseMode, ADTypes.ForwardOrReverseMode} ? ad : alg.vjp_autodiff
+    )
+    concrete = alg.concrete_jac === true || alg.concrete_jac === Val(true) || alg.linsolve === nothing ||
+        NonlinearSolveBase.needs_concrete_A(alg.linsolve)
     T = eltype(u)
+    jac_cache = if concrete && _box_dense_ad(ad) isa ADTypes.AutoFiniteDiff &&
+            !SciMLBase.has_jac(prob.f) && !(prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
+        prototype = prob.f.jac_prototype
+        J = prototype === nothing ? zeros(T, length(fu), length(u)) :
+            similar(prototype, T)
+        BoxDifferenceCache(prob, fu, prob.p, lb, ub, stats, J)
+    else
+        ad_prob = concrete ? prob : _box_product_problem(prob, alg, fu, lb, ub, stats)
+        _box_construct_jacobian_cache(ad_prob, alg, fu, u, ad, stats)
+    end
     _, _, tc = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fu, u, termination_condition, Val(:regular)
+    )
+    J = _box_matrix(jac_cache(u))
+    linear_cache = _box_init_linear_cache(
+        alg, J, fu, u, prob.p, lb, ub, stats,
+        merge((; abstol = zero(T), reltol = eps(T)^(3 / 4), verbose = verbose.linear_verbosity), linsolve_kwargs)
     )
     du = zero(u)
     trace = NonlinearSolveBase.init_nonlinearsolve_trace(prob, alg, u, fu, nothing, du; kwargs...)
     cache = NativeBoundedCache(
-        fu, u, copy(u), du, prob.p, prob, alg, lb, ub, jac_cache,
-        T(alg.initial_trust_radius), one(T),
+        fu, u, copy(u), du, prob.p, prob, alg, lb, ub, jac_cache, linear_cache,
+        T(alg.initial_trust_radius), T(_box_initial_damping(alg)),
         alg.gtol === nothing ? (prob isa NonlinearLeastSquaresProblem ? sqrt(eps(T)) : zero(T)) : T(alg.gtol), stats,
         0, maxiters, maxtime, 0.0, get_timer_output(), tc, trace,
         ReturnCode.Default, false, initializealg, verbose
@@ -235,7 +327,7 @@ function InternalAPI.reinit_self!(
     Utils.reinit_common!(cache, u0, p, false)
     cache.du = zero(cache.u)
     cache.radius = typeof(cache.radius)(cache.alg.initial_trust_radius)
-    cache.damping = one(cache.damping)
+    cache.damping = typeof(cache.damping)(_box_initial_damping(cache.alg))
     cache.nsteps, cache.maxiters, cache.maxtime = 0, maxiters, maxtime
     cache.total_time = 0.0
     cache.retcode, cache.force_stop = ReturnCode.Default, false
@@ -302,12 +394,16 @@ function InternalAPI.step!(cache::NativeBoundedCache; kwargs...)
         return nothing
     end
     J = _box_matrix(cache.jac_cache(cache.u))
-    if !all(isfinite, J)
+    if J isa AbstractArray && !all(isfinite, J)
         cache.retcode, cache.force_stop = ReturnCode.Unstable, true
         return nothing
     end
     x, f = _box_vector(cache.u), _box_vector(cache.fu)
-    g = transpose(J) * f
+    g = _box_vector(adjoint(J) * f)
+    if !all(isfinite, g)
+        cache.retcode, cache.force_stop = ReturnCode.Unstable, true
+        return nothing
+    end
     if maximum(abs, _box_projected_gradient(x, g, cache.lb, cache.ub)) <= cache.gtol
         cache.retcode = cache.prob isa NonlinearLeastSquaresProblem ? ReturnCode.Success : ReturnCode.Stalled
         cache.force_stop = true
@@ -318,30 +414,119 @@ function InternalAPI.step!(cache::NativeBoundedCache; kwargs...)
     return nothing
 end
 
-function _box_lsq(A, b, radius = Inf; damping = 0)
-    decomp = LinearAlgebra.svd(A; full = false)
-    s, rhs = decomp.S, transpose(decomp.U) * b
-    cutoff = isempty(s) ? zero(eltype(A)) : eps(eltype(A)) * max(size(A)...) * maximum(s)
-    function step(lambda)
-        weights = map(s, rhs) do si, ri
-            si <= cutoff && iszero(lambda) ? zero(ri) : -si * ri / (si^2 + lambda)
-        end
-        return decomp.V * weights
+@concrete mutable struct BoxLinearModel
+    J
+    scale
+    diagonal
+end
+
+function _box_system(model, normal_form)
+    J, d, c = model.J, model.scale, model.diagonal
+    if J isa AbstractMatrix
+        A = J * Diagonal(d)
+        return normal_form ? transpose(A) * A + Diagonal(c) :
+            vcat(A, Diagonal(sqrt.(c)))
     end
-    p = step(damping)
-    LinearAlgebra.norm(p) <= radius && return p
-    lo, hi = damping, max(one(eltype(A)), LinearAlgebra.norm(transpose(A) * b) / radius)
-    while LinearAlgebra.norm(step(hi)) > radius
-        hi *= 2
+    n, m = length(d), size(J, 1)
+    if normal_form
+        op = (v, u, p, t) -> model.scale .* _box_vector(
+            adjoint(model.J) * _box_vector(model.J * (model.scale .* v))
+        ) + model.diagonal .* v
+        return SciMLOperators.FunctionOperator(
+            op, zeros(eltype(d), n); op_adjoint = op, islinear = true,
+            issymmetric = true, ishermitian = true
+        )
     end
-    for _ in 1:80
+    op = (v, u, p, t) -> vcat(
+        _box_vector(model.J * (model.scale .* v)), sqrt.(model.diagonal) .* v
+    )
+    adjoint_op = (v, u, p, t) -> model.scale .* _box_vector(
+        adjoint(model.J) * view(v, 1:m)
+    ) + sqrt.(model.diagonal) .* view(v, (m + 1):(m + n))
+    return SciMLOperators.FunctionOperator(
+        op, zeros(eltype(d), n), zeros(eltype(d), m + n);
+        op_adjoint = adjoint_op, islinear = true
+    )
+end
+
+@concrete mutable struct BoxLinearCache
+    model
+    system
+    lincache
+    normal_form::Bool
+end
+
+function InternalAPI.reinit!(cache::BoxLinearCache; u = missing, u0 = u, kwargs...)
+    return InternalAPI.reinit!(cache.lincache; u = u0 === missing ? missing : _box_vector(u0), kwargs...)
+end
+
+NonlinearSolveBase.get_linear_cache(cache::BoxLinearCache) =
+    NonlinearSolveBase.get_linear_cache(cache.lincache)
+
+function _box_initial_model(::Val, alg, x, f, g, lb, ub)
+    scale = eltype(x).(_box_free(x, g, lb, ub))
+    return scale, one.(scale) - scale
+end
+
+function _box_init_linear_cache(alg, J, f, u, p, lb, ub, stats, linsolve_kwargs)
+    x = _box_vector(u)
+    f = _box_vector(f)
+    g = _box_vector(adjoint(J) * f)
+    scale, diagonal = _box_initial_model(alg.method, alg, x, f, g, lb, ub)
+    model = BoxLinearModel(J, scale, diagonal)
+    normal_form = NonlinearSolveBase.needs_square_A(alg.linsolve, x)
+    A = _box_system(model, normal_form)
+    b = zeros(eltype(x), size(A, 1))
+    lincache = NonlinearSolveBase.construct_linear_solver(
+        alg, alg.linsolve, A, b, zero(x), p; stats, linsolve_kwargs...
+    )
+    return BoxLinearCache(model, A, lincache, normal_form)
+end
+
+function _box_linear_solve!(cache, J, b, scale, diagonal, lower_rhs)
+    linear = cache.linear_cache
+    linear.model.J = J
+    linear.model.scale .= scale
+    linear.model.diagonal .= diagonal
+    if J isa AbstractMatrix
+        linear.system = _box_system(linear.model, linear.normal_form)
+    end
+    rhs = linear.normal_form ?
+        -(scale .* _box_vector(adjoint(J) * b) + sqrt.(diagonal) .* lower_rhs) :
+        -vcat(b, lower_rhs)
+    InternalAPI.reinit!(linear.lincache; u = _box_vector(cache.u), p = cache.p)
+    result = linear.lincache(; A = linear.system, b = rhs, linu = zero(scale))
+    if !result.success || !all(isfinite, result.u)
+        cache.retcode, cache.force_stop = ReturnCode.InternalLinearSolveFailed, true
+        return zero(scale)
+    end
+    return _box_vector(result.u) .* .!iszero.(scale)
+end
+
+function _box_lsq(cache, J, b, scale, diagonal, radius = Inf; lower_rhs = zero(scale))
+    p = _box_linear_solve!(cache, J, b, scale, diagonal, lower_rhs)
+    (cache.force_stop || LinearAlgebra.norm(p) <= radius) && return p
+    g = scale .* _box_vector(adjoint(J) * b) + sqrt.(diagonal) .* lower_rhs
+    q1 = -g / LinearAlgebra.norm(g)
+    q2 = p - dot(q1, p) * q1
+    Q = LinearAlgebra.norm(q2) > sqrt(eps(eltype(p))) * LinearAlgebra.norm(p) ?
+        hcat(q1, q2 / LinearAlgebra.norm(q2)) : reshape(q1, :, 1)
+    AQ = hcat((_box_vector(J * (scale .* q)) for q in eachcol(Q))...)
+    H = transpose(AQ) * AQ + transpose(Q) * (diagonal .* Q)
+    eig = LinearAlgebra.eigen(LinearAlgebra.Symmetric(H))
+    values = max.(eig.values, zero(eltype(p)))
+    rhs = transpose(eig.vectors) * (transpose(Q) * g)
+    step(lambda) = -(eig.vectors * (rhs ./ (values .+ lambda)))
+    lo = zero(eltype(p))
+    hi = max(one(lo), LinearAlgebra.norm(rhs) / radius)
+    for _ in 1:60
         mid = lo / 2 + hi / 2
         if LinearAlgebra.norm(step(mid)) > radius
             lo = mid
         else
             hi = mid
         end
-        hi - lo <= eps(eltype(A)) * max(one(hi), hi) && break
+        hi - lo <= eps(eltype(p)) * max(one(hi), hi) && break
     end
-    return step(hi)
+    return Q * step(hi)
 end
