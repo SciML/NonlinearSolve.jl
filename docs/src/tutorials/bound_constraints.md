@@ -225,3 +225,19 @@ products. Linear solvers that require square systems use normal equations;
 The reflective trust-region
 radius is handled in a small gradient/Gauss–Newton subspace, without materializing
 an operator as a matrix.
+
+## Bound-constrained Levenberg–Marquardt
+
+[`BoundedLevenbergMarquardt`](@ref) minimizes a damped linear least-squares model
+subject to the original bounds. It permits exact-bound iterates and handles fixed
+variables, rank deficiency, and underdetermined residuals. A feasible line search
+globalizes the model step, with a projected-gradient fallback.
+
+```@example bounds
+sol_bounded_lm = NLS.solve(prob_reflective, NLS.BoundedLevenbergMarquardt())
+sol_bounded_lm.u
+```
+
+The shared linear-solver cache preserves sparse Jacobians and matrix-free operators.
+`damping` sets the initial
+regularization scale and `max_backtracks` limits each line search.

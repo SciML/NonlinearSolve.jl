@@ -1,7 +1,7 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, SciMLOperators, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
 
 # Dual comparisons include tangent components; feasibility concerns primal coordinates.
-const native_bounded_algorithms = [TrustRegionReflective]
+const native_bounded_algorithms = [TrustRegionReflective, BoundedLevenbergMarquardt]
 
 @testset "Native bounded solver contracts" begin
     for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff())
@@ -123,6 +123,32 @@ end
     sol = solve(prob, TrustRegionReflective(; autodiff = AutoSparse(AutoFiniteDiff())))
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ ones(2) atol = 1.0e-6
+end
+
+@testset "Constrained LM model" begin
+    A = [1.0 2.0; 3.0 1.0; 0.0 1.0]
+    b = [2.0, -1.0, 0.5]
+    for damping in (1.0e-6, 0.01, 1.0), lo in ([-0.1, -0.2], [0.0, 0.0])
+        hi = [0.3, 0.4]
+        prob = NonlinearLeastSquaresProblem((u, p) -> A * u - b, zeros(2); lb = lo, ub = hi)
+        cache = init(prob, BoundedLevenbergMarquardt())
+        s = NonlinearSolveFirstOrder._box_constrained_lsq(cache, A, -b, lo, hi, damping)
+        g = A' * (A * s - b) + damping * s
+        @test all(lo .<= s .<= hi)
+        @test norm(s - clamp.(s - g, lo, hi), Inf) < 1.0e-7
+    end
+    f = (u, p) -> [10 * (u[2] - u[1]^2), 1 - u[1]]
+    prob = NonlinearLeastSquaresProblem(f, [-1.2, 1.0]; lb = [-2.0, -1.0], ub = [0.8, 2.0])
+    sol = solve(prob, BoundedLevenbergMarquardt(); abstol = 1.0e-10)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ [0.8, 0.64] atol = 2.0e-6
+    cache = init(prob, BoundedLevenbergMarquardt(; damping = 0.02))
+    solve!(cache)
+    reinit!(cache, prob.u0)
+    @test cache.damping == 0.02
+    @test SciMLBase.successful_retcode(solve!(cache))
+    @test_throws ArgumentError BoundedLevenbergMarquardt(; damping = 0)
+    @test_throws ArgumentError BoundedLevenbergMarquardt(; max_backtracks = 0)
 end
 
 @testset "Scalar and vector residual combinations" begin
