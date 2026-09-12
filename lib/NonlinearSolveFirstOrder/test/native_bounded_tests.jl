@@ -296,3 +296,28 @@ end
         @test solve!(cache).u ≈ [0.25, 0.2] atol = 1.0e-6
     end
 end
+
+@testset "Convertible Jacobian operators preserve linear representations" begin
+    for constructor in native_bounded_algorithms, (linsolve, concrete) in (
+                (nothing, false), (LinearSolve.LUFactorization(), false),
+                (LinearSolve.KrylovJL_LSMR(), false), (LinearSolve.KrylovJL_LSMR(), true),
+            )
+        A = spdiagm(0 => [2.0, 3.0])
+        prototype = SciMLOperators.MatrixOperator(A)
+        prob = NonlinearLeastSquaresProblem(
+            NonlinearFunction((u, p) -> A * u - p; jac = (u, p) -> prototype, jac_prototype = prototype),
+            zeros(2), ones(2); lb = 0.0, ub = 1.0
+        )
+        cache = init(prob, constructor(; linsolve, concrete_jac = concrete))
+        @test NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) === prototype
+        matrix = concrete || linsolve === nothing || linsolve isa LinearSolve.LUFactorization
+        linear = NonlinearSolveBase.get_linear_cache(cache)
+        @test matrix ? linear.A isa SparseMatrixCSC : linear.A isa SciMLOperators.AbstractSciMLOperator
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.5, 1 / 3] atol = 1.0e-6
+        reinit!(cache, zeros(2); p = [0.5, 0.75])
+        @test solve!(cache).u ≈ [0.25, 0.25] atol = 1.0e-6
+        @test NonlinearSolveBase.get_linear_cache(cache) === linear
+    end
+end
