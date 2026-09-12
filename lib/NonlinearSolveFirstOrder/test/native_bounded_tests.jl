@@ -1,7 +1,12 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, SciMLOperators, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
 
 # Dual comparisons include tangent components; feasibility concerns primal coordinates.
-const native_bounded_algorithms = [TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox]
+bounded_gn_tr(; kwargs...) = BoundedGaussNewton(; globalization = :trustregion, kwargs...)
+bounded_gn_tr_ls(; kwargs...) = BoundedGaussNewton(; globalization = :trustregion_linesearch, kwargs...)
+const native_bounded_algorithms = [
+    TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox,
+    BoundedGaussNewton, bounded_gn_tr, bounded_gn_tr_ls,
+]
 
 @testset "Native bounded solver contracts" begin
     for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff())
@@ -170,6 +175,29 @@ end
     sol = solve(NonlinearLeastSquaresProblem(f, [-1.2, 1.0]; lb = [-2.0, -1.0], ub = [0.8, 2.0]), Dogbox())
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ [0.8, 0.64] atol = 2.0e-6
+end
+
+@testset "Reduced Gauss–Newton globalizations" begin
+    A = [1.0 10.0; 0.0 1.0]
+    b = [0.0, 1.0]
+    prob = NonlinearLeastSquaresProblem((u, p) -> A * u - b, [0.1, 0.1]; lb = 0.0, ub = 1.0)
+    for globalization in (:linesearch, :trustregion, :trustregion_linesearch)
+        sol = solve(prob, BoundedGaussNewton(; globalization))
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.0, 1 / 101] atol = 1.0e-6
+        @test norm(sol.u - clamp.(sol.u - A' * sol.resid, 0, 1), Inf) <= 1.0e-7
+    end
+    prob = NonlinearProblem((u, p) -> exp(u) - 2, -2.0; lb = -10.0, ub = 10.0)
+    plain = init(prob, BoundedGaussNewton(; globalization = :trustregion, initial_trust_radius = 1000))
+    fallback = init(prob, BoundedGaussNewton(; globalization = :trustregion_linesearch, initial_trust_radius = 1000))
+    step!(plain)
+    step!(fallback)
+    @test plain.u == prob.u0
+    @test fallback.u > prob.u0
+    @test abs(fallback.fu) < abs(plain.fu)
+    @test SciMLBase.successful_retcode(solve!(fallback))
+    @test_throws ArgumentError BoundedGaussNewton(; globalization = :invalid)
+    @test_throws ArgumentError BoundedGaussNewton(; max_backtracks = 0)
 end
 
 @testset "Scalar and vector residual combinations" begin
