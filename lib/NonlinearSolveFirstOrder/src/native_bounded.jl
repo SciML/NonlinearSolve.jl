@@ -107,6 +107,54 @@ function InternalAPI.reinit!(cache::BoxDifferenceCache; p = cache.p, kwargs...)
     return nothing
 end
 
+@concrete struct BoxShapeJacobianCache
+    inner
+    scalar_input
+end
+
+_box_as_array(::Val{true}, x) = [x]
+_box_as_array(::Val{false}, x) = x
+_box_from_array(::Val{true}, x) = only(x)
+_box_from_array(::Val{false}, x) = x
+
+(cache::BoxShapeJacobianCache)(u) = cache.inner(_box_as_array(cache.scalar_input, u))
+
+function InternalAPI.reinit!(cache::BoxShapeJacobianCache; kwargs...)
+    return InternalAPI.reinit!(cache.inner; kwargs...)
+end
+
+function _box_construct_jacobian_cache(prob, alg, fu, u, ad, stats)
+    (u isa Number) == (fu isa Number) && return NonlinearSolveBase.construct_jacobian_cache(
+        prob, alg, prob.f, fu, u, prob.p; stats, autodiff = ad
+    )
+    scalar_input, scalar_output = Val(u isa Number), Val(fu isa Number)
+    original = prob.f
+    f = if SciMLBase.isinplace(prob)
+        (r, x, p) -> original(r, _box_from_array(scalar_input, x), p)
+    else
+        (x, p) -> _box_as_array(scalar_output, original(_box_from_array(scalar_input, x), p))
+    end
+    jac = if !SciMLBase.has_jac(original)
+        nothing
+    elseif SciMLBase.isinplace(prob)
+        (J, x, p) -> original.jac(J, _box_from_array(scalar_input, x), p)
+    else
+        (x, p) -> reshape(
+            _box_vector(original.jac(_box_from_array(scalar_input, x), p)), length(fu), length(u)
+        )
+    end
+    input, output = _box_as_array(scalar_input, u), _box_as_array(scalar_output, fu)
+    wrapped_f = original
+    @set! wrapped_f.f = f
+    @set! wrapped_f.jac = jac
+    @set! wrapped_f.resid_prototype = output
+    wrapped_prob = SciMLBase.remake(prob; f = wrapped_f, u0 = input)
+    inner = NonlinearSolveBase.construct_jacobian_cache(
+        wrapped_prob, alg, wrapped_f, output, input, prob.p; stats, autodiff = ad
+    )
+    return BoxShapeJacobianCache(inner, scalar_input)
+end
+
 @concrete mutable struct NativeBoundedCache <: AbstractNonlinearSolveCache
     fu
     u
@@ -158,9 +206,7 @@ function SciMLBase.__init(
     jac_cache = if ADTypes.dense_ad(ad) isa ADTypes.AutoFiniteDiff && !SciMLBase.has_jac(prob.f)
         BoxDifferenceCache(prob, fu, prob.p, lb, ub, stats)
     else
-        NonlinearSolveBase.construct_jacobian_cache(
-            prob, alg, prob.f, fu, u, prob.p; stats, autodiff = ad
-        )
+        _box_construct_jacobian_cache(prob, alg, fu, u, ad, stats)
     end
     T = eltype(u)
     _, _, tc = NonlinearSolveBase.init_termination_cache(
