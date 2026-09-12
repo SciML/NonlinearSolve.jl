@@ -80,6 +80,7 @@ These solvers can be used for both nonlinear and nonlinear least squares problem
 BoundedTrustRegion
 TrustRegionReflective
 BoundedLevenbergMarquardt
+Dogbox
 TrustRegion
 LevenbergMarquardt
 PseudoTransient
