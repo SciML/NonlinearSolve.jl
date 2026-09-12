@@ -104,3 +104,6 @@ Rank-deficient and underdetermined systems require a suitable linear solver.
 [`TrustRegionReflective()`](@ref) provides a Coleman–Li reflective method with strict
 feasibility and a corrected, bound-scaled quadratic model. Its trust radius is enforced
 in a small projected subspace. It is opt-in and does not change the default bounded solver.
+
+[`BoundedLevenbergMarquardt()`](@ref) solves a native box-constrained damped model
+with an active set and a feasible line search.
