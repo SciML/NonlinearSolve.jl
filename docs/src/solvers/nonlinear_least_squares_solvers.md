@@ -94,3 +94,8 @@ package `scipy` is available to PythonCall.
 
 `NonlinearLeastSquaresProblem`s can be converted into an `OptimizationProblem`  and used
 with any solver of [Optimization.jl](https://github.com/SciML/Optimization.jl).
+
+[`TrustRegionReflective()`](@ref) provides a Coleman–Li reflective method with strict
+feasibility and a corrected, bound-scaled quadratic model. Its dense SVD implementation
+supports rank-deficient and underdetermined systems; sparse Jacobians are currently
+densified. It is opt-in and does not change the default bounded solver.
