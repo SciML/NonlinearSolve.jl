@@ -107,3 +107,7 @@ in a small projected subspace. It is opt-in and does not change the default boun
 
 [`BoundedLevenbergMarquardt()`](@ref) solves a native box-constrained damped model
 with an active set and a feasible line search.
+
+[`Dogbox()`](@ref) follows a dogleg path inside the intersection of the bounds and
+a rectangular trust region. Rank deficiency can cause slow convergence even when
+the minimum-norm linear solve succeeds.
