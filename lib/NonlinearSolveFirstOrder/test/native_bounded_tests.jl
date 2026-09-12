@@ -124,3 +124,53 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ ones(2) atol = 1.0e-6
 end
+
+@testset "Scalar and vector residual combinations" begin
+    for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff())
+        @testset "$(constructor), $(ad)" begin
+            prob = NonlinearLeastSquaresProblem(
+                (u, p) -> [u - p, 1.0], 0.0, 2.0; lb = -1.0, ub = 1.0
+            )
+            cache = init(prob, constructor(; autodiff = ad))
+            sol = solve!(cache)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u isa Float64
+            @test sol.u ≈ 1.0 atol = 1.0e-6
+            reinit!(cache, 0.0; p = -0.5)
+            @test solve!(cache).u ≈ -0.5 atol = 1.0e-6
+            prob = NonlinearLeastSquaresProblem(
+                (u, p) -> u[1] + u[2] - 0.6, [0.0, 0.0]; lb = 0.0, ub = 1.0
+            )
+            sol = solve(prob, constructor(; autodiff = ad))
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.resid isa Float64
+            @test abs(sol.resid) < 1.0e-7
+        end
+    end
+end
+
+@testset "Analytic Jacobians and in-place residuals" begin
+    for constructor in native_bounded_algorithms
+        for analytic in (false, true)
+            f! = (r, u, p) -> (r .= (u[1] - p, 1.0))
+            jac! = analytic ? ((J, u, p) -> (J .= reshape([1.0, 0.0], 2, 1))) : nothing
+            f = NonlinearFunction{true}(f!; jac = jac!, resid_prototype = zeros(2))
+            prob = NonlinearLeastSquaresProblem(f, [0.0], 2.0; lb = -1.0, ub = 1.0)
+            cache = init(prob, constructor())
+            sol = solve!(cache)
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ [1.0] atol = 1.0e-6
+            reinit!(cache, [0.0]; p = -0.5)
+            @test solve!(cache).u ≈ [-0.5] atol = 1.0e-6
+        end
+        for (f, jac, u0) in (
+                ((u, p) -> [u - 2, 1.0], (u, p) -> [1.0, 0.0], 0.0),
+                ((u, p) -> u[1] + u[2] - 3, (u, p) -> [1.0 1.0], [0.0, 0.0]),
+            )
+            prob = NonlinearLeastSquaresProblem(NonlinearFunction(f; jac), u0; lb = 0.0, ub = 1.0)
+            sol = solve(prob, constructor())
+            @test SciMLBase.successful_retcode(sol)
+            @test sol.u ≈ one.(u0) atol = 1.0e-6
+        end
+    end
+end
