@@ -48,11 +48,12 @@ end
 function _dogbox_segment(x, direction, alpha, lo, hi)
     trial = clamp.(x + alpha * direction, lo, hi)
     for i in eachindex(x)
-        # Simultaneous bound times can differ by a few rounding ulps.
+        # Roundoff in hit times and trial coordinates must not leave a bound inactive.
         bound = direction[i] < 0 ? lo[i] : hi[i]
         iszero(direction[i]) && continue
         hit = (bound - x[i]) / direction[i]
-        if alpha >= hit || isapprox(alpha, hit; rtol = 8 * eps(eltype(x)), atol = 0)
+        near_bound = isfinite(bound) && abs(trial[i] - bound) <= eps(max(abs(x[i]), abs(bound)))
+        if alpha >= hit || isapprox(alpha, hit; rtol = 8 * eps(eltype(x)), atol = 0) || near_bound
             trial[i] = bound
         end
     end
