@@ -277,16 +277,17 @@ function SciMLBase.__init(
     eltype(fu) <: Real || throw(ArgumentError("Native bounded methods require real residuals."))
     ad = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     @set! alg.autodiff = ad
+    finite_difference = _box_dense_ad(ad) isa ADTypes.AutoFiniteDiff
     @set! alg.jvp_autodiff = NonlinearSolveBase.select_forward_mode_autodiff(
         prob, alg.jvp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ForwardMode, ADTypes.ForwardOrReverseMode} ? ad : alg.jvp_autodiff
     )
     @set! alg.vjp_autodiff = NonlinearSolveBase.select_reverse_mode_autodiff(
-        prob, alg.vjp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ReverseMode, ADTypes.ForwardOrReverseMode} ? ad : alg.vjp_autodiff
+        prob, alg.vjp_autodiff === nothing && (finite_difference || ADTypes.mode(ad) isa Union{ADTypes.ReverseMode, ADTypes.ForwardOrReverseMode}) ? ad : alg.vjp_autodiff
     )
     concrete = alg.concrete_jac === true || alg.concrete_jac === Val(true) || alg.linsolve === nothing ||
         NonlinearSolveBase.needs_concrete_A(alg.linsolve)
     T = eltype(u)
-    jac_cache = if concrete && _box_dense_ad(ad) isa ADTypes.AutoFiniteDiff &&
+    jac_cache = if concrete && finite_difference &&
             !SciMLBase.has_jac(prob.f) && !(prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
         prototype = prob.f.jac_prototype
         J = prototype === nothing ? zeros(T, length(fu), length(u)) :
