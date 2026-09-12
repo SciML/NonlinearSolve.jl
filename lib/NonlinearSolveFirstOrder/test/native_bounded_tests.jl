@@ -239,7 +239,13 @@ end
                 NonlinearFunction(f; jac_prototype = spdiagm(0 => ones(4))),
                 zeros(4), target; lb, ub
             )
-            cache = init(prob, constructor(; autodiff = ad, linsolve = LinearSolve.KrylovJL_LSMR(), concrete_jac = concrete))
+            # The residual's test assertions are not differentiable by reverse AD.
+            vjp_autodiff = ad isa AutoFiniteDiff ? nothing : AutoFiniteDiff()
+            cache = init(prob, constructor(; autodiff = ad, vjp_autodiff, linsolve = LinearSolve.KrylovJL_LSMR(), concrete_jac = concrete))
+            if ad isa AutoFiniteDiff
+                @test cache.alg.jvp_autodiff isa AutoFiniteDiff
+                @test cache.alg.vjp_autodiff isa AutoFiniteDiff
+            end
             @test concrete ? NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SparseMatrixCSC :
                 NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa SciMLOperators.AbstractSciMLOperator
             sol = solve!(cache)
