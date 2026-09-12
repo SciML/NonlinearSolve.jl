@@ -78,6 +78,7 @@ These solvers can be used for both nonlinear and nonlinear least squares problem
 
 ```@docs
 BoundedTrustRegion
+TrustRegionReflective
 TrustRegion
 LevenbergMarquardt
 PseudoTransient

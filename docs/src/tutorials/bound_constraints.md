@@ -183,3 +183,23 @@ sol.prob.lb, sol.prob.ub
   - **Initial guess.** If `u0` is exactly on a bound, it is automatically nudged into the
     strict interior before a coordinate transformation. `BoundedTrustRegion` accepts an
     initial guess exactly on a bound, but rejects an initial guess outside the feasible box.
+
+## Reflective trust regions
+
+[`TrustRegionReflective`](@ref) uses distance-to-bound scaling, a diagonal correction
+to the quadratic model, and reflected search directions. It moves exact-bound initial
+guesses into the strict interior and keeps fixed variables fixed. Its current SVD
+subproblem solver uses dense storage, including when the supplied Jacobian is sparse.
+
+```@example bounds
+prob_reflective = NLS.NonlinearLeastSquaresProblem(
+    (u, p) -> [u[1] - 2, u[2] - 0.5, 1.0], [0.0, 0.0]; lb = 0.0, ub = 1.0
+)
+sol_reflective = NLS.solve(prob_reflective, NLS.TrustRegionReflective())
+sol_reflective.u
+```
+
+An analytic Jacobian or an AD backend can be used. With `AutoFiniteDiff()`, finite
+difference stencils are restricted to the box and fixed coordinates are not perturbed.
+Least-squares convergence includes projected-gradient stationarity; a root problem
+still requires a small residual for success. The existing default is unchanged.
