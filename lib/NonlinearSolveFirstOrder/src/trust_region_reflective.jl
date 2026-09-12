@@ -92,7 +92,7 @@ function _native_bounded_step!(::Val{:reflective}, cache, J, x, f, g)
         limit = min(sphere, _box_limit(clamp.(point, cache.lb, cache.ub), d .* direction, cache.lb, cache.ub))
         slope = dot(gh, direction) + dot(product(at_hit), product(direction)) + dot(c .* at_hit, direction)
         curvature = sum(abs2, product(direction)) + dot(c, direction .^ 2)
-        t = curvature > 0 ? clamp(-slope / curvature, zero(limit), limit) : limit
+        t = _box_cauchy_length(slope, curvature, limit)
         reflected = theta * (at_hit + t * direction)
         value = model(reflected)
         if value < bestvalue
@@ -106,7 +106,7 @@ function _native_bounded_step!(::Val{:reflective}, cache, J, x, f, g)
         theta * _box_limit(x, d .* direction, cache.lb, cache.ub)
     )
     curvature = sum(abs2, product(direction)) + dot(c, direction .^ 2)
-    t = curvature > 0 ? min(dot(gh, gh) / curvature, limit) : limit
+    t = _box_cauchy_length(-dot(gh, gh), curvature, limit)
     cauchy = t * direction
     if model(cauchy) < bestvalue
         best = cauchy

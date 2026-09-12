@@ -400,3 +400,40 @@ end
         @test NonlinearSolveBase.get_linear_cache(cache) === linear
     end
 end
+
+@testset "Shared bounded globalization policies" begin
+    linear = NonlinearProblem((u, p) -> u .- 2, [0.0]; lb = -10.0, ub = 10.0)
+    cache = init(
+        linear, BoundedTrustRegion(;
+            initial_trust_radius = 0.25, max_trust_radius = 0.6,
+            expand_threshold = 0.8, expand_factor = 3
+        )
+    )
+    step!(cache)
+    @test cache.u ≈ [0.25]
+    @test cache.trustregion_cache.last_step_accepted
+    @test cache.trustregion_cache.trust_region == 0.6
+    reinit!(cache, [0.0])
+    @test cache.trustregion_cache.trust_region == 0.25
+
+    prob = NonlinearProblem((u, p) -> atan.(10 .* u), [1.0]; lb = -100.0, ub = 100.0)
+    newton_length = atan(10.0) / (10 / 101)
+    algorithms = (
+        BoundedTrustRegion(; initial_trust_radius = 20, shrink_factor = 1 // 8),
+        Dogbox(; initial_trust_radius = 20),
+        BoundedGaussNewton(; globalization = :trustregion, initial_trust_radius = 20),
+    )
+    for alg in algorithms
+        cache = init(prob, alg)
+        step!(cache)
+        @test cache.u == prob.u0
+        @test cache.fu == atan.(10 .* prob.u0)
+        if alg isa typeof(first(algorithms))
+            @test !cache.trustregion_cache.last_step_accepted
+            @test cache.trustregion_cache.shrink_counter == 1
+            @test cache.trustregion_cache.trust_region == 2.5
+        else
+            @test cache.radius ≈ newton_length / 4
+        end
+    end
+end
