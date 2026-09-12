@@ -241,3 +241,21 @@ sol_bounded_lm.u
 The shared linear-solver cache preserves sparse Jacobians and matrix-free operators.
 `damping` sets the initial
 regularization scale and `max_backtracks` limits each line search.
+
+## Rectangular trust regions
+
+[`Dogbox`](@ref) uses an infinity-norm trust region intersected with the original
+bounds. It solves on free variables and follows a rectangular dogleg path toward
+the Gauss–Newton step.
+
+```@example bounds
+sol_dogbox = NLS.solve(prob_reflective, NLS.Dogbox())
+sol_dogbox.u
+```
+
+Choose a linear solver that supports rank deficiency when it is expected. A
+minimum-norm step does not ensure fast nonlinear convergence. For
+example, residuals `[u[1]^2, u[1]^2]` with a second unused variable give a rank-deficient
+Jacobian: the dogleg repeatedly halves `u[1]` near the solution. A small iteration
+budget can therefore return `MaxIters`. Prefer [`BoundedLevenbergMarquardt`](@ref)
+when rank deficiency is expected.

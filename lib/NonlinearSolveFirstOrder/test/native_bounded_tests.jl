@@ -1,7 +1,7 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, SciMLOperators, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
 
 # Dual comparisons include tangent components; feasibility concerns primal coordinates.
-const native_bounded_algorithms = [TrustRegionReflective, BoundedLevenbergMarquardt]
+const native_bounded_algorithms = [TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox]
 
 @testset "Native bounded solver contracts" begin
     for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff())
@@ -149,6 +149,27 @@ end
     @test SciMLBase.successful_retcode(solve!(cache))
     @test_throws ArgumentError BoundedLevenbergMarquardt(; damping = 0)
     @test_throws ArgumentError BoundedLevenbergMarquardt(; max_backtracks = 0)
+end
+
+@testset "Rectangular dogleg and rank deficiency" begin
+    prob = NonlinearProblem((u, p) -> u .- 4, [0.0, 0.0]; lb = -10.0, ub = 10.0)
+    cache = init(prob, Dogbox(; initial_trust_radius = 1))
+    step!(cache)
+    @test cache.u ≈ [1.0, 1.0]
+    @test norm(cache.u) > 1
+    f = (u, p) -> [u[1]^2, u[1]^2]
+    singular = NonlinearLeastSquaresProblem(f, [1.0, 0.0]; lb = [0.0, -1.0], ub = [2.0, 1.0])
+    limited = solve(singular, Dogbox(; gtol = 0); abstol = 1.0e-12, maxiters = 5)
+    @test limited.retcode == ReturnCode.MaxIters
+    @test limited.u[1] ≈ 1 / 32
+    converged = solve(singular, Dogbox(; gtol = 0); abstol = 1.0e-12)
+    @test SciMLBase.successful_retcode(converged)
+    @test converged.stats.nsteps > 10
+    @test norm(converged.resid) <= 1.0e-12
+    f = (u, p) -> [10 * (u[2] - u[1]^2), 1 - u[1]]
+    sol = solve(NonlinearLeastSquaresProblem(f, [-1.2, 1.0]; lb = [-2.0, -1.0], ub = [0.8, 2.0]), Dogbox())
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ [0.8, 0.64] atol = 2.0e-6
 end
 
 @testset "Scalar and vector residual combinations" begin
