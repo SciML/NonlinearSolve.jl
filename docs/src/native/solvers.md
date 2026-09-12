@@ -81,6 +81,7 @@ BoundedTrustRegion
 TrustRegionReflective
 BoundedLevenbergMarquardt
 Dogbox
+BoundedGaussNewton
 TrustRegion
 LevenbergMarquardt
 PseudoTransient

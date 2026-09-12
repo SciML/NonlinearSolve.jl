@@ -62,6 +62,7 @@ include("native_bounded.jl")
 include("trust_region_reflective.jl")
 include("bounded_levenberg_marquardt.jl")
 include("dogbox.jl")
+include("bounded_gauss_newton.jl")
 include("pseudo_transient.jl")
 include("poly_algs.jl")
 include("forward_diff.jl")
@@ -148,7 +149,7 @@ end
 @reexport using SciMLBase, NonlinearSolveBase
 
 export NewtonRaphson, PseudoTransient
-export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox
+export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox, BoundedGaussNewton
 export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion
 
 export EisenstatWalkerForcing2
