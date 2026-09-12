@@ -197,6 +197,10 @@ end
             precs_calls = Ref(0)
             precs = (A, p) -> begin
                 precs_calls[] += 1
+                if precs_calls[] == 1
+                    @test p.u == fill(0.5, n)
+                    @test p.p == target
+                end
                 @test A isa SparseMatrixCSC
                 return Diagonal(ones(n)), LinearAlgebra.I
             end
