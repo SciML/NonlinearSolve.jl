@@ -133,7 +133,8 @@ end
 function (d::BoundedDerivative{:jac})(J, u, p)
     d.f(J, _transform_u(d.wrapper, u), p)
     scale = _transform_derivative(d.wrapper, u)
-    J .*= transpose(vec(scale))
+    # Preserve structural zeros when the transform derivative vanishes.
+    LinearAlgebra.rmul!(J, Diagonal(vec(scale)))
     return J
 end
 

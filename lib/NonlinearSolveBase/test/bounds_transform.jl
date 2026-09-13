@@ -109,6 +109,29 @@ end
     end
 end
 
+@testset "zero transform derivatives preserve sparse structure" begin
+    using LinearAlgebra, SparseArrays
+
+    A = sparse([2.0 1.0; 1.0 3.0])
+    f!(r, u, p) = mul!(r, A, u)
+    jac!(J, u, p) = (nonzeros(J) .= nonzeros(A))
+    nf = NonlinearFunction{true}(f!; jac = jac!, jac_prototype = copy(A))
+    prob = NonlinearProblem(nf, [0.5, 0.5]; lb = 0.0, ub = 1.0)
+    transformed = transform_bounded_problem(prob, nothing)
+    J = copy(A)
+    for t in ([-1000.0, 0.0], [0.0, 1000.0], [1000.0, -1000.0], [0.0, 0.0])
+        transformed.f.jac(J, t, prob.p)
+        @test J.colptr == A.colptr
+        @test rowvals(J) == rowvals(A)
+        @test nnz(J) == nnz(A)
+        expected = ForwardDiff.jacobian(t) do x
+            r = similar(x)
+            transformed.f(r, x, prob.p)
+        end
+        @test Matrix(J) ≈ expected
+    end
+end
+
 @testset "scalar analytic derivatives follow bounded coordinates" begin
     for (lb, ub) in ((0.0, 3.0), (0.0, nothing), (nothing, 3.0))
         nf = NonlinearFunction{false}(
