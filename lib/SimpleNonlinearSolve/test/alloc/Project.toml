@@ -16,7 +16,7 @@ NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
 [compat]
 AllocCheck = "0.1, 0.2"
 BracketingNonlinearSolve = "1.6"
-LineSearch = "0.1.9"
+LineSearch = "0.1.9, 0.2"
 NonlinearSolveBase = "2.20"
 SafeTestsets = "0.1"
 SciMLBase = "2.153, 3"
