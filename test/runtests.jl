@@ -67,6 +67,7 @@ else
             @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
             @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
             @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
+            @time @safetestset "Bounds: implicit sensitivities" include("Core/bounds_sensitivity_tests.jl")
             @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
             @time @safetestset "Bounds: polyalgorithm and quasi-Newton algorithms" include("Core/bounds_tests__item4.jl")
             @time @safetestset "HomotopySweep construction + defaults" include("Core/homotopy_sweep_tests__item1.jl")
@@ -164,7 +165,8 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
-                    return @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
                 end,
             ),
             "CUDA" => (;

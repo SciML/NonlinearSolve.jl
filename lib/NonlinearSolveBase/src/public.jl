@@ -169,6 +169,11 @@ with parameter partials.
 This is developer API for solver packages that need to propagate dual-number sensitivities
 through specialized nonlinear solve implementations.
 
+For box-constrained least-squares problems, sensitivities use the projected stationarity
+equation, including active bounds. They assume parameter-independent bounds, a locally
+unchanged active set, and a nonsingular stationarity Jacobian on the free variables.
+A classical derivative need not exist where the active set changes.
+
 ### Arguments
 
   - `prob`: A SciML nonlinear problem whose parameters may carry ForwardDiff dual values.

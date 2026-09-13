@@ -15,10 +15,13 @@ run_tests(;
         include("inference_tests.jl")
         include("least_squares_tests.jl")
         include("misc_tests.jl")
+        @safetestset "Native bounded methods" include("native_bounded_tests.jl")
         include("rootfind_tests.jl")
         include("sparsity_tests.jl")
         return @safetestset "SciMLOperator Jacobians" include("operator_jacobian.jl")
     end,
+    groups = Dict("NativeBounds" => (() -> @safetestset "Native bounded methods" include("native_bounded_tests.jl"))),
+    all = ["Core"],
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
     # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
     qa = (;

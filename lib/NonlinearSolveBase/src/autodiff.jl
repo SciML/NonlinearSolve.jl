@@ -197,6 +197,26 @@ is_finite_differences_backend(::ADTypes.AutoFiniteDiff) = true
 is_finite_differences_backend(::ADTypes.AutoFiniteDifferences) = true
 
 function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
+    gradient = nlls_generate_gradient_function(prob, sol, uu)
+    prob.lb === nothing && prob.ub === nothing && return gradient
+    lb = something(prob.lb, -Inf)
+    ub = something(prob.ub, Inf)
+    # The projected stationarity equation includes the active-bound KKT conditions.
+    if SciMLBase.isinplace(prob)
+        return @closure (du, u, p) -> begin
+            gradient(du, u, p)
+            @. du = u - clamp(u - du, lb, ub)
+            return nothing
+        end
+    else
+        return @closure (u, p) -> begin
+            g = gradient(u, p)
+            return @. u - clamp(u - g, lb, ub)
+        end
+    end
+end
+
+function nlls_generate_gradient_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     # First check for custom `vjp` then custom `Jacobian` and if nothing is provided use
     # nested autodiff as the last resort
     return if SciMLBase.has_vjp(prob.f)
@@ -215,7 +235,8 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 u, p,
             ) -> begin
                 resid = prob.f(u, p)
-                return reshape(2 .* prob.f.vjp(resid, u, p), size(u))
+                g = 2 .* prob.f.vjp(resid, u, p)
+                return u isa Number ? g : reshape(g, size(u))
             end
         end
     elseif SciMLBase.has_jac(prob.f)
@@ -235,7 +256,10 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 u,
                 p,
             ) -> begin
-                return reshape(2 .* vec(prob.f(u, p))' * prob.f.jac(u, p), size(u))
+                resid = prob.f(u, p)
+                J = prob.f.jac(u, p)
+                u isa Number && return 2 * LinearAlgebra.dot(J, resid)
+                return reshape(2 .* vec(resid)' * J, size(u))
             end
         end
     else
@@ -268,6 +292,10 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 end
             else
                 return @closure (u, p) -> begin
+                    if u isa Number
+                        J = DI.derivative(Base.Fix2(raw_f, p), autodiff, u)
+                        return 2 * LinearAlgebra.dot(J, raw_f(u, p))
+                    end
                     J = DI.jacobian(Base.Fix2(raw_f, p), autodiff, u)
                     return 2 .* (J' * raw_f(u, p))
                 end
