@@ -411,11 +411,13 @@ function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_boun
     # BoundedWrapper, map the solution back from unbounded to bounded space.
     if transform_bounds && _has_bounded_wrapper(cache)
         bw = cache.prob.f.f
-        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+        u, u0 = sol.u, sol.prob.u0
+        @bb @. u = _from_unbounded(u, bw.lb, bw.ub)
+        @bb @. u0 = _from_unbounded(u0, bw.lb, bw.ub)
+        @set! sol.u = u
 
         # Reset the problem to the original fields that were overwritten
-        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub)
-        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub, u0)
     end
 
     return sol
