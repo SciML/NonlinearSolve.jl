@@ -469,3 +469,57 @@ end
     @test SciMLBase.successful_retcode(sol.retcode)
     @test sol.u ≈ fill(sqrt(2), 2) atol = 1.0e-8
 end
+
+@testset "Bounded trust-region finite differences" begin
+    for u0 in (1.0, [1.0], SVector(1.0), ones(2, 2), SMatrix{2, 2}(ones(2, 2))), fixed in (false, true)
+        f = (u, p) -> begin
+            all((fixed ? 1.0 : 0.0) .<= u .<= 1.0) || throw(DomainError(u))
+            u .- p
+        end
+        prob = NonlinearLeastSquaresProblem(f, u0, 2.0; lb = fixed ? 1.0 : 0.0, ub = 1.0)
+        cache = init(prob, BoundedTrustRegion(; autodiff = AutoFiniteDiff()))
+        @test (NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa Number) == (u0 isa Number)
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ u0
+        @test sol.u isa typeof(u0)
+        reinit!(cache, u0; p = 0.25)
+        again = solve!(cache)
+        @test SciMLBase.successful_retcode(again)
+        @test again.u ≈ (fixed ? u0 : 0.25 .* u0)
+    end
+    for inplace in (false, true), representation in (:dense, :sparse, :operator),
+            mixed in (false, true)
+        lb, ub = [0.0, 0.0, 0.0], [0.0, 1.0, 1.0]
+        f = (u, p) -> begin
+            all(lb .<= ForwardDiff.value.(u) .<= ub) || throw(DomainError(u))
+            exp.(u) .- p
+        end
+        fun = inplace ? ((r, u, p) -> (r .= f(u, p))) : f
+        prototype = representation === :sparse ? spdiagm(0 => ones(3)) : nothing
+        prob = NonlinearLeastSquaresProblem(
+            NonlinearFunction{inplace}(fun; jac_prototype = prototype),
+            ones(3) .* ub, [1.0, 1.3, 4.0]; lb, ub
+        )
+        alg = BoundedTrustRegion(;
+            autodiff = mixed ? AutoForwardDiff() : AutoFiniteDiff(),
+            vjp_autodiff = AutoFiniteDiff(),
+            jvp_autodiff = AutoFiniteDiff(),
+            linsolve = representation === :operator ? LinearSolve.KrylovJL_LSMR() : nothing
+        )
+        cache = init(prob, alg)
+        jac_cache = cache.jac_cache
+        J = NonlinearSolveBase.reused_jacobian(jac_cache, cache.u)
+        @test representation === :operator ? J isa SciMLOperators.AbstractSciMLOperator :
+            representation === :sparse ? J isa SparseMatrixCSC : J isa Matrix
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ clamp.(log.(prob.p), lb, ub) atol = 1.0e-6
+        reinit!(cache, ub; p = [1.0, 4.0, 1.7])
+        again = solve!(cache)
+        @test SciMLBase.successful_retcode(again)
+        @test again.u ≈ clamp.(log.([1.0, 4.0, 1.7]), lb, ub) atol = 1.0e-6
+        @test cache.jac_cache === jac_cache
+        @test NonlinearSolveBase.reused_jacobian(cache.jac_cache, cache.u) isa typeof(J)
+    end
+end
