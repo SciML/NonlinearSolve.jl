@@ -48,6 +48,31 @@ For a `NonlinearProblem`, success still requires a small residual. For a
 even when the residual is nonzero. A stationary constrained least-squares point is not
 necessarily a root or a global minimum.
 
+## Restarts and restoration
+
+A local bounded method can converge to a constrained stationary point on an
+active bound that is not a root of the system. [`SobolMultistart`](@ref) is an
+opt-in wrapper that reruns a bounded algorithm from `prob.u0` and a
+deterministic Sobol sequence of restarts, keeping the best feasible result. It
+also performs a restoration probe: when a start stalls on an active bound, one
+unbounded solve from the stalled iterate checks whether a nearby root lies
+inside the original box.
+
+```@example bounded_solvers
+using NonlinearSolve, SciMLBase
+f(u, p) = [cos(u[2]) + sin(u[1]) - 0.5, sin(u[2]) + cos(u[1]) - 0.3]
+prob = NonlinearProblem(
+    f, [0.3, 1.0], nothing; lb = [-100.0, 0.0], ub = [100.0, 10.0]
+)
+@assert !SciMLBase.successful_retcode(solve(prob))
+sol = solve(prob, SobolMultistart())
+@assert SciMLBase.successful_retcode(sol)
+sol.u
+```
+
+`SobolMultistart` never reports a stalled sub-solve as a success: when no start
+reaches a root the returned retcode is `ReturnCode.Stalled`.
+
 ```@example bounded_solvers
 using NonlinearSolve, SciMLBase
 prob = NonlinearLeastSquaresProblem(
@@ -104,6 +129,7 @@ bound. Native methods operate directly on the box and can reach its boundary.
 
 ```@docs
 FastShortcutBoundedPolyalg
+SobolMultistart
 BoundedTrustRegion
 TrustRegionReflective
 BoundedLevenbergMarquardt

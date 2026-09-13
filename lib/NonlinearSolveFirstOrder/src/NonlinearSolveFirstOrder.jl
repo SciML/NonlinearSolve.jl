@@ -50,6 +50,7 @@ using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOp
 
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
+using Sobol: Sobol
 
 include("jacobian_reuse.jl")
 include("solve.jl")
@@ -67,6 +68,7 @@ include("dogbox.jl")
 include("bounded_gauss_newton.jl")
 include("pseudo_transient.jl")
 include("poly_algs.jl")
+include("multistart.jl")
 include("forward_diff.jl")
 
 @setup_workload begin
@@ -163,5 +165,6 @@ export GeneralizedFirstOrderAlgorithm
 
 # Polyalgorithms
 export RobustMultiNewton, FastShortcutNLLSPolyalg, FastShortcutBoundedPolyalg
+export SobolMultistart
 
 end
