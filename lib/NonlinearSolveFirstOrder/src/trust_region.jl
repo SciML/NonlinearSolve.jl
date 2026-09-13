@@ -683,7 +683,7 @@ function InternalAPI.reinit!(
 end
 
 function _projected_gradient!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
-    @bb cache.gradient = transpose(J) × Utils.safe_vec(fu)
+    cache.gradient = _box_mul!(cache.gradient, transpose(J), fu)
     @bb @. cache.cauchy_step = -_box_projected_gradient(u, cache.gradient, cache.lb, cache.ub)
     return _bounded_tr_linf(cache.cauchy_step)
 end
@@ -703,7 +703,7 @@ function InternalAPI.solve!(
     _projected_gradient!(cache, J, fu, u)
 
     @bb @. cache.dogleg_step = clamp(u + δu, cache.lb, cache.ub) - u
-    @bb cache.Jdogleg = J × Utils.safe_vec(cache.dogleg_step)
+    cache.Jdogleg = _box_mul!(cache.Jdogleg, J, cache.dogleg_step)
     dogleg_model = _box_model_value(
         cache.Jdogleg, cache.dogleg_step, cache.gradient
     )
@@ -718,14 +718,14 @@ function InternalAPI.solve!(
         @bb @. cache.Jcauchy = zero(eltype(cache.Jcauchy))
         cauchy_model = zero(dogleg_model)
     else
-        @bb cache.Jcauchy = J × Utils.safe_vec(cache.cauchy_direction)
+        cache.Jcauchy = _box_mul!(cache.Jcauchy, J, cache.cauchy_direction)
         curvature = Utils.safe_dot(cache.Jcauchy, cache.Jcauchy)
         slope = Utils.safe_dot(cache.cauchy_direction, cache.gradient)
         radius_scale = cache.trust_region / direction_norm
         α = _box_cauchy_length(slope, curvature, radius_scale)
         @bb @. cache.cauchy_step =
             clamp(u + α * cache.cauchy_direction, cache.lb, cache.ub) - u
-        @bb cache.Jcauchy = J × Utils.safe_vec(cache.cauchy_step)
+        cache.Jcauchy = _box_mul!(cache.Jcauchy, J, cache.cauchy_step)
         cauchy_model = _box_model_value(
             cache.Jcauchy, cache.cauchy_step, cache.gradient
         )
