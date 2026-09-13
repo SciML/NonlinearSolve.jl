@@ -183,3 +183,98 @@ sol.prob.lb, sol.prob.ub
   - **Initial guess.** If `u0` is exactly on a bound, it is automatically nudged into the
     strict interior before a coordinate transformation. `BoundedTrustRegion` accepts an
     initial guess exactly on a bound, but rejects an initial guess outside the feasible box.
+
+## Reflective trust regions
+
+[`TrustRegionReflective`](@ref) uses distance-to-bound scaling, a diagonal correction
+to the quadratic model, and reflected search directions. It moves exact-bound initial
+guesses into the strict interior and keeps fixed variables fixed. Its scaled linear
+subproblem uses the same Jacobian and LinearSolve caches as `GaussNewton`.
+
+```@example bounds
+prob_reflective = NLS.NonlinearLeastSquaresProblem(
+    (u, p) -> [u[1] - 2, u[2] - 0.5, 1.0], [0.0, 0.0]; lb = 0.0, ub = 1.0
+)
+sol_reflective = NLS.solve(prob_reflective, NLS.TrustRegionReflective())
+sol_reflective.u
+```
+
+An analytic Jacobian or an AD backend can be used. With `AutoFiniteDiff()`, finite
+difference stencils are restricted to the box and fixed coordinates are not perturbed.
+Least-squares convergence includes projected-gradient stationarity; a root problem
+still requires a small residual for success. The existing default is unchanged.
+
+Sparse prototypes and Krylov solvers follow the usual solver interface:
+
+```@example bounds
+using LinearSolve, SparseArrays
+f_sparse! = (r, u, p) -> (r .= u .- p)
+f_sparse = NLS.NonlinearFunction(f_sparse!; jac_prototype = spdiagm(0 => ones(20)))
+prob_sparse = NLS.NonlinearLeastSquaresProblem(
+    f_sparse, fill(0.5, 20), collect(range(-0.5, 1.5; length = 20)); lb = 0.0, ub = 1.0
+)
+sol_sparse = NLS.solve(prob_sparse, NLS.TrustRegionReflective())
+sol_operator = NLS.solve(prob_sparse, NLS.TrustRegionReflective(; linsolve = KrylovJL_LSMR()))
+maximum(abs, sol_sparse.u - sol_operator.u)
+```
+
+`concrete_jac = true` forces a concrete Jacobian even with a Krylov solver.
+`jvp_autodiff`, `vjp_autodiff`, or analytic `jvp`/`vjp` callbacks control operator
+products. Linear solvers that require square systems use normal equations;
+`KrylovJL_LSMR()` works on the augmented rectangular least-squares operator.
+The reflective trust-region
+radius is handled in a small gradient/Gauss–Newton subspace, without materializing
+an operator as a matrix.
+
+## Bound-constrained Levenberg–Marquardt
+
+[`BoundedLevenbergMarquardt`](@ref) minimizes a damped linear least-squares model
+subject to the original bounds. It permits exact-bound iterates and handles fixed
+variables, rank deficiency, and underdetermined residuals. A feasible line search
+globalizes the model step, with a projected-gradient fallback.
+
+```@example bounds
+sol_bounded_lm = NLS.solve(prob_reflective, NLS.BoundedLevenbergMarquardt())
+sol_bounded_lm.u
+```
+
+The shared linear-solver cache preserves sparse Jacobians and matrix-free operators.
+`damping` sets the initial
+regularization scale and `max_backtracks` limits each line search.
+
+## Rectangular trust regions
+
+[`Dogbox`](@ref) uses an infinity-norm trust region intersected with the original
+bounds. It solves on free variables and follows a rectangular dogleg path toward
+the Gauss–Newton step.
+
+```@example bounds
+sol_dogbox = NLS.solve(prob_reflective, NLS.Dogbox())
+sol_dogbox.u
+```
+
+Choose a linear solver that supports rank deficiency when it is expected. A
+minimum-norm step does not ensure fast nonlinear convergence. For
+example, residuals `[u[1]^2, u[1]^2]` with a second unused variable give a rank-deficient
+Jacobian: the dogleg repeatedly halves `u[1]` near the solution. A small iteration
+budget can therefore return `MaxIters`. Prefer [`BoundedLevenbergMarquardt`](@ref)
+when rank deficiency is expected.
+
+## Active-set Gauss–Newton
+
+[`BoundedGaussNewton`](@ref) holds fixed variables and outward-gradient active-bound
+variables fixed while solving the reduced linear least-squares problem. Choose
+`globalization = :linesearch`, `:trustregion`, or `:trustregion_linesearch`; the last
+option tries a projected line search when the trust-region trial is rejected.
+
+```@example bounds
+sol_bounded_gn = NLS.solve(
+    prob_reflective, NLS.BoundedGaussNewton(; globalization = :trustregion_linesearch)
+)
+sol_bounded_gn.u
+```
+
+The reduced systems preserve the selected Jacobian representation and linear solver.
+For square `NonlinearProblem`s, this
+provides a feasible reduced Newton path, retaining residual-based success. It does
+not solve complementarity conditions or use an exact Hessian of the merit function.

@@ -219,3 +219,9 @@ methods are available whenever the `scipy` Python package can be imported.
 
   - [`SciPyRoot()`](@ref): wrapper for `scipy.optimize.root` (vector problems)
   - [`SciPyRootScalar()`](@ref): wrapper for `scipy.optimize.root_scalar` (scalar/bracketed problems)
+
+[`TrustRegionReflective()`](@ref) also supports feasible root finding. A constrained
+stationary point with a nonzero residual returns `ReturnCode.Stalled`.
+
+[`BoundedGaussNewton()`](@ref) provides a feasible reduced Newton path for square
+root problems, with residual-based success and a choice of three globalizations.

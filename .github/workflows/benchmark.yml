@@ -6,13 +6,12 @@ on:
     paths-ignore: ['docs/**']
 
 permissions:
-  pull-requests: write
   contents: read
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -20,10 +19,29 @@ jobs:
     env:
       # Force consistent Julia depot path for self-hosted runners
       JULIA_DEPOT_PATH: ~/.julia
+      JULIA_PKG_PRECOMPILE_AUTO: '0'
     steps:
-      - uses: MilesCranmer/AirspeedVelocity.jl@action-v1
+      - uses: actions/checkout@v6
         with:
-          julia-version: ${{ matrix.version }}
-          script: "benchmark/benchmarks.jl"
-          extra-pkgs: "StableRNGs"
-          job-summary: true
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v2
+      - name: Install benchmark tools
+        run: |
+          mkdir -p .benchmark/tmp
+          export TMPDIR="$GITHUB_WORKSPACE/.benchmark/tmp"
+          echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+          julia --startup-file=no -e 'using Pkg; Pkg.activate(".benchmark/tools"); Pkg.add(PackageSpec(name="AirspeedVelocity", version="0.6.5"))'
+      - name: Benchmark both revisions with their local source packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: julia --startup-file=no --project=.benchmark/tools benchmark/ci.jl "$BASE_SHA" "$HEAD_SHA" results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.version }}
+          path: results/*.json
