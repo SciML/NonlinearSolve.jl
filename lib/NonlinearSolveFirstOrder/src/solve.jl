@@ -190,7 +190,8 @@ function SciMLBase.__init(
     provided_vjp_autodiff = alg.vjp_autodiff !== nothing
     @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
             (
-            ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+            (SciMLBase.allowsbounds(alg) && _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff) ||
+                ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
                 ADTypes.mode(alg.autodiff) isa
                 ADTypes.ForwardOrReverseMode
         )
@@ -230,10 +231,28 @@ function SciMLBase.__init(
         )
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
-        jac_cache = NonlinearSolveBase.construct_jacobian_cache(
-            _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
-            stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
-        )
+        difference_cache = if SciMLBase.allowsbounds(alg)
+            lb, ub = _box_bounds(prob, u)
+            if _box_concrete_jacobian(alg, linsolve) &&
+                    _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff &&
+                    !SciMLBase.has_jac(_ad_prob.f) &&
+                    !(_ad_prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
+                _box_difference_cache(_ad_prob, fu, u, lb, ub, stats)
+            else
+                _ad_prob = _box_product_problem(_ad_prob, alg, fu, lb, ub, stats)
+                nothing
+            end
+        else
+            nothing
+        end
+        jac_cache = if difference_cache === nothing
+            NonlinearSolveBase.construct_jacobian_cache(
+                _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
+                stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
+            )
+        else
+            difference_cache
+        end
         J = reused_jacobian(jac_cache, u)
 
         descent_cache = InternalAPI.init(
