@@ -139,6 +139,12 @@ NonlinearSolveBase.residual_only_termination_mode
 NonlinearSolveBase.trace_is_active
 ```
 
+## Initialization Algorithm Selection
+
+```@docs
+NonlinearSolveBase.initialization_alg
+```
+
 ## Cache Tolerances
 
 ```@docs

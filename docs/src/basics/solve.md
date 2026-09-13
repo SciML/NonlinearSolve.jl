@@ -29,9 +29,9 @@ solve(::NonlinearProblem, args...; kwargs...)
 
 The `precondition` and `postcondition` options are documented in the `solve` docstring
 above and in the [nonlinear preconditioning tutorial](@ref nonlinear_preconditioning).
-On a problem with `lb`/`ub` bounds, an iterate corrector can be declared in either the
-original bounded variable (the default) or the unconstrained variable the solver iterates
-on:
+Native bounded algorithms apply iterate correctors in the original coordinates. When
+an explicitly selected algorithm transforms `lb`/`ub` bounds, a corrector can be declared
+in either the original bounded variable (the default) or the transformed variable:
 
 ```@docs
 PostconditionSpecifier

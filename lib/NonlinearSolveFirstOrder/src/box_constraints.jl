@@ -43,3 +43,11 @@ function _box_update_radius(
     end
     return min(radius, max_radius), shrunk
 end
+
+_box_mul!(output::Number, A, x) = A * x
+_box_mul!(output::SArray, A, x) = typeof(output)(A * Utils.safe_vec(x))
+
+function _box_mul!(output, A, x)
+    LinearAlgebra.mul!(vec(output), A, Utils.safe_vec(x))
+    return output
+end

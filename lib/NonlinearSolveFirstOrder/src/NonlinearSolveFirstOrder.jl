@@ -59,6 +59,7 @@ include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
 include("box_constraints.jl")
 include("trust_region.jl")
+include("bounded_jacobian.jl")
 include("native_bounded.jl")
 include("trust_region_reflective.jl")
 include("bounded_levenberg_marquardt.jl")
@@ -161,6 +162,6 @@ export RadiusUpdateSchemes
 export GeneralizedFirstOrderAlgorithm
 
 # Polyalgorithms
-export RobustMultiNewton, FastShortcutNLLSPolyalg
+export RobustMultiNewton, FastShortcutNLLSPolyalg, FastShortcutBoundedPolyalg
 
 end

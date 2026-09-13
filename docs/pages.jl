@@ -32,6 +32,7 @@ pages = [
         "solvers/bracketing_solvers.md",
         "solvers/steady_state_solvers.md",
         "solvers/nonlinear_least_squares_solvers.md",
+        "solvers/bounded_solvers.md",
         "solvers/fixed_point_solvers.md",
     ],
     "Native Functionalities" => Any[
