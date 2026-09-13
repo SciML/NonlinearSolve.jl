@@ -208,6 +208,24 @@ function nonlinearsolve_dual_solution end
 function nonlinearsolve_∂f_∂p end
 function nonlinearsolve_∂f_∂u end
 function nlls_generate_vjp_function end
+function nlls_solve_adjoint_dp end
+
+"""
+    solve_call(_prob, args...; kwargs...)
+
+Solve an already-concrete nonlinear problem, bypassing `get_concrete_problem`.
+
+This developer API is used by callers that hold a problem produced by
+[`get_concrete_problem`](@ref) — for example sensitivity analyses that re-solve
+the primal inside an adjoint — where re-running the specialization pipeline
+would re-wrap `prob.f.f` and change the solution type.
+
+### Arguments
+
+  - `_prob`: A concrete `AbstractNonlinearProblem` as returned by `get_concrete_problem`.
+  - `args...`: The algorithm and any positional `solve` arguments.
+"""
+function solve_call end
 function nodual_value end
 
 """

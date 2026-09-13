@@ -325,3 +325,97 @@ function nlls_generate_gradient_function(prob::NonlinearLeastSquaresProblem, sol
         end
     end
 end
+
+implicit_sensitivity_solve(A::Number, B) = A \ B
+
+function implicit_sensitivity_solve(A, B)
+    Utils.is_extension_loaded(Val(:LinearSolve)) || return A \ B
+
+    T = promote_type(typeof(oneunit(eltype(A)) / oneunit(eltype(A))), eltype(B))
+    u = similar(B, T, size(B))
+    lincache = construct_linear_solver(
+        nothing, nothing, A, B, u, nothing;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0), verbose = false
+    )
+    linres = lincache()
+    linres.success || error("Linear solve failed while differentiating a nonlinear solve.")
+    return linres.u
+end
+
+"""
+    nlls_solve_adjoint_dp(prob, sol, p, Δu, save_idxs)
+
+Parameter cotangent `dp = -(∂G/∂p)' · (∂G/∂u)⁻ᵀ · Δu` for the solution `u*` of a
+`NonlinearLeastSquaresProblem`, computed by implicit differentiation of the
+(projected) stationarity equation `G(u*, p) = 0` built by
+[`nlls_generate_vjp_function`](@ref). For problems with `lb`/`ub` bounds this
+includes the active-bound KKT conditions: components pinned at a bound have zero
+sensitivity while free components satisfy the constrained stationarity system.
+
+`Δu` is the incoming cotangent of `sol.u`. `save_idxs` restricts the sensitivity to
+a subset of the state components, matching the `save_idxs` solve keyword.
+"""
+function nlls_solve_adjoint_dp(prob::NonlinearLeastSquaresProblem, sol, p, Δu, save_idxs)
+    # Unwrap AutoSpecializeCallable so the generated stationarity function and the
+    # nested differentiation below see the raw callable.
+    ad_prob = is_fw_wrapped(prob.f.f) ? @set(prob.f.f = get_raw_f(prob.f.f)) : prob
+    G = nlls_generate_vjp_function(ad_prob, sol, sol.u)
+    # Prefer ForwardDiff: it composes cleanly with the nested derivative
+    # `nlls_generate_gradient_function` may perform internally.
+    autodiff = DI.check_available(AutoForwardDiff()) ? AutoForwardDiff() :
+        select_jacobian_autodiff(ad_prob, nothing)
+
+    u = sol.u
+    G_u = if SciMLBase.isinplace(ad_prob)
+        @closure u_ -> begin
+            du = Utils.safe_similar(u_, length(u_))
+            G(du, u_, p)
+            return du
+        end
+    else
+        Base.Fix2(G, p)
+    end
+    J_u = u isa Number ? DI.derivative(G_u, autodiff, u) :
+        DI.jacobian(G_u, autodiff, u)
+
+    G_p = if SciMLBase.isinplace(ad_prob)
+        @closure p_ -> begin
+            du = Utils.safe_similar(
+                u, promote_type(eltype(u), eltype(p_)), length(u)
+            )
+            G(du, u, p_)
+            return du
+        end
+    else
+        Base.Fix1(G, u)
+    end
+    J_p = if p isa Number
+        DI.derivative(G_p, autodiff, p)
+    elseif u isa Number
+        DI.gradient(G_p, autodiff, p)
+    else
+        DI.jacobian(G_p, autodiff, p)
+    end
+
+    dseed = if u isa Number
+        Δu isa AbstractArray ? only(Δu) : Δu
+    elseif save_idxs === nothing
+        vec(Δu)
+    else
+        d = zeros(eltype(Δu), length(u))
+        d[save_idxs] = Δu isa AbstractArray ? vec(Δu) : Δu
+        d
+    end
+    λ = implicit_sensitivity_solve(J_u', dseed)
+
+    return if p isa Number
+        λv = λ isa Number ? λ : vec(λ)
+        J_p isa Number ? -(J_p * λv) :
+            -LinearAlgebra.dot(vec(J_p), λv isa Number ? [λv] : λv)
+    elseif u isa Number
+        λs = λ isa Number ? λ : only(λ)
+        Utils.safe_reshape(-(λs .* vec(J_p)), size(p))
+    else
+        Utils.safe_reshape(-(J_p' * vec(λ)), size(p))
+    end
+end
