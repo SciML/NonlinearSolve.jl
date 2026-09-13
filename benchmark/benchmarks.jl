@@ -106,6 +106,34 @@ SUITE["least_squares"]["exp_fit"]["GaussNewton"] = @benchmarkable solve(
 )
 
 # =============================================================================
+# Bounded Problems
+# =============================================================================
+
+SUITE["bounded"] = BenchmarkGroup()
+
+bounded_nlp_prob = NonlinearProblem(
+    nonlinear_poisson!, 0.5 * ones(NLP_N), (NLP_N, (NLP_N - 1)^2); lb = 0.0, ub = 1.0
+)
+SUITE["bounded"]["nonlinear_poisson"] = BenchmarkGroup()
+SUITE["bounded"]["nonlinear_poisson"]["BoundedDefault"] = @benchmarkable solve(
+    $bounded_nlp_prob
+)
+SUITE["bounded"]["nonlinear_poisson"]["BoundedTrustRegion"] = @benchmarkable solve(
+    $bounded_nlp_prob, BoundedTrustRegion()
+)
+
+bounded_nls_prob = NonlinearLeastSquaresProblem(
+    nls_f, [1.0, 0.0], (nls_x, nls_y); lb = [0.0, -1.0], ub = [4.0, 0.45]
+)
+SUITE["bounded"]["exp_fit"] = BenchmarkGroup()
+SUITE["bounded"]["exp_fit"]["BoundedDefault"] = @benchmarkable solve(
+    $bounded_nls_prob
+)
+SUITE["bounded"]["exp_fit"]["BoundedGaussNewton"] = @benchmarkable solve(
+    $bounded_nls_prob, BoundedGaussNewton()
+)
+
+# =============================================================================
 # Simple Solvers (allocation-light path)
 # =============================================================================
 

@@ -549,7 +549,12 @@ end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
     return SciMLBase.__init(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? FastShortcutBoundedPolyalg(;
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+            ) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
@@ -557,10 +562,21 @@ function SciMLBase.__solve(
         prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...
     )
     return SciMLBase.__solve(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? FastShortcutBoundedPolyalg(;
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+            ) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
-function NonlinearSolveBase.initialization_alg(::NonlinearLeastSquaresProblem, autodiff)
+function NonlinearSolveBase.initialization_alg(prob::NonlinearLeastSquaresProblem, autodiff)
+    if prob.lb !== nothing || prob.ub !== nothing
+        return FastShortcutBoundedPolyalg(;
+            autodiff,
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+        )
+    end
     return FastShortcutNLLSPolyalg(; autodiff)
 end

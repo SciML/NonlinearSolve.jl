@@ -14,6 +14,7 @@ run_tests(;
         include("conditioning_tests.jl")
         include("inference_tests.jl")
         include("least_squares_tests.jl")
+        @safetestset "Bounded least-squares default" include("bounded_default_tests.jl")
         include("misc_tests.jl")
         @safetestset "Native bounded methods" include("native_bounded_tests.jl")
         include("rootfind_tests.jl")

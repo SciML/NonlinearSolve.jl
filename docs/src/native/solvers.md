@@ -77,15 +77,12 @@ GaussNewton
 These solvers can be used for both nonlinear and nonlinear least squares problems.
 
 ```@docs
-BoundedTrustRegion
-TrustRegionReflective
-BoundedLevenbergMarquardt
-Dogbox
-BoundedGaussNewton
 TrustRegion
 LevenbergMarquardt
 PseudoTransient
 ```
+
+Box-constrained algorithms are documented on the [Bounded Solvers](@ref bounded-solvers) page.
 
 ## Polyalgorithms
 

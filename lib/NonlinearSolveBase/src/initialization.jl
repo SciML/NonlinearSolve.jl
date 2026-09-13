@@ -44,6 +44,16 @@ function get_reltol(prob::AbstractNonlinearProblem)
     return get_tolerance(get(prob.kwargs, :reltol, nothing), eltype(SII.state_values(prob)))
 end
 
+"""
+    initialization_alg(initprob, autodiff)
+
+Select a nonlinear algorithm for the auxiliary problem in `OverrideInitData`.
+Solver packages may extend this hook for supported problem types and should preserve
+`initprob`'s constraints while forwarding the requested differentiation backend.
+
+Return `nothing` to leave the algorithm unspecified. When initialization is running on
+an existing nonlinear solver cache, this falls back to that cache's algorithm.
+"""
 initialization_alg(initprob, autodiff) = nothing
 
 function update_initial_values!(cache::AbstractNonlinearSolveCache, u0, p)
@@ -57,7 +67,7 @@ function update_initial_values!(prob::AbstractNonlinearProblem, u0, p)
 end
 
 function _run_initialization!(
-        cache::AbstractNonlinearSolveCache, ::SciMLBase.NoInit, prob, isinplace
+        cache::Union{AbstractNonlinearSolveCache, AbstractNonlinearProblem}, ::SciMLBase.NoInit, prob, isinplace
     )
     return cache, true
 end
