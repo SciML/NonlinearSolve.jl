@@ -181,15 +181,22 @@ SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
     return wrapped ? cache.prob.f.f : nothing
 end
 
-# Check if bounds transform is needed for a given problem and algorithm.
-function needs_bounds_transform(_prob, alg)
-    return (
-        _prob isa SciMLBase.NonlinearProblem ||
-            _prob isa SciMLBase.NonlinearLeastSquaresProblem
-    ) &&
-        (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
-        (_prob.lb !== nothing || _prob.ub !== nothing) &&
-        (isnothing(alg) || !SciMLBase.allowsbounds(alg))
+function has_box_bounds(prob)
+    return prob isa Union{SciMLBase.NonlinearProblem, SciMLBase.NonlinearLeastSquaresProblem} &&
+        (prob.lb !== nothing || prob.ub !== nothing)
+end
+
+function prepare_default_bounds(prob, alg)
+    (alg === nothing && has_box_bounds(prob)) || return prob
+    lb = prob.lb === nothing ? -Inf : prob.lb
+    ub = prob.ub === nothing ? Inf : prob.ub
+    u0 = oftype(prob.u0, clamp.(prob.u0, lb, ub))
+    return u0 == prob.u0 ? prob : remake(prob; u0)
+end
+
+# Default algorithm selection needs the original bounds before choosing a transform.
+function needs_bounds_transform(prob, alg)
+    return has_box_bounds(prob) && alg !== nothing && !SciMLBase.allowsbounds(alg)
 end
 
 # Wrap a problem function with bounds into a BoundedWrapper with no bounds. In a

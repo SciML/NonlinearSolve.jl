@@ -20,6 +20,11 @@ cp(
     force = true
 )
 
+cp(
+    joinpath(@__DIR__, "..", "benchmark", "results", "bounded"),
+    joinpath(@__DIR__, "src", "assets", "bounded"); force = true
+)
+
 include("pages.jl")
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))

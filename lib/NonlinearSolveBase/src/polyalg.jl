@@ -6,6 +6,10 @@ A general way to define PolyAlgorithms for `NonlinearProblem` and
 tried in order until one succeeds. If none succeed, then the algorithm with the lowest
 residual is returned.
 
+If every stage natively supports box bounds, the polyalgorithm preserves the original
+bounded coordinates. Otherwise, bound handling uses the variable transformation shared
+by algorithms without native bound support.
+
 ### Arguments
 
   - `algs`: a tuple of algorithms to try in-order! (If this is not a Tuple, then the
@@ -79,6 +83,8 @@ end
 function supports_postcondition(alg::NonlinearSolvePolyAlgorithm)
     return all(supports_postcondition, alg.algs)
 end
+
+SciMLBase.allowsbounds(alg::NonlinearSolvePolyAlgorithm) = all(SciMLBase.allowsbounds, alg.algs)
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
     static_length <: Val
@@ -288,6 +294,13 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(verbose)
     end
 
+    # Native child caches evaluate the residual and validate bounds during construction.
+    initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
+    success = true
+    if initialize_before_cache
+        prob, success = run_initialization!(prob, initializealg, prob)
+    end
+
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
@@ -310,7 +323,11 @@ function SciMLBase.__init(
         ReturnCode.Default, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg, verbose
     )
-    run_initialization!(cache)
+    if initialize_before_cache
+        success || (cache.retcode = ReturnCode.InitialFailure)
+    else
+        run_initialization!(cache)
+    end
     return cache
 end
 

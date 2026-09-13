@@ -29,3 +29,6 @@ wip
 .CondaPkg
 
 .benchmark/
+
+docs/src/assets/bounded/
+benchmark/__pycache__/

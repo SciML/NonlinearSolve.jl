@@ -51,9 +51,9 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
-  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
-  reparameterization of `u`, and `H` is applied in the original bounded variable by
-  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  Native bounded algorithms apply `H` in the original coordinates. When an explicitly
+  selected algorithm uses an unconstrained reparameterization for `lb`/`ub`, `H` is
+  still applied in the original bounded variable by default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
   `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
   applies it to the unconstrained iterate instead.
 
@@ -177,6 +177,8 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     # Compose the nonlinear preconditioning options. Done here (in addition to the
     # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
@@ -310,6 +312,8 @@ function init_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     alg = length(args) > 0 ? args[1] : nothing
 
@@ -722,7 +726,7 @@ end
                     end
                     $(cur_sol) = SciMLBase.__solve(
                         $(prob_syms[i]), alg.algs[$(i)], args...;
-                        stats, alias_u0, verbose, kwargs...
+                        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
                             $(cur_sol).retcode !== ReturnCode.StalledSuccess

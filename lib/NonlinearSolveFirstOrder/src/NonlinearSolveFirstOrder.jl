@@ -162,6 +162,6 @@ export RadiusUpdateSchemes
 export GeneralizedFirstOrderAlgorithm
 
 # Polyalgorithms
-export RobustMultiNewton, FastShortcutNLLSPolyalg
+export RobustMultiNewton, FastShortcutNLLSPolyalg, FastShortcutBoundedPolyalg
 
 end
