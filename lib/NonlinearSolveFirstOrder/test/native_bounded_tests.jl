@@ -1,3 +1,4 @@
+using LineSearch: ArmijoLineSearch
 using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, SciMLOperators, SciMLBase, ADTypes, StaticArrays, SparseArrays, LinearAlgebra, ForwardDiff
 
 # Dual comparisons include tangent components; feasibility concerns primal coordinates.
@@ -436,4 +437,35 @@ end
             @test cache.radius ≈ newton_length / 4
         end
     end
+end
+
+@testset "Shared projected line-search cache" begin
+    for alg in (
+            BoundedLevenbergMarquardt(), BoundedGaussNewton(),
+            BoundedGaussNewton(; globalization = :trustregion_linesearch),
+        )
+        evaluations = Ref(0)
+        f(u, p) = (evaluations[] += 1; @assert all(0 .<= u .<= 2); u .- p)
+        nf = NonlinearFunction{false}(f; jac = (u, p) -> Matrix{Float64}(I, 2, 2))
+        prob = NonlinearLeastSquaresProblem(nf, [0.5, 0.5], [1.0, 1.5]; lb = 0.0, ub = 2.0)
+        cache = init(prob, alg; abstol = 1.0e-10)
+        linesearch_cache = cache.linesearch_cache
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol.retcode)
+        @test sol.u ≈ [1.0, 1.5] atol = 1.0e-8
+        @test sol.stats.nf == evaluations[]
+        reinit!(cache; u0 = [0.25, 0.25], p = [1.5, 1.0])
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol.retcode)
+        @test sol.u ≈ [1.5, 1.0] atol = 1.0e-8
+        @test cache.linesearch_cache === linesearch_cache
+    end
+end
+
+
+@testset "Geometric Armijo in the first-order solve loop" begin
+    prob = NonlinearProblem((u, p) -> u .^ 2 .- 2, [0.1, 0.1])
+    sol = solve(prob, NewtonRaphson(; linesearch = ArmijoLineSearch()); abstol = 1.0e-10)
+    @test SciMLBase.successful_retcode(sol.retcode)
+    @test sol.u ≈ fill(sqrt(2), 2) atol = 1.0e-8
 end

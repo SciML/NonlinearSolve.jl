@@ -237,6 +237,7 @@ end
     ub
     jac_cache
     linear_cache
+    linesearch_cache
     radius
     damping
     gtol
@@ -255,7 +256,7 @@ end
 end
 
 SciMLBase.get_du(cache::NativeBoundedCache) = cache.du
-NonlinearSolveBase.@internal_caches NativeBoundedCache :jac_cache :linear_cache
+NonlinearSolveBase.@internal_caches NativeBoundedCache :jac_cache :linear_cache :linesearch_cache
 NonlinearSolveBase.get_linear_cache(cache::NativeBoundedCache) =
     NonlinearSolveBase.get_linear_cache(cache.linear_cache)
 
@@ -305,10 +306,19 @@ function SciMLBase.__init(
         alg, J, fu, u, prob.p, lb, ub, stats,
         merge((; abstol = zero(T), reltol = eps(T)^(3 / 4), verbose = verbose.linear_verbosity), linsolve_kwargs)
     )
+    linesearch_cache = if haskey(alg.options, :max_backtracks) &&
+            !(alg.method === Val(:gauss_newton) && alg.options.globalization === :trustregion)
+        CommonSolve.init(
+            prob, ProjectedBackTracking(; maxiters = alg.options.max_backtracks), fu, u;
+            lb = _box_state(u, lb), ub = _box_state(u, ub), stats
+        )
+    else
+        nothing
+    end
     du = zero(u)
     trace = NonlinearSolveBase.init_nonlinearsolve_trace(prob, alg, u, fu, nothing, du; kwargs...)
     cache = NativeBoundedCache(
-        fu, u, copy(u), du, prob.p, prob, alg, lb, ub, jac_cache, linear_cache,
+        fu, u, copy(u), du, prob.p, prob, alg, lb, ub, jac_cache, linear_cache, linesearch_cache,
         T(alg.initial_trust_radius), T(_box_initial_damping(alg)),
         alg.gtol === nothing ? (prob isa NonlinearLeastSquaresProblem ? sqrt(eps(T)) : zero(T)) : T(alg.gtol), stats,
         0, maxiters, maxtime, 0.0, get_timer_output(), tc, trace,
@@ -367,22 +377,15 @@ function _box_accept!(cache, u, fu)
     return nothing
 end
 
-function _box_linesearch!(cache, x, g, direction, max_backtracks)
-    alpha = one(eltype(x))
-    cost = sum(abs2, cache.fu) / 2
-    for _ in 1:max_backtracks
-        trial = clamp.(x + alpha * direction, cache.lb, cache.ub)
-        step = trial - x
-        slope = dot(g, step)
-        slope < 0 || return false
-        u, fu = _box_trial(cache, trial)
-        if all(isfinite, fu) && sum(abs2, fu) / 2 <= cost + 1.0e-4 * slope
-            _box_accept!(cache, u, fu)
-            return true
-        end
-        alpha /= 2
-    end
-    return false
+function _box_linesearch!(cache, g, direction)
+    sol = CommonSolve.solve!(
+        cache.linesearch_cache, cache.u, _box_state(cache.u, direction);
+        gradient = _box_state(cache.u, g), ϕ0 = sum(abs2, cache.fu) / 2
+    )
+    SciMLBase.successful_retcode(sol.retcode) || return false
+    trial = get_trial(cache.linesearch_cache)
+    _box_accept!(cache, copy(trial.u), copy(trial.fu))
+    return true
 end
 
 function _box_trust_update!(cache, u, fu, predicted, stepnorm; correction = 0)

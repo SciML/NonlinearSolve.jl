@@ -8,7 +8,7 @@ regularized Gauss–Newton model over the box, followed by a feasible Armijo lin
 A projected-gradient line search supplies a fallback when the model step is unsuitable.
 The positive `damping` initializes residual-scaled regularization and is adapted using
 the agreement between actual and predicted reduction. `max_backtracks` limits each
-line search.
+line search through the shared `LineSearch.ProjectedBackTracking` cache.
 
 Uses the shared Jacobian and linear-solver caches, preserving sparse and operator
 representations. Bounds, linear solver and AD options, `gtol`, real state
@@ -80,9 +80,9 @@ function _native_bounded_step!(::Val{:lm}, cache, J, x, f, g)
     s = _box_constrained_lsq(cache, J, f, cache.lb - x, cache.ub - x, lambda)
     cache.force_stop && return false
     cost = sum(abs2, f) / 2
-    accepted = _box_linesearch!(cache, x, g, s, cache.alg.options.max_backtracks)
+    accepted = _box_linesearch!(cache, g, s)
     if !accepted
-        accepted = _box_linesearch!(cache, x, g, -g, cache.alg.options.max_backtracks)
+        accepted = _box_linesearch!(cache, g, -g)
     end
     if accepted
         step = _box_vector(cache.u) - x

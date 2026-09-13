@@ -27,7 +27,7 @@ using Setfield: @set!
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
-using LineSearch: BackTracking
+using LineSearch: BackTracking, ProjectedBackTracking, get_trial
 using StaticArraysCore: SArray
 
 using CommonSolve: CommonSolve, init

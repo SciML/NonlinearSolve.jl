@@ -11,7 +11,8 @@ Newton path; a stationary point with nonzero residual is not reported as a root.
 `globalization` selects `:linesearch` (projected Armijo search), `:trustregion` (spherical
 trust region with a projected Cauchy safeguard), or `:trustregion_linesearch` (trust
 region with a projected line-search fallback after rejection). `max_backtracks` bounds
-each line search. The trust radius is measured in the original coordinates.
+each line search. Projected searches use the shared `LineSearch.ProjectedBackTracking`
+cache. The trust radius is measured in the original coordinates.
 
 Bounds, `autodiff`, `gtol`, real state requirements, and least-squares termination follow
 [`TrustRegionReflective`](@ref), except that exact-bound iterates are permitted. The
@@ -40,7 +41,7 @@ function _native_bounded_step!(::Val{:gauss_newton}, cache, J, x, f, g)
     step = _box_lsq(cache, J, f, eltype(x).(free), eltype(x).(.!free), radius)
     cache.force_stop && return false
     if kind === :linesearch
-        accepted = _box_linesearch!(cache, x, g, step, cache.alg.options.max_backtracks)
+        accepted = _box_linesearch!(cache, g, step)
     else
         step = clamp.(x + step, cache.lb, cache.ub) - x
         direction = -g .* free
@@ -57,7 +58,7 @@ function _native_bounded_step!(::Val{:gauss_newton}, cache, J, x, f, g)
         kind === :trustregion && return accepted
     end
     if !accepted && !cache.force_stop
-        accepted = _box_linesearch!(cache, x, g, -g, cache.alg.options.max_backtracks)
+        accepted = _box_linesearch!(cache, g, -g)
         if !accepted
             cache.retcode, cache.force_stop = ReturnCode.Stalled, true
         end
