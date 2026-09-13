@@ -121,8 +121,8 @@ Set `must_support_postcondition = true` to restrict the sequence to `BoundedTrus
 which supports iterate correctors. Default algorithm selection sets this when a
 `postcondition` is supplied to the solve; pass the corrector itself to `solve` or `init`.
 
-See the [bounded solver recommendations](@ref bounded-solvers) for benchmark results
-and alternatives. The stage order may change as the benchmark coverage grows.
+See the [bounded solver recommendations](@ref bounded-solvers) for alternatives.
+The stage order may change as the benchmark coverage grows.
 """
 function FastShortcutBoundedPolyalg(;
         concrete_jac = nothing, linsolve = nothing, autodiff = nothing,
