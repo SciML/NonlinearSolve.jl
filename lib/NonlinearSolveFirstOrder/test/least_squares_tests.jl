@@ -4,3 +4,4 @@
 @safetestset "NLLS with a non-finite residual does not report success" include(
     "least_squares_tests__item4.jl"
 )
+@safetestset "Rank-deficient overdetermined NLLS" include("least_squares_tests__item5.jl")

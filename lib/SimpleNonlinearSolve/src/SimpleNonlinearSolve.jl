@@ -142,8 +142,8 @@ function CommonSolve.solve(
     new_p = p !== nothing ? p : prob.p
     return simplenonlinearsolve_solve_up(
         prob, sensealg,
-        new_u0, u0 === nothing,
-        new_p, p === nothing,
+        new_u0, u0 !== nothing,
+        new_p, p !== nothing,
         alg, args...;
         prob.kwargs..., kwargs...
     )

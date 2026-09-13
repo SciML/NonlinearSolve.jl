@@ -122,7 +122,7 @@ function SciMLBase.__solve(
         end
     end
 
-    fₖ = 0.5 * norm_fx^2
+    fₖ = norm_fx^2 / T(2)
     H = transpose(J) * J
     g = NLBUtils.restructure(x, J' * NLBUtils.safe_vec(fx))
     shrink_counter = 0
@@ -189,7 +189,7 @@ function SciMLBase.__solve(
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             if r > η₃
                 Δ = t₂ * L2_NORM(δ)
-            elseif r > 0.5
+            elseif r > T(0.5)
                 Δ = max(Δ, t₂ * L2_NORM(δ))
             end
         end

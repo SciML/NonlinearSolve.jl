@@ -593,28 +593,14 @@ end
 SciMLBase.allowsbounds(alg::GeneralizedFirstOrderAlgorithm) =
     alg.trustregion isa BoundedTrustRegionScheme
 
-function _bounded_tr_bound(bound, fill_value, u::Number)
-    T = eltype(u)
-    bound === nothing && return T(fill_value)
-    bound isa Number && return T(bound)
-    return only(T.(bound))
-end
-
-function _bounded_tr_bound(bound, fill_value, u)
-    T = eltype(u)
-    bound === nothing && return map(Returns(T(fill_value)), u)
-    bound isa Number && return map(Returns(T(bound)), u)
-    return T.(bound)
-end
-
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BoundedTrustRegionScheme, f, fu, u, p,
         args...; stats, internalnorm::F = L2_NORM, abstol = nothing, reltol = nothing,
         kwargs...
     ) where {F}
     T = promote_type(eltype(u), eltype(fu))
-    lb = _bounded_tr_bound(hasproperty(prob, :lb) ? prob.lb : nothing, -Inf, u)
-    ub = _bounded_tr_bound(hasproperty(prob, :ub) ? prob.ub : nothing, Inf, u)
+    lb = _box_bound(hasproperty(prob, :lb) ? prob.lb : nothing, -Inf, u)
+    ub = _box_bound(hasproperty(prob, :ub) ? prob.ub : nothing, Inf, u)
     max_radius = iszero(alg.max_trust_radius) ? T(Inf) : T(alg.max_trust_radius)
     initial_radius = if iszero(alg.initial_trust_radius)
         max(T(internalnorm(u)), one(T))
@@ -698,7 +684,7 @@ end
 
 function _projected_gradient!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
     @bb cache.gradient = transpose(J) × Utils.safe_vec(fu)
-    @bb @. cache.cauchy_step = clamp(u - cache.gradient, cache.lb, cache.ub) - u
+    @bb @. cache.cauchy_step = -_box_projected_gradient(u, cache.gradient, cache.lb, cache.ub)
     return _bounded_tr_linf(cache.cauchy_step)
 end
 
@@ -711,10 +697,6 @@ function _trust_region_retcode!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
     return cache.least_squares ? ReturnCode.Success : ReturnCode.Stalled
 end
 
-function _quadratic_model_value(fu, Jstep, step, gradient)
-    return Utils.safe_dot(step, gradient) + Utils.safe_dot(Jstep, Jstep) / 2
-end
-
 function InternalAPI.solve!(
         cache::BoundedTrustRegionSchemeCache, J, fu, u, δu, descent_stats
     )
@@ -722,13 +704,12 @@ function InternalAPI.solve!(
 
     @bb @. cache.dogleg_step = clamp(u + δu, cache.lb, cache.ub) - u
     @bb cache.Jdogleg = J × Utils.safe_vec(cache.dogleg_step)
-    dogleg_model = _quadratic_model_value(
-        fu, cache.Jdogleg, cache.dogleg_step, cache.gradient
+    dogleg_model = _box_model_value(
+        cache.Jdogleg, cache.dogleg_step, cache.gradient
     )
 
     @bb @. cache.cauchy_direction = ifelse(
-        (u <= cache.lb && cache.gradient > 0) ||
-            (u >= cache.ub && cache.gradient < 0),
+        _box_is_active(u, cache.gradient, cache.lb, cache.ub),
         zero(eltype(cache.cauchy_direction)), -cache.gradient
     )
     direction_norm = cache.internalnorm(cache.cauchy_direction)
@@ -741,13 +722,12 @@ function InternalAPI.solve!(
         curvature = Utils.safe_dot(cache.Jcauchy, cache.Jcauchy)
         slope = Utils.safe_dot(cache.cauchy_direction, cache.gradient)
         radius_scale = cache.trust_region / direction_norm
-        model_scale = iszero(curvature) ? radius_scale : -slope / curvature
-        α = clamp(model_scale, zero(model_scale), radius_scale)
+        α = _box_cauchy_length(slope, curvature, radius_scale)
         @bb @. cache.cauchy_step =
             clamp(u + α * cache.cauchy_direction, cache.lb, cache.ub) - u
         @bb cache.Jcauchy = J × Utils.safe_vec(cache.cauchy_step)
-        cauchy_model = _quadratic_model_value(
-            fu, cache.Jcauchy, cache.cauchy_step, cache.gradient
+        cauchy_model = _box_model_value(
+            cache.Jcauchy, cache.cauchy_step, cache.gradient
         )
     end
 
@@ -772,17 +752,13 @@ function InternalAPI.solve!(
         actual_reduction / predicted_reduction : -one(predicted_reduction)
     cache.last_step_accepted = ρ > cache.step_threshold && actual_reduction > 0
 
-    if ρ < cache.shrink_threshold
-        cache.trust_region *= cache.shrink_factor
-        cache.shrink_counter += 1
-    else
-        cache.shrink_counter = 0
-        step_norm = cache.internalnorm(cache.dogleg_step)
-        if ρ > cache.expand_threshold && step_norm >= 0.95 * cache.trust_region
-            cache.trust_region *= cache.expand_factor
-        end
-    end
-    cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
+    cache.trust_region, shrunk = _box_update_radius(
+        cache.trust_region, ρ, cache.internalnorm(cache.dogleg_step), cache.max_trust_radius;
+        shrink_threshold = cache.shrink_threshold, expand_threshold = cache.expand_threshold,
+        shrink_radius = cache.trust_region * cache.shrink_factor,
+        expand_factor = cache.expand_factor
+    )
+    cache.shrink_counter = shrunk ? cache.shrink_counter + 1 : 0
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end
