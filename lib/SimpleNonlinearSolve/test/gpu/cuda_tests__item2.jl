@@ -4,6 +4,8 @@ using SciMLBase
 using StaticArrays, CUDA, SimpleNonlinearSolve, ADTypes, LineSearch
 using NonlinearSolveBase: ImmutableNonlinearProblem
 
+include("trust_region_float32.jl")
+
 if CUDA.functional()
     CUDA.allowscalar(false)
 
@@ -53,6 +55,20 @@ if CUDA.functional()
                 true
             end
         end
+    end
+
+    function trust_region_kernel!(out, prob, alg)
+        out[1] = solve(prob, alg).u[1]
+        return nothing
+    end
+
+    test_trust_region_float32() do prob, alg
+        out = CUDA.zeros(Float32, 1)
+        io = IOBuffer()
+        CUDA.@device_code_llvm io = io dump_module = true @cuda trust_region_kernel!(
+            out, prob, alg
+        )
+        return Array(out), String(take!(io))
     end
 
     @testset "Immutable problem without parameters" begin
