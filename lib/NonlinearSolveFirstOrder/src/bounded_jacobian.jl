@@ -95,7 +95,12 @@ function _box_difference_product(prob, fu, u, p, lb, ub, stats, v, transposed)
     return _box_state(transposed ? u : fu, result)
 end
 
+_box_needs_difference_products(prob, alg) =
+    (!SciMLBase.has_jvp(prob.f) && _box_dense_ad(alg.jvp_autodiff) isa ADTypes.AutoFiniteDiff) ||
+    (!SciMLBase.has_vjp(prob.f) && _box_dense_ad(alg.vjp_autodiff) isa ADTypes.AutoFiniteDiff)
+
 function _box_product_problem(prob, alg, fu, lb, ub, stats)
+    _box_needs_difference_products(prob, alg) || return prob
     f = prob.f
     for (name, ad, provided, transposed) in (
             (:jvp, alg.jvp_autodiff, SciMLBase.has_jvp(f), false),
