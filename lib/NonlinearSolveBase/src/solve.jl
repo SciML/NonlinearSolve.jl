@@ -51,9 +51,9 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
-  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
-  reparameterization of `u`, and `H` is applied in the original bounded variable by
-  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  Native bounded algorithms apply `H` in the original coordinates. When an explicitly
+  selected algorithm uses an unconstrained reparameterization for `lb`/`ub`, `H` is
+  still applied in the original bounded variable by default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
   `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
   applies it to the unconstrained iterate instead.
 
@@ -177,6 +177,8 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     # Compose the nonlinear preconditioning options. Done here (in addition to the
     # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
@@ -311,6 +313,8 @@ function init_call(
 
     checkkwargs(kwargshandle; kwargs...)
 
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
+
     alg = length(args) > 0 ? args[1] : nothing
 
     # Compose the nonlinear preconditioning options before any bounds transform, so the
@@ -411,11 +415,13 @@ function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_boun
     # BoundedWrapper, map the solution back from unbounded to bounded space.
     if transform_bounds && _has_bounded_wrapper(cache)
         bw = cache.prob.f.f
-        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+        u, u0 = sol.u, sol.prob.u0
+        @bb @. u = _from_unbounded(u, bw.lb, bw.ub)
+        @bb @. u0 = _from_unbounded(u0, bw.lb, bw.ub)
+        @set! sol.u = u
 
         # Reset the problem to the original fields that were overwritten
-        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub)
-        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub, u0)
     end
 
     return sol
@@ -720,7 +726,7 @@ end
                     end
                     $(cur_sol) = SciMLBase.__solve(
                         $(prob_syms[i]), alg.algs[$(i)], args...;
-                        stats, alias_u0, verbose, kwargs...
+                        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
                             $(cur_sol).retcode !== ReturnCode.StalledSuccess

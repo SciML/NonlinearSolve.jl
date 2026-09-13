@@ -10,6 +10,13 @@
 ## the trouble of specifying a custom jacobian function, we should use algorithms that
 ## can use that!
 function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    if prob.lb !== nothing || prob.ub !== nothing
+        return SciMLBase.__init(
+            prob, FastShortcutBoundedPolyalg(;
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+            ), args...; kwargs...
+        )
+    end
     must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
     return SciMLBase.__init(
         prob,
@@ -22,6 +29,13 @@ function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
 end
 
 function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
+    if prob.lb !== nothing || prob.ub !== nothing
+        return SciMLBase.__solve(
+            prob, FastShortcutBoundedPolyalg(;
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+            ), args...; kwargs...
+        )
+    end
     must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
     prefer_simplenonlinearsolve = Val(prob.u0 isa StaticArray)
     return SciMLBase.__solve(
@@ -49,7 +63,13 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing
     return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)
 end
 
-function NonlinearSolveBase.initialization_alg(::AbstractNonlinearProblem, autodiff)
+function NonlinearSolveBase.initialization_alg(prob::AbstractNonlinearProblem, autodiff)
+    if prob isa NonlinearProblem && (prob.lb !== nothing || prob.ub !== nothing)
+        return FastShortcutBoundedPolyalg(;
+            autodiff,
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+        )
+    end
     return FastShortcutNonlinearPolyalg(; autodiff)
 end
 

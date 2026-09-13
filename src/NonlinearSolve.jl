@@ -19,7 +19,7 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface
 using StaticArraysCore: StaticArray
 
 # Default Algorithm
-using NonlinearSolveFirstOrder: BoundedTrustRegion, NewtonRaphson, TrustRegion,
+using NonlinearSolveFirstOrder: BoundedTrustRegion, FastShortcutBoundedPolyalg, NewtonRaphson, TrustRegion,
     LevenbergMarquardt, GaussNewton, RUS, RobustMultiNewton
 using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement

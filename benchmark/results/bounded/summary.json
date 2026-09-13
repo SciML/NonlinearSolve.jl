@@ -1,0 +1,737 @@
+{
+  "cases": 79,
+  "families": {
+    "automatic_jacobian": 6,
+    "nonzero_residual_fit": 8,
+    "small_dense": 3,
+    "badly_scaled": 3,
+    "diffusion": 24,
+    "curve_fit": 6,
+    "fixed_variables": 2,
+    "nonconvex_root": 4,
+    "rank_deficient": 4,
+    "singular": 3,
+    "rosenbrock": 12,
+    "wood": 4
+  },
+  "individual": [
+    {
+      "order": [
+        "bounded_trust_region"
+      ],
+      "passed": 75,
+      "cases": 79,
+      "family_weighted_coverage": 0.9166666666666664,
+      "geometric_time_ratio": 1.4134441764068815,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 6.68254379911083,
+      "profile": {
+        "1": 0,
+        "2": 0.08333333333333333,
+        "5": 0.4305555555555553,
+        "10": 0.6180555555555555,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "bounded_lm"
+      ],
+      "passed": 74,
+      "cases": 79,
+      "family_weighted_coverage": 0.9236111111111109,
+      "geometric_time_ratio": 4.8516829230998635,
+      "profile": {
+        "1": 0,
+        "2": 0.12499999999999999,
+        "5": 0.5277777777777777,
+        "10": 0.78125,
+        "100": 0.9131944444444443
+      }
+    },
+    {
+      "order": [
+        "dogbox"
+      ],
+      "passed": 74,
+      "cases": 79,
+      "family_weighted_coverage": 0.9305555555555554,
+      "geometric_time_ratio": 2.98697807520131,
+      "profile": {
+        "1": 0.05555555555555555,
+        "2": 0.4826388888888887,
+        "5": 0.6249999999999999,
+        "10": 0.8125,
+        "100": 0.9236111111111109
+      }
+    },
+    {
+      "order": [
+        "gn_linesearch"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.7184360707622617,
+      "profile": {
+        "1": 0.20138888888888887,
+        "2": 0.6458333333333333,
+        "5": 0.9236111111111108,
+        "10": 0.9374999999999998,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "gn_trustregion"
+      ],
+      "passed": 75,
+      "cases": 79,
+      "family_weighted_coverage": 0.9270833333333331,
+      "geometric_time_ratio": 4.8449129268067495,
+      "profile": {
+        "1": 0.0625,
+        "2": 0.14930555555555558,
+        "5": 0.5347222222222219,
+        "10": 0.7118055555555555,
+        "100": 0.9270833333333331
+      }
+    },
+    {
+      "order": [
+        "gn_hybrid"
+      ],
+      "passed": 74,
+      "cases": 79,
+      "family_weighted_coverage": 0.9166666666666665,
+      "geometric_time_ratio": 4.778135341984764,
+      "profile": {
+        "1": 0,
+        "2": 0.14583333333333334,
+        "5": 0.5555555555555554,
+        "10": 0.7673611111111109,
+        "100": 0.9166666666666665
+      }
+    },
+    {
+      "order": [
+        "bounded_default"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.6139464181925,
+      "profile": {
+        "1": 0.1701388888888889,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "legacy_default"
+      ],
+      "passed": 64,
+      "cases": 79,
+      "family_weighted_coverage": 0.78125,
+      "geometric_time_ratio": 7.434875812715824,
+      "profile": {
+        "1": 0.048611111111111105,
+        "2": 0.19791666666666669,
+        "5": 0.4131944444444443,
+        "10": 0.47222222222222204,
+        "100": 0.7152777777777778
+      }
+    },
+    {
+      "order": [
+        "transformed_lm"
+      ],
+      "passed": 50,
+      "cases": 79,
+      "family_weighted_coverage": 0.6388888888888887,
+      "geometric_time_ratio": 6.546372292779765,
+      "profile": {
+        "1": 0,
+        "2": 0.041666666666666664,
+        "5": 0.28472222222222227,
+        "10": 0.4791666666666665,
+        "100": 0.6249999999999999
+      }
+    },
+    {
+      "order": [
+        "transformed_trust_region"
+      ],
+      "passed": 58,
+      "cases": 79,
+      "family_weighted_coverage": 0.7638888888888887,
+      "geometric_time_ratio": 2.378418307408935,
+      "profile": {
+        "1": 0.0763888888888889,
+        "2": 0.3194444444444443,
+        "5": 0.6979166666666665,
+        "10": 0.7326388888888887,
+        "100": 0.7638888888888887
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.5746396060671184,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.5746723508024432,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_hybrid"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.5748570789893488,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_trustregion"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.5748827265037293,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "gn_linesearch",
+        "bounded_trust_region"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.7184360707622617,
+      "profile": {
+        "1": 0.20138888888888887,
+        "2": 0.6458333333333333,
+        "5": 0.9236111111111108,
+        "10": 0.9374999999999998,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "gn_linesearch",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.7184360707622617,
+      "profile": {
+        "1": 0.20138888888888887,
+        "2": 0.6458333333333333,
+        "5": 0.9236111111111108,
+        "10": 0.9374999999999998,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "gn_linesearch",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.7184360707622617,
+      "profile": {
+        "1": 0.20138888888888887,
+        "2": 0.6458333333333333,
+        "5": 0.9236111111111108,
+        "10": 0.9374999999999998,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "gn_linesearch",
+        "dogbox"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.7184360707622617,
+      "profile": {
+        "1": 0.20138888888888887,
+        "2": 0.6458333333333333,
+        "5": 0.9236111111111108,
+        "10": 0.9374999999999998,
+        "100": 0.9374999999999998
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "dogbox"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "gn_trustregion"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "gn_hybrid"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox",
+        "gn_linesearch"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox",
+        "gn_trustregion"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "dogbox",
+        "gn_hybrid"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574531850025818,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "reflective",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "reflective",
+        "dogbox"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "reflective",
+        "gn_trustregion"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "reflective",
+        "gn_hybrid"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "bounded_lm",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "bounded_lm",
+        "dogbox"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "bounded_lm",
+        "gn_trustregion"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "bounded_lm",
+        "gn_hybrid"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "dogbox",
+        "reflective"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    },
+    {
+      "order": [
+        "bounded_trust_region",
+        "gn_linesearch",
+        "dogbox",
+        "bounded_lm"
+      ],
+      "passed": 76,
+      "cases": 79,
+      "family_weighted_coverage": 0.9374999999999998,
+      "geometric_time_ratio": 1.574526808726269,
+      "profile": {
+        "1": 0.6180555555555554,
+        "2": 0.7638888888888887,
+        "5": 0.8124999999999998,
+        "10": 0.8611111111111109,
+        "100": 0.9166666666666664
+      }
+    }
+  ]
+}
