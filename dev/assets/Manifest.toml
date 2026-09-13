@@ -1866,7 +1866,7 @@ version = "4.31.0"
 deps = ["ADTypes", "Adapt", "ArrayInterface", "CommonSolve", "Compat", "ConcreteStructs", "DifferentiationInterface", "EnumX", "EnzymeCore", "FastClosures", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "LogExpFunctions", "Markdown", "MaybeInplace", "PreallocationTools", "PrecompileTools", "Preferences", "Printf", "RecursiveArrayTools", "RespecializeParams", "SciMLBase", "SciMLJacobianOperators", "SciMLLogging", "SciMLOperators", "SciMLStructures", "Setfield", "StaticArraysCore", "SymbolicIndexingInterface", "TimerOutputs"]
 path = "../lib/NonlinearSolveBase"
 uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "2.50.0"
+version = "2.51.0"
 
     [deps.NonlinearSolveBase.extensions]
     NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
@@ -2084,10 +2084,10 @@ weakdeps = ["StatsBase"]
 
 [[deps.PETSc]]
 deps = ["ForwardDiff", "Libdl", "LinearAlgebra", "MPI", "MPIPreferences", "OffsetArrays", "PETSc_jll", "Pkg", "Preferences", "SparseArrays", "Statistics", "UnicodePlots"]
-git-tree-sha1 = "e38c34775ce991e26122101d81fa17f6313c3b4e"
+git-tree-sha1 = "3acf6d09e887ecbf60664411af6a16a34b7d2cb7"
 registries = "General"
 uuid = "ace2c81b-2b5f-4b1e-a30d-d662738edfe0"
-version = "0.4.10"
+version = "0.4.11"
 
     [deps.PETSc.extensions]
     PETScCUDAExt = "CUDA"
@@ -3167,10 +3167,10 @@ version = "0.3.5"
 
 [[deps.TaylorSeries]]
 deps = ["FixedSizeArrays", "LinearAlgebra", "Markdown", "Reexport", "SparseArrays"]
-git-tree-sha1 = "e801e73be4f24e67a675aae94be4404539c71143"
+git-tree-sha1 = "828a7a0fda08c38b0b44c434f379ce06f2fbb915"
 registries = "General"
 uuid = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
-version = "0.22.4"
+version = "0.22.5"
 
     [deps.TaylorSeries.extensions]
     TaylorSeriesIAExt = "IntervalArithmetic"
