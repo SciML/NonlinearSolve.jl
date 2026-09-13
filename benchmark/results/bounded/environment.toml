@@ -11,11 +11,13 @@ julia_threads = 1
 logical_cpus = 128
 maxiters_per_stage = 1000
 pairwise_samples_requested = 15
-prerequisite_commits = ["edd026ed8d72077e9042af97fc789e2f7d39b9fc", "6726588e172a40c7463facea071a37b7d8ece093", "59ffc83c4c9b2a0f3a6d151bc9003c89f62988e7", "99a5f0b97c6e2451d88ed4ba8b9151e604170335"]
-recorded_utc = "2026-09-13T11:43:49.481"
+prerequisite_commits = ["edd026ed8d72077e9042af97fc789e2f7d39b9fc", "6726588e172a40c7463facea071a37b7d8ece093", "59ffc83c4c9b2a0f3a6d151bc9003c89f62988e7", "99a5f0b97c6e2451d88ed4ba8b9151e604170335", "dc007c81eee3d50ada1072db0a19ae6349830516"]
+recorded_utc = "2026-09-13T13:05:11.570813+00:00"
 reltol = 1.0e-9
 samples_requested = 5
 sampling_seconds_per_configuration = 60
+
+measurement_source_note = "All transformed baselines were rerun after the sparse structural-zero correction. Native, paired, and cache measurements predate that correction, which does not affect their code paths. The bounded_default measurements were then refreshed after adding initial-guess projection for explicit native bounded polyalgorithms."
 
 [[packages.ADTypes]]
 git-tree-sha1 = "629de23e1c16911b439dabd2303c08af9575b226"

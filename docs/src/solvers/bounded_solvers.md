@@ -33,8 +33,10 @@ Their step models and globalization strategies differ:
 ## Feasibility and convergence
 
 Supply a real floating-point state. A feasible initial guess is recommended; the
-automatic default projects an out-of-bounds guess onto the box. Explicit native algorithms
-require a feasible initial guess. Exact-bound initial
+automatic default and explicit polyalgorithms containing only native bounded stages
+project an out-of-bounds guess onto the box. Individual native algorithms require a
+feasible initial guess. This projection also applies to auxiliary initialization problems,
+after their initialization callbacks update the guess. Exact-bound initial
 values and fixed coordinates are supported. `TrustRegionReflective` moves nonfixed
 exact-bound initial values into the strict interior; the other native methods permit
 exact-bound iterates. Bounds are local constraints, not a global-search strategy.
@@ -107,7 +109,7 @@ least-squares cost. Each family receives equal aggregate weight.
 
 | Configuration | Accepted cases | Geometric time ratio |
 |:--|--:|--:|
-| Bounded default | 76/79 | 1.58 |
+| Bounded default | 76/79 | 1.61 |
 | `BoundedTrustRegion()` | 75/79 | 1.41 |
 | `BoundedGaussNewton()` | 76/79 | 1.72 |
 | `TrustRegionReflective()` | 76/79 | 6.68 |
@@ -115,7 +117,7 @@ least-squares cost. Each family receives equal aggregate weight.
 | `BoundedLevenbergMarquardt()` | 74/79 | 4.85 |
 | Gauss–Newton with `globalization = :trustregion` | 75/79 | 4.84 |
 | Gauss–Newton with `globalization = :trustregion_linesearch` | 74/79 | 4.78 |
-| Previous default through variable transformation | 63/79 | 7.92 |
+| Previous default through variable transformation | 64/79 | 7.43 |
 
 The time ratio uses the fastest accepted individual native method on each case as its
 reference, averages logarithms with equal family weights, and includes only successful

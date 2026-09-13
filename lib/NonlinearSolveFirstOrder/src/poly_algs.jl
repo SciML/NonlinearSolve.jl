@@ -105,15 +105,17 @@ projected backtracking if the first method fails. Each stage starts from the sup
 initial guess and operates in the original bounded coordinates.
 
 This is the default for `NonlinearProblem` and `NonlinearLeastSquaresProblem` with `lb`
-or `ub`. Explicit use requires an initial guess inside the box; `solve(prob)` projects
-an out-of-bounds initial guess onto the box before selecting the default. Least-squares problems may succeed
+or `ub`. An out-of-bounds initial guess is projected onto the box, including when this
+polyalgorithm is selected explicitly. Least-squares problems may succeed
 at a constrained stationary point with nonzero residual; nonlinear systems must satisfy
 the residual tolerance. These are local methods and do not guarantee a global minimum.
 
 `concrete_jac`, `linsolve`, and the differentiation backends are forwarded to both stages.
 Sparse Jacobian prototypes and matrix-free Krylov solvers use the usual Jacobian and
 linear-solver caches. `gtol` sets the projected-gradient tolerance; its default is
-`sqrt(eps(T))` for least squares and zero for nonlinear systems.
+`sqrt(eps(T))` for least squares. For nonlinear systems, the trust-region stage disables
+this check by default and Gauss–Newton uses zero; detecting stationarity without a
+converged residual returns `ReturnCode.Stalled`.
 
 Set `must_support_postcondition = true` to restrict the sequence to `BoundedTrustRegion`,
 which supports iterate correctors. Default algorithm selection sets this when a

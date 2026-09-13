@@ -98,14 +98,15 @@ end
 end
 
 @testset "Default initial guesses are projected without mutation" begin
-    for constructor in (NonlinearProblem, NonlinearLeastSquaresProblem), cached in (false, true)
+    for constructor in (NonlinearProblem, NonlinearLeastSquaresProblem), cached in (false, true),
+            alg in (nothing, FastShortcutBoundedPolyalg())
         u0 = [-2.0, 3.0]
         prob = constructor((u, p) -> u .- p, u0, [0.25, 0.75]; lb = 0.0, ub = 1.0)
-        sol = cached ? solve!(init(prob)) : solve(prob)
+        sol = cached ? solve!(init(prob, alg)) : solve(prob, alg)
         @test SciMLBase.successful_retcode(sol)
         @test sol.u ≈ [0.25, 0.75]
         @test u0 == [-2.0, 3.0]
-        @test_throws ArgumentError init(prob, FastShortcutBoundedPolyalg())
+        @test_throws ArgumentError init(prob, BoundedTrustRegion())
     end
 end
 
@@ -150,6 +151,21 @@ end
         @test SciMLBase.successful_retcode(sol)
         @test sol.u ≈ [0.75]
         @test calls[] == before + 1
+    end
+end
+
+@testset "Bounded auxiliary initialization projects updated guesses" begin
+    for constructor in (NonlinearProblem, NonlinearLeastSquaresProblem),
+            start in (-0.5, 1.5), cached in (false, true)
+        initprob = constructor((u, p) -> u .- 0.75, [0.5]; lb = 0.0, ub = 1.0)
+        update_init! = (prob, context) -> (prob.u0 .= start; nothing)
+        initdata = SciMLBase.OverrideInitData(initprob, update_init!, sol -> sol.u, (_, sol) -> 0.75)
+        nf = NonlinearFunction((u, p) -> u .- p; initialization_data = initdata)
+        prob = constructor(nf, [0.1], 0.0; lb = 0.0, ub = 1.0)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.75]
+        @test initprob.u0 == [start]
     end
 end
 

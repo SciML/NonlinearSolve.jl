@@ -107,8 +107,8 @@ solver recommendations.
 
 The committed `results/bounded/` artifacts contain 869 measurements (79 cases × 11
 configurations), 158 paired measurements, and 24 cache measurements. The bounded default
-passed 76/79 cases, compared with 63/79 for the previous transformed default. Its
-family-weighted geometric time ratio to the fastest accepted native method was 1.58.
+passed 76/79 cases, compared with 64/79 for the previous transformed default. Its
+family-weighted geometric time ratio to the fastest accepted native method was 1.61.
 Bounded trust region alone passed 75/79 at 1.41; projected Gauss–Newton passed 76/79 at
 1.72. These ratios summarize different successful subsets and are not direct speedups.
 

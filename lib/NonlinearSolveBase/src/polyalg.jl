@@ -7,7 +7,8 @@ tried in order until one succeeds. If none succeed, then the algorithm with the 
 residual is returned.
 
 If every stage natively supports box bounds, the polyalgorithm preserves the original
-bounded coordinates. Otherwise, bound handling uses the variable transformation shared
+bounded coordinates and projects an infeasible initial guess onto the box without
+mutating the supplied state. Otherwise, bound handling uses the variable transformation shared
 by algorithms without native bound support.
 
 ### Arguments
@@ -85,6 +86,10 @@ function supports_postcondition(alg::NonlinearSolvePolyAlgorithm)
 end
 
 SciMLBase.allowsbounds(alg::NonlinearSolvePolyAlgorithm) = all(SciMLBase.allowsbounds, alg.algs)
+
+function prepare_default_bounds(prob, alg::NonlinearSolvePolyAlgorithm)
+    return SciMLBase.allowsbounds(alg) ? prepare_default_bounds(prob, nothing) : prob
+end
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
     static_length <: Val
