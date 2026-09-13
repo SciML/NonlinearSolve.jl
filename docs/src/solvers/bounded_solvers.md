@@ -9,12 +9,14 @@ and then `BoundedGaussNewton()` with projected backtracking if needed. The
 
 Start with the default when the problem's numerical behavior is unknown. For repeated
 solves of the same model, benchmark individual methods after checking residuals and
-stationarity: `BoundedTrustRegion()` has low overhead on the benchmark suite below,
-while projected `BoundedGaussNewton()` also handles its difficult underdetermined case.
-For operator-based problems, also benchmark projected `BoundedGaussNewton()` explicitly: it
-was faster on the diffusion operator cases in this suite. Reuse a cache with
-`init`/`reinit!`/`solve!`; `retain_best = true` can reuse a successful fallback stage
-across parameter sweeps, with periodic retries of the earlier stages.
+stationarity: in the bounded solver benchmark in
+[SciMLBenchmarks.jl](https://github.com/SciML/SciMLBenchmarks.jl),
+`BoundedTrustRegion()` has low overhead, while projected `BoundedGaussNewton()` also
+handles its difficult underdetermined case. For operator-based problems, also benchmark
+projected `BoundedGaussNewton()` explicitly: it was faster on the diffusion operator
+cases in that benchmark. Reuse a cache with `init`/`reinit!`/`solve!`;
+`retain_best = true` can reuse a successful fallback stage across parameter sweeps, with
+periodic retries of the earlier stages.
 
 When a `postcondition` corrector is supplied, the default restricts the sequence to
 `BoundedTrustRegion`, the stage that supports iterate correction.
@@ -97,67 +99,6 @@ uses an automatic variable transformation. Two-sided bounds use a logistic map;
 one-sided bounds use an exponential map. This is useful when a particular unbounded
 algorithm is required, but the transformed derivative can become small near an active
 bound. Native methods operate directly on the box and can reach its boundary.
-
-## Benchmark evidence
-
-The comparison covers 79 problem/start/representation combinations in 12 families:
-classical small dense systems, badly scaled and singular systems, nonzero-residual
-fits, fixed variables, underdetermined systems, automatic Jacobians, and sparse or
-operator diffusion systems with 64–1,024 unknowns. Acceptance checks the return code,
-feasibility, and either the root residual or both projected stationarity and a reference
-least-squares cost. Each family receives equal aggregate weight.
-
-| Configuration | Accepted cases | Geometric time ratio |
-|:--|--:|--:|
-| Bounded default | 76/79 | 1.61 |
-| `BoundedTrustRegion()` | 75/79 | 1.41 |
-| `BoundedGaussNewton()` | 76/79 | 1.72 |
-| `TrustRegionReflective()` | 76/79 | 6.68 |
-| `Dogbox()` | 74/79 | 2.99 |
-| `BoundedLevenbergMarquardt()` | 74/79 | 4.85 |
-| Gauss–Newton with `globalization = :trustregion` | 75/79 | 4.84 |
-| Gauss–Newton with `globalization = :trustregion_linesearch` | 74/79 | 4.78 |
-| Previous default through variable transformation | 64/79 | 7.43 |
-
-The time ratio uses the fastest accepted individual native method on each case as its
-reference, averages logarithms with equal family weights, and includes only successful
-cases for the configuration being summarized. Read coverage alongside timing: the
-columns do not establish speedups between methods with different successful subsets.
-Measurements exclude compilation and use one Julia thread and one BLAS thread on a
-shared dual AMD EPYC 7502 host with Julia 1.13.0.
-
-![Family-weighted performance profile](../assets/bounded/performance.svg)
-
-Every ordered sequence of two, three, and four native configurations was scored using
-actual solver return codes to decide fallback. Trust region followed by projected
-Gauss–Newton was the fastest sequence at the best observed coverage. A third or fourth
-stage recovered no additional cases. The remaining three failures are non-root local
-minima reached from particular Freudenstein–Roth starts; changing local methods does
-not replace choosing a suitable initial guess.
-
-A separate paired run warmed both leading methods before timing either and alternated
-their measurement order. Trust region was faster on 53 of the 75 cases both solved;
-projected Gauss–Newton took 1.28 times as long by family-weighted geometric mean.
-For the 12 operator cases both solved, however, projected Gauss–Newton was 1.59 times
-faster by unweighted geometric mean. These results support the default order while
-leaving a reason to benchmark Gauss–Newton for a particular operator workload.
-
-In a repeated underdetermined linear solve, `retain_best = true` reduced mean cached
-solve time from 13.04 ms to 1.47 ms over 17 samples, including periodic first-stage
-retries. The suite's other cache cases did not show a consistent benefit. Parameters
-and initial guesses were unchanged in this cache experiment.
-
-Download the [869 measurements](../assets/bounded/results.csv),
-[paired measurements](../assets/bounded/pairwise.csv),
-[cache measurements](../assets/bounded/cache.csv),
-[summary and candidate orders](../assets/bounded/summary.json), and
-[environment metadata](../assets/bounded/environment.toml).
-The [repository benchmark directory](https://github.com/SciML/NonlinearSolve.jl/tree/master/benchmark)
-contains `BOUNDED.md`, the problem definitions, independent Jacobian and reference-cost
-checks, and scripts to reproduce the tables and figure.
-These measurements do not cover GPU execution, noisy residuals, arbitrary precision,
-or every AD backend and preconditioner; they are guidance for local solves, not a
-universal solver ranking.
 
 ## Solver API
 
