@@ -231,18 +231,19 @@ function SciMLBase.__init(
         )
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
-        difference_cache = if SciMLBase.allowsbounds(alg)
+        difference_cache = if SciMLBase.allowsbounds(alg) &&
+                _box_concrete_jacobian(alg, linsolve) &&
+                _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff &&
+                !SciMLBase.has_jac(_ad_prob.f) &&
+                !(_ad_prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
             lb, ub = _box_bounds(prob, u)
-            if _box_concrete_jacobian(alg, linsolve) &&
-                    _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff &&
-                    !SciMLBase.has_jac(_ad_prob.f) &&
-                    !(_ad_prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
-                _box_difference_cache(_ad_prob, fu, u, lb, ub, stats)
-            else
-                _ad_prob = _box_product_problem(_ad_prob, alg, fu, lb, ub, stats)
-                nothing
-            end
+            _box_difference_cache(_ad_prob, fu, u, lb, ub, stats)
         else
+            if SciMLBase.allowsbounds(alg) && !_box_concrete_jacobian(alg, linsolve) &&
+                    _box_needs_difference_products(_ad_prob, alg)
+                lb, ub = _box_bounds(prob, u)
+                _ad_prob = _box_product_problem(_ad_prob, alg, fu, lb, ub, stats)
+            end
             nothing
         end
         jac_cache = if difference_cache === nothing
