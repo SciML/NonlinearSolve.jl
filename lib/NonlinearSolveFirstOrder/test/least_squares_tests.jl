@@ -5,3 +5,6 @@
     "least_squares_tests__item4.jl"
 )
 @safetestset "Rank-deficient overdetermined NLLS" include("least_squares_tests__item5.jl")
+@safetestset "Moré trust-region subproblem on hard NLLS" include(
+    "least_squares_tests__item6.jl"
+)

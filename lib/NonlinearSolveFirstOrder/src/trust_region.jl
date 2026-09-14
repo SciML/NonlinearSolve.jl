@@ -1,7 +1,8 @@
 """
     TrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
-        radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
+        radius_update_scheme = nothing, subproblem = TrustRegionSubproblem.More,
+        max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
@@ -17,8 +18,16 @@ for large-scale and numerically-difficult nonlinear systems.
 ### Keyword Arguments
 
   - `radius_update_scheme`: the scheme used to update the trust region radius. Defaults to
-    `RadiusUpdateSchemes.Simple`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
+    `RadiusUpdateSchemes.More`, or `RadiusUpdateSchemes.Simple` when
+    `subproblem = TrustRegionSubproblem.Dogleg`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
     review on trust region radius update schemes, see [yuan2015recent](@citet).
+  - `subproblem`: how the trust-region subproblem is solved.
+    `TrustRegionSubproblem.More` (default) uses
+    [`MoreTrustRegionDescent`](@ref NonlinearSolveBase.MoreTrustRegionDescent), which
+    solves the subproblem nearly exactly via Moré's safeguarded iteration on the damping
+    parameter (MINPACK `lmpar`) and is substantially more robust on ill-conditioned
+    least-squares problems; `TrustRegionSubproblem.Dogleg` uses [`Dogleg`](@ref).
+    A custom `AbstractDescentDirection` can also be passed directly.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
@@ -29,7 +38,8 @@ documentation.
 """
 function TrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
-        radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
+        radius_update_scheme = nothing, subproblem = TrustRegionSubproblem.More,
+        max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
@@ -37,7 +47,21 @@ function TrustRegion(;
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         jacobian_reuse = nothing,
     )
-    descent = Dogleg(; linsolve)
+    descent, default_scheme = if subproblem isa AbstractDescentDirection
+        (subproblem, subproblem isa MoreTrustRegionDescent ? RUS.More : RUS.Simple)
+    elseif subproblem === TrustRegionSubproblem.More
+        (MoreTrustRegionDescent(; linsolve), RUS.More)
+    elseif subproblem === TrustRegionSubproblem.Dogleg
+        (Dogleg(; linsolve), RUS.Simple)
+    else
+        throw(
+            ArgumentError(
+                "Unknown `subproblem = $subproblem`. Expected a `TrustRegionSubproblem` \
+                 or an `AbstractDescentDirection`."
+            )
+        )
+    end
+    radius_update_scheme === nothing && (radius_update_scheme = default_scheme)
     trustregion = GenericTrustRegionScheme(;
         method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
         shrink_factor, expand_factor, initial_trust_radius, max_trust_radius
@@ -123,7 +147,7 @@ Simply put the desired scheme as follows:
 module RadiusUpdateSchemes
     # The weird definitions here are needed to main compatibility with the older enum variants
 
-    export Bastin, Fan, Hei, NLsolve, NocedalWright, Simple, Yuan
+    export Bastin, Fan, Hei, More, NLsolve, NocedalWright, Simple, Yuan
 
     abstract type AbstractRadiusUpdateScheme end
 
@@ -183,6 +207,19 @@ module RadiusUpdateSchemes
     the radius depend on the gradient.
     """
     const Yuan = __Yuan()
+
+    struct __More <: AbstractRadiusUpdateScheme end
+    """
+        RadiusUpdateSchemes.More
+
+    The radius update of Moré (MINPACK `lmder`), which follows the step that was tried
+    rather than the previous radius: if `ρ < shrink_threshold` the radius becomes
+    `shrink_factor * min(Δ, 10 ‖D δu‖)`; if `ρ ≥ expand_threshold` or the step was a
+    Gauss-Newton step (`λ = 0`), the radius becomes `expand_factor * ‖D δu‖`. This is the
+    natural pairing for `MoreTrustRegionDescent`, which reports `λ` and `‖D δu‖` through
+    the descent extras.
+    """
+    const More = __More()
 
     struct __Bastin <: AbstractRadiusUpdateScheme end
     """
@@ -406,6 +443,7 @@ function initial_trust_radius(
         ::Nothing, ::Type{T}, method, max_tr, u0_norm, fu_norm
     ) where {T}
     method isa RUS.__NLsolve && return T(ifelse(u0_norm > 0, u0_norm, 1))
+    method isa RUS.__More && return T(ifelse(u0_norm > T(1.0e-4), u0_norm, 1))
     (method isa RUS.__Hei || method isa RUS.__Bastin) && return T(1)
     method isa RUS.__Fan && return T((fu_norm^0.99) / 10)
     return T(max_tr / 11)
@@ -413,7 +451,7 @@ end
 
 function step_threshold(::Nothing, ::Type{T}, method) where {T}
     method isa RUS.__Hei && return T(0)
-    method isa RUS.__Yuan && return T(1 // 1000)
+    (method isa RUS.__Yuan || method isa RUS.__More) && return T(1 // 1000)
     method isa RUS.__Bastin && return T(1 // 20)
     return T(1 // 10000)
 end
@@ -467,16 +505,23 @@ function InternalAPI.solve!(
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.stats.nf += 1
 
-    if hasfield(typeof(descent_stats), :δuJᵀJδu) && !isnan(descent_stats.δuJᵀJδu)
-        δuJᵀJδu = descent_stats.δuJᵀJδu
+    if hasfield(typeof(descent_stats), :predicted_reduction) &&
+            !isnan(descent_stats.predicted_reduction)
+        # Descents solving the subproblem exactly can report the MINPACK form of the
+        # predicted reduction, which avoids cancellation for ill-conditioned Jacobians
+        denom = -descent_stats.predicted_reduction
     else
-        @bb cache.Jδu_cache = J × vec(δu)
-        δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
+        if hasfield(typeof(descent_stats), :δuJᵀJδu) && !isnan(descent_stats.δuJᵀJδu)
+            δuJᵀJδu = descent_stats.δuJᵀJδu
+        else
+            @bb cache.Jδu_cache = J × vec(δu)
+            δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
+        end
+        @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
+        denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
     end
-    @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     num = (cache.internalnorm(cache.fu_cache)^2 - cache.internalnorm(fu)^2) / 2
-    denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
-    cache.ρ = num / denom
+    cache.ρ = denom < 0 ? num / denom : -one(num)
 
     if cache.ρ > cache.step_threshold
         cache.last_step_accepted = true
@@ -506,6 +551,20 @@ function InternalAPI.solve!(
                 cache.trust_region = max(
                     cache.trust_region, cache.expand_factor * cache.internalnorm(δu)
                 )
+            end
+        end
+    elseif cache.method isa RUS.__More
+        step_norm = hasfield(typeof(descent_stats), :step_norm) ?
+            descent_stats.step_norm : cache.internalnorm(δu)
+        λ = hasfield(typeof(descent_stats), :λ) ? descent_stats.λ : step_norm
+        if cache.ρ < cache.shrink_threshold
+            cache.trust_region = cache.shrink_factor *
+                min(cache.trust_region, 10 * step_norm)
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            if cache.ρ ≥ cache.expand_threshold || iszero(λ)
+                cache.trust_region = cache.expand_factor * step_norm
             end
         end
     elseif cache.method isa RUS.__NocedalWright

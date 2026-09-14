@@ -34,7 +34,7 @@ using DifferentiationInterface: DifferentiationInterface, Constant
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 import RespecializeParams
-using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
+using StaticArraysCore: StaticArray, SMatrix, SArray, MArray, SVector
 
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
@@ -52,7 +52,7 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible,
-    update_coefficients!
+    update_coefficients!, FunctionOperator
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
     AbstractVerbositySpecifier, AbstractVerbosityPreset, MessageLevel,
     None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel, ErrorLevel
@@ -97,6 +97,7 @@ include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/damped_newton.jl")
 include("descent/dogleg.jl")
+include("descent/more_trust_region.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
@@ -121,7 +122,13 @@ include("forward_diff.jl")
 )
 
 # public for NonlinearSolve.jl and subpackages to use
-@compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
+@compat(
+    public,
+    (
+        InternalAPI, supports_line_search, supports_trust_region, set_du!,
+        AbstractDescentDirection,
+    )
+)
 @compat(
     public,
     (
@@ -164,7 +171,7 @@ export RelTerminationMode, AbsTerminationMode,
     RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
-    GeodesicAcceleration
+    GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem
 
 export NonlinearSolvePolyAlgorithm
 

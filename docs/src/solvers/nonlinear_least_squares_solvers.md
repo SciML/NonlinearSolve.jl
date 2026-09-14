@@ -25,8 +25,13 @@ fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
     large-scale and numerically-difficult nonlinear systems.
   - [`GaussNewton()`](@ref): A Gauss-Newton method with swappable nonlinear solvers and
     autodiff methods for high performance on large and sparse systems.
-  - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
+  - [`TrustRegion()`](@ref): A Newton trust-region method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+    The default `TrustRegionSubproblem.More` solves the trust-region subproblem nearly
+    exactly via Moré's safeguarded iteration (MINPACK `lmpar`-style), which is more
+    robust on ill-conditioned and rank-deficient least-squares problems;
+    `subproblem = TrustRegionSubproblem.Dogleg` selects the classical polygonal
+    dogleg approximation.
 
 ### SimpleNonlinearSolve.jl
 
