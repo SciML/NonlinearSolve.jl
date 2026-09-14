@@ -547,12 +547,18 @@ function InternalAPI.step!(
     return nothing
 end
 
+function _default_bounded_alg(prob, kwargs)
+    return SobolMultistart(
+        FastShortcutBoundedPolyalg(;
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+        )
+    )
+end
+
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
     return SciMLBase.__init(
         prob,
-        prob.lb !== nothing || prob.ub !== nothing ? FastShortcutBoundedPolyalg(;
-                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
-            ) :
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
             FastShortcutNLLSPolyalg(eltype(prob.u0)),
         args...; kwargs...
     )
@@ -563,9 +569,7 @@ function SciMLBase.__solve(
     )
     return SciMLBase.__solve(
         prob,
-        prob.lb !== nothing || prob.ub !== nothing ? FastShortcutBoundedPolyalg(;
-                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
-            ) :
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
             FastShortcutNLLSPolyalg(eltype(prob.u0)),
         args...; kwargs...
     )
@@ -573,9 +577,11 @@ end
 
 function NonlinearSolveBase.initialization_alg(prob::NonlinearLeastSquaresProblem, autodiff)
     if prob.lb !== nothing || prob.ub !== nothing
-        return FastShortcutBoundedPolyalg(;
-            autodiff,
-            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+        return SobolMultistart(
+            FastShortcutBoundedPolyalg(;
+                autodiff,
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+            )
         )
     end
     return FastShortcutNLLSPolyalg(; autodiff)

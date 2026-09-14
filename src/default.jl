@@ -9,13 +9,22 @@
 ## Defaults to a fast and robust poly algorithm in most cases. If the user went through
 ## the trouble of specifying a custom jacobian function, we should use algorithms that
 ## can use that!
+
+## Bounded problems get the multistart-wrapped polyalgorithm: the first start is the
+## user's u0, so a successful local solve costs exactly what the polyalgorithm costs;
+## the deterministic restarts and restoration probes only run when the local solve
+## stalls, where the alternative is reporting Stalled.
+function _default_bounded_alg(prob, kwargs)
+    return SobolMultistart(
+        FastShortcutBoundedPolyalg(;
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+        )
+    )
+end
+
 function SciMLBase.__init(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
     if prob.lb !== nothing || prob.ub !== nothing
-        return SciMLBase.__init(
-            prob, FastShortcutBoundedPolyalg(;
-                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
-            ), args...; kwargs...
-        )
+        return SciMLBase.__init(prob, _default_bounded_alg(prob, kwargs), args...; kwargs...)
     end
     must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
     return SciMLBase.__init(
@@ -30,11 +39,7 @@ end
 
 function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...)
     if prob.lb !== nothing || prob.ub !== nothing
-        return SciMLBase.__solve(
-            prob, FastShortcutBoundedPolyalg(;
-                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
-            ), args...; kwargs...
-        )
+        return SciMLBase.__solve(prob, _default_bounded_alg(prob, kwargs), args...; kwargs...)
     end
     must_use_jacobian = Val(SciMLBase.has_jac(prob.f))
     prefer_simplenonlinearsolve = Val(prob.u0 isa StaticArray)
@@ -65,9 +70,11 @@ end
 
 function NonlinearSolveBase.initialization_alg(prob::AbstractNonlinearProblem, autodiff)
     if prob isa NonlinearProblem && (prob.lb !== nothing || prob.ub !== nothing)
-        return FastShortcutBoundedPolyalg(;
-            autodiff,
-            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+        return SobolMultistart(
+            FastShortcutBoundedPolyalg(;
+                autodiff,
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+            )
         )
     end
     return FastShortcutNonlinearPolyalg(; autodiff)

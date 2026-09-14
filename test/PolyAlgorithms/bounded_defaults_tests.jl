@@ -9,9 +9,11 @@ using LinearSolve, SciMLOperators, LinearAlgebra, ForwardDiff
         for cached in (false, true)
             if cached
                 cache = init(prob; abstol = 1.0e-7, reltol = 1.0e-7)
-                @test cache.alg isa NonlinearSolvePolyAlgorithm
+                @test cache.alg isa SobolMultistart
+                @test cache.alg.alg isa NonlinearSolvePolyAlgorithm
                 @test SciMLBase.allowsbounds(cache.alg)
-                @test all(c -> c.prob.lb == 0 && c.prob.ub == 1, cache.caches)
+                polyalg_cache = init(prob, FastShortcutBoundedPolyalg())
+                @test all(c -> c.prob.lb == 0 && c.prob.ub == 1, polyalg_cache.caches)
                 sol = solve!(cache)
             else
                 sol = solve(prob; abstol = 1.0e-7, reltol = 1.0e-7)
@@ -53,13 +55,13 @@ end
     end
     unbounded = SciMLBase.remake(prob; lb = nothing, ub = nothing)
     @test !SciMLBase.allowsbounds(init(unbounded).alg)
-    @test NonlinearSolveBase.initialization_alg(prob, AutoForwardDiff()).algs ==
+    @test NonlinearSolveBase.initialization_alg(prob, AutoForwardDiff()).alg.algs ==
         FastShortcutBoundedPolyalg(autodiff = AutoForwardDiff()).algs
 end
 
 @testset "Bounded caches reinitialize parameters and retain stages" begin
     prob = NonlinearLeastSquaresProblem((u, p) -> u .- p, [0.5, 0.5], [2.0, -1.0]; lb = 0.0, ub = 1.0)
-    cache = init(prob)
+    cache = init(prob, FastShortcutBoundedPolyalg())
     @test solve!(cache).u ≈ [1.0, 0.0]
     caches = cache.caches
     reinit!(cache; u0 = [0.5, 0.5], p = [-1.0, 2.0], retain_best = true)
@@ -128,7 +130,7 @@ end
         sol = solve(prob; maxiters = 1)
         @test SciMLBase.successful_retcode(sol)
         @test sol.u ≈ [5.0, 5.0]
-        cache = init(prob; maxiters = 1)
+        cache = init(prob, alg; maxiters = 1)
         @test SciMLBase.successful_retcode(solve!(cache))
         @test cache.best == 2
         reinit!(cache; u0 = zeros(2), retain_best = true)
@@ -193,13 +195,17 @@ end
 
 @testset "Default bounded correctors use compatible stages" begin
     H(u, previous, p, cache) = u
+    local_alg = FastShortcutBoundedPolyalg(; must_support_postcondition = true)
     for constructor in (NonlinearProblem, NonlinearLeastSquaresProblem)
         prob = constructor((u, p) -> u .- 5, zeros(2); lb = 0.0, ub = 10.0)
         cache = init(prob; postcondition = H, maxiters = 1)
-        @test length(cache.alg.algs) == 1
+        @test length(cache.alg.alg.algs) == 1
         @test NonlinearSolveBase.supports_postcondition(cache.alg)
-        @test !SciMLBase.successful_retcode(solve!(cache))
-        @test !SciMLBase.successful_retcode(solve(prob; postcondition = H, maxiters = 1))
+        local_cache = init(prob, local_alg; postcondition = H, maxiters = 1)
+        @test !SciMLBase.successful_retcode(solve!(local_cache))
+        @test !SciMLBase.successful_retcode(
+            solve(prob, local_alg; postcondition = H, maxiters = 1)
+        )
     end
 end
 
