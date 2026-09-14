@@ -29,7 +29,7 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       - name: Install benchmark tools
         run: |
           mkdir -p .benchmark/tmp
@@ -41,7 +41,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: julia --startup-file=no --project=.benchmark/tools benchmark/ci.jl "$BASE_SHA" "$HEAD_SHA" results
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-${{ matrix.version }}
           path: results/*.json

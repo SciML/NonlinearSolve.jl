@@ -1,8 +1,11 @@
 # [Bounded Solvers](@id bounded-solvers)
 
-Use `solve(prob)` for a problem with `lb` or `ub`. The bounded default works in the
-original coordinates: [`FastShortcutBoundedPolyalg`](@ref) tries `BoundedTrustRegion()`
-and then `BoundedGaussNewton()` with projected backtracking if needed. The
+Use `solve(prob)` for a problem with `lb` or `ub`. The bounded default is
+[`SobolMultistart`](@ref) wrapping [`FastShortcutBoundedPolyalg`](@ref): each start
+works in the original coordinates, trying `BoundedTrustRegion()` and then
+`BoundedGaussNewton()` with projected backtracking if needed, and a stalled local
+solve triggers deterministic restarts. Passing `FastShortcutBoundedPolyalg()`
+explicitly selects the purely local sequence without restarts. The
 [bound-constraints tutorial](../tutorials/bound_constraints.md) shows how to construct root and least-squares problems.
 
 ## Choosing a solver
@@ -47,6 +50,33 @@ For a `NonlinearProblem`, success still requires a small residual. For a
 `NonlinearLeastSquaresProblem`, projected-gradient stationarity can establish success
 even when the residual is nonzero. A stationary constrained least-squares point is not
 necessarily a root or a global minimum.
+
+## Restarts and restoration
+
+A local bounded method can converge to a constrained stationary point on an
+active bound that is not a root of the system. The default
+[`SobolMultistart`](@ref) wrapper reruns a bounded algorithm from `prob.u0` and
+a deterministic Sobol sequence of restarts, keeping the best feasible result.
+It also performs a restoration probe: when a start stalls on an active bound,
+one unbounded solve from the stalled iterate checks whether a nearby root lies
+inside the original box. A restarted start can converge to a different root
+than the `u0` basin; select `FastShortcutBoundedPolyalg()` to stay in the local
+sequence.
+
+```@example bounded_solvers
+using NonlinearSolve, SciMLBase
+f(u, p) = [cos(u[2]) + sin(u[1]) - 0.5, sin(u[2]) + cos(u[1]) - 0.3]
+prob = NonlinearProblem(
+    f, [0.3, 1.0], nothing; lb = [-100.0, 0.0], ub = [100.0, 10.0]
+)
+@assert !SciMLBase.successful_retcode(solve(prob, FastShortcutBoundedPolyalg()))
+sol = solve(prob)
+@assert SciMLBase.successful_retcode(sol)
+sol.u
+```
+
+`SobolMultistart` never reports a stalled sub-solve as a success: when no start
+reaches a root the returned retcode is `ReturnCode.Stalled`.
 
 ```@example bounded_solvers
 using NonlinearSolve, SciMLBase
@@ -104,6 +134,7 @@ bound. Native methods operate directly on the box and can reach its boundary.
 
 ```@docs
 FastShortcutBoundedPolyalg
+SobolMultistart
 BoundedTrustRegion
 TrustRegionReflective
 BoundedLevenbergMarquardt
