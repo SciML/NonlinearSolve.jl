@@ -6,7 +6,9 @@
 A deterministic multistart wrapper for `NonlinearProblem` and
 `NonlinearLeastSquaresProblem`, intended for box-constrained solves where a
 local method can converge to a constrained stationary point on an active bound
-that is not a root of the system.
+that is not a root of the system. This wrapper is the default algorithm for
+problems with `lb` or `ub`; select `alg` directly for a purely local solve
+without restarts.
 
 The wrapper runs `alg` from `nstarts` deterministic start points and returns
 the best result. The first start is always `prob.u0`, so the wrapper is never
@@ -20,7 +22,7 @@ would to a direct `solve(prob, alg; kwargs...)` call.
 ### Arguments
 
   - `alg`: the local algorithm run from each start. Defaults to
-    [`FastShortcutBoundedPolyalg`](@ref), the bounded-problem default.
+    [`FastShortcutBoundedPolyalg`](@ref).
 
 ### Keyword Arguments
 
@@ -72,6 +74,10 @@ function SobolMultistart(
 end
 
 SciMLBase.allowsbounds(::SobolMultistart) = true
+
+function NonlinearSolveBase.supports_postcondition(alg::SobolMultistart)
+    return NonlinearSolveBase.supports_postcondition(alg.alg)
+end
 
 function NonlinearSolveBase.prepare_default_bounds(prob, ::SobolMultistart)
     return NonlinearSolveBase.prepare_default_bounds(prob, nothing)
@@ -153,6 +159,20 @@ end
 function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::SobolMultistart, args...; kwargs...
     )
+    # Initialization callbacks run once for the whole solve, not per start.
+    init_alg = get(
+        kwargs, :initializealg, NonlinearSolveBase.NonlinearSolveDefaultInit()
+    )
+    prob, init_success = NonlinearSolveBase.run_initialization!(prob, init_alg, prob)
+    if !init_success
+        u = _box_state(prob.u0, _box_vector(prob.u0))
+        return SciMLBase.build_solution(
+            prob, alg, u, Utils.evaluate_f(prob, u);
+            retcode = ReturnCode.InitialFailure
+        )
+    end
+    sub_kwargs = merge((; kwargs...), (; initializealg = SciMLBase.NoInit()))
+
     starts = _multistart_starts(prob, alg.nstarts, alg.search_scale)
     _, lb, ub, _, _ = _multistart_search_region(prob, alg.search_scale)
     internalnorm = get(kwargs, :internalnorm, L2_NORM)
@@ -165,7 +185,7 @@ function SciMLBase.__solve(
     for x in starts
         sub_prob = SciMLBase.remake(prob; u0 = _box_state(prob.u0, x))
         sol = try
-            SciMLBase.__solve(sub_prob, alg.alg, args...; kwargs...)
+            SciMLBase.__solve(sub_prob, alg.alg, args...; sub_kwargs...)
         catch err
             _multistart_fatal(err) && rethrow()
             first_error === nothing && (first_error = err)
@@ -175,7 +195,9 @@ function SciMLBase.__solve(
 
         if alg.restoration && sol.retcode === ReturnCode.Stalled &&
                 sol.resid !== nothing && !iszero(internalnorm(sol.resid))
-            probe = _multistart_restoration(prob, sol.u, alg.restoration_alg, args...; kwargs...)
+            probe = _multistart_restoration(
+                prob, sol.u, alg.restoration_alg, args...; sub_kwargs...
+            )
             if probe !== nothing
                 probe.stats !== nothing && (stats = Base.merge(stats, probe.stats))
                 if SciMLBase.successful_retcode(probe.retcode)
@@ -203,7 +225,7 @@ function SciMLBase.__solve(
     end
 
     if best === nothing
-        first_error !== nothing && rethrow(first_error)
+        first_error !== nothing && throw(first_error)
         u = _box_state(prob.u0, clamp.(_box_vector(prob.u0), lb, ub))
         resid = Utils.evaluate_f(prob, u)
         return SciMLBase.build_solution(

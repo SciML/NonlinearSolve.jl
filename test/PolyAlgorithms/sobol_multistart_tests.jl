@@ -2,17 +2,21 @@ using NonlinearSolve, SciMLBase, SparseArrays
 using LinearSolve, LinearAlgebra
 
 # Regression for https://github.com/SciML/NonlinearSolve.jl/issues/1147: the
-# bounded default converges to a constrained stationary point on an active
-# bound, while an interior root exists.
+# local bounded polyalgorithm converges to a constrained stationary point on an
+# active bound, while an interior root exists.
 @testset "SobolMultistart recovers a bounded stall" begin
     f!(u, p) = [cos(u[2]) + sin(u[1]) - 0.5, sin(u[2]) + cos(u[1]) - 0.3]
     prob = NonlinearProblem(
         NonlinearFunction{false}(f!), [0.3, 1.0], nothing;
         lb = [-100.0, 0.0], ub = [100.0, 10.0]
     )
-    plain = solve(prob)
+    plain = solve(prob, FastShortcutBoundedPolyalg())
     @test plain.retcode === ReturnCode.Stalled
     @test norm(plain.resid) > 0.1
+
+    default_sol = solve(prob)
+    @test SciMLBase.successful_retcode(default_sol)
+    @test norm(default_sol.resid) < 1.0e-8
 
     for alg in (
             SobolMultistart(), SobolMultistart(TrustRegionReflective()),

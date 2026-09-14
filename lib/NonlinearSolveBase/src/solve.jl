@@ -972,7 +972,12 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end
-    return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
+    # The initialization pipeline already ran during `init`; the inner solve must
+    # not run it a second time.
+    return CommonSolve.solve(
+        cache.prob, cache.alg, cache.args...;
+        initializealg = SciMLBase.NoInit(), cache.kwargs...
+    )
 end
 
 
