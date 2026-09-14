@@ -21,7 +21,7 @@ jobs:
       JULIA_DEPOT_PATH: ~/.julia
       JULIA_PKG_PRECOMPILE_AUTO: '0'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
