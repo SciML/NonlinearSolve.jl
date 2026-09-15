@@ -28,11 +28,13 @@ well.
 
 ### Keyword Arguments
 
-  - `linsolve`: the linear solver used for the subproblem solves. The default
-    path solves the rectangular augmented system, so `linsolve` should handle
-    least-squares problems (the default choice does); solvers requiring square
-    systems such as `LUFactorization` are routed through the normal equations
-    automatically.
+  - `linsolve`: the linear solver used for the subproblem solves. On the default
+    dense path the Jacobian is factorized once per iteration and the damping
+    iteration runs against the stored factors (MINPACK `lmpar`/`qrsolv`), so no
+    `linsolve` is invoked. An explicit choice is honored through the rectangular
+    augmented system `[J; √λD] p = [-fu; 0]`, so it should handle least-squares
+    problems; solvers requiring square systems such as `LUFactorization` are
+    routed through the normal equations automatically.
   - `scaling`: the diagonal scaling matrix `D`. `:none` uses `D = I`;
     `:jacobian` uses Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`, which never
     decreases across iterations and makes the trust region scale-covariant.
@@ -48,6 +50,32 @@ end
 
 supports_trust_region(::MoreTrustRegionDescent) = true
 
+# The dense default path computes a pivoted Householder QR of `J` once per Jacobian
+# (MINPACK `qrfac`, stored in `Jbuf`/`Rdiag`/`ipvt`) and then solves each damped
+# system by eliminating `√λD` against the triangular `R` with `n` Givens rotations
+# (MINPACK `qrsolv`). The sweep produces the upper-triangular `S` with
+# `SᵀS = Pᵀ(JᵀJ + λD²)P` directly — the λ-iteration never rebuilds the `(m+n)×n`
+# augmented system or a fresh QR, never forms `JᵀJ`, and allocates nothing:
+# per-λ work is the O(n²)-order sweep plus triangular solves, and the
+# refactorization itself is allocation-free.
+mutable struct _MoreLmparWorkspace{T}
+    Jbuf::Matrix{T}      # `qrfac` output: strict upper is `R`'s off-diagonals;
+    # lower trapezoid + diagonal holds the reflector vectors `uⱼ`
+    Rdiag::Vector{T}     # `n`: diagonal of `R`; downdated column norms during `qrfac`
+    Rw::Matrix{T}        # `n×n`: upper triangle is `R`; strict lower accumulates `Sᵀ`
+    ipvt::Vector{Int}    # column permutation: `ipvt[j]` = original index of column `j`
+    qtbf::Vector{T}      # `m`: `Qᵀ(-fu)`; refreshed whenever `fu` or `J` changes
+    qtbf2::Vector{T}     # same for secondary directions (`idx > 1`, perturbed `fu`)
+    sdiag::Vector{T}     # `n`: running bottom-row contents, then diagonal of `S`
+    wa::Vector{T}        # `n` rhs/solution scratch; `qrfac` reuses it for norms
+    wb::Vector{T}        # `n` scratch for the `q` solve
+    wout::Vector{T}      # `n` permuted-solution buffer: `restructure` may alias the
+    # returned vector into `cache.p`, so output never shares
+    # storage with the scratch vectors
+    nsing::Int           # numerical rank of `R` (pivoted QR ⇒ nonincreasing |diag|)
+    stats::NLStats
+end
+
 # `normal_form` selects the subproblem formulation: `true` solves the damped
 # normal equations `(JᵀJ + λDᵀD) p = -Jᵀfu` (scalars, and `linsolve`s that only
 # accept square systems), `false` solves the augmented least-squares system
@@ -56,13 +84,25 @@ supports_trust_region(::MoreTrustRegionDescent) = true
 @concrete mutable struct MoreTrustRegionDescentCache <: AbstractDescentCache
     δu
     δus
-    lincache    # solver for the damped/augmented system and the Gauss-Newton step
+    # pinned field type: `use_lmpar` is a runtime gate (`size(J,1) >= size(J,2)`,
+    # forwarded kwargs), so an inferred `Union` param would split the cache type
+    # and break `@inferred` on `init`. The workspace variants are listed with
+    # their concrete eltypes (the gate only admits `Float32`/`Float64`) so that
+    # `isa`-narrowed calls union-split to concrete dispatches instead of boxing
+    # scalar arguments through a `UnionAll` receiver.
+    lincache::Union{
+        LinearSolveJLCache, NativeJLLinearSolveCache,
+        _MoreLmparWorkspace{Float32}, _MoreLmparWorkspace{Float64},
+    }
     Jᵀfu        # `Jᵀ fu` for the primary direction
     JᵀJ         # normal-form only
     damped      # normal-form in-place buffer for `JᵀJ + λD²`, else `nothing`
-    augmented   # `[J; √λD]` buffer for mutable dense `J`, else `nothing`
-    rhs         # `[-fu; 0]` buffer, else `nothing`
-    qrhs        # `[0; Dp/√λ]` buffer, else `nothing`
+    # pinned field types: the runtime `use_lmpar` gate allocates these buffers only
+    # on the generic augmented path, so an inferred `Union` param would split the
+    # cache type
+    augmented::Union{Nothing, AbstractMatrix}
+    rhs::Union{Nothing, AbstractVector}
+    qrhs::Union{Nothing, AbstractVector}
     p           # current trial step
     gn_step     # Gauss-Newton step, reused while `J` and `fu` are unchanged
     gn_norm     # scaled norm `‖D δu_gn‖`; `Inf` when the GN solve failed
@@ -138,6 +178,375 @@ function _more_normal_form_operator(state::_MoreOpState{T}, u) where {T}
     )
 end
 
+function _more_lmpar_workspace(J_::Matrix{T}, stats) where {T}
+    m, n = size(J_)
+    ws = _MoreLmparWorkspace{T}(
+        copy(J_), Vector{T}(undef, n), Matrix{T}(undef, n, n), Vector{Int}(undef, n),
+        Vector{T}(undef, m), Vector{T}(undef, m), Vector{T}(undef, n),
+        Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n), n, stats
+    )
+    return _more_lmpar_factor!(ws)
+end
+
+function _more_lmpar_factor!(ws::_MoreLmparWorkspace{T}, J_) where {T}
+    copyto!(ws.Jbuf, J_)
+    return _more_lmpar_factor!(ws)
+end
+function _more_lmpar_factor!(ws::_MoreLmparWorkspace{T}) where {T}
+    _more_lmpar_qrfac!(ws)
+    Rw, Rdiag, A = ws.Rw, ws.Rdiag, ws.Jbuf
+    n = size(Rw, 1)
+    nsing, tol = n, n * eps(T) * abs(Rdiag[1])
+    @inbounds for j in 1:n
+        for i in 1:(j - 1)
+            Rw[i, j] = A[i, j]
+        end
+        Rw[j, j] = Rdiag[j]
+        nsing == n && abs(Rdiag[j]) <= tol && (nsing = j - 1)
+    end
+    ws.nsing = nsing
+    ws.stats.nfactors += 1
+    return ws
+end
+
+# In-place Householder QR with column pivoting — a port of MINPACK `qrfac` (real
+# case, `pivot = .true.`). `Jbuf` is overwritten: the strict upper trapezoid holds
+# `R`'s off-diagonals, and column `j`'s lower trapezoid holds the reflector `uⱼ`
+# where `Hⱼ = I - uⱼ uⱼᵀ / uⱼ[j]` and `uⱼ[j] = 1 + xⱼ / ajnorm`. `Rdiag` returns the
+# diagonal of `R`, `ipvt` the column permutation; `wa` holds the column norms at
+# their last explicit recompute for the downdate drift guard.
+function _more_lmpar_qrfac!(ws::_MoreLmparWorkspace{T}) where {T}
+    A, rdiag, wa, ipvt = ws.Jbuf, ws.Rdiag, ws.wa, ws.ipvt
+    m, n = size(A)
+    @inbounds for j in 1:n
+        rdiag[j] = wa[j] = BLAS.nrm2(m, pointer(A, (j - 1) * m + 1), 1)
+        ipvt[j] = j
+    end
+    @inbounds for j in 1:n
+        kmax = j
+        for k in (j + 1):n
+            rdiag[k] > rdiag[kmax] && (kmax = k)
+        end
+        if kmax != j
+            for i in 1:m
+                A[i, j], A[i, kmax] = A[i, kmax], A[i, j]
+            end
+            rdiag[kmax] = rdiag[j]
+            wa[kmax] = wa[j]
+            ipvt[j], ipvt[kmax] = ipvt[kmax], ipvt[j]
+        end
+        ajnorm = BLAS.nrm2(m - j + 1, pointer(A, (j - 1) * m + j), 1)
+        if ajnorm != zero(T)
+            A[j, j] < zero(T) && (ajnorm = -ajnorm)
+            for i in j:m
+                A[i, j] /= ajnorm
+            end
+            ujj = A[j, j] += one(T)
+            for k in (j + 1):n
+                s = zero(T)
+                for i in j:m
+                    s += A[i, j] * A[i, k]
+                end
+                s /= ujj
+                for i in j:m
+                    A[i, k] -= s * A[i, j]
+                end
+                if rdiag[k] != zero(T)
+                    t = A[j, k] / rdiag[k]
+                    rdiag[k] *= sqrt(max(zero(T), one(T) - t * t))
+                    if T(0.05) * abs2(rdiag[k] / wa[k]) <= eps(T)
+                        rdiag[k] = wa[k] =
+                            BLAS.nrm2(m - j, pointer(A, (k - 1) * m + j + 1), 1)
+                    end
+                end
+            end
+        end
+        rdiag[j] = -ajnorm
+    end
+    return nothing
+end
+
+# `qtb` = `Qᵀ(-fu)` computed by applying the reflectors packed into `Jbuf` in
+# place: `Qᵀ = H_n ⋯ H_1`, so `H₁` acts first. `primary` picks the buffer so a
+# perturbed-`fu` solve (`idx > 1`) cannot clobber the primary direction's
+# transformed right-hand side.
+function _more_lmpar_qtbf!(ws::_MoreLmparWorkspace{T}, fu, primary::Bool) where {T}
+    qtbf = primary ? ws.qtbf : ws.qtbf2
+    fuv = Utils.safe_vec(fu)
+    @bb @. qtbf = -fuv
+    A = ws.Jbuf
+    m, n = size(A)
+    @inbounds for j in 1:n
+        ujj = A[j, j]
+        ujj == zero(T) && continue
+        s = zero(T)
+        for i in j:m
+            s += A[i, j] * qtbf[i]
+        end
+        s /= ujj
+        for i in j:m
+            qtbf[i] -= s * A[i, j]
+        end
+    end
+    return qtbf
+end
+
+# Rank-truncated solve `p = P R⁻¹ qtb` — MINPACK `lmpar`'s Gauss-Newton direction:
+# past `nsing` the components are set to zero, giving the basic solution.
+function _more_lmpar_gn!(ws::_MoreLmparWorkspace{T}, qtb, p_out) where {T}
+    Rw, wa, nsing, ipvt = ws.Rw, ws.wa, ws.nsing, ws.ipvt
+    n = size(Rw, 1)
+    @inbounds for j in 1:n
+        wa[j] = j <= nsing ? qtb[j] : zero(T)
+    end
+    @inbounds for k in 1:nsing
+        j = nsing - k + 1
+        wa[j] /= Rw[j, j]
+        tmp = wa[j]
+        for i in 1:(j - 1)
+            wa[i] -= Rw[i, j] * tmp
+        end
+    end
+    @inbounds for j in 1:n
+        p_out[ipvt[j]] = wa[j]
+    end
+    ws.stats.nsolve += 1
+    return p_out
+end
+
+# Solve `[R; √λD̃] z = [qtb; 0]` (with `D̃ = PᵀDP`, `p = Pz`) by eliminating the
+# diagonal block into `R` via Givens rotations — a port of MINPACK `qrsolv`. Leaves
+# `S` stored as `sdiag` + the strict lower of `Rw` (which holds `S`'s strict upper
+# transposed) for the `q` solve; `R`'s upper triangle is preserved in `Rw`.
+function _more_lmpar_qrsolv!(
+        ws::_MoreLmparWorkspace{T}, qtb, p_out, λ, dtd
+    ) where {T}
+    Rw, Rdiag, sdiag, wa, ipvt = ws.Rw, ws.Rdiag, ws.sdiag, ws.wa, ws.ipvt
+    n = size(Rw, 1)
+    sqrtλ = sqrt(λ)
+    @inbounds for j in 1:n
+        for i in (j + 1):n
+            Rw[i, j] = Rw[j, i]
+        end
+        wa[j] = qtb[j]
+    end
+    @inbounds for j in 1:n
+        dj = dtd === nothing ? sqrtλ : sqrtλ * sqrt(dtd[ipvt[j]])
+        if dj != zero(T)
+            for k in j:n
+                sdiag[k] = zero(T)
+            end
+            sdiag[j] = dj
+            qtbpj = zero(T)
+            for k in j:n
+                sdiag[k] == zero(T) && continue
+                if abs(Rw[k, k]) >= abs(sdiag[k])
+                    tanθ = sdiag[k] / Rw[k, k]
+                    cosθ = inv(sqrt(one(T) + tanθ * tanθ))
+                    sinθ = cosθ * tanθ
+                else
+                    cotθ = Rw[k, k] / sdiag[k]
+                    sinθ = inv(sqrt(one(T) + cotθ * cotθ))
+                    cosθ = sinθ * cotθ
+                end
+                Rw[k, k] = cosθ * Rw[k, k] + sinθ * sdiag[k]
+                tmp = cosθ * wa[k] + sinθ * qtbpj
+                qtbpj = -sinθ * wa[k] + cosθ * qtbpj
+                wa[k] = tmp
+                for i in (k + 1):n
+                    tmp = cosθ * Rw[i, k] + sinθ * sdiag[i]
+                    sdiag[i] = -sinθ * Rw[i, k] + cosθ * sdiag[i]
+                    Rw[i, k] = tmp
+                end
+            end
+        end
+        sdiag[j] = Rw[j, j]
+        Rw[j, j] = Rdiag[j]
+    end
+    # Backsolve `S z = wa` through `sdiag` + `Rw`'s strict lower, rank-truncated as in
+    # the Gauss-Newton solve (unreachable for `λ > 0`, kept for safety)
+    nsing = n
+    @inbounds for j in 1:n
+        nsing == n && sdiag[j] == zero(T) && (nsing = j - 1)
+        nsing < n && (wa[j] = zero(T))
+    end
+    @inbounds for k in 1:nsing
+        j = nsing - k + 1
+        s = wa[j]
+        for i in (j + 1):nsing
+            s -= Rw[i, j] * wa[i]
+        end
+        wa[j] = s / sdiag[j]
+    end
+    @inbounds for j in 1:n
+        p_out[ipvt[j]] = wa[j]
+    end
+    ws.stats.nsolve += 1
+    return p_out
+end
+
+# `q = (JᵀJ + λD²)⁻¹ D²p = P S⁻¹ S⁻ᵀ D̃² z` — two triangular solves against the `S`
+# left by `_more_lmpar_qrsolv!` (`Sᵀ` forward on its strict lower, `S` back on it)
+function _more_lmpar_qsolve!(ws::_MoreLmparWorkspace{T}, dtd, p_vec, q_out) where {T}
+    Rw, sdiag, wb, ipvt = ws.Rw, ws.sdiag, ws.wb, ws.ipvt
+    n = size(Rw, 1)
+    @inbounds for j in 1:n
+        l = ipvt[j]
+        wb[j] = (dtd === nothing ? p_vec[l] : dtd[l] * p_vec[l])
+    end
+    @inbounds for j in 1:n
+        wb[j] /= sdiag[j]
+        tmp = wb[j]
+        for i in (j + 1):n
+            wb[i] -= Rw[i, j] * tmp
+        end
+    end
+    @inbounds for k in 1:n
+        j = n - k + 1
+        s = wb[j]
+        for i in (j + 1):n
+            s -= Rw[i, j] * wb[i]
+        end
+        wb[j] = s / sdiag[j]
+    end
+    @inbounds for j in 1:n
+        q_out[ipvt[j]] = wb[j]
+    end
+    ws.stats.nsolve += 1
+    return q_out
+end
+
+# The safeguarded λ-iteration for the `lmpar` path: `p` aliases `ws.wout` through
+# `cache.p` and `q` lands in `ws.wa` — all work is the Givens sweep plus triangular
+# solves on the stored `R`/`S`. Scalar setup (`Δ`, the `u₀` bound, initial `λ`) is
+# done inside the barrier — `ws`/`dtd` are `Union`-typed fields, so calls through
+# them dispatch dynamically and isbits arguments would box on the way in; once
+# inside, everything is concrete and the per-λ sweep stays allocation-free.
+# `cache.λ` is written in place and only `got_step` is returned.
+function _more_lmpar_λloop!(
+        cache, ws::_MoreLmparWorkspace{T}, Jᵀfu, dtd, idx1, trust_region
+    ) where {T}
+    Δ = T(trust_region)
+    if dtd === nothing
+        u_bound = cache.internalnorm(Jᵀfu) / Δ
+    elseif dtd isa Number
+        u_bound = abs(Jᵀfu) / (sqrt(dtd) * Δ)
+    else
+        @bb @. cache.q = Jᵀfu / sqrt(dtd)
+        u_bound = cache.internalnorm(cache.q) / Δ
+    end
+    λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    λ = max(λ, eps(T))
+    l, uλ = zero(λ), max(u_bound, λ)
+    cache.λ = λ
+    qtb = idx1 ? ws.qtbf : ws.qtbf2
+    got_step = false
+    for i in 1:cache.maxiters
+        _more_lmpar_qrsolv!(ws, qtb, ws.wout, λ, dtd)
+        if !_all_finite(ws.wout)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        cache.p = Utils.restructure(cache.p, ws.wout)
+        p = cache.p
+        got_step = true
+        cache.λ = λ
+
+        Dp = _more_Dp!(cache, dtd, p)
+        ϕ = cache.internalnorm(Dp) - Δ
+        (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+
+        D²p = _more_D2p!(cache, dtd, p)
+        _more_lmpar_qsolve!(ws, dtd, p, ws.wa)
+        if !_all_finite(ws.wa)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        λ, l, uλ = _more_update_λ(
+            λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, ws.wa), l, uλ
+        )
+    end
+    return got_step
+end
+
+# Generic-path twin of `_more_lmpar_λloop!` — the LinearSolve-based damped/q solves
+# for the normal-form, operator, and explicit-`linsolve` cases. Keeping the loop
+# (and the scalar setup) behind a barrier narrows `dtd` to its runtime type, which
+# keeps `λ_of_p` (and so the `extras` NamedTuple fields) concretely inferred.
+function _more_generic_λloop!(
+        cache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
+    )
+    T = promote_type(eltype(u), eltype(fu))
+    Δ = T(trust_region)
+    if dtd === nothing
+        u_bound = cache.internalnorm(Jᵀfu) / Δ
+    elseif dtd isa Number
+        u_bound = abs(Jᵀfu) / (sqrt(dtd) * Δ)
+    else
+        @bb @. cache.q = Jᵀfu / sqrt(dtd)
+        u_bound = cache.internalnorm(cache.q) / Δ
+    end
+    λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    # Below ~eps·maxdiag(JᵀJ)/min(diag DᵀD) the normal-equations factorization cannot
+    # succeed; the augmented system stays full rank but still clamps λ off 0 to keep
+    # the `Dp/√λ` right-hand side of the q-solve finite
+    λ = if normal_form(cache)
+        max(λ, eps(T) * _more_maxdiag(cache.JᵀJ) / _more_mindtd(dtd))
+    else
+        max(λ, eps(T))
+    end
+    l, uλ = zero(λ), max(u_bound, λ)
+    cache.λ = λ
+    got_step = false
+    for i in 1:cache.maxiters
+        linres = _more_damped_solve(cache, J_, Jᵀfu, fu, λ, u, kwargs)
+        if !linres.success || !_all_finite(linres.u)
+            # λ is numerically too small to regularize the system; the analytic
+            # bound u₀ assumes exact arithmetic, so λ is allowed to outgrow it
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        p = linres.u
+        if normal_form(cache)
+            if p isa Number
+                cache.p = -p
+            else
+                @bb @. cache.p = -p
+            end
+        else
+            cache.p = Utils.restructure(cache.p, p)
+        end
+        p = cache.p
+        got_step = true
+        cache.λ = λ
+
+        Dp = _more_Dp!(cache, dtd, p)
+        ϕ = cache.internalnorm(Dp) - Δ
+        (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+
+        D²p = _more_D2p!(cache, dtd, p)
+        qres = _more_q_solve(cache, D²p, Dp, λ, u, kwargs)
+        if !qres.success || !_all_finite(qres.u)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        λ, l, uλ = _more_update_λ(
+            λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, qres.u), l, uλ
+        )
+    end
+    return got_step
+end
+
+InternalAPI.reinit!(::_MoreLmparWorkspace, args...; kwargs...) = nothing
+
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::MoreTrustRegionDescent, J, fu, u; stats,
         pre_inverted::Val = Val(false), linsolve_kwargs = (;),
@@ -183,6 +592,16 @@ function InternalAPI.init(
     # applied as an operator.
     normal_form = u isa Number || J isa Number || J_ isa StaticArray ||
         needs_square_A(alg.linsolve, u)
+    # Dense Jacobians with the default `linsolve` take the MINPACK `lmpar`/`qrsolv`
+    # path: one pivoted QR of `J` per Jacobian, then per-λ Givens elimination of
+    # `√λD` against the triangular factor — no per-λ refactorization, no `JᵀJ`, no
+    # allocations. An explicit `linsolve`, or `linsolve_kwargs` beyond the always-
+    # forwarded `:verbose`/`:abstol`/`:reltol`, keeps the generic LinearSolve-driven
+    # path so the user's solver choice is honored.
+    use_lmpar = !normal_form && !isop && alg.linsolve === nothing &&
+        issubset(keys(linsolve_kwargs), (:verbose, :abstol, :reltol)) &&
+        (T === Float32 || T === Float64) &&
+        J_ isa Matrix{T} && size(J_, 1) >= size(J_, 2)
 
     @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
@@ -208,7 +627,7 @@ function InternalAPI.init(
             @bb Jδu_ = similar(Utils.safe_vec(fu))
             Jδu_
         end
-        if normal_form
+        if normal_form || use_lmpar
             augmented = rhs = qrhs = nothing
         else
             m, n = length(fu), length(u)
@@ -254,6 +673,11 @@ function InternalAPI.init(
             alg, linsolve, A0, Utils.safe_vec(Jᵀfu0), Utils.safe_vec(u), prob.p;
             stats, abstol, reltol, linsolve_kwargs...
         )
+    elseif use_lmpar
+        JᵀJ = damped = nothing
+        dtd = alg.scaling === :jacobian ?
+            _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
+        lincache = _more_lmpar_workspace(J_, stats)
     else
         JᵀJ = damped = nothing
         dtd = alg.scaling === :jacobian ?
@@ -312,10 +736,10 @@ end
 _more_D2p!(cache, ::Nothing, p) = p
 _more_D2p!(cache, dtd::Number, p::Number) = dtd * p
 
-_more_scaled_norm(cache, p) = cache.internalnorm(_more_Dp!(cache, cache.dtd, p))
-function _more_scaled_norm(cache, p::Number)
-    cache.dtd === nothing && return abs(p)
-    return sqrt(cache.dtd) * abs(p)
+_more_scaled_norm(cache, dtd, p) = cache.internalnorm(_more_Dp!(cache, dtd, p))
+function _more_scaled_norm(cache, dtd, p::Number)
+    dtd === nothing && return abs(p)
+    return sqrt(dtd) * abs(p)
 end
 
 # `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`: read off the `JᵀJ` diagonal under normal form, the
@@ -461,14 +885,21 @@ function InternalAPI.solve!(
         skip_solve::Bool = false, new_jacobian::Bool = true,
         trust_region = nothing, kwargs...
     )
+    T = promote_type(eltype(u), eltype(fu))
     δu = SciMLBase.get_du(cache, idx)
-    skip_solve && return DescentResult(; δu)
+    # every return path must build the same `extras` NamedTuple shape, or the
+    # unioned `DescentResult` return type forces a boxed `getproperty` on the caller's
+    # unconditional `descent_result.extras` read
+    empty_extras = (;
+        λ = zero(T), δuJᵀJδu = T(NaN), predicted_reduction = T(NaN),
+        step_norm = T(NaN),
+    )
+    skip_solve && return DescentResult(δu, missing, true, true, empty_extras)
     @assert trust_region !== nothing "`trust_region` must be specified for \
         `MoreTrustRegionDescent`."
-
-    T = promote_type(eltype(u), eltype(fu))
     Δ = T(trust_region)
     idx1 = idx === Val(1)
+    dtd = cache.dtd
     J_ = preinverted_jacobian(cache) ? inv(J) : J
     _more_jac_convert(cache) && (J_ = convert(AbstractMatrix, J_))
     cache.op_state !== nothing && (cache.op_state.J = J_)
@@ -482,6 +913,8 @@ function InternalAPI.solve!(
             end
             _more_scaling_update!(cache, cache.JᵀJ)
         else
+            cache.lincache isa _MoreLmparWorkspace &&
+                _more_lmpar_factor!(cache.lincache, J_)
             _more_scaling_update!(cache, J_, Val(:columns))
         end
         cache.gn_valid = false
@@ -499,7 +932,7 @@ function InternalAPI.solve!(
             if J_ isa Number
                 cache.Jᵀfu = J_ * fu
             else
-                @bb cache.Jᵀfu = transpose(J_) × Utils.safe_vec(fu)
+                @bb cache.Jᵀfu = transpose(J_) × vec(fu)
             end
         else
             J_ isa Number ? J_ * fu : transpose(J_) * Utils.safe_vec(fu)
@@ -509,26 +942,34 @@ function InternalAPI.solve!(
         if iszero(cache.internalnorm(Jᵀfu))
             δu = Utils.restructure(δu, zero(cache.p))
             set_du!(cache, δu, idx)
-            extras = _more_extras(cache, J_, δu, zero(T))
-            return DescentResult(; δu, extras)
+            extras = _more_extras(cache, J_, δu, zero(T), dtd)
+            return DescentResult(δu, missing, true, true, extras)
         end
         gn_buf = idx1 ? cache.gn_step : cache.p
-        linres = _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
-        if linres.success && _all_finite(linres.u)
+        linres_u, linres_ok = if (gws = cache.lincache) isa _MoreLmparWorkspace
+            _more_lmpar_gn!(gws, _more_lmpar_qtbf!(gws, fu, idx1), gws.wout)
+            (gws.wout, true)
+        else
+            linres = _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
+            (linres.u, linres.success)
+        end
+        if linres_ok && _all_finite(linres_u)
             if gn_buf isa AbstractArray && ArrayInterface.can_setindex(gn_buf)
                 if normal_form(cache)
-                    @bb @. gn_buf = -linres.u
+                    @bb @. gn_buf = -linres_u
                 else
-                    @bb @. gn_buf = linres.u
+                    # `linres.u` is `Any` through the unioned `lincache` call —
+                    # `copyto!` on the concrete buffer avoids broadcasting `Any`
+                    copyto!(gn_buf, linres_u)
                 end
                 gn = gn_buf
             else
                 gn = normal_form(cache) ?
-                    (linres.u isa Number ? -linres.u : .-linres.u) : linres.u
+                    (linres_u isa Number ? -linres_u : .-linres_u) : linres_u
                 gn = Utils.restructure(gn_buf, gn)
             end
             idx1 && (cache.gn_step = gn)
-            gn_norm = _more_scaled_norm(cache, gn)
+            gn_norm = _more_scaled_norm(cache, dtd, gn)
         else
             gn = nothing
             gn_norm = T(Inf)
@@ -540,93 +981,33 @@ function InternalAPI.solve!(
     if gn_norm <= Δ
         δu = Utils.restructure(δu, gn_step)
         set_du!(cache, δu, idx)
-        extras = _more_extras(cache, J_, δu, zero(T))
-        return DescentResult(; δu, extras)
+        extras = _more_extras(cache, J_, δu, zero(T), dtd)
+        return DescentResult(δu, missing, true, true, extras)
     end
 
     # Moré's safeguarded Newton iteration on the damping parameter (MINPACK `lmpar`):
-    # λ* ∈ (0, u₀] with u₀ = ‖D⁻¹ Jᵀfu‖ / Δ, since ‖D δu(λ)‖ ≤ ‖D⁻¹ Jᵀfu‖ / λ
-    dtd = cache.dtd
-    if dtd === nothing
-        u_bound = cache.internalnorm(Jᵀfu) / Δ
-    else
-        if dtd isa Number
-            u_bound = abs(Jᵀfu) / (sqrt(dtd) * Δ)
-        else
-            @bb @. cache.q = Jᵀfu / sqrt(dtd)
-            u_bound = cache.internalnorm(cache.q) / Δ
-        end
-    end
-    λ = if iszero(cache.λ)
-        T(1.0e-3) * u_bound
-    else
-        min(T(cache.λ), u_bound)
-    end
-    # Below ~eps·maxdiag(JᵀJ)/min(diag DᵀD) the normal-equations factorization cannot
-    # succeed; the augmented system stays full rank but still clamps λ off 0 to keep
-    # the `Dp/√λ` right-hand side of the q-solve finite
-    λ = if normal_form(cache)
-        max(λ, eps(T) * _more_maxdiag(cache.JᵀJ) / _more_mindtd(dtd))
-    else
-        max(λ, eps(T))
-    end
-    l, uλ = zero(λ), max(u_bound, λ)
-    λ_of_p = λ
-    got_step = false
-
+    # λ* ∈ (0, u₀] with u₀ = ‖D⁻¹ Jᵀfu‖ / Δ, since ‖D δu(λ)‖ ≤ ‖D⁻¹ Jᵀfu‖ / λ.
+    # Both loops leave λ* in `cache.λ` and return whether a step was produced.
     @static_timeit cache.timer "more iteration" begin
-        for i in 1:cache.maxiters
-            linres = _more_damped_solve(cache, J_, Jᵀfu, fu, λ, u, kwargs)
-            if !linres.success || !_all_finite(linres.u)
-                # λ is numerically too small to regularize the system; the analytic
-                # bound u₀ assumes exact arithmetic, so λ is allowed to outgrow it
-                l = max(l, λ)
-                λ *= 10
-                uλ = max(uλ, λ)
-                continue
-            end
-            p = linres.u
-            if normal_form(cache)
-                if p isa Number
-                    cache.p = -p
-                else
-                    @bb @. cache.p = -p
-                end
-            else
-                cache.p = Utils.restructure(cache.p, p)
-            end
-            p = cache.p
-            got_step = true
-            λ_of_p = λ
-
-            Dp = _more_Dp!(cache, dtd, p)
-            ϕ = cache.internalnorm(Dp) - Δ
-            (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
-
-            D²p = _more_D2p!(cache, dtd, p)
-            qres = _more_q_solve(cache, D²p, Dp, λ, u, kwargs)
-            if !qres.success || !_all_finite(qres.u)
-                l = max(l, λ)
-                λ *= 10
-                uλ = max(uλ, λ)
-                continue
-            end
-            λ, l, uλ = _more_update_λ(
-                λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, qres.u), l, uλ
+        got_step = if (ws = cache.lincache) isa _MoreLmparWorkspace
+            _more_lmpar_λloop!(cache, ws, Jᵀfu, dtd, idx1, trust_region)
+        else
+            _more_generic_λloop!(
+                cache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
             )
         end
     end
-    cache.λ = λ_of_p
+    λ_of_p = cache.λ
 
     if !got_step
         set_du!(cache, δu, idx)
-        return DescentResult(; δu, success = false, linsolve_success = false)
+        return DescentResult(δu, missing, false, false, empty_extras)
     end
 
     δu = Utils.restructure(δu, cache.p)
     set_du!(cache, δu, idx)
-    extras = _more_extras(cache, J_, δu, λ_of_p)
-    return DescentResult(; δu, extras)
+    extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
+    return DescentResult(δu, missing, true, true, extras)
 end
 
 # Undamped `min ‖Jp + fu‖` — the `λ = 0` augmented system. Normal form instead
@@ -657,7 +1038,8 @@ function _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
 end
 
 # Damped solve: normal form `(JᵀJ + λD²) p = Jᵀfu` (negated after); augmented
-# `min ‖[J; √λD] p - [-fu; 0]‖`
+# `min ‖[J; √λD] p - [-fu; 0]‖`. The `lmpar` path runs its own Givens sweep
+# inside `solve!` against the stored `R`.
 function _more_damped_solve(cache, J_, Jᵀfu, fu, λ, u, kwargs)
     if cache.op_state !== nothing
         cache.op_state.λ = λ
@@ -683,7 +1065,7 @@ end
 
 # `q = (JᵀJ + λD²)⁻¹ D²p`, so `pᵀD²q` feeds the Newton update. Normal form solves
 # the square system directly; the augmented path uses `A \ [0; Dp/√λ]`, since
-# `Aᵀ [0; Dp/√λ] = D²p` for `A = [J; √λD]`
+# `Aᵀ [0; Dp/√λ] = D²p` for `A = [J; √λD]`.
 function _more_q_solve(cache, D²p, Dp, λ, u, kwargs)
     if cache.op_state !== nothing || normal_form(cache)
         b = normal_form(cache) ? Utils.safe_vec(D²p) :
@@ -703,16 +1085,16 @@ end
 # `extras` carries `λ` and the scaled step norm for `RadiusUpdateSchemes.More`, and the
 # MINPACK-form predicted reduction `½‖Jδu‖² + λ‖Dδu‖²`, which avoids the cancellation
 # of `-gᵀδu - ½δuᵀJᵀJδu` at a subproblem solution for ill-conditioned `J`
-function _more_extras(cache, J_, δu, λ)
+function _more_extras(cache, J_, δu, λ, dtd)
     if J_ isa Number
         δuJᵀJδu = abs2(J_ * δu)
     elseif cache.Jδu isa AbstractVector
-        @bb cache.Jδu = J_ × Utils.safe_vec(δu)
+        @bb cache.Jδu = J_ × vec(δu)
         δuJᵀJδu = Utils.safe_dot(cache.Jδu, cache.Jδu)
     else
         δuJᵀJδu = Utils.safe_dot(J_ * Utils.safe_vec(δu), J_ * Utils.safe_vec(δu))
     end
-    Dp = _more_Dp!(cache, cache.dtd, δu)
+    Dp = _more_Dp!(cache, dtd, δu)
     predicted_reduction = δuJᵀJδu / 2 + λ * Utils.safe_dot(Dp, Dp)
     return (; λ, δuJᵀJδu, predicted_reduction, step_norm = cache.internalnorm(Dp))
 end
