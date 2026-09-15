@@ -28,4 +28,5 @@ RadiusUpdateSchemes.Bastin
 RadiusUpdateSchemes.Fan
 RadiusUpdateSchemes.NLsolve
 RadiusUpdateSchemes.NocedalWright
+RadiusUpdateSchemes.More
 ```
