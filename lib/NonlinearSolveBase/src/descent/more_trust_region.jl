@@ -291,16 +291,20 @@ function _more_lmpar_qtbf!(ws::_MoreLmparWorkspace{T}, fu, primary::Bool) where 
     return qtbf
 end
 
-# Rank-truncated solve `p = P R⁻¹ qtb` — MINPACK `lmpar`'s Gauss-Newton direction:
-# past `nsing` the components are set to zero, giving the basic solution.
+# Gauss-Newton solve `p = P R⁻¹ qtb`. A rank-deficient `R` leaves the undamped
+# system underdetermined — the solution set is a manifold, and MINPACK's
+# convention of zeroing the null-space components (the "basic solution") picks
+# an arbitrary, generally not minimum-norm, point of it. Report failure instead
+# so the caller falls back to the damped iteration, whose `λ > 0` system is
+# nonsingular and returns the regularized minimum-norm step.
 function _more_lmpar_gn!(ws::_MoreLmparWorkspace{T}, qtb, p_out) where {T}
     Rw, wa, nsing, ipvt = ws.Rw, ws.wa, ws.nsing, ws.ipvt
     n = size(Rw, 1)
+    nsing < n && return false
     @inbounds for j in 1:n
-        wa[j] = j <= nsing ? qtb[j] : zero(T)
+        wa[j] = qtb[j]
     end
-    @inbounds for k in 1:nsing
-        j = nsing - k + 1
+    @inbounds for j in n:-1:1
         wa[j] /= Rw[j, j]
         tmp = wa[j]
         for i in 1:(j - 1)
@@ -311,7 +315,7 @@ function _more_lmpar_gn!(ws::_MoreLmparWorkspace{T}, qtb, p_out) where {T}
         p_out[ipvt[j]] = wa[j]
     end
     ws.stats.nsolve += 1
-    return p_out
+    return true
 end
 
 # Solve `[R; √λD̃] z = [qtb; 0]` (with `D̃ = PᵀDP`, `p = Pz`) by eliminating the
@@ -363,17 +367,16 @@ function _more_lmpar_qrsolv!(
         sdiag[j] = Rw[j, j]
         Rw[j, j] = Rdiag[j]
     end
-    # Backsolve `S z = wa` through `sdiag` + `Rw`'s strict lower, rank-truncated as in
-    # the Gauss-Newton solve (unreachable for `λ > 0`, kept for safety)
-    nsing = n
+    # `sdiag` now holds the diagonal of `S`. A zero entry means `S` is singular
+    # (unreachable for `λ > 0` since `√λD` keeps the augmented system full rank —
+    # guarded anyway): report the solve as failed rather than zeroing the
+    # trailing solution components, which would silently return a wrong `p`.
     @inbounds for j in 1:n
-        nsing == n && sdiag[j] == zero(T) && (nsing = j - 1)
-        nsing < n && (wa[j] = zero(T))
+        sdiag[j] == zero(T) && return false
     end
-    @inbounds for k in 1:nsing
-        j = nsing - k + 1
+    @inbounds for j in n:-1:1
         s = wa[j]
-        for i in (j + 1):nsing
+        for i in (j + 1):n
             s -= Rw[i, j] * wa[i]
         end
         wa[j] = s / sdiag[j]
@@ -382,7 +385,7 @@ function _more_lmpar_qrsolv!(
         p_out[ipvt[j]] = wa[j]
     end
     ws.stats.nsolve += 1
-    return p_out
+    return true
 end
 
 # `q = (JᵀJ + λD²)⁻¹ D²p = P S⁻¹ S⁻ᵀ D̃² z` — two triangular solves against the `S`
@@ -442,8 +445,7 @@ function _more_lmpar_λloop!(
     qtb = idx1 ? ws.qtbf : ws.qtbf2
     got_step = false
     for i in 1:cache.maxiters
-        _more_lmpar_qrsolv!(ws, qtb, ws.wout, λ, dtd)
-        if !_all_finite(ws.wout)
+        if !_more_lmpar_qrsolv!(ws, qtb, ws.wout, λ, dtd) || !_all_finite(ws.wout)
             l = max(l, λ)
             λ *= 10
             uλ = max(uλ, λ)
@@ -888,13 +890,19 @@ function InternalAPI.solve!(
     T = promote_type(eltype(u), eltype(fu))
     δu = SciMLBase.get_du(cache, idx)
     # every return path must build the same `extras` NamedTuple shape, or the
-    # unioned `DescentResult` return type forces a boxed `getproperty` on the caller's
-    # unconditional `descent_result.extras` read
+    # unioned `DescentResult` return type forces a boxed `getproperty` on the
+    # caller's unconditional `descent_result.extras` read. NaN sentinels rather
+    # than zeros: `λ = 0` reads as "undamped Gauss-Newton" downstream
+    # (`RadiusUpdateSchemes.More` expands the radius on `iszero(λ)`), which a
+    # failed solve must not claim.
     empty_extras = (;
-        λ = zero(T), δuJᵀJδu = T(NaN), predicted_reduction = T(NaN),
+        λ = T(NaN), δuJᵀJδu = T(NaN), predicted_reduction = T(NaN),
         step_norm = T(NaN),
     )
-    skip_solve && return DescentResult(δu, missing, true, true, empty_extras)
+    # A Moré direction is Δ-dependent, so there is no honest direction to return
+    # without solving — report failure instead of the stale buffer plus
+    # fabricated extras
+    skip_solve && return DescentResult(δu, missing, false, true, empty_extras)
     @assert trust_region !== nothing "`trust_region` must be specified for \
         `MoreTrustRegionDescent`."
     Δ = T(trust_region)
@@ -947,8 +955,7 @@ function InternalAPI.solve!(
         end
         gn_buf = idx1 ? cache.gn_step : cache.p
         linres_u, linres_ok = if (gws = cache.lincache) isa _MoreLmparWorkspace
-            _more_lmpar_gn!(gws, _more_lmpar_qtbf!(gws, fu, idx1), gws.wout)
-            (gws.wout, true)
+            (gws.wout, _more_lmpar_gn!(gws, _more_lmpar_qtbf!(gws, fu, idx1), gws.wout))
         else
             linres = _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
             (linres.u, linres.success)
