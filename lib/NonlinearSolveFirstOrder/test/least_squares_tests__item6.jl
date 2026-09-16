@@ -265,6 +265,27 @@ end
     @test norm(sol.resid)^2 / 2 ≤ 2.9612813806220117 * (1 + 1.0e-4)
 end
 
+@testset "More subproblem: underdetermined and rank-deficient" begin
+    # `m < n` Jacobians take the `lmpar` path with the zero-padded workspace; the
+    # rank check declines the undamped Gauss-Newton step and the safeguarded
+    # λ-iteration must still see a correctly transformed right-hand side
+    f_mn(u, p) = [u[1] + 2u[2] - u[3] - 1, u[1] - u[2] + u[3] + 1]
+    prob_mn = NonlinearLeastSquaresProblem(f_mn, zeros(3))
+    sol = solve(prob_mn, TrustRegion(; subproblem = TrustRegionSubproblem.More); abstol = 1.0e-10)
+    @test SciMLBase.successful_retcode(sol)
+    @test norm(f_mn(sol.u, nothing)) < 1.0e-6
+
+    # rank-deficient Jacobian (rank 1): the undamped solve reports failure and the
+    # damped iterate must not read a stale `Qᵀ(-fu)` buffer
+    f_rank(u, p) = fill(u[1] + u[2] - 1, 3)
+    prob_rank = NonlinearLeastSquaresProblem(f_rank, [0.5, 0.2])
+    sol_rank = solve(
+        prob_rank, TrustRegion(; subproblem = TrustRegionSubproblem.More); abstol = 1.0e-10
+    )
+    @test SciMLBase.successful_retcode(sol_rank)
+    @test norm(sol_rank.resid) < 1.0e-6
+end
+
 @testset "TrustRegionDogleg alias" begin
     # equivalent to `TrustRegion(subproblem = TrustRegionSubproblem.Dogleg)`:
     # dogleg descent with the `Simple` radius-update default

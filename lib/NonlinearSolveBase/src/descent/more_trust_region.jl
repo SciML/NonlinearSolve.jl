@@ -42,10 +42,25 @@ well.
   - `min_damping_D`: lower bound for the entries of `DᵀD` under `:jacobian`
     scaling.
 """
-@kwdef @concrete struct MoreTrustRegionDescent <: AbstractDescentDirection
-    linsolve = nothing
-    scaling::Symbol = :none
-    min_damping_D = 1.0e-8
+@concrete struct MoreTrustRegionDescent <: AbstractDescentDirection
+    linsolve
+    scaling::Symbol
+    # `Val(scaling === :jacobian)`: `dtd` is `nothing` exactly when scaling is off,
+    # and making the flag compile-time keeps that field's type (and so the cache's)
+    # fixed for a given algorithm — runtime union fields would box every access
+    has_scaling
+    min_damping_D
+end
+
+function MoreTrustRegionDescent(;
+        linsolve = nothing, scaling::Symbol = :none, min_damping_D = 1.0e-8
+    )
+    scaling in (:none, :jacobian) ||
+        throw(ArgumentError("`scaling` must be `:none` or `:jacobian`, got \
+                             `$(scaling)`."))
+    return MoreTrustRegionDescent(
+        linsolve, scaling, Val(scaling === :jacobian), min_damping_D
+    )
 end
 
 supports_trust_region(::MoreTrustRegionDescent) = true
@@ -84,32 +99,22 @@ end
 @concrete mutable struct MoreTrustRegionDescentCache <: AbstractDescentCache
     δu
     δus
-    # pinned field type: `use_lmpar` is a runtime gate (`size(J,1) >= size(J,2)`,
-    # forwarded kwargs), so an inferred `Union` param would split the cache type
-    # and break `@inferred` on `init`. The workspace variants are listed with
-    # their concrete eltypes (the gate only admits `Float32`/`Float64`) so that
-    # `isa`-narrowed calls union-split to concrete dispatches instead of boxing
-    # scalar arguments through a `UnionAll` receiver.
-    lincache::Union{
-        LinearSolveJLCache, NativeJLLinearSolveCache,
-        _MoreLmparWorkspace{Float32}, _MoreLmparWorkspace{Float64},
-    }
+    lincache
     Jᵀfu        # `Jᵀ fu` for the primary direction
     JᵀJ         # normal-form only
     damped      # normal-form in-place buffer for `JᵀJ + λD²`, else `nothing`
-    # pinned field types: the runtime `use_lmpar` gate allocates these buffers only
-    # on the generic augmented path, so an inferred `Union` param would split the
-    # cache type
-    augmented::Union{Nothing, AbstractMatrix}
-    rhs::Union{Nothing, AbstractVector}
-    qrhs::Union{Nothing, AbstractVector}
+    # These fields stay plain typevars: their allocation gates are compile-time
+    # inferable (`normal_form`/`isop`/the `could_lmpar` subset, `alg.has_scaling`),
+    # so each cache instantiation pins a concrete type and `=== nothing` checks
+    # fold away instead of dispatching on a union
+    augmented   # generic dense-path `(m + n) × n` buffer, else `nothing`
+    rhs         # generic-path rhs buffer, else `nothing`
+    qrhs        # q-solve rhs buffer, else `nothing`
     p           # current trial step
     gn_step     # Gauss-Newton step, reused while `J` and `fu` are unchanged
     gn_norm     # scaled norm `‖D δu_gn‖`; `Inf` when the GN solve failed
     gn_valid::Bool
-    # pinned field type: `alg.scaling` is a runtime `Symbol`, so an inferred
-    # `Union` param here would split the cache type across `:none`/`:jacobian`
-    dtd::Union{Nothing, AbstractVector, Number}
+    dtd         # `:jacobian`-scaling diagonal of `D²`, else `nothing`
     Dp
     D²p
     q
@@ -136,7 +141,7 @@ _more_jac_convert(cache::MoreTrustRegionDescentCache) =
 mutable struct _MoreOpState{T}
     J::Any
     λ::T
-    Jv::Vector{T}
+    Jv::AbstractVector{T}
 end
 
 # `[J; √λ I]` as an `(m + n) × n` operator: forward `x ↦ [Jx; √λ x]`, adjoint
@@ -178,18 +183,33 @@ function _more_normal_form_operator(state::_MoreOpState{T}, u) where {T}
     )
 end
 
+# For `m < n` the Jacobian is zero-padded to `n` rows: the Householder sweep never
+# writes below row `m` (each reflector's tail is zero), so the pad rows stay zero
+# through the factorization, `R` comes out rank-deficient (`nsing ≤ m < n`), the
+# Gauss–Newton step is declined, and the λ-iteration solves the correct damped
+# system `[J; √λD] p = [-fu; 0]` — equivalent to padding the residual with zeros.
 function _more_lmpar_workspace(J_::Matrix{T}, stats) where {T}
     m, n = size(J_)
+    m2 = max(m, n)
+    Jbuf = zeros(T, m2, n)
+    copyto!(view(Jbuf, 1:m, :), J_)
     ws = _MoreLmparWorkspace{T}(
-        copy(J_), Vector{T}(undef, n), Matrix{T}(undef, n, n), Vector{Int}(undef, n),
-        Vector{T}(undef, m), Vector{T}(undef, m), Vector{T}(undef, n),
+        Jbuf, Vector{T}(undef, n), Matrix{T}(undef, n, n), Vector{Int}(undef, n),
+        Vector{T}(undef, m2), Vector{T}(undef, m2), Vector{T}(undef, n),
         Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n), n, stats
     )
     return _more_lmpar_factor!(ws)
 end
 
 function _more_lmpar_factor!(ws::_MoreLmparWorkspace{T}, J_) where {T}
-    copyto!(ws.Jbuf, J_)
+    m = size(J_, 1)
+    if m == size(ws.Jbuf, 1)
+        copyto!(ws.Jbuf, J_)
+    else
+        Jbuf = ws.Jbuf
+        copyto!(view(Jbuf, 1:m, :), J_)
+        fill!(view(Jbuf, (m + 1):size(Jbuf, 1), :), zero(T))
+    end
     return _more_lmpar_factor!(ws)
 end
 function _more_lmpar_factor!(ws::_MoreLmparWorkspace{T}) where {T}
@@ -273,7 +293,17 @@ end
 function _more_lmpar_qtbf!(ws::_MoreLmparWorkspace{T}, fu, primary::Bool) where {T}
     qtbf = primary ? ws.qtbf : ws.qtbf2
     fuv = Utils.safe_vec(fu)
-    @bb @. qtbf = -fuv
+    if length(qtbf) == length(fuv)
+        @bb @. qtbf = -fuv
+    else
+        m = length(fuv)
+        @inbounds for i in 1:m
+            qtbf[i] = -fuv[i]
+        end
+        @inbounds for i in (m + 1):length(qtbf)
+            qtbf[i] = zero(T)
+        end
+    end
     A = ws.Jbuf
     m, n = size(A)
     @inbounds for j in 1:n
@@ -297,9 +327,16 @@ end
 # an arbitrary, generally not minimum-norm, point of it. Report failure instead
 # so the caller falls back to the damped iteration, whose `λ > 0` system is
 # nonsingular and returns the regularized minimum-norm step.
-function _more_lmpar_gn!(ws::_MoreLmparWorkspace{T}, qtb, p_out) where {T}
+# `qtb` and `p_out` come off `ws` inside: passing them in separately would make the
+# call signature a 3-way union product (`ws`/`qtb`/`wout` each split across the
+# `{Float32, Float64}` workspace variants), defeating inference's union-splitting
+function _more_lmpar_gn!(ws::_MoreLmparWorkspace{T}, fu, primary::Bool) where {T}
     Rw, wa, nsing, ipvt = ws.Rw, ws.wa, ws.nsing, ws.ipvt
+    p_out = ws.wout
     n = size(Rw, 1)
+    # `qtbf` must be refreshed even when `R` is rank-deficient: the λ-iteration
+    # that runs after this `false` return reads it directly off the workspace
+    qtb = _more_lmpar_qtbf!(ws, fu, primary)
     nsing < n && return false
     @inbounds for j in 1:n
         wa[j] = qtb[j]
@@ -480,7 +517,7 @@ end
 # (and the scalar setup) behind a barrier narrows `dtd` to its runtime type, which
 # keeps `λ_of_p` (and so the `extras` NamedTuple fields) concretely inferred.
 function _more_generic_λloop!(
-        cache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
+        cache, lincache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
     )
     T = promote_type(eltype(u), eltype(fu))
     Δ = T(trust_region)
@@ -505,7 +542,7 @@ function _more_generic_λloop!(
     cache.λ = λ
     got_step = false
     for i in 1:cache.maxiters
-        linres = _more_damped_solve(cache, J_, Jᵀfu, fu, λ, u, kwargs)
+        linres = _more_damped_solve(cache, lincache, J_, Jᵀfu, fu, λ, u, kwargs)
         if !linres.success || !_all_finite(linres.u)
             # λ is numerically too small to regularize the system; the analytic
             # bound u₀ assumes exact arithmetic, so λ is allowed to outgrow it
@@ -533,7 +570,7 @@ function _more_generic_λloop!(
         (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
 
         D²p = _more_D2p!(cache, dtd, p)
-        qres = _more_q_solve(cache, D²p, Dp, λ, u, kwargs)
+        qres = _more_q_solve(cache, lincache, D²p, Dp, λ, u, kwargs)
         if !qres.success || !_all_finite(qres.u)
             l = max(l, λ)
             λ *= 10
@@ -549,6 +586,15 @@ end
 
 InternalAPI.reinit!(::_MoreLmparWorkspace, args...; kwargs...) = nothing
 
+# `linsolve_kwargs` keys live in the `NamedTuple`'s type parameters, so the
+# whitelist folds to a literal at compile time — this keeps `could_lmpar` (and
+# hence `lincache`'s typevar) compile-time decidable, which is what makes
+# `@inferred init` hold. A plain `issubset(keys(kw), ...)` does not fold on
+# non-empty tuples and would leave `could_lmpar` a runtime `Bool`.
+@generated function _more_lmpar_kwargs_ok(::NamedTuple{K}) where {K}
+    return issubset(K, (:verbose, :abstol, :reltol))
+end
+
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::MoreTrustRegionDescent, J, fu, u; stats,
         pre_inverted::Val = Val(false), linsolve_kwargs = (;),
@@ -557,16 +603,14 @@ function InternalAPI.init(
     ) where {F}
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
-    alg.scaling in (:none, :jacobian) ||
-        throw(ArgumentError("`scaling` must be `:none` or `:jacobian`, got \
-                             `$(alg.scaling)`."))
+    has_scaling = Utils.unwrap_val(alg.has_scaling)
     isop = J === nothing || J isa AbstractSciMLOperator
     if isop
         Utils.unwrap_val(pre_inverted) &&
             throw(ArgumentError("`MoreTrustRegionDescent` cannot invert a matrix-free \
                                  Jacobian; use `concrete_jac = true` or a different \
                                  descent algorithm."))
-        alg.scaling === :jacobian &&
+        has_scaling &&
             throw(ArgumentError("`scaling = :jacobian` needs column norms of a \
                                  concrete Jacobian; use `scaling = :none` for \
                                  matrix-free problems."))
@@ -592,18 +636,24 @@ function InternalAPI.init(
     # while the small square `JᵀJ` is cheap to form. Operator Jacobians take the
     # normal-form path when `linsolve` needs a square system: `JᵀJ + λI` is then
     # applied as an operator.
+    # Operator Jacobians with the default `linsolve` take the normal-form operator:
+    # `x ↦ (JᵀJ + λI) x` is square and symmetric positive definite, so the default
+    # Krylov selection works on it — the non-square `[J; √λI]` operator hits broken
+    # `DefaultLinearSolver`/least-squares-Krylov dispatches on older LinearSolve
     normal_form = u isa Number || J isa Number || J_ isa StaticArray ||
-        needs_square_A(alg.linsolve, u)
+        needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing)
     # Dense Jacobians with the default `linsolve` take the MINPACK `lmpar`/`qrsolv`
     # path: one pivoted QR of `J` per Jacobian, then per-λ Givens elimination of
     # `√λD` against the triangular factor — no per-λ refactorization, no `JᵀJ`, no
     # allocations. An explicit `linsolve`, or `linsolve_kwargs` beyond the always-
     # forwarded `:verbose`/`:abstol`/`:reltol`, keeps the generic LinearSolve-driven
-    # path so the user's solver choice is honored.
-    use_lmpar = !normal_form && !isop && alg.linsolve === nothing &&
-        issubset(keys(linsolve_kwargs), (:verbose, :abstol, :reltol)) &&
-        (T === Float32 || T === Float64) &&
-        J_ isa Matrix{T} && size(J_, 1) >= size(J_, 2)
+    # path so the user's solver choice is honored. The gate is compile-time
+    # inferable so `lincache`'s typevar binds a single concrete type per
+    # specialization (`@inferred init` holds and no union dispatch survives into
+    # `solve!`); `m < n` Jacobians are handled inside the workspace by zero-padding.
+    could_lmpar = !normal_form && !isop && alg.linsolve === nothing &&
+        _more_lmpar_kwargs_ok(linsolve_kwargs) &&
+        (T === Float32 || T === Float64) && J_ isa Matrix{T}
 
     @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
@@ -629,23 +679,29 @@ function InternalAPI.init(
             @bb Jδu_ = similar(Utils.safe_vec(fu))
             Jδu_
         end
-        if normal_form || use_lmpar
+        if normal_form
             augmented = rhs = qrhs = nothing
         else
             m, n = length(fu), length(u)
-            augmented = if J_ isa AbstractMatrix &&
-                    ArrayInterface.can_setindex(J_) &&
-                    ArrayInterface.fast_scalar_indexing(J_)
-                zeros(T, m + n, n)
+            # `could_lmpar` leaves `augmented` as `nothing`: the `lmpar` path
+            # never assembles the stacked system. Every mutable concrete `J_`
+            # otherwise gets an in-place buffer on `J_`'s device; the diagonal
+            # block is written by broadcast so GPU arrays (no fast scalar
+            # indexing) take the same path
+            augmented = if !could_lmpar && J_ isa AbstractMatrix &&
+                    ArrayInterface.can_setindex(J_)
+                similar(J_, T, m + n, n)
             else
                 nothing
             end
-            rhs = zeros(T, m + n)
-            qrhs = zeros(T, m + n)
+            # `similar(safe_vec(u), …)` keeps the rhs on the state's device
+            rhs = similar(Utils.safe_vec(u), T, m + n)
+            qrhs = similar(Utils.safe_vec(u), T, m + n)
         end
     end
 
-    op_state = isop ? _MoreOpState(J_, zero(T), Vector{T}(undef, length(u))) : nothing
+    op_state = isop ?
+        _MoreOpState(J_, zero(T), similar(Utils.safe_vec(u), T, length(u))) : nothing
     if normal_form
         JᵀJ = if isop
             nothing
@@ -654,7 +710,7 @@ function InternalAPI.init(
         else
             transpose(J_) * J_
         end
-        dtd = alg.scaling === :jacobian ?
+        dtd = has_scaling ?
             _more_scaling_init(JᵀJ, u, alg.min_damping_D) : nothing
         damped = if JᵀJ isa AbstractMatrix && ArrayInterface.can_setindex(JᵀJ) &&
                 ArrayInterface.fast_scalar_indexing(JᵀJ)
@@ -663,7 +719,7 @@ function InternalAPI.init(
         else
             nothing
         end
-        A0 = if isop
+        A0 = if op_state !== nothing
             _more_normal_form_operator(op_state, u)
         else
             A0 = _more_damped_system(JᵀJ, T(1.0e-3), dtd, damped, u)
@@ -675,16 +731,16 @@ function InternalAPI.init(
             alg, linsolve, A0, Utils.safe_vec(Jᵀfu0), Utils.safe_vec(u), prob.p;
             stats, abstol, reltol, linsolve_kwargs...
         )
-    elseif use_lmpar
+    elseif could_lmpar
         JᵀJ = damped = nothing
-        dtd = alg.scaling === :jacobian ?
+        dtd = has_scaling ?
             _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
         lincache = _more_lmpar_workspace(J_, stats)
     else
         JᵀJ = damped = nothing
-        dtd = alg.scaling === :jacobian ?
+        dtd = has_scaling ?
             _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
-        A0 = if isop
+        A0 = if op_state !== nothing
             _more_augmented_operator(op_state, u, fu)
         else
             _more_augmented_system(J_, T(1.0e-3), dtd, augmented, fu, u)
@@ -748,15 +804,23 @@ end
 # column norms of `J` directly otherwise — the same numbers either way
 function _more_scaling_init(JᵀJ::AbstractMatrix, u, min_damping)
     dtd = _more_dtd_buffer(u)
-    @inbounds for i in axes(JᵀJ, 1)
-        dtd[i] = max(abs(JᵀJ[i, i]), min_damping)
+    if ArrayInterface.fast_scalar_indexing(JᵀJ)
+        @inbounds for i in axes(JᵀJ, 1)
+            dtd[i] = max(abs(JᵀJ[i, i]), min_damping)
+        end
+    else
+        dtd .= max.(abs.(diag(JᵀJ)), min_damping)
     end
     return dtd
 end
 function _more_scaling_init(J::AbstractMatrix, u, min_damping, ::Val{:columns})
     dtd = _more_dtd_buffer(u)
-    @inbounds for j in axes(J, 2)
-        dtd[j] = max(abs2(norm(@view(J[:, j]))), min_damping)
+    if ArrayInterface.fast_scalar_indexing(J)
+        @inbounds for j in axes(J, 2)
+            dtd[j] = max(abs2(norm(@view(J[:, j]))), min_damping)
+        end
+    else
+        dtd .= max.(vec(sum(abs2, J; dims = 1)), min_damping)
     end
     return dtd
 end
@@ -772,18 +836,28 @@ function _more_dtd_buffer(u)
 end
 
 function _more_scaling_update!(cache, JᵀJ::AbstractMatrix)
-    cache.dtd === nothing && return
-    @inbounds for i in axes(JᵀJ, 1)
-        cache.dtd[i] = max(cache.dtd[i], abs(JᵀJ[i, i]), cache.min_damping_D)
+    dtd = cache.dtd
+    dtd === nothing && return
+    if ArrayInterface.fast_scalar_indexing(JᵀJ)
+        @inbounds for i in axes(JᵀJ, 1)
+            dtd[i] = max(dtd[i], abs(JᵀJ[i, i]), cache.min_damping_D)
+        end
+    else
+        dtd .= max.(dtd, abs.(diag(JᵀJ)), cache.min_damping_D)
     end
     return
 end
 function _more_scaling_update!(cache, J::AbstractMatrix, ::Val{:columns})
-    cache.dtd === nothing && return
-    @inbounds for j in axes(J, 2)
-        cache.dtd[j] = max(
-            cache.dtd[j], abs2(norm(@view(J[:, j]))), cache.min_damping_D
-        )
+    dtd = cache.dtd
+    dtd === nothing && return
+    if ArrayInterface.fast_scalar_indexing(J)
+        @inbounds for j in axes(J, 2)
+            dtd[j] = max(
+                dtd[j], abs2(norm(@view(J[:, j]))), cache.min_damping_D
+            )
+        end
+    else
+        dtd .= max.(dtd, vec(sum(abs2, J; dims = 1)), cache.min_damping_D)
     end
     return
 end
@@ -791,8 +865,9 @@ end
 _more_scaling_update!(cache, ::Any, ::Val{:columns}) = nothing
 _more_scaling_update!(cache, ::AbstractSciMLOperator) = nothing
 function _more_scaling_update!(cache, JᵀJ::Number)
-    cache.dtd === nothing && return
-    cache.dtd = max(cache.dtd, abs(JᵀJ), cache.min_damping_D)
+    dtd = cache.dtd
+    dtd === nothing && return
+    cache.dtd = max(dtd, abs(JᵀJ), cache.min_damping_D)
     return
 end
 
@@ -817,9 +892,14 @@ function _more_augmented_system(J_::AbstractMatrix, λ, dtd, buf, fu, u)
     end
     m, n = size(J_)
     copyto!(@view(buf[1:m, :]), J_)
-    fill!(@view(buf[(m + 1):(m + n), :]), zero(eltype(buf)))
-    @inbounds for j in 1:n
-        buf[m + j, j] = sqrt(λ) * (dtd === nothing ? one(λ) : sqrt(dtd[j]))
+    blk = @view(buf[(m + 1):(m + n), :])
+    fill!(blk, zero(eltype(buf)))
+    if ArrayInterface.fast_scalar_indexing(buf)
+        @inbounds for j in 1:n
+            blk[j, j] = sqrt(λ) * (dtd === nothing ? one(λ) : sqrt(dtd[j]))
+        end
+    else
+        blk .+= _more_damping_block(J_, λ, dtd)
     end
     return buf
 end
@@ -836,7 +916,8 @@ end
 function _more_damping_block(J_::AbstractMatrix, λ, dtd)
     n = size(J_, 2)
     T = promote_type(eltype(J_), typeof(λ))
-    d = dtd === nothing ? ones(T, n) : sqrt.(dtd)
+    # `similar(J_)` keeps the diagonal's storage on `J_`'s device
+    d = dtd === nothing ? fill!(similar(J_, T, n), one(T)) : sqrt.(dtd)
     return sqrt(λ) * Diagonal(d)
 end
 
@@ -859,11 +940,15 @@ _all_finite(x) = all(isfinite, x)
 # `eps * maxdiag(JᵀJ) / min(diag D²)`: below this the damped system cannot factorize as
 # positive definite, so the safeguarded iteration must not start or retry below it
 function _more_maxdiag(JᵀJ::AbstractMatrix)
-    m = zero(eltype(JᵀJ))
-    @inbounds for i in axes(JᵀJ, 1)
-        m = max(m, abs(JᵀJ[i, i]))
+    if ArrayInterface.fast_scalar_indexing(JᵀJ)
+        m = zero(eltype(JᵀJ))
+        @inbounds for i in axes(JᵀJ, 1)
+            m = max(m, abs(JᵀJ[i, i]))
+        end
+        return m
+    else
+        return maximum(abs, diag(JᵀJ))
     end
-    return m
 end
 _more_maxdiag(JᵀJ::Number) = abs(JᵀJ)
 # `JᵀJ` is `nothing` for operator Jacobians: the λ floor is only needed against
@@ -921,8 +1006,10 @@ function InternalAPI.solve!(
             end
             _more_scaling_update!(cache, cache.JᵀJ)
         else
-            cache.lincache isa _MoreLmparWorkspace &&
-                _more_lmpar_factor!(cache.lincache, J_)
+            # narrow the `lincache` union once so the factorization call splits
+            # onto the concrete workspace types
+            (lincache = cache.lincache) isa _MoreLmparWorkspace &&
+                _more_lmpar_factor!(lincache, J_)
             _more_scaling_update!(cache, J_, Val(:columns))
         end
         cache.gn_valid = false
@@ -954,10 +1041,12 @@ function InternalAPI.solve!(
             return DescentResult(δu, missing, true, true, extras)
         end
         gn_buf = idx1 ? cache.gn_step : cache.p
-        linres_u, linres_ok = if (gws = cache.lincache) isa _MoreLmparWorkspace
-            (gws.wout, _more_lmpar_gn!(gws, _more_lmpar_qtbf!(gws, fu, idx1), gws.wout))
+        linres_u, linres_ok = if (lincache = cache.lincache) isa _MoreLmparWorkspace
+            (lincache.wout, _more_lmpar_gn!(lincache, fu, idx1))
         else
-            linres = _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
+            linres = _more_gn_solve(
+                cache, lincache, J_, Jᵀfu, fu, gn_buf, u, kwargs
+            )
             (linres.u, linres.success)
         end
         if linres_ok && _all_finite(linres_u)
@@ -996,11 +1085,11 @@ function InternalAPI.solve!(
     # λ* ∈ (0, u₀] with u₀ = ‖D⁻¹ Jᵀfu‖ / Δ, since ‖D δu(λ)‖ ≤ ‖D⁻¹ Jᵀfu‖ / λ.
     # Both loops leave λ* in `cache.λ` and return whether a step was produced.
     @static_timeit cache.timer "more iteration" begin
-        got_step = if (ws = cache.lincache) isa _MoreLmparWorkspace
-            _more_lmpar_λloop!(cache, ws, Jᵀfu, dtd, idx1, trust_region)
+        got_step = if (lincache = cache.lincache) isa _MoreLmparWorkspace
+            _more_lmpar_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
         else
             _more_generic_λloop!(
-                cache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
+                cache, lincache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
             )
         end
     end
@@ -1019,17 +1108,17 @@ end
 
 # Undamped `min ‖Jp + fu‖` — the `λ = 0` augmented system. Normal form instead
 # solves `JᵀJ p = Jᵀfu` on the same square cache (the step is negated after).
-function _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
+function _more_gn_solve(cache, lincache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
     if cache.op_state !== nothing
         cache.op_state.λ = zero(cache.op_state.λ)
         b = normal_form(cache) ? Utils.safe_vec(Jᵀfu) :
             _more_augmented_rhs!(cache.rhs, fu)
-        return cache.lincache(; b, linu = Utils.safe_vec(gn_buf), kwargs...)
+        return lincache(; b, linu = Utils.safe_vec(gn_buf), kwargs...)
     end
     if normal_form(cache)
         A0 = cache.JᵀJ isa AbstractMatrix ? Utils.maybe_symmetric(cache.JᵀJ) :
             cache.JᵀJ
-        return cache.lincache(;
+        return lincache(;
             A = A0, b = Utils.safe_vec(Jᵀfu), linu = Utils.safe_vec(gn_buf),
             reuse_A_if_factorization = false, kwargs...
         )
@@ -1038,7 +1127,7 @@ function _more_gn_solve(cache, J_, Jᵀfu, fu, gn_buf, u, kwargs)
         J_, zero(promote_type(eltype(u), eltype(fu))), cache.dtd, cache.augmented, fu, u
     )
     b = _more_augmented_rhs!(cache.rhs, fu)
-    return cache.lincache(;
+    return lincache(;
         A, b, linu = Utils.safe_vec(gn_buf),
         reuse_A_if_factorization = false, kwargs...
     )
@@ -1047,24 +1136,24 @@ end
 # Damped solve: normal form `(JᵀJ + λD²) p = Jᵀfu` (negated after); augmented
 # `min ‖[J; √λD] p - [-fu; 0]‖`. The `lmpar` path runs its own Givens sweep
 # inside `solve!` against the stored `R`.
-function _more_damped_solve(cache, J_, Jᵀfu, fu, λ, u, kwargs)
+function _more_damped_solve(cache, lincache, J_, Jᵀfu, fu, λ, u, kwargs)
     if cache.op_state !== nothing
         cache.op_state.λ = λ
         b = normal_form(cache) ? Utils.safe_vec(Jᵀfu) :
             _more_augmented_rhs!(cache.rhs, fu)
-        return cache.lincache(; b, linu = Utils.safe_vec(cache.p), kwargs...)
+        return lincache(; b, linu = Utils.safe_vec(cache.p), kwargs...)
     end
     if normal_form(cache)
         A = _more_damped_system(cache.JᵀJ, λ, cache.dtd, cache.damped, u)
         A = A isa AbstractMatrix ? Utils.maybe_symmetric(A) : A
-        return cache.lincache(;
+        return lincache(;
             A, b = Utils.safe_vec(Jᵀfu), linu = Utils.safe_vec(cache.p),
             reuse_A_if_factorization = false, kwargs...
         )
     end
     A = _more_augmented_system(J_, λ, cache.dtd, cache.augmented, fu, u)
     b = _more_augmented_rhs!(cache.rhs, fu)
-    return cache.lincache(;
+    return lincache(;
         A, b, linu = Utils.safe_vec(cache.p),
         reuse_A_if_factorization = false, kwargs...
     )
@@ -1073,17 +1162,17 @@ end
 # `q = (JᵀJ + λD²)⁻¹ D²p`, so `pᵀD²q` feeds the Newton update. Normal form solves
 # the square system directly; the augmented path uses `A \ [0; Dp/√λ]`, since
 # `Aᵀ [0; Dp/√λ] = D²p` for `A = [J; √λD]`.
-function _more_q_solve(cache, D²p, Dp, λ, u, kwargs)
+function _more_q_solve(cache, lincache, D²p, Dp, λ, u, kwargs)
     if cache.op_state !== nothing || normal_form(cache)
         b = normal_form(cache) ? Utils.safe_vec(D²p) :
             _more_augmented_qrhs!(cache.qrhs, Dp, λ, length(cache.rhs) - length(cache.p))
-        return cache.lincache(;
+        return lincache(;
             b, linu = Utils.safe_vec(cache.q),
             reuse_A_if_factorization = true, kwargs...
         )
     end
     b = _more_augmented_qrhs!(cache.qrhs, Dp, λ, length(cache.rhs) - length(cache.p))
-    return cache.lincache(;
+    return lincache(;
         b, linu = Utils.safe_vec(cache.q),
         reuse_A_if_factorization = true, kwargs...
     )
