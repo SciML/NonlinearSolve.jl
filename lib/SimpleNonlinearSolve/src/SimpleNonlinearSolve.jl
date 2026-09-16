@@ -154,6 +154,8 @@ function simplenonlinearsolve_solve_up(
         u0_changed, p, p_changed, alg, args...; kwargs...
     )
     (u0_changed || p_changed) && (prob = remake(prob; u0, p))
+    sol = NonlinearSolveBase.InternalAPI.forwarddiff_solve(prob, alg, args...; kwargs...)
+    sol === nothing || return sol
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
