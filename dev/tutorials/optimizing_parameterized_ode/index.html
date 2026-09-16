@@ -24,7 +24,7 @@ prob = ODE.ODEProblem(lotka_volterra!, u0, tspan, p)
 sol = ODE.solve(prob, ODE.Tsit5(); saveat = tsteps)
 
 # Plot the solution
-Plots.plot(sol; linewidth = 3)</code></pre><img src="e121c38c.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
+Plots.plot(sol; linewidth = 3)</code></pre><img src="a0c6a56a.svg" alt="Example block output"/><p>Let us now formulate the parameter estimation as a Nonlinear Least Squares Problem.</p><pre><code class="language-julia hljs">function loss_function(ode_param, data)
     sol = ODE.solve(prob, ODE.Tsit5(); p = ode_param, saveat = tsteps)
     return vec(reduce(hcat, sol.u)) .- data
 end
@@ -94,7 +94,7 @@ u: 4-element Vector{Float64}:
 )</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
 Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 <span class="sgr32"><span class="sgr1">    trustregion = GenericTrustRegionScheme(</span></span>
-<span class="sgr32"><span class="sgr1">        method = __Simple(),</span></span>
+<span class="sgr32"><span class="sgr1">        method = __More(),</span></span>
 <span class="sgr32"><span class="sgr1">        step_threshold = 1//10000,</span></span>
 <span class="sgr32"><span class="sgr1">        shrink_threshold = 1//4,</span></span>
 <span class="sgr32"><span class="sgr1">        shrink_factor = 1//4,</span></span>
@@ -103,9 +103,10 @@ Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 <span class="sgr32"><span class="sgr1">        max_trust_radius = 0//1,</span></span>
 <span class="sgr32"><span class="sgr1">        initial_trust_radius = 0//1</span></span>
 <span class="sgr32"><span class="sgr1">    ),</span></span>
-<span class="sgr32"><span class="sgr1">    descent = Dogleg(</span></span>
-<span class="sgr32"><span class="sgr1">        newton_descent = NewtonDescent(),</span></span>
-<span class="sgr32"><span class="sgr1">        steepest_descent = SteepestDescent()</span></span>
+<span class="sgr32"><span class="sgr1">    descent = MoreTrustRegionDescent(</span></span>
+<span class="sgr32"><span class="sgr1">        scaling = :none,</span></span>
+<span class="sgr32"><span class="sgr1">        has_scaling = Val{false}(),</span></span>
+<span class="sgr32"><span class="sgr1">        min_damping_D = 1.0e-8</span></span>
 <span class="sgr32"><span class="sgr1">    ),</span></span>
 <span class="sgr32"><span class="sgr1">    jacobian_reuse = JacobianReuse(</span></span>
 <span class="sgr32"><span class="sgr1">        max_age = -1,</span></span>
@@ -127,15 +128,15 @@ Algorithm: <span class="sgr32"><span class="sgr1">TrustRegion(</span></span>
 Iter    	f(u) 2-norm         	Step 2-norm         	cond(J)
 ----    	-------------       	-----------         	-------
 0       	1.46131516e+01      	0.00000000e+00      	3.46713712e+16
-1       	1.46131516e+01      	0.00000000e+00      	-1.00000000e+00
-Final   	1.94242577e-13
+1       	1.00325120e+01      	1.00000000e+00      	-1.00000000e+00
+Final   	8.60462417e-14
 ----------------------</code></pre><pre><code class="language-julia hljs">res</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 u: 4-element Vector{Float64}:
- 1.4999999999999982
- 1.0000000000000284
- 3.0000000000001688
- 1.0000000000000537</code></pre><p>Let&#39;s plot the solution.</p><pre><code class="language-julia hljs">prob2 = ODE.remake(prob; tspan = (0.0, 10.0))
+ 1.4999999999999962
+ 0.99999999999998
+ 2.9999999999999365
+ 0.9999999999999788</code></pre><p>Let&#39;s plot the solution.</p><pre><code class="language-julia hljs">prob2 = ODE.remake(prob; tspan = (0.0, 10.0))
 sol_fit = ODE.solve(prob2, ODE.Tsit5(); p = res.u)
 sol_true = ODE.solve(prob2, ODE.Tsit5(); p = p)
 Plots.plot(sol_true; linewidth = 3)
-Plots.plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="dbe2e0c4.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Wednesday 16 September 2026 20:44">Wednesday 16 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+Plots.plot!(sol_fit; linewidth = 3, linestyle = :dash)</code></pre><img src="dc22954c.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../iterator_interface/">« Nonlinear Solver Iterator Interface</a><a class="docs-footer-nextpage" href="../nonlinear_solve_gpus/">Accelerated Rootfinding on GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Wednesday 16 September 2026 23:11">Wednesday 16 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
