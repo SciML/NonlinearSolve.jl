@@ -73,6 +73,31 @@ function TrustRegion(;
 end
 
 """
+    TrustRegionDogleg(; subproblem = TrustRegionSubproblem.Dogleg, kwargs...)
+
+[`TrustRegion`](@ref) with the classical two-piece polygonal dogleg subproblem —
+the cheaper per-step choice for well-conditioned problems where the nearly-exact
+Moré solve is not needed. `TrustRegion()` itself defaults to
+`TrustRegionSubproblem.More`, which is more robust on ill-conditioned and
+rank-deficient problems.
+
+All [`TrustRegion`](@ref) keyword arguments are forwarded; `subproblem` is fixed
+to `TrustRegionSubproblem.Dogleg` (a [`Dogleg`](@ref NonlinearSolveBase.Dogleg)
+descent instance is also accepted) and `radius_update_scheme` defaults to
+`RadiusUpdateSchemes.Simple` as with `TrustRegion`.
+"""
+function TrustRegionDogleg(; subproblem = TrustRegionSubproblem.Dogleg, kwargs...)
+    subproblem === TrustRegionSubproblem.Dogleg || subproblem isa Dogleg ||
+        throw(
+        ArgumentError(
+            "`TrustRegionDogleg` fixes `subproblem = TrustRegionSubproblem.Dogleg`; \
+             use `TrustRegion(; subproblem)` to select a different subproblem."
+        )
+    )
+    return TrustRegion(; subproblem, kwargs...)
+end
+
+"""
     BoundedTrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,

@@ -264,3 +264,39 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test norm(sol.resid)^2 / 2 ≤ 2.9612813806220117 * (1 + 1.0e-4)
 end
+
+@testset "TrustRegionDogleg alias" begin
+    # equivalent to `TrustRegion(subproblem = TrustRegionSubproblem.Dogleg)`:
+    # dogleg descent with the `Simple` radius-update default
+    alg = TrustRegionDogleg()
+    @test alg isa GeneralizedFirstOrderAlgorithm
+    @test alg.descent isa Dogleg
+    @test alg.trustregion.method === RadiusUpdateSchemes.Simple
+    @test alg === TrustRegion(; subproblem = TrustRegionSubproblem.Dogleg)
+
+    # `TrustRegion()` itself still defaults to Moré
+    @test TrustRegion().descent isa MoreTrustRegionDescent
+    @test TrustRegion().trustregion.method === RadiusUpdateSchemes.More
+
+    # other keyword arguments are forwarded to `TrustRegion`
+    alg2 = TrustRegionDogleg(;
+        radius_update_scheme = RadiusUpdateSchemes.NLsolve, max_shrink_times = 3
+    )
+    @test alg2.descent isa Dogleg
+    @test alg2.trustregion.method === RadiusUpdateSchemes.NLsolve
+    @test alg2.max_shrink_times === 3
+
+    # `subproblem` is fixed to Dogleg: a Dogleg descent instance is accepted,
+    # other subproblem choices (including non-enum values) are rejected
+    @test TrustRegionDogleg(; subproblem = Dogleg()).descent isa Dogleg
+    @test_throws ArgumentError TrustRegionDogleg(; subproblem = TrustRegionSubproblem.More)
+    @test_throws ArgumentError TrustRegionDogleg(; subproblem = :dogleg)
+
+    # solves identically through both spellings
+    prob = NonlinearLeastSquaresProblem(tp312_resid, ones(2))
+    for solver in (TrustRegionDogleg(), TrustRegion(; subproblem = TrustRegionSubproblem.Dogleg))
+        sol = solve(prob, solver; abstol = 1.0e-8)
+        @test SciMLBase.successful_retcode(sol)
+        @test norm(sol.resid)^2 / 2 ≤ 2.9612813806220117 * (1 + 1.0e-4)
+    end
+end

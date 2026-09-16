@@ -155,7 +155,7 @@ end
 
 export NewtonRaphson, PseudoTransient
 export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox, BoundedGaussNewton
-export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion
+export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion, TrustRegionDogleg
 
 export EisenstatWalkerForcing2
 export JacobianReuse
