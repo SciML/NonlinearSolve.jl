@@ -206,6 +206,9 @@ function solve_call(
         end
     end
 
+    sol = InternalAPI.forwarddiff_solve(_prob, args...; kwargs...)
+    sol === nothing || return sol
+
     sol = if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
             _prob.f.f isa EvalFunc
         Base.invokelatest(__solve, _prob, args...; kwargs...) #::T
@@ -328,6 +331,9 @@ function init_call(
     if needs_bounds_transform(_prob, alg)
         _prob = transform_bounded_problem(_prob, alg)
     end
+
+    cache = InternalAPI.forwarddiff_init(_prob, args...; kwargs...)
+    cache === nothing || return cache
 
     return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
             _prob.f.f isa EvalFunc

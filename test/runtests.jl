@@ -61,6 +61,7 @@ else
             @time @safetestset "Default Algorithm for AbstractSteadyStateProblem" include("Core/default_alg_tests__item1.jl")
             @time @safetestset "NLLS Hessian SciML/NonlinearSolve.jl#445" include("Core/forward_ad_tests__item2.jl")
             @time @safetestset "reinit! on ForwardDiff cache SciML/NonlinearSolve.jl#391" include("Core/forward_ad_tests__item3.jl")
+            @time @safetestset "ForwardDiff through structured parameters SciML/NonlinearSolve.jl#1283" include("Core/forward_ad_tests__item4.jl")
             @time @safetestset "reinit! preserves parameters (LinearSolveParameters type stability)" include("Core/reinit_tests__item1.jl")
             @time @safetestset "step!-driven polyalgorithm cache survives reinit!" include("Core/polyalg_step_reinit_tests__item1.jl")
             @time @safetestset "Correct Best Solution: #565" include("Core/issue_tests__item1.jl")
