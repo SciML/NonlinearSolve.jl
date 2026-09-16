@@ -40,7 +40,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     Utils, InternalAPI, get_timer_output, @static_timeit,
     update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
     NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-    Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
+    Dogleg, MoreTrustRegionDescent, AbstractDescentDirection, TrustRegionSubproblem,
+    NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
 using SciMLOperators: SciMLOperators
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
     NonlinearFunction,
@@ -154,7 +155,7 @@ end
 
 export NewtonRaphson, PseudoTransient
 export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox, BoundedGaussNewton
-export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion
+export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion, TrustRegionDogleg
 
 export EisenstatWalkerForcing2
 export JacobianReuse

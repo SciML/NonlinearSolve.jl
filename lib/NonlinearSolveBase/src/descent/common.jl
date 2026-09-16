@@ -32,3 +32,23 @@ function DescentResult(;
     @assert δu !== missing || u !== missing
     return DescentResult(δu, u, success, linsolve_success, extras)
 end
+
+"""
+    TrustRegionSubproblem
+
+Choice of trust-region subproblem solver, selected with
+`TrustRegion(subproblem = ...)`:
+
+  - `TrustRegionSubproblem.More`: solve `min ‖J δu + fu‖` subject to `‖D δu‖ ≤ Δ`
+    nearly exactly via Moré's safeguarded iteration on the damping parameter
+    (MINPACK `lmpar`), through [`MoreTrustRegionDescent`](@ref).
+  - `TrustRegionSubproblem.Dogleg`: the classical two-piece polygonal dogleg
+    approximation to the subproblem solution curve, through [`Dogleg`](@ref).
+
+A custom [`AbstractDescentDirection`](@ref) can also be passed directly to use a
+user-defined subproblem solver.
+"""
+EnumX.@enumx TrustRegionSubproblem begin
+    Dogleg
+    More
+end
