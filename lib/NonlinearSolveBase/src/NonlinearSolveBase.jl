@@ -63,7 +63,7 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
 using Setfield: @set!, @set
 
-using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, norm, ldiv!, diagind, mul!
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, norm, ldiv!, diag, diagind, mul!
 using LogExpFunctions: logistic, logit
 using Markdown: @doc_str
 using Printf: @printf
