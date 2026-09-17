@@ -284,6 +284,10 @@ end
     )
     @test SciMLBase.successful_retcode(sol_rank)
     @test norm(sol_rank.resid) < 1.0e-6
+    # the boundary is unreachable here, so the λ-iteration must take MINPACK's
+    # `parl == 0` exit once ‖Dp‖ stagnates instead of exhausting its iterations —
+    # without it this solve spends ~20 damped solves per radius
+    @test sol_rank.stats.nsolve ≤ 12
 end
 
 @testset "TrustRegionDogleg alias" begin
