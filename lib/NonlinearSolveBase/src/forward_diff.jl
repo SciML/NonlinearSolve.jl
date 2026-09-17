@@ -4,9 +4,10 @@
     alg
     p
     values_p
-    # Partials of the Dual leaves of `p`, or `nothing` when `p` carried no duals.
-    # Scalar, `Partials`, and vector forms all occur depending on the shape of `p`.
-    partials_p::Any
+    # `ForwardDiff.Partials` and arrays of partials both occur; ForwardDiff is
+    # a weakdep here, so `AbstractArray` is the tightest nameable bound.
+    # `reinit!` reassigns across types, so `@concrete` inference can't suffice.
+    partials_p::Union{Nothing, AbstractArray}
     # Dual leaves of the original `u0` (or `tspan`), when only those carried
     # duals — needed to recover the tag for the (structurally zero)
     # initial-guess partials of a converged root.
