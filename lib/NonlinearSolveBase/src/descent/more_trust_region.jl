@@ -120,6 +120,11 @@ end
     q
     Jδu         # `J δu` product buffer for the predicted reduction
     λ
+    # last completed λ-solve's (λ, ‖D p‖): still a valid data point when the same
+    # (J, D, fu) subproblem is retried at a new Δ, so it seeds the next bracket
+    λ_bound
+    λ_bound_dpnorm
+    λ_bound_valid::Bool
     θ
     maxiters::Int
     min_damping_D
@@ -477,10 +482,25 @@ function _more_lmpar_λloop!(
     end
     λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
     λ = max(λ, eps(T))
-    l, uλ = zero(λ), max(u_bound, λ)
+    l, uλ = zero(λ), u_bound
+    # A rejected step retries the same (J, D, fu) subproblem at a smaller Δ, so the
+    # last solve's (λ, ‖Dp‖) is still a valid measurement: ‖Dp(λ)‖ decreasing makes
+    # it a one-sided bound on the new root and `λ ‖Dp‖ / Δ` a secant seed near it
+    if idx1 && cache.λ_bound_valid
+        if cache.λ_bound_dpnorm >= Δ
+            l = max(l, cache.λ_bound)
+            λ = min(cache.λ_bound * (cache.λ_bound_dpnorm / Δ), u_bound)
+        else
+            uλ = min(uλ, cache.λ_bound)
+            λ = min(λ, uλ)
+        end
+    end
+    uλ = max(uλ, λ)
     cache.λ = λ
     qtb = idx1 ? ws.qtbf : ws.qtbf2
     got_step = false
+    pos_bound = l > zero(l)
+    ϕ_prev, λ_prev = zero(λ), λ
     for i in 1:cache.maxiters
         if !_more_lmpar_qrsolv!(ws, qtb, ws.wout, λ, dtd) || !_all_finite(ws.wout)
             l = max(l, λ)
@@ -494,8 +514,23 @@ function _more_lmpar_λloop!(
         cache.λ = λ
 
         Dp = _more_Dp!(cache, dtd, p)
-        ϕ = cache.internalnorm(Dp) - Δ
+        dpnorm = cache.internalnorm(Dp)
+        ϕ = dpnorm - Δ
+        if idx1
+            cache.λ_bound = λ
+            cache.λ_bound_dpnorm = dpnorm
+            cache.λ_bound_valid = true
+        end
         (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+        # MINPACK's `parl == 0` exit: with no positive-ϕ evaluation yet, a λ decrease
+        # that grew ‖Dp‖ by less than the convergence tolerance means the boundary
+        # is unreachable — the rank-deficient hard case — so keep the step in hand
+        (
+            !pos_bound && ϕ_prev < zero(ϕ) && ϕ <= ϕ_prev + cache.θ * Δ &&
+                λ <= λ_prev
+        ) && break
+        ϕ > zero(ϕ) && (pos_bound = true)
+        ϕ_prev, λ_prev = ϕ, λ
 
         D²p = _more_D2p!(cache, dtd, p)
         _more_lmpar_qsolve!(ws, dtd, p, ws.wa)
@@ -517,7 +552,7 @@ end
 # (and the scalar setup) behind a barrier narrows `dtd` to its runtime type, which
 # keeps `λ_of_p` (and so the `extras` NamedTuple fields) concretely inferred.
 function _more_generic_λloop!(
-        cache, lincache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
+        cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs
     )
     T = promote_type(eltype(u), eltype(fu))
     Δ = T(trust_region)
@@ -530,6 +565,18 @@ function _more_generic_λloop!(
         u_bound = cache.internalnorm(cache.q) / Δ
     end
     λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    l, uλ = zero(λ), u_bound
+    # Same warm start as `_more_lmpar_λloop!`: the last solve's (λ, ‖Dp‖) still
+    # measures the current (J, D, fu) subproblem when only Δ changed
+    if idx1 && cache.λ_bound_valid
+        if cache.λ_bound_dpnorm >= Δ
+            l = max(l, cache.λ_bound)
+            λ = min(cache.λ_bound * (cache.λ_bound_dpnorm / Δ), u_bound)
+        else
+            uλ = min(uλ, cache.λ_bound)
+            λ = min(λ, uλ)
+        end
+    end
     # Below ~eps·maxdiag(JᵀJ)/min(diag DᵀD) the normal-equations factorization cannot
     # succeed; the augmented system stays full rank but still clamps λ off 0 to keep
     # the `Dp/√λ` right-hand side of the q-solve finite
@@ -538,9 +585,11 @@ function _more_generic_λloop!(
     else
         max(λ, eps(T))
     end
-    l, uλ = zero(λ), max(u_bound, λ)
+    uλ = max(uλ, λ)
     cache.λ = λ
     got_step = false
+    pos_bound = l > zero(l)
+    ϕ_prev, λ_prev = zero(λ), λ
     for i in 1:cache.maxiters
         linres = _more_damped_solve(cache, lincache, J_, Jᵀfu, fu, λ, u, kwargs)
         if !linres.success || !_all_finite(linres.u)
@@ -566,8 +615,21 @@ function _more_generic_λloop!(
         cache.λ = λ
 
         Dp = _more_Dp!(cache, dtd, p)
-        ϕ = cache.internalnorm(Dp) - Δ
+        dpnorm = cache.internalnorm(Dp)
+        ϕ = dpnorm - Δ
+        if idx1
+            cache.λ_bound = λ
+            cache.λ_bound_dpnorm = dpnorm
+            cache.λ_bound_valid = true
+        end
         (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+        # Same `parl == 0` stagnation exit as `_more_lmpar_λloop!`
+        (
+            !pos_bound && ϕ_prev < zero(ϕ) && ϕ <= ϕ_prev + cache.θ * Δ &&
+                λ <= λ_prev
+        ) && break
+        ϕ > zero(ϕ) && (pos_bound = true)
+        ϕ_prev, λ_prev = ϕ, λ
 
         D²p = _more_D2p!(cache, dtd, p)
         qres = _more_q_solve(cache, lincache, D²p, Dp, λ, u, kwargs)
@@ -755,7 +817,8 @@ function InternalAPI.init(
     return MoreTrustRegionDescentCache(
         δu, δus, lincache, Jᵀfu, JᵀJ, damped, augmented, rhs, qrhs,
         p, gn_step, T(Inf), false, dtd, Dp, D²p, q, Jδu, zero(T),
-        T(1.0e-4), 10, T(alg.min_damping_D), internalnorm, timer, pre_inverted,
+        zero(T), zero(T), false, T(1.0e-4), 10, T(alg.min_damping_D),
+        internalnorm, timer, pre_inverted,
         Val(normal_form), Val(jac_convert), op_state
     )
 end
@@ -764,6 +827,7 @@ function InternalAPI.reinit!(cache::MoreTrustRegionDescentCache, args...; kwargs
     InternalAPI.reinit!(cache.lincache, args...; kwargs...)
     cache.λ = zero(cache.λ)
     cache.gn_valid = false
+    cache.λ_bound_valid = false
     cache.dtd isa AbstractVector && fill!(cache.dtd, cache.min_damping_D)
     cache.dtd isa Number && (cache.dtd = cache.min_damping_D)
     return
@@ -772,11 +836,13 @@ end
 function NonlinearSolveBase.callback_into_cache!(
         topcache, cache::MoreTrustRegionDescentCache, args...
     )
-    # An accepted step changed `fu`, so the cached Gauss-Newton step and `Jᵀfu` are stale
-    # even when the Jacobian was reused
+    # An accepted step changed `fu`, so the cached Gauss-Newton step, `Jᵀfu`, and the
+    # λ bound are stale even when the Jacobian was reused
     tr_cache = Utils.safe_getproperty(topcache, Val(:trustregion_cache))
-    tr_cache isa AbstractTrustRegionMethodCache &&
-        NonlinearSolveBase.last_step_accepted(tr_cache) && (cache.gn_valid = false)
+    if tr_cache isa AbstractTrustRegionMethodCache &&
+            NonlinearSolveBase.last_step_accepted(tr_cache)
+        cache.gn_valid = cache.λ_bound_valid = false
+    end
     return NonlinearSolveBase.callback_into_cache!(cache, cache.lincache)
 end
 
@@ -1013,6 +1079,7 @@ function InternalAPI.solve!(
             _more_scaling_update!(cache, J_, Val(:columns))
         end
         cache.gn_valid = false
+        cache.λ_bound_valid = false
     end
 
     # Gauss-Newton step: when it lies inside the region it is the subproblem solution.
@@ -1089,7 +1156,7 @@ function InternalAPI.solve!(
             _more_lmpar_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
         else
             _more_generic_λloop!(
-                cache, lincache, J_, Jᵀfu, fu, u, dtd, trust_region, kwargs
+                cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs
             )
         end
     end
