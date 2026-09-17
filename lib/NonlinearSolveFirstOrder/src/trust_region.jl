@@ -546,7 +546,12 @@ function InternalAPI.solve!(
         denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
     end
     num = (cache.internalnorm(cache.fu_cache)^2 - cache.internalnorm(fu)^2) / 2
-    cache.ρ = denom < 0 ? num / denom : -one(num)
+    # A nonfinite trial residual must unconditionally reject: comparisons against NaN
+    # fail in every radius-update branch below, leaving the radius frozen on the bad step
+    finite_residual = isfinite(num) && (
+        cache.fu_cache isa Number ? isfinite(cache.fu_cache) : all(isfinite, cache.fu_cache)
+    )
+    cache.ρ = denom < 0 && finite_residual ? num / denom : -one(num)
 
     if cache.ρ > cache.step_threshold
         cache.last_step_accepted = true
@@ -624,8 +629,11 @@ function InternalAPI.solve!(
             end
             cache.shrink_counter = 0
         end
-        operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
-        @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
+        # A rejected step with a nonfinite trial residual has no valid trial-point
+        # gradient: evaluate `Jᵀfu` at the retained iterate `(u, fu)` instead
+        u_tr, fu_tr = finite_residual ? (cache.u_cache, cache.fu_cache) : (u, fu)
+        operator = StatefulJacobianOperator(cache.vjp_operator, u_tr, cache.p)
+        @bb cache.Jᵀfu_cache = operator × vec(fu_tr)
         cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
     elseif cache.method isa RUS.__Fan
         if cache.ρ < cache.shrink_threshold
@@ -636,7 +644,8 @@ function InternalAPI.solve!(
             cache.ρ > cache.expand_threshold &&
                 (cache.p1 = min(cache.p1 * cache.p3, cache.p4))
         end
-        cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^T(0.99))
+        fu_tr = finite_residual ? cache.fu_cache : fu
+        cache.trust_region = cache.p1 * (cache.internalnorm(fu_tr)^T(0.99))
     elseif cache.method isa RUS.__Bastin
         if cache.ρ > cache.step_threshold
             jvp_op = StatefulJacobianOperator(cache.jvp_operator, cache.u_cache, cache.p)
