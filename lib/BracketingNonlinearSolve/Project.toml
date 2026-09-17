@@ -1,6 +1,6 @@
 name = "BracketingNonlinearSolve"
 uuid = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
-version = "1.12.7"
+version = "1.12.8"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -29,7 +29,7 @@ CommonSolve = "0.2.4"
 ConcreteStructs = "0.2.3"
 ForwardDiff = "1"
 InteractiveUtils = "<0.0.1, 1"
-NonlinearSolveBase = "2.1"
+NonlinearSolveBase = "2.52"
 PrecompileTools = "1.2"
 Reexport = "1.2.2"
 SciMLBase = "3.33"
