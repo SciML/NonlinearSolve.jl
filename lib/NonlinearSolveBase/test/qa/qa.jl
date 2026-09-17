@@ -31,7 +31,8 @@ run_qa(
         # API; the main module reaches Base/Core/LinearAlgebra/FunctionWrappers internals).
         # __init / __solve / has_initialization_data dropped here: now public in SciMLBase.
         #   SciMLBase: ChainRulesOriginator, DAEInitializationAlgorithm, EnzymeOriginator,
-        #     NonNumberEltypeError, OverrideInitData, Void, get_root_indp, has_colorvec,
+        #     NonConcreteEltypeError, NonNumberEltypeError, OverrideInitData, Void,
+        #     get_root_indp, has_colorvec,
         #     isdualtype, set_mooncakeoriginator_if_mooncake, specialization
         #   ForwardDiff: Dual, Partials, Tag, can_dual, derivative, gradient, jacobian,
         #     partials, pickchunksize, value
@@ -48,7 +49,7 @@ run_qa(
         all_qualified_accesses_are_public = (;
             ignore = (
                 :ChainRulesOriginator, :DAEInitializationAlgorithm, :EnzymeOriginator,
-                :NonNumberEltypeError, :OverrideInitData, :Void,
+                :NonConcreteEltypeError, :NonNumberEltypeError, :OverrideInitData, :Void,
                 :get_root_indp, :has_colorvec, :isdualtype,
                 :set_mooncakeoriginator_if_mooncake, :specialization,
                 :Dual, :Partials, :Tag, :can_dual, :derivative, :gradient, :jacobian,

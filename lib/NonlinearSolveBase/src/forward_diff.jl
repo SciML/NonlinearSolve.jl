@@ -7,14 +7,20 @@
     # Construction-time partials of `p`; write-only bookkeeping. `reinit!`
     # refreshes it only when the new partials match this concrete type.
     partials_p
-    # Dual leaves of the original `u0` (or `tspan`), when only those carried
+    # Dual leaves of the current `u0` (or `tspan`), when only those carried
     # duals — needed to recover the tag for the (structurally zero)
-    # initial-guess partials of a converged root.
-    u0duals::Union{Nothing, AbstractVector}
+    # initial-guess partials of a converged root. Always a `Vector{<:Dual}`,
+    # empty when absent, so `reinit!` can keep the field concrete.
+    u0duals
 end
 
+# Empty dual vector matching `p`'s dual leaf type, for pre-2.52 callers that
+# predate `u0duals` (`p` is `Dual`/`AbstractArray{<:Dual}` on that path).
+_empty_u0duals(p::AbstractArray) = similar(p, 0)
+_empty_u0duals(p) = typeof(p)[]
+
 NonlinearSolveForwardDiffCache(cache, prob, alg, p, values_p, partials_p) =
-    NonlinearSolveForwardDiffCache(cache, prob, alg, p, values_p, partials_p, nothing)
+    NonlinearSolveForwardDiffCache(cache, prob, alg, p, values_p, partials_p, _empty_u0duals(p))
 
 get_u(cache::NonlinearSolveForwardDiffCache) = get_u(cache.cache)
 get_fu(cache::NonlinearSolveForwardDiffCache) = get_fu(cache.cache)
