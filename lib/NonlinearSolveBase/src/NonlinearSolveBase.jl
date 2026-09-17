@@ -171,7 +171,8 @@ export RelTerminationMode, AbsTerminationMode,
     RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
-    GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem
+    GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem,
+    TrustRegionScaling
 
 export NonlinearSolvePolyAlgorithm
 

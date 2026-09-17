@@ -1,5 +1,7 @@
 """
-    MoreTrustRegionDescent(; linsolve = nothing, scaling = :none, min_damping_D = 1e-8)
+    MoreTrustRegionDescent(;
+        linsolve = nothing, scaling = TrustRegionScaling.None, min_damping_D = 1e-8
+    )
 
 Compute the descent direction by solving the trust-region subproblem
 `min ‖J δu + fu‖` subject to `‖D δu‖ ≤ Δ` nearly exactly. A safeguarded Newton
@@ -35,36 +37,37 @@ well.
     augmented system `[J; √λD] p = [-fu; 0]`, so it should handle least-squares
     problems; solvers requiring square systems such as `LUFactorization` are
     routed through the normal equations automatically.
-  - `scaling`: the diagonal scaling matrix `D`. `:none` uses `D = I`;
-    `:jacobian` uses Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`, which never
-    decreases across iterations and makes the trust region scale-covariant.
-    `:auto` engages that same scaling only when the problem needs it: if the
-    nonzero column norms of the first Jacobian span a ratio
+  - `scaling`: the diagonal scaling matrix `D`, a [`TrustRegionScaling`](@ref).
+    `TrustRegionScaling.None` uses `D = I`; `TrustRegionScaling.Jacobian` uses
+    Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`, which never decreases across
+    iterations and makes the trust region scale-covariant.
+    `TrustRegionScaling.Auto` engages that same scaling only when the problem
+    needs it: if the nonzero column norms of the first Jacobian span a ratio
     `maxⱼ‖J[:, j]‖ / minⱼ‖J[:, j]‖` above `20` the solve proceeds exactly as
-    `:jacobian`, and otherwise exactly as `:none`. The decision is taken once
+    `Jacobian`, and otherwise exactly as `None`. The decision is taken once
     per solve (re-decided after `reinit!`), and a matrix-free Jacobian simply
-    never engages. `:jacobian` requires a concrete Jacobian.
-  - `min_damping_D`: lower bound for the entries of `DᵀD` under `:jacobian` or
-    active `:auto` scaling.
+    never engages. `TrustRegionScaling.Jacobian` requires a concrete Jacobian.
+    The legacy symbol spellings `:none`, `:jacobian`, and `:auto` are still
+    accepted.
+  - `min_damping_D`: lower bound for the entries of `DᵀD` under `Jacobian` or
+    active `Auto` scaling.
 """
 @concrete struct MoreTrustRegionDescent <: AbstractDescentDirection
     linsolve
-    scaling::Symbol
-    # `Val(scaling !== :none)`: compile-time flag so `dtd`'s type (and the
-    # cache's) stays fixed per algorithm. `:auto` still allocates `dtd` — an
+    scaling::TrustRegionScaling.T
+    # `Val(scaling !== None)`: compile-time flag so `dtd`'s type (and the
+    # cache's) stays fixed per algorithm. `Auto` still allocates `dtd` — an
     # inactive gate is `dtd == 1`, the identity — a runtime union would box it
     has_scaling
     min_damping_D
 end
 
 function MoreTrustRegionDescent(;
-        linsolve = nothing, scaling::Symbol = :none, min_damping_D = 1.0e-8
+        linsolve = nothing, scaling = TrustRegionScaling.None, min_damping_D = 1.0e-8
     )
-    scaling in (:none, :jacobian, :auto) ||
-        throw(ArgumentError("`scaling` must be `:none`, `:jacobian`, or `:auto`, \
-                             got `$(scaling)`."))
+    scaling = _more_scaling(scaling)
     return MoreTrustRegionDescent(
-        linsolve, scaling, Val(scaling !== :none), min_damping_D
+        linsolve, scaling, Val(scaling !== TrustRegionScaling.None), min_damping_D
     )
 end
 
@@ -119,7 +122,7 @@ end
     gn_step     # Gauss-Newton step, reused while `J` and `fu` are unchanged
     gn_norm     # scaled norm `‖D δu_gn‖`; `Inf` when the GN solve failed
     gn_valid::Bool
-    dtd         # `:jacobian`/`:auto`-scaling diagonal of `D²`, else `nothing`
+    dtd         # `Jacobian`/`Auto`-scaling diagonal of `D²`, else `nothing`
     Dp
     D²p
     q
@@ -139,7 +142,7 @@ end
     normal_form <: Union{Val{false}, Val{true}}
     jac_convert <: Union{Val{false}, Val{true}}
     op_state
-    # `:auto` gate state: undecided until the first Jacobian, then latched;
+    # `Auto` gate state: undecided until the first Jacobian, then latched;
     # `scaling_active` distinguishes an engaged gate from a latched-off one
     auto_scaling::Bool
     scaling_decided::Bool
@@ -161,7 +164,7 @@ end
 
 # `[J; √λ I]` as an `(m + n) × n` operator: forward `x ↦ [Jx; √λ x]`, adjoint
 # `[y₁; y₂] ↦ Jᵀy₁ + √λ y₂`. Scaling needs column norms, so matrix-free
-# Jacobians reject `:jacobian` outright and never engage under `:auto` — the
+# Jacobians reject `Jacobian` outright and never engage under `Auto` — the
 # damping block is always √λ I here.
 function _more_augmented_operator(state::_MoreOpState, u, fu)
     m, n = length(fu), length(u)
@@ -677,17 +680,19 @@ function InternalAPI.init(
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
     has_scaling = Utils.unwrap_val(alg.has_scaling)
-    auto_scaling = alg.scaling === :auto
+    auto_scaling = alg.scaling === TrustRegionScaling.Auto
     isop = J === nothing || J isa AbstractSciMLOperator
     if isop
         Utils.unwrap_val(pre_inverted) &&
             throw(ArgumentError("`MoreTrustRegionDescent` cannot invert a matrix-free \
                                  Jacobian; use `concrete_jac = true` or a different \
                                  descent algorithm."))
-        alg.scaling === :jacobian &&
-            throw(ArgumentError("`scaling = :jacobian` needs column norms of a \
-                                 concrete Jacobian; use `scaling = :none` or \
-                                 `:auto` for matrix-free problems."))
+        alg.scaling === TrustRegionScaling.Jacobian &&
+            throw(ArgumentError("`scaling = TrustRegionScaling.Jacobian` needs \
+                                 column norms of a concrete Jacobian; use \
+                                 `TrustRegionScaling.None` or \
+                                 `TrustRegionScaling.Auto` for matrix-free \
+                                 problems."))
         if needs_concrete_A(alg.linsolve)
             # a convertible operator (`MatrixOperator`-style `jac_prototype`) is
             # materialized once, like factorization solvers do lazily; a genuinely
@@ -854,7 +859,7 @@ function InternalAPI.reinit!(cache::MoreTrustRegionDescentCache, args...; kwargs
     cache.gn_valid = false
     cache.λ_bound_valid = false
     if cache.auto_scaling
-        # `:auto` re-decides on the next solve's first Jacobian
+        # `Auto` re-decides on the next solve's first Jacobian
         cache.scaling_decided = false
         cache.scaling_active = false
         cache.dtd isa AbstractVector && fill!(cache.dtd, one(eltype(cache.dtd)))
@@ -960,7 +965,7 @@ function _more_scaling_update!(cache, J::AbstractMatrix, ::Val{:columns})
     end
     return
 end
-# operators reach here under `:auto` only with the gate already latched off, so
+# operators reach here under `Auto` only with the gate already latched off, so
 # `dtd` is either `nothing` or identity
 _more_scaling_update!(cache, ::Any, ::Val{:columns}) = nothing
 _more_scaling_update!(cache, ::AbstractSciMLOperator) = nothing
@@ -971,13 +976,13 @@ function _more_scaling_update!(cache, JᵀJ::Number)
     return
 end
 
-# `:auto` engages Moré scaling when the first Jacobian's nonzero column norms
+# `Auto` engages Moré scaling when the first Jacobian's nonzero column norms
 # span a ratio `maxⱼ‖J[:, j]‖ / minⱼ‖J[:, j]‖ > _MORE_AUTO_SCALING_THRESHOLD`;
 # the decision then latches for the rest of the solve
 const _MORE_AUTO_SCALING_THRESHOLD = 20
 
 # `one(_more_scaling_init(...))` keeps the scalar `dtd` on the same type the
-# `:jacobian` branch would return, so `init` stays concrete
+# `Jacobian` branch would return, so `init` stays concrete
 _more_auto_dtd(u, JᵀJ::Number, min_damping) =
     one(_more_scaling_init(JᵀJ, u, min_damping))
 function _more_auto_dtd(u, J, min_damping)
@@ -1017,7 +1022,7 @@ function _more_auto_decide!(cache, J::AbstractMatrix, ::Val{:columns})
     return _more_auto_latch!(cache, dtd)
 end
 # operators expose no column norms, and scalar/`Val(:columns)`-incompatible
-# Jacobians have no ratio to gate on — `:auto` stays off
+# Jacobians have no ratio to gate on — `Auto` stays off
 _more_auto_decide!(cache, ::Any, ::Val{:columns}) = _more_auto_off!(cache)
 _more_auto_decide!(cache, ::Union{Number, AbstractSciMLOperator}) =
     _more_auto_off!(cache)
@@ -1209,7 +1214,7 @@ function InternalAPI.solve!(
         cache.gn_valid = false
         cache.λ_bound_valid = false
     elseif idx1 && cache.auto_scaling && !cache.scaling_decided
-        # a reused first Jacobian still settles a pending `:auto` gate
+        # a reused first Jacobian still settles a pending `Auto` gate
         if normal_form(cache) && cache.op_state === nothing
             _more_auto_decide!(cache, cache.JᵀJ)
         else
