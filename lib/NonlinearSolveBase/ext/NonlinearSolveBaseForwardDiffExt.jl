@@ -548,7 +548,9 @@ end
 function NonlinearSolveBase.nonlinearsolve_dual_solution(
         u, partials, p::AbstractArray
     )
-    return nonlinearsolve_dual_solution(u, partials, p[firstindex(p)])
+    return NonlinearSolveBase.nonlinearsolve_dual_solution(
+        u, partials, p[firstindex(p)]
+    )
 end
 
 for algType in GENERAL_SOLVER_TYPES
@@ -586,7 +588,7 @@ function InternalAPI.reinit!(
     # it is never read, so keep the stale value rather than throw when a
     # reinit changes whether `p` carries duals.
     partials_p isa typeof(cache.partials_p) && (cache.partials_p = partials_p)
-    cache.u0duals = u0view === nothing ? nothing : u0view.duals
+    cache.u0duals = u0view === nothing ? similar(cache.u0duals, 0) : u0view.duals
     return cache
 end
 
@@ -629,7 +631,7 @@ function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
         # Duals only in `u0`: sensitivity to the guess is structurally zero.
         # `reinit!` with fully primal inputs leaves no Dual source at all —
         # the primal solution is then the answer.
-        cache.u0duals === nothing && return sol
+        isempty(cache.u0duals) && return sol
         dualsrc = cache.u0duals
         partials = _zero_partials(uu, dualsrc)
     else
@@ -714,7 +716,7 @@ function InternalAPI.forwarddiff_init(prob::AbstractNonlinearProblem, args...; k
         u0duals = dualsrc.duals
         partials_p = nothing
     else
-        u0duals = nothing
+        u0duals = similar(pview.duals, 0)
         partials_p = ForwardDiff.partials.(pview.duals)
     end
     return NonlinearSolveForwardDiffCache(

@@ -23,7 +23,7 @@ for algType in EXTENSION_SOLVER_TYPES
         p = NonlinearSolveBase.nodual_value(prob.p)
         newprob = SciMLBase.remake(prob; u0 = NonlinearSolveBase.nodual_value(prob.u0), p)
         cache = init(newprob, alg, args...; kwargs...)
-        return NonlinearSolveForwardDiffCache(
+        return NonlinearSolveBase.NonlinearSolveForwardDiffCache(
             cache, newprob, alg, prob.p, p, ForwardDiff.partials(prob.p)
         )
     end

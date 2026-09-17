@@ -193,7 +193,7 @@ function solve_call(
     if isdefined(_prob, :u0)
         if _prob.u0 isa Array
             if !isconcretetype(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0))
-                throw(NonConcreteEltypeError(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0)))
+                throw(SciMLBase.NonConcreteEltypeError(RecursiveArrayTools.recursive_unitless_eltype(_prob.u0)))
             end
 
             if !(eltype(_prob.u0) <: Number) && !(eltype(_prob.u0) <: Enum)
@@ -848,7 +848,7 @@ NonlinearSolve.step!(cache)
 function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     not_terminated(cache) || return
 
-    has_time_limit(cache) && (time_start = time())
+    time_start = has_time_limit(cache) ? time() : 0.0
 
     res = @static_timeit cache.timer "solve" begin
         InternalAPI.step!(cache, args...; kwargs...)

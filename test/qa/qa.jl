@@ -1,4 +1,5 @@
 using SciMLTesting, NonlinearSolve, SimpleNonlinearSolve, SciMLBase, Aqua, Test
+import ForwardDiff, JET, NonlinearSolveBase
 # Load the wrapper packages so NonlinearSolve's solver extensions are present for
 # ExplicitImports to analyze. An extension module only exists once every one of its
 # triggers is loaded, and ExplicitImports skips extensions that do not exist, so a
@@ -89,11 +90,12 @@ run_qa(
         # extensions. AbstractSteadyStateProblem / __init / __solve dropped: now public in
         # SciMLBase.
         #   NonlinearSolveBase(.Utils): Utils, evaluate_f, nodual_value,
-        #     safe_vec
+        #     safe_vec, NonlinearSolveForwardDiffCache
         #   ForwardDiff: partials;  LeastSquaresOptim: Cholesky, LSMR, QR
         all_qualified_accesses_are_public = (;
             ignore = (
                 :Utils, :evaluate_f, :nodual_value, :safe_vec,
+                :NonlinearSolveForwardDiffCache,
                 :partials, :Cholesky, :LSMR, :QR,
             ),
         ),
@@ -119,3 +121,69 @@ run_qa(
 # carries the SciMLJacobianOperators weak-dep ignore.
 Aqua.test_stale_deps(SimpleNonlinearSolve; ignore = [:SciMLJacobianOperators])
 Aqua.test_deps_compat(SimpleNonlinearSolve; ignore = [:SciMLJacobianOperators])
+
+@testset "JET type stability" begin
+    FDExt = Base.get_extension(NonlinearSolveBase, :NonlinearSolveBaseForwardDiffExt)
+    # Count only findings in frames owned by this repository; SciMLBase, ForwardDiff
+    # and Base internals carry pre-existing possible-error reports that are not ours.
+    targetmods = (NonlinearSolveBase, FDExt)
+    jet_f!(du, u, p) = (du .= u .^ 3 .+ u .- p.tunable)
+    fn = NonlinearFunction(jet_f!)
+    DualT = typeof(ForwardDiff.Dual{:jettest}(3.0, 1.0))
+    prob = NonlinearProblem(fn, [1.0], (; tunable = [3.0]))
+    prob_dualp = NonlinearProblem(
+        fn, [1.0], (; tunable = [ForwardDiff.Dual{:jettest}(3.0, 1.0)])
+    )
+    prob_dualu0 = NonlinearProblem(
+        fn, [ForwardDiff.Dual{:jettest}(1.0, 1.0)], (; tunable = [3.0])
+    )
+    prob_flatp = NonlinearProblem(fn, [1.0], [ForwardDiff.Dual{:jettest}(3.0, 1.0)])
+
+    # The ForwardDiff interception hooks must not add dispatch overhead on the
+    # non-dual fast path.
+    JET.test_opt(
+        NonlinearSolveBase.InternalAPI.forwarddiff_solve,
+        Tuple{typeof(prob), typeof(Broyden())},
+    )
+    JET.test_opt(
+        NonlinearSolveBase.InternalAPI.forwarddiff_init,
+        Tuple{typeof(prob), typeof(Broyden())},
+    )
+
+    # No possible-errors in our frames along the dual entry points.
+    JET.test_call(() -> solve(prob_dualp, Broyden()); target_modules = targetmods)
+    JET.test_call(() -> solve(prob_dualu0, Broyden()); target_modules = targetmods)
+    JET.test_call(() -> solve(prob_flatp, Broyden()); target_modules = targetmods)
+    JET.test_call(() -> init(prob_dualp, Broyden()); target_modules = targetmods)
+    JET.test_call(
+        () -> solve!(init(prob_dualp, Broyden())); target_modules = targetmods
+    )
+    JET.test_call(
+        () -> SciMLBase.reinit!(
+            init(prob_dualp, Broyden()), [1.0]; p = (; tunable = [4.0])
+        ); target_modules = targetmods
+    )
+
+    # The strip/rebuild leaf helpers are fully inferred on concrete leaves.
+    JET.test_opt(FDExt._dual_view, Tuple{DualT})
+    JET.test_opt(FDExt._dual_view, Tuple{Vector{DualT}})
+    JET.test_opt(FDExt._zero_partials, Tuple{Vector{Float64}, Vector{DualT}})
+    JET.test_opt(
+        FDExt._forwarddiff_combine_partials,
+        Tuple{Matrix{Float64}, Vector{DualT}, Vector{Float64}},
+    )
+    JET.test_opt(
+        NonlinearSolveBase.nonlinearsolve_dual_solution,
+        Tuple{Vector{Float64}, Vector{ForwardDiff.Partials{1, Float64}}, Vector{DualT}},
+    )
+
+    # Every ForwardDiff cache field stays concrete through init and reinit!.
+    cache = init(prob_dualp, Broyden())
+    @test all(isconcretetype, fieldtypes(typeof(cache)))
+    cache_u0 = init(prob_dualu0, Broyden())
+    @test all(isconcretetype, fieldtypes(typeof(cache_u0)))
+    @test cache_u0.u0duals isa Vector{DualT} && !isempty(cache_u0.u0duals)
+    SciMLBase.reinit!(cache, [1.0]; p = (; tunable = [4.0]))
+    @test all(isconcretetype, fieldtypes(typeof(cache)))
+    @test isempty(cache.u0duals)
+end
