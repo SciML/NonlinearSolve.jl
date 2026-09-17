@@ -34,7 +34,11 @@ well.
     `linsolve` is invoked. An explicit choice is honored through the rectangular
     augmented system `[J; √λD] p = [-fu; 0]`, so it should handle least-squares
     problems; solvers requiring square systems such as `LUFactorization` are
-    routed through the normal equations automatically.
+    routed through the normal equations automatically. On a dense `Matrix`
+    Jacobian, `LinearSolve.LHLFactorization` gets a dedicated variant of the
+    normal-equations path: one Hessenberg reduction of the scaled Gram matrix
+    `D⁻¹JᵀJD⁻¹` per Jacobian, after which every damping trial is an `O(n²)`
+    shifted solve rather than an `O(n³)` refactorization.
   - `scaling`: the diagonal scaling matrix `D`. `:none` uses `D = I`;
     `:jacobian` uses Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`, which never
     decreases across iterations and makes the trust region scale-covariant.
@@ -104,9 +108,9 @@ end
     JᵀJ         # normal-form only
     damped      # normal-form in-place buffer for `JᵀJ + λD²`, else `nothing`
     # These fields stay plain typevars: their allocation gates are compile-time
-    # inferable (`normal_form`/`isop`/the `could_lmpar` subset, `alg.has_scaling`),
-    # so each cache instantiation pins a concrete type and `=== nothing` checks
-    # fold away instead of dispatching on a union
+    # inferable (`normal_form`/`isop`/the `could_lmpar`/`could_lhl` subset,
+    # `alg.has_scaling`), so each cache instantiation pins a concrete type and
+    # `=== nothing` checks fold away instead of dispatching on a union
     augmented   # generic dense-path `(m + n) × n` buffer, else `nothing`
     rhs         # generic-path rhs buffer, else `nothing`
     qrhs        # q-solve rhs buffer, else `nothing`
@@ -461,6 +465,200 @@ function _more_lmpar_qsolve!(ws::_MoreLmparWorkspace{T}, dtd, p_vec, q_out) wher
     return q_out
 end
 
+# `linsolve = LHLFactorization()` on a dense `Matrix` Jacobian takes a dedicated
+# normal-form path: the damped system `(JᵀJ + λD²) p = -Jᵀf` is a pure shift family
+# in scaled variables — with `B = J D⁻¹` (`D = diag(sqrt.(dtd))`, `I` when scaling
+# is off),
+#
+#     (BᵀB + λI) y = -Bᵀf,   p = D⁻¹ y        where y = D p
+#
+# so one Hessenberg reduction of `BᵀB = D⁻¹JᵀJD⁻¹` (`lhl`, O(n³) once per Jacobian)
+# serves every damping trial as an O(n²) `lhl_shift!` + `lhl_ldiv!` — the shift
+# never touches the factors. The φ′-derivative solve `(JᵀJ + λD²) q = D²p` is the
+# same family, `(BᵀB + λI) w = D p` with `q = D⁻¹ w` — a second `lhl_ldiv!` on the
+# loaded shift. `uses_lhl` gates the path; the `lhl`/`lhl!`/`lhl_shift!`/`lhl_ldiv!`
+# primitives are implemented in `NonlinearSolveBaseLinearSolveExt`, since src cannot
+# name `LinearSolve.LHLFactorization` (a weakdep's type).
+uses_lhl(linsolve) = false
+
+mutable struct _MoreLHLWorkspace{T, W}
+    ws::W               # `LHLFactorization.LHLWorkspace`: reduction of `BtB` + the
+    # loaded shift's LU
+    BtB::Matrix{T}      # `D⁻¹JᵀJD⁻¹`, kept for the refinement residual
+    s::Vector{T}        # `diag(D⁻¹)`; ones when scaling is off
+    b::Vector{T}        # scaled-rhs staging (`D⁻¹Jᵀf`, or `Dp` for the q-solve)
+    y::Vector{T}        # in-place shifted-solve target
+    resid::Vector{T}    # iterative-refinement residual
+    pbuf::Vector{T}     # final unscaled step: `restructure` may alias it into
+    # `cache.p`, so it shares storage with no scratch vector
+    stats::NLStats
+    refine::Int
+    balance::Bool
+    thread::Bool
+end
+
+function _MoreLHLWorkspace(
+        ws::W, BtB::Matrix{T}, s, b, y, resid, pbuf, stats, refine, balance, thread
+    ) where {T, W}
+    return _MoreLHLWorkspace{T, W}(
+        ws, BtB, s, b, y, resid, pbuf, stats, refine, balance, thread
+    )
+end
+
+# `BtB = D⁻¹ JᵀJ D⁻¹` and `s = diag(D⁻¹)` (`s ≡ 1` when `dtd === nothing`)
+function _more_lhl_gram!(BtB::Matrix{T}, s::Vector{T}, J_::Matrix{T}, dtd) where {T}
+    mul!(BtB, transpose(J_), J_)
+    if dtd === nothing
+        fill!(s, one(T))
+    else
+        @bb @. s = inv(sqrt(dtd))
+        @inbounds for j in axes(BtB, 2)
+            sj = s[j]
+            for i in axes(BtB, 1)
+                BtB[i, j] *= s[i] * sj
+            end
+        end
+    end
+    return BtB
+end
+
+# Stubs: a `_MoreLHLWorkspace` can only be built by the extension's
+# `_more_lhl_workspace` method, so these are unreachable without LinearSolve loaded
+function _more_lhl_workspace(J_, dtd, linsolve, stats)
+    throw(
+        ArgumentError("`MoreTrustRegionDescent` with `$(typeof(linsolve))` requires \
+                       LinearSolve.jl to be loaded.")
+    )
+end
+function _more_lhl_refactor!(w, J_, dtd)
+    throw(ArgumentError("the LHL workspace requires LinearSolve.jl to be loaded."))
+end
+function _more_lhl_shift!(w, λ)
+    throw(ArgumentError("the LHL workspace requires LinearSolve.jl to be loaded."))
+end
+function _more_lhl_ldiv!(w, x)
+    throw(ArgumentError("the LHL workspace requires LinearSolve.jl to be loaded."))
+end
+
+# `refine` rounds of iterative refinement on `(BᵀB + λI) y = b` against the loaded
+# shift: `r = b - (BᵀB + λI) y`, `y += (BᵀB + λI)⁻¹ r`. This is `lhl_refine!` with
+# the shifted matrix unfolded so it is never materialized — the reduction `Z` is
+# not orthogonal, so the unrefined solve carries a `κ(Z)` backward-error factor
+function _more_lhl_refine!(w::_MoreLHLWorkspace{T}, b, y, λ) where {T}
+    resid = w.resid
+    for _ in 1:w.refine
+        mul!(resid, w.BtB, y)
+        @bb @. resid = b - resid - λ * y
+        _more_lhl_ldiv!(w, resid)
+        @bb @. y += resid
+    end
+    return y
+end
+
+# `(JᵀJ + λD²) p = -g` as `(BᵀB + λI) y = D⁻¹ g` with `p = -D⁻¹ y`; the undamped
+# Gauss–Newton solve is `λ = 0`. Failure means a singular shifted Hessenberg (or a
+# non-finite step), treated like a failed factorization by the caller
+function _more_lhl_solve_p!(w::_MoreLHLWorkspace{T}, g, λ) where {T}
+    _more_lhl_shift!(w, λ) || return false
+    b, y, s = w.b, w.y, w.s
+    @bb @. b = g * s
+    copyto!(y, b)
+    _more_lhl_ldiv!(w, y)
+    _more_lhl_refine!(w, b, y, λ)
+    @bb @. w.pbuf = -y * s
+    return _all_finite(w.pbuf)
+end
+_more_lhl_gn!(w::_MoreLHLWorkspace{T}, Jᵀfu) where {T} =
+    _more_lhl_solve_p!(w, Jᵀfu, zero(T))
+
+# `q = (JᵀJ + λD²)⁻¹ D²p` as `(BᵀB + λI) w = D p`, `q = D⁻¹ w`, on the shift the
+# p-solve just loaded — no new factorization
+function _more_lhl_qsolve!(w::_MoreLHLWorkspace{T}, Dp, λ, out) where {T}
+    y = w.y
+    copyto!(y, Dp)
+    _more_lhl_ldiv!(w, y)
+    _more_lhl_refine!(w, Dp, y, λ)
+    @bb @. out = y * w.s
+    w.stats.nsolve += 1
+    return _all_finite(out)
+end
+
+# Safeguarded λ-iteration twin of `_more_lmpar_λloop!`: each trial loads the shift
+# into the stored `BᵀB` reduction and solves in O(n²) — nothing in the loop is
+# O(n³). `cache.λ` is written in place and only `got_step` is returned
+function _more_lhl_λloop!(
+        cache, ws::_MoreLHLWorkspace{T}, Jᵀfu, dtd, idx1, trust_region
+    ) where {T}
+    Δ = T(trust_region)
+    if dtd === nothing
+        u_bound = cache.internalnorm(Jᵀfu) / Δ
+    elseif dtd isa Number
+        u_bound = abs(Jᵀfu) / (sqrt(dtd) * Δ)
+    else
+        @bb @. cache.q = Jᵀfu / sqrt(dtd)
+        u_bound = cache.internalnorm(cache.q) / Δ
+    end
+    λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    # below ~eps·maxdiag(BᵀB) the shifted Hessenberg LU cannot resolve λ — the
+    # normal-form loop's `eps·maxdiag(JᵀJ)/min(dtd)` floor, in scaled variables
+    λ = max(λ, eps(T) * _more_maxdiag(ws.BtB))
+    l, uλ = zero(λ), u_bound
+    if idx1 && cache.λ_bound_valid
+        if cache.λ_bound_dpnorm >= Δ
+            l = max(l, cache.λ_bound)
+            λ = min(cache.λ_bound * (cache.λ_bound_dpnorm / Δ), u_bound)
+        else
+            uλ = min(uλ, cache.λ_bound)
+            λ = min(λ, uλ)
+        end
+    end
+    uλ = max(uλ, λ)
+    cache.λ = λ
+    got_step = false
+    pos_bound = l > zero(l)
+    ϕ_prev, λ_prev = zero(λ), λ
+    for i in 1:cache.maxiters
+        if !_more_lhl_solve_p!(ws, Jᵀfu, λ)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        cache.p = Utils.restructure(cache.p, ws.pbuf)
+        p = cache.p
+        got_step = true
+        cache.λ = λ
+
+        Dp = _more_Dp!(cache, dtd, p)
+        dpnorm = cache.internalnorm(Dp)
+        ϕ = dpnorm - Δ
+        if idx1
+            cache.λ_bound = λ
+            cache.λ_bound_dpnorm = dpnorm
+            cache.λ_bound_valid = true
+        end
+        (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+        (
+            !pos_bound && ϕ_prev < zero(ϕ) && ϕ <= ϕ_prev + cache.θ * Δ &&
+                λ <= λ_prev
+        ) && break
+        ϕ > zero(ϕ) && (pos_bound = true)
+        ϕ_prev, λ_prev = ϕ, λ
+
+        D²p = _more_D2p!(cache, dtd, p)
+        if !_more_lhl_qsolve!(ws, Dp, λ, cache.q) || !_all_finite(cache.q)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        λ, l, uλ = _more_update_λ(
+            λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, cache.q), l, uλ
+        )
+    end
+    return got_step
+end
+
 # The safeguarded λ-iteration for the `lmpar` path: `p` aliases `ws.wout` through
 # `cache.p` and `q` lands in `ws.wa` — all work is the Givens sweep plus triangular
 # solves on the stored `R`/`S`. Scalar setup (`Δ`, the `u₀` bound, initial `λ`) is
@@ -647,6 +845,7 @@ function _more_generic_λloop!(
 end
 
 InternalAPI.reinit!(::_MoreLmparWorkspace, args...; kwargs...) = nothing
+InternalAPI.reinit!(::_MoreLHLWorkspace, args...; kwargs...) = nothing
 
 # `linsolve_kwargs` keys live in the `NamedTuple`'s type parameters, so the
 # whitelist folds to a literal at compile time — this keeps `could_lmpar` (and
@@ -702,8 +901,18 @@ function InternalAPI.init(
     # `x ↦ (JᵀJ + λI) x` is square and symmetric positive definite, so the default
     # Krylov selection works on it — the non-square `[J; √λI]` operator hits broken
     # `DefaultLinearSolver`/least-squares-Krylov dispatches on older LinearSolve
-    normal_form = u isa Number || J isa Number || J_ isa StaticArray ||
-        needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing)
+    # `linsolve = LHLFactorization()` on a dense `Matrix` Jacobian takes the
+    # dedicated shift-family path (`_MoreLHLWorkspace`) instead of the generic
+    # normal-form `lincache` it would otherwise get via `needs_square_A`; like
+    # `could_lmpar` it only accepts the always-droppable kwargs, anything else
+    # keeps the generic path so the user's `linsolve_kwargs` are honored
+    could_lhl = uses_lhl(alg.linsolve) && !isop &&
+        _more_lmpar_kwargs_ok(linsolve_kwargs) &&
+        (T === Float32 || T === Float64) && J_ isa Matrix{T}
+    normal_form = !could_lhl && (
+        u isa Number || J isa Number || J_ isa StaticArray ||
+            needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing)
+    )
     # Dense Jacobians with the default `linsolve` take the MINPACK `lmpar`/`qrsolv`
     # path: one pivoted QR of `J` per Jacobian, then per-λ Givens elimination of
     # `√λD` against the triangular factor — no per-λ refactorization, no `JᵀJ`, no
@@ -750,15 +959,15 @@ function InternalAPI.init(
             # otherwise gets an in-place buffer on `J_`'s device; the diagonal
             # block is written by broadcast so GPU arrays (no fast scalar
             # indexing) take the same path
-            augmented = if !could_lmpar && J_ isa AbstractMatrix &&
+            augmented = if !could_lmpar && !could_lhl && J_ isa AbstractMatrix &&
                     ArrayInterface.can_setindex(J_)
                 similar(J_, T, m + n, n)
             else
                 nothing
             end
             # `similar(safe_vec(u), …)` keeps the rhs on the state's device
-            rhs = similar(Utils.safe_vec(u), T, m + n)
-            qrhs = similar(Utils.safe_vec(u), T, m + n)
+            rhs = could_lhl ? nothing : similar(Utils.safe_vec(u), T, m + n)
+            qrhs = could_lhl ? nothing : similar(Utils.safe_vec(u), T, m + n)
         end
     end
 
@@ -798,6 +1007,11 @@ function InternalAPI.init(
         dtd = has_scaling ?
             _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
         lincache = _more_lmpar_workspace(J_, stats)
+    elseif could_lhl
+        JᵀJ = damped = nothing
+        dtd = has_scaling ?
+            _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
+        lincache = _more_lhl_workspace(J_, dtd, alg.linsolve, stats)
     else
         JᵀJ = damped = nothing
         dtd = has_scaling ?
@@ -1074,9 +1288,17 @@ function InternalAPI.solve!(
         else
             # narrow the `lincache` union once so the factorization call splits
             # onto the concrete workspace types
-            (lincache = cache.lincache) isa _MoreLmparWorkspace &&
-                _more_lmpar_factor!(lincache, J_)
-            _more_scaling_update!(cache, J_, Val(:columns))
+            lincache = cache.lincache
+            if lincache isa _MoreLHLWorkspace
+                # `dtd` enters the reduced `BᵀB = D⁻¹JᵀJD⁻¹`, so the scaling update
+                # must precede the re-reduction (the `lmpar` factors are scaling-free)
+                _more_scaling_update!(cache, J_, Val(:columns))
+                _more_lhl_refactor!(lincache, J_, cache.dtd)
+            else
+                lincache isa _MoreLmparWorkspace &&
+                    _more_lmpar_factor!(lincache, J_)
+                _more_scaling_update!(cache, J_, Val(:columns))
+            end
         end
         cache.gn_valid = false
         cache.λ_bound_valid = false
@@ -1110,6 +1332,8 @@ function InternalAPI.solve!(
         gn_buf = idx1 ? cache.gn_step : cache.p
         linres_u, linres_ok = if (lincache = cache.lincache) isa _MoreLmparWorkspace
             (lincache.wout, _more_lmpar_gn!(lincache, fu, idx1))
+        elseif lincache isa _MoreLHLWorkspace
+            (lincache.pbuf, _more_lhl_gn!(lincache, Jᵀfu))
         else
             linres = _more_gn_solve(
                 cache, lincache, J_, Jᵀfu, fu, gn_buf, u, kwargs
@@ -1154,6 +1378,8 @@ function InternalAPI.solve!(
     @static_timeit cache.timer "more iteration" begin
         got_step = if (lincache = cache.lincache) isa _MoreLmparWorkspace
             _more_lmpar_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
+        elseif lincache isa _MoreLHLWorkspace
+            _more_lhl_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
         else
             _more_generic_λloop!(
                 cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs

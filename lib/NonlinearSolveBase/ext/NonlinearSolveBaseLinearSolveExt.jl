@@ -114,6 +114,62 @@ function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
     return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
 end
 
+# `MoreTrustRegionDescent(linsolve = LHLFactorization())` on a dense `Matrix`
+# Jacobian: one Hessenberg reduction of `BᵀB = D⁻¹JᵀJD⁻¹` per Jacobian, then every
+# damping-parameter trial `(BᵀB + λI) y = b` is an O(n²) `lhl_shift!`/`lhl_ldiv!`
+# instead of an O(n³) refactorization — see `more_trust_region.jl`. `lhl`, `lhl!`,
+# `lhl_shift!`, `lhl_ldiv!`, `lhl_isreduced` are LinearSolve's own re-exports of
+# LHLFactorization.jl (a hard dependency of LinearSolve), so the extension needs
+# no new package; the type itself did not exist before LinearSolve 5.16, hence the
+# `isdefined` gate.
+if isdefined(LinearSolve, :LHLFactorization) && isdefined(LinearSolve, :lhl)
+    NonlinearSolveBase.uses_lhl(::LinearSolve.LHLFactorization) = true
+
+    function NonlinearSolveBase._more_lhl_workspace(
+            J_::Matrix{T}, dtd, linsolve::LinearSolve.LHLFactorization, stats
+        ) where {T}
+        n = size(J_, 2)
+        BtB = Matrix{T}(undef, n, n)
+        s = Vector{T}(undef, n)
+        NonlinearSolveBase._more_lhl_gram!(BtB, s, J_, dtd)
+        thread = linsolve isa LinearSolve.LHLFactorization{true}
+        ws = LinearSolve.lhl(BtB; balance = linsolve.balance, thread)
+        stats.nfactors += 1
+        return NonlinearSolveBase._MoreLHLWorkspace(
+            ws, BtB, s, Vector{T}(undef, n), Vector{T}(undef, n),
+            Vector{T}(undef, n), Vector{T}(undef, n), stats, linsolve.refine,
+            linsolve.balance, thread
+        )
+    end
+
+    # `dtd` must already reflect the current scaling update — the reduced matrix
+    # `BᵀB = D⁻¹JᵀJD⁻¹` depends on it, unlike the `lmpar` path's scale-free `R`
+    function NonlinearSolveBase._more_lhl_refactor!(
+            w::NonlinearSolveBase._MoreLHLWorkspace, J_, dtd
+        )
+        NonlinearSolveBase._more_lhl_gram!(w.BtB, w.s, J_, dtd)
+        LinearSolve.lhl!(w.ws, w.BtB; balance = w.balance, thread = w.thread)
+        w.stats.nfactors += 1
+        return w
+    end
+
+    # The O(n²) per-λ work: factor `BᵀB + λI` on the stored reduction. A singular
+    # shifted Hessenberg (`info != 0`, e.g. the `λ = 0` Gauss–Newton solve on a
+    # rank-deficient Jacobian) is reported as a solve failure, like `lmpar`'s
+    # rank check declining the undamped step
+    function NonlinearSolveBase._more_lhl_shift!(
+            w::NonlinearSolveBase._MoreLHLWorkspace{T}, λ
+        ) where {T}
+        LinearSolve.lhl_isreduced(w.ws) || return false
+        LinearSolve.lhl_shift!(w.ws, λ, one(T))
+        w.stats.nsolve += 1
+        return w.ws.info == 0
+    end
+
+    NonlinearSolveBase._more_lhl_ldiv!(w::NonlinearSolveBase._MoreLHLWorkspace, x) =
+        LinearSolve.lhl_ldiv!(x, w.ws)
+end
+
 function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p = missing, kwargs...)
     # `u`/`p` left as `missing` mean "unchanged" — preserve the current values rather than
     # overwriting them with `missing`. Otherwise a `reinit!` that only updates `u` (the
