@@ -8,3 +8,6 @@
 @safetestset "Moré trust-region subproblem on hard NLLS" include(
     "least_squares_tests__item6.jl"
 )
+@safetestset "Trust region shrinks away from a nonfinite residual region" include(
+    "least_squares_tests__item7.jl"
+)
