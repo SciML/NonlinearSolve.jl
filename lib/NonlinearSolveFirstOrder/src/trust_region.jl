@@ -27,7 +27,9 @@ for large-scale and numerically-difficult nonlinear systems.
     solves the subproblem nearly exactly via Moré's safeguarded iteration on the damping
     parameter (MINPACK `lmpar`) and is substantially more robust on ill-conditioned
     least-squares problems; `TrustRegionSubproblem.Dogleg` uses [`Dogleg`](@ref).
-    A custom `AbstractDescentDirection` can also be passed directly.
+    A custom `AbstractDescentDirection` can also be passed directly — e.g.
+    `MoreTrustRegionDescent(; scaling = :auto)` engages Moré's column-norm scaling
+    only on badly scaled Jacobians.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh

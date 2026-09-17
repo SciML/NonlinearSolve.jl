@@ -1,5 +1,5 @@
 using NonlinearSolveFirstOrder, SciMLBase, LinearAlgebra
-using LinearSolve, SparseArrays, StaticArrays, SciMLOperators
+using LinearSolve, SparseArrays, StaticArrays, SciMLOperators, ADTypes
 
 # Problems from the Moré–Garbow–Hillstrom / Hock–Schittkowski collections (as packaged in
 # NLSProblems.jl for the TrustRegionLeastSquares.jl benchmark) on which the dogleg
@@ -119,6 +119,128 @@ end
         # ~0 — a basin property of the scaled problem, so assert convergence only
         name !== "tp267" && @test cost ≤ max(best_cost * (1 + 1.0e-4), 1.0e-12)
     end
+end
+
+@testset "More subproblem: `:auto` scaling" begin
+    # column norms spanning a ~3e6 ratio: unscaled, the trust region needs a
+    # radius-growth crawl to reach the low-curvature component; scaled, the
+    # Gauss-Newton step is inside the region immediately
+    s_auto = [1.0, 1.0e-4, 3.0e2]
+    t_auto = [0.5, 1.0e4, 1.0e-2]
+    auto_resid(u, p) = s_auto .* (u .- t_auto)
+    auto_prob = NonlinearLeastSquaresProblem(auto_resid, zeros(3))
+    sol_none_ref = solve(
+        auto_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :none));
+        abstol = 1.0e-10
+    )
+    sol_jac_ref = solve(
+        auto_prob,
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :jacobian));
+        abstol = 1.0e-10
+    )
+
+    # the gate fires identically on the direct (lmpar) and normal-form paths
+    for subproblem in (
+            MoreTrustRegionDescent(; scaling = :auto),
+            MoreTrustRegionDescent(; scaling = :auto, linsolve = LUFactorization()),
+        )
+        cache = init(auto_prob, TrustRegion(; subproblem); abstol = 1.0e-10)
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ t_auto atol = 1.0e-8
+        @test cache.descent_cache.scaling_decided
+        @test cache.descent_cache.scaling_active
+        @test sol.stats.nsteps == sol_jac_ref.stats.nsteps
+        @test sol.stats.nsteps < sol_none_ref.stats.nsteps
+    end
+
+    # well-conditioned Jacobian: the gate stays off and `:auto` is bitwise the
+    # `:none` trajectory
+    wc_prob = NonlinearProblem((u, p) -> u .^ 2 .- p, [1.0, 1.0], 2.0)
+    wc_auto = init(
+        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        abstol = 1.0e-10, reltol = 1.0e-10
+    )
+    wc_none = init(
+        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :none));
+        abstol = 1.0e-10, reltol = 1.0e-10
+    )
+    sol_auto_wc = solve!(wc_auto)
+    sol_none_wc = solve!(wc_none)
+    @test SciMLBase.successful_retcode(sol_auto_wc)
+    @test wc_auto.descent_cache.scaling_decided
+    @test !wc_auto.descent_cache.scaling_active
+    @test sol_auto_wc.stats.nsteps == sol_none_wc.stats.nsteps
+    @test sol_auto_wc.u == sol_none_wc.u
+
+    # `reinit!` with changed parameters re-decides the gate on the new Jacobian
+    pscaled_resid(u, p) = p .* (u .- 1)
+    pscaled_prob = NonlinearLeastSquaresProblem(pscaled_resid, zeros(3), ones(3))
+    pscaled_cache = init(
+        pscaled_prob,
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        abstol = 1.0e-10
+    )
+    sol = solve!(pscaled_cache)
+    @test !pscaled_cache.descent_cache.scaling_active
+    reinit!(pscaled_cache, zeros(3); p = s_auto)
+    @test !pscaled_cache.descent_cache.scaling_decided
+    sol = solve!(pscaled_cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test pscaled_cache.descent_cache.scaling_active
+
+    # matrix-free Jacobian: no column norms, so `:auto` never engages — but the
+    # solve still works through the stacked/normal-form operators
+    mf_fn = NonlinearFunction(
+        (u, p) -> u .^ 2 .+ u .- 1;
+        jvp = (v, u, p) -> (2u .+ 1) .* v, vjp = (v, u, p) -> (2u .+ 1) .* v
+    )
+    mf_prob = NonlinearLeastSquaresProblem(mf_fn, ones(3))
+    for linsolve in (KrylovJL_LSMR(), KrylovJL_GMRES())
+        mf_cache = init(
+            mf_prob,
+            TrustRegion(;
+                subproblem = MoreTrustRegionDescent(; scaling = :auto, linsolve),
+                concrete_jac = Val(false)
+            ); abstol = 1.0e-8
+        )
+        sol = solve!(mf_cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test norm(sol.resid) < 1.0e-6
+        @test mf_cache.descent_cache.scaling_decided
+        @test !mf_cache.descent_cache.scaling_active
+    end
+
+    # scalar problems have a one-column Jacobian — the gate is fixed off
+    sol_scalar = solve(
+        NonlinearProblem((u, p) -> u^3 - u - 2, 1.0),
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        abstol = 1.0e-10
+    )
+    @test SciMLBase.successful_retcode(sol_scalar)
+
+    # static-state problem
+    sol_static = solve(
+        NonlinearLeastSquaresProblem(tp312_resid, SA[1.0, 1.0]),
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        abstol = 1.0e-8
+    )
+    @test SciMLBase.successful_retcode(sol_static)
+    @test norm(sol_static.resid)^2 / 2 ≤ 2.9612813806220117 * (1 + 1.0e-4)
+
+    # inference holds on the always-allocated `dtd` representation
+    inf_prob = NonlinearProblem(
+        NonlinearFunction{true}((du, u, p) -> du .= u .^ 2 .- p), [1.0, 2.0],
+        [1.0, 4.0]
+    )
+    inf_cache = @inferred init(
+        inf_prob,
+        TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; scaling = :auto),
+            autodiff = AutoFiniteDiff()
+        )
+    )
+    @test (@inferred solve!(inf_cache)) isa SciMLBase.NonlinearSolution
 end
 
 @testset "More subproblem: API surface" begin
