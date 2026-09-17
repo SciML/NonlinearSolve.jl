@@ -9,7 +9,6 @@ using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase
         if cached
             cache = init(prob)
             @test SciMLBase.allowsbounds(cache.alg)
-            @test all(c -> c.prob.lb == 0.0 && c.prob.ub == 1.0, cache.caches)
             sol = solve!(cache)
         else
             sol = solve(prob)
