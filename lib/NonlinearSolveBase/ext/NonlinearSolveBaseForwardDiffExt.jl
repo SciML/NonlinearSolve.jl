@@ -581,7 +581,11 @@ function InternalAPI.reinit!(
     )
     cache.p = p
     cache.values_p = stripped_p
-    cache.partials_p = pview === nothing ? nothing : ForwardDiff.partials.(pview.duals)
+    partials_p = pview === nothing ? nothing : ForwardDiff.partials.(pview.duals)
+    # `partials_p` is concretely typed by the constructor under `@concrete`;
+    # it is never read, so keep the stale value rather than throw when a
+    # reinit changes whether `p` carries duals.
+    partials_p isa typeof(cache.partials_p) && (cache.partials_p = partials_p)
     cache.u0duals = u0view === nothing ? nothing : u0view.duals
     return cache
 end

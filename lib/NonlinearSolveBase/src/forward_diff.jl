@@ -4,10 +4,9 @@
     alg
     p
     values_p
-    # `ForwardDiff.Partials` and arrays of partials both occur; ForwardDiff is
-    # a weakdep here, so `AbstractArray` is the tightest nameable bound.
-    # `reinit!` reassigns across types, so `@concrete` inference can't suffice.
-    partials_p::Union{Nothing, AbstractArray}
+    # Construction-time partials of `p`; write-only bookkeeping. `reinit!`
+    # refreshes it only when the new partials match this concrete type.
+    partials_p
     # Dual leaves of the original `u0` (or `tspan`), when only those carried
     # duals — needed to recover the tag for the (structurally zero)
     # initial-guess partials of a converged root.
