@@ -31,10 +31,12 @@ well.
   - `linsolve`: the linear solver used for the subproblem solves. On the default
     dense path the Jacobian is factorized once per iteration and the damping
     iteration runs against the stored factors (MINPACK `lmpar`/`qrsolv`), so no
-    `linsolve` is invoked. An explicit choice is honored through the rectangular
-    augmented system `[J; √λD] p = [-fu; 0]`, so it should handle least-squares
-    problems; solvers requiring square systems such as `LUFactorization` are
-    routed through the normal equations automatically.
+    `linsolve` is invoked; on wide Jacobians (`2m ≤ n`) the iteration instead
+    works on the `m × m` Gram system `(J D⁻² Jᵀ + λI) w = -fu`. An explicit
+    choice is honored through the rectangular augmented system
+    `[J; √λD] p = [-fu; 0]`, so it should handle least-squares problems; solvers
+    requiring square systems such as `LUFactorization` are routed through the
+    normal equations automatically.
   - `scaling`: the diagonal scaling matrix `D`. `:none` uses `D = I`;
     `:jacobian` uses Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`, which never
     decreases across iterations and makes the trust region scale-covariant.
@@ -73,7 +75,19 @@ supports_trust_region(::MoreTrustRegionDescent) = true
 # augmented system or a fresh QR, never forms `JᵀJ`, and allocates nothing:
 # per-λ work is the O(n²)-order sweep plus triangular solves, and the
 # refactorization itself is allocation-free.
+#
+# With `gram = true` (chosen for `2m ≤ n` Jacobians) the same struct instead holds
+# an m-space formulation: `B = J D⁻¹`, `G = B Bᵀ` (`m × m`), and
+# `(G + λI) w = -fu`, `D p = Bᵀ w` replace the damped system — equivalent through
+# the push-through identity `(BᵀB + λI)⁻¹ Bᵀ = Bᵀ (B Bᵀ + λI)⁻¹`. Each λ trial is
+# then an `m × m` Cholesky solve rather than an O(n²) Givens sweep, and the
+# refactorization is one `B Bᵀ` (m²n) instead of an mn² QR. The undamped system
+# also gains a legitimate solution: when `G` is nonsingular `λ = 0` is the
+# minimum-`‖D p‖` Gauss-Newton step, which the padded `n × n` factorization can
+# never express (`nsing ≤ m < n` always declines it). Buffers of the inactive
+# mode are left empty so `lincache` keeps a single concrete type either way.
 mutable struct _MoreLmparWorkspace{T}
+    gram::Bool           # selects the m-space Gram formulation over `lmpar`
     Jbuf::Matrix{T}      # `qrfac` output: strict upper is `R`'s off-diagonals;
     # lower trapezoid + diagonal holds the reflector vectors `uⱼ`
     Rdiag::Vector{T}     # `n`: diagonal of `R`; downdated column norms during `qrfac`
@@ -88,6 +102,15 @@ mutable struct _MoreLmparWorkspace{T}
     # returned vector into `cache.p`, so output never shares
     # storage with the scratch vectors
     nsing::Int           # numerical rank of `R` (pivoted QR ⇒ nonincreasing |diag|)
+    B::Matrix{T}         # gram: `J D⁻¹`, m×n
+    G::Matrix{T}         # gram: `B Bᵀ`, m×m; still read through `Symmetric` —
+    # only one triangle is contractually valid from the `A * Aᵀ` product
+    C::Matrix{T}         # gram: `G + λI`, consumed in place by `potrf`
+    sinv::Vector{T}      # gram: `D⁻¹` diagonal, `n` (all ones when scaling is off)
+    w::Vector{T}         # gram: `(G + λI)⁻¹ (-fu)`, m
+    z::Vector{T}         # gram: `(G + λI)⁻¹ w` for the derivative term, m
+    t::Vector{T}         # gram: `G z` matvec scratch, m
+    v::Vector{T}         # gram: `Bᵀ w` — exactly `D p`, n
     stats::NLStats
 end
 
@@ -188,20 +211,24 @@ function _more_normal_form_operator(state::_MoreOpState{T}, u) where {T}
     )
 end
 
-# For `m < n` the Jacobian is zero-padded to `n` rows: the Householder sweep never
-# writes below row `m` (each reflector's tail is zero), so the pad rows stay zero
-# through the factorization, `R` comes out rank-deficient (`nsing ≤ m < n`), the
-# Gauss–Newton step is declined, and the λ-iteration solves the correct damped
+# For `n/2 < m < n` the Jacobian is zero-padded to `n` rows: the Householder sweep
+# never writes below row `m` (each reflector's tail is zero), so the pad rows stay
+# zero through the factorization, `R` comes out rank-deficient (`nsing ≤ m < n`),
+# the Gauss–Newton step is declined, and the λ-iteration solves the correct damped
 # system `[J; √λD] p = [-fu; 0]` — equivalent to padding the residual with zeros.
+# (`2m ≤ n` takes the Gram mode instead.)
 function _more_lmpar_workspace(J_::Matrix{T}, stats) where {T}
     m, n = size(J_)
     m2 = max(m, n)
     Jbuf = zeros(T, m2, n)
     copyto!(view(Jbuf, 1:m, :), J_)
+    zM, zV = Matrix{T}(undef, 0, 0), Vector{T}(undef, 0)
     ws = _MoreLmparWorkspace{T}(
-        Jbuf, Vector{T}(undef, n), Matrix{T}(undef, n, n), Vector{Int}(undef, n),
-        Vector{T}(undef, m2), Vector{T}(undef, m2), Vector{T}(undef, n),
-        Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n), n, stats
+        false, Jbuf, Vector{T}(undef, n), Matrix{T}(undef, n, n),
+        Vector{Int}(undef, n), Vector{T}(undef, m2), Vector{T}(undef, m2),
+        Vector{T}(undef, n), Vector{T}(undef, n), Vector{T}(undef, n),
+        Vector{T}(undef, n), n,
+        zM, zM, zM, zV, zV, zV, zV, zV, stats
     )
     return _more_lmpar_factor!(ws)
 end
@@ -547,6 +574,146 @@ function _more_lmpar_λloop!(
     return got_step
 end
 
+function _more_gram_workspace(J_::Matrix{T}, dtd, stats) where {T}
+    m, n = size(J_)
+    zM, zV = Matrix{T}(undef, 0, 0), Vector{T}(undef, 0)
+    ws = _MoreLmparWorkspace{T}(
+        true, zM, zV, zM, Vector{Int}(undef, 0), zV, zV, zV, zV, zV,
+        Vector{T}(undef, n), n,
+        Matrix{T}(undef, m, n), Matrix{T}(undef, m, m), Matrix{T}(undef, m, m),
+        Vector{T}(undef, n), Vector{T}(undef, m), Vector{T}(undef, m),
+        Vector{T}(undef, m), Vector{T}(undef, n), stats
+    )
+    return _more_gram_factor!(ws, J_, dtd)
+end
+
+function _more_gram_factor!(ws::_MoreLmparWorkspace{T}, J_, dtd) where {T}
+    B, sinv = ws.B, ws.sinv
+    m, n = size(J_)
+    if dtd === nothing
+        copyto!(B, J_)
+        fill!(sinv, one(T))
+    else
+        @inbounds for j in 1:n
+            s = inv(sqrt(dtd[j]))
+            sinv[j] = s
+            for i in 1:m
+                B[i, j] = J_[i, j] * s
+            end
+        end
+    end
+    mul!(ws.G, B, transpose(B))
+    ws.stats.nfactors += 1
+    return ws
+end
+
+# `w ← -fu`, the right-hand side of the damped `m`-system
+function _more_gram_rhs!(w, fu)
+    fuv = Utils.safe_vec(fu)
+    @bb @. w = -fuv
+    return w
+end
+
+# `p = D⁻¹ v` with `v = Bᵀ w` already computed (`sinv` is all-ones unscaled);
+# `wout` plays the output-buffer role
+function _more_gram_step!(ws::_MoreLmparWorkspace)
+    @inbounds for j in eachindex(ws.wout)
+        ws.wout[j] = ws.v[j] * ws.sinv[j]
+    end
+    return ws.wout
+end
+
+# Undamped `G w = -fu` — the minimum-`‖D p‖` Gauss-Newton step. A numerically
+# singular `G` declines the step (the analogue of `nsing < n` in `_more_lmpar_gn!`)
+# so the λ-iteration regularizes it instead.
+function _more_gram_gn!(ws::_MoreLmparWorkspace, fu)
+    copyto!(ws.C, Symmetric(ws.G))
+    F = LinearAlgebra.cholesky!(Symmetric(ws.C); check = false)
+    LinearAlgebra.issuccess(F) || return false
+    _more_gram_rhs!(ws.w, fu)
+    ldiv!(F, ws.w)
+    mul!(ws.v, transpose(ws.B), ws.w)
+    _all_finite(ws.v) || return false
+    _more_gram_step!(ws)
+    ws.stats.nsolve += 1
+    return true
+end
+
+# The `lmpar`-loop analogue for the Gram formulation — same φ definition,
+# bracketing, θ-tolerance, and ×10 retry — but each λ trial is one `m × m`
+# Cholesky of `G + λI`. The Newton term is computable in m-space: with
+# `z = (G + λI)⁻¹ w`, `D q = (BᵀB + λI)⁻¹ D p = (BᵀB + λI)⁻¹ Bᵀ w = Bᵀ z`, hence
+# `pᵀD²q = (Bᵀw)ᵀ(Bᵀz) = wᵀ G z` — evaluated as `wᵀ(Gz)` rather than the
+# equivalent `wᵀw - λ wᵀz`, which cancels badly when `w` is near `null(G)`.
+function _more_gram_λloop!(
+        cache, ws::_MoreLmparWorkspace{T}, Jᵀfu, fu, dtd, trust_region
+    ) where {T}
+    Δ = T(trust_region)
+    if dtd === nothing
+        u_bound = cache.internalnorm(Jᵀfu) / Δ
+    else
+        @bb @. cache.q = Jᵀfu / sqrt(dtd)
+        u_bound = cache.internalnorm(cache.q) / Δ
+    end
+    λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    GS = Symmetric(ws.G)
+    # `G + λI` must stay numerically definite for `potrf`; floor mirrors the
+    # normal-form path's `eps * maxdiag(JᵀJ) / min(dtd)` regularization limit
+    λ = max(λ, eps(T) * _more_maxdiag(GS))
+    l, uλ = zero(λ), max(u_bound, λ)
+    cache.λ = λ
+    B, C, w, z, t, v = ws.B, ws.C, ws.w, ws.z, ws.t, ws.v
+    m = size(C, 1)
+    got_step = false
+    for i in 1:cache.maxiters
+        copyto!(C, GS)
+        @inbounds for k in 1:m
+            C[k, k] += λ
+        end
+        F = LinearAlgebra.cholesky!(Symmetric(C); check = false)
+        ok = LinearAlgebra.issuccess(F)
+        if ok
+            _more_gram_rhs!(w, fu)
+            ldiv!(F, w)
+            mul!(v, transpose(B), w)
+            ok = _all_finite(v)
+        end
+        if !ok
+            # λ is numerically too small to regularize the system; the analytic
+            # bound u₀ assumes exact arithmetic, so λ is allowed to outgrow it
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        ws.stats.nsolve += 1
+        _more_gram_step!(ws)
+        cache.p = Utils.restructure(cache.p, ws.wout)
+        p = cache.p
+        got_step = true
+        cache.λ = λ
+
+        Dp = v
+        ϕ = cache.internalnorm(Dp) - Δ
+        (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
+
+        copyto!(z, w)
+        ldiv!(F, z)
+        if !_all_finite(z)
+            l = max(l, λ)
+            λ *= 10
+            uλ = max(uλ, λ)
+            continue
+        end
+        ws.stats.nsolve += 1
+        mul!(t, GS, z)
+        λ, l, uλ = _more_update_λ(
+            λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(w, t), l, uλ
+        )
+    end
+    return got_step
+end
+
 # Generic-path twin of `_more_lmpar_λloop!` — the LinearSolve-based damped/q solves
 # for the normal-form, operator, and explicit-`linsolve` cases. Keeping the loop
 # (and the scalar setup) behind a barrier narrows `dtd` to its runtime type, which
@@ -712,7 +879,8 @@ function InternalAPI.init(
     # path so the user's solver choice is honored. The gate is compile-time
     # inferable so `lincache`'s typevar binds a single concrete type per
     # specialization (`@inferred init` holds and no union dispatch survives into
-    # `solve!`); `m < n` Jacobians are handled inside the workspace by zero-padding.
+    # `solve!`); `m < n` Jacobians take the same `_MoreLmparWorkspace` in Gram
+    # mode when `2m ≤ n`, and are otherwise handled inside it by zero-padding.
     could_lmpar = !normal_form && !isop && alg.linsolve === nothing &&
         _more_lmpar_kwargs_ok(linsolve_kwargs) &&
         (T === Float32 || T === Float64) && J_ isa Matrix{T}
@@ -797,7 +965,16 @@ function InternalAPI.init(
         JᵀJ = damped = nothing
         dtd = has_scaling ?
             _more_scaling_init(J_, u, alg.min_damping_D, Val(:columns)) : nothing
-        lincache = _more_lmpar_workspace(J_, stats)
+        # `2m ≤ n` switches the subproblem to the m-space Gram mode: the m×m
+        # Cholesky per λ is cheaper than the n×n Givens sweep and, unlike the
+        # padded factorization, can express the undamped minimum-norm step. For
+        # `n/2 < m < n` the padded `lmpar` mode is retained — its O(n²) sweep
+        # beats an O(m³) Cholesky when `m` approaches `n`
+        lincache = if 2 * size(J_, 1) <= size(J_, 2)
+            _more_gram_workspace(J_, dtd, stats)
+        else
+            _more_lmpar_workspace(J_, stats)
+        end
     else
         JᵀJ = damped = nothing
         dtd = has_scaling ?
@@ -1072,11 +1249,16 @@ function InternalAPI.solve!(
             end
             _more_scaling_update!(cache, cache.JᵀJ)
         else
+            # `dtd` is refreshed before factoring because the Gram workspace folds
+            # `D⁻¹` into `B`/`G` at factor time; the `lmpar` path reads `dtd`
+            # inside its λ-solves, so the order is immaterial for it
+            _more_scaling_update!(cache, J_, Val(:columns))
             # narrow the `lincache` union once so the factorization call splits
             # onto the concrete workspace types
-            (lincache = cache.lincache) isa _MoreLmparWorkspace &&
-                _more_lmpar_factor!(lincache, J_)
-            _more_scaling_update!(cache, J_, Val(:columns))
+            if (lincache = cache.lincache) isa _MoreLmparWorkspace
+                lincache.gram ? _more_gram_factor!(lincache, J_, dtd) :
+                    _more_lmpar_factor!(lincache, J_)
+            end
         end
         cache.gn_valid = false
         cache.λ_bound_valid = false
@@ -1109,7 +1291,11 @@ function InternalAPI.solve!(
         end
         gn_buf = idx1 ? cache.gn_step : cache.p
         linres_u, linres_ok = if (lincache = cache.lincache) isa _MoreLmparWorkspace
-            (lincache.wout, _more_lmpar_gn!(lincache, fu, idx1))
+            if lincache.gram
+                (lincache.wout, _more_gram_gn!(lincache, fu))
+            else
+                (lincache.wout, _more_lmpar_gn!(lincache, fu, idx1))
+            end
         else
             linres = _more_gn_solve(
                 cache, lincache, J_, Jᵀfu, fu, gn_buf, u, kwargs
@@ -1153,7 +1339,11 @@ function InternalAPI.solve!(
     # Both loops leave λ* in `cache.λ` and return whether a step was produced.
     @static_timeit cache.timer "more iteration" begin
         got_step = if (lincache = cache.lincache) isa _MoreLmparWorkspace
-            _more_lmpar_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
+            if lincache.gram
+                _more_gram_λloop!(cache, lincache, Jᵀfu, fu, dtd, trust_region)
+            else
+                _more_lmpar_λloop!(cache, lincache, Jᵀfu, dtd, idx1, trust_region)
+            end
         else
             _more_generic_λloop!(
                 cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs
