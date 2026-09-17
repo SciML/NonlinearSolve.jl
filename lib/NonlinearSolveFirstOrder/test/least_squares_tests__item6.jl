@@ -108,7 +108,7 @@ end
         sol = solve(
             prob,
             TrustRegion(;
-                subproblem = MoreTrustRegionDescent(; scaling = :jacobian)
+                subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Jacobian)
             );
             maxiters = 2000, abstol = 1.0e-8
         )
@@ -121,7 +121,7 @@ end
     end
 end
 
-@testset "More subproblem: `:auto` scaling" begin
+@testset "More subproblem: `Auto` scaling" begin
     # column norms spanning a ~3e6 ratio: unscaled, the trust region needs a
     # radius-growth crawl to reach the low-curvature component; scaled, the
     # Gauss-Newton step is inside the region immediately
@@ -130,19 +130,19 @@ end
     auto_resid(u, p) = s_auto .* (u .- t_auto)
     auto_prob = NonlinearLeastSquaresProblem(auto_resid, zeros(3))
     sol_none_ref = solve(
-        auto_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :none));
+        auto_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.None));
         abstol = 1.0e-10
     )
     sol_jac_ref = solve(
         auto_prob,
-        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :jacobian));
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Jacobian));
         abstol = 1.0e-10
     )
 
     # the gate fires identically on the direct (lmpar) and normal-form paths
     for subproblem in (
-            MoreTrustRegionDescent(; scaling = :auto),
-            MoreTrustRegionDescent(; scaling = :auto, linsolve = LUFactorization()),
+            MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto),
+            MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto, linsolve = LUFactorization()),
         )
         cache = init(auto_prob, TrustRegion(; subproblem); abstol = 1.0e-10)
         sol = solve!(cache)
@@ -158,11 +158,11 @@ end
     # `:none` trajectory
     wc_prob = NonlinearProblem((u, p) -> u .^ 2 .- p, [1.0, 1.0], 2.0)
     wc_auto = init(
-        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto));
         abstol = 1.0e-10, reltol = 1.0e-10
     )
     wc_none = init(
-        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :none));
+        wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.None));
         abstol = 1.0e-10, reltol = 1.0e-10
     )
     sol_auto_wc = solve!(wc_auto)
@@ -178,7 +178,7 @@ end
     pscaled_prob = NonlinearLeastSquaresProblem(pscaled_resid, zeros(3), ones(3))
     pscaled_cache = init(
         pscaled_prob,
-        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto));
         abstol = 1.0e-10
     )
     sol = solve!(pscaled_cache)
@@ -200,7 +200,7 @@ end
         mf_cache = init(
             mf_prob,
             TrustRegion(;
-                subproblem = MoreTrustRegionDescent(; scaling = :auto, linsolve),
+                subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto, linsolve),
                 concrete_jac = Val(false)
             ); abstol = 1.0e-8
         )
@@ -214,7 +214,7 @@ end
     # scalar problems have a one-column Jacobian — the gate is fixed off
     sol_scalar = solve(
         NonlinearProblem((u, p) -> u^3 - u - 2, 1.0),
-        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto));
         abstol = 1.0e-10
     )
     @test SciMLBase.successful_retcode(sol_scalar)
@@ -222,7 +222,7 @@ end
     # static-state problem
     sol_static = solve(
         NonlinearLeastSquaresProblem(tp312_resid, SA[1.0, 1.0]),
-        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = :auto));
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto));
         abstol = 1.0e-8
     )
     @test SciMLBase.successful_retcode(sol_static)
@@ -236,7 +236,7 @@ end
     inf_cache = @inferred init(
         inf_prob,
         TrustRegion(;
-            subproblem = MoreTrustRegionDescent(; scaling = :auto),
+            subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto),
             autodiff = AutoFiniteDiff()
         )
     )
@@ -249,6 +249,16 @@ end
     @test TrustRegion(; subproblem = TrustRegionSubproblem.Dogleg) isa GeneralizedFirstOrderAlgorithm
     @test_throws ArgumentError TrustRegion(; subproblem = :bogus)
     @test_throws ArgumentError TrustRegion(; subproblem = :more)
+
+    # `scaling` takes a `TrustRegionScaling`; the legacy symbol spellings still work
+    @test MoreTrustRegionDescent(; scaling = TrustRegionScaling.Jacobian).scaling ===
+        TrustRegionScaling.Jacobian
+    @test MoreTrustRegionDescent(; scaling = :auto).scaling === TrustRegionScaling.Auto
+    @test MoreTrustRegionDescent(; scaling = :jacobian).scaling ===
+        TrustRegionScaling.Jacobian
+    @test MoreTrustRegionDescent(; scaling = :none).scaling === TrustRegionScaling.None
+    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = :bogus)
+    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = "auto")
 
     # scalar problems
     sol = solve(
@@ -343,13 +353,13 @@ end
         @test norm(sol.resid) < 1.0e-6
     end
 
-    # `:jacobian` scaling needs column norms of a concrete Jacobian; the descent's
+    # `Jacobian` scaling needs column norms of a concrete Jacobian; the descent's
     # own `linsolve` is what keeps the Jacobian matrix-free
     @test_throws ArgumentError solve(
         prob,
         TrustRegion(;
             subproblem = MoreTrustRegionDescent(;
-                scaling = :jacobian, linsolve = KrylovJL_LSMR()
+                scaling = TrustRegionScaling.Jacobian, linsolve = KrylovJL_LSMR()
             ),
             concrete_jac = Val(false)
         )
