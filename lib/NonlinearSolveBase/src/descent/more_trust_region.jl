@@ -65,6 +65,48 @@ end
 
 supports_trust_region(::MoreTrustRegionDescent) = true
 
+"""
+    RobustTrustRegionLinsolve()
+
+Sentinel `linsolve` for [`MoreTrustRegionDescent`](@ref) — the backing solver
+selection of `TrustRegionRobust`. Resolved at `init`
+from the Jacobian's structure to a formulation that does not square the
+condition number:
+
+  - sparse-structured Jacobians → `LinearSolve.SparseColumnPivotedQRFactorization`,
+    solving the rectangular augmented system `[J; √λD] p = [-fu; 0]` with a
+    rank-revealing column-pivoted sparse QR;
+  - anything else → `nothing` (the default path already preserves conditioning:
+    MINPACK `lmpar` for dense Jacobians, the augmented Krylov operator for
+    matrix-free ones).
+"""
+struct RobustTrustRegionLinsolve end
+
+function _robust_tr_linsolve(J_, isop::Bool)
+    (!isop && ArrayInterface.has_sparsestruct(J_)) || return nothing
+    return _robust_sparse_qr_linsolve()
+end
+
+# the solver type is owned by the LinearSolve extension; resolve it lazily so a
+# missing extension is an error only when a sparse Jacobian actually needs it
+function _robust_sparse_qr_linsolve()
+    ext = Base.get_extension(
+        @__MODULE__, :NonlinearSolveBaseLinearSolveExt
+    )
+    ext === nothing &&
+        error("`TrustRegionRobust` on sparse Jacobians requires LinearSolve.jl")
+    return ext._robust_sparse_qr()
+end
+
+# the sentinel is resolved against the concrete `J_` in `init`; it never needs
+# a square system, and it asks the Jacobian cache for a concrete matrix so the
+# sparse structure can be inspected (a genuinely matrix-free `J` is an error
+# through the usual `needs_concrete_A` path — the default `Krylov` selection
+# already preserves conditioning there)
+needs_square_A(::RobustTrustRegionLinsolve, u) = false
+needs_square_A(::RobustTrustRegionLinsolve, ::Number) = false
+needs_concrete_A(::RobustTrustRegionLinsolve) = true
+
 # The dense default path computes a pivoted Householder QR of `J` once per Jacobian
 # (MINPACK `qrfac`, stored in `Jbuf`/`Rdiag`/`ipvt`) and then solves each damped
 # system by eliminating `√λD` against the triangular `R` with `n` Givens rotations
@@ -691,6 +733,10 @@ function InternalAPI.init(
 
     J_ = Utils.unwrap_val(pre_inverted) ? inv(J) : J
     jac_convert && (J_ = convert(AbstractMatrix, J_); isop = false)
+    # `RobustTrustRegionLinsolve` resolves to the conditioning-preserving solver
+    # for this Jacobian's structure once `J_` is materialized
+    linsolve = alg.linsolve isa RobustTrustRegionLinsolve ?
+        _robust_tr_linsolve(J_, isop) : alg.linsolve
     T = promote_type(eltype(u), eltype(fu))
 
     # Statics go through the normal equations as well: `SMatrix \ vector` on a
@@ -703,7 +749,7 @@ function InternalAPI.init(
     # Krylov selection works on it — the non-square `[J; √λI]` operator hits broken
     # `DefaultLinearSolver`/least-squares-Krylov dispatches on older LinearSolve
     normal_form = u isa Number || J isa Number || J_ isa StaticArray ||
-        needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing)
+        needs_square_A(linsolve, u) || (isop && linsolve === nothing)
     # Dense Jacobians with the default `linsolve` take the MINPACK `lmpar`/`qrsolv`
     # path: one pivoted QR of `J` per Jacobian, then per-λ Givens elimination of
     # `√λD` against the triangular factor — no per-λ refactorization, no `JᵀJ`, no
@@ -713,7 +759,7 @@ function InternalAPI.init(
     # inferable so `lincache`'s typevar binds a single concrete type per
     # specialization (`@inferred init` holds and no union dispatch survives into
     # `solve!`); `m < n` Jacobians are handled inside the workspace by zero-padding.
-    could_lmpar = !normal_form && !isop && alg.linsolve === nothing &&
+    could_lmpar = !normal_form && !isop && linsolve === nothing &&
         _more_lmpar_kwargs_ok(linsolve_kwargs) &&
         (T === Float32 || T === Float64) && J_ isa Matrix{T}
 
@@ -788,9 +834,9 @@ function InternalAPI.init(
             A0 isa AbstractMatrix ? Utils.maybe_symmetric(A0) : A0
         end
         Jᵀfu0 = J_ isa Number ? J_ * fu : transpose(J_) * Utils.safe_vec(fu)
-        linsolve = alg.linsolve === nothing ? default_spd_linsolve(A0) : alg.linsolve
+        spd_linsolve = linsolve === nothing ? default_spd_linsolve(A0) : linsolve
         lincache = construct_linear_solver(
-            alg, linsolve, A0, Utils.safe_vec(Jᵀfu0), Utils.safe_vec(u), prob.p;
+            alg, spd_linsolve, A0, Utils.safe_vec(Jᵀfu0), Utils.safe_vec(u), prob.p;
             stats, abstol, reltol, linsolve_kwargs...
         )
     elseif could_lmpar
@@ -809,7 +855,7 @@ function InternalAPI.init(
         end
         b0 = _more_augmented_rhs!(rhs, fu)
         lincache = construct_linear_solver(
-            alg, alg.linsolve, A0, b0, Utils.safe_vec(u), prob.p;
+            alg, linsolve, A0, b0, Utils.safe_vec(u), prob.p;
             stats, abstol, reltol, linsolve_kwargs...
         )
     end
