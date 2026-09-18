@@ -1,5 +1,6 @@
 using NonlinearSolveFirstOrder, SciMLBase, LinearAlgebra
 using LinearSolve, SparseArrays, StaticArrays, SciMLOperators
+using ADTypes, NonlinearSolveBase, Random
 
 # Problems from the Moré–Garbow–Hillstrom / Hock–Schittkowski collections (as packaged in
 # NLSProblems.jl for the TrustRegionLeastSquares.jl benchmark) on which the dogleg
@@ -288,6 +289,205 @@ end
     # `parl == 0` exit once ‖Dp‖ stagnates instead of exhausting its iterations —
     # without it this solve spends ~20 damped solves per radius
     @test sol_rank.stats.nsolve ≤ 12
+end
+
+@testset "More subproblem: LHL shift-family solves" begin
+    # `linsolve = LHLFactorization()` on a dense `Matrix` Jacobian takes a dedicated
+    # path: one Hessenberg reduction of `BᵀB = D⁻¹JᵀJD⁻¹` per Jacobian, then every
+    # damping trial `(BᵀB + λI) y = b` is an O(n²) `lhl_shift!`/`lhl_ldiv!` instead
+    # of an O(n³) refactorization. The `lincache` workspace type discriminates it
+    # from the generic path
+    for (name, resid, u0, best_cost) in MORE_NLLS_CASES
+        prob = NonlinearLeastSquaresProblem(resid, u0)
+        alg = TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        )
+        cache = init(prob, alg; maxiters = 2000, abstol = 1.0e-8)
+        @test cache.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test norm(sol.resid)^2 / 2 ≤ max(best_cost * (1 + 1.0e-4), 1.0e-12)
+        # one O(n³) reduction per Jacobian; the λ-trials are O(n²) shifted solves
+        @test sol.stats.nfactors ≤ sol.stats.njacs + 1
+    end
+
+    # The generic normal-form path (a square solver without a dedicated shift
+    # path) still refactorizes once per damping trial, so it counts far more
+    # factorizations than Jacobians
+    prob312 = NonlinearLeastSquaresProblem(tp312_resid, ones(2))
+    sol_lhl = solve(
+        prob312, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        ); abstol = 1.0e-8
+    )
+    sol_lu = solve(
+        prob312, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LUFactorization())
+        ); abstol = 1.0e-8
+    )
+    @test sol_lhl.stats.nfactors ≤ sol_lhl.stats.njacs + 1
+    @test sol_lu.stats.nfactors ≥ 2 * sol_lu.stats.njacs
+
+    # Unit-level check of the shift family: a boundary step must satisfy
+    # `(JᵀJ + λD²) p = -Jᵀf` with `‖Dp‖ = Δ`, in both scaled and unscaled variables
+    rng = MersenneTwister(0)
+    J = randn(rng, 6, 4)
+    u = randn(rng, 4)
+    fu = J * u + randn(rng, 6)
+    for scaling in (:none, :jacobian)
+        solver = init(
+            NonlinearLeastSquaresProblem((u, p) -> J * u .- fu, copy(u)),
+            TrustRegion(;
+                subproblem = MoreTrustRegionDescent(;
+                    linsolve = LHLFactorization(), scaling
+                ),
+                autodiff = AutoFiniteDiff()
+            )
+        )
+        descent = solver.descent_cache
+        @test descent.lincache isa NonlinearSolveBase._MoreLHLWorkspace
+        Δ = 0.5
+        res = NonlinearSolveBase.InternalAPI.solve!(
+            descent, J, fu, u, Val(1); new_jacobian = true, trust_region = Δ
+        )
+        @test res.success
+        p, λ = res.δu, res.extras.λ
+        D² = descent.dtd === nothing ? I : Diagonal(descent.dtd)
+        @test (transpose(J) * J + λ * D²) * p ≈ -transpose(J) * fu
+        Dp = descent.dtd === nothing ? p : sqrt.(descent.dtd) .* p
+        @test norm(Dp) ≈ Δ rtol = 1.0e-2
+    end
+
+    # rank-deficient and underdetermined Jacobians: the undamped `λ = 0` shifted
+    # solve legitimately fails (`ws.info != 0`) and the safeguarded λ-iteration
+    # must still return a finite boundary step
+    f_rank_lhl(u, p) = fill(u[1] + u[2] - 1, 3)
+    prob_rank = NonlinearLeastSquaresProblem(f_rank_lhl, [0.5, 0.2])
+    cache_rank = init(
+        prob_rank, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        ); abstol = 1.0e-10
+    )
+    @test cache_rank.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace
+    sol_rank = solve!(cache_rank)
+    @test SciMLBase.successful_retcode(sol_rank)
+    @test norm(sol_rank.resid) < 1.0e-6
+
+    f_mn_lhl(u, p) = [u[1] + 2u[2] - u[3] - 1, u[1] - u[2] + u[3] + 1]
+    prob_mn = NonlinearLeastSquaresProblem(f_mn_lhl, zeros(3))
+    sol_mn = solve(
+        prob_mn, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        ); abstol = 1.0e-10
+    )
+    @test SciMLBase.successful_retcode(sol_mn)
+    @test norm(f_mn_lhl(sol_mn.u, nothing)) < 1.0e-6
+
+    # `reinit!` re-enters the new-Jacobian branch and re-reduces `BᵀB` for the
+    # updated Jacobian — the workspace is reused, not leaked into stale factors
+    cache_re = init(
+        prob312, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        ); abstol = 1.0e-8
+    )
+    sol_re = solve!(cache_re)
+    @test SciMLBase.successful_retcode(sol_re)
+    SciMLBase.reinit!(cache_re, 2 * ones(2))
+    sol_re2 = solve!(cache_re)
+    @test SciMLBase.successful_retcode(sol_re2)
+    @test norm(sol_re2.resid)^2 / 2 ≤ 2.9612813806220117 * (1 + 1.0e-4)
+
+    # `linsolve_kwargs` beyond the droppable tolerance/verbosity keys decline the
+    # dedicated path — the kwargs must reach a real LHL `lincache`, not be dropped
+    cache_kw = init(
+        prob312, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        ); linsolve_kwargs = (; maxiters = 5)
+    )
+    @test !(cache_kw.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace)
+    @test cache_kw.descent_cache.lincache.lincache.alg isa LHLFactorization
+
+    # sparse and operator Jacobians keep their generic paths — LHL only applies to
+    # dense `Matrix{Float32/Float64}` Jacobians
+    function tp333_resid_lhl!(F, u, p)
+        a = [4, 5.75, 7.5, 24, 32, 48, 72, 96]
+        y = [72.1, 65.6, 55.9, 17.1, 9.8, 4.5, 1.3, 0.6]
+        for i in 1:8
+            F[i] = u[1] * exp(-u[2] * a[i]) / y[i] - u[3]
+        end
+        return nothing
+    end
+    function tp333_jac_lhl!(J, u, p)
+        a = [4, 5.75, 7.5, 24, 32, 48, 72, 96]
+        y = [72.1, 65.6, 55.9, 17.1, 9.8, 4.5, 1.3, 0.6]
+        fill!(J, 0)
+        for i in 1:8
+            J[i, 1] = -exp(-u[2] * a[i]) / y[i]
+            J[i, 2] = u[1] * a[i] * exp(-u[2] * a[i]) / y[i]
+            J[i, 3] = -1 / y[i]
+        end
+        return nothing
+    end
+    fn_sp = NonlinearFunction{true}(
+        tp333_resid_lhl!; jac = tp333_jac_lhl!,
+        jac_prototype = sparse(ones(8, 3)), resid_prototype = zeros(8)
+    )
+    cache_sp = init(
+        NonlinearLeastSquaresProblem(fn_sp, [30.0, 0.04, 3.0]),
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization()))
+    )
+    @test !(cache_sp.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace)
+    sol_sp = solve!(cache_sp)
+    @test SciMLBase.successful_retcode(sol_sp)
+
+    # matrix-free Jacobians: LHL needs a concrete `Matrix`. A convertible operator
+    # (`concrete_jac = false` with a probing-convertible `jvp`) is materialized by
+    # the existing `jac_convert` path and then takes the LHL workspace; a Krylov
+    # `linsolve` keeps the genuine operator path
+    fn_mf = NonlinearFunction(
+        (u, p) -> u .^ 2 .+ u .- 1;
+        jvp = (v, u, p) -> (2u .+ 1) .* v, vjp = (v, u, p) -> (2u .+ 1) .* v
+    )
+    prob_mf = NonlinearLeastSquaresProblem(fn_mf, ones(3))
+    cache_mf_lhl = init(
+        prob_mf, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization()),
+            concrete_jac = Val(false)
+        )
+    )
+    @test cache_mf_lhl.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace
+    sol_mf = solve!(cache_mf_lhl)
+    @test SciMLBase.successful_retcode(sol_mf)
+    @test norm(sol_mf.resid) < 1.0e-6
+    cache_mf = init(
+        prob_mf, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = KrylovJL_LSMR()),
+            concrete_jac = Val(false)
+        )
+    )
+    @test !(cache_mf.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace)
+
+    # static Jacobians are `SMatrix`, not `Matrix` — generic normal form
+    prob_static = NonlinearLeastSquaresProblem(
+        (u, p) -> SA[
+            u[1]^2 + 12u[2] - 1,
+            49u[1]^2 + 49u[2]^2 + 84u[1] + 2324u[2] - 681,
+        ], SA[1.0, 1.0]
+    )
+    cache_static = init(
+        prob_static, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization())
+        )
+    )
+    @test !(cache_static.descent_cache.lincache isa NonlinearSolveBase._MoreLHLWorkspace)
+
+    # `@inferred init` — the workspace typevar must stay compile-time decidable
+    @inferred init(
+        prob312, TrustRegion(;
+            subproblem = MoreTrustRegionDescent(; linsolve = LHLFactorization()),
+            autodiff = AutoFiniteDiff()
+        )
+    )
 end
 
 @testset "TrustRegionDogleg alias" begin
