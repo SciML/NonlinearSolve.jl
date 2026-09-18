@@ -290,6 +290,63 @@ end
     @test sol_rank.stats.nsolve ≤ 12
 end
 
+@testset "Sparse Jacobian normal-form routing" begin
+    # A sparse concrete Jacobian takes the n×n normal-form path: `JᵀJ` stays
+    # sparse and no (m+n)×n augmented workspace is built or refactorized per λ
+    m, n = 31, 32
+    function chained_resid!(F, u, p)
+        for i in 1:m
+            F[i] = 10.0 * (u[i + 1] - u[i]^2)
+        end
+        return nothing
+    end
+    function chained_jac!(J, u, p)
+        fill!(J, 0)
+        for i in 1:m
+            J[i, i] = -20.0 * u[i]
+            J[i, i + 1] = 10.0
+        end
+        return nothing
+    end
+    jp = spzeros(m, n)
+    for i in 1:m
+        jp[i, i] = jp[i, i + 1] = 1.0
+    end
+    fn = NonlinearFunction{true}(
+        chained_resid!; jac = chained_jac!, jac_prototype = jp,
+        resid_prototype = zeros(m)
+    )
+    prob = NonlinearLeastSquaresProblem(fn, fill(-1.2, n))
+
+    cache = init(prob, TrustRegion(); abstol = 1.0e-8)
+    @test cache.descent_cache.normal_form === Val{true}()
+    @test cache.descent_cache.JᵀJ isa SparseMatrixCSC
+    @test cache.descent_cache.augmented === nothing
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test norm(sol.resid, Inf) < 1.0e-6
+
+    # a dense Jacobian on the same kind of problem keeps the `lmpar` path —
+    # no normal-form `JᵀJ` is formed
+    dense_cache = init(
+        NonlinearLeastSquaresProblem(tp312_resid, ones(2)),
+        TrustRegion(); abstol = 1.0e-8
+    )
+    @test dense_cache.descent_cache.normal_form === Val{false}()
+    @test dense_cache.descent_cache.JᵀJ === nothing
+
+    # an explicit rectangular-capable `linsolve` keeps the augmented path too
+    qr_cache = init(
+        prob,
+        TrustRegion(; subproblem = MoreTrustRegionDescent(; linsolve = QRFactorization()));
+        abstol = 1.0e-8
+    )
+    @test qr_cache.descent_cache.normal_form === Val{false}()
+    @test qr_cache.descent_cache.augmented !== nothing
+    sol_qr = solve!(qr_cache)
+    @test SciMLBase.successful_retcode(sol_qr)
+end
+
 @testset "TrustRegionDogleg alias" begin
     # equivalent to `TrustRegion(subproblem = TrustRegionSubproblem.Dogleg)`:
     # dogleg descent with the `Simple` radius-update default

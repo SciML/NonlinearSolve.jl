@@ -702,8 +702,15 @@ function InternalAPI.init(
     # `x ↦ (JᵀJ + λI) x` is square and symmetric positive definite, so the default
     # Krylov selection works on it — the non-square `[J; √λI]` operator hits broken
     # `DefaultLinearSolver`/least-squares-Krylov dispatches on older LinearSolve
+    # Concrete sparse(-structured) Jacobians with the default `linsolve` take the
+    # normal form too: the augmented `[J; √λD]` system would force an (m + n) × n
+    # sparse factorization per λ, while the n × n normal equations get a
+    # symbolic-reusing sparse LU through `default_spd_linsolve`'s `nothing`
+    # fallback. `has_sparsestruct` is the ArrayInterface trait for CSC/banded/
+    # (block-)diagonal layouts — decidable on `J_`'s type, no SparseArrays import.
     normal_form = u isa Number || J isa Number || J_ isa StaticArray ||
-        needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing)
+        needs_square_A(alg.linsolve, u) || (isop && alg.linsolve === nothing) ||
+        (alg.linsolve === nothing && ArrayInterface.has_sparsestruct(J_))
     # Dense Jacobians with the default `linsolve` take the MINPACK `lmpar`/`qrsolv`
     # path: one pivoted QR of `J` per Jacobian, then per-λ Givens elimination of
     # `√λD` against the triangular factor — no per-λ refactorization, no `JᵀJ`, no
@@ -774,13 +781,7 @@ function InternalAPI.init(
         end
         dtd = has_scaling ?
             _more_scaling_init(JᵀJ, u, alg.min_damping_D) : nothing
-        damped = if JᵀJ isa AbstractMatrix && ArrayInterface.can_setindex(JᵀJ) &&
-                ArrayInterface.fast_scalar_indexing(JᵀJ)
-            @bb damped = similar(JᵀJ)
-            damped
-        else
-            nothing
-        end
+        damped = _more_damped_buffer(JᵀJ, T)
         A0 = if op_state !== nothing
             _more_normal_form_operator(op_state, u)
         else
@@ -935,6 +936,18 @@ function _more_scaling_update!(cache, JᵀJ::Number)
     dtd === nothing && return
     cache.dtd = max(dtd, abs(JᵀJ), cache.min_damping_D)
     return
+end
+
+# Workspace for `JᵀJ + λD²` reused across the λ-iteration. Anything that supports
+# fast scalar `setindex!` gets a plain `similar` buffer; everything else — sparse
+# matrices included — leaves `damped === nothing` and `_more_damped_system` forms
+# `JᵀJ + λD²` out of place per λ, keeping the same sparsity pattern each time.
+function _more_damped_buffer(JᵀJ, ::Type{T}) where {T}
+    if JᵀJ isa AbstractMatrix && ArrayInterface.can_setindex(JᵀJ) &&
+            ArrayInterface.fast_scalar_indexing(JᵀJ)
+        return similar(JᵀJ)
+    end
+    return nothing
 end
 
 function _more_damped_system(JᵀJ::Number, λ, dtd, damped, u)
