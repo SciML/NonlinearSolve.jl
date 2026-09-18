@@ -31,7 +31,10 @@ fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
     exactly via Moré's safeguarded iteration (MINPACK `lmpar`-style), which is more
     robust on ill-conditioned and rank-deficient least-squares problems;
     [`TrustRegionDogleg()`](@ref) selects the classical polygonal dogleg
-    approximation.
+    approximation. [`TrustRegionRobust()`](@ref) solves the damped system on the
+    rectangular augmented form `[J; √λD]` via a rank-revealing column-pivoted
+    sparse QR for sparse-structured Jacobians — the conditioning-preserving
+    choice when forming `JᵀJ` would square away too much accuracy.
 
 ### SimpleNonlinearSolve.jl
 
