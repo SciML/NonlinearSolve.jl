@@ -154,8 +154,8 @@ end
         @test sol.stats.nsteps < sol_none_ref.stats.nsteps
     end
 
-    # well-conditioned Jacobian: the gate stays off and `:auto` is bitwise the
-    # `:none` trajectory
+    # well-conditioned Jacobian: the gate stays off and `Auto` is bitwise the
+    # `None` trajectory
     wc_prob = NonlinearProblem((u, p) -> u .^ 2 .- p, [1.0, 1.0], 2.0)
     wc_auto = init(
         wc_prob, TrustRegion(; subproblem = MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto));
@@ -189,7 +189,7 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test pscaled_cache.descent_cache.scaling_active
 
-    # matrix-free Jacobian: no column norms, so `:auto` never engages — but the
+    # matrix-free Jacobian: no column norms, so `Auto` never engages — but the
     # solve still works through the stacked/normal-form operators
     mf_fn = NonlinearFunction(
         (u, p) -> u .^ 2 .+ u .- 1;
@@ -250,14 +250,12 @@ end
     @test_throws ArgumentError TrustRegion(; subproblem = :bogus)
     @test_throws ArgumentError TrustRegion(; subproblem = :more)
 
-    # `scaling` takes a `TrustRegionScaling`; the legacy symbol spellings still work
+    # `scaling` takes a `TrustRegionScaling` and nothing else
     @test MoreTrustRegionDescent(; scaling = TrustRegionScaling.Jacobian).scaling ===
         TrustRegionScaling.Jacobian
-    @test MoreTrustRegionDescent(; scaling = :auto).scaling === TrustRegionScaling.Auto
-    @test MoreTrustRegionDescent(; scaling = :jacobian).scaling ===
-        TrustRegionScaling.Jacobian
-    @test MoreTrustRegionDescent(; scaling = :none).scaling === TrustRegionScaling.None
-    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = :bogus)
+    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = :auto)
+    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = :jacobian)
+    @test_throws ArgumentError MoreTrustRegionDescent(; scaling = :none)
     @test_throws ArgumentError MoreTrustRegionDescent(; scaling = "auto")
 
     # scalar problems

@@ -74,18 +74,7 @@ EnumX.@enumx TrustRegionScaling begin
     Auto
 end
 
-# `scaling = :none`/`:jacobian` shipped as symbols in NonlinearSolveBase v2.52;
-# keep accepting them so that spelling keeps working.
 _more_scaling(s::TrustRegionScaling.T) = s
-function _more_scaling(s::Symbol)
-    s === :none && return TrustRegionScaling.None
-    s === :jacobian && return TrustRegionScaling.Jacobian
-    s === :auto && return TrustRegionScaling.Auto
-    return throw(
-        ArgumentError("`scaling` must be a `TrustRegionScaling` (`None`, `Jacobian`, \
-                       or `Auto`), got `$(s)`.")
-    )
-end
 function _more_scaling(s)
     return throw(
         ArgumentError("`scaling` must be a `TrustRegionScaling` (`None`, `Jacobian`, \
