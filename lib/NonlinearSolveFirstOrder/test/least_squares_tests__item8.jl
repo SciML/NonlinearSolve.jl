@@ -94,7 +94,9 @@ end
     f_lin(u, p) = A * u - b
     fu0 = f_lin(zeros(n), nothing)
 
-    cache = more_descent_cache(f_lin, zeros(n), A, fu0; scaling = :jacobian)
+    cache = more_descent_cache(
+        f_lin, zeros(n), A, fu0; scaling = TrustRegionScaling.Jacobian
+    )
     @test cache.lincache.gram
     dtd = cache.dtd
     @test dtd isa Vector{Float64}

@@ -49,8 +49,6 @@ well.
     `Jacobian`, and otherwise exactly as `None`. The decision is taken once
     per solve (re-decided after `reinit!`), and a matrix-free Jacobian simply
     never engages. `TrustRegionScaling.Jacobian` requires a concrete Jacobian.
-    The legacy symbol spellings `:none`, `:jacobian`, and `:auto` are still
-    accepted.
   - `min_damping_D`: lower bound for the entries of `DᵀD` under `Jacobian` or
     active `Auto` scaling.
 """
