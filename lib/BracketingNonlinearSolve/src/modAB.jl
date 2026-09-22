@@ -142,9 +142,6 @@ function SciMLBase.__solve(
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
         elseif isnan(y3)
-            # A NaN residual carries no sign, so the bracket is meaningless and
-            # no further progress is possible. Checked before the x-convergence
-            # exit so a NaN is never reported as a converged solution.
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Failure)
         elseif (x2 - x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
