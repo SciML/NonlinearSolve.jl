@@ -52,3 +52,32 @@ EnumX.@enumx TrustRegionSubproblem begin
     Dogleg
     More
 end
+
+"""
+    TrustRegionScaling
+
+Choice of the diagonal scaling `D` in the trust-region subproblem
+`min ‖J δu + fu‖` subject to `‖D δu‖ ≤ Δ`, selected with
+`MoreTrustRegionDescent(scaling = ...)`:
+
+  - `TrustRegionScaling.None`: `D = I`.
+  - `TrustRegionScaling.Jacobian`: Moré's scaling `Dᵢᵢ = max(Dᵢᵢ, ‖J[:, i]‖)`,
+    which never decreases across iterations and makes the trust region
+    scale-covariant. Requires a concrete Jacobian.
+  - `TrustRegionScaling.Auto`: engages `Jacobian` scaling only when the problem
+    needs it — the decision is taken once per solve from the first Jacobian and
+    a matrix-free Jacobian never engages.
+"""
+EnumX.@enumx TrustRegionScaling begin
+    None
+    Jacobian
+    Auto
+end
+
+_more_scaling(s::TrustRegionScaling.T) = s
+function _more_scaling(s)
+    return throw(
+        ArgumentError("`scaling` must be a `TrustRegionScaling` (`None`, `Jacobian`, \
+                       or `Auto`), got `$(s)`.")
+    )
+end
