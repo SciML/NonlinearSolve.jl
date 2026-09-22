@@ -420,10 +420,8 @@ end
     @test sol_rank.stats.nsolve ≤ 12
 end
 
-@testset "Sparse Jacobian normal-form routing" begin
-    # A sparse concrete Jacobian takes the n×n normal-form path: `JᵀJ` stays
-    # sparse and no (m+n)×n augmented workspace is built or refactorized per λ
-    m, n = 31, 32
+# shared sparse fixture: banded chained-Rosenbrock Jacobian (m = n - 1)
+function _chained_sparse_prob(m, n)
     function chained_resid!(F, u, p)
         for i in 1:m
             F[i] = 10.0 * (u[i + 1] - u[i]^2)
@@ -446,7 +444,13 @@ end
         chained_resid!; jac = chained_jac!, jac_prototype = jp,
         resid_prototype = zeros(m)
     )
-    prob = NonlinearLeastSquaresProblem(fn, fill(-1.2, n))
+    return NonlinearLeastSquaresProblem(fn, fill(-1.2, n))
+end
+
+@testset "Sparse Jacobian normal-form routing" begin
+    # A sparse concrete Jacobian takes the n×n normal-form path: `JᵀJ` stays
+    # sparse and no (m+n)×n augmented workspace is built or refactorized per λ
+    prob = _chained_sparse_prob(31, 32)
 
     cache = init(prob, TrustRegion(); abstol = 1.0e-8)
     @test cache.descent_cache.normal_form === Val{true}()
@@ -475,6 +479,38 @@ end
     @test qr_cache.descent_cache.augmented !== nothing
     sol_qr = solve!(qr_cache)
     @test SciMLBase.successful_retcode(sol_qr)
+end
+
+@testset "TrustRegionRobust" begin
+    # sparse Jacobian → the rectangular augmented `[J; √λD]` system via a
+    # rank-revealing column-pivoted sparse QR: no `JᵀJ` is formed
+    prob = _chained_sparse_prob(31, 32)
+    cache = init(prob, TrustRegionRobust(); abstol = 1.0e-8)
+    @test cache.descent_cache.normal_form === Val{false}()
+    @test cache.descent_cache.augmented isa SparseMatrixCSC
+    @test cache.descent_cache.JᵀJ === nothing
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test norm(sol.resid, Inf) < 1.0e-6
+
+    # a dense Jacobian keeps the already-κ-preserving `lmpar` path
+    dense_cache = init(
+        NonlinearLeastSquaresProblem(tp312_resid, ones(2)),
+        TrustRegionRobust(); abstol = 1.0e-8
+    )
+    @test dense_cache.descent_cache.normal_form === Val{false}()
+    @test dense_cache.descent_cache.JᵀJ === nothing
+    @test dense_cache.descent_cache.augmented === nothing
+    sol_dense = solve!(dense_cache)
+    @test SciMLBase.successful_retcode(sol_dense)
+
+    # the sentinel fixes the subproblem's `linsolve` selection
+    @test_throws ArgumentError TrustRegionRobust(;
+        subproblem = TrustRegionSubproblem.Dogleg
+    )
+    @test_throws ArgumentError TrustRegionRobust(;
+        subproblem = MoreTrustRegionDescent()
+    )
 end
 
 @testset "TrustRegionDogleg alias" begin

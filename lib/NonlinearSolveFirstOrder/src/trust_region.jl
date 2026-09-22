@@ -100,6 +100,47 @@ function TrustRegionDogleg(; subproblem = TrustRegionSubproblem.Dogleg, kwargs..
 end
 
 """
+    TrustRegionRobust(;
+        subproblem = MoreTrustRegionDescent(; linsolve = RobustTrustRegionLinsolve()),
+        kwargs...
+    )
+
+[`TrustRegion`](@ref) with the conditioning-preserving subproblem formulation:
+for sparse-structured Jacobians the damped solves run on the rectangular
+augmented system `[J; √λD] p = [-fu; 0]` via
+`LinearSolve.SparseColumnPivotedQRFactorization` — a rank-revealing
+column-pivoted sparse QR — rather than the normal equations `JᵀJ + λD²`, which
+squares the condition number. Dense and matrix-free Jacobians keep their
+default paths, which already avoid the normal equations (MINPACK `lmpar` and
+the augmented Krylov operator respectively).
+
+Use this when the Jacobian is sparse and badly conditioned enough that forming
+`JᵀJ` loses digits — at the price of a sparse QR refactorization of the
+`(m + n) × n` system per damping-parameter trial.
+
+All [`TrustRegion`](@ref) keyword arguments are forwarded; `subproblem` is
+fixed to a [`MoreTrustRegionDescent`](@ref NonlinearSolveBase.MoreTrustRegionDescent)
+carrying the robust `linsolve` selection.
+"""
+function TrustRegionRobust(;
+        subproblem = MoreTrustRegionDescent(; linsolve = RobustTrustRegionLinsolve()),
+        kwargs...
+    )
+    (
+        subproblem isa MoreTrustRegionDescent &&
+            subproblem.linsolve isa RobustTrustRegionLinsolve
+    ) ||
+        throw(
+        ArgumentError(
+            "`TrustRegionRobust` fixes `subproblem`'s `linsolve` to \
+             `RobustTrustRegionLinsolve()`; use `TrustRegion(; subproblem)` to \
+             select a different subproblem solver."
+        )
+    )
+    return TrustRegion(; subproblem, kwargs...)
+end
+
+"""
     BoundedTrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
         max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
