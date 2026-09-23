@@ -86,6 +86,21 @@ _concrete_scc_problem(prob) = prob
 probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
+# `solve` fills in nonlinear-typed `verbose`/`alias` kwargs that LinearSolve rejects. Map the
+# verbosity to its `linear_verbosity` part (as the Newton descent does) and drop the
+# `NonlinearAliasSpecifier`, which has no linear counterpart.
+function linear_block_kwargs(kwargs)
+    kw = values(kwargs)
+    if haskey(kw, :verbose) && kw.verbose isa NonlinearSolveBase.NonlinearVerbosity
+        kw = merge(kw, (; verbose = kw.verbose.linear_verbosity))
+    end
+    if haskey(kw, :alias) && kw.alias isa SciMLBase.NonlinearAliasSpecifier
+        kw = drop_alias(; kw...)
+    end
+    return kw
+end
+drop_alias(; alias, kwargs...) = values(kwargs)
+
 iteratively_build_sols(alg, sols; kwargs...) = sols
 
 function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
@@ -98,7 +113,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         b = prob.b
         # `remake` to recalculate `A` and `b` based on updated parameters from `explicitfun`.
         # Pass `A` and `b` to avoid unnecessarily copying them.
-        sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; kwargs...)
+        sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; linear_block_kwargs(kwargs)...)
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         nlprob = NonlinearProblem{true}(Returns(nothing), sol.u, prob.p)
@@ -170,7 +185,7 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         b = prob.b
         # `remake` to recalculate `A` and `b` based on updated parameters from `explicitfun`.
         # Pass `A` and `b` to avoid unnecessarily copying them.
-        sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; kwargs...)
+        sol = SciMLBase.solve(SciMLBase.remake(prob; A, b), alg.linalg; linear_block_kwargs(kwargs)...)
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(

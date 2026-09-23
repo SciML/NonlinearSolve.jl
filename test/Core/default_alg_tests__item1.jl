@@ -107,3 +107,22 @@ end
     sol2 = solve(prob2)
     @test SciMLBase.successful_retcode(sol2.retcode)
 end
+
+# A stored `SCCNonlinearProblem` lowering (as ModelingToolkit records it) is solved block by
+# block and has no single-residual cache, so `init` iterates on the unlowered residual
+# (SciML/ModelingToolkit.jl#5194). `lowered_problem` needs SciMLBase >= 3.55.
+if :lowered_problem in fieldnames(SteadyStateProblem)
+    @testset "SteadyStateProblem with SCC lowering" begin
+        lowered = SciMLBase.SCCNonlinearProblem(
+            (NonlinearProblem((u, p) -> 2 .- 2u, [0.0]),), (Returns(nothing),)
+        )
+        prob = SteadyStateProblem(f_iip, zeros(2); lowered_problem = lowered)
+        @test SciMLBase.NonlinearProblem(prob) isa SciMLBase.SCCNonlinearProblem
+
+        for cache in (init(prob), init(prob, nothing))
+            sol = solve!(cache)
+            @test SciMLBase.successful_retcode(sol.retcode)
+            @test sol.u ≈ [1.0, 0.25]
+        end
+    end
+end
