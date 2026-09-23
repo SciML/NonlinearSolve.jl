@@ -483,6 +483,7 @@ end
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
+    attempted_syms = [gensym("attempted") for i in 1:N]
 
     push!(
         calls,
@@ -505,6 +506,7 @@ end
     # the first pass, and a given `i` runs in at most one of the two passes, so the
     # `sol`/`u_result` symbols can be shared).
     attempt_block = i -> quote
+        $(attempted_syms[i]) = true
         if cache.retain_best && $(i) != cache.start_current
             # a `retain_best` reinit! only reinitialized the starting subcache;
             # escalation freshens each further subcache right before its attempt
@@ -536,6 +538,9 @@ end
         cache.current = $(i + 1)
     end
 
+    for i in 1:N
+        push!(calls, :($(attempted_syms[i]) = false))
+    end
     for i in 1:N
         push!(
             calls,
@@ -578,9 +583,11 @@ end
     end
 
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
-    for (sym, resid) in zip(cache_syms, resids)
+    # Only subcaches attempted in this call compete for the fallback: an unattempted one
+    # (e.g. skipped by retention) still holds the residual of an earlier problem.
+    for (sym, resid, attempted) in zip(cache_syms, resids, attempted_syms)
         # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
-        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
+        push!(calls, :($(resid) = $(attempted) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
     end
     push!(
         calls, quote
