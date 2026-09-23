@@ -56,15 +56,33 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     )
 end
 
+function __no_default_steadystate_alg_error(prob)
+    throw(
+        ArgumentError(
+            "No default nonlinear algorithm exists for `$(typeof(prob).name.wrapper)` " *
+                "here: `SciMLBase.NonlinearProblem` on it returns the problem itself " *
+                "rather than a plain `NonlinearProblem` (e.g. an `SCCNonlinearProblem` " *
+                "lowering), which this default-algorithm conversion cannot solve. " *
+                "Specify an algorithm explicitly."
+        )
+    )
+end
+
 function SciMLBase.__init(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
     # Convert SteadyStateProblem to NonlinearProblem and use its default
     nlprob = SciMLBase.NonlinearProblem(prob)
+    # `NonlinearProblem(prob)` returns some inputs verbatim (a stored `NonlinearProblem`
+    # or `LinearProblem` lowering, or — for `SCCNonlinearProblem` — `prob` itself, since
+    # it has no `u0` field to rebuild from). Recursing on `nlprob === prob` would loop
+    # forever instead of making progress toward a plain `NonlinearProblem`.
+    nlprob === prob && __no_default_steadystate_alg_error(prob)
     return SciMLBase.__init(nlprob, nothing, args...; kwargs...)
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
     # Convert SteadyStateProblem to NonlinearProblem and use its default
     nlprob = SciMLBase.NonlinearProblem(prob)
+    nlprob === prob && __no_default_steadystate_alg_error(prob)
     return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)
 end
 
