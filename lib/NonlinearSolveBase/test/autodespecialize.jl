@@ -125,6 +125,18 @@ end
     end
 end
 
+@testset "unwrapped problem keeps concrete parameters" begin
+    prob = NonlinearSolveBase.get_concrete_problem(dynamic_problem(DynamicParameters(2.0)))
+    unwrapped = NonlinearSolveBase._unwrap_despecialized_problem(prob)
+    @test unwrapped.p isa DynamicParameters
+    @test unwrapped.f.f === dynamic_residual!
+    @test unwrapped.f.jac === dynamic_jacobian!
+    # The adjoint path concretizes the unwrapped problem again.
+    reconcretized = NonlinearSolveBase.get_concrete_problem(unwrapped)
+    @test reconcretized.p isa DynamicParameters
+    @test reconcretized.f.jac === dynamic_jacobian!
+end
+
 @testset "other specialization policies retain concrete parameters" begin
     p = DynamicParameters(2.0)
     for specialize in (SciMLBase.AutoSpecialize, SciMLBase.FullSpecialize)
