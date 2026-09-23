@@ -1,61 +1,20 @@
-@inline same_nonzero_sign(x, y) = (x < 0 && y < 0) || (x > 0 && y > 0)
+@inline same_signs(x, y) = (x < 0 && y < 0) || (x > 0 && y > 0)
 
 @inline safe_midpoint(x1, x2) = x1 / 2 + x2 / 2
 
 @inline function safe_secant(x1::T, y1, x2::T, y2) where {T <: AbstractFloat}
     a, b = abs(y1), abs(y2)
     den = a + b
-    # den is always > 0 here: a NaN residual is rejected at the point of
-    # evaluation, and neither residual is ever zero.
-    if isinf(den)
-        # An infinite ordinate carries no usable slope; otherwise a + b merely
-        # overflowed, and halving both restores it without changing the ratio.
-        # One halving always suffices: a, b <= floatmax implies a/2 + b/2 <= floatmax.
+    if isinf(den) # fast path
         (isinf(a) || isinf(b)) && return safe_midpoint(x1, x2)
         a /= 2
         b /= 2
         den = a + b
     end
-    # Convex combination: the weights lie in [0, 1] and sum to 1, so this cannot
-    # overflow for finite x1, x2. clamp only repairs last-ulp rounding.
     return clamp((b / den) * x1 + (a / den) * x2, x1, x2)
 end
 
-@inline function symmetry_factor(y1::T, y2::T) where {T <: AbstractFloat}
-    a, b = abs(y1), abs(y2)
-    den = a + b
-    if isinf(den)
-        # A non-finite residual disables switching; the switching test rejects
-        # the NaN this produces.
-        (isinf(a) || isinf(b)) && return T(NaN)
-        a /= 2
-        b /= 2
-        den = a + b
-    end
-    r = 1 - abs(b - a) / den / 2
-    return r * r
-end
-
-@inline function passes_switching_test(ym::T, yf::T, symmetry) where {T <: AbstractFloat}
-    abs_ym, abs_yf = abs(ym), abs(yf)
-    sum = abs_yf + abs_ym
-    # Fast path. A non-finite ordinate or a NaN symmetry factor fails the
-    # comparison and so disables switching, which is the intended behaviour.
-    isfinite(sum) && return abs(ym - yf) < symmetry * sum
-    # Only reached when the sum overflows: normalise the homogeneous inequality.
-    isfinite(ym) && isfinite(yf) || return false
-    scale = max(abs_yf, abs_ym)
-    return abs(ym / scale - yf / scale) < symmetry * (abs_yf / scale + abs_ym / scale)
-end
-
-@inline function scale_preserving_nonzero_sign(value::T, positive_factor) where {T <: AbstractFloat}
-    scaled = value * positive_factor
-    (iszero(scaled) && !iszero(value)) && return copysign(nextfloat(zero(T)), value)   # double.Epsilon
-    isinf(scaled) && return copysign(floatmax(T), value)          # double.MaxValue
-    return scaled
-end
-
-@inline function ab_factor(y3::T, y::T) where {T <: AbstractFloat}
+@inline function get_ab_factor(y3::T, y::T) where {T <: AbstractFloat}
     m = 1 - y3 / y
     return m > 0 ? m : inv(2 * one(m))
 end
@@ -103,7 +62,7 @@ function SciMLBase.__solve(
         return build_exact_solution(prob, alg, x2, y2, ReturnCode.ExactSolutionRight)
     end
 
-    if !((y1 < 0 && y2 > 0) || (y1 > 0 && y2 < 0))
+    if same_signs(y1, y2)
         @SciMLMessage(
             "The interval is not an enclosing interval, opposite signs at the \
         boundaries are required.",
@@ -117,22 +76,23 @@ function SciMLBase.__solve(
     ϵ = abstol
     i = 1
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
-    C = 2 # safety factor for threshold corresponding to 1 iteration = 2^1
-    f1, f2 = y1, y2 # the unmodified function values for correct calculation of symmetry factor after bisection fallback
-    yMin = zero(y1) # smallest unmodified residual of the bracket at the previous AB step
+    C = 2 # Safety factor for threshold corresponding to 2 iterations (2^2 * 0.5)
+    f1, f2 = y1, y2 # The unmodified function values for correct calculation of symmetry factor after bisection fallback
+    yMin = zero(y1) # The smallest unmodified residual of the bracket at the previous AB step
     while i < maxiters
         local x3, y3
         if bisecting # Bisection method is used
-            x3 = safe_midpoint(x1, x2) # Avoids possible overflow in x1 + x2
+            x3 = 0.5 * x1 + 0.5 * x2 # Avoids possible overflow in x1 + x2
             y3 = f(x3) # Function value at midpoint
-            ym = safe_midpoint(f1, f2) # Ordinate of chord at midpoint
-            # calculate k on each bisection step with account for local function properties and symmetry
-            k = symmetry_factor(f1, f2)
-            # Check if the function is close enough to linear
-            if passes_switching_test(ym, y3, k)
-                threshold = (x2 - x1) * C
-                bisecting = false
-            end
+            if isfinite(f2 - f1)
+                ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
+                r = 1 - abs(ym / (f2 - f1)) # Symmetry factor
+                k = r * r # Deviation factor
+                if abs(ym - y3) < k * abs(y3) + k * abs(ym) # Check if the function is close enough to linear
+                    threshold = C * (x2 - x1) # Initialize the bisection fallback threshold
+                    bisecting = false
+                end
+            end 
         else # Anderson-Bjork method is used
             x3 = safe_secant(x1, y1, x2, y2)
             y3 = x3 == x1 ? f1 : x3 == x2 ? f2 : f(x3)
@@ -146,16 +106,16 @@ function SciMLBase.__solve(
         elseif (x2 - x1) < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
         end
-        if same_nonzero_sign(y1, y3)
+        if same_signs(f1, y3)
             if side == 1  # Apply Anderson-Bjork correction on the right side
-                y2 = scale_preserving_nonzero_sign(y2, ab_factor(y3, y1))
+                y2 *= get_ab_factor(y3, y1)
             elseif !bisecting
                 side = 1
             end
             x1, y1, f1 = x3, y3, y3
         else
             if side == -1  # Apply Anderson-Bjork correction on the left side
-                y1 = scale_preserving_nonzero_sign(y1, ab_factor(y3, y2))
+                y1 *= get_ab_factor(y3, y2)
             elseif !bisecting
                 side = -1
             end
