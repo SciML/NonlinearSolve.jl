@@ -135,7 +135,7 @@ function SciMLBase.__solve(
             end
         else # Anderson-Bjork method is used
             x3 = safe_secant(x1, y1, x2, y2)
-            y3 = x3 == x1 ? y1 : x3 == x2 ? y2 : f(x3)
+            y3 = x3 == x1 ? f1 : x3 == x2 ? f2 : f(x3)
             threshold /= 2
             yMin = min(abs(f1), abs(f2))
         end
