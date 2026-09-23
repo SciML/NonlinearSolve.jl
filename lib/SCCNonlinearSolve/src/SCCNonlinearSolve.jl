@@ -78,7 +78,7 @@ function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquar
 end
 _concrete_scc_problem(prob) = prob
 
-probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
+probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SciMLBase.HomotopyProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
