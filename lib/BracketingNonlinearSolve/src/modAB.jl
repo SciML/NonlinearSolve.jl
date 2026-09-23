@@ -88,11 +88,11 @@ function SciMLBase.__solve(
                 ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
                 r = 1 - abs(ym / (f2 - f1)) # Symmetry factor
                 k = r * r # Deviation factor
-                if abs(ym - y3) < k * abs(y3) + k * abs(ym) # Check if the function is close enough to linear
+                if abs(ym - y3) < k * abs(y3) + k * abs(ym) # Check if the function is close enough to linear
                     threshold = C * (x2 - x1) # Initialize the bisection fallback threshold
                     bisecting = false
                 end
-            end 
+            end
         else # Anderson-Bjork method is used
             x3 = safe_secant(x1, y1, x2, y2)
             y3 = x3 == x1 ? f1 : x3 == x2 ? f2 : f(x3)
