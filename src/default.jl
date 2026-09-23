@@ -56,16 +56,31 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     )
 end
 
-function SciMLBase.__init(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    # Convert SteadyStateProblem to NonlinearProblem and use its default
+## These dispatch on `SteadyStateProblem`, not `AbstractSteadyStateProblem`: the latter is an
+## alias of `AbstractNonlinearProblem`, so it would also catch the `SCCNonlinearProblem` that
+## `NonlinearProblem(prob)` returns for a stored SCC lowering and try to convert it again.
+
+function SciMLBase.__init(prob::SciMLBase.SteadyStateProblem, ::Nothing, args...; kwargs...)
+    # An `SCCNonlinearProblem` is solved block by block and has no single-residual cache to
+    # `init`, so iterate on the unlowered residual instead
     nlprob = SciMLBase.NonlinearProblem(prob)
+    if nlprob isa SciMLBase.SCCNonlinearProblem
+        nlprob = NonlinearProblem{SciMLBase.isinplace(prob)}(prob.f, prob.u0, prob.p)
+    end
     return SciMLBase.__init(nlprob, nothing, args...; kwargs...)
 end
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    # Convert SteadyStateProblem to NonlinearProblem and use its default
+function SciMLBase.__solve(
+        prob::SciMLBase.SteadyStateProblem, ::Nothing, args...;
+        default_set = false, second_time = false, kwargs...
+    )
     nlprob = SciMLBase.NonlinearProblem(prob)
-    return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)
+    # An `SCCNonlinearProblem` has no `u0`/`kwargs` for the `__solve` default, so hand it to
+    # its own `solve` dispatch (SCCNonlinearSolve)
+    if nlprob isa SciMLBase.SCCNonlinearProblem
+        return SciMLBase.solve(nlprob, nothing, args...; kwargs...)
+    end
+    return SciMLBase.__solve(nlprob, nothing, args...; default_set, second_time, kwargs...)
 end
 
 function NonlinearSolveBase.initialization_alg(prob::AbstractNonlinearProblem, autodiff)
