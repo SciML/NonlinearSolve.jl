@@ -14,6 +14,9 @@ function SciMLBase.__solve(
     )
     f = Base.Fix2(prob.f, prob.p)
     a, b = prob.tspan
+    abstol = NonlinearSolveBase.get_tolerance(
+        a, abstol, promote_type(eltype(a), eltype(b))
+    )
     c = a - (b - a) / (f(b) - f(a)) * f(a)
 
     fc = f(c)
@@ -26,6 +29,9 @@ function SciMLBase.__solve(
     end
 
     a, b, d = Impl.bracket(f, a, b, c)
+    if abs((b - a) / 2) < abstol
+        return build_bracketing_solution(prob, alg, c, fc, a, b, ReturnCode.Success)
+    end
     e = zero(a)   # Set e as 0 before iteration to avoid a non-value f(e)
 
     for i in 2:maxiters
@@ -50,6 +56,9 @@ function SciMLBase.__solve(
         end
 
         ā, b̄, d̄ = Impl.bracket(f, a, b, c)
+        if abs((b̄ - ā) / 2) < abstol
+            return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.Success)
+        end
 
         # The second bracketing block
         f₁, f₂, f₃, f₄ = f(ā), f(b̄), f(d̄), f(ē)
@@ -72,6 +81,9 @@ function SciMLBase.__solve(
         end
 
         ā, b̄, d̄ = Impl.bracket(f, ā, b̄, c)
+        if abs((b̄ - ā) / 2) < abstol
+            return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.Success)
+        end
 
         # The third bracketing block
         u = ifelse(abs(f(ā)) < abs(f(b̄)), ā, b̄)
@@ -90,6 +102,9 @@ function SciMLBase.__solve(
         end
 
         ā, b̄, d = Impl.bracket(f, ā, b̄, c)
+        if abs((b̄ - ā) / 2) < abstol
+            return build_bracketing_solution(prob, alg, c, fc, ā, b̄, ReturnCode.Success)
+        end
 
         # The last bracketing block
         if b̄ - ā < 0.5 * (b - a)
@@ -106,6 +121,9 @@ function SciMLBase.__solve(
                 return build_exact_solution(prob, alg, c, fc, ReturnCode.Success)
             end
             a, b, d = Impl.bracket(f, ā, b̄, c)
+        end
+        if abs((b - a) / 2) < abstol
+            return build_bracketing_solution(prob, alg, c, fc, a, b, ReturnCode.Success)
         end
     end
 
