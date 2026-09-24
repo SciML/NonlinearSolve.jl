@@ -67,7 +67,16 @@ function scc_solve_up(
         prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
         kwargs...
     )
-    probs = map(_concrete_scc_problem, prob.probs)
+    # Preserve a non-concrete `Vector` container eltype (typically `Any`):
+    # plain `map` narrows the output to the common concrete block type, so
+    # `_scc_solve` would see a different `SCCNonlinearProblem` type for
+    # homogeneous vs heterogeneous block vectors. A concretely typed input
+    # keeps `map`, and `Tuple` storage is untouched.
+    probs = if prob.probs isa Tuple || isconcretetype(eltype(prob.probs))
+        map(_concrete_scc_problem, prob.probs)
+    else
+        map!(_concrete_scc_problem, similar(prob.probs), prob.probs)
+    end
     concrete_prob = SciMLBase.remake(prob; probs)
     return _scc_solve(concrete_prob, alg; kwargs...)
 end
