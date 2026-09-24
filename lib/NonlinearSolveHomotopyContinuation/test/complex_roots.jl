@@ -17,7 +17,7 @@ using SciMLBase: NonlinearSolution
 
     @test sol_complex isa EnsembleSolution
     @test sol_complex.converged
-    @test length(sol_complex) == 2
+    @test length(sol_complex.u) == 2
 
     # Sort solutions by imaginary part
     solutions = [s.u for s in sol_complex.u]
@@ -31,7 +31,7 @@ using SciMLBase: NonlinearSolution
     sol_real = solve(prob, alg_real)
 
     @test !sol_real.converged
-    @test length(sol_real) == 1
+    @test length(sol_real.u) == 1
     @test sol_real.u[1].retcode == SciMLBase.ReturnCode.ConvergenceFailure
 end
 
@@ -51,7 +51,7 @@ end
 
     @test sol_complex isa EnsembleSolution
     @test sol_complex.converged
-    @test length(sol_complex) == 4
+    @test length(sol_complex.u) == 4
 
     # Verify all solutions are approximately correct
     for s in sol_complex.u
@@ -65,7 +65,7 @@ end
     sol_real = solve(prob, alg_real)
 
     @test !sol_real.converged
-    @test length(sol_real) == 1
+    @test length(sol_real.u) == 1
     @test sol_real.u[1].retcode == SciMLBase.ReturnCode.ConvergenceFailure
 end
 
@@ -76,7 +76,11 @@ end
         return u * u + 1
     end
 
-    prob = NonlinearProblem(rhs, 1.0 + 0.0im)
+    # H(x, t) = F(x) - t*F(u0) is singular where F'(u) = 0, i.e. at u = 0, which lies
+    # on the path iff t = 1/F(u0) is real and in [0, 1]. A purely real guess gives
+    # F(u0) = u0^2 + 1 > 1, so the path crosses the singularity at t = 0.5 and the
+    # tracker fails; a guess with non-real F(u0) keeps the path regular.
+    prob = NonlinearProblem(rhs, 0.5 + 0.9im)
 
     # Test with complex roots enabled
     alg_complex = HomotopyContinuationJL{false, Val{true}}(; threading = false)
