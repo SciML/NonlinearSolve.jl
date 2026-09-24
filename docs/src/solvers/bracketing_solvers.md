@@ -26,6 +26,11 @@ quadratic interpolation. At every iteration, Brent's method decides which method
 these three is likely to do best, and proceeds by doing a step according to that method.
 This gives a robust and fast method, which therefore enjoys considerable popularity.
 
+[`NewtonBisection`](@ref) is Newton's method safeguarded by bisection. It needs the
+derivative of `f`, given as `IntervalNonlinearFunction(f; jac)`, and usually fewer
+evaluations of `f` than the methods above. It pays off when the derivative is cheap
+compared with `f`.
+
 ## Full List of Methods
 
 ### BracketingNonlinearSolve.jl
@@ -40,4 +45,6 @@ BracketingNonlinearSolve.jl directly to decrease the dependencies and improve lo
   - [`ITP`](@ref): A non-allocating ITP (Interpolate, Truncate & Project) method
   - [`ModAB`](@ref): A non-allocating Modified Anderson-Bjork's method
   - [`Muller`](@ref): A non-allocating Muller's method
+  - [`NewtonBisection`](@ref): A non-allocating Newton's method safeguarded by bisection,
+    for problems that give the derivative of `f`
   - [`Ridder`](@ref): A non-allocating Ridder method
