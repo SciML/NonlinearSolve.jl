@@ -3,9 +3,10 @@ module BracketingNonlinearSolveForwardDiffExt
 using CommonSolve: CommonSolve
 using ForwardDiff: ForwardDiff, Dual, Partials
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
-using SciMLBase: SciMLBase, IntervalNonlinearProblem
+using SciMLBase: SciMLBase, IntervalNonlinearFunction, IntervalNonlinearProblem
 
-using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB
+using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB,
+    NewtonBisection
 
 const DualIntervalNonlinearProblem{
     T,
@@ -15,7 +16,7 @@ const DualIntervalNonlinearProblem{
     uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {uType, iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
     @eval function CommonSolve.solve(
             prob::DualIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
@@ -43,7 +44,7 @@ const DualBothIntervalNonlinearProblem{
     <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
     @eval function CommonSolve.solve(
             prob::DualBothIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
@@ -83,16 +84,19 @@ const DualTspanIntervalNonlinearProblem{
     iip, <:Tuple{Dual{T, V, P}, Dual{T, V, P}},
 } where {iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
     @eval function CommonSolve.solve(
             prob::DualTspanIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
         ) where {T, V, P}
-        # Strip Duals from tspan and f returns for the solver
+        # Strip Duals from tspan and f returns (and its derivative) for the solver
         tspan = (ForwardDiff.value(prob.tspan[1]), ForwardDiff.value(prob.tspan[2]))
         f_orig = prob.f
         f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
-        newprob = IntervalNonlinearProblem{false}(f_stripped, tspan, prob.p; prob.kwargs...)
+        jac_stripped = SciMLBase.has_jac(f_orig) ?
+            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : nothing
+        newf = IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped)
+        newprob = IntervalNonlinearProblem{false}(newf, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
 
         # Check if f's closure captures Dual-valued state (mixed case).
