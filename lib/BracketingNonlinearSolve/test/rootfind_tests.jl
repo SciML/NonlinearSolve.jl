@@ -8,3 +8,4 @@
 @safetestset "Function evaluated only inside the bracket" include("rootfind_tests__item8.jl")
 @safetestset "ModAB robustness to overflow, NaN and mixed types" include("rootfind_tests__item9.jl")
 @safetestset "Brent: one evaluation per point, and the minimum step" include("rootfind_tests__item10.jl")
+@safetestset "NewtonBisection" include("rootfind_tests__item11.jl")
