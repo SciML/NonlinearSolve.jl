@@ -1,31 +1,71 @@
+"""
+    NonlinearSolveBase
+
+Shared implementation layer for NonlinearSolve.jl solver packages.
+
+`NonlinearSolveBase` defines the common cache, tracing, automatic differentiation,
+termination, and developer-extension interfaces used by the nonlinear solver
+subpackages. Most users should access these capabilities through `NonlinearProblem`,
+`NonlinearLeastSquaresProblem`, `solve`, and `init` from the public SciML interface.
+Solver-package authors may extend the documented developer APIs on this page.
+
+### Example
+
+```julia
+using NonlinearSolve
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveBase
 
 using Compat: @compat
 using ConcreteStructs: @concrete
+import EnumX
 using FastClosures: @closure
 using Preferences: @load_preference, @set_preferences!
 
 using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityDetector,
-               KnownJacobianSparsityDetector
+    KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
-using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
+using FunctionWrappers: FunctionWrappers
+import FunctionWrappersWrappers
+import RespecializeParams
+using StaticArraysCore: StaticArray, SMatrix, SArray, MArray, SVector
 
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
-using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition
+using RecursiveArrayTools: RecursiveArrayTools, AbstractVectorOfArray, ArrayPartition
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
-                 AbstractNonlinearAlgorithm,
-                 NonlinearProblem, NonlinearLeastSquaresProblem,
-                 NonlinearFunction, NLStats, LinearProblem,
-                 LinearAliasSpecifier, ImmutableNonlinearProblem
-using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
-using SciMLOperators: AbstractSciMLOperator, IdentityOperator
-using SymbolicIndexingInterface: SymbolicIndexingInterface
+    AbstractNonlinearAlgorithm, _concrete_solve_adjoint, _concrete_solve_forward,
+    NonlinearProblem, NonlinearLeastSquaresProblem,
+    NonlinearFunction, NLStats, LinearProblem,
+    LinearAliasSpecifier, ImmutableNonlinearProblem, NonlinearAliasSpecifier,
+    promote_u0, get_concrete_u0, get_concrete_p,
+    has_kwargs, extract_alg, promote_u0, checkkwargs, SteadyStateProblem,
+    NoDefaultAlgorithmError, NonSolverError, KeywordArgError, AbstractDEAlgorithm
+import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinplace, remake
 
-using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
+using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
+using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible,
+    update_coefficients!, FunctionOperator
+using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
+    AbstractVerbositySpecifier, AbstractVerbosityPreset, MessageLevel,
+    None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel, ErrorLevel
+
+using PreallocationTools: FixedSizeDiffCache, get_tmp
+
+using SymbolicIndexingInterface: SymbolicIndexingInterface
+import SciMLStructures
+using Setfield: @set!, @set
+
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, Symmetric, norm, ldiv!, diag,
+    diagind, mul!
+using LogExpFunctions: logistic, logit
 using Markdown: @doc_str
 using Printf: @printf
 
@@ -34,11 +74,13 @@ const SII = SymbolicIndexingInterface
 
 include("public.jl")
 include("utils.jl")
+include("verbosity.jl")
 
 include("abstract_types.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
 
+include("autospecialize.jl")
 include("autodiff.jl")
 include("jacobian.jl")
 include("linear_solve.jl")
@@ -46,44 +88,100 @@ include("timer_outputs.jl")
 include("tracing.jl")
 include("wrappers.jl")
 include("polyalg.jl")
+include("kantorovich_homotopy.jl")
+include("homotopy_sweep.jl")
+include("arclength.jl")
+include("homotopy_polyalg.jl")
 
 include("descent/common.jl")
 include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/damped_newton.jl")
 include("descent/dogleg.jl")
+include("descent/more_trust_region.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
+include("bounds_transform.jl")
+include("conditioning.jl")
 include("solve.jl")
 
 include("forward_diff.jl")
 
 # Unexported Public API
-@compat(public, (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance))
+@compat(
+    public,
+    (L2_NORM, Linf_NORM, NAN_CHECK, UNITLESS_ABS2, get_tolerance, solve_cache!)
+)
+
+@compat(public, (get_abstol, get_reltol))
+@compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
-@compat(public,
-    (select_forward_mode_autodiff, select_reverse_mode_autodiff, select_jacobian_autodiff))
+@compat(
+    public,
+    (select_forward_mode_autodiff, select_reverse_mode_autodiff, select_jacobian_autodiff)
+)
 
 # public for NonlinearSolve.jl and subpackages to use
-@compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
-@compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A))
-@compat(public, (construct_jacobian_cache,))
-@compat(public,
-    (assert_extension_supported_termination_condition,
-    construct_extension_function_wrapper, construct_extension_jac))
+@compat(
+    public,
+    (
+        InternalAPI, supports_line_search, supports_trust_region, set_du!,
+        AbstractDescentDirection,
+    )
+)
+@compat(
+    public,
+    (
+        last_step_accepted, preinverted_jacobian, normal_form,
+        requires_normal_form_jacobian, requires_normal_form_rhs, returns_norm_form_damping,
+        stores_full_jacobian, get_full_jacobian, jacobian_initialized_preinverted,
+        store_inverse_jacobian,
+    )
+)
+@compat(
+    public,
+    (
+        needs_conditioning, transform_conditioned_problem, apply_postcondition!!,
+        get_precondition, get_postcondition, supports_postcondition,
+    )
+)
+@compat(public, (get_u, get_fu, get_nsteps, get_termination_cache, get_trace))
+@compat(public, (supports_deferred_residual, refresh_residual!))
+@compat(public, (residual_only_termination_mode, trace_is_active))
+@compat(public, (NonlinearSolveNoInitCache,))
+@compat(public, (get_concrete_problem, initialization_alg))
+@compat(public, (solve_call,))
+@compat(public, (nlls_solve_adjoint_dp,))
+@compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
+@compat(public, (construct_jacobian_cache, reused_jacobian))
+@compat(public, (reset_update_rule_state!,))
+@compat(
+    public,
+    (
+        assert_extension_supported_termination_condition,
+        construct_extension_function_wrapper, construct_extension_jac,
+    )
+)
 
 export TraceMinimal, TraceWithJacobianConditionNumber, TraceAll
 
 export RelTerminationMode, AbsTerminationMode,
-       NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,
-       RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
-       RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
+    NormTerminationMode, RelNormTerminationMode, AbsNormTerminationMode,
+    RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
+    RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
-       GeodesicAcceleration
+    GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem,
+    TrustRegionScaling
 
 export NonlinearSolvePolyAlgorithm
+
+export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAlgorithm
+
+export NonlinearVerbosity
+
+export PostconditionSpecifier, PostconditionSpace
 
 export pickchunksize
 

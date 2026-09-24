@@ -7,9 +7,19 @@ struct Brent <: AbstractBracketingAlgorithm end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Brent, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
-)
+        maxiters = 1000, abstol = nothing, verbose = NonlinearVerbosity(), kwargs...
+    )
     @assert !SciMLBase.isinplace(prob) "`Brent` only supports out-of-place problems."
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
 
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan
@@ -21,24 +31,20 @@ function SciMLBase.__solve(
     )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+            verbose, :non_enclosing_interval
         )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
     if abs(fl) < abs(fr)
@@ -64,19 +70,18 @@ function SciMLBase.__solve(
             s = right - fr * (right - left) / (fr - fl)
         end
 
-        if (s < min((3 * left + right) / 4, right) ||
-            s > max((3 * left + right) / 4, right)) ||
-           (cond && abs(s - right) ≥ abs(right - c) / 2) ||
-           (!cond && abs(s - right) ≥ abs(c - d) / 2) ||
-           (cond && abs(right - c) ≤ ϵ) ||
-           (!cond && abs(c - d) ≤ ϵ)
+        if (
+                s < min((3 * left + right) / 4, right) ||
+                    s > max((3 * left + right) / 4, right)
+            ) ||
+                (cond && abs(s - right) ≥ abs(right - c) / 2) ||
+                (!cond && abs(s - right) ≥ abs(c - d) / 2) ||
+                (cond && abs(right - c) ≤ ϵ) ||
+                (!cond && abs(c - d) ≤ ϵ)
             # Bisection method
             s = (left + right) / 2
             if s == left || s == right
-                return SciMLBase.build_solution(
-                    prob, alg, left, fl;
-                    retcode = ReturnCode.FloatingPointLimit, left, right
-                )
+                return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
             end
             cond = true
         else
@@ -84,20 +89,12 @@ function SciMLBase.__solve(
         end
 
         fs = f(s)
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, s, fs; retcode = ReturnCode.Success, left, right
-            )
+        if iszero(fs)
+            return build_exact_solution(prob, alg, s, fs, ReturnCode.Success)
         end
 
-        if iszero(fs)
-            if right < left
-                left = right
-                fl = fr
-            end
-            right = s
-            fr = fs
-            break
+        if abs((right - left) / 2) < abstol
+            return build_bracketing_solution(prob, alg, s, fs, left, right, ReturnCode.Success)
         end
 
         if fl * fs < 0
@@ -118,14 +115,5 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
-
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

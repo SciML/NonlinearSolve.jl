@@ -15,8 +15,10 @@ end
 supports_trust_region(::Dogleg) = true
 get_linear_solver(alg::Dogleg) = get_linear_solver(alg.newton_descent)
 
-function Dogleg(; linsolve = nothing, damping = Val(false),
-        damping_fn = missing, initial_damping = missing, kwargs...)
+function Dogleg(;
+        linsolve = nothing, damping = Val(false),
+        damping_fn = missing, initial_damping = missing, kwargs...
+    )
     if !Utils.unwrap_val(damping)
         return Dogleg(NewtonDescent(; linsolve), SteepestDescent(; linsolve))
     end
@@ -51,7 +53,7 @@ function InternalAPI.init(
         pre_inverted::Val = Val(false), linsolve_kwargs = (;),
         abstol = nothing, reltol = nothing, internalnorm::F = L2_NORM,
         shared::Val = Val(1), kwargs...
-) where {F}
+    ) where {F}
     newton_cache = InternalAPI.init(
         prob, alg.newton_descent, J, fu, u;
         pre_inverted, linsolve_kwargs, abstol, reltol, shared, kwargs...
@@ -61,16 +63,16 @@ function InternalAPI.init(
         pre_inverted, linsolve_kwargs, abstol, reltol, shared, kwargs...
     )
 
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-        @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
     @bb δu_cache_1 = similar(u)
     @bb δu_cache_2 = similar(u)
     @bb δu_cache_mul = similar(u)
 
     normal_form = prob isa NonlinearLeastSquaresProblem &&
-                  needs_square_A(alg.newton_descent.linsolve, u)
+        needs_square_A(alg.newton_descent.linsolve, u)
 
     Jᵀδu_cache = !normal_form ? J * Utils.safe_vec(δu) : nothing
 
@@ -84,8 +86,8 @@ end
 function InternalAPI.solve!(
         cache::DoglegCache, J, fu, u, idx::Val = Val(1);
         trust_region = nothing, skip_solve::Bool = false, kwargs...
-)
-    @assert trust_region!==nothing "Trust Region must be specified for Dogleg. Use \
+    )
+    @assert trust_region !== nothing "Trust Region must be specified for Dogleg. Use \
                                     `NewtonDescent` or `SteepestDescent` if you don't \
                                     want to use a Trust Region."
 
@@ -111,7 +113,7 @@ function InternalAPI.solve!(
 
         l_grad = cache.internalnorm(δu_cauchy)
         @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.safe_dot(cache.δu_cache_mul, cache.δu_cache_mul)
+        δuJᵀJδu = Utils.safe_dot(δu_cauchy, cache.δu_cache_mul)
     else
         δu_cauchy = InternalAPI.solve!(
             cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...

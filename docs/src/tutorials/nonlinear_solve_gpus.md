@@ -175,6 +175,6 @@ vectorized_solve(prob, NLS.SimpleNewtonRaphson(); backend = OneAPI.oneAPIBackend
 vectorized_solve(prob, NLS.SimpleNewtonRaphson(); backend = Metal.MetalBackend())
 ```
 
-!!! warn
+!!! warning
     
     The GPU-based calls will only work on your machine if you have a compatible GPU!

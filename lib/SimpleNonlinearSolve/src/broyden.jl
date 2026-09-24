@@ -1,35 +1,43 @@
 """
-    SimpleBroyden(; linesearch = Val(false), alpha = nothing)
+    SimpleBroyden(; linesearch = nothing, alpha = nothing)
 
 A low-overhead implementation of Broyden. This method is non-allocating on scalar and static
 array problems.
 
 ### Keyword Arguments
 
-  - `linesearch`: If `linesearch` is `Val(true)`, then we use the `LiFukushimaLineSearch`
-    line search else no line search is used. For advanced customization of the line search,
+  - `linesearch`: `nothing` for no line search, or any `LineSearch.AbstractLineSearchAlgorithm`.
+    Extra keyword arguments to `solve` are forwarded to `LineSearch.init`. For more options,
     use `Broyden` from `NonlinearSolve.jl`.
   - `alpha`: Scale the initial jacobian initialization with `alpha`. If it is `nothing`, we
     will compute the scaling using `2 * norm(fu) / max(norm(u), true)`.
 """
 @concrete struct SimpleBroyden <: AbstractSimpleNonlinearSolveAlgorithm
-    linesearch <: Union{Val{false}, Val{true}}
+    linesearch
     alpha
 end
 
 function SimpleBroyden(;
-        linesearch::Union{Bool, Val{true}, Val{false}} = Val(false), alpha = nothing
-)
-    linesearch = linesearch isa Bool ? Val(linesearch) : linesearch
+        linesearch::Union{Nothing, AbstractLineSearchAlgorithm} = nothing, alpha = nothing
+    )
     return SimpleBroyden(linesearch, alpha)
+end
+
+function _linesearch_cache(prob, linesearch, fx, x; kwargs...)
+    linesearch === nothing && return nothing
+    return init(prob, linesearch, fx, x; kwargs...)
 end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleBroyden, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
-)
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
+    )
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
@@ -44,7 +52,7 @@ function SciMLBase.__solve(
     if alg.alpha === nothing
         fx_norm = L2_NORM(fx)
         x_norm = L2_NORM(x)
-        init_α = ifelse(fx_norm ≥ 1e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
+        init_α = ifelse(fx_norm ≥ 1.0e-5, max(x_norm, T(true)) / (2 * fx_norm), T(true))
     else
         init_α = inv(alg.alpha)
     end
@@ -56,16 +64,11 @@ function SciMLBase.__solve(
     @bb δJ⁻¹ = copy(J⁻¹)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
-    if alg.linesearch isa Val{true}
-        ls_alg = LiFukushimaLineSearch(; nan_maxiters = nothing)
-        ls_cache = init(prob, ls_alg, fx, x)
-    else
-        ls_cache = nothing
-    end
+    ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
 
     for _ in 1:maxiters
         @bb δx = J⁻¹ × vec(fprev)

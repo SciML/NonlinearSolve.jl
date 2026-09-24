@@ -29,9 +29,11 @@ end
 
 function GeneralizedDFSane(;
         linesearch, sigma_min, sigma_max, sigma_1, name::Symbol = :unknown
-)
+    )
     return GeneralizedDFSane(linesearch, sigma_min, sigma_max, sigma_1, name)
 end
+
+NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
 
 @concrete mutable struct GeneralizedDFSaneCache <: AbstractNonlinearSolveCache
     # Basic Requirements
@@ -70,6 +72,15 @@ end
     kwargs
 
     initializealg
+
+    verbose
+end
+
+function SciMLBase.get_du(cache::GeneralizedDFSaneCache)
+    return cache.du
+end
+function NonlinearSolveBase.set_du!(cache::GeneralizedDFSaneCache, δu)
+    return cache.du = δu
 end
 
 function InternalAPI.reinit_self!(
@@ -77,7 +88,7 @@ function InternalAPI.reinit_self!(
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
-)
+    )
     Utils.reinit_common!(cache, u0, p, alias_u0)
     T = eltype(u0)
 
@@ -86,7 +97,7 @@ function InternalAPI.reinit_self!(
         # Spectral parameter bounds check
         if !(cache.alg.σ_min ≤ abs(σ_n) ≤ cache.alg.σ_max)
             test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
-            σ_n = clamp(inv(test_norm), T(1), T(1e5))
+            σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
         end
     else
         σ_n = T(cache.alg.σ_1)
@@ -115,10 +126,15 @@ NonlinearSolveBase.@internal_caches GeneralizedDFSaneCache :linesearch_cache
 
 function SciMLBase.__init(
         prob::AbstractNonlinearProblem, alg::GeneralizedDFSane, args...;
-        stats = NLStats(0, 0, 0, 0, 0), alias_u0 = false, maxiters = 1000,
+        stats = NLStats(0, 0, 0, 0, 0), alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), maxiters = 1000,
         abstol = nothing, reltol = nothing, termination_condition = nothing,
-        maxtime = nothing, initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
-)
+        maxtime = nothing, verbose = NonlinearVerbosity(),
+        initializealg = NonlinearSolveBase.NonlinearSolveDefaultInit(), kwargs...
+    )
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     timer = get_timer_output()
 
     @static_timeit timer "cache construction" begin
@@ -130,10 +146,19 @@ function SciMLBase.__init(
         fu = Utils.evaluate_f(prob, u)
         @bb fu_cache = copy(fu)
 
-        linesearch_cache = CommonSolve.init(prob, alg.linesearch, fu, u; stats, kwargs...)
+        linesearch_cache = if hasfield(typeof(alg.linesearch), :autodiff)
+            _ls_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
+                alg.linesearch.autodiff, prob
+            )
+            CommonSolve.init(
+                prob, alg.linesearch, fu, u; stats, autodiff = _ls_ad, kwargs...
+            )
+        else
+            CommonSolve.init(prob, alg.linesearch, fu, u; stats, kwargs...)
+        end
 
         abstol, reltol,
-        tc_cache = NonlinearSolveBase.init_termination_cache(
+            tc_cache = NonlinearSolveBase.init_termination_cache(
             prob, abstol, reltol, fu, u_cache, termination_condition, Val(:regular)
         )
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
@@ -145,17 +170,27 @@ function SciMLBase.__init(
             # Spectral parameter bounds check
             if !(alg.σ_min ≤ abs(σ_n) ≤ alg.σ_max)
                 test_norm = NonlinearSolveBase.L2_NORM(fu)
-                σ_n = clamp(inv(test_norm), T(1), T(1e5))
+                σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
             end
         else
             σ_n = T(alg.σ_1)
+        end
+
+        if verbose isa Bool
+            if verbose
+                verbose = NonlinearVerbosity()
+            else
+                verbose = NonlinearVerbosity(None())
+            end
+        elseif verbose isa AbstractVerbosityPreset
+            verbose = NonlinearVerbosity(verbose)
         end
 
         cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),
             linesearch_cache, stats, 0, maxiters, maxtime, timer, 0.0,
-            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg
+            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -166,10 +201,10 @@ end
 function InternalAPI.step!(
         cache::GeneralizedDFSaneCache; recompute_jacobian::Union{Nothing, Bool} = nothing,
         kwargs...
-)
+    )
     if recompute_jacobian !== nothing
         @warn "GeneralizedDFSane is a Jacobian-Free Algorithm. Ignoring \
-              `recompute_jacobian`" maxlog=1
+              `recompute_jacobian`"
     end
 
     @static_timeit cache.timer "descent" begin
@@ -190,6 +225,7 @@ function InternalAPI.step!(
 
     @static_timeit cache.timer "step" begin
         @bb axpy!(α, cache.du, cache.u)
+        cache.u = NonlinearSolveBase.apply_postcondition!!(cache.u, cache.u_cache, cache)
         Utils.evaluate_f!(cache, cache.u, cache.p)
     end
 
@@ -203,13 +239,13 @@ function InternalAPI.step!(
         @bb @. cache.fu_cache = cache.fu - cache.fu_cache
 
         cache.σ_n = Utils.safe_dot(cache.u_cache, cache.u_cache) /
-                    Utils.safe_dot(cache.u_cache, cache.fu_cache)
+            Utils.safe_dot(cache.u_cache, cache.fu_cache)
 
         # Spectral parameter bounds check
         if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)
             test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
             T = eltype(cache.σ_n)
-            cache.σ_n = clamp(inv(test_norm), T(1), T(1e5))
+            cache.σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
         end
     end
 

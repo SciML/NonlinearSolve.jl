@@ -2,9 +2,10 @@ module NonlinearSolveLeastSquaresOptimExt
 
 using LeastSquaresOptim: LeastSquaresOptim
 
-using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal
+using NonlinearSolveBase: NonlinearSolveBase, TraceMinimal, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, LeastSquaresOptimJL
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
+using Setfield: @set
 
 const LSO = LeastSquaresOptim
 
@@ -13,7 +14,12 @@ function SciMLBase.__solve(
         alias_u0 = false, abstol = nothing, reltol = nothing, maxiters = 1000,
         trace_level = TraceMinimal(), termination_condition = nothing,
         show_trace::Val = Val(false), store_trace::Val = Val(false), kwargs...
-)
+    )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )
@@ -36,8 +42,10 @@ function SciMLBase.__solve(
     end
 
     linsolve = alg.linsolve === :qr ? LSO.QR() :
-               (alg.linsolve === :cholesky ? LSO.Cholesky() :
-                (alg.linsolve === :lsmr ? LSO.LSMR() : nothing))
+        (
+            alg.linsolve === :cholesky ? LSO.Cholesky() :
+            (alg.linsolve === :lsmr ? LSO.LSMR() : nothing)
+        )
 
     lso_solver = if alg.alg === :lm
         LSO.LevenbergMarquardt(linsolve)
@@ -56,8 +64,10 @@ function SciMLBase.__solve(
     )
 
     retcode = res.x_converged || res.f_converged || res.g_converged ? ReturnCode.Success :
-              (res.iterations ≥ maxiters ? ReturnCode.MaxIters :
-               ReturnCode.ConvergenceFailure)
+        (
+            res.iterations ≥ maxiters ? ReturnCode.MaxIters :
+            ReturnCode.ConvergenceFailure
+        )
     stats = SciMLBase.NLStats(res.f_calls, res.g_calls, -1, -1, res.iterations)
 
     f!(resid, res.minimizer)

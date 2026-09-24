@@ -44,8 +44,8 @@ end
 """
     FastLevenbergMarquardtJL(
         linsolve::Symbol = :cholesky;
-        factor = 1e-6, factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
+        factor = 1.0e-6, factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+        minscale = 1.0e-12, maxscale = 1.0e16, minfactor = 1.0e-28, maxfactor = 1.0e32,
         autodiff = nothing
     )
 
@@ -82,10 +82,10 @@ see the documentation for `FastLevenbergMarquardt.jl`.
 end
 
 function FastLevenbergMarquardtJL(
-        linsolve::Symbol = :cholesky; factor = 1e-6, factoraccept = 13.0,
-        factorreject = 3.0, factorupdate = :marquardt, minscale = 1e-12,
-        maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32, autodiff = nothing
-)
+        linsolve::Symbol = :cholesky; factor = 1.0e-6, factoraccept = 13.0,
+        factorreject = 3.0, factorupdate = :marquardt, minscale = 1.0e-12,
+        maxscale = 1.0e16, minfactor = 1.0e-28, maxfactor = 1.0e32, autodiff = nothing
+    )
     @assert linsolve in (:qr, :cholesky)
     @assert factorupdate in (:marquardt, :nielson)
 
@@ -115,15 +115,15 @@ The keyword argument `method` can take on different value depending on which met
 `fsolve` you are calling. The standard choices of `method` are:
 
   - `:hybr`: Modified version of Powell's algorithm. Uses MINPACK routine
-    [`hybrd1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd1.c)
+    [`hybrd1`](https://devernay.github.io/cminpack/hybrd_.html)
   - `:lm`: Levenberg-Marquardt. Uses MINPACK routine
-    [`lmdif1`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif1.c)
+    [`lmdif1`](https://devernay.github.io/cminpack/lmdif_.html)
   - `:lmdif`: Advanced Levenberg-Marquardt (more options available with `; kwargs...`). See
-    MINPACK routine [`lmdif`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmdif.c)
+    MINPACK routine [`lmdif`](https://devernay.github.io/cminpack/lmdif_.html)
     for more information
   - `:hybrd`: Advanced modified version of Powell's algorithm (more options available with
     `; kwargs...`). See MINPACK routine
-    [`hybrd`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrd.c)
+    [`hybrd`](https://devernay.github.io/cminpack/hybrd_.html)
     for more information
 
 If a Jacobian is supplied as part of the [`NonlinearFunction`](@ref nonlinearfunctions),
@@ -131,11 +131,11 @@ then the following methods are allowed:
 
   - `:hybr`: Advanced modified version of Powell's algorithm with user supplied Jacobian.
     Additional arguments are available via `; kwargs...`. See MINPACK routine
-    [`hybrj`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/hybrj.c)
+    [`hybrj`](https://devernay.github.io/cminpack/hybrj_.html)
     for more information
   - `:lm`: Advanced Levenberg-Marquardt with user supplied Jacobian. Additional arguments
     are available via `; kwargs...`. See MINPACK routine
-    [`lmder`](https://github.com/devernay/cminpack/blob/d1f5f5a273862ca1bbcf58394e4ac060d9e22c76/lmder.c)
+    [`lmder`](https://devernay.github.io/cminpack/lmder_.html)
     for more information
 
 The default choice of `:auto` selects `:hybr` for NonlinearProblem and `:lm` for
@@ -160,17 +160,19 @@ end
 
 """
     NLsolveJL(;
-        method = :trust_region, autodiff = :central, linesearch = Static(),
-        linsolve = (x, A, b) -> copyto!(x, A\\b), factor = one(Float64), autoscale = true,
-        m = 10, beta = one(Float64)
+        method = :trust_region, autodiff = AutoFiniteDiff(; fdtype = Val(:central)),
+        linesearch = Static(), linsolve = (x, A, b) -> copyto!(x, A\\b),
+        factor = one(Float64), autoscale = true, m = 10, beta = one(Float64)
     )
 
 ### Keyword Arguments
 
   - `method`: the choice of method for solving the nonlinear system.
-  - `autodiff`: the choice of method for generating the Jacobian. Defaults to `:central` or
-    central differencing via FiniteDiff.jl. The other choices are `:forward` or `ADTypes`
-    similar to other solvers in NonlinearSolve.
+  - `autodiff`: the choice of method for generating the Jacobian, given as an
+    [ADTypes.jl](https://github.com/SciML/ADTypes.jl) backend like the other solvers in
+    NonlinearSolve. Defaults to `AutoFiniteDiff(; fdtype = Val(:central))`, central
+    differencing via FiniteDiff.jl. The Symbols `:central` and `:forward` are deprecated
+    aliases for `AutoFiniteDiff(; fdtype = Val(:central))` and `AutoForwardDiff()`.
   - `linesearch`: the line search method to be used within the solver method. The choices
     are line search types from
     [LineSearches.jl](https://github.com/JuliaNLSolvers/LineSearches.jl).
@@ -221,20 +223,36 @@ For more information on these arguments, consult the
 end
 
 function NLsolveJL(;
-        method = :trust_region, autodiff = :central, linesearch = missing, beta = 1.0,
+        method = :trust_region, autodiff = ADTypes.AutoFiniteDiff(; fdtype = Val(:central)),
+        linesearch = missing, beta = 1.0,
         linsolve = (x, A, b) -> copyto!(x, A \ b), factor = 1.0, autoscale = true, m = 10
-)
+    )
     if Base.get_extension(@__MODULE__, :NonlinearSolveNLsolveExt) === nothing
         error("`NLsolveJL` requires `NLsolve.jl` to be loaded")
     end
 
-    if autodiff isa Symbol && autodiff !== :central && autodiff !== :forward
+    return NLsolveJL(
+        method, nlsolvejl_autodiff(autodiff), linesearch, linsolve, factor, autoscale,
+        m, beta, :NLsolveJL
+    )
+end
+
+nlsolvejl_autodiff(autodiff) = autodiff
+function nlsolvejl_autodiff(autodiff::Symbol)
+    if autodiff === :central
+        suggestion = "AutoFiniteDiff(; fdtype = Val(:central))"
+        replacement = ADTypes.AutoFiniteDiff(; fdtype = Val(:central))
+    elseif autodiff === :forward
+        suggestion = "AutoForwardDiff()"
+        replacement = ADTypes.AutoForwardDiff()
+    else
         error("`autodiff` must be `:central` or `:forward`.")
     end
-
-    return NLsolveJL(
-        method, autodiff, linesearch, linsolve, factor, autoscale, m, beta, :NLsolveJL
+    Base.depwarn(
+        "`NLsolveJL(autodiff = :$(autodiff))` is deprecated, pass `$(suggestion)` instead.",
+        :NLsolveJL
     )
+    return replacement
 end
 
 """
@@ -307,7 +325,7 @@ end
 function SpeedMappingJL(;
         σ_min = 0.0, stabilize::Bool = false, check_obj::Bool = false,
         orders::Vector{Int} = [3, 3, 2]
-)
+    )
     if Base.get_extension(@__MODULE__, :NonlinearSolveSpeedMappingExt) === nothing
         error("`SpeedMappingJL` requires `SpeedMapping.jl` to be loaded")
     end
@@ -356,7 +374,7 @@ end
 function FixedPointAccelerationJL(;
         algorithm = :Anderson, m = missing, condition_number_threshold = missing,
         extrapolation_period = missing, replace_invalids = :NoAction, dampening = 1.0
-)
+    )
     if Base.get_extension(@__MODULE__, :NonlinearSolveFixedPointAccelerationExt) === nothing
         error("`FixedPointAccelerationJL` requires `FixedPointAcceleration.jl` to be loaded")
     end
@@ -365,14 +383,14 @@ function FixedPointAccelerationJL(;
     @assert replace_invalids in (:ReplaceInvalids, :ReplaceVector, :NoAction)
 
     if algorithm !== :Anderson
-        @assert condition_number_threshold===missing "`condition_number_threshold` is only valid for Anderson acceleration"
-        @assert m===missing "`m` is only valid for Anderson acceleration"
+        @assert condition_number_threshold === missing "`condition_number_threshold` is only valid for Anderson acceleration"
+        @assert m === missing "`m` is only valid for Anderson acceleration"
     end
-    condition_number_threshold === missing && (condition_number_threshold = 1e3)
+    condition_number_threshold === missing && (condition_number_threshold = 1.0e3)
     m === missing && (m = 10)
 
     if algorithm !== :MPE && algorithm !== :RRE && algorithm !== :VEA && algorithm !== :SEA
-        @assert extrapolation_period===missing "`extrapolation_period` is only valid for MPE, RRE, VEA and SEA"
+        @assert extrapolation_period === missing "`extrapolation_period` is only valid for MPE, RRE, VEA and SEA"
     end
     if extrapolation_period === missing
         extrapolation_period = algorithm === :SEA || algorithm === :VEA ? 6 : 7
@@ -390,7 +408,7 @@ end
 
 """
     SIAMFANLEquationsJL(;
-        method = :newton, delta = 1e-3, linsolve = nothing, autodiff = missing
+        method = :newton, delta = 1.0e-3, linsolve = nothing, autodiff = missing
     )
 
 ### Keyword Arguments
@@ -427,9 +445,9 @@ end
 end
 
 function SIAMFANLEquationsJL(;
-        method = :newton, delta = 1e-3, linsolve = nothing, m = 0, beta = 1.0,
+        method = :newton, delta = 1.0e-3, linsolve = nothing, m = 0, beta = 1.0,
         autodiff = missing
-)
+    )
     if Base.get_extension(@__MODULE__, :NonlinearSolveSIAMFANLEquationsExt) === nothing
         error("`SIAMFANLEquationsJL` requires `SIAMFANLEquations.jl` to be loaded")
     end

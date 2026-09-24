@@ -1,32 +1,10 @@
-@testitem "Scalar Jacobians: Issue #451" tags=[:core] begin
-    f(u, p) = u^2 - p
-
-    jac_calls = 0
-    function df(u, p)
-        global jac_calls += 1
-        return 2u
-    end
-
-    fn = NonlinearFunction(f; jac = df)
-    prob = NonlinearProblem(fn, 1.0, 2.0)
-    sol = solve(prob, NewtonRaphson())
-    @test sol.retcode == ReturnCode.Success
-    @test jac_calls ≥ 1
-
-    jac_calls = 0
-    fn2 = NonlinearFunction(f)
-    prob = NonlinearProblem(fn2, 1.0, 2.0)
-    sol = solve(prob, NewtonRaphson())
-    @test sol.retcode == ReturnCode.Success
-    @test jac_calls == 0
-end
-
-@testitem "Dual of BigFloat: Issue #512" tags=[:core] begin
-    using NonlinearSolveFirstOrder, ForwardDiff
-    fn_iip = NonlinearFunction{true}((du, u, p) -> du .= u .* u .- p)
-    u2 = [ForwardDiff.Dual(BigFloat(1.0), 5.0), ForwardDiff.Dual(BigFloat(1.0), 5.0),
-        ForwardDiff.Dual(BigFloat(1.0), 5.0)]
-    prob_iip_bf = NonlinearProblem{true}(fn_iip, u2, ForwardDiff.Dual(BigFloat(2.0), 5.0))
-    sol = solve(prob_iip_bf, NewtonRaphson())
-    @test sol.retcode == ReturnCode.Success
-end
+@safetestset "Scalar Jacobians: Issue #451" include("misc_tests__item1.jl")
+@safetestset "Dual of BigFloat: Issue #512" include("misc_tests__item2.jl")
+@safetestset "TrustRegion reinit! resets trust_region" include("misc_tests__item3.jl")
+@safetestset "Line search uses forward-mode autodiff: Issue #837" include("misc_tests__item4.jl")
+@safetestset "Default NLLS polyalg is forward-mode only: Issue #837" include("misc_tests__item5.jl")
+@safetestset "Eisenstat-Walker forcing reinit! resets forcing state" include("misc_tests__item6.jl")
+@safetestset "Deferred residual evaluation" include("misc_tests__item7.jl")
+@safetestset "No redundant terminal residual evaluation" include("misc_tests__item8.jl")
+@safetestset "Adaptive Jacobian reuse" include("misc_tests__item9.jl")
+@safetestset "Bounded trust region" include("misc_tests__item10.jl")

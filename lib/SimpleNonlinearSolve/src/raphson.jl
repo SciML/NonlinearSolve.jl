@@ -21,37 +21,48 @@ and static array problems.
     autodiff = nothing
 end
 
+"""
+    SimpleGaussNewton(autodiff)
+    SimpleGaussNewton(; autodiff = nothing)
+
+Alias for [`SimpleNewtonRaphson`](@ref) used for nonlinear least-squares problems. It
+uses the same low-overhead Newton implementation and Jacobian backend selection.
+"""
 const SimpleGaussNewton = SimpleNewtonRaphson
 
 function configure_autodiff(prob, alg::SimpleNewtonRaphson)
     autodiff = something(alg.autodiff, AutoForwardDiff())
     autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
+        NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
     @set! alg.autodiff = autodiff
-    alg
+    return alg
 end
 
 function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleNewtonRaphson, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
-)
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
+    )
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
     autodiff = alg.autodiff
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
     iszero(fx) &&
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
     @bb xo = similar(x)
-    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               NLBUtils.safe_similar(fx) : fx
+    fx_cache = Utils.should_cache_fx(prob, prob.f) ?
+        NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 

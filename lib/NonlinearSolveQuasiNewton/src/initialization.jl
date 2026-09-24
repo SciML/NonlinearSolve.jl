@@ -40,7 +40,7 @@ is reinitialized.
 end
 
 function InternalAPI.reinit_self!(cache::InitializedApproximateJacobianCache; kwargs...)
-    cache.initialized = false
+    return cache.initialized = false
 end
 
 NonlinearSolveBase.@internal_caches InitializedApproximateJacobianCache :cache
@@ -51,7 +51,7 @@ end
 
 function InternalAPI.solve!(
         cache::InitializedApproximateJacobianCache, fu, u, reinit::Val
-)
+    )
     if reinit isa Val{true} || !cache.initialized
         cache(cache.alg, fu, u)
         cache.initialized = true
@@ -78,13 +78,13 @@ end
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::IdentityInitialization, solver, f::F,
         fu, u, p; internalnorm::IN = L2_NORM, kwargs...
-) where {F, IN}
+    ) where {F, IN}
     α = Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, internalnorm)
     if u isa Number
         J = α
     else
         if alg.structure isa DiagonalStructure
-            @assert length(u)==length(fu) "Diagonal Jacobian Structure must be square!"
+            @assert length(u) == length(fu) "Diagonal Jacobian Structure must be square!"
             J = one.(Utils.safe_vec(fu)) .* α
         else
             # A simple trick to get the correct jacobian structure
@@ -98,7 +98,7 @@ end
 
 function (cache::InitializedApproximateJacobianCache)(
         alg::IdentityInitialization, fu, u
-)
+    )
     α = Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, cache.internalnorm)
     cache.J = Utils.make_identity!!(cache.J, α)
     return
@@ -120,12 +120,12 @@ function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::TrueJacobianInitialization,
         solver, f::F, fu, u, p; stats, linsolve = missing,
         internalnorm::IN = L2_NORM, kwargs...
-) where {F, IN}
+    ) where {F, IN}
     autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     jac_cache = NonlinearSolveBase.construct_jacobian_cache(
         prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve
     )
-    J = alg.structure(jac_cache(nothing))
+    J = alg.structure(reused_jacobian(jac_cache, u))
     return InitializedApproximateJacobianCache(
         J, alg.structure, alg, jac_cache, false, internalnorm
     )
@@ -153,14 +153,25 @@ NonlinearSolveBase.jacobian_initialized_preinverted(::BroydenLowRankInitializati
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BroydenLowRankInitialization,
         solver, f::F, fu, u, p;
-        internalnorm::IN = L2_NORM, maxiters = 1000, kwargs...
-) where {F, IN}
+        internalnorm::IN = L2_NORM, maxiters = 1000, verbose = NonlinearVerbosity(), kwargs...
+    ) where {F, IN}
     if u isa Number # Use the standard broyden
         return InternalAPI.init(
             prob, IdentityInitialization(true, FullStructure()),
             solver, f, fu, u, p; internalnorm, maxiters, kwargs...
         )
     end
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
+
     # Pay to cost of slightly more allocations to prevent type-instability for StaticArrays
     α = inv(Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, internalnorm))
     if u isa StaticArray
@@ -168,8 +179,8 @@ function InternalAPI.init(
     else
         threshold = min(Utils.unwrap_val(alg.threshold), maxiters)
         if threshold > length(u)
-            @warn "`threshold` is larger than the size of the state, which may cause \
-                   numerical instability. Consider reducing `threshold`."
+            @SciMLMessage("`threshold` is larger than the size of the state, which may cause \
+                   numerical instability. Consider reducing `threshold`.", verbose, :threshold_state)
         end
         J = BroydenLowRankJacobian(fu, u; threshold, alpha = α)
     end
@@ -180,7 +191,7 @@ end
 
 function (cache::InitializedApproximateJacobianCache)(
         alg::BroydenLowRankInitialization, fu, u
-)
+    )
     α = Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, cache.internalnorm)
     cache.J.idx = 0
     cache.J.alpha = inv(α)
@@ -190,8 +201,10 @@ end
 """
     BroydenLowRankJacobian{T}(U, Vᵀ, idx, cache, alpha)
 
-Low Rank Approximation of the Jacobian Matrix. Currently only used for
-[`LimitedMemoryBroyden`](@ref). This computes the Jacobian as ``U \\times V^T``.
+Low Rank Approximation of the inverse Jacobian. Currently only used for
+[`LimitedMemoryBroyden`](@ref). This computes the inverse Jacobian as
+``\\alpha I + U \\times V^T``, matching the ``\\alpha I`` seed
+[`IdentityInitialization`](@ref) hands the other quasi-Newton methods after inversion.
 """
 @concrete mutable struct BroydenLowRankJacobian{T} <: AbstractSciMLOperator{T}
     U
@@ -201,7 +214,7 @@ Low Rank Approximation of the Jacobian Matrix. Currently only used for
     alpha
 end
 
-Utils.maybe_pinv!!(workspace, A::BroydenLowRankJacobian) = A  # Already Inverted form
+Utils.linsolve_identity!!(workspace, A::BroydenLowRankJacobian) = A  # Already Inverted form
 
 function get_components(op::BroydenLowRankJacobian)
     op.idx ≥ size(op.U, 2) && return op.cache, op.U, transpose(op.Vᵀ)
@@ -219,7 +232,7 @@ Base.adjoint(op::BroydenLowRankJacobian{<:Real}) = transpose(op)
 # Storing the transpose to ensure contiguous memory on splicing
 function BroydenLowRankJacobian(
         fu::StaticArray, u::StaticArray; alpha = true, threshold::Val = Val(10)
-)
+    )
     T = promote_type(eltype(u), eltype(fu))
     U = MArray{Tuple{prod(Size(fu)), Utils.unwrap_val(threshold)}, T}(undef)
     Vᵀ = MArray{Tuple{prod(Size(u)), Utils.unwrap_val(threshold)}, T}(undef)
@@ -235,45 +248,45 @@ function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
 end
 
 function Base.:*(J::BroydenLowRankJacobian, x::AbstractVector)
-    J.idx == 0 && return -x
+    J.idx == 0 && return J.alpha .* x
     _, U, Vᵀ = get_components(J)
-    return U * (Vᵀ * x) .- J.alpha .* x
+    return U * (Vᵀ * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::AbstractVector)
     if J.idx == 0
-        @. y = -J.alpha * x
+        @. y = J.alpha * x
         return y
     end
     cache, U, Vᵀ = get_components(J)
     @bb cache = Vᵀ × x
     LinearAlgebra.mul!(y, U, cache)
-    @bb @. y -= J.alpha * x
+    @bb @. y += J.alpha * x
     return y
 end
 
 function Base.:*(x::AbstractVector, J::BroydenLowRankJacobian)
-    J.idx == 0 && return -x
+    J.idx == 0 && return J.alpha .* x
     _, U, Vᵀ = get_components(J)
-    return Vᵀ' * (U' * x) .- J.alpha .* x
+    return Vᵀ' * (U' * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowRankJacobian)
     if J.idx == 0
-        @. y = -J.alpha * x
+        @. y = J.alpha * x
         return y
     end
     cache, U, Vᵀ = get_components(J)
     @bb cache = transpose(U) × x
     LinearAlgebra.mul!(y, transpose(Vᵀ), cache)
-    @bb @. y -= J.alpha * x
+    @bb @. y += J.alpha * x
     return y
 end
 
 function LinearAlgebra.mul!(
         J::BroydenLowRankJacobian, u::AbstractArray, vᵀ::LinearAlgebra.AdjOrTransAbsVec,
         α::Bool, β::Bool
-)
+    )
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))
     copyto!(@view(J.U[:, idx_update]), Utils.safe_vec(u))

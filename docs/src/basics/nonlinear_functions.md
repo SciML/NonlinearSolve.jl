@@ -8,7 +8,5 @@ be passed to the problems.
 
 ## Function Type Definitions
 
-```@docs
-SciMLBase.IntervalNonlinearFunction
-SciMLBase.NonlinearFunction
-```
+The `IntervalNonlinearFunction` and `NonlinearFunction` types are defined and documented by
+SciMLBase.

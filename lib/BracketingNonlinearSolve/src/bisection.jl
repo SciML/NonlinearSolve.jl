@@ -21,8 +21,8 @@ end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Bisection, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
-)
+        maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
+    )
     @assert !SciMLBase.isinplace(prob) "`Bisection` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -30,49 +30,47 @@ function SciMLBase.__solve(
     fl, fr = f(left), f(right)
 
     abstol = NonlinearSolveBase.get_tolerance(
-        left, abstol, promote_type(eltype(left), eltype(right)))
+        left, abstol, promote_type(eltype(left), eltype(right))
+    )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+            verbose, :non_enclosing_interval
         )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
+    return internal_bisection(f, left, right, fl, fr, abstol, maxiters, prob, alg)
+end
+
+# Bisection main loop is implemented in separate function so that it can be reused
+# as a fallback solver in other solvers
+function internal_bisection(f::F, left, right, fl, fr, abstol, maxiters, prob, alg) where {F}
     i = 1
     while i ≤ maxiters
         mid = (left + right) / 2
 
         if mid == left || mid == right
-            return SciMLBase.build_solution(
-                prob, alg, left, fl; retcode = ReturnCode.FloatingPointLimit, left, right
-            )
+            return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
         end
 
         fm = f(mid)
-        if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, mid, fm; retcode = ReturnCode.Success, left, right
-            )
+        if iszero(fm)
+            return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
         end
 
-        if iszero(fm)
-            right = mid
-            break
+        if abs((right - left) / 2) < abstol
+            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
         if sign(fl) == sign(fm)
@@ -86,14 +84,5 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
-
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

@@ -4,6 +4,8 @@ pages = [
     "index.md",
     "Getting Started with Nonlinear Rootfinding in Julia" => "tutorials/getting_started.md",
     "Tutorials" => Any[
+        "tutorials/bound_constraints.md",
+        "tutorials/nonlinear_preconditioning.md",
         "tutorials/code_optimization.md",
         "tutorials/large_systems.md",
         "tutorials/modelingtoolkit.md",
@@ -11,7 +13,7 @@ pages = [
         "tutorials/iterator_interface.md",
         "tutorials/optimizing_parameterized_ode.md",
         "tutorials/nonlinear_solve_gpus.md",
-        "tutorials/snes_ex2.md"
+        "tutorials/snes_ex2.md",
     ],
     "Basics" => Any[
         "basics/nonlinear_problem.md",
@@ -22,14 +24,16 @@ pages = [
         "basics/termination_condition.md",
         "basics/diagnostics_api.md",
         "basics/sparsity_detection.md",
-        "basics/faq.md"
+        "basics/faq.md",
+        "basics/verbosity.md",
     ],
     "Solver Summaries and Recommendations" => Any[
         "solvers/nonlinear_system_solvers.md",
         "solvers/bracketing_solvers.md",
         "solvers/steady_state_solvers.md",
         "solvers/nonlinear_least_squares_solvers.md",
-        "solvers/fixed_point_solvers.md"
+        "solvers/bounded_solvers.md",
+        "solvers/fixed_point_solvers.md",
     ],
     "Native Functionalities" => Any[
         "native/solvers.md",
@@ -38,7 +42,7 @@ pages = [
         "native/steadystatediffeq.md",
         "native/descent.md",
         "native/globalization.md",
-        "native/diagnostics.md"
+        "native/diagnostics.md",
     ],
     "Wrapped Solver APIs" => Any[
         "api/fastlevenbergmarquardt.md",
@@ -52,18 +56,19 @@ pages = [
         "api/siamfanlequations.md",
         "api/speedmapping.md",
         "api/sundials.md",
-        "api/homotopycontinuation.md"
+        "api/homotopycontinuation.md",
     ],
     "Sub-Packages" => Any[
         "api/SciMLJacobianOperators.md",
     ],
     "Development Documentation" => [
         "devdocs/internal_interfaces.md",
+        "devdocs/termination_cache.md",
         "devdocs/linear_solve.md",
         "devdocs/jacobian.md",
         "devdocs/operators.md",
-        "devdocs/algorithm_helpers.md"
+        "devdocs/algorithm_helpers.md",
     ],
     "Release Notes" => "release_notes.md",
-    "References" => "references.md"
+    "References" => "references.md",
 ]

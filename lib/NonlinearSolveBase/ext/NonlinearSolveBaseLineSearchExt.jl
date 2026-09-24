@@ -7,7 +7,7 @@ using NonlinearSolveBase: NonlinearSolveBase, InternalAPI
 
 function NonlinearSolveBase.callback_into_cache!(
         topcache, cache::AbstractLineSearchCache, args...
-)
+    )
     return LineSearch.callback_into_cache!(cache, NonlinearSolveBase.get_fu(topcache))
 end
 

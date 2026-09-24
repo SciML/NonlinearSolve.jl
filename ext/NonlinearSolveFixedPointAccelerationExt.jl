@@ -2,21 +2,31 @@ module NonlinearSolveFixedPointAccelerationExt
 
 using FixedPointAcceleration: FixedPointAcceleration, fixed_point
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FixedPointAccelerationJL
 using SciMLBase: SciMLBase, NonlinearProblem, ReturnCode
+using Setfield: @set
 
 function SciMLBase.__solve(
         prob::NonlinearProblem, alg::FixedPointAccelerationJL, args...;
-        abstol = nothing, maxiters = 1000, alias_u0::Bool = false,
+        abstol = nothing, maxiters = 1000, alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false),
         show_trace::Val = Val(false), termination_condition = nothing, kwargs...
-)
+    )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
+    if haskey(kwargs, :alias_u0)
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
+    end
+    alias_u0 = alias.alias_u0
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )
 
     f, u0,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, make_fixed_point = Val(true), force_oop = Val(true)
     )
 
@@ -37,7 +47,7 @@ function SciMLBase.__solve(
         converged = false
     else
         res = prob.u0 isa Number ? first(sol.FixedPoint_) :
-              reshape(sol.FixedPoint_, size(prob.u0))
+            reshape(sol.FixedPoint_, size(prob.u0))
         resid = NonlinearSolveBase.Utils.evaluate_f(prob, res)
         converged = maximum(abs, resid) ≤ tol
     end

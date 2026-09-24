@@ -58,8 +58,8 @@ end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::ITP, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
-)
+        maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
+    )
     @assert !SciMLBase.isinplace(prob) "`ITP` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
@@ -71,24 +71,20 @@ function SciMLBase.__solve(
     )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+            verbose, :non_enclosing_interval
         )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
     ϵ = abstol
@@ -96,8 +92,13 @@ function SciMLBase.__solve(
     span = right - left
     k1 = alg.scaled_k1 * span^(1 - k2) # k1 > 0
     n0 = alg.n0
-    n_h = exponent(span / (2 * ϵ))
-    ϵ_s = ϵ * exp2(n_h + n0)
+    if span / 2 > ϵ * floatmax(typeof(span))
+        # Workaround for when span / (2 * ϵ) == Inf
+        ϵ_s = span / 2 * exp2(n0)
+    else
+        n_h = exponent(span / (2 * ϵ))
+        ϵ_s = ϵ * exp2(n_h) * exp2(n0)
+    end
     T0 = zero(fl)
 
     i = 1
@@ -115,9 +116,7 @@ function SciMLBase.__solve(
 
         xp = ifelse(abs(xt - mid) ≤ r, xt, mid - copysign(r, diff))  # Projection Step
         if span < 2ϵ
-            return SciMLBase.build_solution(
-                prob, alg, xt, f(xt); retcode = ReturnCode.Success, left, right
-            )
+            return build_bracketing_solution(prob, alg, xt, f(xt), left, right, ReturnCode.Success)
         end
         yp = f(xp)
         yps = yp * sign(fr)
@@ -126,22 +125,16 @@ function SciMLBase.__solve(
         elseif yps < T0
             left, fl = xp, yp
         else
-            return SciMLBase.build_solution(
-                prob, alg, xp, yps; retcode = ReturnCode.Success, left, right
-            )
+            return build_exact_solution(prob, alg, xp, yps, ReturnCode.Success)
         end
 
         i += 1
         ϵ_s /= 2
 
         if nextfloat(left) == right
-            return SciMLBase.build_solution(
-                prob, alg, right, fr; retcode = ReturnCode.FloatingPointLimit, left, right
-            )
+            return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.FloatingPointLimit)
         end
     end
 
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.MaxIters)
 end

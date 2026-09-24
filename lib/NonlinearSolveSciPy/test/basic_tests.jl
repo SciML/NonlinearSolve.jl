@@ -1,5 +1,1 @@
-@testitem "Package loads and algorithms defined" begin
-    using Test, NonlinearSolveSciPy
-    @test isdefined(NonlinearSolveSciPy, :SciPyLeastSquares)
-    @test isdefined(NonlinearSolveSciPy, :SciPyRoot)
-end
+@safetestset "Package loads and algorithms defined" include("basic_tests__item1.jl")

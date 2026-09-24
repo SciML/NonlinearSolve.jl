@@ -22,17 +22,21 @@ end
 
 function Base.convert(::Type{AbstractArray}, A::Pinv)
     hasmethod(pinv, Tuple{typeof(A.J)}) && return pinv(A.J)
-    @warn "`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
-           tracing." maxlog=1
+    @warn lazy"`pinv` not defined for $(typeof(A.J)). Jacobian will not be inverted when \
+           tracing." maxlog = 1
     return A.J
 end
 
-function nonallocating_isapprox(x::Number, y::Number; atol = false,
-        rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y)))))
+function nonallocating_isapprox(
+        x::Number, y::Number; atol = false,
+        rtol = atol > 0 ? false : sqrt(eps(promote_type(typeof(x), typeof(y))))
+    )
     return isapprox(x, y; atol, rtol)
 end
-function nonallocating_isapprox(x::AbstractArray, y::AbstractArray; atol = false,
-        rtol = atol > 0 ? false : sqrt(eps(eltype(x))))
+function nonallocating_isapprox(
+        x::AbstractArray, y::AbstractArray; atol = false,
+        rtol = atol > 0 ? false : sqrt(eps(eltype(x)))
+    )
     length(x) == length(y) || return false
     d = nonallocating_maximum(-, x, y)
     return d ≤ max(atol, rtol * max(maximum(abs, x), maximum(abs, y)))
@@ -40,18 +44,22 @@ end
 
 function nonallocating_maximum(f::F, x, y) where {F}
     if fast_scalar_indexing(x, y)
-        return maximum(@closure((xᵢyᵢ)->begin
-                xᵢ, yᵢ = xᵢyᵢ
-                return abs(f(xᵢ, yᵢ))
-            end), zip(x, y))
+        return maximum(
+            @closure(
+                (xᵢyᵢ) -> begin
+                    xᵢ, yᵢ = xᵢyᵢ
+                    return abs(f(xᵢ, yᵢ))
+                end
+            ), zip(x, y)
+        )
     else
-        return mapreduce(@closure((xᵢ, yᵢ)->abs(f(xᵢ, yᵢ))), max, x, y)
+        return mapreduce(@closure((xᵢ, yᵢ) -> abs(f(xᵢ, yᵢ))), max, x, y)
     end
 end
 
 function abs2_and_sum(x, y)
     return reduce(Base.add_sum, x, init = zero(real(value(eltype(x))))) +
-           reduce(Base.add_sum, y, init = zero(real(value(eltype(y)))))
+        reduce(Base.add_sum, y, init = zero(real(value(eltype(y)))))
 end
 
 children(x::AbstractVectorOfArray) = x.u
@@ -72,12 +80,18 @@ standardize_norm(f::F) where {F} = f
 norm_op(norm::N, op::OP, x, y) where {N, OP} = norm(op.(x, y))
 function norm_op(::typeof(L2_NORM), op::OP, x, y) where {OP}
     if fast_scalar_indexing(x, y)
-        return sqrt(sum(@closure((xᵢyᵢ)->begin
-                xᵢ, yᵢ = xᵢyᵢ
-                return op(xᵢ, yᵢ)^2
-            end), zip(x, y)))
+        return sqrt(
+            sum(
+                @closure(
+                    (xᵢyᵢ) -> begin
+                        xᵢ, yᵢ = xᵢyᵢ
+                        return op(xᵢ, yᵢ)^2
+                    end
+                ), zip(x, y)
+            )
+        )
     else
-        return sqrt(mapreduce(@closure((xᵢ, yᵢ)->op(xᵢ, yᵢ)^2), +, x, y))
+        return sqrt(mapreduce(@closure((xᵢ, yᵢ) -> op(xᵢ, yᵢ)^2), +, x, y))
     end
 end
 function norm_op(::typeof(Linf_NORM), op::OP, x, y) where {OP}
@@ -93,16 +107,18 @@ convert_real(::Type{T}, x) where {T} = real(T(x))
 restructure(::Number, x::Number) = x
 function restructure(
         y::T1, x::T2
-) where {T1 <: AbstractSciMLOperator, T2 <: AbstractSciMLOperator}
-    @assert size(y)==size(x) "cannot restructure operators. ensure their sizes match."
+    ) where {T1 <: AbstractSciMLOperator, T2 <: AbstractSciMLOperator}
+    @assert size(y) == size(x) "cannot restructure operators. ensure their sizes match."
     return x
 end
-restructure(y, x) = ArrayInterface.restructure(y, x)
+restructure(y, x) = y === x ? x : ArrayInterface.restructure(y, x)
 
 function safe_similar(x, args...; kwargs...)
     y = similar(x, args...; kwargs...)
     return init_similar_array!!(y)
 end
+safe_similar(x::AbstractSciMLOperator) = x
+safe_similar(x::AbstractSciMLOperator, ::Type) = x
 
 init_similar_array!!(x) = x
 
@@ -115,8 +131,8 @@ safe_reshape(x::Number, args...) = x
 safe_reshape(x, args...) = reshape(x, args...)
 
 @generated function safe_getproperty(s::S, ::Val{X}) where {S, X}
-    hasfield(S, X) && return :(getproperty(s, $(Meta.quot(X))))
-    return :(missing)
+    hasfield(S, X) && return :(Base.getproperty(s, $(Meta.quot(X))))
+    return :(Base.missing)
 end
 
 @generated function safe_vec(v)
@@ -156,31 +172,34 @@ maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 can_setindex(x) = ArrayInterface.can_setindex(x)
 can_setindex(::Number) = false
 
-function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
+# `iip` is a type parameter, so these dispatch rather than branch at runtime. That
+# matters on GPUs: an out-of-place solve must not have `similar(u)` anywhere in the
+# method body it compiles, even on a branch that constant-folding would drop, and the
+# out-of-place path must stay inlineable so an isbits problem (e.g.
+# `ImmutableNonlinearProblem`) can be solved inside a kernel without allocating.
+@inline function evaluate_f!!(prob::AbstractNonlinearProblem, fu, u, p = prob.p)
     return evaluate_f!!(prob.f, fu, u, p)
 end
-function evaluate_f!!(f::NonlinearFunction, fu, u, p)
-    if SciMLBase.isinplace(f)
-        f(fu, u, p)
-        return fu
-    end
-    return f(u, p)
+
+@inline evaluate_f!!(f::NonlinearFunction{false}, fu, u, p) = f(u, p)
+
+function evaluate_f!!(f::NonlinearFunction{true}, fu, u, p)
+    f(fu, u, p)
+    return fu
 end
 
-function evaluate_f(prob::AbstractNonlinearProblem, u)
-    if SciMLBase.isinplace(prob)
-        fu = prob.f.resid_prototype === nothing ? similar(u) :
-             similar(prob.f.resid_prototype)
-        prob.f(fu, u, prob.p)
-    else
-        fu = prob.f(u, prob.p)
-    end
+@inline evaluate_f(prob::AbstractNonlinearProblem{<:Any, false}, u) = prob.f(u, prob.p)
+
+function evaluate_f(prob::AbstractNonlinearProblem{<:Any, true}, u)
+    fu = prob.f.resid_prototype === nothing ? similar(u) :
+        similar(prob.f.resid_prototype)
+    prob.f(fu, u, prob.p)
     return fu
 end
 
 function evaluate_f!(cache, u, p)
     cache.stats.nf += 1
-    if SciMLBase.isinplace(cache)
+    return if SciMLBase.isinplace(cache)
         cache.prob.f(NonlinearSolveBase.get_fu(cache), u, p)
     else
         NonlinearSolveBase.set_fu!(cache, cache.prob.f(u, p))
@@ -190,6 +209,13 @@ end
 # make_sparse function declaration - implementation provided by SparseArrays extension
 # When SparseArrays is not loaded, this function should not be called
 function make_sparse end
+
+# SparseMatrixCSC carrying the STRUCTURAL nonzero pattern of a prototype (ones at every
+# structural entry) — unlike `sparse(x)`, which drops stored zeros, so a prototype band
+# whose values happen to be zero would silently vanish from the pattern.
+# Implementation provided by the SparseArrays extension; gate calls on
+# `is_extension_loaded(Val(:SparseArrays))`.
+function structural_sparse end
 
 condition_number(J::AbstractMatrix) = cond(J)
 function condition_number(J::AbstractVector)
@@ -202,34 +228,80 @@ function condition_number(J::AbstractVector)
 end
 condition_number(::Any) = -1
 
-# compute `pinv` if `inv` won't work
-maybe_pinv!!_workspace(A) = nothing, A
+# Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
+# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, and static
+# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
+# of the linear-solve cache.
+linsolve_workspace(A) = nothing, A
+linsolve_workspace(A::Diagonal) = nothing, A
+linsolve_workspace(A::SMatrix) = nothing, A
+function linsolve_workspace(A::AbstractMatrix)
+    LinearAlgebra.checksquare(A)
+    # Backends without fast scalar indexing may not implement factorization solves with
+    # a matrix right-hand side. Leave those arrays on their native `pinv` path.
+    ArrayInterface.fast_scalar_indexing(A) || return nothing, A
+    # the linear solve promotes e.g. integer eltypes; the buffers must hold the promoted
+    # values. The `size` form of `similar` gives a dense buffer for structured input
+    # (e.g. Tridiagonal), which the generically-dense inverse and identity RHS need.
+    T = typeof(oneunit(eltype(A)) / oneunit(eltype(A)))
+    A_buf = similar(A, T, size(A))
+    copyto!(A_buf, A)
+    rhs = make_identity!!(similar(A_buf, T), true)
+    u = similar(A_buf, T)
+    # One factorization + a multi-RHS solve against an identity RHS gives X = A⁻¹, and the
+    # default algorithm's singular-LU → pivoted-QR rescue handles rank-deficient input.
+    # All buffers are workspace-owned, so aliasing is opted into to let the LU
+    # refactorize A_buf in place instead of copying it on every call. Requires LinearSolve
+    # to be loaded (as does any use of `construct_linear_solver` without a native fast
+    # path).
+    lincache = NonlinearSolveBase.construct_linear_solver(
+        nothing, nothing, A_buf, rhs, u, nothing;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
+        alias = SciMLBase.LinearAliasSpecifier(alias_A = true, alias_b = true)
+    )
+    return (; lincache, rhs), A
+end
 
-maybe_pinv!!(workspace, A::Union{Number, AbstractMatrix}) = pinv(A)
-function maybe_pinv!!(workspace, A::Diagonal)
+# scalar analog of the default solver's least-squares rescue: a singular (zero) entry
+# inverts to zero instead of Inf
+safe_inv(x::Number) = iszero(x) ? zero(inv(x)) : inv(x)
+
+linsolve_identity!!(workspace, x::Number) = safe_inv(x)
+function linsolve_identity!!(workspace, A::Diagonal)
     D = A.diag
-    @bb @. D = pinv(D)
+    @bb @. D = safe_inv(D)
     return Diagonal(D)
 end
-maybe_pinv!!(workspace, A::AbstractVector) = maybe_pinv!!(workspace, Diagonal(A))
-function maybe_pinv!!(workspace, A::StridedMatrix)
+linsolve_identity!!(workspace, A::AbstractVector) = linsolve_identity!!(workspace, Diagonal(A))
+# Static matrices solve `A X = I` through LinearSolve's static fast path directly (NOT
+# `construct_linear_solver`, whose `SMatrix` route is a plain `A \ b` that yields Inf/NaN
+# on a singular Jacobian). The static default's SVD rescue returns the finite min-norm
+# generalized inverse on singular `A` — the behavior `pinv` used to provide — and the
+# whole path is allocation-free on static arrays. The rescue requires LinearSolve ≥ 4.3
+# (SciML/LinearSolve.jl#1085); older versions silently returned Inf/NaN here.
+function linsolve_identity!!(workspace, A::SMatrix{S1, S2, T, L}) where {S1, S2, T, L}
+    Tinv = typeof(oneunit(T) / oneunit(T))
+    return SciMLBase.solve(
+        SciMLBase.LinearProblem(A, SMatrix{S1, S2, Tinv}(LinearAlgebra.I))
+    ).u
+end
+function linsolve_identity!!(workspace, A::AbstractMatrix)
     LinearAlgebra.checksquare(A)
-    if LinearAlgebra.istriu(A)
-        issingular = any(iszero, @view(A[diagind(A)]))
-        A_ = LinearAlgebra.UpperTriangular(A)
-        !issingular && return LinearAlgebra.triu!(parent(inv(A_)))
-    elseif LinearAlgebra.istril(A)
-        A_ = LinearAlgebra.LowerTriangular(A)
-        issingular = any(iszero, @view(A_[diagind(A_)]))
-        !issingular && return LinearAlgebra.tril!(parent(inv(A_)))
-    else
-        F = LinearAlgebra.lu(A; check = false)
-        if LinearAlgebra.issuccess(F)
-            Ai = LinearAlgebra.inv!(F)
-            return convert(typeof(parent(Ai)), Ai)
-        end
+    # a `nothing` workspace (the preinverted-init path in NonlinearSolveQuasiNewton)
+    # builds a transient linear-solve cache; it allocates, but runs at most once per solve.
+    # Sparse dispatch gets a chance to construct its dense workspace here, while backend
+    # arrays that cannot use the cached matrix-RHS solve stay on their native `pinv`.
+    if workspace === nothing
+        workspace, workspace_A = linsolve_workspace(A)
+        workspace === nothing && return pinv(workspace_A)
     end
-    return pinv(A)
+    # the previous solve may have consumed the RHS buffer, so refill it with I. The
+    # lincache call copies A into its internal buffer before overwriting the solution
+    # buffer, so A is never mutated and passing the previously returned inverse as A is
+    # safe. On singular A the default algorithm's pivoted-QR rescue returns a finite
+    # least-squares generalized inverse (not the SVD `pinv`).
+    make_identity!!(workspace.rhs, true)
+    return workspace.lincache(; A, b = workspace.rhs).u
 end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
@@ -237,7 +309,7 @@ function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
 end
 function initial_jacobian_scaling_alpha(::Nothing, u, fu, internalnorm::F) where {F}
     fu_norm = internalnorm(fu)
-    fu_norm < 1e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
+    fu_norm < 1.0e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
     return (2 * fu_norm) / max(L2_NORM(u), true)
 end
 
@@ -274,7 +346,7 @@ function reinit_common!(cache, u0, p, alias_u0::Bool)
         cache.u = maybe_unaliased(u0, alias_u0)
         NonlinearSolveBase.set_fu!(cache, cache.prob.f(u0, p))
     end
-    cache.p = p
+    return cache.p = p
 end
 
 function clean_sprint_struct(x)

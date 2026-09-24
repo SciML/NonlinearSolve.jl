@@ -1,6 +1,6 @@
 """
     DFSane(;
-        sigma_min = 1 // 10^10, sigma_max = 1e10, sigma_1 = 1, M::Int = 10,
+        sigma_min = 1 // 10^10, sigma_max = 1.0e10, sigma_1 = 1, M::Int = 10,
         gamma = 1 // 10^4, tau_min = 1 // 10, tau_max = 1 // 2, n_exp::Int = 2,
         max_inner_iterations::Int = 100, eta_strategy = (fn_1, n, x_n, f_n) -> fn_1 / n^2
     )
@@ -19,13 +19,14 @@ parameters and the algorithm, see [la2006spectral](@citet).
 For other keyword arguments, see RobustNonMonotoneLineSearch in LineSearch.jl.
 """
 function DFSane(;
-        sigma_min = 1 // 10^10, sigma_max = 1e10, sigma_1 = 1, M::Int = 10,
+        sigma_min = 1 // 10^10, sigma_max = 1.0e10, sigma_1 = 1, M::Int = 10,
         gamma = 1 // 10^4, tau_min = 1 // 10, tau_max = 1 // 2, n_exp::Int = 2,
         max_inner_iterations::Int = 100, eta_strategy::F = (
-            fn_1, n, x_n, f_n) -> fn_1 / n^2
-) where {F}
+            fn_1, n, x_n, f_n,
+        ) -> fn_1 / n^2
+    ) where {F}
     linesearch = RobustNonMonotoneLineSearch(;
-        gamma = gamma, sigma_1 = sigma_1, M, tau_min = tau_min, tau_max = tau_max,
+        gamma, sigma_1, M, tau_min, tau_max,
         n_exp, η_strategy = eta_strategy, maxiters = max_inner_iterations
     )
     return GeneralizedDFSane(;

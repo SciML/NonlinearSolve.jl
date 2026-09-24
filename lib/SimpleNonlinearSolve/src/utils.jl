@@ -5,13 +5,23 @@ using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearTerminationMode,
-                          AbstractSafeNonlinearTerminationMode,
-                          AbstractSafeBestNonlinearTerminationMode
+    AbstractSafeNonlinearTerminationMode,
+    AbstractSafeBestNonlinearTerminationMode
 using SciMLBase: SciMLBase, ReturnCode
 using StaticArraysCore: StaticArray, SArray, SMatrix, SVector
 
 const DI = DifferentiationInterface
 const NLBUtils = NonlinearSolveBase.Utils
+
+# GPU-compatible helper to extract alias_u0 from NonlinearAliasSpecifier
+@inline function get_alias_u0(alias::SciMLBase.NonlinearAliasSpecifier, fallback::Bool)
+    return something(alias.alias_u0, fallback)
+end
+
+# GPU-compatible helper to check if fx should be cached
+@inline function should_cache_fx(prob::SciMLBase.AbstractNonlinearProblem, f)
+    return SciMLBase.isinplace(prob) && !SciMLBase.has_jac(f)
+end
 
 function identity_jacobian(u::Number, fu::Number, α = true)
     return convert(promote_type(eltype(u), eltype(fu)), α)
@@ -59,7 +69,7 @@ function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminati
 end
 function check_termination(
         cache, fx, x, xo, prob, ::AbstractSafeBestNonlinearTerminationMode
-)
+    )
     if cache(fx, x, xo)
         x = cache.u
         fx = NLBUtils.evaluate_f!!(prob, fx, x)
@@ -84,15 +94,22 @@ function prepare_jacobian(prob, autodiff, _, x::Number)
     end
     return DINoPreparation()
 end
+
 function prepare_jacobian(prob, autodiff, fx, x)
     SciMLBase.has_jac(prob.f) && return AnalyticJacobian()
     if SciMLBase.isinplace(prob.f)
-        return DIExtras(DI.prepare_jacobian(
-            prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)))
+        return DIExtras(
+            DI.prepare_jacobian(
+                prob.f, fx, autodiff, x, Constant(prob.p), strict = Val(false)
+            )
+        )
     else
         x isa SArray && return DINoPreparation()
-        return DIExtras(DI.prepare_jacobian(
-            prob.f, autodiff, x, Constant(prob.p), strict = Val(false)))
+        return DIExtras(
+            DI.prepare_jacobian(
+                prob.f, autodiff, x, Constant(prob.p), strict = Val(false)
+            )
+        )
     end
 end
 
@@ -150,7 +167,8 @@ function compute_jacobian!!(J, prob, autodiff, fx, x, extras::DIExtras)
     return J
 end
 function compute_jacobian!!(J, prob, autodiff, fx, x, ::DINoPreparation)
-    @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
+    # Assertion removed for GPU compatibility - DINoPreparation only used for out-of-place
+    # @assert !SciMLBase.isinplace(prob.f) "This shouldn't happen. Open an issue."
     J === nothing && return DI.jacobian(prob.f, autodiff, x, Constant(prob.p))
     if ArrayInterface.can_setindex(J)
         DI.jacobian!(prob.f, J, autodiff, x, Constant(prob.p))
@@ -164,10 +182,13 @@ function compute_hvvp(prob, autodiff, _, x::Number, dir::Number)
     H = DI.second_derivative(prob.f, autodiff, x, Constant(prob.p))
     return H * dir
 end
+
 function compute_hvvp(prob, autodiff, fx, x, dir)
     jvp_fn = if SciMLBase.isinplace(prob)
-        @closure (u,
-            p) -> begin
+        @closure (
+            u,
+            p,
+        ) -> begin
             du = NLBUtils.safe_similar(fx, promote_type(eltype(fx), eltype(u)))
             return only(DI.pushforward(prob.f, du, autodiff, u, (dir,), Constant(p)))
         end
@@ -179,7 +200,7 @@ end
 
 function nonlinear_solution_new_alg(
         sol::SciMLBase.NonlinearSolution{T, N, uType, R, P, A, O, uType2, S, Tr}, alg
-) where {T, N, uType, R, P, A, O, uType2, S, Tr}
+    ) where {T, N, uType, R, P, A, O, uType2, S, Tr}
     return SciMLBase.NonlinearSolution{T, N, uType, R, P, typeof(alg), O, uType2, S, Tr}(
         sol.u, sol.resid, sol.prob, alg, sol.retcode, sol.original, sol.left, sol.right,
         sol.stats, sol.trace

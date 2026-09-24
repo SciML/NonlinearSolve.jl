@@ -1,25 +1,32 @@
-using ReTestItems, NonlinearSolveFirstOrder, Hwloc, InteractiveUtils, Pkg
+using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-const GROUP = lowercase(get(ENV, "GROUP", "All"))
+# SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP for local runs.
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
+end
 
-const RETESTITEMS_NWORKERS = parse(
-    Int, get(ENV, "RETESTITEMS_NWORKERS",
-        string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-    )
-)
-const RETESTITEMS_NWORKER_THREADS = parse(Int,
-    get(
-        ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
-    )
-)
-
-@info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
-
-ReTestItems.runtests(
-    NonlinearSolveFirstOrder; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
-    testitem_timeout = 3600
+run_tests(;
+    env = "NONLINEARSOLVE_TEST_GROUP",
+    core = function ()
+        include("conditioning_tests.jl")
+        include("inference_tests.jl")
+        include("least_squares_tests.jl")
+        @safetestset "Bounded least-squares default" include("bounded_default_tests.jl")
+        include("misc_tests.jl")
+        @safetestset "Native bounded methods" include("native_bounded_tests.jl")
+        include("rootfind_tests.jl")
+        include("sparsity_tests.jl")
+        return @safetestset "SciMLOperator Jacobians" include("operator_jacobian.jl")
+    end,
+    groups = Dict("NativeBounds" => (() -> @safetestset "Native bounded methods" include("native_bounded_tests.jl"))),
+    all = ["Core"],
+    # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
+    # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
+    qa = (;
+        env = joinpath(@__DIR__, "qa"),
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
+    ),
 )

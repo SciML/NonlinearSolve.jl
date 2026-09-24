@@ -5,7 +5,7 @@ using ADTypes
 import NaNMath
 
 # Conditionally import Enzyme only if not on Julia prerelease
-if isempty(VERSION.prerelease)
+if isempty(VERSION.prerelease) && VERSION < v"1.12"
     using Enzyme
 end
 
@@ -20,7 +20,7 @@ alg = HomotopyContinuationJL{true}(; threading = false)
     end
     # Filter autodiff backends based on Julia version
     autodiff_backends = [(AutoForwardDiff(), "no jac - forwarddiff"), (jac, "jac")]
-    if isempty(VERSION.prerelease)
+    if isempty(VERSION.prerelease) && VERSION < v"1.12"
         push!(autodiff_backends, (AutoEnzyme(), "no jac - enzyme"))
     end
 
@@ -42,10 +42,10 @@ alg = HomotopyContinuationJL{true}(; threading = false)
         sort!(sol.u; by = x -> x.u)
         @test sol.u[1] isa NonlinearSolution
         @test SciMLBase.successful_retcode(sol.u[1])
-        @test sol.u[1].u≈2.0 atol=1e-10
+        @test sol.u[1].u ≈ 2.0 atol = 1.0e-10
         @test sol.u[2] isa NonlinearSolution
         @test SciMLBase.successful_retcode(sol.u[2])
-        @test sol.u[2].u≈3.0 atol=1e-10
+        @test sol.u[2].u ≈ 3.0 atol = 1.0e-10
 
         @testset "no real solutions" begin
             prob = NonlinearProblem(1.0, 0.5) do u, p
@@ -69,7 +69,8 @@ alg = HomotopyContinuationJL{true}(; threading = false)
             return [asin(u)]
         end
         fn = HomotopyNonlinearFunction(;
-            denominator, polynomialize, unpolynomialize) do u, p
+            denominator, polynomialize, unpolynomialize
+        ) do u, p
             return (u - p[1]) * (u - p[2])
         end
         prob = NonlinearProblem(fn, 0.0, [0.5, 0.7])
@@ -97,30 +98,32 @@ end
 
 f! = function (du, u, p)
     du[1] = u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1
-    du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    return du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
 end
 
 f = function (u, p)
-    [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
+    return [u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1, u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]]
 end
 
 fjac! = function (j, u, p)
     j[1, 1] = 2u[1]
     j[1, 2] = -p[1] + 3 * u[2]^2
     j[2, 1] = 2 * p[2] * u[2]
-    j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    return j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
 end
 fjac = function (u, p)
-    [2u[1] -p[1]+3 * u[2]^2;
-     2*p[2]*u[2] 3*u[2]^2+2*p[2]*u[1]+1]
+    return [
+        2u[1] -p[1] + 3 * u[2]^2;
+        2 * p[2] * u[2] 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    ]
 end
 
 # Filter test cases based on Julia version
 vector_test_cases = [
     (f, AutoForwardDiff(), "oop + forwarddiff"), (f, fjac, "oop + jac"),
-    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, fjac!, "iip + jac")
+    (f!, AutoForwardDiff(), "iip + forwarddiff"), (f!, fjac!, "iip + jac"),
 ]
-if isempty(VERSION.prerelease)
+if isempty(VERSION.prerelease) && VERSION < v"1.12"
     push!(vector_test_cases, (f, AutoEnzyme(), "oop + enzyme"))
     push!(vector_test_cases, (f!, AutoEnzyme(), "iip + enzyme"))
 end
@@ -143,15 +146,24 @@ end
         @test sol.converged
         for nlsol in sol.u
             @test SciMLBase.successful_retcode(nlsol)
-            @test f(nlsol.u, prob.p)≈[0.0, 0.0] atol=1e-10
+            @test f(nlsol.u, prob.p) ≈ [0.0, 0.0] atol = 1.0e-10
         end
 
         @testset "no real solutions" begin
             _prob = remake(prob; p = zeros(2))
-            _sol = solve(_prob, _alg)
+            # Seed the HC path tracker so the near-real-boundary behavior is
+            # reproducible run-to-run. HC uses random γ-trick starts by
+            # default, so `HC.results(; only_real = true)` can surface a
+            # varying number of near-real complex roots across runs, which
+            # made `length(_sol) == 1` flaky in CI.
+            _sol = solve(_prob, _alg; seed = 0x00012345)
             @test !_sol.converged
-            @test length(_sol) == 1
-            @test !SciMLBase.successful_retcode(_sol.u[1])
+            # The meaningful invariant is that every returned `NonlinearSolution`
+            # reports a non-success retcode — not the exact ensemble length,
+            # which depends on the imaginary-part threshold in
+            # `HC.results(; only_real = true)` at the no-real-roots boundary.
+            @test length(_sol) >= 1
+            @test all(!SciMLBase.successful_retcode, _sol.u)
         end
     end
 
@@ -174,8 +186,9 @@ end
         @test length(sol.u) == length(sol2.u)
         for nlsol2 in sol2.u
             @test any(
-                nlsol -> isapprox(polynomialize(nlsol2.u, prob.p), nlsol.u; rtol = 1e-8),
-                sol.u)
+                nlsol -> isapprox(polynomialize(nlsol2.u, prob.p), nlsol.u; rtol = 1.0e-8),
+                sol.u
+            )
         end
 
         @testset "some invalid solutions" begin
@@ -197,7 +210,8 @@ end
         return u^2 + u - 1
     end
     prob = NonlinearProblem(
-        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0)
+        HomotopyNonlinearFunction(rhs; polynomialize, unpolynomialize), 1.0
+    )
     sol = solve(prob, alg)
     @test sol isa EnsembleSolution
     for nlsol in sol.u

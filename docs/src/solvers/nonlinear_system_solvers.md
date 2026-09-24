@@ -7,10 +7,12 @@ solve(prob::NonlinearProblem, alg; kwargs...)
 Solves for ``f(u) = 0`` in the problem defined by `prob` using the algorithm `alg`. If no
 algorithm is given, a default algorithm will be chosen.
 
+For problems with `lb` or `ub`, see [Bounded Solvers](@ref bounded-solvers).
+
 ## Recommended Methods
 
-The default method [`FastShortcutNonlinearPolyalg`](@ref) is a good choice for most
-problems. It is a polyalgorithm that attempts to use a fast algorithm ([`Klement`](@ref),
+For unbounded problems, the default method [`FastShortcutNonlinearPolyalg`](@ref) is a
+good choice. It is a polyalgorithm that attempts to use a fast algorithm ([`Klement`](@ref),
 [`Broyden`](@ref)) and if that fails it falls back to a more robust algorithm
 ([`NewtonRaphson`](@ref)) before falling back the most robust variant of
 [`TrustRegion`](@ref). For basic problems this will be very fast, for harder problems it
@@ -18,8 +20,18 @@ will make sure to work.
 
 If one is looking for more robustness then [`RobustMultiNewton`](@ref) is a good choice. It
 attempts a set of the most robust methods in succession and only fails if all of the methods
-fail to converge. Additionally, [`DynamicSS`](@ref) can be a good choice for high stability
+fail to converge. Additionally,
+`DynamicSS` can be a good choice for high stability
 if the root corresponds to a stable equilibrium.
+
+For ill-conditioned problems where even the robust Newton-type methods diverge — such as
+power-flow equations — `SICNM` (the semi-implicit
+continuous Newton method) is a
+strong fallback. It reformulates `f(u) = 0` as a differential-algebraic equation whose
+equilibrium is the root and drives it to steady state with a stiffly stable ODE solver, so
+it converges from starting points where a direct Newton step would overshoot the basin of
+attraction. It is more expensive per solve than the direct methods, so it is best reserved
+for the hard, ill-conditioned cases rather than used as a default.
 
 As a balance, [`NewtonRaphson`](@ref) is a good choice for most problems that aren't too
 difficult yet need high performance, and  [`TrustRegion`](@ref) is a bit less performant but
@@ -50,9 +62,14 @@ sparse/structured matrix support, etc. These methods support the largest set of 
 features, but have a bit of overhead on very small problems.
 
   - [`NewtonRaphson()`](@ref): A Newton-Raphson method with swappable nonlinear solvers and
-    autodiff methods for high performance on large and sparse systems.
-  - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
+    autodiff methods for high performance on large and sparse systems. Supports Newton-Krylov
+    methods with adaptive forcing via [`EisenstatWalkerForcing2`](@ref).
+  - [`TrustRegion()`](@ref): A Newton trust-region method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+    The default `TrustRegionSubproblem.More` solves the trust-region subproblem nearly
+    exactly (MINPACK `lmpar`-style); [`TrustRegionDogleg()`](@ref) selects the
+    classical polygonal dogleg approximation for a cheaper step on well-conditioned
+    problems.
   - [`LevenbergMarquardt()`](@ref): An advanced Levenberg-Marquardt implementation with the
     improvements suggested in the [transtrum2012improvements](@citet). Designed for
     large-scale and numerically-difficult nonlinear systems.
@@ -63,7 +80,7 @@ features, but have a bit of overhead on very small problems.
     searches and trust regions) in order to be as robust as possible for difficult problems.
     If this method fails to converge, then one can be pretty certain that most (all?) other
     choices would likely fail.
-  - [`FastShortcutNonlinearPolyalg()`](@ref): The default method. A polyalgorithm that mixes
+  - [`FastShortcutNonlinearPolyalg()`](@ref): The unbounded default. A polyalgorithm that mixes
     fast methods with fallbacks to robust methods to allow for solving easy problems quickly
     without sacrificing robustness on the hard problems.
   - [`Broyden()`](@ref): Generalization of Broyden's Quasi-Newton Method with Line Search
@@ -116,10 +133,20 @@ SteadyStateDiffEq.jl uses ODE solvers to iteratively approach the steady state. 
 very stable method for solving nonlinear systems with stable equilibrium points, though
 often more computationally expensive than direct methods.
 
-  - [`DynamicSS()`](@ref): Uses an ODE solver to find the steady state. Automatically
+  - `DynamicSS()`: Uses an ODE solver to find the
+    steady state. Automatically
     terminates when close to the steady state.
-  - [`SSRootfind()`](@ref): Uses a NonlinearSolve compatible solver to find the steady
+  - `SSRootfind()`: Uses a NonlinearSolve compatible
+    solver to find the steady
     state.
+  - `SICNM()`: The semi-implicit continuous Newton method.
+    Reformulates the
+    nonlinear system as a differential-algebraic equation, `ẏ = z, 0 = J(y) z + f(y)`, and
+    integrates it to steady state with a stiffly stable ODE solver. Highly robust on
+    ill-conditioned problems where Newton-type methods diverge (e.g. power flow); more
+    expensive than direct methods, so best used as a robustness fallback. The recommended
+    ODE engine is `Rodas3d` (constructed for this method) or another stiffly accurate
+    Rosenbrock method such as `Rodas5P`: `SICNM(Rodas3d())`.
 
 ### NLsolve.jl
 
@@ -156,7 +183,7 @@ Sundials.jl are a classic set of C/Fortran methods which are known for good scal
 Newton-Krylov form. However, KINSOL is known to be less stable than some other
 implementations.
 
-  - [`KINSOL()`](@ref): The KINSOL method of the SUNDIALS C library
+  - `KINSOL()`: The KINSOL method of the SUNDIALS C library
 
 ### SIAMFANLEquations.jl
 

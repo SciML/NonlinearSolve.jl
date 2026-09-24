@@ -6,6 +6,7 @@
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing,
         u0_len::Union{Int, Nothing} = nothing
     ) where {T}
 
@@ -22,6 +23,7 @@ for more performance and then tries more robust techniques if the faster ones fa
   - `u0_len`: The length of the initial guess. If this is `nothing`, then the length of the
     initial guess is not checked. If this is an integer and it is less than `25`, we use
     jacobian based methods.
+  - `jacobian_reuse`: forwarded to each first-order method in the polyalgorithm.
 """
 function FastShortcutNonlinearPolyalg(
         ::Type{T} = Float64;
@@ -30,11 +32,16 @@ function FastShortcutNonlinearPolyalg(
         must_use_jacobian::Val = Val(false),
         prefer_simplenonlinearsolve::Val = Val(false),
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing,
         u0_len::Union{Int, Nothing} = nothing
-) where {T}
+    ) where {T}
     start_index = 1
-    common_kwargs = (; concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff)
-    common_kwargs_nocj = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
+    common_kwargs = (;
+        concrete_jac, linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse,
+    )
+    common_kwargs_nocj = (;
+        linsolve, autodiff, vjp_autodiff, jvp_autodiff, jacobian_reuse,
+    )
     if must_use_jacobian isa Val{true}
         if T <: Complex
             algs = (NewtonRaphson(; common_kwargs...),)
@@ -42,8 +49,8 @@ function FastShortcutNonlinearPolyalg(
             algs = (
                 NewtonRaphson(; common_kwargs...),
                 TrustRegion(; common_kwargs...),
-                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
-                LevenbergMarquardt(; common_kwargs_nocj...)
+                TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
+                LevenbergMarquardt(; common_kwargs_nocj...),
             )
         end
     else
@@ -54,7 +61,7 @@ function FastShortcutNonlinearPolyalg(
                 algs = (
                     SimpleBroyden(),
                     SimpleKlement(),
-                    NewtonRaphson(; common_kwargs...)
+                    NewtonRaphson(; common_kwargs...),
                 )
             else
                 start_index = u0_len !== nothing ? (u0_len ≤ 25 ? 3 : 1) : 1
@@ -63,8 +70,8 @@ function FastShortcutNonlinearPolyalg(
                     SimpleKlement(),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
-                    LevenbergMarquardt(; common_kwargs_nocj...)
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
+                    LevenbergMarquardt(; common_kwargs_nocj...),
                 )
             end
         else
@@ -72,7 +79,7 @@ function FastShortcutNonlinearPolyalg(
                 algs = (
                     Broyden(; autodiff),
                     Klement(; linsolve, autodiff),
-                    NewtonRaphson(; common_kwargs...)
+                    NewtonRaphson(; common_kwargs...),
                 )
             else
                 # TODO: This number requires a bit rigorous testing
@@ -82,8 +89,8 @@ function FastShortcutNonlinearPolyalg(
                     Klement(; linsolve, autodiff),
                     NewtonRaphson(; common_kwargs...),
                     TrustRegion(; common_kwargs...),
-                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Bastin),
-                    LevenbergMarquardt(; common_kwargs_nocj...)
+                    TrustRegion(; common_kwargs..., radius_update_scheme = RUS.Fan),
+                    LevenbergMarquardt(; common_kwargs_nocj...),
                 )
             end
         end
@@ -92,45 +99,47 @@ function FastShortcutNonlinearPolyalg(
 end
 
 """
-    FastShortcutNLLSPolyalg(
+    FastShortcutHomotopyPolyalg(
         ::Type{T} = Float64;
-        concrete_jac = nothing,
-        linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-    )
+        autodiff = nothing, concrete_jac = nothing, linsolve = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing,
+        warm_handoff::Bool = true, store_original::Val = Val(false)
+    ) where {T}
 
-A polyalgorithm focused on balancing speed and robustness. It first tries less robust methods
-for more performance and then tries more robust techniques if the faster ones fail.
+The recommended default [`HomotopyPolyAlgorithm`](@ref) for solving a
+`SciMLBase.HomotopyProblem` — e.g. a Modelica `homotopy(actual, simplified)`
+initialization system — by continuation. It is the homotopy analogue of
+[`FastShortcutNonlinearPolyalg`](@ref): a fast [`HomotopySweep`](@ref) (natural-parameter
+continuation) escalating to a robust [`ArcLengthContinuation`](@ref) (pseudo-arclength) on
+failure, with a [`FastShortcutNonlinearPolyalg`](@ref) built from the requested `autodiff`
+threaded in as the *inner corrector* of both stages.
+
+Solving a `HomotopyProblem` with a plain nonlinear algorithm instead fixes ``λ`` at the
+target and solves only the `actual` system, which can converge to the wrong branch. This
+sweeps ``λ`` from the `simplified` anchor to the `actual` system, tracking the intended
+branch.
 
 ### Arguments
 
-  - `T`: The eltype of the initial guess. It is only used to check if some of the algorithms
-    are compatible with the problem type. Defaults to `Float64`.
+  - `T`: the eltype of the initial guess, forwarded to the inner
+    [`FastShortcutNonlinearPolyalg`](@ref). Defaults to `Float64`.
+
+### Keyword Arguments
+
+  - `autodiff`, `concrete_jac`, `linsolve`, `vjp_autodiff`, `jvp_autodiff`: forwarded to the
+    inner [`FastShortcutNonlinearPolyalg`](@ref) that corrects each continuation step — this
+    is where the differentiation backend is chosen. A `HomotopyProblem` whose residual is not
+    ForwardDiff-safe is solved by passing `autodiff = AutoFiniteDiff()`.
+  - `warm_handoff`, `store_original`: forwarded to [`HomotopyPolyAlgorithm`](@ref).
 """
-function FastShortcutNLLSPolyalg(
+function FastShortcutHomotopyPolyalg(
         ::Type{T} = Float64;
-        concrete_jac = nothing,
-        linsolve = nothing,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-) where {T}
-    common_kwargs = (; linsolve, autodiff, vjp_autodiff, jvp_autodiff)
-    if T <: Complex
-        algs = (
-            GaussNewton(; common_kwargs..., concrete_jac),
-            LevenbergMarquardt(; common_kwargs..., disable_geodesic = Val(true)),
-            LevenbergMarquardt(; common_kwargs...)
-        )
-    else
-        algs = (
-            GaussNewton(; common_kwargs..., concrete_jac),
-            LevenbergMarquardt(; common_kwargs..., disable_geodesic = Val(true)),
-            TrustRegion(; common_kwargs..., concrete_jac),
-            GaussNewton(; common_kwargs..., linesearch = BackTracking(), concrete_jac),
-            TrustRegion(;
-                common_kwargs..., radius_update_scheme = RUS.Bastin, concrete_jac
-            ),
-            LevenbergMarquardt(; common_kwargs...)
-        )
-    end
-    return NonlinearSolvePolyAlgorithm(algs)
+        autodiff = nothing, concrete_jac = nothing, linsolve = nothing,
+        vjp_autodiff = nothing, jvp_autodiff = nothing,
+        warm_handoff::Bool = true, store_original::Val = Val(false)
+    ) where {T}
+    inner = FastShortcutNonlinearPolyalg(
+        T; autodiff, concrete_jac, linsolve, vjp_autodiff, jvp_autodiff
+    )
+    return HomotopyPolyAlgorithm(; inner, warm_handoff, store_original)
 end

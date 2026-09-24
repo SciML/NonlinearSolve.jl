@@ -1,25 +1,12 @@
 # [Nonlinear Solutions](@id solution)
 
-```@docs
-SciMLBase.AbstractNonlinearSolution
-SciMLBase.NonlinearSolution
-```
+The `AbstractNonlinearSolution` and `NonlinearSolution` types are defined and documented by
+SciMLBase.
 
 ## Statistics
 
-```@docs
-SciMLBase.NLStats
-```
+The `NLStats` type is defined and documented by SciMLBase.
 
 ## Return Code
 
-```@docs
-ReturnCode.Success
-ReturnCode.ConvergenceFailure
-ReturnCode.Unstable
-ReturnCode.MaxIters
-ReturnCode.Failure
-ReturnCode.InternalLineSearchFailed
-ReturnCode.Stalled
-ReturnCode.ShrinkThresholdExceeded
-```
+Return codes are defined and documented by `SciMLBase.ReturnCode`.

@@ -4,7 +4,8 @@
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
         finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1e-8,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
     )
 
 An advanced Levenberg-Marquardt implementation with the improvements suggested in
@@ -28,6 +29,9 @@ nonlinear systems.
   - `disable_geodesic`: Disables Geodesic Acceleration if set to `Val(true)`. It provides
     a way to trade-off robustness for speed, though in most situations Geodesic Acceleration
     should not be disabled.
+  - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
+    on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
+    `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`.
 
 For the remaining arguments, see [`GeodesicAcceleration`](@ref) and
 [`NonlinearSolveFirstOrder.LevenbergMarquardtTrustRegion`](@ref) documentations.
@@ -36,9 +40,10 @@ function LevenbergMarquardt(;
         linsolve = nothing,
         damping_initial::Real = 1.0, α_geodesic::Real = 0.75, disable_geodesic = Val(false),
         damping_increase_factor::Real = 2.0, damping_decrease_factor::Real = 3.0,
-        finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1e-8,
-        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing
-)
+        finite_diff_step_geodesic = 0.1, b_uphill::Real = 1.0, min_damping_D::Real = 1.0e-8,
+        autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
+        jacobian_reuse = nothing
+    )
     descent = DampedNewtonDescent(;
         linsolve,
         initial_damping = damping_initial,
@@ -56,6 +61,7 @@ function LevenbergMarquardt(;
         autodiff,
         vjp_autodiff,
         jvp_autodiff,
+        jacobian_reuse,
         name = :LevenbergMarquardt,
         concrete_jac = Val(true)
     )
@@ -70,7 +76,7 @@ end
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, f::LevenbergMarquardtDampingFunction,
         initial_damping, J, fu, u, normal_form::Val; kwargs...
-)
+    )
     T = promote_type(eltype(u), eltype(fu))
     DᵀD = init_levenberg_marquardt_diagonal(u, T(f.min_damping))
     if normal_form isa Val{true}
@@ -113,16 +119,25 @@ function InternalAPI.reinit!(cache::LevenbergMarquardtDampingCache, args...; kwa
     return
 end
 
-function NonlinearSolveBase.requires_normal_form_jacobian(::Union{
-        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
+function NonlinearSolveBase.requires_normal_form_jacobian(
+        ::Union{
+            LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache,
+        }
+    )
     return false
 end
-function NonlinearSolveBase.requires_normal_form_rhs(::Union{
-        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
+function NonlinearSolveBase.requires_normal_form_rhs(
+        ::Union{
+            LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache,
+        }
+    )
     return false
 end
-function NonlinearSolveBase.returns_norm_form_damping(::Union{
-        LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache})
+function NonlinearSolveBase.returns_norm_form_damping(
+        ::Union{
+            LevenbergMarquardtDampingFunction, LevenbergMarquardtDampingCache,
+        }
+    )
     return true
 end
 
@@ -130,13 +145,13 @@ end
 
 function InternalAPI.solve!(
         cache::LevenbergMarquardtDampingCache, J, fu, ::Val{false}; kwargs...
-)
+    )
     if cache.J_diag_cache isa Number
         cache.J_diag_cache = abs2(J)
     elseif ArrayInterface.can_setindex(cache.J_diag_cache)
         sum!(abs2, Utils.safe_vec(cache.J_diag_cache), J')
     else
-        cache.J_diag_cache = dropdims(sum(abs2, J'; dims = 1); dims = 1)
+        cache.J_diag_cache = vec(sum(abs2, J; dims = 1))
     end
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(
         cache.DᵀD, Utils.safe_vec(cache.J_diag_cache)
@@ -147,7 +162,7 @@ end
 
 function InternalAPI.solve!(
         cache::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true}; kwargs...
-)
+    )
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(cache.DᵀD, JᵀJ)
     @bb @. cache.J_damped = cache.λ * cache.DᵀD
     return cache.J_damped
@@ -155,13 +170,13 @@ end
 
 function NonlinearSolveBase.callback_into_cache!(
         topcache, cache::LevenbergMarquardtDampingCache, args...
-)
+    )
     if NonlinearSolveBase.last_step_accepted(topcache.trustregion_cache) &&
-       NonlinearSolveBase.last_step_accepted(topcache.descent_cache)
+            NonlinearSolveBase.last_step_accepted(topcache.descent_cache)
         cache.λ_factor = 1 / cache.decrease_factor
     end
     cache.λ *= cache.λ_factor
-    cache.λ_factor = cache.increase_factor
+    return cache.λ_factor = cache.increase_factor
 end
 
 """
@@ -197,7 +212,7 @@ function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::LevenbergMarquardtTrustRegion,
         f::NonlinearFunction, fu, u, p, args...;
         stats, internalnorm::F = L2_NORM, kwargs...
-) where {F}
+    ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     @bb v = copy(u)
     @bb u_cache = similar(u)
@@ -209,7 +224,7 @@ function InternalAPI.init(
 end
 
 @concrete mutable struct LevenbergMarquardtTrustRegionCache <:
-                         AbstractTrustRegionMethodCache
+    AbstractTrustRegionMethodCache
     f
     p
     loss_old
@@ -225,17 +240,17 @@ end
 
 function InternalAPI.reinit!(
         cache::LevenbergMarquardtTrustRegionCache; p = cache.p, u0 = cache.v_cache, kwargs...
-)
+    )
     cache.p = p
     @bb copyto!(cache.v_cache, u0)
     cache.loss_old = oftype(cache.loss_old, Inf)
     cache.norm_v_old = oftype(cache.norm_v_old, Inf)
-    cache.last_step_accepted = false
+    return cache.last_step_accepted = false
 end
 
 function InternalAPI.solve!(
         cache::LevenbergMarquardtTrustRegionCache, J, fu, u, δu, descent_stats
-)
+    )
     # This should be true if Geodesic Acceleration is being used
     v = hasfield(typeof(descent_stats), :v) ? descent_stats.v : δu
     norm_v = cache.internalnorm(v)

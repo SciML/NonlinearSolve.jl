@@ -1,3 +1,22 @@
+"""
+    NonlinearSolveFirstOrder
+
+First-order nonlinear and nonlinear least-squares solver algorithms.
+
+This subpackage implements Newton, Gauss-Newton, trust-region, pseudo-transient,
+and related algorithms that are re-exported by NonlinearSolve.jl. Users typically
+load `NonlinearSolve` and pass these algorithms to `solve`; solver-package authors
+may depend on this package directly when they need the first-order implementations.
+
+### Example
+
+```julia
+using NonlinearSolveFirstOrder, SciMLBase
+
+prob = NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+sol = solve(prob, NewtonRaphson())
+```
+"""
 module NonlinearSolveFirstOrder
 
 using ConcreteStructs: @concrete
@@ -8,43 +27,57 @@ using Setfield: @set!
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
-using LineSearch: BackTracking
+using LineSearch: BackTracking, ProjectedBackTracking, get_trial
 using StaticArraysCore: SArray
 
-using CommonSolve: CommonSolve
-using DiffEqBase: DiffEqBase    # Needed for `init` / `solve` dispatches
+using CommonSolve: CommonSolve, init
 using LinearSolve: LinearSolve  # Trigger Linear Solve extension in NonlinearSolveBase
 using MaybeInplace: @bb
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
-                          AbstractNonlinearSolveCache, AbstractDampingFunction,
-                          AbstractDampingFunctionCache, AbstractTrustRegionMethod,
-                          AbstractTrustRegionMethodCache,
-                          Utils, InternalAPI, get_timer_output, @static_timeit,
-                          update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
-                          NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-                          Dogleg, NonlinearSolveForwardDiffCache
+    AbstractNonlinearSolveCache, AbstractDampingFunction,
+    AbstractDampingFunctionCache, AbstractTrustRegionMethod,
+    AbstractTrustRegionMethodCache,
+    Utils, InternalAPI, get_timer_output, @static_timeit,
+    update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
+    NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
+    Dogleg, MoreTrustRegionDescent, AbstractDescentDirection, TrustRegionSubproblem,
+    RobustTrustRegionLinsolve,
+    NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
+using SciMLOperators: SciMLOperators
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
-                 NonlinearFunction,
-                 NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
+    NonlinearFunction,
+    NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
+using SciMLLogging: @SciMLMessage, None, AbstractVerbosityPreset
 using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOperator
 
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
+using Sobol: Sobol
 
+include("jacobian_reuse.jl")
 include("solve.jl")
 include("raphson.jl")
+include("eisenstat_walker.jl")
 include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
+include("box_constraints.jl")
 include("trust_region.jl")
+include("bounded_jacobian.jl")
+include("native_bounded.jl")
+include("trust_region_reflective.jl")
+include("bounded_levenberg_marquardt.jl")
+include("dogbox.jl")
+include("bounded_gauss_newton.jl")
 include("pseudo_transient.jl")
 include("poly_algs.jl")
+include("multistart.jl")
 include("forward_diff.jl")
 
 @setup_workload begin
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), 0.1),
         (NonlinearFunction{false, NoSpecialize}((u, p) -> u .* u .- p), [0.1]),
-        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1])
+        (NonlinearFunction{true, NoSpecialize}((du, u, p) -> du .= u .* u .- p), [0.1]),
     )
 
     nonlinear_problems = NonlinearProblem[]
@@ -55,22 +88,25 @@ include("forward_diff.jl")
     nonlinear_functions = (
         (NonlinearFunction{false, NoSpecialize}((u, p) -> (u .^ 2 .- p)[1:1]), [0.1, 0.0]),
         (
-            NonlinearFunction{false, NoSpecialize}((
-                u, p) -> vcat(u .* u .- p, u .* u .- p)),
-            [0.1, 0.1]
+            NonlinearFunction{false, NoSpecialize}(
+                (
+                    u, p,
+                ) -> vcat(u .* u .- p, u .* u .- p)
+            ),
+            [0.1, 0.1],
         ),
         (
             NonlinearFunction{true, NoSpecialize}(
                 (du, u, p) -> du[1] = u[1] * u[1] - p, resid_prototype = zeros(1)
             ),
-            [0.1, 0.0]
+            [0.1, 0.0],
         ),
         (
             NonlinearFunction{true, NoSpecialize}(
                 (du, u, p) -> du .= vcat(u .* u .- p, u .* u .- p), resid_prototype = zeros(4)
             ),
-            [0.1, 0.1]
-        )
+            [0.1, 0.1],
+        ),
     )
 
     nlls_problems = NonlinearLeastSquaresProblem[]
@@ -78,19 +114,39 @@ include("forward_diff.jl")
         push!(nlls_problems, NonlinearLeastSquaresProblem(fn, u0, 2.0))
     end
 
-    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+    # AutoDePSpecialize opaque-p path: an isbits `p` packs into an `OpaqueParams`
+    # and a non-isbits `p` into an `OpaqueRef`. Each container gives a single
+    # wrapped-residual signature shared across all parameter types of that kind,
+    # so precompiling one solve per container lets first solves with struct/array
+    # parameters skip compilation entirely.
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ), [0.1], (a = 2.0,)
+        )
+    )
+    push!(
+        nonlinear_problems, NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDePSpecialize}(
+                (du, u, p) -> (du .= u .* u .- p[1])
+            ), [0.1], [2.0]
+        )
+    )
+
+    nlp_algs = [NewtonRaphson(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
         @sync begin
             for prob in nonlinear_problems, alg in nlp_algs
 
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = false)
             end
 
             for prob in nlls_problems, alg in nlls_algs
 
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1e-2, verbose = false)
+                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = false)
             end
         end
     end
@@ -99,13 +155,19 @@ end
 @reexport using SciMLBase, NonlinearSolveBase
 
 export NewtonRaphson, PseudoTransient
-export GaussNewton, LevenbergMarquardt, TrustRegion
+export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox, BoundedGaussNewton
+export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion, TrustRegionDogleg,
+    TrustRegionRobust
+
+export EisenstatWalkerForcing2
+export JacobianReuse
 
 export RadiusUpdateSchemes
 
 export GeneralizedFirstOrderAlgorithm
 
 # Polyalgorithms
-export RobustMultiNewton
+export RobustMultiNewton, FastShortcutNLLSPolyalg, FastShortcutBoundedPolyalg
+export SobolMultistart
 
 end

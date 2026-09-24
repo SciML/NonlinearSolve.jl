@@ -1,25 +1,22 @@
-using ReTestItems, NonlinearSolveQuasiNewton, Hwloc, InteractiveUtils, Pkg
+using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-const GROUP = lowercase(get(ENV, "GROUP", "All"))
+# SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP for local runs.
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
+end
 
-const RETESTITEMS_NWORKERS = parse(
-    Int, get(ENV, "RETESTITEMS_NWORKERS",
-        string(min(ifelse(Sys.iswindows(), 0, Hwloc.num_physical_cores()), 4))
-    )
-)
-const RETESTITEMS_NWORKER_THREADS = parse(Int,
-    get(
-        ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ max(RETESTITEMS_NWORKERS, 1), 1))
-    )
-)
-
-@info "Running tests for group: $(GROUP) with $(RETESTITEMS_NWORKERS) workers"
-
-ReTestItems.runtests(
-    NonlinearSolveQuasiNewton; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS, nworker_threads = RETESTITEMS_NWORKER_THREADS,
-    testitem_timeout = 3600
+run_tests(;
+    env = "NONLINEARSOLVE_TEST_GROUP",
+    core = function ()
+        return include("core_tests.jl")
+    end,
+    # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
+    # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
+    qa = (;
+        env = joinpath(@__DIR__, "qa"),
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
+    ),
 )

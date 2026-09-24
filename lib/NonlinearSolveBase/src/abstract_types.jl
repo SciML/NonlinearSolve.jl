@@ -1,30 +1,52 @@
+"""
+    NonlinearSolveBase.InternalAPI
+
+Developer extension namespace for nonlinear solver implementations.
+
+Methods in this module are public only for NonlinearSolve.jl subpackages and downstream
+solver packages that implement the NonlinearSolveBase interfaces. They are not intended as
+the user-facing cache API; user code should prefer `solve`, `init`, `step!`, and SciMLBase
+problem and solution objects.
+
+### Interface Functions
+
+  - `InternalAPI.init(args...; kwargs...)`: construct an algorithm-specific cache.
+  - `InternalAPI.solve!(cache, args...; kwargs...)`: update an internal cache and return
+    the algorithm-specific result.
+  - `InternalAPI.step!(cache, args...; kwargs...)`: advance an iterative nonlinear solver
+    cache by one step.
+  - `InternalAPI.reinit!(cache, args...; kwargs...)`: reset a cache and any nested caches
+    for a new solve.
+  - `InternalAPI.reinit_self!(cache, args...; kwargs...)`: reset only the fields owned by
+    `cache`; callers use this from generated nested-cache reset implementations.
+"""
 module InternalAPI
 
-using SciMLBase: NLStats
+    using SciMLBase: NLStats
 
-function init end
-function solve! end
-function step! end
+    function init end
+    function solve! end
+    function step! end
 
-function reinit! end
-function reinit_self! end
+    function reinit! end
+    function reinit_self! end
 
-function reinit!(x::Any; kwargs...)
-    #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
-    return
-end
-function reinit_self!(x::Any; kwargs...)
-    #@debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
-    return
-end
+    function reinit!(x::Any; kwargs...)
+        #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."
+        return
+    end
+    function reinit_self!(x::Any; kwargs...)
+        #@debug "`InternalAPI.reinit_self!` is not implemented for $(typeof(x))."
+        return
+    end
 
-function reinit!(stats::NLStats)
-    stats.nf = 0
-    stats.nsteps = 0
-    stats.nfactors = 0
-    stats.njacs = 0
-    stats.nsolve = 0
-end
+    function reinit!(stats::NLStats)
+        stats.nf = 0
+        stats.nsteps = 0
+        stats.nfactors = 0
+        stats.njacs = 0
+        return stats.nsolve = 0
+    end
 
 end
 
@@ -81,7 +103,49 @@ See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
 """
 abstract type AbstractDescentDirection <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    supports_line_search(alg)::Bool
+
+Return whether the descent direction `alg` can be used with line-search globalization.
+
+Descent algorithms should overload this trait when their `InternalAPI.solve!`
+implementation accepts the line-search call pattern used by `GeneralizedFirstOrderAlgorithm`
+and `QuasiNewtonAlgorithm`.
+
+### Arguments
+
+  - `alg`: An [`AbstractDescentDirection`](@ref).
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.supports_line_search(NewtonDescent())
+```
+"""
 supports_line_search(::AbstractDescentDirection) = false
+
+"""
+    supports_trust_region(alg)::Bool
+
+Return whether the descent direction `alg` can be used inside a trust-region method.
+
+Descent algorithms should overload this trait when their `InternalAPI.solve!` method accepts
+a `trust_region` keyword and reports whether the proposed step was accepted.
+
+### Arguments
+
+  - `alg`: An [`AbstractDescentDirection`](@ref).
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.supports_trust_region(Dogleg())
+```
+"""
 supports_trust_region(::AbstractDescentDirection) = false
 
 function get_linear_solver(alg::AbstractDescentDirection)
@@ -132,21 +196,125 @@ abstract type AbstractDescentCache <: AbstractNonlinearSolveBaseAPI end
 SciMLBase.get_du(cache::AbstractDescentCache) = cache.δu
 SciMLBase.get_du(cache::AbstractDescentCache, ::Val{1}) = SciMLBase.get_du(cache)
 SciMLBase.get_du(cache::AbstractDescentCache, ::Val{N}) where {N} = cache.δus[N - 1]
+
+"""
+    set_du!(cache, δu)
+    set_du!(cache, δu, ::Val{N})
+
+Store the current descent direction in `cache`.
+
+This developer hook is used by descent, quasi-Newton, and spectral-method caches to expose
+their latest step through `SciMLBase.get_du`.
+
+### Arguments
+
+  - `cache`: An [`AbstractDescentCache`](@ref) or compatible solver cache.
+  - `δu`: The descent direction to store.
+  - `::Val{N}`: Optional index for caches storing multiple shared directions.
+"""
 set_du!(cache::AbstractDescentCache, δu) = (cache.δu = δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{1}) = set_du!(cache, δu)
 set_du!(cache::AbstractDescentCache, δu, ::Val{N}) where {N} = (cache.δus[N - 1] = δu)
 
+"""
+    last_step_accepted(cache::AbstractDescentCache) -> Bool
+
+Return whether the most recent descent step was accepted.
+
+The default reads `cache.last_step_accepted` when that field exists and returns `true`
+otherwise. Trust-region and damping cache implementations should overload this hook when
+acceptance is stored outside that field.
+
+# Arguments
+
+- `cache::AbstractDescentCache`: A descent or trust-region cache. If the cache does not
+  have a `last_step_accepted` field, the default method assumes that the step was accepted.
+
+# Returns
+
+`true` when the most recent step was accepted and `false` when it was rejected.
+
+# Examples
+
+```julia
+mutable struct MyDescentCache <: NonlinearSolveBase.AbstractDescentCache
+    δu::Vector{Float64}
+    last_step_accepted::Bool
+end
+
+cache = MyDescentCache([1.0], false)
+NonlinearSolveBase.last_step_accepted(cache) # false
+```
+"""
 function last_step_accepted(cache::AbstractDescentCache)
     hasfield(typeof(cache), :last_step_accepted) && return cache.last_step_accepted
     return true
 end
 
-for fname in (:preinverted_jacobian, :normal_form)
-    @eval function $(fname)(alg::AbstractDescentCache)
-        res = Utils.unwrap_val(Utils.safe_getproperty(alg, Val($(QuoteNode(fname)))))
-        res === missing && return false
-        return res
-    end
+"""
+    preinverted_jacobian(cache::AbstractDescentCache) -> Bool
+
+Return whether the cache stores an inverse Jacobian rather than the Jacobian itself.
+
+The default reads the cache's `preinverted_jacobian` field and treats `missing` as `false`.
+Descent cache implementations should provide that field or overload this hook.
+
+# Arguments
+
+- `cache::AbstractDescentCache`: A descent cache whose `preinverted_jacobian` field is a
+  `Bool` or `Val{Bool}`, or a cache with a specialized method.
+
+# Returns
+
+`true` when the cache stores an inverse Jacobian and `false` when it stores the Jacobian.
+
+# Examples
+
+```julia
+struct InvertedCache <: NonlinearSolveBase.AbstractDescentCache
+    preinverted_jacobian::Val{true}
+end
+
+NonlinearSolveBase.preinverted_jacobian(InvertedCache(Val(true))) # true
+```
+"""
+function preinverted_jacobian(cache::AbstractDescentCache)
+    res = Utils.unwrap_val(Utils.safe_getproperty(cache, Val(:preinverted_jacobian)))
+    res === missing && return false
+    return res
+end
+
+"""
+    normal_form(cache::AbstractDescentCache) -> Bool
+
+Return whether the cache's linear solve uses normal-form equations.
+
+The default reads the cache's `normal_form` field and treats `missing` as `false`.
+Descent cache implementations should provide that field or overload this hook.
+
+# Arguments
+
+- `cache::AbstractDescentCache`: A descent cache whose `normal_form` field is a `Bool` or
+  `Val{Bool}`, or a cache with a specialized method.
+
+# Returns
+
+`true` when the cache uses normal-form equations ``JᵀJ δu = Jᵀfu`` and `false` otherwise.
+
+# Examples
+
+```julia
+struct NormalFormCache <: NonlinearSolveBase.AbstractDescentCache
+    normal_form::Val{true}
+end
+
+NonlinearSolveBase.normal_form(NormalFormCache(Val(true))) # true
+```
+"""
+function normal_form(cache::AbstractDescentCache)
+    res = Utils.unwrap_val(Utils.safe_getproperty(cache, Val(:normal_form)))
+    res === missing && return false
+    return res
 end
 
 """
@@ -197,8 +365,73 @@ Returns the damping factor.
 """
 abstract type AbstractDampingFunctionCache <: AbstractNonlinearAlgorithm end
 
+"""
+    requires_normal_form_jacobian(alg) -> Bool
+
+Return whether a damping function requires the Jacobian in normal form, ``JᵀJ``.
+
+Every concrete [`AbstractDampingFunction`](@ref) must define this trait. It is queried
+before the damping cache is initialized, so it must not depend on cache state. A damping
+cache that is passed to this trait by `InternalAPI.solve!` must implement the same contract.
+
+# Arguments
+
+- `alg`: A damping function, or its cache when the solver queries the cache during a solve.
+
+# Returns
+
+`true` when the Jacobian must be supplied as ``JᵀJ`` and `false` when the ordinary Jacobian
+is sufficient.
+"""
 function requires_normal_form_jacobian end
+
+"""
+    requires_normal_form_rhs(alg) -> Bool
+
+Return whether a damping function requires the residual in normal form, ``Jᵀfu``.
+
+Every concrete [`AbstractDampingFunction`](@ref) must define this trait. It is queried
+before the damping cache is initialized, so it must not depend on cache state. A damping
+cache that is passed to this trait by `InternalAPI.solve!` must implement the same contract.
+
+# Arguments
+
+- `alg`: A damping function, or its cache when the solver queries the cache during a solve.
+
+# Returns
+
+`true` when the residual must be supplied as ``Jᵀfu`` and `false` when the ordinary residual
+is sufficient.
+"""
 function requires_normal_form_rhs end
+
+"""
+    returns_norm_form_damping(alg) -> Bool
+
+Return whether the damping function returns a normal-form damping factor.
+
+The default is `requires_normal_form_jacobian(alg) || requires_normal_form_rhs(alg)`. A
+concrete damping function may overload this when its returned factor uses a different
+representation.
+
+# Arguments
+
+- `alg`: A damping function or damping cache implementing the normal-form traits.
+
+# Returns
+
+`true` when the returned damping factor is in normal form and `false` otherwise.
+
+# Examples
+
+```julia
+struct MyDamping <: NonlinearSolveBase.AbstractDampingFunction end
+NonlinearSolveBase.requires_normal_form_jacobian(::MyDamping) = true
+NonlinearSolveBase.requires_normal_form_rhs(::MyDamping) = false
+
+NonlinearSolveBase.returns_norm_form_damping(MyDamping()) # true
+```
+"""
 function returns_norm_form_damping(f::F) where {F}
     return requires_normal_form_jacobian(f) || requires_normal_form_rhs(f)
 end
@@ -236,55 +469,248 @@ end
 
 function show_nonlinearsolve_algorithm(
         io::IO, alg::AbstractNonlinearSolveAlgorithm, name, indent::Int = 0
-)
+    )
     print(io, name)
-    print(io, Utils.clean_sprint_struct(alg, indent))
+    return print(io, Utils.clean_sprint_struct(alg, indent))
 end
 
 """
-    AbstractNonlinearSolveCache
+    AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI
 
-Abstract Type for all NonlinearSolveBase Caches.
+Abstract supertype for caches returned by `init(prob, alg; kwargs...)` for nonlinear
+algorithms with a stepping implementation.
 
-### Interface Functions
+This is a developer-facing interface for packages that implement nonlinear solver
+algorithms. It is not a replacement for the user-facing `solve` and `init` APIs. An
+algorithm that does not provide a stepping implementation should use
+[`NonlinearSolveNoInitCache`](@ref) instead of constructing a partial stepping cache.
 
-  - `get_fu(cache)`: get the residual.
+# Fields
 
-  - `get_u(cache)`: get the current state.
-  - `set_fu!(cache, fu)`: set the residual.
-  - `has_time_limit(cache)`: whether or not the solver has a maximum time limit.
-  - `not_terminated(cache)`: whether or not the solver has terminated.
-  - `SciMLBase.set_u!(cache, u)`: set the current state.
-  - `SciMLBase.reinit!(cache, u0; kwargs...)`: reinitialize the cache with the initial state
-    `u0` and any additional keyword arguments.
-  - `SciMLBase.isinplace(cache)`: whether or not the solver is inplace.
-  - `CommonSolve.step!(cache; kwargs...)`: See [`CommonSolve.step!`](@ref) for more details.
-  - `get_abstol(cache)`: get the `abstol` provided to the cache.
-  - `get_reltol(cache)`: get the `reltol` provided to the cache.
+The default `CommonSolve.step!`, `CommonSolve.solve!`, and
+`SymbolicIndexingInterface` methods read the following fields from a stepping cache:
 
-Additionally implements `SymbolicIndexingInterface` interface Functions.
+- `prob::AbstractNonlinearProblem`: the problem being solved.
+- `alg::AbstractNonlinearSolveAlgorithm`: the algorithm associated with the cache.
+- `p`: the current parameter values.
+- `u`: the current iterate, used by the default [`get_u`](@ref) method.
+- `fu`: the residual at the current iterate, used by the default [`get_fu`](@ref) method.
+- `nsteps::Integer`: the number of completed solver steps.
+- `maxiters::Integer`: the maximum number of solver steps.
+- `force_stop::Bool`: whether a caller or the solver has requested termination.
+- `retcode::SciMLBase.ReturnCode.T`: the current solver status.
+- `stats::SciMLBase.NLStats`: counters for function, Jacobian, factorization, and step work.
+- `termination_cache`: the cache used by the termination-condition implementation.
+- `trace`: the optional nonlinear solver trace.
+- `timer`: the timer used by the default `step!` wrapper.
+- `verbose`: the verbosity specification used by solver messages.
 
-#### Expected Fields in Sub-Types
+`maxtime` and `total_time` are also required when the cache reports a time limit through
+`has_time_limit`. A cache may store any of these values elsewhere, but then it must
+override every accessor or driver method that otherwise reads the default field.
 
-For the default interface implementations we expect the following fields to be present in
-the cache:
+# Interface
 
-  - `fu`: the residual.
-  - `u`: the current state.
-  - `maxiters`: the maximum number of iterations.
-  - `nsteps`: the number of steps taken.
-  - `force_stop`: whether or not the solver has been forced to stop.
-  - `retcode`: the return code.
-  - `stats`: `NLStats` object.
-  - `alg`: the algorithm.
-  - `maxtime`: the maximum time limit for the solver. (Optional)
-  - `timer`: the timer for the solver. (Optional)
-  - `total_time`: the total time taken by the solver. (Optional)
+- [`get_u`](@ref): return the current iterate.
+- [`get_fu`](@ref): return the current residual vector.
+- [`get_nsteps`](@ref): return the number of completed steps.
+- [`CommonSolve.step!`](@ref): advance the cache by one step.
+- `CommonSolve.solve!(cache)`: run a stepping cache to termination and return a
+  `SciMLBase.NonlinearSolution`.
+- `SciMLBase.reinit!(cache, u0; kwargs...)`: reset the cache for a new initial state and
+  solve options.
+- [`get_abstol`](@ref) and [`get_reltol`](@ref): return the active tolerances.
+- `SciMLBase.set_u!`, `set_fu!`, `SciMLBase.isinplace`, and the
+  `SymbolicIndexingInterface` accessors: update or inspect the cache state.
+- [`supports_deferred_residual`](@ref) and [`refresh_residual!`](@ref): coordinate an
+  optional deferred residual evaluation.
+
+# Extension Rules
+
+- Implement `NonlinearSolveBase.InternalAPI.step!(cache::YourCache; kwargs...)`; the
+  public `CommonSolve.step!` wrapper handles termination, timing, and the top-level step
+  counters.
+- Override [`get_u`](@ref) and [`get_fu`](@ref) when the iterate or residual is stored in a
+  nested cache or another representation. These accessors must describe the same state
+  that `step!` and `reinit!` operate on.
+- Implement `NonlinearSolveBase.InternalAPI.reinit!` and preserve the cache's documented
+  invariants when `SciMLBase.reinit!` is called.
+- Return `true` from [`supports_deferred_residual`](@ref) only when deferring the residual
+  cannot change termination or trace semantics, and implement [`refresh_residual!`](@ref)
+  for that cache.
+- Generic drivers should use the documented accessors rather than reaching into
+  algorithm-specific fields. Solver packages may add internal fields without making them
+  part of this interface.
+
+# Examples
+
+```julia
+import NonlinearSolve
+import NonlinearSolveBase
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.NewtonRaphson())
+NonlinearSolve.step!(cache)
+u = NonlinearSolveBase.get_u(cache)
+```
 """
 abstract type AbstractNonlinearSolveCache <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    get_u(cache::AbstractNonlinearSolveCache) -> u
+
+Return the current iterate held by a nonlinear solver cache.
+
+The default returns `cache.u`. Caches that keep the iterate elsewhere should overload this
+hook, such as a polyalgorithm forwarding to its active subsolver or a ForwardDiff cache
+forwarding to its wrapped primal cache.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose current iterate is requested.
+
+# Returns
+
+The current iterate in the representation used by the cache's solver.
+
+# Extension Rules
+
+An overload must return the iterate that the cache will update on its next step. Generic
+drivers should call this accessor rather than reading `cache.u` directly.
+
+# Examples
+
+```julia
+u = NonlinearSolveBase.get_u(cache)
+```
+"""
 get_u(cache::AbstractNonlinearSolveCache) = cache.u
+
+"""
+    get_fu(cache::AbstractNonlinearSolveCache) -> fu
+
+Return the residual stored in a nonlinear solver cache: the most recent value of the
+problem's residual function the solver evaluated (the full residual vector, not its norm,
+for a `NonlinearLeastSquaresProblem`).
+
+The default returns `cache.fu`, with the same overloading convention as [`get_u`](@ref).
+Between steps this is the residual at [`get_u`](@ref), but a solver mid-step commits the
+new iterate before re-evaluating there. A `postcondition` corrector runs at exactly such a
+point and therefore sees the residual at the previous accepted iterate.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose residual is requested.
+
+# Returns
+
+The full residual vector, not its norm, including for a
+`NonlinearLeastSquaresProblem`.
+
+# Extension Rules
+
+An overload must use the same residual convention as the default and remain synchronized
+with [`get_u`](@ref) at cache step boundaries. Generic drivers should call this accessor
+instead of reading an algorithm-specific residual field.
+
+# Examples
+
+```julia
+fu = NonlinearSolveBase.get_fu(cache)
+```
+"""
 get_fu(cache::AbstractNonlinearSolveCache) = cache.fu
+
+"""
+    get_nsteps(cache::AbstractNonlinearSolveCache) -> Int
+
+Return the number of solver iterations the cache has taken so far. This is the count
+checked against `maxiters`, and it counts steps of the solver loop rather than function
+or Jacobian evaluations, which are tracked separately in `cache.stats`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose step count is requested.
+
+# Returns
+
+The number of completed solver steps as an integer.
+
+# Extension Rules
+
+An overload must use the same count that controls the cache's iteration limit. Function and
+Jacobian evaluations belong in `cache.stats` and must not be reported as solver steps.
+
+# Examples
+
+```julia
+nsteps = NonlinearSolveBase.get_nsteps(cache)
+```
+"""
+get_nsteps(cache::AbstractNonlinearSolveCache) = cache.nsteps
+
+"""
+    supports_deferred_residual(cache) -> Bool
+
+Whether `cache` honours `step!(cache; evaluate_residual = false)`, that is, whether it can
+end a step without evaluating the residual at the iterate the step landed on and leave
+[`refresh_residual!`](@ref) to supply it on demand.
+
+`false` for a cache that always evaluates, which is also the safe answer: a cache is free
+to ignore `evaluate_residual = false`, and a driver that gets `false` here simply reads a
+residual that is already current. A cache may only answer `true` where deferral is
+unobservable — in particular where its termination condition depends on nothing but the
+residual, since a deferred step reports no displacement and reaches the termination check
+once per [`refresh_residual!`](@ref) rather than once per step.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose deferred-residual capability is
+  queried.
+
+# Returns
+
+`true` only when the cache supports the deferred-residual protocol; otherwise `false`.
+
+# Extension Rules
+
+The default is `false`. An overload returning `true` must also implement
+[`refresh_residual!`](@ref) and preserve the termination and trace semantics described
+above.
+"""
+supports_deferred_residual(::AbstractNonlinearSolveCache) = false
+
+"""
+    refresh_residual!(cache)
+
+Settle a residual evaluation deferred by `step!(cache; evaluate_residual = false)`: evaluate
+the problem's residual at [`get_u`](@ref), store it, and run the convergence check the step
+would have run there, leaving `cache` in the state a plain `step!` would have left it in.
+Does nothing when no evaluation is outstanding, so a driver may call it whenever it wants to
+read [`get_fu`](@ref) without tracking which of its steps deferred — including on a cache
+that never defers, which the default here covers. A cache that answers
+[`supports_deferred_residual`](@ref) with `true` must override it.
+
+The next `step!` settles an outstanding deferral itself, so a driver that only ever steps
+again never needs to call this.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose deferred residual should be settled.
+
+# Returns
+
+`nothing`. The cache is updated in place.
+
+# Extension Rules
+
+The default is a no-op for caches that never defer. A cache that returns `true` from
+[`supports_deferred_residual`](@ref) must evaluate and store the residual at
+[`get_u`](@ref), perform the corresponding convergence update, and make repeated calls
+safe when no evaluation is outstanding.
+"""
+refresh_residual!(::AbstractNonlinearSolveCache) = nothing
+
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
 SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
 
@@ -297,20 +723,115 @@ function not_terminated(cache::AbstractNonlinearSolveCache)
     return !cache.force_stop && cache.nsteps < cache.maxiters
 end
 
-function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; kwargs...)
-    return InternalAPI.reinit!(cache; kwargs...)
+_prepare_reinit_parameters(p, ::Any) = SciMLBase.unwrap_parameters(p)
+_prepare_reinit_parameters(p, ::SciMLBase.DespecializedParameters) =
+    SciMLBase.DespecializedParameters(p)
+
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache; p = cache.p, kwargs...)
+    p = _prepare_reinit_parameters(p, cache.p)
+    return InternalAPI.reinit!(cache; u = get_u(cache), p, kwargs...)
 end
-function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; kwargs...)
-    return InternalAPI.reinit!(cache; u0, kwargs...)
+function SciMLBase.reinit!(cache::AbstractNonlinearSolveCache, u0; p = cache.p, kwargs...)
+    p = _prepare_reinit_parameters(p, cache.p)
+    return InternalAPI.reinit!(cache; u0, u = get_u(cache), p, kwargs...)
 end
 
 SciMLBase.isinplace(cache::AbstractNonlinearSolveCache) = SciMLBase.isinplace(cache.prob)
 
-function get_abstol(cache::AbstractNonlinearSolveCache)
-    get_abstol(cache.termination_cache)
+"""
+    get_trace(cache::AbstractNonlinearSolveCache)
+
+Return the trace object a solver cache records its iteration history into.
+
+The default returns `cache.trace`. Caches that keep it elsewhere should overload this hook,
+such as a polyalgorithm forwarding to its active subsolver.
+
+# Examples
+
+```julia
+trace = NonlinearSolveBase.get_trace(cache)
+```
+"""
+function get_trace(cache::AbstractNonlinearSolveCache)
+    return cache.trace
 end
+
+"""
+    get_termination_cache(cache::AbstractNonlinearSolveCache)
+
+Return the termination-condition cache through which a solver cache reports its status.
+
+The default returns `cache.termination_cache`. Caches that keep it elsewhere should overload
+this hook, such as a polyalgorithm forwarding to its active subsolver.
+
+# Examples
+
+```julia
+tc = NonlinearSolveBase.get_termination_cache(cache)
+```
+"""
+function get_termination_cache(cache::AbstractNonlinearSolveCache)
+    return cache.termination_cache
+end
+
+"""
+    get_abstol(cache::AbstractNonlinearSolveCache) -> Real
+
+Return the absolute tolerance currently stored in a nonlinear solver cache or problem.
+
+The default reads the cache's `termination_cache`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose absolute tolerance is requested.
+
+# Returns
+
+The active absolute tolerance used by the cache's termination condition.
+
+# Extension Rules
+
+Override this method when the cache stores its termination state somewhere other than
+`termination_cache`. The returned value must agree with the tolerance used by `step!`.
+
+# Examples
+
+```julia
+abstol = NonlinearSolveBase.get_abstol(cache)
+```
+"""
+function get_abstol(cache::AbstractNonlinearSolveCache)
+    return get_abstol(get_termination_cache(cache))
+end
+
+"""
+    get_reltol(cache::AbstractNonlinearSolveCache) -> Real
+
+Return the relative tolerance currently stored in a nonlinear solver cache or problem.
+
+The default reads the cache's `termination_cache`.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the cache whose relative tolerance is requested.
+
+# Returns
+
+The active relative tolerance used by the cache's termination condition.
+
+# Extension Rules
+
+Override this method when the cache stores its termination state somewhere other than
+`termination_cache`. The returned value must agree with the tolerance used by `step!`.
+
+# Examples
+
+```julia
+reltol = NonlinearSolveBase.get_reltol(cache)
+```
+"""
 function get_reltol(cache::AbstractNonlinearSolveCache)
-    get_reltol(cache.termination_cache)
+    return get_reltol(get_termination_cache(cache))
 end
 
 ## SII Interface
@@ -336,7 +857,7 @@ function Base.show(io::IO, ::MIME"text/plain", cache::AbstractNonlinearSolveCach
 end
 
 function show_nonlinearsolve_cache(io::IO, cache::AbstractNonlinearSolveCache, indent = 0)
-    println(io, "$(nameof(typeof(cache)))(")
+    println(io, lazy"$(nameof(typeof(cache)))(")
     show_nonlinearsolve_algorithm(
         io,
         cache.alg,
@@ -357,7 +878,7 @@ function show_nonlinearsolve_cache(io::IO, cache::AbstractNonlinearSolveCache, i
 
     println(io, " "^(indent + 4) * "nsteps = ", cache.stats.nsteps, ",")
     println(io, " "^(indent + 4) * "retcode = ", cache.retcode)
-    print(io, " "^(indent) * ")")
+    return print(io, " "^(indent) * ")")
 end
 
 """
@@ -390,7 +911,62 @@ Abstract Type for all Approximate Jacobian Structures used in NonlinearSolve.jl.
 """
 abstract type AbstractApproximateJacobianStructure <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    stores_full_jacobian(alg::AbstractApproximateJacobianStructure) -> Bool
+
+Return whether an approximate-Jacobian structure retains the full Jacobian.
+
+The default is `false`. A structure that retains a full Jacobian must overload this trait
+and provide the corresponding [`get_full_jacobian`](@ref) behavior.
+
+# Arguments
+
+- `alg::AbstractApproximateJacobianStructure`: The approximate-Jacobian structure.
+
+# Returns
+
+`true` when the structure retains a full Jacobian and `false` otherwise.
+
+# Examples
+
+```julia
+struct LowRankStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+
+NonlinearSolveBase.stores_full_jacobian(LowRankStructure()) # false
+```
+"""
 stores_full_jacobian(::AbstractApproximateJacobianStructure) = false
+
+"""
+    get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
+
+Return the full Jacobian represented by an approximate-Jacobian cache.
+
+The default returns `J` when [`stores_full_jacobian`](@ref) is true and throws otherwise.
+Implementations that store the full Jacobian in a separate buffer should overload this hook.
+
+# Arguments
+
+- `cache`: The approximate-Jacobian cache, when the implementation stores the full matrix
+  separately.
+- `alg::AbstractApproximateJacobianStructure`: The structure describing the cache.
+- `J`: The current Jacobian representation.
+
+# Returns
+
+The full Jacobian represented by the cache. The default returns `J` only when
+[`stores_full_jacobian`](@ref) is `true`.
+
+# Examples
+
+```julia
+struct FullStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+NonlinearSolveBase.stores_full_jacobian(::FullStructure) = true
+
+J = [1.0 0.0; 0.0 1.0]
+NonlinearSolveBase.get_full_jacobian(nothing, FullStructure(), J) == J
+```
+"""
 function get_full_jacobian(cache, alg::AbstractApproximateJacobianStructure, J)
     stores_full_jacobian(alg) && return J
     error("This algorithm does not store the full Jacobian. Define `get_full_jacobian` for \
@@ -423,6 +999,30 @@ All subtypes need to define
 """
 abstract type AbstractJacobianInitialization <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    jacobian_initialized_preinverted(alg::AbstractJacobianInitialization) -> Bool
+
+Return whether a Jacobian initialization algorithm produces an inverse Jacobian.
+
+The default is `false`; an initialization algorithm that constructs an inverse directly must
+overload this trait so the enclosing solver interprets the cache correctly.
+
+# Arguments
+
+- `alg::AbstractJacobianInitialization`: The Jacobian initialization algorithm.
+
+# Returns
+
+`true` when the initialization algorithm returns an inverse Jacobian and `false` when it
+returns an ordinary Jacobian.
+
+# Examples
+
+```julia
+struct DirectInverse <: NonlinearSolveBase.AbstractJacobianInitialization end
+NonlinearSolveBase.jacobian_initialized_preinverted(DirectInverse()) # false by default
+```
+"""
 jacobian_initialized_preinverted(::AbstractJacobianInitialization) = false
 
 """
@@ -445,6 +1045,34 @@ InternalAPI.init(
 """
 abstract type AbstractApproximateJacobianUpdateRule <: AbstractNonlinearSolveBaseAPI end
 
+"""
+    store_inverse_jacobian(rule) -> Bool
+
+Return whether an approximate-Jacobian update rule stores an inverse Jacobian.
+
+The default for a concrete rule reads its `store_inverse_jacobian` field. Update-rule cache
+implementations delegate to the rule, so the same contract applies to both forms.
+
+# Arguments
+
+- `rule::AbstractApproximateJacobianUpdateRule`: The update rule whose stored Jacobian
+  representation is being queried.
+
+# Returns
+
+`true` when the rule stores an inverse Jacobian and `false` when it stores an ordinary
+Jacobian.
+
+# Examples
+
+```julia
+struct DirectUpdate <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
+    store_inverse_jacobian::Bool
+end
+
+NonlinearSolveBase.store_inverse_jacobian(DirectUpdate(true)) # true
+```
+"""
 function store_inverse_jacobian(rule::AbstractApproximateJacobianUpdateRule)
     return rule.store_inverse_jacobian
 end
@@ -457,6 +1085,8 @@ Abstract Type for all Approximate Jacobian Update Rule Caches used in NonlinearS
 ### Interface Functions
 
   - `store_inverse_jacobian(cache)`: Return `store_inverse_jacobian(cache.rule)`
+  - `reset_update_rule_state!(cache, fu)`: Reseed any residual the cache carries between
+    iterations with `fu`.
 
 ### `InternalAPI.solve!` specification
 
@@ -471,6 +1101,21 @@ abstract type AbstractApproximateJacobianUpdateRuleCache <: AbstractNonlinearSol
 function store_inverse_jacobian(cache::AbstractApproximateJacobianUpdateRuleCache)
     return store_inverse_jacobian(cache.rule)
 end
+
+"""
+    reset_update_rule_state!(cache::AbstractApproximateJacobianUpdateRuleCache, fu)
+
+Reseed the update rule cache with `fu`, the residual at the iterate the enclosing solver
+cache is being (re)initialized at, exactly as `InternalAPI.init` seeds it.
+
+Secant-type update rules difference the current residual against the previous iterate's,
+which they store across iterations. That stored residual is not reachable from
+`InternalAPI.reinit_self!`, which runs on the nested caches before the enclosing cache has
+evaluated the residual at the new iterate, so the enclosing cache calls this afterwards
+instead. The default is a no-op, which is correct for update rules whose cache holds only
+scratch buffers.
+"""
+reset_update_rule_state!(::AbstractApproximateJacobianUpdateRuleCache, fu) = nothing
 
 """
     AbstractResetCondition
@@ -574,23 +1219,25 @@ macro internal_caches(cType, internal_cache_names...)
             $(InternalAPI.reinit!)(getproperty(cache, $(name)), args...; kwargs...)
         end
     end
-    return esc(quote
-        function NonlinearSolveBase.callback_into_cache!(
-                cache, internalcache::$(cType), args...
-        )
-            $(callback_caches...)
-            return
+    return esc(
+        quote
+            function NonlinearSolveBase.callback_into_cache!(
+                    cache, internalcache::$(cType), args...
+                )
+                $(callback_caches...)
+                return
+            end
+            function NonlinearSolveBase.callback_into_cache!(cache::$(cType))
+                $(callbacks_self...)
+                return
+            end
+            function NonlinearSolveBase.InternalAPI.reinit!(
+                    cache::$(cType), args...; kwargs...
+                )
+                $(reinit_caches...)
+                $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
+                return
+            end
         end
-        function NonlinearSolveBase.callback_into_cache!(cache::$(cType))
-            $(callbacks_self...)
-            return
-        end
-        function NonlinearSolveBase.InternalAPI.reinit!(
-                cache::$(cType), args...; kwargs...
-        )
-            $(reinit_caches...)
-            $(InternalAPI.reinit_self!)(cache, args...; kwargs...)
-            return
-        end
-    end)
+    )
 end

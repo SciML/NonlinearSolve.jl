@@ -7,9 +7,19 @@ struct Falsi <: AbstractBracketingAlgorithm end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::Falsi, args...;
-        maxiters = 1000, abstol = nothing, verbose::Bool = true, kwargs...
-)
+        maxiters = 1000, abstol = nothing, verbose = NonlinearVerbosity(), kwargs...
+    )
     @assert !SciMLBase.isinplace(prob) "`False` only supports out-of-place problems."
+
+    if verbose isa Bool
+        if verbose
+            verbose = NonlinearVerbosity()
+        else
+            verbose = NonlinearVerbosity(None())
+        end
+    elseif verbose isa AbstractVerbosityPreset
+        verbose = NonlinearVerbosity(verbose)
+    end
 
     f = Base.Fix2(prob.f, prob.p)
     l, r = prob.tspan # don't reuse these variables
@@ -17,35 +27,30 @@ function SciMLBase.__solve(
     fl, fr = f(left), f(right)
 
     abstol = NonlinearSolveBase.get_tolerance(
-        left, abstol, promote_type(eltype(left), eltype(right)))
+        left, abstol, promote_type(eltype(left), eltype(right))
+    )
 
     if iszero(fl)
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.ExactSolutionLeft, left, right
-        )
+        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
 
     if iszero(fr)
-        return SciMLBase.build_solution(
-            prob, alg, right, fr; retcode = ReturnCode.ExactSolutionRight, left, right
-        )
+        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
 
     if sign(fl) == sign(fr)
-        verbose &&
-            @warn "The interval is not an enclosing interval, opposite signs at the \
-                   boundaries are required."
-        return SciMLBase.build_solution(
-            prob, alg, left, fl; retcode = ReturnCode.InitialFailure, left, right
+        @SciMLMessage(
+            "The interval is not an enclosing interval, opposite signs at the \
+        boundaries are required.",
+            verbose, :non_enclosing_interval
         )
+        return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
     i = 1
     while i ≤ maxiters
         if Impl.nextfloat_tdir(left, l, r) == right
-            return SciMLBase.build_solution(
-                prob, alg, left, fl; left, right, retcode = ReturnCode.FloatingPointLimit
-            )
+            return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.FloatingPointLimit)
         end
 
         mid = (fr * left - fl * right) / (fr - fl)
@@ -56,10 +61,12 @@ function SciMLBase.__solve(
         (mid == left || mid == right) && break
 
         fm = f(mid)
+        if iszero(fm)
+            return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
+        end
+
         if abs((right - left) / 2) < abstol
-            return SciMLBase.build_solution(
-                prob, alg, mid, fm; left, right, retcode = ReturnCode.Success
-            )
+            return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
         if abs(fm) < abstol
@@ -76,14 +83,6 @@ function SciMLBase.__solve(
         i += 1
     end
 
-    sol, i, left, right,
-    fl, fr = Impl.bisection(
-        left, right, fl, fr, f, abstol, maxiters - i, prob, alg
-    )
-
-    sol !== nothing && return sol
-
-    return SciMLBase.build_solution(
-        prob, alg, left, fl; retcode = ReturnCode.MaxIters, left, right
-    )
+    # Fallback to bisection solver
+    return internal_bisection(f, left, right, fl, fr, abstol, maxiters - i, prob, alg)
 end

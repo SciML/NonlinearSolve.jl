@@ -1,3 +1,21 @@
+"""
+    BracketingNonlinearSolve
+
+Interval root-finding algorithms for `IntervalNonlinearProblem`.
+
+This subpackage provides scalar bracketing methods such as `Bisection`, `Brent`,
+`ITP`, and `Ridder`. Use these algorithms when the root is known to lie inside an
+interval and the problem can be represented as an `IntervalNonlinearProblem`.
+
+### Example
+
+```julia
+using BracketingNonlinearSolve, SciMLBase
+
+prob = IntervalNonlinearProblem((u, p) -> u^2 - p, (0.0, 2.0), 2.0)
+sol = solve(prob, ITP())
+```
+"""
 module BracketingNonlinearSolve
 
 using ConcreteStructs: @concrete
@@ -5,11 +23,14 @@ using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 
 using CommonSolve: CommonSolve, solve
-using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm
+using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
+    NonlinearVerbosity
 using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
+using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset
 
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 
+include("utils.jl")
 include("common.jl")
 
 include("alefeld.jl")
@@ -19,24 +40,33 @@ include("falsi.jl")
 include("itp.jl")
 include("muller.jl")
 include("ridder.jl")
+include("modAB.jl")
 
 # Default Algorithm
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
-    return CommonSolve.solve(prob, ITP(); kwargs...)
+    return CommonSolve.solve(prob, ModAB(); kwargs...)
 end
 
 function CommonSolve.solve(prob::IntervalNonlinearProblem, nothing, args...; kwargs...)
-    return CommonSolve.solve(prob, ITP(), args...; kwargs...)
+    return CommonSolve.solve(prob, ModAB(), args...; kwargs...)
 end
 
-function CommonSolve.solve(prob::IntervalNonlinearProblem,
-        alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...)
+function CommonSolve.solve(
+        prob::IntervalNonlinearProblem,
+        alg::AbstractBracketingAlgorithm, args...; sensealg = nothing, kwargs...
+    )
+    # IntervalNonlinearProblem kwargs are solver options (SciMLBase contract). Merge
+    # here so they bind before __solve defaults (e.g. abstol = nothing). Solve kwargs
+    # override problem kwargs, matching NonlinearSolveBase.solve_call.
+    kwargs = isempty(prob.kwargs) ? kwargs : merge(values(prob.kwargs)::NamedTuple, kwargs)
     return bracketingnonlinear_solve_up(
-        prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...)
+        prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...
+    )
 end
 
 function bracketingnonlinear_solve_up(
-        prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...)
+        prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...
+    )
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
@@ -45,11 +75,11 @@ end
         prob_brack = IntervalNonlinearProblem{false}(
             (u, p) -> u^2 - p, T.((0.0, 2.0)), T(2)
         )
-        algs = (Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder())
+        algs = (ModAB(),)
 
         @compile_workload begin
             @sync for alg in algs
-                Threads.@spawn CommonSolve.solve(prob_brack, alg; abstol = 1e-6)
+                Threads.@spawn CommonSolve.solve(prob_brack, alg; abstol = 1.0e-6)
             end
         end
     end
@@ -57,6 +87,6 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder
+export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder, ModAB
 
 end

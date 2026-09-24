@@ -61,9 +61,13 @@ function SciMLBase.__solve(
         prob::Union{ImmutableNonlinearProblem, NonlinearLeastSquaresProblem},
         alg::SimpleTrustRegion, args...;
         abstol = nothing, reltol = nothing, maxiters = 1000,
-        alias_u0 = false, termination_condition = nothing, kwargs...
-)
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
+        termination_condition = nothing, kwargs...
+    )
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     T = eltype(x)
     Δₘₐₓ = T(alg.max_trust_radius)
     Δ = T(alg.initial_trust_radius)
@@ -91,19 +95,19 @@ function SciMLBase.__solve(
     max_shrink_times = alg.max_shrink_times
 
     autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
-               NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+        NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
 
     fx = NLBUtils.evaluate_f(prob, x)
     norm_fx = L2_NORM(fx)
 
     @bb xo = copy(x)
-    fx_cache = (SciMLBase.isinplace(prob) && !SciMLBase.has_jac(prob.f)) ?
-               NLBUtils.safe_similar(fx) : fx
+    fx_cache = Utils.should_cache_fx(prob, prob.f) ?
+        NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
@@ -118,7 +122,7 @@ function SciMLBase.__solve(
         end
     end
 
-    fₖ = 0.5 * norm_fx^2
+    fₖ = norm_fx^2 / T(2)
     H = transpose(J) * J
     g = NLBUtils.restructure(x, J' * NLBUtils.safe_vec(fx))
     shrink_counter = 0
@@ -154,13 +158,14 @@ function SciMLBase.__solve(
             Δ = t₁ * Δ
             shrink_counter += 1
             shrink_counter > max_shrink_times && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded)
+                prob, alg, x, fx; retcode = ReturnCode.ShrinkThresholdExceeded
+            )
         end
 
         if r ≥ η₁
             # Termination Checks
             solved, retcode, fx_sol,
-            x_sol = Utils.check_termination(
+                x_sol = Utils.check_termination(
                 tc_cache, fx, x, xo, prob
             )
             solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
@@ -184,7 +189,7 @@ function SciMLBase.__solve(
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             if r > η₃
                 Δ = t₂ * L2_NORM(δ)
-            elseif r > 0.5
+            elseif r > T(0.5)
                 Δ = max(Δ, t₂ * L2_NORM(δ))
             end
         end
@@ -193,7 +198,7 @@ function SciMLBase.__solve(
     return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
 end
 
-function dogleg_method!!(cache, J, f::F, g, Δ) where F
+function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step

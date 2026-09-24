@@ -1,4 +1,3 @@
-
 """
     construct_jacobian_cache(
         prob, alg, f, fu, u = prob.u0, p = prob.p;
@@ -10,7 +9,7 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
 
 ### Arguments
 
-  - `prob`: A [`NonlinearProblem`](@ref) or a [`NonlinearLeastSquaresProblem`](@ref).
+  - `prob`: A `NonlinearProblem` or a `NonlinearLeastSquaresProblem` from SciMLBase.
   - `alg`: A [`AbstractNonlinearSolveAlgorithm`](@ref). Used to check for
     [`concrete_jac`](@ref).
   - `f`: The function to compute the Jacobian of.
@@ -35,22 +34,37 @@ function construct_jacobian_cache(
         prob, alg, f::NonlinearFunction, fu, u = prob.u0, p = prob.p; stats,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
-)
+    )
     has_analytic_jac = SciMLBase.has_jac(f)
-    linsolve_needs_jac = !concrete_jac(alg) && (linsolve === missing ||
-                          (linsolve === nothing || needs_concrete_A(linsolve)))
+    # A SciMLOperator `jac_prototype` is used as the Jacobian directly (matrix-free `mul!`
+    # for iterative solvers, lazy `convert` for factorizations) rather than being AD'd or
+    # `similar`'d, so it skips the concrete/di_extras machinery below.
+    op_jac = f.jac_prototype isa AbstractSciMLOperator ? f.jac_prototype : nothing
+    linsolve_needs_jac = !concrete_jac(alg) && (
+        linsolve === missing ||
+            (linsolve === nothing || needs_concrete_A(linsolve))
+    )
     needs_jac = linsolve_needs_jac || concrete_jac(alg)
 
     fu_cache = Utils.safe_similar(fu)
 
-    if !has_analytic_jac && needs_jac
+    if op_jac === nothing && !has_analytic_jac && needs_jac
         if autodiff === nothing
             throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
                                  specified and cannot be `nothing`. Use \
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
+        autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall, and AD-based
+        # sparsity detection (DenseSparsityDetector) differentiates with a foreign tag the
+        # wrapper has no entry for. In both cases unwrap AutoSpecializeCallable so DI sees
+        # the raw user function.
+        if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(autodiff) || _uses_ad_sparsity_detector(autodiff))
+            f = @set f.f = get_raw_f(f.f)
+        end
         di_extras = if SciMLBase.isinplace(f)
             DI.prepare_jacobian(f, fu_cache, autodiff, u, Constant(p), strict = Val(false))
         else
@@ -60,8 +74,32 @@ function construct_jacobian_cache(
         di_extras = nothing
     end
 
-    J = if !needs_jac
-        JacobianOperator(prob, fu, u; jvp_autodiff, vjp_autodiff)
+    J = if op_jac !== nothing
+        # Hand the operator straight through. An iterative solver applies it matrix-free
+        # via `mul!`; a factorization materializes it lazily with `convert(AbstractMatrix,
+        # ·)`. Guard the latter: a genuinely matrix-free (non-convertible) operator cannot
+        # be handed to a solver that needs a concrete `A`.
+        if needs_jac && !isconvertible(op_jac)
+            throw(ArgumentError("The supplied Jacobian operator `$(typeof(op_jac))` is \
+                not convertible to a concrete matrix, but the selected linear solver \
+                requires a concrete `A`. Use a matrix-free linear solver (e.g. \
+                `KrylovJL_GMRES()`) or supply a convertible operator / concrete \
+                `jac_prototype`."))
+        end
+        op_jac
+    elseif !needs_jac
+        # Standardize JVP/VJP autodiff tags to match FunctionWrapper signatures
+        _jvp_ad = standardize_forwarddiff_tag(jvp_autodiff, prob)
+        _vjp_ad = standardize_forwarddiff_tag(vjp_autodiff, prob)
+        # Enzyme cannot differentiate through FunctionWrappers' llvmcall.
+        # Unwrap AutoSpecializeCallable so DI sees the raw user function.
+        _prob = if is_fw_wrapped(f.f) &&
+                (_uses_enzyme_ad(_jvp_ad) || _uses_enzyme_ad(_vjp_ad))
+            @set prob.f.f = get_raw_f(f.f)
+        else
+            prob
+        end
+        JacobianOperator(_prob, fu, u; jvp_autodiff = _jvp_ad, vjp_autodiff = _vjp_ad)
     else
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
@@ -87,16 +125,17 @@ function construct_jacobian_cache(
         end
     end
 
-    return JacobianCache(J, f, fu, u, p, stats, autodiff, di_extras)
+    J_destination = jacobian_destination(J, autodiff)
+    return JacobianCache(J, J_destination, f, fu, p, stats, autodiff, di_extras)
 end
 
 function construct_jacobian_cache(
         prob, alg, f::NonlinearFunction, fu::Number, u::Number = prob.u0, p = prob.p; stats,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         linsolve = missing
-)
+    )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache(u, f, fu, u, p, stats, autodiff, nothing)
+        return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing)
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
@@ -107,77 +146,145 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(u, f, fu, u, p, stats, autodiff, di_extras)
+    return JacobianCache(u, u, f, fu, p, stats, autodiff, di_extras)
 end
+
+struct FixedShapeJacobianDestination{T, A <: Matrix{T}} <: AbstractMatrix{T}
+    parent::A
+end
+
+Base.size(destination::FixedShapeJacobianDestination) = size(destination.parent)
+Base.axes(destination::FixedShapeJacobianDestination) = axes(destination.parent)
+Base.IndexStyle(::Type{<:FixedShapeJacobianDestination}) = IndexLinear()
+@inline Base.getindex(destination::FixedShapeJacobianDestination, indices...) =
+    getindex(destination.parent, indices...)
+@inline Base.setindex!(destination::FixedShapeJacobianDestination, value, indices...) =
+    setindex!(destination.parent, value, indices...)
+function Base.reshape(destination::FixedShapeJacobianDestination, dims::Dims)
+    size(destination) == dims || throw(DimensionMismatch("cannot reshape Jacobian destination"))
+    return destination
+end
+Base.reshape(destination::FixedShapeJacobianDestination, dims::Int...) =
+    reshape(destination, dims)
+
+jacobian_destination(J::Matrix, ::AutoForwardDiff) = FixedShapeJacobianDestination(J)
+jacobian_destination(J, autodiff) = J
 
 @concrete mutable struct JacobianCache <: AbstractJacobianCache
     J
+    J_destination
     f <: NonlinearFunction
     fu
-    u
     p
     stats::NLStats
     autodiff
     di_extras
 end
 
-function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, u0 = cache.u, kwargs...)
-    cache.u = u0
-    cache.p = p
+function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
+    return cache.p = _prepare_reinit_parameters(p, cache.p)
 end
+
+# Deprecations
+(cache::JacobianCache{<:Number})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache{<:JacobianOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache{<:AbstractSciMLOperator})(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+(cache::JacobianCache)(::Nothing) = error("Please report a bug to NonlinearSolve.jl")
+
+"""
+    reused_jacobian(cache, u)
+
+Return the Jacobian object from `cache` for reuse at the current state `u`.
+
+For concrete Jacobian caches this returns the stored matrix-like object. For matrix-free
+`JacobianOperator` caches it returns a [`StatefulJacobianOperator`](@ref) bound to `u` and
+the cache parameters.
+
+### Arguments
+
+  - `cache`: A Jacobian cache from [`construct_jacobian_cache`](@ref).
+  - `u`: Current nonlinear state.
+
+### Returns
+
+A matrix-like Jacobian or stateful Jacobian operator suitable for descent and linear solve
+initialization.
+"""
+reused_jacobian(cache::JacobianCache, u) = cache.J
+reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
+# A reused operator Jacobian is returned as-is (the generic `reused_jacobian` returns
+# `cache.J`); no special method is needed.
 
 # Core Computation
-(cache::JacobianCache)(u) = cache(cache.J, u, cache.p)
-function (cache::JacobianCache{<:JacobianOperator})(::Nothing)
-    return StatefulJacobianOperator(cache.J, cache.u, cache.p)
-end
-(cache::JacobianCache)(::Nothing) = cache.J
-
-## Operator
-function (cache::JacobianCache{<:JacobianOperator})(J::JacobianOperator, u, p = cache.p)
-    return StatefulJacobianOperator(J, u, p)
-end
-
 ## Numbers
-function (cache::JacobianCache{<:Number})(::Number, u, p = cache.p)
+function (cache::JacobianCache{<:Number})(u)
     cache.stats.njacs += 1
-    cache.J = if SciMLBase.has_jac(cache.f)
-        cache.f.jac(u, p)
-    elseif SciMLBase.has_vjp(cache.f)
-        cache.f.vjp(one(u), u, p)
-    elseif SciMLBase.has_jvp(cache.f)
-        cache.f.jvp(one(u), u, p)
+
+    (; f, J, p) = cache
+    cache.J = if SciMLBase.has_jac(f)
+        f.jac(u, p)
+    elseif SciMLBase.has_vjp(f)
+        f.vjp(one(u), u, p)
+    elseif SciMLBase.has_jvp(f)
+        f.jvp(one(u), u, p)
     else
-        DI.derivative(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+        DI.derivative(f, cache.di_extras, cache.autodiff, u, Constant(p))
     end
     return cache.J
 end
 
 ## Actually Compute the Jacobian
-function (cache::JacobianCache)(J::Union{AbstractMatrix, Nothing}, u, p = cache.p)
+function (cache::JacobianCache)(u)
     cache.stats.njacs += 1
-    if SciMLBase.isinplace(cache.f)
-        if SciMLBase.has_jac(cache.f)
-            cache.f.jac(J, u, p)
+    (; f, J, p) = cache
+    if SciMLBase.isinplace(f)
+        if SciMLBase.has_jac(f)
+            f.jac(J, u, p)
         else
             DI.jacobian!(
-                cache.f, cache.fu, J, cache.di_extras, cache.autodiff, u, Constant(p)
+                f, cache.fu, cache.J_destination, cache.di_extras, cache.autodiff, u,
+                Constant(p)
             )
         end
         return J
     else
         if SciMLBase.has_jac(cache.f)
-            cache.J = cache.f.jac(u, p)
+            cache.J = f.jac(u, p)
         else
-            cache.J = DI.jacobian(cache.f, cache.di_extras, cache.autodiff, u, Constant(p))
+            cache.J = DI.jacobian(f, cache.di_extras, cache.autodiff, u, Constant(p))
         end
         return cache.J
     end
 end
 
+function (cache::JacobianCache{<:JacobianOperator})(u)
+    return StatefulJacobianOperator(cache.J, u, cache.p)
+end
+
+function (cache::JacobianCache{<:AbstractSciMLOperator})(u)
+    (; f, p) = cache
+    if SciMLBase.has_jac(f) && f.jac !== update_coefficients!
+        # A user-supplied analytic Jacobian that returns/updates an operator (e.g.
+        # `jac(u, p)` returning a `MatrixOperator`). Mirror the concrete `has_jac` path.
+        cache.stats.njacs += 1
+        if SciMLBase.isinplace(f)
+            f.jac(cache.J, u, p)
+        else
+            cache.J = f.jac(u, p)
+        end
+    end
+    # Otherwise the operator is used as-is, held fixed across the solve's Newton iterations
+    # (as NLNewton holds `W` fixed). This covers a constant operator and the case where
+    # SciMLBase auto-wired `f.jac = update_coefficients!` for an operator `jac_prototype`:
+    # NonlinearSolve does not refresh it, since a `NonlinearProblem` has no time and its `p`
+    # may be `NullParameters`. Its owner — e.g. the ODE integrator via `_update_nlsolvealg_W!`
+    # — refreshes the operator's coefficients with the correct `t`/`gamma` between solves.
+    return cache.J
+end
+
 # Sparse Automatic Differentiation
 function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
-    if f.sparsity === nothing
+    return if f.sparsity === nothing
         if f.jac_prototype === nothing
             if SciMLBase.has_colorvec(f)
                 @warn "`colorvec` is provided but `sparsity` and `jac_prototype` is not \
@@ -204,7 +311,7 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
         if f.sparsity isa AbstractMatrix
             if f.jac_prototype !== f.sparsity
                 if f.jac_prototype !== nothing &&
-                   sparse_or_structured_prototype(f.jac_prototype)
+                        sparse_or_structured_prototype(f.jac_prototype)
                     throw(ArgumentError("`sparsity::AbstractMatrix` and a sparse or \
                                          structured `jac_prototype` cannot be both \
                                          provided. Pass only `jac_prototype`."))
@@ -246,14 +353,15 @@ function construct_concrete_adtype(f::NonlinearFunction, ad::AbstractADType)
 end
 
 function construct_concrete_adtype(::NonlinearFunction, ad::AutoSparse)
-    error("Specifying a sparse AD type for Nonlinear Problems was removed in v4. \
+    error(lazy"Specifying a sparse AD type for Nonlinear Problems was removed in v4. \
            Instead use the `sparsity`, `jac_prototype`, and `colorvec` to specify \
            the right sparsity pattern and coloring algorithm. Ignoring the sparsity \
            detection algorithm and coloring algorithm present in $(ad).")
 end
 
 function select_fastest_coloring_algorithm(
-        prototype, f::NonlinearFunction, ad::AbstractADType)
+        prototype, f::NonlinearFunction, ad::AbstractADType
+    )
     if !Utils.is_extension_loaded(Val(:SparseMatrixColorings))
         @warn "`SparseMatrixColorings` must be explicitly imported for sparse automatic \
                differentiation to work. Proceeding with Dense Automatic Differentiation."

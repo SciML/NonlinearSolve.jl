@@ -1,37 +1,54 @@
-using TestItemRunner, InteractiveUtils, Pkg, Test
+using SafeTestsets, Test, InteractiveUtils
+using SciMLTesting
 
 @info sprint(InteractiveUtils.versioninfo)
 
-function parse_test_args()
-    test_args_from_env = @isdefined(TEST_ARGS) ? TEST_ARGS : ARGS
-    test_args = Dict{String, String}()
-    for arg in test_args_from_env
-        if contains(arg, "=")
-            key, value = split(arg, "="; limit = 2)
-            test_args[key] = value
-        end
-    end
-    @info "Parsed test args" test_args
-    return test_args
+# SublibraryCI sets NONLINEARSOLVE_TEST_GROUP; fall back to GROUP for local runs.
+if !haskey(ENV, "NONLINEARSOLVE_TEST_GROUP") && haskey(ENV, "GROUP")
+    ENV["NONLINEARSOLVE_TEST_GROUP"] = ENV["GROUP"]
 end
 
-const PARSED_TEST_ARGS = parse_test_args()
-
-function get_from_test_args_or_env(key, default)
-    haskey(PARSED_TEST_ARGS, key) && return PARSED_TEST_ARGS[key]
-    return get(ENV, key, default)
-end
-
-const GROUP = lowercase(get_from_test_args_or_env("GROUP", "all"))
-
-(GROUP == "all" || GROUP == "cuda") && Pkg.add(["CUDA"])
-(GROUP == "all" || GROUP == "adjoint") && Pkg.add(["SciMLSensitivity"])
-(GROUP == "all" || GROUP == "alloc_check") && Pkg.add(["AllocCheck"])
-
-@testset "SimpleNonlinearSolve.jl" begin
-    if GROUP == "all"
-        @run_package_tests
-    else
-        @run_package_tests filter = ti -> (Symbol(GROUP) in ti.tags)
-    end
-end
+run_tests(;
+    env = "NONLINEARSOLVE_TEST_GROUP",
+    core = function ()
+        include("core/conditioning_tests.jl")
+        include("core/exotic_type_tests.jl")
+        include("core/forward_diff_tests.jl")
+        include("core/least_squares_tests.jl")
+        include("core/homotopy_sweep_tests.jl")
+        include("core/matrix_resizing_tests.jl")
+        return include("core/rootfind_tests.jl")
+    end,
+    groups = Dict(
+        # Dep-adding groups run in their own isolated sub-envs (excluded from the
+        # base/Core env and from the "All" run). Adjoint (SciMLSensitivity), Alloc
+        # (AllocCheck) and CUDA carry deps beyond the base test set.
+        "Adjoint" => (;
+            env = joinpath(@__DIR__, "adjoint"),
+            body = function ()
+                return include("adjoint/adjoint_tests.jl")
+            end,
+        ),
+        "Alloc" => (;
+            env = joinpath(@__DIR__, "alloc"),
+            body = function ()
+                return include("alloc/allocation_tests.jl")
+            end,
+        ),
+        "CUDA" => (;
+            env = joinpath(@__DIR__, "gpu"),
+            body = function ()
+                return include("gpu/cuda_tests.jl")
+            end,
+        ),
+    ),
+    # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
+    # in its own isolated sub-env under test/qa (excluded from the base/Core/All run).
+    qa = (;
+        env = joinpath(@__DIR__, "qa"),
+        body = joinpath(@__DIR__, "qa", "qa.jl"),
+    ),
+    # "All" runs only the base-env Core group; the dep-adding groups (Adjoint, Alloc,
+    # CUDA) and QA run only when selected by name.
+    all = ["Core"],
+)

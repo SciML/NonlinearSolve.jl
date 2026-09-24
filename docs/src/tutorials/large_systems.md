@@ -2,8 +2,8 @@
 
 This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving
 ill-conditioned nonlinear systems requires specializing the linear solver on properties of
-the Jacobian in order to cut down on the `\mathcal{O}(n^3)` linear solve and the
-`\mathcal{O}(n^2)` back-solves. This tutorial is designed to explain the advanced usage of
+the Jacobian in order to cut down on the ``\mathcal{O}(n^3)`` linear solve and the
+``\mathcal{O}(n^2)`` back-solves. This tutorial is designed to explain the advanced usage of
 NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential
 equation (BRUSS) using NonlinearSolve.jl.
 
@@ -16,10 +16,10 @@ equation (BRUSS) using NonlinearSolve.jl.
 The Brusselator PDE is defined as follows:
 
 ```math
-\begin{align}
-0 &= 1 + u^2v - 4.4u + \alpha(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}) + f(x, y, t)\\
-0 &= 3.4u - u^2v + \alpha(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2})
-\end{align}
+\begin{align*}
+0 &= 1 + u^2v - 4.4u + \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) + f(x, y, t)\\
+0 &= 3.4u - u^2v + \alpha\left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right)
+\end{align*}
 ```
 
 where
@@ -34,19 +34,19 @@ f(x, y, t) = \begin{cases}
 and the initial conditions are
 
 ```math
-\begin{align}
+\begin{align*}
 u(x, y, 0) &= 22\cdot (y(1-y))^{3/2} \\
 v(x, y, 0) &= 27\cdot (x(1-x))^{3/2}
-\end{align}
+\end{align*}
 ```
 
 with the periodic boundary condition
 
 ```math
-\begin{align}
+\begin{align*}
 u(x+1,y,t) &= u(x,y,t) \\
 u(x,y+1,t) &= u(x,y,t)
-\end{align}
+\end{align*}
 ```
 
 To solve this PDE, we will discretize it into a system of ODEs with the finite difference
@@ -61,7 +61,7 @@ The resulting `NonlinearProblem` definition is:
 
 ```@example ill_conditioned_nlprob
 import NonlinearSolve as NLS
-import LinearAlgebra
+import LinearAlgebra as LA
 import SparseArrays
 import LinearSolve as LS
 import ADTypes
@@ -78,16 +78,19 @@ function brusselator_2d_loop(du, u, p)
     @inbounds for I in CartesianIndices((N, N))
         i, j = Tuple(I)
         x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
-        ip1, im1, jp1,
-        jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
-        limit(j - 1, N)
-        du[i, j, 1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
-                       4u[i, j, 1]) +
-                      B +
-                      u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] + brusselator_f(x, y)
-        du[i, j, 2] = alpha * (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
-                       4u[i, j, 2]) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
+        ip1, im1 = limit(i + 1, N), limit(i - 1, N)
+        jp1, jm1 = limit(j + 1, N), limit(j - 1, N)
+        du[i, j, 1] = alpha * (
+            u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
+                4u[i, j, 1]
+        ) + B +
+            u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] + brusselator_f(x, y)
+        du[i, j, 2] = alpha * (
+            u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
+                4u[i, j, 2]
+        ) + A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
     end
+    return
 end
 p = (3.4, 1.0, 10.0, step(xyd_brusselator))
 
@@ -100,12 +103,12 @@ function init_brusselator_2d(xyd)
         u[I, 1] = 22 * (y * (1 - y))^(3 / 2)
         u[I, 2] = 27 * (x * (1 - x))^(3 / 2)
     end
-    u
+    return u
 end
 
 u0 = init_brusselator_2d(xyd_brusselator)
 prob_brusselator_2d = NLS.NonlinearProblem(
-    brusselator_2d_loop, u0, p; abstol = 1e-10, reltol = 1e-10
+    brusselator_2d_loop, u0, p; abstol = 1.0e-10, reltol = 1.0e-10
 )
 ```
 
@@ -135,28 +138,32 @@ In the next section, we will show how to specify `sparsity` to trigger automatic
 detection.
 
 ```@example ill_conditioned_nlprob
-import BenchmarkTools: @btime # for @btime
+import BenchmarkTools: @btime
 
 @btime NLS.solve(prob_brusselator_2d, NLS.NewtonRaphson());
 nothing # hide
 ```
 
 ```@example ill_conditioned_nlprob
-import SparseConnectivityTracer, SparseMatrixColorings
+import SparseConnectivityTracer: TracerSparsityDetector
+import SparseMatrixColorings
 
 prob_brusselator_2d_autosparse = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
-    u0, p; abstol = 1e-10, reltol = 1e-10
+    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
+    u0, p; abstol = 1.0e-10, reltol = 1.0e-10
 )
 
-@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12)));
-@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12),
-        linsolve = LS.KLUFactorization()));
-@btime NLS.solve(prob_brusselator_2d_autosparse,
-    NLS.NewtonRaphson(; autodiff = ADTypes.AutoForwardDiff(; chunksize = 12),
-        linsolve = LS.KrylovJL_GMRES()));
+autodiff = ADTypes.AutoForwardDiff(; chunksize = 12)
+
+@btime NLS.solve(prob_brusselator_2d_autosparse, NLS.NewtonRaphson(; autodiff));
+@btime NLS.solve(
+    prob_brusselator_2d_autosparse,
+    NLS.NewtonRaphson(; autodiff, linsolve = LS.KLUFactorization())
+);
+@btime NLS.solve(
+    prob_brusselator_2d_autosparse,
+    NLS.NewtonRaphson(; autodiff, linsolve = LS.KrylovJL_GMRES())
+);
 nothing # hide
 ```
 
@@ -181,12 +188,12 @@ arguments, and it will kick out a sparse matrix with our pattern, that we can tu
     actual implementation of sparsity detection.
 
 ```@example ill_conditioned_nlprob
-import SparseConnectivityTracer
+import SparseConnectivityTracer: TracerSparsityDetector
 import ADTypes
 
 f! = (du, u) -> brusselator_2d_loop(du, u, p)
 du0 = similar(u0)
-jac_sparsity = ADTypes.jacobian_sparsity(f!, du0, u0, SparseConnectivityTracer.TracerSparsityDetector())
+jac_sparsity = ADTypes.jacobian_sparsity(f!, du0, u0, TracerSparsityDetector())
 ```
 
 Notice that Julia gives a nice print out of the sparsity pattern. That's neat, and would be
@@ -199,7 +206,7 @@ ff = NLS.NonlinearFunction(brusselator_2d_loop; jac_prototype = jac_sparsity)
 Build the `NonlinearProblem`:
 
 ```@example ill_conditioned_nlprob
-prob_brusselator_2d_sparse = NLS.NonlinearProblem(ff, u0, p; abstol = 1e-10, reltol = 1e-10)
+prob_brusselator_2d_sparse = NLS.NonlinearProblem(ff, u0, p; abstol = 1.0e-10, reltol = 1.0e-10)
 ```
 
 Now let's see how the version with sparsity compares to the version without:
@@ -231,7 +238,7 @@ Notice that this acceleration does not require the definition of a sparsity patt
 thus be an easier way to scale for large problems. For more information on linear solver
 choices, see the
 [linear solver documentation](https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear).
-`linsolve` choices are any valid [LinearSolve.jl](https://linearsolve.sciml.ai/dev/) solver.
+`linsolve` choices are any valid [LinearSolve.jl](https://docs.sciml.ai/LinearSolve/dev/) solver.
 
 !!! note
 
@@ -252,9 +259,10 @@ used in the solution of the ODE. An example of this with using
 # FIXME: On 1.10+ this is broken. Skipping this for now.
 import IncompleteLU
 
-incompletelu(W, p = nothing) = IncompleteLU.ilu(W, τ = 50.0), LinearAlgebra.I
+incompletelu(W, p = nothing) = IncompleteLU.ilu(W, τ = 50.0), LA.I
 
-@btime NLS.solve(prob_brusselator_2d_sparse,
+@btime NLS.solve(
+    prob_brusselator_2d_sparse,
     NLS.NewtonRaphson(linsolve = LS.KrylovJL_GMRES(precs = incompletelu), concrete_jac = true)
 );
 nothing # hide
@@ -277,14 +285,15 @@ parameter. Another option is to use
 which is more automatic. The setup is very similar to before:
 
 ```@example ill_conditioned_nlprob
-import AlgebraicMultigrid
+import AlgebraicMultigrid as AM
 
 function algebraicmultigrid(W, p = nothing)
-    return AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(convert(AbstractMatrix, W))),
-    LinearAlgebra.I
+    return AM.aspreconditioner(AM.ruge_stuben(convert(AbstractMatrix, W))),
+        LA.I
 end
 
-@btime NLS.solve(prob_brusselator_2d_sparse,
+@btime NLS.solve(
+    prob_brusselator_2d_sparse,
     NLS.NewtonRaphson(
         linsolve = LS.KrylovJL_GMRES(; precs = algebraicmultigrid), concrete_jac = true
     )
@@ -297,11 +306,15 @@ or with a Jacobi smoother:
 ```@example ill_conditioned_nlprob
 function algebraicmultigrid2(W, p = nothing)
     A = convert(AbstractMatrix, W)
-    Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(
-        A, presmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1))),
-        postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A, 1)))
-    ))
-    return Pl, LinearAlgebra.I
+    n = size(A, 1)
+    Pl = AM.aspreconditioner(
+        AM.ruge_stuben(
+            A,
+            presmoother = AM.Jacobi(rand(n)),
+            postsmoother = AM.Jacobi(rand(n))
+        )
+    )
+    return Pl, LA.I
 end
 
 @btime NLS.solve(
@@ -320,16 +333,19 @@ for the exact sparsity detection case, we left out the time it takes to perform 
 sparsity detection. Let's compare the two by setting the sparsity detection algorithms.
 
 ```@example ill_conditioned_nlprob
-import DifferentiationInterface
-import SparseConnectivityTracer
+import DifferentiationInterface: DenseSparsityDetector
 
 prob_brusselator_2d_exact_tracer = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = SparseConnectivityTracer.TracerSparsityDetector()),
-    u0, p; abstol = 1e-10, reltol = 1e-10)
+    NLS.NonlinearFunction(brusselator_2d_loop; sparsity = TracerSparsityDetector()),
+    u0, p; abstol = 1.0e-10, reltol = 1.0e-10
+)
 prob_brusselator_2d_approx_di = NLS.NonlinearProblem(
-    NLS.NonlinearFunction(brusselator_2d_loop;
-        sparsity = DifferentiationInterface.DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1e-4)),
-    u0, p; abstol = 1e-10, reltol = 1e-10)
+    NLS.NonlinearFunction(
+        brusselator_2d_loop;
+        sparsity = DenseSparsityDetector(ADTypes.AutoForwardDiff(); atol = 1.0e-4)
+    ),
+    u0, p; abstol = 1.0e-10, reltol = 1.0e-10
+)
 
 @btime NLS.solve(prob_brusselator_2d_exact_tracer, NLS.NewtonRaphson());
 @btime NLS.solve(prob_brusselator_2d_approx_di, NLS.NewtonRaphson());

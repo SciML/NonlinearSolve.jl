@@ -15,7 +15,7 @@ polynomial systems specified using `NonlinearProblem`.
 $(FIELDS)
 """
 @concrete struct HomotopySystemWrapper{variant <: HomotopySystemVariant} <:
-                 HC.AbstractSystem
+    HC.AbstractSystem
     """
     The wrapped polynomial function.
     """
@@ -61,13 +61,15 @@ function HC.ModelKit.evaluate!(u, sys::HomotopySystemWrapper{Scalar}, x, p = not
 end
 
 function HC.ModelKit.evaluate_and_jacobian!(
-        u, U, sys::HomotopySystemWrapper, x, p = nothing)
+        u, U, sys::HomotopySystemWrapper, x, p = nothing
+    )
     sys.jac(u, U, x, sys.p)
     return u, U
 end
 
 function update_taylorvars_from_taylorvector!(
-        vars, x::HC.ModelKit.TaylorVector)
+        vars, x::HC.ModelKit.TaylorVector
+    )
     for i in eachindex(x)
         xvar = x[i]
         realx = ntuple(Val(4)) do j
@@ -80,6 +82,7 @@ function update_taylorvars_from_taylorvector!(
         vars[2i - 1] = TaylorScalar(realx)
         vars[2i] = TaylorScalar(imagx)
     end
+    return
 end
 
 function update_taylorvars_from_taylorvector!(vars, x::AbstractVector)
@@ -87,6 +90,7 @@ function update_taylorvars_from_taylorvector!(vars, x::AbstractVector)
         vars[2i - 1] = TaylorScalar(real(x[i]), ntuple(Returns(0.0), Val(3)))
         vars[2i] = TaylorScalar(imag(x[i]), ntuple(Returns(0.0), Val(3)))
     end
+    return
 end
 
 function check_taylor_equality(vars, x::HC.ModelKit.TaylorVector)
@@ -105,25 +109,31 @@ function check_taylor_equality(vars, x::AbstractVector)
 end
 
 function update_maybe_taylorvector_from_taylorvars!(
-        u::Vector, vars, buffer, ::Val{N}) where {N}
+        u::Vector, vars, buffer, ::Val{N}
+    ) where {N}
     for i in eachindex(vars)
         rval = TaylorDiff.flatten(real(buffer[i]))
         ival = TaylorDiff.flatten(imag(buffer[i]))
         u[i] = rval[N] + im * ival[N]
     end
+    return
 end
 
 function update_maybe_taylorvector_from_taylorvars!(
-        u::HC.ModelKit.TaylorVector{M}, vars, buffer, ::Val{N}) where {M, N}
+        u::HC.ModelKit.TaylorVector{M}, vars, buffer, ::Val{N}
+    ) where {M, N}
     for i in eachindex(vars)
         rval = TaylorDiff.flatten(real(buffer[i]))
         ival = TaylorDiff.flatten(imag(buffer[i]))
         u[i] = ntuple(i -> rval[i] + im * ival[i], Val(length(rval)))
     end
+    return
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
-        sys::HomotopySystemWrapper{Inplace}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(
+        u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{Inplace}, x, p = nothing
+    ) where {N}
     f = sys.f
     p = sys.p
     vars, buffer = sys.taylorvars
@@ -139,8 +149,10 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
     return u
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
-        sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(
+        u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{OutOfPlace}, x, p = nothing
+    ) where {N}
     f = sys.f
     p = sys.p
     vars = sys.taylorvars
@@ -156,8 +168,10 @@ function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
     return u
 end
 
-function HC.ModelKit.taylor!(u::AbstractVector, ::Val{N},
-        sys::HomotopySystemWrapper{Scalar}, x, p = nothing) where {N}
+function HC.ModelKit.taylor!(
+        u::AbstractVector, ::Val{N},
+        sys::HomotopySystemWrapper{Scalar}, x, p = nothing
+    ) where {N}
     f = sys.f
     p = sys.p
     var = sys.taylorvars
@@ -231,8 +245,9 @@ function HC.ModelKit.evaluate_and_jacobian!(u, U, h::GuessHomotopy, x, t, p = no
 end
 
 function HC.ModelKit.taylor!(
-        u, v::Val{N}, H::GuessHomotopy, tx, t, incremental::Bool) where {N}
-    HC.ModelKit.taylor!(u, v, H, tx, t)
+        u, v::Val{N}, H::GuessHomotopy, tx, t, incremental::Bool
+    ) where {N}
+    return HC.ModelKit.taylor!(u, v, H, tx, t)
 end
 
 function HC.ModelKit.taylor!(u, ::Val{N}, h::GuessHomotopy, x, t, p = nothing) where {N}

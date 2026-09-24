@@ -68,7 +68,7 @@ function Base.getproperty(entry::NonlinearSolveTraceEntry, sym::Symbol)
 end
 
 function print_top_level(io::IO, entry::NonlinearSolveTraceEntry)
-    if entry.condJ === nothing
+    return if entry.condJ === nothing
         @printf io "%-8s\t%-20s\t%-20s\n" "----" "-------------" "-----------"
         if entry.norm_type === :L2
             @printf io "%-8s\t%-20s\t%-20s\n" "Iter" "f(u) 2-norm" "Step 2-norm"
@@ -89,7 +89,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", entry::NonlinearSolveTraceEntry)
     entry.iteration == 0 && print_top_level(io, entry)
-    if entry.iteration < 0 # Special case for final entry
+    return if entry.iteration < 0 # Special case for final entry
         @printf io "%-8s\t%-20.8e\n" "Final" entry.fnorm
         @printf io "%-28s\n" "----------------------"
     elseif entry.condJ === nothing
@@ -110,7 +110,7 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
             u = ArrayInterface.ismutable(u) ? copy(u) : u,
             fu = ArrayInterface.ismutable(fu) ? copy(fu) : fu,
             δu = ArrayInterface.ismutable(δu) ? copy(δu) : δu,
-            J = ArrayInterface.ismutable(J) ? copy(J) : J
+            J = ArrayInterface.ismutable(J) ? copy(J) : J,
         )
     end
     return NonlinearSolveTraceEntry(
@@ -118,6 +118,44 @@ function NonlinearSolveTraceEntry(prob::AbstractNonlinearProblem, iteration, fu,
     )
 end
 
+"""
+    NonlinearSolveTrace(show_trace, store_trace, history, trace_level, prob)
+
+State used by the nonlinear solver tracing utilities.
+
+This is a developer API used by solver packages that integrate with the built-in tracing
+implementation. User-facing solver options should use `TraceMinimal`,
+`TraceWithJacobianConditionNumber`, or `TraceAll` instead.
+
+# Arguments
+
+- `show_trace::Val{Bool}`: Whether trace information is printed during the solve.
+- `store_trace::Val{Bool}`: Whether trace entries are retained in `history`.
+- `history`: Storage for retained trace entries, or `nothing` when storage is disabled.
+- `trace_level::NonlinearSolveTracing`: The information and frequency to record.
+- `prob::AbstractNonlinearProblem`: The nonlinear problem associated with the trace.
+
+# Fields
+
+- `show_trace`: The compile-time flag controlling terminal output.
+- `store_trace`: The compile-time flag controlling history allocation and storage.
+- `history`: A vector of `NonlinearSolveTraceEntry` values, or `nothing`.
+- `trace_level`: The trace mode and print/store frequencies.
+- `prob`: The associated nonlinear problem.
+
+# Returns
+
+A `NonlinearSolveTrace` value that can be passed to the tracing hooks.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+trace = NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
+NonlinearSolveBase.trace_is_active(trace) # false
+```
+"""
 @concrete struct NonlinearSolveTrace
     show_trace <: Union{Val{false}, Val{true}}
     store_trace <: Union{Val{false}, Val{true}}
@@ -130,8 +168,43 @@ reset!(trace::NonlinearSolveTrace) = reset!(trace.history)
 reset!(::Nothing) = nothing
 reset!(history::Vector) = empty!(history)
 
+"""
+    trace_is_active(trace) -> Bool
+
+Return whether `update_trace!` would record or print anything for `trace`.
+
+This developer trait lets a solver skip work whose only consumer is tracing. It is part of
+the deferred-residual interface: a solver must not defer a residual when an active trace
+would need to record the resulting iterate.
+
+This is a developer API for packages that provide a trace implementation. For a custom trace
+type, add a method that returns `true` whenever its trace-update operation would record or
+print the current step. Returning `false` for an active trace can make deferred residuals
+observable to users.
+
+# Arguments
+
+- `trace`: A [`NonlinearSolveTrace`](@ref), `nothing`, or `missing`.
+
+# Returns
+
+`true` when `trace` records or prints trace data, otherwise `false`.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.trace_is_active(nothing) # false
+```
+"""
+trace_is_active(::Union{Nothing, Missing}) = false
+function trace_is_active(trace::NonlinearSolveTrace)
+    return !(trace.show_trace isa Val{false} && trace.store_trace isa Val{false})
+end
+
 function Base.show(io::IO, ::MIME"text/plain", trace::NonlinearSolveTrace)
-    if trace.history !== nothing
+    return if trace.history !== nothing
         foreach(trace.history) do entry
             show(io, MIME"text/plain"(), entry)
         end
@@ -144,7 +217,7 @@ function init_nonlinearsolve_trace(
         prob, alg, u, fu, J, δu; show_trace::Val = Val(false),
         trace_level::NonlinearSolveTracing = TraceMinimal(), store_trace::Val = Val(false),
         uses_jac_inverse = Val(false), kwargs...
-)
+    )
     return init_nonlinearsolve_trace(
         prob, alg, show_trace, trace_level, store_trace, u, fu, J, δu, uses_jac_inverse
     )
@@ -154,7 +227,7 @@ function init_nonlinearsolve_trace(
         prob::AbstractNonlinearProblem, alg, show_trace::Val,
         trace_level::NonlinearSolveTracing, store_trace::Val, u, fu, J, δu,
         uses_jac_inverse::Val
-)
+    )
     if show_trace isa Val{true}
         print("\nAlgorithm: ")
         str = Utils.clean_sprint_struct(alg, 0)
@@ -169,7 +242,7 @@ end
 function init_trace_history(
         prob::AbstractNonlinearProblem, show_trace::Val, trace_level,
         store_trace::Val, u, fu, J, δu
-)
+    )
     store_trace isa Val{false} && show_trace isa Val{false} && return nothing
     entry = if trace_level.trace_mode isa Val{:minimal}
         NonlinearSolveTraceEntry(prob, 0, fu, δu, missing, missing)
@@ -185,7 +258,7 @@ end
 
 function update_trace!(
         trace::NonlinearSolveTrace, iter, u, fu, J, δu, α = true; last::Val = Val(false)
-)
+    )
     trace.store_trace isa Val{false} && trace.show_trace isa Val{false} && return nothing
 
     if last isa Val{true}
@@ -197,14 +270,16 @@ function update_trace!(
     end
 
     show_now = trace.show_trace isa Val{true} &&
-               (mod1(iter, trace.trace_level.print_frequency) == 1)
+        (mod1(iter, trace.trace_level.print_frequency) == 1)
     store_now = trace.store_trace isa Val{true} &&
-                (mod1(iter, trace.trace_level.store_frequency) == 1)
+        (mod1(iter, trace.trace_level.store_frequency) == 1)
     if show_now || store_now
         entry = if trace.trace_level.trace_mode isa Val{:minimal}
             NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, missing, missing)
         else
-            J = convert(AbstractArray, J)
+            if !isnothing(J)
+                J = convert(AbstractArray, J)
+            end
             if trace.trace_level.trace_mode isa Val{:condition_number}
                 NonlinearSolveTraceEntry(trace.prob, iter, fu, δu .* α, J, missing)
             else
@@ -222,12 +297,13 @@ function update_trace!(cache, α = true; uses_jac_inverse = Val(false))
     trace === missing && return nothing
 
     J = Utils.safe_getproperty(cache, Val(:J))
-    if J === missing
+    du = SciMLBase.get_du(cache)
+    return if J === missing
         update_trace!(
-            trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, cache.du, α
+            trace, cache.nsteps + 1, get_u(cache), get_fu(cache), nothing, du, α
         )
     else
         J = uses_jac_inverse isa Val{true} ? Utils.Pinv(cache.J) : cache.J
-        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, cache.du, α)
+        update_trace!(trace, cache.nsteps + 1, get_u(cache), get_fu(cache), J, du, α)
     end
 end

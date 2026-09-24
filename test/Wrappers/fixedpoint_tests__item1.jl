@@ -1,0 +1,17 @@
+using NonlinearSolve
+
+import SpeedMapping, SIAMFANLEquations, NLsolve, FixedPointAcceleration
+
+f1(x, p) = cos(x) - x
+prob = NonlinearProblem(f1, 1.1)
+
+for alg in (:Anderson, :MPE, :RRE, :VEA, :SEA, :Simple, :Aitken, :Newton)
+    @test abs(solve(prob, FixedPointAccelerationJL(; algorithm = alg)).resid) ≤ 1.0e-10
+end
+
+@test abs(solve(prob, SpeedMappingJL()).resid) ≤ 1.0e-10
+@test abs(solve(prob, SpeedMappingJL(; orders = [3, 2])).resid) ≤ 1.0e-10
+@test abs(solve(prob, SpeedMappingJL(; stabilize = true)).resid) ≤ 1.0e-10
+
+@test abs(solve(prob, NLsolveJL(; method = :anderson)).resid) ≤ 1.0e-10
+@test abs(solve(prob, SIAMFANLEquationsJL(; method = :anderson)).resid) ≤ 1.0e-10

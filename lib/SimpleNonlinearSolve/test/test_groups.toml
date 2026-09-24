@@ -1,0 +1,19 @@
+[Core]
+versions = ["lts", "1", "pre"]
+
+[QA]
+versions = ["lts", "1"]
+
+[Adjoint]
+versions = ["1"]
+
+# Allocation tests use AllocCheck's codegen introspection, which is sensitive to
+# the Julia compiler version (SimpleHalley scalar allocates under 1.10's codegen
+# but is allocation-free on the current release). Pin to the current release.
+[Alloc]
+versions = ["1"]
+
+[CUDA]
+versions = ["1"]
+runner = ["self-hosted", "Linux", "X64", "gpu"]
+timeout = 60

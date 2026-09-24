@@ -1,3 +1,8 @@
+@kwdef @concrete struct LinearSolveParameters
+    u
+    p
+end
+
 @kwdef @concrete struct LinearSolveResult
     u
     success::Bool = true
@@ -15,8 +20,10 @@ end
     stats::NLStats
 end
 
+SciMLBase.reinit!(::NativeJLLinearSolveCache; kwargs...) = nothing
+
 """
-    construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
+    construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
 
 Construct a cache for solving linear systems of the form `A * u = b`. Following cases are
 handled:
@@ -53,33 +60,76 @@ matrices.
     possible. This is useful when solving the same system with different `b` values.
     If the algorithm is an iterative solver, then we reset the internal linear solve cache.
 
+  - `alias`: A `LinearAliasSpecifier` forwarded to the LinearSolve cache construction, or
+    `nothing` (the default) to let the `alias_A_for_refactorization` trait decide:
+    unalias both `A` and `b` so the caller's arrays are used as caches safely, unless the
+    LinearSolve extension opts the algorithm into an owned-copy refactorization buffer.
+    Callers that own the passed `A`/`b` outright can pass a `LinearAliasSpecifier`
+    explicitly so factorizations may work in place without any defensive copy.
+
 One distinct feature of this compared to the cache from LinearSolve is that it respects the
 aliasing arguments even after cache construction, i.e., if we passed in an `A` that `A` is
 not mutated, we do this by copying over `A` to a preconstructed cache.
 """
-function construct_linear_solver(alg, linsolve, A, b, u; stats, kwargs...)
+function construct_linear_solver(
+        alg, linsolve, A, b, u, p; stats, alias = nothing, kwargs...
+    )
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
-        if (A isa SMatrix || A isa WrappedArray{<:Any, <:SMatrix})
+        if (A isa SMatrix || A isa WrappedArray{<:Any, <:Any, <:SMatrix, <:SMatrix})
             return NativeJLLinearSolveCache(A, b, stats)
         end
     end
 
     u_fixed = fix_incompatible_linsolve_arguments(A, b, u)
     @bb u_cache = copy(u_fixed)
-    linprob = LinearProblem(A, b; u0 = u_cache, kwargs...)
-
-    # unlias here, we will later use these as caches
-    lincache = init(
-        linprob, linsolve; alias = LinearAliasSpecifier(alias_A = false, alias_b = false))
+    local linprob::LinearProblem
+    if alias !== nothing
+        # caller-forced aliasing: the caller owns A/b outright (e.g. the inverse-Jacobian
+        # workspace), so no defensive copy of A is made
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+    elseif A isa AbstractSciMLOperator
+        # A SciMLOperator `A` is externally maintained (refreshed in place by
+        # `update_coefficients!`), so alias it: copying would sever those in-place updates
+        # and, for some operators, change the concrete type (breaking the later `A`-rebind).
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        alias = LinearAliasSpecifier(alias_A = true, alias_b = false)
+    elseif alias_A_for_refactorization(linsolve, A)
+        # Hand LinearSolve a NonlinearSolve-owned copy of `A` with `alias_A = true`:
+        # one O(n²) copy here at init instead of one per refactorization inside
+        # `solve!` (with `alias_A = true` dense LU refactorizes via the in-place
+        # `lu!`; otherwise `lu` copies `A` on every refactorization). Destroying the
+        # aliased buffer in place is safe because `set_lincache_A!` refreshes it in
+        # full via `copyto!` before every refactorization, and copying at init (as
+        # opposed to aliasing the caller's `A`) keeps the first factorization from
+        # destroying the Jacobian buffer, which consumers may read after the solve.
+        linprob = LinearProblem(copy(A), b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        alias = LinearAliasSpecifier(alias_A = true, alias_b = false)
+    else
+        linprob = LinearProblem(A, b, LinearSolveParameters(u_fixed, p); u0 = u_cache)
+        # unlias here, we will later use these as caches
+        alias = LinearAliasSpecifier(alias_A = false, alias_b = false)
+    end
+    lincache = init(linprob, linsolve; alias, kwargs...)
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
+"""
+    alias_A_for_refactorization(linsolve, A)::Bool
+
+Whether `construct_linear_solver` should initialize the LinearSolve cache on an owned
+copy of `A` with `alias_A = true` so that refactorizations can destroy `cache.A` in
+place instead of copying it. Opted into by the LinearSolve extension for factorization
+algorithms whose `solve!` has an in-place refactorization path on the given `A` type.
+"""
+alias_A_for_refactorization(linsolve, A) = false
+
 function (cache::NativeJLLinearSolveCache)(;
-        A = nothing, b = nothing, linu = nothing, kwargs...)
+        A = nothing, b = nothing, linu = nothing, kwargs...
+    )
     cache.stats.nsolve += 1
     cache.stats.nfactors += 1
 
@@ -87,7 +137,7 @@ function (cache::NativeJLLinearSolveCache)(;
     b === nothing || (cache.b = b)
 
     if linu !== nothing && ArrayInterface.can_setindex(linu) &&
-       applicable(ldiv!, linu, cache.A, cache.b) && applicable(ldiv!, cache.A, linu)
+            applicable(ldiv!, linu, cache.A, cache.b) && applicable(ldiv!, cache.A, linu)
         ldiv!(linu, cache.A, cache.b)
         res = linu
     else
@@ -100,17 +150,47 @@ fix_incompatible_linsolve_arguments(A, b, u) = u
 fix_incompatible_linsolve_arguments(::SArray, ::SArray, u::SArray) = u
 function fix_incompatible_linsolve_arguments(A, b, u::SArray)
     (Core.Compiler.return_type(\, Tuple{typeof(A), typeof(b)}) <: typeof(u)) && return u
-    @warn "Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
+    @warn lazy"Solving Linear System A::$(typeof(A)) x::$(typeof(u)) = b::$(typeof(u)) is not \
            properly supported. Converting `x` to a mutable array. Check the return type \
-           of the nonlinear function provided for optimal performance." maxlog=1
+           of the nonlinear function provided for optimal performance." maxlog = 1
     return MArray(u)
 end
 
 set_lincache_u!(cache, u) = setproperty!(cache.lincache, :u, u)
 function set_lincache_u!(cache, u::SArray)
     cache.lincache.u isa MArray && return set_lincache_u!(cache, MArray(u))
-    cache.lincache.u = u
+    return cache.lincache.u = u
 end
+
+"""
+    get_linear_cache(cache) -> Union{Nothing, LinearSolve.LinearCache}
+
+Return the `LinearSolve.jl` `LinearCache` the solver holds its Jacobian (and, for a
+factorization, that factorization) in, or `nothing` when there is no single reusable linear
+cache.
+
+This is a read-only accessor: it hands back the cache the solver already maintains so a
+caller can reuse the current Jacobian for an auxiliary linear solve `J x = b` (for example a
+smoothed error estimate) instead of building and factorizing a second copy. It does **not**
+refactorize; the returned cache is in exactly the state the last `step!`/`solve!` left it, so
+call it after the solve for the current point. Reuse it through the normal LinearSolve caching
+interface (set `b`/`u` and `solve!`, passing no new `A`), which reuses the existing
+factorization for a direct solver and re-runs the iterative solve for a Krylov cache.
+
+Returns `nothing` for algorithms with no single descent linear solve (e.g. polyalgorithms)
+and for the native `\\`/`SMatrix`/`Number`/`Diagonal` paths that hold no reusable
+`LinearCache`; callers should fall back accordingly.
+"""
+get_linear_cache(::Any) = nothing
+function get_linear_cache(cache::AbstractNonlinearSolveCache)
+    return hasproperty(cache, :descent_cache) ? get_linear_cache(cache.descent_cache) :
+        nothing
+end
+function get_linear_cache(cache::AbstractDescentCache)
+    return hasproperty(cache, :lincache) ? get_linear_cache(cache.lincache) : nothing
+end
+get_linear_cache(cache::LinearSolveJLCache) = cache.lincache
+get_linear_cache(::NativeJLLinearSolveCache) = nothing
 
 function wrap_preconditioners(Pl, Pr, u)
     Pl = Pl === nothing ? IdentityOperator(length(u)) : Pl
@@ -118,12 +198,62 @@ function wrap_preconditioners(Pl, Pr, u)
     return Pl, Pr
 end
 
-# Traits. Core traits are expanded in LinearSolve extension
+"""
+    needs_square_A(linsolve, u)::Bool
+
+Return whether `linsolve` requires a square matrix for a state shaped like `u`.
+
+NonlinearSolveBase uses this developer trait to decide whether least-squares nonlinear
+problems should build normal equations before calling a linear solver. LinearSolve
+extensions add methods for concrete LinearSolve algorithms.
+
+### Arguments
+
+  - `linsolve`: A linear solver algorithm, `nothing`, or `\\`.
+  - `u`: Current nonlinear state, used to distinguish scalar and array cases.
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.needs_square_A(nothing, [1.0, 2.0])
+```
+"""
 needs_square_A(::Any, ::Number) = false
 needs_square_A(::Nothing, ::Number) = false
 needs_square_A(::Nothing, ::Any) = false
 needs_square_A(::typeof(\), ::Number) = false
 needs_square_A(::typeof(\), ::Any) = false
 
+"""
+    needs_concrete_A(linsolve)::Bool
+
+Return whether `linsolve` requires NonlinearSolveBase to materialize a concrete Jacobian.
+
+Matrix-free Jacobian operators can be used only when this trait is `false`.
+
+### Arguments
+
+  - `linsolve`: A linear solver algorithm, `missing`, `nothing`, or `\\`.
+
+### Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.needs_concrete_A(\\)
+```
+"""
 needs_concrete_A(::Union{Nothing, Missing}) = false
 needs_concrete_A(::typeof(\)) = true
+
+"""
+    default_spd_linsolve(A)
+
+Default linear solver for a system whose matrix is symmetric positive definite by
+construction (e.g. the damped `JJᵀ` system of the minimum-norm descent). Returns a
+Cholesky factorization when LinearSolve is loaded and `A` is a real `Symmetric` matrix;
+otherwise returns `nothing` to use the generic default.
+"""
+default_spd_linsolve(A) = nothing

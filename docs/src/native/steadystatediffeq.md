@@ -19,7 +19,5 @@ Pages = ["steadystatediffeq.md"]
 
 ## Solver API
 
-```@docs
-DynamicSS
-SSRootfind
-```
+The `DynamicSS`, `SSRootfind`, and `SICNM` algorithms are defined and documented by
+SteadyStateDiffEq.

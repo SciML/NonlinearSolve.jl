@@ -6,9 +6,10 @@ using ArrayInterface: ArrayInterface
 using FastLevenbergMarquardt: FastLevenbergMarquardt
 using StaticArraysCore: SArray
 
-using NonlinearSolveBase: NonlinearSolveBase
+using NonlinearSolveBase: NonlinearSolveBase, is_fw_wrapped, get_raw_f
 using NonlinearSolve: NonlinearSolve, FastLevenbergMarquardtJL
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, ReturnCode
+using Setfield: @set
 
 const FastLM = FastLevenbergMarquardt
 
@@ -16,13 +17,18 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::FastLevenbergMarquardtJL, args...;
         alias_u0 = false, abstol = nothing, reltol = nothing, maxiters = 1000,
         termination_condition = nothing, kwargs...
-)
+    )
+    # Unwrap AutoSpecialize — external packages do their own AD
+    if is_fw_wrapped(prob.f.f)
+        prob = @set prob.f.f = get_raw_f(prob.f.f)
+    end
+
     NonlinearSolveBase.assert_extension_supported_termination_condition(
         termination_condition, alg
     )
 
     f_wrapped, u,
-    resid = NonlinearSolveBase.construct_extension_function_wrapper(
+        resid = NonlinearSolveBase.construct_extension_function_wrapper(
         prob; alias_u0, can_handle_oop = Val(prob.u0 isa SArray)
     )
     f = if prob.u0 isa SArray
@@ -46,12 +52,12 @@ function SciMLBase.__solve(
     solver_kwargs = (;
         xtol = reltol, ftol = reltol, gtol = abstol, maxit = maxiters,
         alg.factor, alg.factoraccept, alg.factorreject, alg.minscale,
-        alg.maxscale, alg.factorupdate, alg.minfactor, alg.maxfactor
+        alg.maxscale, alg.factorupdate, alg.minfactor, alg.maxfactor,
     )
 
     if prob.u0 isa SArray
         res, fx, info, iter, nfev,
-        njev = FastLM.lmsolve(
+            njev = FastLM.lmsolve(
             f, jac_fn, prob.u0; solver_kwargs...
         )
         LM, solver = nothing, nothing
@@ -71,7 +77,7 @@ function SciMLBase.__solve(
         LM = FastLM.LMWorkspace(u, resid, J)
 
         res, fx, info, iter, nfev, njev,
-        LM, solver = FastLM.lmsolve!(
+            LM, solver = FastLM.lmsolve!(
             f, jac_fn, LM; solver, solver_kwargs...
         )
     end

@@ -109,7 +109,7 @@ Next we can modify the tolerances. Here let's set some really low tolerances to 
 tight solution:
 
 ```@example 1
-NLS.solve(prob, NLS.TrustRegion(), reltol = 1e-12, abstol = 1e-12)
+NLS.solve(prob, NLS.TrustRegion(), reltol = 1.0e-12, abstol = 1.0e-12)
 ```
 
 There are many more options for doing this configuring. Specifically for handling
@@ -173,6 +173,7 @@ function nlls!(du, u, p)
     du[1] = 2u[1] - 2
     du[2] = u[1] - 4u[2]
     du[3] = 0
+    return
 end
 ```
 
@@ -183,7 +184,8 @@ be skipped for out of place problems):
 ```@example 1
 u0 = [0.0, 0.0]
 prob = NLS.NonlinearLeastSquaresProblem(
-    NLS.NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0)
+    NLS.NonlinearFunction(nlls!, resid_prototype = zeros(3)), u0
+)
 
 NLS.solve(prob)
 ```
@@ -191,7 +193,7 @@ NLS.solve(prob)
 Same as before, we can change the solver and tolerances:
 
 ```@example 1
-NLS.solve(prob, NLS.GaussNewton(), reltol = 1e-12, abstol = 1e-12)
+NLS.solve(prob, NLS.GaussNewton(), reltol = 1.0e-12, abstol = 1.0e-12)
 ```
 
 ## Going Beyond the Basics: How to use the Documentation

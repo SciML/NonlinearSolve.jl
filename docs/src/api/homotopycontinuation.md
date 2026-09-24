@@ -15,5 +15,7 @@ import NonlinearSolve as NLS
 
 ```@docs
 NonlinearSolveHomotopyContinuation.HomotopyContinuationJL
-SciMLBase.HomotopyNonlinearFunction
+NonlinearSolveHomotopyContinuation.TaylorHomotopyContinuationJL
 ```
+
+The `HomotopyNonlinearFunction` type is defined and documented by SciMLBase.

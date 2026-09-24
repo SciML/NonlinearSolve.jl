@@ -1,20 +1,22 @@
 module NonlinearSolveHomotopyContinuation
 
-using SciMLBase: AbstractNonlinearProblem
-using SciMLBase
-using NonlinearSolveBase
-using SymbolicIndexingInterface
-using LinearAlgebra
-using ADTypes
-using TaylorDiff
-using DocStringExtensions
+using SciMLBase: SciMLBase, HomotopyNonlinearFunction, NonlinearProblem
+using NonlinearSolveBase: NonlinearSolveBase
+using SymbolicIndexingInterface: SymbolicIndexingInterface, parameter_values,
+    state_values
+using LinearAlgebra: LinearAlgebra, norm
+using ADTypes: ADTypes, AutoEnzyme, AutoFiniteDiff, AutoForwardDiff
+using TaylorDiff: TaylorDiff, TaylorScalar
+import TaylorSeries as TS
+using DocStringExtensions: DocStringExtensions, FIELDS, TYPEDEF, TYPEDFIELDS,
+    TYPEDSIGNATURES
 import CommonSolve
 import HomotopyContinuation as HC
 import DifferentiationInterface as DI
 
 using ConcreteStructs: @concrete
 
-export HomotopyContinuationJL, HomotopyNonlinearFunction
+export HomotopyContinuationJL, TaylorHomotopyContinuationJL, HomotopyNonlinearFunction
 
 """
     HomotopyContinuationJL{AllRoots, ComplexRoots}(; autodiff = true, kwargs...)
@@ -24,7 +26,7 @@ This algorithm is an interface to `HomotopyContinuation.jl`. It is only valid fo
 fully determined polynomial systems. The `AllRoots` type parameter can be `true` or
 `false` and controls whether the solver will find all roots of the polynomial
 or a single root close to the initial guess provided to the `NonlinearProblem`.
-The `ComplexRoots` type parameter can be `Val{true}` or `Val{false}` (default) and 
+The `ComplexRoots` type parameter can be `Val{true}` or `Val{false}` (default) and
 controls whether complex roots are returned or filtered to only real roots.
 The polynomial function must allow complex numbers to be provided as the state.
 
@@ -51,30 +53,35 @@ HomotopyContinuation.jl requires the taylor series of the polynomial system for 
 root method. This is automatically computed using TaylorSeries.jl.
 """
 @concrete struct HomotopyContinuationJL{AllRoots, ComplexRoots} <:
-                 NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
+    NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
     autodiff
     kwargs
 end
 
-function HomotopyContinuationJL{AllRoots, ComplexRoots}(; autodiff = true, kwargs...) where {AllRoots, ComplexRoots}
+function HomotopyContinuationJL{AllRoots, ComplexRoots}(;
+        autodiff = true, kwargs...
+    ) where {AllRoots, ComplexRoots}
     if autodiff isa Bool
         autodiff = autodiff ? AutoForwardDiff() : AutoFiniteDiff()
     end
-    HomotopyContinuationJL{AllRoots, ComplexRoots}(autodiff, kwargs)
+    return HomotopyContinuationJL{AllRoots, ComplexRoots}(autodiff, kwargs)
 end
 
 function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {AllRoots}
-    HomotopyContinuationJL{AllRoots, Val{false}}(; autodiff, kwargs...)
+    return HomotopyContinuationJL{AllRoots, Val{false}}(; autodiff, kwargs...)
 end
 
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
-function HomotopyContinuationJL(alg::HomotopyContinuationJL{R, C}; kwargs...) where {R, C}
-    HomotopyContinuationJL{R, C}(; autodiff = alg.autodiff, alg.kwargs..., kwargs...)
+function HomotopyContinuationJL(
+        alg::HomotopyContinuationJL{R, C}; kwargs...
+    ) where {R, C}
+    return HomotopyContinuationJL{R, C}(; alg.autodiff, alg.kwargs..., kwargs...)
 end
 
 include("interface_types.jl")
 include("jacobian_handling.jl")
 include("solve.jl")
+include("taylor_polynomialize.jl")
 
 end

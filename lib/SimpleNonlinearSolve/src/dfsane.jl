@@ -1,7 +1,7 @@
 """
     SimpleDFSane(;
-        σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-        M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        σ_min::Real = 1.0e-10, σ_max::Real = 1.0e10, σ_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), γ::Real = 1.0e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
         nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2
     )
 
@@ -51,11 +51,11 @@ see [la2006spectral](@citet).
 end
 
 function SimpleDFSane(;
-        sigma_min::Real = 1e-10, sigma_max::Real = 1e10, sigma_1::Real = 1.0,
-        M::Union{Int, Val} = Val(10), gamma::Real = 1e-4, tau_min::Real = 0.1,
+        sigma_min::Real = 1.0e-10, sigma_max::Real = 1.0e10, sigma_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), gamma::Real = 1.0e-4, tau_min::Real = 0.1,
         tau_max::Real = 0.5, n_exp::Int = 2,
         eta_strategy::F = (fn_1, n, x_n, f_n) -> fn_1 / n^2
-) where {F}
+    ) where {F}
     M = M isa Int ? Val(M) : M
     return SimpleDFSane(
         sigma_min, sigma_max, sigma_1, gamma, tau_min, tau_max, n_exp,
@@ -65,10 +65,14 @@ end
 
 function SciMLBase.__solve(
         prob::ImmutableNonlinearProblem, alg::SimpleDFSane, args...;
-        abstol = nothing, reltol = nothing, maxiters = 1000, alias_u0 = false,
+        abstol = nothing, reltol = nothing, maxiters = 1000,
+        alias::Union{Nothing, SciMLBase.NonlinearAliasSpecifier} = nothing,
+        alias_u0 = false,
         termination_condition = nothing, kwargs...
-)
-    x = NLBUtils.maybe_unaliased(prob.u0, alias_u0)
+    )
+    # Extract alias_u0: if alias struct provided, use it; otherwise use alias_u0 kwarg
+    _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
+    x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
@@ -82,7 +86,7 @@ function SciMLBase.__solve(
     τ_max = T(alg.τ_max)
 
     abstol, reltol,
-    tc_cache = NonlinearSolveBase.init_termination_cache(
+        tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 

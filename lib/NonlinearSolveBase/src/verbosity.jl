@@ -1,0 +1,144 @@
+"""
+    NonlinearVerbosity <: AbstractVerbositySpecifier
+
+Verbosity configuration for NonlinearSolve.jl solvers, providing fine-grained control over
+diagnostic messages, warnings, and errors during nonlinear system solution.
+
+# Fields
+
+## Error Control Group
+- `non_enclosing_interval`: Messages when interval doesn't enclose root (bracketing methods)
+- `alias_u0_immutable`: Messages when aliasing u0 with immutable array
+- `linsolve_failed_noncurrent`: Messages when a linear solve or line search retries with
+  non-current Jacobian information
+- `termination_condition`: Messages about termination conditions
+- `unsupported_postcondition`: Messages when a `postcondition` corrector is supplied to a
+  solver that cannot apply it (the corrector is then ignored)
+
+## Numerical Group
+- `threshold_state`: Messages about threshold state in low-rank methods
+- `forcing`: Messages about forcing parameter in Newton-Krylov methods
+
+## Sensitivity Group
+- `sensitivity_vjp_choice`: Messages about VJP choice in sensitivity analysis (used by SciMLSensitivity.jl)
+
+## Linear Solver Group
+- `linear_verbosity`: Verbosity configuration for linear solvers
+
+# Constructors
+
+    NonlinearVerbosity(preset::AbstractVerbosityPreset)
+
+Create a `NonlinearVerbosity` using a preset configuration:
+- `SciMLLogging.None()`: All messages disabled
+- `SciMLLogging.Minimal()`: Only critical errors and fatal issues
+- `SciMLLogging.Standard()`: Balanced verbosity (default)
+- `SciMLLogging.Detailed()`: Comprehensive debugging information
+- `SciMLLogging.All()`: Maximum verbosity
+
+    NonlinearVerbosity(; error_control = nothing, numerical = nothing, sensitivity = nothing, linear_verbosity = nothing, kwargs...)
+
+Create a `NonlinearVerbosity` with group-level or individual field control.
+
+# Examples
+
+```julia
+# Use a preset
+verbose = NonlinearVerbosity(SciMLLogging.Standard())
+
+# Set entire groups
+verbose = NonlinearVerbosity(
+    error_control = SciMLLogging.WarnLevel(),
+    numerical = SciMLLogging.InfoLevel()
+)
+
+# Set individual fields
+verbose = NonlinearVerbosity(
+    alias_u0_immutable = SciMLLogging.WarnLevel(),
+    threshold_state = SciMLLogging.InfoLevel()
+)
+
+# Mix group and individual settings
+verbose = NonlinearVerbosity(
+    numerical = SciMLLogging.InfoLevel(),  # Set all numerical to InfoLevel
+    threshold_state = SciMLLogging.ErrorLevel()  # Override specific field
+)
+```
+"""
+NonlinearVerbosity
+
+@verbosity_specifier NonlinearVerbosity begin
+    sub_specifiers = (:linear_verbosity,)
+    toggles = (
+        :non_enclosing_interval, :alias_u0_immutable,
+        :linsolve_failed_noncurrent, :termination_condition, :threshold_state, :forcing,
+        :sensitivity_vjp_choice, :unsupported_postcondition,
+    )
+
+    presets = (
+        None = (
+            linear_verbosity = None(),
+            non_enclosing_interval = Silent(),
+            alias_u0_immutable = Silent(),
+            linsolve_failed_noncurrent = Silent(),
+            termination_condition = Silent(),
+            threshold_state = Silent(),
+            forcing = Silent(),
+            sensitivity_vjp_choice = Silent(),
+            unsupported_postcondition = Silent(),
+        ),
+        Minimal = (
+            linear_verbosity = None(),
+            non_enclosing_interval = WarnLevel(),
+            alias_u0_immutable = Silent(),
+            linsolve_failed_noncurrent = WarnLevel(),
+            termination_condition = Silent(),
+            threshold_state = Silent(),
+            forcing = Silent(),
+            sensitivity_vjp_choice = Silent(),
+            unsupported_postcondition = ErrorLevel(),
+        ),
+        Standard = (
+            linear_verbosity = None(),
+            non_enclosing_interval = WarnLevel(),
+            alias_u0_immutable = WarnLevel(),
+            linsolve_failed_noncurrent = WarnLevel(),
+            termination_condition = WarnLevel(),
+            threshold_state = WarnLevel(),
+            forcing = InfoLevel(),
+            sensitivity_vjp_choice = WarnLevel(),
+            unsupported_postcondition = ErrorLevel(),
+        ),
+        Detailed = (
+            linear_verbosity = Detailed(),
+            non_enclosing_interval = WarnLevel(),
+            alias_u0_immutable = WarnLevel(),
+            linsolve_failed_noncurrent = WarnLevel(),
+            termination_condition = WarnLevel(),
+            threshold_state = WarnLevel(),
+            forcing = InfoLevel(),
+            sensitivity_vjp_choice = WarnLevel(),
+            unsupported_postcondition = ErrorLevel(),
+        ),
+        All = (
+            linear_verbosity = Detailed(),
+            non_enclosing_interval = WarnLevel(),
+            alias_u0_immutable = WarnLevel(),
+            linsolve_failed_noncurrent = WarnLevel(),
+            termination_condition = WarnLevel(),
+            threshold_state = InfoLevel(),
+            forcing = InfoLevel(),
+            sensitivity_vjp_choice = WarnLevel(),
+            unsupported_postcondition = ErrorLevel(),
+        ),
+    )
+
+    groups = (
+        error_control = (
+            :non_enclosing_interval, :alias_u0_immutable,
+            :linsolve_failed_noncurrent, :termination_condition,
+        ),
+        numerical = (:threshold_state, :forcing),
+        sensitivity = (:sensitivity_vjp_choice,),
+    )
+end

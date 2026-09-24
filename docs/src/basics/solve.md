@@ -22,8 +22,21 @@ solve(::NonlinearProblem, args...; kwargs...)
   - `reltol::Number`: The relative tolerance. Defaults to
     `real(oneunit(T)) * (eps(real(one(T))))^(4 // 5)`.
   - `termination_condition`: Termination Condition from NonlinearSolveBase. Defaults to
-    `AbsSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsTerminateMode()` for
+    `AbsNormSafeBestTerminationMode()` for `NonlinearSolve.jl` and `AbsNormTerminationMode()` for
     `SimpleNonlinearSolve.jl`.
+
+## Nonlinear Preconditioning
+
+The `precondition` and `postcondition` options are documented in the `solve` docstring
+above and in the [nonlinear preconditioning tutorial](@ref nonlinear_preconditioning).
+Native bounded algorithms apply iterate correctors in the original coordinates. When
+an explicitly selected algorithm transforms `lb`/`ub` bounds, a corrector can be declared
+in either the original bounded variable (the default) or the transformed variable:
+
+```@docs
+PostconditionSpecifier
+PostconditionSpace
+```
 
 ## Tracing Controls
 
@@ -36,3 +49,27 @@ These are exclusively available for native `NonlinearSolve.jl` solvers.
     level of detail of the trace. (Defaults to `TraceMinimal()`)
   - `store_trace`: Must be `Val(true)` or `Val(false)`. This controls whether the trace is
     stored in the solution object. (Defaults to `Val(false)`)
+
+## Verbosity Controls
+  - `verbose::NonlinearVerbosity`: Controls the verbosity of the solver. Determines which messages get logged at what logging level. 
+### Quick Start
+
+```julia
+# Use a preset
+solve(prob, alg; verbose = SciMLLogging.Standard())
+
+# Silence all messages
+solve(prob, alg; verbose = SciMLLogging.None())
+
+# Maximum verbosity
+solve(prob, alg; verbose = SciMLLogging.All())
+
+# Custom configuration
+solve(
+    prob, alg;
+    verbose = NonlinearVerbosity(
+        alias_u0_immutable = SciMLLogging.WarnLevel(),
+        threshold_state = SciMLLogging.InfoLevel()
+    )
+)
+```

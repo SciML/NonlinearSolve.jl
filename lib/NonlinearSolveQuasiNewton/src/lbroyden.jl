@@ -20,7 +20,7 @@ and line search.
 function LimitedMemoryBroyden(;
         max_resets::Int = 3, linesearch = nothing, threshold::Union{Val, Int} = Val(10),
         reset_tolerance = nothing, alpha = nothing
-)
+    )
     threshold isa Int && (threshold = Val(threshold))
     return QuasiNewtonAlgorithm(;
         linesearch,
