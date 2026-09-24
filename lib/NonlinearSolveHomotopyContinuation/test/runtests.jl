@@ -13,6 +13,7 @@ run_tests(;
     core = function ()
         @safetestset "AllRoots" include("allroots.jl")
         @safetestset "Single Root" include("single_root.jl")
+        @safetestset "Complex Roots" include("complex_roots.jl")
         return @safetestset "Taylor Polynomialize" include("taylor_polynomialize.jl")
     end,
     # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) is a dep-adding group: it runs
