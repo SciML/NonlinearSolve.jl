@@ -82,7 +82,7 @@ function SciMLBase.__solve(
     while i < maxiters
         local x3, y3
         if bisecting # Bisection method is used
-            x3 = 0.5 * x1 + 0.5 * x2 # Avoids possible overflow in x1 + x2
+            x3 = x1/2 + x2/2 # Avoids possible overflow in x1 + x2
             y3 = f(x3) # Function value at midpoint
             if isfinite(f2 - f1)
                 ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
