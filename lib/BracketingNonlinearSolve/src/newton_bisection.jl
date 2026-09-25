@@ -1,8 +1,8 @@
 """
-    NewtonBisection()
+    NewtonBisection(; autodiff = nothing)
 
-Newton's method safeguarded by bisection, for problems that give the derivative of `f` as
-the `jac` of their `IntervalNonlinearFunction`:
+Newton's method safeguarded by bisection. The derivative of `f` is the `jac` of the
+`IntervalNonlinearFunction` when it has one:
 
 ```julia
 f(u, p) = u^2 - p
@@ -10,6 +10,11 @@ df(u, p) = 2u
 prob = IntervalNonlinearProblem(IntervalNonlinearFunction(f; jac = df), (1.0, 2.0), 2.0)
 sol = solve(prob, NewtonBisection())
 ```
+
+Otherwise it comes from automatic differentiation with the `autodiff` backend, for example
+`NewtonBisection(; autodiff = AutoForwardDiff())` after `using ForwardDiff`. A problem without
+`jac` and an algorithm without `autodiff` is an error: with automatic differentiation the
+method is rarely cheaper than [`ModAB`](@ref).
 
 Newton steps start from the end of the bracket with the smaller residual. The method bisects
 instead when the step leaves the bracket or is not shorter than half the step before the
@@ -19,11 +24,18 @@ step is multiplied by that `m`. Once the step is within the tolerance, the next 
 placed just beyond the Newton point, on the other side of the root, so that both ends of the
 bracket converge.
 
-Near a simple root the convergence is quadratic. Each iteration evaluates `f` once, and
-`jac` only at the start of each Newton step. The method pays off when the derivative is
-cheap compared with `f`.
+Near a simple root the convergence is quadratic. Each iteration evaluates `f` once; a user
+`jac` is only evaluated at the start of each Newton step, while automatic differentiation
+gives `f` and `f'` together at each point. The method pays off when `f'` is cheap compared
+with `f`.
 """
-struct NewtonBisection <: AbstractBracketingAlgorithm end
+@concrete struct NewtonBisection <: AbstractBracketingAlgorithm
+    autodiff
+end
+
+function NewtonBisection(; autodiff::Union{Nothing, ADTypes.AbstractADType} = nothing)
+    return NewtonBisection(autodiff)
+end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::NewtonBisection, args...;
@@ -32,8 +44,14 @@ function SciMLBase.__solve(
     @assert !SciMLBase.isinplace(prob) "`NewtonBisection` only supports out-of-place problems."
 
     left, right = minmax(promote(prob.tspan...)...)
-    fun = interval_derivative(prob, alg)
-    fl, fr = value(fun, left), value(fun, right)
+    fun = interval_derivative(prob, alg, left)
+    eager = eager_derivative(fun)
+    if eager
+        (fl, dfl), (fr, dfr) = value_and_derivative(fun, left), value_and_derivative(fun, right)
+    else
+        fl, fr = value(fun, left), value(fun, right)
+        dfl, dfr = zero(fl), zero(fr)
+    end
 
     abstol = NonlinearSolveBase.get_tolerance(
         left, abstol, promote_type(eltype(left), eltype(right))
@@ -57,7 +75,7 @@ function SciMLBase.__solve(
     end
 
     return newton_bracket(
-        prob, alg, fun, left, right, fl, fr, zero(fl), zero(fr), false, false, abstol, maxiters
+        prob, alg, fun, left, right, fl, fr, dfl, dfr, eager, eager, abstol, maxiters
     )
 end
 
@@ -66,6 +84,7 @@ end
 function newton_bracket(
         prob, alg, fun, left, right, fl, fr, dfl, dfr, known_l, known_r, abstol, maxiters
     )
+    eager = eager_derivative(fun)
     last_step = older_step = oftype(right - left, Inf)
     base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
     base_left = true
@@ -111,13 +130,17 @@ function newton_bracket(
         end
         older_step, last_step = last_step, abs(t - x)
 
-        ft = value(fun, t)
+        if eager
+            ft, dft = value_and_derivative(fun, t)
+        else
+            ft, dft = value(fun, t), zero(fl)
+        end
         iszero(ft) && return build_exact_solution(prob, alg, t, ft, ReturnCode.Success)
         if sign(ft) == sign(fl)
-            left, fl, known_l = t, ft, false
+            left, fl, dfl, known_l = t, ft, dft, eager
             at_left || (k = 1)
         else
-            right, fr, known_r = t, ft, false
+            right, fr, dfr, known_r = t, ft, dft, eager
             at_left && (k = 1)
         end
     end

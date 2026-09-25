@@ -18,7 +18,9 @@ sol = solve(prob, ITP())
 """
 module BracketingNonlinearSolve
 
+using ADTypes: ADTypes
 using ConcreteStructs: @concrete
+using DifferentiationInterface: DifferentiationInterface as DI
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 

@@ -27,8 +27,9 @@ these three is likely to do best, and proceeds by doing a step according to that
 This gives a robust and fast method, which therefore enjoys considerable popularity.
 
 [`NewtonBisection`](@ref) is Newton's method safeguarded by bisection, and
-[`ModABNewton`](@ref) is ModAB's bisection phase followed by the same Newton steps. They need
-the derivative of `f`, given as `IntervalNonlinearFunction(f; jac)`. They usually need fewer
+[`ModABNewton`](@ref) is ModAB's bisection phase followed by the same Newton steps. They use
+the derivative of `f`, given as `IntervalNonlinearFunction(f; jac)`, or computed by
+automatic differentiation when given an `autodiff` backend such as `AutoForwardDiff()`. They usually need fewer
 evaluations of `f` than the methods above, and pay off when the derivative is cheap
 compared with `f`: roughly, when it costs less than a third of `f`.
 

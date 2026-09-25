@@ -1,6 +1,8 @@
 module BracketingNonlinearSolveForwardDiffExt
 
+using ADTypes: AutoForwardDiff
 using CommonSolve: CommonSolve
+using DifferentiationInterface: DifferentiationInterface as DI
 using ForwardDiff: ForwardDiff, Dual, Partials
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearFunction, IntervalNonlinearProblem
@@ -93,8 +95,12 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisecti
         tspan = (ForwardDiff.value(prob.tspan[1]), ForwardDiff.value(prob.tspan[2]))
         f_orig = prob.f
         f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
+        # Without a `jac`, the derivative-using methods would differentiate `f_stripped`
+        # with a new tag nested inside the Duals of f, which `ForwardDiff.value` then
+        # strips in the wrong order.
         jac_stripped = SciMLBase.has_jac(f_orig) ?
-            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : nothing
+            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) :
+            (t, p) -> ForwardDiff.value(DI.derivative(s -> f_orig(s, p), AutoForwardDiff(), t))
         newf = IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped)
         newprob = IntervalNonlinearProblem{false}(newf, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)

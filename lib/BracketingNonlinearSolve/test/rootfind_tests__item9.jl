@@ -1,11 +1,16 @@
 using BracketingNonlinearSolve
 include("setup_rootfindingtestsnippet.jl")
 
+using ADTypes: AutoEnzyme, AutoForwardDiff
 using ForwardDiff: ForwardDiff, Dual, Partials, Tag, partials
 
 const DERIVATIVE_ALGS = (NewtonBisection(), ModABNewton())
-const MODES = (:jac,)
+const MODES = (:jac, :ad)
 
+with_autodiff(::NewtonBisection) = NewtonBisection(; autodiff = AutoForwardDiff())
+with_autodiff(::ModABNewton) = ModABNewton(; autodiff = AutoForwardDiff())
+
+# With `jac = df` the derivative is the user's; without, it comes from ForwardDiff.
 function derivative_problem(f, df, tspan, p = nothing; mode)
     fun = mode === :jac ? IntervalNonlinearFunction(f; jac = df) : IntervalNonlinearFunction(f)
     return IntervalNonlinearProblem(fun, tspan, p)
@@ -15,6 +20,7 @@ end
 solve_allocations(prob, alg) = @allocated solve(prob, alg; abstol = 0.0)
 
 @testset "$(nameof(typeof(alg))), $mode" for alg in DERIVATIVE_ALGS, mode in MODES
+    alg = mode === :jac ? alg : with_autodiff(alg)
     @testset "Roots and their derivatives" begin
         function g(p)
             prob = derivative_problem(quadratic_f, (u, p) -> 2u, typeof(p).((1.0, 20.0)), p; mode)
@@ -115,10 +121,18 @@ end
     end
 end
 
+@testset "No derivative and no AD backend" for alg in (
+        NewtonBisection(), ModABNewton(),
+        NewtonBisection(; autodiff = AutoEnzyme()), ModABNewton(; autodiff = AutoEnzyme()),
+    )
+    @test_throws ArgumentError solve(IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0), alg)
+end
+
 struct DerivativeAlgsTestTag end
 @testset "Duals in tspan and in f, $(nameof(typeof(alg))), $mode" for alg in DERIVATIVE_ALGS,
         mode in MODES, p_val in (0.5, 2.0, 5.0)
 
+    alg = mode === :jac ? alg : with_autodiff(alg)
     TTag = typeof(Tag(DerivativeAlgsTestTag(), Float64))
     p = Dual{TTag}(p_val, Partials((1.0,)))
     f = (t, _) -> 1 - p / 2 * t^2
