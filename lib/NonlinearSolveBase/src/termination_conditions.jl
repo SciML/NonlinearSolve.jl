@@ -285,12 +285,8 @@ function (cache::NonlinearTerminationModeCache)(
 
     if objective ≤ mode.patience_objective_multiplier * criteria &&
             cache.nsteps > mode.patience_steps
-        if cache.nsteps < length(cache.objectives_trace)
-            min_obj, max_obj = extrema(@view(cache.objectives_trace[1:(cache.nsteps)]))
-        else
-            min_obj, max_obj = extrema(cache.objectives_trace)
-        end
-        if min_obj < mode.min_max_factor * max_obj
+        min_obj, max_obj = extrema(cache.objectives_trace)
+        if max_obj < mode.min_max_factor * min_obj
             if cache.leastsq
                 # If least squares, found a local minima thus success
                 cache.retcode = ReturnCode.StalledSuccess
