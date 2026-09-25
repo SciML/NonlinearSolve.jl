@@ -41,6 +41,7 @@ include("itp.jl")
 include("muller.jl")
 include("ridder.jl")
 include("modAB.jl")
+include("derivatives.jl")
 include("newton_bisection.jl")
 
 # Default Algorithm

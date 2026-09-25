@@ -11,14 +11,17 @@ prob = IntervalNonlinearProblem(IntervalNonlinearFunction(f; jac = df), (1.0, 2.
 sol = solve(prob, NewtonBisection())
 ```
 
-Each iteration evaluates `f` and its derivative once. It takes the Newton step from the
-last point, and bisects the bracket instead when that step leaves the bracket or is not
-shorter than half the step before the previous one, as `rtsafe` of Numerical Recipes does.
-Once the Newton step is within the tolerance, the next point is placed just beyond the
-Newton point, on the other side of the root, so that both ends of the bracket converge.
+Newton steps start from the end of the bracket with the smaller residual. The method bisects
+instead when the step leaves the bracket or is not shorter than half the step before the
+previous one, as `rtsafe` of Numerical Recipes does. When successive Newton steps from the
+same end shrink by a ratio `ρ > 1/2`, as near a root of multiplicity `m ≈ 1 / (1 - ρ)`, the
+step is multiplied by that `m`. Once the step is within the tolerance, the next point is
+placed just beyond the Newton point, on the other side of the root, so that both ends of the
+bracket converge.
 
-Near a simple root the convergence is quadratic. The method pays off when the derivative
-is cheap compared with `f`, for example when both reuse the same expensive computation.
+Near a simple root the convergence is quadratic. Each iteration evaluates `f` once, and
+`jac` only at the start of each Newton step. The method pays off when the derivative is
+cheap compared with `f`.
 """
 struct NewtonBisection <: AbstractBracketingAlgorithm end
 
@@ -27,17 +30,10 @@ function SciMLBase.__solve(
         maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
     )
     @assert !SciMLBase.isinplace(prob) "`NewtonBisection` only supports out-of-place problems."
-    SciMLBase.has_jac(prob.f) || throw(
-        ArgumentError(
-            "`NewtonBisection` needs the derivative of `f`, given as \
-            `IntervalNonlinearFunction(f; jac)`."
-        )
-    )
 
-    f = Base.Fix2(prob.f, prob.p)
-    df = Base.Fix2(prob.f.jac, prob.p)
     left, right = minmax(promote(prob.tspan...)...)
-    fl, fr = f(left), f(right)
+    fun = interval_derivative(prob, alg)
+    fl, fr = value(fun, left), value(fun, right)
 
     abstol = NonlinearSolveBase.get_tolerance(
         left, abstol, promote_type(eltype(left), eltype(right))
@@ -60,11 +56,19 @@ function SciMLBase.__solve(
         return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.InitialFailure)
     end
 
-    # Newton steps start from the end with the shorter step. The last point `x` is always
-    # an end of the bracket.
-    dfl, dfr = df(left), df(right)
-    x, fx, dfx = abs(fl / dfl) <= abs(fr / dfr) ? (left, fl, dfl) : (right, fr, dfr)
+    return newton_bracket(
+        prob, alg, fun, left, right, fl, fr, zero(fl), zero(fr), false, false, abstol, maxiters
+    )
+end
+
+# Newton steps safeguarded by bisection on the bracket `[left, right]`. `known_l` and
+# `known_r` tell whether `dfl` and `dfr` hold the derivatives at the ends.
+function newton_bracket(
+        prob, alg, fun, left, right, fl, fr, dfl, dfr, known_l, known_r, abstol, maxiters
+    )
     last_step = older_step = oftype(right - left, Inf)
+    base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
+    base_left = true
     k = 1   # distance beyond the Newton point, in tolerances, once Newton has converged
     for _ in 1:maxiters
         if nextfloat(left) == right
@@ -74,13 +78,30 @@ function SciMLBase.__solve(
             return newton_bisection_solution(prob, alg, left, right, fl, fr, ReturnCode.Success)
         end
 
-        newton = x - fx / dfx
+        at_left = abs(fl) <= abs(fr)
+        if at_left && !known_l
+            dfl, known_l = derivative(fun, left), true
+        elseif !at_left && !known_r
+            dfr, known_r = derivative(fun, right), true
+        end
+        x, fx, dfx = at_left ? (left, fl, dfl) : (right, fr, dfr)
+        step = fx / dfx
+        newton = oftype(x, x - step)
+        if at_left == base_left && abs(step) < base_step
+            ρ = abs(step) / base_step
+            if 2ρ > 1
+                accelerated = oftype(x, x - min(round(inv(1 - ρ)), oftype(ρ, 16)) * step)
+                left < accelerated < right && (newton = accelerated)
+            end
+        end
+        base_left, base_step = at_left, abs(step)
+
         δ = abs(newton - x)
         if isfinite(newton) && δ <= max(abstol, 16 * eps(x))
             # `x` is at the root up to the tolerance: close the other end of the bracket,
             # doubling the distance until the sign of `f` changes.
             δx = k * max(abstol, eps(x))
-            t = x == left ? max(newton, x) + δx : min(newton, x) - δx
+            t = at_left ? max(newton, x) + δx : min(newton, x) - δx
             t = clamp(t, nextfloat(left), prevfloat(right))
             k *= 2
         elseif left < newton < right && 2δ <= older_step
@@ -90,16 +111,15 @@ function SciMLBase.__solve(
         end
         older_step, last_step = last_step, abs(t - x)
 
-        ft = f(t)
+        ft = value(fun, t)
         iszero(ft) && return build_exact_solution(prob, alg, t, ft, ReturnCode.Success)
-        was_left = x == left
         if sign(ft) == sign(fl)
-            left, fl = t, ft
+            left, fl, known_l = t, ft, false
+            at_left || (k = 1)
         else
-            right, fr = t, ft
+            right, fr, known_r = t, ft, false
+            at_left && (k = 1)
         end
-        (t == left) == was_left || (k = 1)
-        x, fx, dfx = t, ft, df(t)
     end
 
     return newton_bisection_solution(prob, alg, left, right, fl, fr, ReturnCode.MaxIters)
