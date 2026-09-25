@@ -3,7 +3,7 @@ include("setup_rootfindingtestsnippet.jl")
 
 using ForwardDiff: ForwardDiff, Dual, Partials, Tag, partials
 
-const DERIVATIVE_ALGS = (NewtonBisection(),)
+const DERIVATIVE_ALGS = (NewtonBisection(), ModABNewton())
 const MODES = (:jac,)
 
 function derivative_problem(f, df, tspan, p = nothing; mode)
