@@ -1,0 +1,96 @@
+ERROR: LoadError: Some tests did not pass: 6 passed, 4 failed, 0 errored, 0 broken.
+in expression starting at /home/user/NonlinearSolve.jl/study/discriminate.jl:16
+multiple roots: fewer evaluations than ModAB: Test Failed at /home/user/NonlinearSolve.jl/study/discriminate.jl:23
+  Expression: nf < nmodab
+   Evaluated: 88 < 55
+
+Stacktrace:
+ [1] top-level scope
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17
+ [2] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+ [3] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17 [inlined]
+ [4] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [5] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:19 [inlined]
+ [6] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [7] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:23 [inlined]
+ [8] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:680 [inlined]
+multiple roots: fewer evaluations than ModAB: Test Failed at /home/user/NonlinearSolve.jl/study/discriminate.jl:23
+  Expression: nf < nmodab
+   Evaluated: 102 < 55
+
+Stacktrace:
+ [1] top-level scope
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17
+ [2] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+ [3] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17 [inlined]
+ [4] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [5] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:19 [inlined]
+ [6] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [7] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:23 [inlined]
+ [8] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:680 [inlined]
+fewer derivatives than f: Test Failed at /home/user/NonlinearSolve.jl/study/discriminate.jl:31
+  Expression: nj < nf
+   Evaluated: 9 < 9
+
+Stacktrace:
+ [1] top-level scope
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17
+ [2] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+ [3] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17 [inlined]
+ [4] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [5] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:25 [inlined]
+ [6] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [7] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:31 [inlined]
+ [8] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:680 [inlined]
+fewer derivatives than f: Test Failed at /home/user/NonlinearSolve.jl/study/discriminate.jl:31
+  Expression: nj < nf
+   Evaluated: 11 < 11
+
+Stacktrace:
+ [1] top-level scope
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17
+ [2] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+ [3] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:17 [inlined]
+ [4] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [5] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:25 [inlined]
+ [6] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1866 [inlined]
+ [7] macro expansion
+   @ /home/user/NonlinearSolve.jl/study/discriminate.jl:31 [inlined]
+ [8] macro expansion
+   @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:680 [inlined]
+Test Summary:                                    | Pass  Fail  Total  Time
+PR 1330 versus this branch                       |    6     4     10  2.4s
+  PRNewtonBisection                              |    1     4      5  2.1s
+    multiple roots: fewer evaluations than ModAB |          1      1  1.7s
+    multiple roots: fewer evaluations than ModAB |          1      1  0.0s
+    fewer derivatives than f                     |          1      1  0.2s
+    fewer derivatives than f                     |          1      1  0.1s
+    fewer derivatives than f                     |    1            1  0.2s
+  NewtonBisection                                |    5            5  0.3s
+RNG of the outermost testset: Random.Xoshiro(0x20bf474b75652cc1, 0xa847435cf048fce0, 0xeb90c202dc326007, 0x4250e786eb3e7140, 0x839f302101f11c44)
