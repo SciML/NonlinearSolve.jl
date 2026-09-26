@@ -160,8 +160,7 @@ run_tests(;
                 # Explicit L2_NORM mode still stalls when the iterate stops
                 # moving while the residual stays above tolerance. (Package
                 # default for NonlinearProblem is Linf via
-                # AbsNormSafeBest(maximum∘abs), not L2 — see Behaviour change
-                # on the PR.)
+                # AbsNormSafeBest(maximum∘abs), not L2.)
                 l2_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
                     NonlinearSolveBase.L2_NORM; max_stalled_steps = 3
                 )
