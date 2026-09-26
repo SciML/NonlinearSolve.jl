@@ -99,6 +99,7 @@ end
     ub
     u_cache
     u_prev_cache
+    enzyme_safe
 end
 
 @inline function _bounds_tmp(cache, u)
@@ -106,7 +107,7 @@ end
 end
 
 function _transform_u(w::BoundedWrapper, u)
-    w.u_cache === nothing && return _from_unbounded.(u, w.lb, w.ub)
+    w.enzyme_safe && return _from_unbounded.(u, w.lb, w.ub)
     tmp = _bounds_tmp(w.u_cache, u)
     @. tmp = _from_unbounded(u, w.lb, w.ub)
     return tmp
@@ -224,10 +225,9 @@ function transform_bounded_problem(prob, alg)
     # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
     # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
     alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
+    enzyme_safe = _uses_enzyme_ad(alg_ad)
     make_u_cache = if prob.u0 isa Number
         () -> prob.u0
-    elseif _uses_enzyme_ad(alg_ad)
-        () -> nothing
     elseif alg_ad === nothing || alg_ad isa AutoForwardDiff
         () -> FixedSizeDiffCache(prob.u0)
     else
@@ -245,7 +245,7 @@ function transform_bounded_problem(prob, alg)
         orig_f
     end
     wrapped = BoundedWrapper{SciMLBase.isinplace(prob)}(
-        unwrapped_orig_f, lb, ub, u_cache, u_prev_cache
+        unwrapped_orig_f, lb, ub, u_cache, u_prev_cache, enzyme_safe
     )
 
     new_f = if orig_f isa NonlinearFunction
@@ -261,7 +261,7 @@ function transform_bounded_problem(prob, alg)
         end
         if SciMLBase.has_paramjac(orig_f)
             nf = @set nf.paramjac = BoundedWrapper{SciMLBase.isinplace(prob)}(
-                orig_f.paramjac, lb, ub, u_cache, u_prev_cache
+                orig_f.paramjac, lb, ub, u_cache, u_prev_cache, enzyme_safe
             )
         end
         nf
