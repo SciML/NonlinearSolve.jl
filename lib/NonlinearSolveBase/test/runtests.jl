@@ -134,6 +134,45 @@ run_tests(;
                 @test cache.retcode != SciMLBase.ReturnCode.Unstable
             end
 
+            # Regression for SciML/NonlinearSolve.jl#1310: safe-mode stagnation
+            # must evaluate step norms with `mode.internalnorm`, not a hard-coded
+            # L2_NORM, so MPI-reduced / custom norms stay consistent across ranks.
+            @testset "stagnation uses mode.internalnorm (#1310)" begin
+                calls = Ref(0)
+                counting_norm = function (x)
+                    calls[] += 1
+                    return 1.0
+                end
+
+                prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
+                mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                    counting_norm; max_stalled_steps = 1
+                )
+                cache = SciMLBase.init(
+                    prob, mode, [1.0], [1.0]; abstol = 0.0, reltol = 0.0
+                )
+                # Two non-converged checks: 1 init residual + 2 residuals + 2
+                # step norms => 5 calls when stagnation honors internalnorm.
+                cache([1.0], [2.0], [1.0])
+                cache([1.0], [3.0], [2.0])
+                @test calls[] == 5
+
+                # Default L2 path is unchanged: still stalls when the iterate
+                # stops moving while the residual stays above tolerance.
+                default_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                    NonlinearSolveBase.L2_NORM; max_stalled_steps = 3
+                )
+                default_cache = SciMLBase.init(
+                    prob, default_mode, [1.0], [1.0]; abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                terminated = false
+                for _ in 1:5
+                    terminated = default_cache([1.0], [1.0], [1.0])
+                end
+                @test terminated
+                @test default_cache.retcode == SciMLBase.ReturnCode.Stalled
+            end
+
             @testset "deferred residual helper contracts" begin
                 using NonlinearSolveBase: AbstractNonlinearTerminationMode,
                     AbsTerminationMode, NonlinearSolveTrace, RelTerminationMode, TraceMinimal,
