@@ -1,6 +1,6 @@
 """
     DescentResult(;
-        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        δu = missing, u = missing, success = true, linsolve_success = true,
         extras = (;)
     )
 
@@ -21,12 +21,12 @@ Construct a `DescentResult` object.
     δu
     u
     success
-    linsolve_success::Bool
+    linsolve_success
     extras
 end
 
 function DescentResult(;
-        δu = missing, u = missing, success = true, linsolve_success::Bool = true,
+        δu = missing, u = missing, success = true, linsolve_success = true,
         extras = (;)
     )
     @assert δu !== missing || u !== missing
