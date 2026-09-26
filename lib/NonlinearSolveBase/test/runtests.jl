@@ -157,20 +157,47 @@ run_tests(;
                 cache([1.0], [3.0], [2.0])
                 @test calls[] == 5
 
-                # Default L2 path is unchanged: still stalls when the iterate
-                # stops moving while the residual stays above tolerance.
-                default_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                # Explicit L2_NORM mode still stalls when the iterate stops
+                # moving while the residual stays above tolerance. (Package
+                # default for NonlinearProblem is Linf via
+                # AbsNormSafeBest(maximum∘abs), not L2 — see Behaviour change
+                # on the PR.)
+                l2_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
                     NonlinearSolveBase.L2_NORM; max_stalled_steps = 3
                 )
-                default_cache = SciMLBase.init(
-                    prob, default_mode, [1.0], [1.0]; abstol = 1.0e-8, reltol = 1.0e-8
+                l2_cache = SciMLBase.init(
+                    prob, l2_mode, [1.0], [1.0]; abstol = 1.0e-8, reltol = 1.0e-8
                 )
                 terminated = false
                 for _ in 1:5
-                    terminated = default_cache([1.0], [1.0], [1.0])
+                    terminated = l2_cache([1.0], [1.0], [1.0])
                 end
                 @test terminated
-                @test default_cache.retcode == SciMLBase.ReturnCode.Stalled
+                @test l2_cache.retcode == SciMLBase.ReturnCode.Stalled
+            end
+
+            # RelNormSafe* stores u0_norm for relative stall comparisons; that
+            # value must also go through mode.internalnorm (#1310).
+            @testset "RelNorm u0_norm uses mode.internalnorm (#1310)" begin
+                calls = Ref(0)
+                counting_norm = function (x)
+                    calls[] += 1
+                    return 1.0
+                end
+
+                prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
+                mode = NonlinearSolveBase.RelNormSafeBestTerminationMode(
+                    counting_norm; max_stalled_steps = 1
+                )
+                # Init: residual, residual⊕u (relative denom), and u0_norm.
+                cache = SciMLBase.init(
+                    prob, mode, [1.0], [1.0]; abstol = 0.0, reltol = 0.0
+                )
+                @test calls[] == 3
+
+                calls[] = 0
+                SciMLBase.reinit!(cache, [1.0], [2.0])
+                @test calls[] == 3
             end
 
             @testset "deferred residual helper contracts" begin
