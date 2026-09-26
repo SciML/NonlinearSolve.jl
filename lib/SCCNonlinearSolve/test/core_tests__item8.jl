@@ -20,9 +20,7 @@ sccprob = SciMLBase.SCCNonlinearProblem(
     end
 end
 
-# The default `solve` of a `SteadyStateProblem` goes through `solve_up`, which fills in
-# `verbose`/`alias`, and must hand an SCC lowering to this package rather than convert it
-# back to a `NonlinearProblem` (SciML/ModelingToolkit.jl#5194). Needs SciMLBase >= 3.55.
+# SciML/ModelingToolkit.jl#5194; `lowered_problem` needs SciMLBase >= 3.55
 if :lowered_problem in fieldnames(SteadyStateProblem)
     @testset "Default solve of a SteadyStateProblem with an SCC lowering" begin
         prob = SteadyStateProblem(f!, [0.5, 0.0]; lowered_problem = sccprob)

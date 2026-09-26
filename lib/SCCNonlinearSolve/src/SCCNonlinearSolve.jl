@@ -86,9 +86,7 @@ _concrete_scc_problem(prob) = prob
 probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
-# `solve` fills in nonlinear-typed `verbose`/`alias` kwargs that LinearSolve rejects. Map the
-# verbosity to its `linear_verbosity` part (as the Newton descent does) and drop the
-# `NonlinearAliasSpecifier`, which has no linear counterpart.
+# LinearSolve rejects the nonlinear `verbose`/`alias` kwargs that `solve` fills in
 function linear_block_kwargs(kwargs)
     kw = values(kwargs)
     if haskey(kw, :verbose) && kw.verbose isa NonlinearSolveBase.NonlinearVerbosity
