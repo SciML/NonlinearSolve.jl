@@ -14,6 +14,11 @@ SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+DifferentiationInterface = {url = "https://github.com/ChrisRackauckas-Claude/DifferentiationInterface.jl", rev = "571fc1780c49d00addbeb31b491ab6e2b3273ee0", subdir = "DifferentiationInterface"}
+SciMLBase = {url = "https://github.com/ChrisRackauckas-Claude/SciMLBase.jl", rev = "agent/1619-nonlinear-retcode-param"}
+Reactant = {url = "https://github.com/EnzymeAD/Reactant.jl", rev = "main"}
+ReactantCore = {url = "https://github.com/EnzymeAD/Reactant.jl", rev = "main", subdir = "lib/ReactantCore"}
+NonlinearSolve = {path = "../.."}
 BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}

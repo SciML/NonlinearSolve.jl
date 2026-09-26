@@ -182,31 +182,6 @@ else
             "Reactant" => (;
                 env = joinpath(@__DIR__, "Reactant"),
                 body = function ()
-                    # Unreleased fixes this group depends on: traced enums
-                    # (EnzymeAD/Reactant.jl#3232), the `retcode` type parameter
-                    # (SciML/SciMLBase.jl#1563) and Enzyme Jacobians on Reactant arrays in
-                    # DifferentiationInterface.
-                    Pkg.add(
-                        [
-                            Pkg.PackageSpec(;
-                                url = "https://github.com/ChrisRackauckas-Claude/Reactant.jl.git",
-                                rev = "traced-enums", subdir = "lib/ReactantCore",
-                            ),
-                            Pkg.PackageSpec(;
-                                url = "https://github.com/ChrisRackauckas-Claude/Reactant.jl.git",
-                                rev = "traced-enums",
-                            ),
-                            Pkg.PackageSpec(;
-                                url = "https://github.com/ChrisRackauckas-Claude/SciMLBase.jl.git",
-                                rev = "traced-retcode",
-                            ),
-                            Pkg.PackageSpec(;
-                                url = "https://github.com/ChrisRackauckas-Claude/DifferentiationInterface.jl.git",
-                                rev = "571fc1780c49d00addbeb31b491ab6e2b3273ee0",
-                                subdir = "DifferentiationInterface",
-                            ),
-                        ]
-                    )
                     return @time @safetestset "Reactant Integration" include("Reactant/reactant_tests.jl")
                 end,
             ),

@@ -82,7 +82,7 @@ f(u, p) = u .* u .- p
 
 function reactant_solve(u0, p)
     prob = NLS.NonlinearProblem(f, u0, p)
-    return NLS.solve(prob, NLS.SimpleBroyden())
+    return NLS.solve(prob, NLS.NewtonRaphson())
 end
 
 u0 = Reactant.to_rarray(Float32[1, 1])
@@ -91,19 +91,19 @@ sol = Reactant.@jit reactant_solve(u0, p)
 ```
 
 The nonlinear iteration uses a traced `while` operation. The array shapes are fixed for a
-compiled executable, but convergence and the number of quasi-Newton steps are determined at
+compiled executable, but convergence and the number of nonlinear steps are determined at
 runtime. Use `Reactant.@compile` instead of `Reactant.@jit` when the executable will be
 called repeatedly with new initial values or parameters of the same shape.
 
 Algorithms follow their normal `solve` dispatch during Reactant compilation. There is no
 separate allowlist or fallback algorithm: unsupported operations report their errors from
-Reactant or the package that implements them. `SimpleBroyden` and `SimpleKlement` are tested
-with square, out-of-place `NonlinearProblem`s. Jacobian-based algorithms additionally depend
-on Reactant support in their configured differentiation backend; NonlinearSolve.jl does not
-provide Reactant-specific differentiation overloads.
+Reactant or the package that implements them. The Reactant test group covers first-order
+methods and polyalgorithms with out-of-place nonlinear and least-squares problems.
+Jacobian-based algorithms depend on Reactant support in their configured differentiation
+backend; automatic backend selection prefers forward-mode `AutoEnzyme` under compilation.
 
 The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
-arrays, and `retcode` is a device scalar (`ConcreteRNumber{ReturnCode.T}`) that can be
+arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
 compared against `ReturnCode` values or converted with `ReturnCode.T(sol.retcode)`;
 `SciMLBase.successful_retcode(sol)` works as usual. `stats` is `nothing`, since `NLStats`
 counts host evaluations, which inside a compiled program only happen once while tracing,

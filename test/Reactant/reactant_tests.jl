@@ -80,6 +80,7 @@ for (compiled, name, uses_enzyme) in (
     @test sol.u isa Reactant.ConcreteRArray
     @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
     @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
     @test sol.retcode == ReturnCode.Success
     @test SciMLBase.successful_retcode(sol)
     if name === nothing
@@ -103,6 +104,7 @@ end
 sol_newton_maxiters = Reactant.@jit solve_newton_one_step(
     Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
 )
+@test sol_newton_maxiters.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
 @test sol_newton_maxiters.retcode == ReturnCode.MaxIters
 @test !SciMLBase.successful_retcode(sol_newton_maxiters)
 
@@ -126,6 +128,7 @@ end
 reactant_solver_cases = (
     (:NewtonRaphson, NonlinearProblem, NewtonRaphson()),
     (:TrustRegion, NonlinearProblem, TrustRegion()),
+    (:SmallRadiusTrustRegion, NonlinearProblem, TrustRegion(; initial_trust_radius = 0.05f0)),
     (:LevenbergMarquardt, NonlinearProblem, LevenbergMarquardt()),
     (
         :LevenbergMarquardtWithoutGeodesic,
@@ -160,7 +163,22 @@ reactant_solver_cases = (
     sol = compiled(
         Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
     )
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
     @test sol.retcode == ReturnCode.Success
     @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
     @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
+end
+
+@testset "Moré runtime branches" begin
+    solver = CompiledProblemSolve(
+        NonlinearProblem, nonlinear_function,
+        TrustRegion(; initial_trust_radius = 0.05f0)
+    )
+    compiled = Reactant.compile(solver, (u0, p0))
+    for target in (1.0f0, 2.0f0, 10.0f0)
+        sol = compiled(Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[target]))
+        @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+        @test sol.retcode == ReturnCode.Success
+        @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
+    end
 end
