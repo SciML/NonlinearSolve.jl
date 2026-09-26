@@ -258,7 +258,7 @@ function InternalAPI.solve!(
 
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    cache.stats.nf += 1
+    ReactantCore.within_compile() || (cache.stats.nf += 1)
 
     loss = cache.internalnorm(cache.fu_cache)
 

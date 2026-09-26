@@ -383,6 +383,7 @@ end
 
 # Called once the residual at a newly accepted iterate is available.
 function schedule_next_jacobian!(cache::GeneralizedFirstOrderAlgorithmCache)
+    ReactantCore.within_compile() && return nothing
     cache.make_new_jacobian = prepare_next_jacobian!(cache.jacobian_reuse_cache, cache.fu)
     return nothing
 end
@@ -441,7 +442,10 @@ function InternalAPI.step!(
         end
     end
 
-    if !descent_result.linsolve_success
+    if ReactantCore.within_compile()
+        cache.retcode = ifelse(descent_result.linsolve_success, cache.retcode, ReturnCode.InternalLinearSolveFailed)
+        cache.force_stop = cache.force_stop | !descent_result.linsolve_success
+    elseif !descent_result.linsolve_success
         if new_jacobian
             # Jacobian Information is current and linear solve failed terminate the solve
             cache.retcode = ReturnCode.InternalLinearSolveFailed
@@ -466,9 +470,7 @@ function InternalAPI.step!(
             cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
         )
     else
-        # Under Reactant every step is traced, so the Jacobian is always recomputed.
-        cache.make_new_jacobian = ReactantCore.within_compile() ||
-            jacobian_is_stale(cache.jacobian_reuse_cache)
+        _reject_first_order_descent!(cache)
     end
     # The line search asked for a retry on a fresh Jacobian; that step already finished.
     α === nothing && return
@@ -478,6 +480,12 @@ function InternalAPI.step!(
 
     NonlinearSolveBase.callback_into_cache!(cache)
 
+    return nothing
+end
+
+function _reject_first_order_descent!(cache)
+    ReactantCore.within_compile() && return nothing
+    cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
     return nothing
 end
 

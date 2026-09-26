@@ -574,7 +574,7 @@ function InternalAPI.solve!(
     T = promote_type(eltype(u), eltype(fu))
     @bb @. cache.u_cache = u + δu
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    cache.stats.nf += 1
+    ReactantCore.within_compile() || (cache.stats.nf += 1)
 
     if hasfield(typeof(descent_stats), :predicted_reduction) &&
             !ReactantCore.within_compile() && !isnan(descent_stats.predicted_reduction)
@@ -640,16 +640,13 @@ function InternalAPI.solve!(
         step_norm = hasfield(typeof(descent_stats), :step_norm) ?
             descent_stats.step_norm : cache.internalnorm(δu)
         λ = hasfield(typeof(descent_stats), :λ) ? descent_stats.λ : step_norm
-        if cache.ρ < cache.shrink_threshold
-            cache.trust_region = cache.shrink_factor *
-                min(cache.trust_region, 10 * step_norm)
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            if cache.ρ ≥ cache.expand_threshold || iszero(λ)
-                cache.trust_region = cache.expand_factor * step_norm
-            end
-        end
+        shrink = cache.ρ < cache.shrink_threshold
+        expand = (cache.ρ ≥ cache.expand_threshold) | iszero(λ)
+        cache.trust_region = ifelse(
+            shrink, cache.shrink_factor * min(cache.trust_region, 10 * step_norm),
+            ifelse(expand, cache.expand_factor * step_norm, cache.trust_region)
+        )
+        cache.shrink_counter = ifelse(shrink, cache.shrink_counter + one(cache.shrink_counter), zero(cache.shrink_counter))
     elseif cache.method isa RUS.__NocedalWright
         shrink = cache.ρ < cache.shrink_threshold
         δu_norm = cache.internalnorm(δu)
@@ -673,32 +670,20 @@ function InternalAPI.solve!(
         )
         cache.trust_region = tr_new
     elseif cache.method isa RUS.__Yuan
-        if cache.ρ < cache.shrink_threshold
-            cache.p1 = cache.p2 * cache.p1
-            cache.shrink_counter += 1
-        else
-            if cache.ρ ≥ cache.expand_threshold &&
-                    2 * cache.internalnorm(δu) > cache.trust_region
-                cache.p1 = cache.p3 * cache.p1
-            end
-            cache.shrink_counter = 0
-        end
-        # A rejected step with a nonfinite trial residual has no valid trial-point
-        # gradient: evaluate `Jᵀfu` at the retained iterate `(u, fu)` instead
-        u_tr, fu_tr = finite_residual ? (cache.u_cache, cache.fu_cache) : (u, fu)
+        shrink = cache.ρ < cache.shrink_threshold
+        expand = (cache.ρ ≥ cache.expand_threshold) & (2 * cache.internalnorm(δu) > cache.trust_region)
+        cache.p1 = ifelse(shrink, cache.p2 * cache.p1, ifelse(expand, cache.p3 * cache.p1, cache.p1))
+        cache.shrink_counter = ifelse(shrink, cache.shrink_counter + one(cache.shrink_counter), zero(cache.shrink_counter))
+        u_tr = NonlinearSolveBase.select(finite_residual, cache.u_cache, u)
+        fu_tr = NonlinearSolveBase.select(finite_residual, cache.fu_cache, fu)
         operator = StatefulJacobianOperator(cache.vjp_operator, u_tr, cache.p)
         @bb cache.Jᵀfu_cache = operator × vec(fu_tr)
         cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
     elseif cache.method isa RUS.__Fan
-        if cache.ρ < cache.shrink_threshold
-            cache.p1 *= cache.p2
-            cache.shrink_counter += 1
-        else
-            cache.shrink_counter = 0
-            cache.ρ > cache.expand_threshold &&
-                (cache.p1 = min(cache.p1 * cache.p3, cache.p4))
-        end
-        fu_tr = finite_residual ? cache.fu_cache : fu
+        shrink = cache.ρ < cache.shrink_threshold
+        cache.p1 = ifelse(shrink, cache.p1 * cache.p2, ifelse(cache.ρ > cache.expand_threshold, min(cache.p1 * cache.p3, cache.p4), cache.p1))
+        cache.shrink_counter = ifelse(shrink, cache.shrink_counter + one(cache.shrink_counter), zero(cache.shrink_counter))
+        fu_tr = NonlinearSolveBase.select(finite_residual, cache.fu_cache, fu)
         cache.trust_region = cache.p1 * (cache.internalnorm(fu_tr)^T(0.99))
     elseif cache.method isa RUS.__Bastin
         accepted = cache.ρ > cache.step_threshold
@@ -892,7 +877,7 @@ function InternalAPI.solve!(
 
     @bb @. cache.u_cache = u + cache.dogleg_step
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
-    cache.stats.nf += 1
+    ReactantCore.within_compile() || (cache.stats.nf += 1)
 
     actual_reduction = (
         cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2
