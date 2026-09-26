@@ -53,9 +53,16 @@ function explicitfun2_raw(p, sols)
 end
 
 # Wrap explicitfuns with FunctionWrapper for type unification.
-# The stripped solution type is deterministic — compute it from u0 type.
-uType = Vector{Float64}
-SSol = SCCNonlinearSolve.stripped_solution_type(Float64, uType, uType)
+# Derive the concrete stripped element type from public solve + strip_solution
+# so the SubArray signature matches the sols buffer under either SciMLBase layout.
+_probe_sol = solve(prob1, NewtonRaphson(; autodiff = AutoFiniteDiff()))
+SSol = typeof(
+    SciMLBase.strip_solution(
+        SciMLBase.build_solution(
+            prob1, nothing, _probe_sol.u, _probe_sol.resid; _probe_sol.retcode
+        )
+    )
+)
 SolsView = SubArray{SSol, 1, Vector{SSol}, Tuple{UnitRange{Int64}}, true}
 EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, SolsView}}
 ef1_wrapped = EFW(explicitfun1_raw)

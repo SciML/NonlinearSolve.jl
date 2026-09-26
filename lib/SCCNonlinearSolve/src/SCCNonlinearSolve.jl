@@ -157,10 +157,15 @@ end
 
 function sols_buffer_eltype(explicitfuns, T, uType, rType)
     default = stripped_solution_type(T, uType, rType)
-    E = eltype(explicitfuns)
-    extracted = _explicitfun_sols_eltype(E)
-    if extracted === nothing && !isempty(explicitfuns)
-        extracted = _explicitfun_sols_eltype(typeof(first(explicitfuns)))
+    # Homogeneous FunctionWrapper vectors hit the eltype fast path; otherwise
+    # scan every element so a legacy wrapper that is not first still wins
+    # (e.g. Any[plain_noop, legacy_FW]).
+    extracted = _explicitfun_sols_eltype(eltype(explicitfuns))
+    if extracted === nothing
+        for f in explicitfuns
+            extracted = _explicitfun_sols_eltype(typeof(f))
+            extracted === nothing || return extracted
+        end
     end
     return extracted === nothing ? default : extracted
 end

@@ -96,3 +96,11 @@ if VERSION >= v"1.11"
     stats = @timed solve(sccprob, scc_alg)
     @test stats.compile_time == 0.0
 end
+
+# Mixed container: first explicitfun is a plain no-op, second is a legacy
+# FunctionWrapper. The buffer eltype must still come from the wrapper.
+mixed_explicitfuns = Any[explicitfun1_raw, ef2_wrapped]
+mixed_prob = SciMLBase.SCCNonlinearProblem(probs, mixed_explicitfuns)
+mixed_sol = solve(mixed_prob, scc_alg)
+@test SciMLBase.successful_retcode(mixed_sol)
+@test mixed_sol.u ≈ ref_sol.u atol = 1.0e-10
