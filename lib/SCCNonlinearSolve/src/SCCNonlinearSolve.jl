@@ -128,6 +128,17 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
+# `NonlinearSolution` may declare the retcode carrier type in a trailing type
+# parameter; apply it when present so the result is concrete under either
+# declaration arity.
+function stripped_solution_type(T, uType, rType)
+    S = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
+    return isconcretetype(S) ? S : S{SciMLBase.ReturnCode.T}
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
@@ -136,10 +147,7 @@ function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::Abstra
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
+    ST = stripped_solution_type(T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST

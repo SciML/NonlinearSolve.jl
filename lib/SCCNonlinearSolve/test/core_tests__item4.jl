@@ -55,10 +55,7 @@ end
 # Wrap explicitfuns with FunctionWrapper for type unification.
 # The stripped solution type is deterministic — compute it from u0 type.
 uType = Vector{Float64}
-SSol = SciMLBase.NonlinearSolution{
-    Float64, 1, uType, uType,
-    NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-}
+SSol = SCCNonlinearSolve.stripped_solution_type(Float64, uType, uType)
 SolsView = SubArray{SSol, 1, Vector{SSol}, Tuple{UnitRange{Int64}}, true}
 EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, SolsView}}
 ef1_wrapped = EFW(explicitfun1_raw)
