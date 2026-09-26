@@ -5,3 +5,4 @@
 @safetestset "HomotopyProblem SCC block is continued (autodiff threaded)" include("core_tests__item5.jl")
 @safetestset "AutoDespecialize SCC subproblems" include("core_tests__item6.jl")
 @safetestset "Vector{Any} SCC container eltype is preserved" include("core_tests__item7.jl")
+@safetestset "Legacy ten-parameter FunctionWrapper SCC signature" include("core_tests__item8.jl")
