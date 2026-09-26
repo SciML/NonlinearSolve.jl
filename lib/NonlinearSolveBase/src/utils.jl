@@ -5,6 +5,7 @@ using ConcreteStructs: @concrete
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
 using MaybeInplace: @bb
+using ReactantCore: ReactantCore
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition, recursivecopy!
 using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
@@ -198,7 +199,7 @@ function evaluate_f(prob::AbstractNonlinearProblem{<:Any, true}, u)
 end
 
 function evaluate_f!(cache, u, p)
-    cache.stats.nf += 1
+    ReactantCore.within_compile() || (cache.stats.nf += 1)
     return if SciMLBase.isinplace(cache)
         cache.prob.f(NonlinearSolveBase.get_fu(cache), u, p)
     else

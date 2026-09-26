@@ -104,7 +104,7 @@ function construct_jacobian_cache(
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
             # which is needed to create the linear solver cache
-            stats.njacs += 1
+            ReactantCore.within_compile() || (stats.njacs += 1)
             if has_analytic_jac
                 Utils.safe_similar(
                     fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)
@@ -218,7 +218,7 @@ reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianO
 # Core Computation
 ## Numbers
 function (cache::JacobianCache{<:Number})(u)
-    cache.stats.njacs += 1
+    ReactantCore.within_compile() || (cache.stats.njacs += 1)
 
     (; f, J, p) = cache
     cache.J = if SciMLBase.has_jac(f)
@@ -235,7 +235,7 @@ end
 
 ## Actually Compute the Jacobian
 function (cache::JacobianCache)(u)
-    cache.stats.njacs += 1
+    ReactantCore.within_compile() || (cache.stats.njacs += 1)
     (; f, J, p) = cache
     if SciMLBase.isinplace(f)
         if SciMLBase.has_jac(f)
@@ -266,7 +266,7 @@ function (cache::JacobianCache{<:AbstractSciMLOperator})(u)
     if SciMLBase.has_jac(f) && f.jac !== update_coefficients!
         # A user-supplied analytic Jacobian that returns/updates an operator (e.g.
         # `jac(u, p)` returning a `MatrixOperator`). Mirror the concrete `has_jac` path.
-        cache.stats.njacs += 1
+        ReactantCore.within_compile() || (cache.stats.njacs += 1)
         if SciMLBase.isinplace(f)
             f.jac(cache.J, u, p)
         else

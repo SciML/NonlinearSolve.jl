@@ -913,7 +913,7 @@ function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs..
         InternalAPI.step!(cache, args...; kwargs...)
     end
 
-    cache.stats.nsteps += 1
+    ReactantCore.within_compile() || (cache.stats.nsteps += 1)
     cache.nsteps += 1
 
     if has_time_limit(cache)

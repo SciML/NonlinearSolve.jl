@@ -139,7 +139,7 @@ function (cache::ReactantLinearSolveCache)(;
         A = nothing, b = nothing, linu = nothing, reuse_A_if_factorization = false,
         kwargs...
     )
-    cache.stats.nsolve += 1
+    ReactantCore.within_compile() || (cache.stats.nsolve += 1)
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
     linu === nothing || (cache.u = linu)
@@ -170,8 +170,8 @@ alias_A_for_refactorization(linsolve, A) = false
 function (cache::NativeJLLinearSolveCache)(;
         A = nothing, b = nothing, linu = nothing, kwargs...
     )
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
+    ReactantCore.within_compile() || (cache.stats.nsolve += 1)
+    ReactantCore.within_compile() || (cache.stats.nfactors += 1)
 
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
