@@ -139,15 +139,42 @@ function stripped_solution_type(T, uType, rType)
     return isconcretetype(S) ? S : S{SciMLBase.ReturnCode.T}
 end
 
+# Vector-form callers often wrap each `explicitfun` in a `FunctionWrapper` whose
+# second argument is `SubArray{SSol,...}`. Prefer that declared `SSol` for the
+# `sols` buffer so the view converts (SubArray is invariant in its element type).
+# Falls back to the concrete stripped type when the wrapper signature is opaque.
+function _explicitfun_sols_eltype(FW::Type)
+    FW isa DataType || return nothing
+    nameof(FW) === :FunctionWrapper || return nothing
+    length(FW.parameters) < 2 && return nothing
+    ATs = FW.parameters[2]
+    ATs isa DataType && ATs <: Tuple && length(ATs.parameters) >= 2 || return nothing
+    V = ATs.parameters[2]
+    V isa Type && V <: SubArray || return nothing
+    ET = eltype(V)
+    return ET <: SciMLBase.NonlinearSolution ? ET : nothing
+end
+
+function sols_buffer_eltype(explicitfuns, T, uType, rType)
+    default = stripped_solution_type(T, uType, rType)
+    E = eltype(explicitfuns)
+    extracted = _explicitfun_sols_eltype(E)
+    if extracted === nothing && !isempty(explicitfuns)
+        extracted = _explicitfun_sols_eltype(typeof(first(explicitfuns)))
+    end
+    return extracted === nothing ? default : extracted
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+    # regardless of the original problem/algorithm types. Prefer a FunctionWrapper's
+    # declared SubArray element type when present so legacy signatures keep converting.
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = stripped_solution_type(T, uType, rType)
+    ST = sols_buffer_eltype(explicitfuns, T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
