@@ -67,6 +67,7 @@ else
             @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
             @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
             @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
+            @time @safetestset "Bounds: implicit sensitivities" include("Core/bounds_sensitivity_tests.jl")
             @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
             @time @safetestset "Bounds: polyalgorithm and quasi-Newton algorithms" include("Core/bounds_tests__item4.jl")
             @time @safetestset "HomotopySweep construction + defaults" include("Core/homotopy_sweep_tests__item1.jl")
@@ -117,6 +118,8 @@ else
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()
+                @time @safetestset "Bounded default polyalgorithm" include("PolyAlgorithms/bounded_defaults_tests.jl")
+                @time @safetestset "SobolMultistart bounded recovery" include("PolyAlgorithms/sobol_multistart_tests.jl")
                 @time @safetestset "Basic PolyAlgorithms" include("PolyAlgorithms/core_tests__item2.jl")
                 @time @safetestset "PolyAlgorithms Autodiff" include("PolyAlgorithms/core_tests__item4.jl")
                 @time @safetestset "Ensemble Nonlinear Problems" include("PolyAlgorithms/core_tests__item6.jl")
@@ -148,7 +151,8 @@ else
                 body = function ()
                     @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
                     @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
-                    return @time @safetestset "Enzyme reverse-mode over IIP NonlinearProblem (#939)" include("Adjoint/adjoint_tests__item3.jl")
+                    @time @safetestset "Enzyme reverse-mode over IIP NonlinearProblem (#939)" include("Adjoint/adjoint_tests__item3.jl")
+                    return @time @safetestset "Structural solution cotangent forwarded to backpass" include("Adjoint/adjoint_tests__item4.jl")
                 end,
             ),
             "Wrappers" => (;
@@ -164,7 +168,8 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
-                    return @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
                 end,
             ),
             "CUDA" => (;

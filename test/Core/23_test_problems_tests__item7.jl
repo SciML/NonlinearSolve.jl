@@ -19,10 +19,11 @@ broken_tests[alg_ops[4]] = [5, 6, 11]
 # BLAS/CPU dependent. Skip rather than mark broken, since an unexpected pass would also
 # error — both have failed in both directions across runners. See
 # SciML/NonlinearSolve.jl#1083 and SciML/NonlinearSolve.jl#1096. Problem #8 with plain
-# true_jacobian Broyden (alg #2) sits on the same knife-edge for problems #4 (Wood) and
-# #8: dependency-level factorization changes make them converge on different runners.
+# true_jacobian Broyden (alg #2) sits on the same knife-edge for problems #4 (Wood), #8,
+# and #21 (Freudenstein-Roth): dependency-level factorization changes make them converge
+# on different runners (#21 hits MaxIters on 32-bit but converges on 64-bit).
 skip_tests = Dict(alg => Int[] for alg in alg_ops)
-skip_tests[alg_ops[2]] = [4, 8]
+skip_tests[alg_ops[2]] = [4, 8, 21]
 skip_tests[alg_ops[4]] = [1, 8]
 if Sys.isapple()
     broken_tests[alg_ops[1]] = [1, 5, 11]

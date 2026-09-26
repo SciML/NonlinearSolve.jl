@@ -9,6 +9,13 @@ os = ["ubuntu-latest", "macos-latest"]
 
 # Extended PolyAlgorithm / default-algorithm functional tests, run in the base
 # test env alongside Core (formerly the misnamed "NoPre" group).
+
+["Core 32-bit"]
+group = "Core"
+versions = ["1"]
+os = ["ubuntu-latest"]
+arch = "x86"
+
 [PolyAlgorithms]
 versions = ["lts", "1", "pre"]
 os = ["ubuntu-latest", "macos-latest"]

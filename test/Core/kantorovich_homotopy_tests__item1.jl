@@ -135,7 +135,7 @@ function CommonSolve.solve!(cache::SlowContractionCache)
     end
     cache.retcode == ReturnCode.Default && (cache.retcode = ReturnCode.MaxIters)
     return SciMLBase.build_solution(
-        cache.prob, cache.alg, copy(cache.u), copy(cache.fu); retcode = cache.retcode
+        cache.prob, cache.alg, copy(cache.u), copy(cache.fu); cache.retcode
     )
 end
 

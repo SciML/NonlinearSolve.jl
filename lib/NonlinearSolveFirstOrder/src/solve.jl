@@ -105,6 +105,24 @@ end
 
 NonlinearSolveBase.supports_postcondition(::GeneralizedFirstOrderAlgorithm) = true
 
+_trust_region_retcode!(cache, J, fu, u) = ReturnCode.Default
+
+function _validate_native_bounds(prob, alg, u)
+    SciMLBase.allowsbounds(alg) || return nothing
+    lb = hasproperty(prob, :lb) ? prob.lb : nothing
+    ub = hasproperty(prob, :ub) ? prob.ub : nothing
+    if lb !== nothing && !all(u .>= lb)
+        throw(ArgumentError("The initial guess must satisfy the lower bounds."))
+    end
+    if ub !== nothing && !all(u .<= ub)
+        throw(ArgumentError("The initial guess must satisfy the upper bounds."))
+    end
+    if lb !== nothing && ub !== nothing && !all(lb .<= ub)
+        throw(ArgumentError("Each lower bound must be less than or equal to its upper bound."))
+    end
+    return nothing
+end
+
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
     return SciMLBase.get_du(cache.descent_cache)
 end
@@ -118,6 +136,7 @@ function InternalAPI.reinit_self!(
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
     )
+    _validate_native_bounds(cache.prob, cache.alg, u0)
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
@@ -171,7 +190,8 @@ function SciMLBase.__init(
     provided_vjp_autodiff = alg.vjp_autodiff !== nothing
     @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
             (
-            ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+            (SciMLBase.allowsbounds(alg) && _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff) ||
+                ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
                 ADTypes.mode(alg.autodiff) isa
                 ADTypes.ForwardOrReverseMode
         )
@@ -199,6 +219,7 @@ function SciMLBase.__init(
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        _validate_native_bounds(prob, alg, u)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
 
@@ -210,10 +231,29 @@ function SciMLBase.__init(
         )
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
-        jac_cache = NonlinearSolveBase.construct_jacobian_cache(
-            _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
-            stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
-        )
+        difference_cache = if SciMLBase.allowsbounds(alg) &&
+                _box_concrete_jacobian(alg, linsolve) &&
+                _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff &&
+                !SciMLBase.has_jac(_ad_prob.f) &&
+                !(_ad_prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
+            lb, ub = _box_bounds(prob, u)
+            _box_difference_cache(_ad_prob, fu, u, lb, ub, stats)
+        else
+            if SciMLBase.allowsbounds(alg) && !_box_concrete_jacobian(alg, linsolve) &&
+                    _box_needs_difference_products(_ad_prob, alg)
+                lb, ub = _box_bounds(prob, u)
+                _ad_prob = _box_product_problem(_ad_prob, alg, fu, lb, ub, stats)
+            end
+            nothing
+        end
+        jac_cache = if difference_cache === nothing
+            NonlinearSolveBase.construct_jacobian_cache(
+                _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
+                stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
+            )
+        else
+            difference_cache
+        end
         J = reused_jacobian(jac_cache, u)
 
         descent_cache = InternalAPI.init(
@@ -249,7 +289,7 @@ function SciMLBase.__init(
             trustregion_cache = InternalAPI.init(
                 _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
                 vjp_autodiff = _tr_vjp_ad, jvp_autodiff = _tr_jvp_ad,
-                stats, internalnorm, kwargs...
+                stats, internalnorm, abstol, reltol, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
@@ -372,6 +412,15 @@ function InternalAPI.step!(
     end
     new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
+    trust_region_retcode = _trust_region_retcode!(
+        cache.trustregion_cache, J, cache.fu, cache.u
+    )
+    if trust_region_retcode != ReturnCode.Default
+        cache.retcode = trust_region_retcode
+        cache.force_stop = true
+        return
+    end
+
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
     if has_forcing
@@ -450,7 +499,7 @@ function _perform_first_order_step!(
         end
         if linesearch_failed && policy_driven &&
                 jacobian_is_stale(cache.jacobian_reuse_cache)
-            @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_stale_jac)
+            @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             cache.make_new_jacobian = true
             InternalAPI.step!(cache; recompute_jacobian = true)
             return nothing
@@ -517,9 +566,20 @@ function _perform_first_order_step!(
     return α
 end
 
+function _default_bounded_alg(prob, kwargs)
+    return SobolMultistart(
+        FastShortcutBoundedPolyalg(;
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+        )
+    )
+end
+
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
     return SciMLBase.__init(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
@@ -527,10 +587,21 @@ function SciMLBase.__solve(
         prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...
     )
     return SciMLBase.__solve(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
-function NonlinearSolveBase.initialization_alg(::NonlinearLeastSquaresProblem, autodiff)
+function NonlinearSolveBase.initialization_alg(prob::NonlinearLeastSquaresProblem, autodiff)
+    if prob.lb !== nothing || prob.ub !== nothing
+        return SobolMultistart(
+            FastShortcutBoundedPolyalg(;
+                autodiff,
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+            )
+        )
+    end
     return FastShortcutNLLSPolyalg(; autodiff)
 end

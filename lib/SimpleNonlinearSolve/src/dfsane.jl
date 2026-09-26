@@ -1,7 +1,7 @@
 """
     SimpleDFSane(;
-        σ_min::Real = 1e-10, σ_max::Real = 1e10, σ_1::Real = 1.0,
-        M::Union{Int, Val} = Val(10), γ::Real = 1e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
+        σ_min::Real = 1.0e-10, σ_max::Real = 1.0e10, σ_1::Real = 1.0,
+        M::Union{Int, Val} = Val(10), γ::Real = 1.0e-4, τ_min::Real = 0.1, τ_max::Real = 0.5,
         nexp::Int = 2, η_strategy::Function = (f_1, k, x, F) -> f_1 ./ k^2
     )
 

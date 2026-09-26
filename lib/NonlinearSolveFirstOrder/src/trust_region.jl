@@ -1,7 +1,8 @@
 """
     TrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
-        radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
+        radius_update_scheme = nothing, subproblem = TrustRegionSubproblem.More,
+        max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
@@ -17,8 +18,18 @@ for large-scale and numerically-difficult nonlinear systems.
 ### Keyword Arguments
 
   - `radius_update_scheme`: the scheme used to update the trust region radius. Defaults to
-    `RadiusUpdateSchemes.Simple`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
+    `RadiusUpdateSchemes.More`, or `RadiusUpdateSchemes.Simple` when
+    `subproblem = TrustRegionSubproblem.Dogleg`. See [`RadiusUpdateSchemes`](@ref) for more details. For a
     review on trust region radius update schemes, see [yuan2015recent](@citet).
+  - `subproblem`: how the trust-region subproblem is solved.
+    `TrustRegionSubproblem.More` (default) uses
+    [`MoreTrustRegionDescent`](@ref NonlinearSolveBase.MoreTrustRegionDescent), which
+    solves the subproblem nearly exactly via Moré's safeguarded iteration on the damping
+    parameter (MINPACK `lmpar`) and is substantially more robust on ill-conditioned
+    least-squares problems; `TrustRegionSubproblem.Dogleg` uses [`Dogleg`](@ref).
+    A custom `AbstractDescentDirection` can also be passed directly — e.g.
+    `MoreTrustRegionDescent(; scaling = TrustRegionScaling.Auto)` engages Moré's
+    column-norm scaling only on badly scaled Jacobians.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
@@ -29,7 +40,8 @@ documentation.
 """
 function TrustRegion(;
         concrete_jac = nothing, linsolve = nothing,
-        radius_update_scheme = RadiusUpdateSchemes.Simple, max_trust_radius::Real = 0 // 1,
+        radius_update_scheme = nothing, subproblem = TrustRegionSubproblem.More,
+        max_trust_radius::Real = 0 // 1,
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
@@ -37,7 +49,21 @@ function TrustRegion(;
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         jacobian_reuse = nothing,
     )
-    descent = Dogleg(; linsolve)
+    descent, default_scheme = if subproblem isa AbstractDescentDirection
+        (subproblem, subproblem isa MoreTrustRegionDescent ? RUS.More : RUS.Simple)
+    elseif subproblem === TrustRegionSubproblem.More
+        (MoreTrustRegionDescent(; linsolve), RUS.More)
+    elseif subproblem === TrustRegionSubproblem.Dogleg
+        (Dogleg(; linsolve), RUS.Simple)
+    else
+        throw(
+            ArgumentError(
+                "Unknown `subproblem = $subproblem`. Expected a `TrustRegionSubproblem` \
+                 or an `AbstractDescentDirection`."
+            )
+        )
+    end
+    radius_update_scheme === nothing && (radius_update_scheme = default_scheme)
     trustregion = GenericTrustRegionScheme(;
         method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
         shrink_factor, expand_factor, initial_trust_radius, max_trust_radius
@@ -45,6 +71,130 @@ function TrustRegion(;
     return GeneralizedFirstOrderAlgorithm(;
         trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
         concrete_jac, jacobian_reuse, name = :TrustRegion
+    )
+end
+
+"""
+    TrustRegionDogleg(; subproblem = TrustRegionSubproblem.Dogleg, kwargs...)
+
+[`TrustRegion`](@ref) with the classical two-piece polygonal dogleg subproblem —
+the cheaper per-step choice for well-conditioned problems where the nearly-exact
+Moré solve is not needed. `TrustRegion()` itself defaults to
+`TrustRegionSubproblem.More`, which is more robust on ill-conditioned and
+rank-deficient problems.
+
+All [`TrustRegion`](@ref) keyword arguments are forwarded; `subproblem` is fixed
+to `TrustRegionSubproblem.Dogleg` (a [`Dogleg`](@ref NonlinearSolveBase.Dogleg)
+descent instance is also accepted) and `radius_update_scheme` defaults to
+`RadiusUpdateSchemes.Simple` as with `TrustRegion`.
+"""
+function TrustRegionDogleg(; subproblem = TrustRegionSubproblem.Dogleg, kwargs...)
+    subproblem === TrustRegionSubproblem.Dogleg || subproblem isa Dogleg ||
+        throw(
+        ArgumentError(
+            "`TrustRegionDogleg` fixes `subproblem = TrustRegionSubproblem.Dogleg`; \
+             use `TrustRegion(; subproblem)` to select a different subproblem."
+        )
+    )
+    return TrustRegion(; subproblem, kwargs...)
+end
+
+"""
+    TrustRegionRobust(;
+        subproblem = MoreTrustRegionDescent(; linsolve = RobustTrustRegionLinsolve()),
+        kwargs...
+    )
+
+[`TrustRegion`](@ref) with the conditioning-preserving subproblem formulation:
+for sparse-structured Jacobians the damped solves run on the rectangular
+augmented system `[J; √λD] p = [-fu; 0]` via
+`LinearSolve.SparseColumnPivotedQRFactorization` — a rank-revealing
+column-pivoted sparse QR — rather than the normal equations `JᵀJ + λD²`, which
+squares the condition number. Dense and matrix-free Jacobians keep their
+default paths, which already avoid the normal equations (MINPACK `lmpar` and
+the augmented Krylov operator respectively).
+
+Use this when the Jacobian is sparse and badly conditioned enough that forming
+`JᵀJ` loses digits — at the price of a sparse QR refactorization of the
+`(m + n) × n` system per damping-parameter trial.
+
+All [`TrustRegion`](@ref) keyword arguments are forwarded; `subproblem` is
+fixed to a [`MoreTrustRegionDescent`](@ref NonlinearSolveBase.MoreTrustRegionDescent)
+carrying the robust `linsolve` selection.
+"""
+function TrustRegionRobust(;
+        subproblem = MoreTrustRegionDescent(; linsolve = RobustTrustRegionLinsolve()),
+        kwargs...
+    )
+    (
+        subproblem isa MoreTrustRegionDescent &&
+            subproblem.linsolve isa RobustTrustRegionLinsolve
+    ) ||
+        throw(
+        ArgumentError(
+            "`TrustRegionRobust` fixes `subproblem`'s `linsolve` to \
+             `RobustTrustRegionLinsolve()`; use `TrustRegion(; subproblem)` to \
+             select a different subproblem solver."
+        )
+    )
+    return TrustRegion(; subproblem, kwargs...)
+end
+
+"""
+    BoundedTrustRegion(;
+        concrete_jac = nothing, linsolve = nothing,
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32,
+        gtol = nothing, vjp_autodiff = nothing, autodiff = nothing,
+        jvp_autodiff = nothing,
+    )
+
+A bound-constrained trust-region method for nonlinear systems and nonlinear least-squares
+problems. Bounds are handled directly in the original coordinates. The method compares a
+projected dogleg step with a feasible projected-Cauchy step and selects the step with the
+larger predicted reduction.
+
+Unlike a coordinate transformation, this method permits iterates exactly on a bound and
+does not multiply the problem Jacobian by a transformation derivative that vanishes there.
+The initial guess must satisfy the problem bounds.
+
+For a `NonlinearLeastSquaresProblem`, convergence is also detected when the infinity norm
+of the projected gradient is below `gtol`. This defaults to `sqrt(eps(T))`, where `T` is the
+working element type. Projected-gradient termination is disabled by default for a
+`NonlinearProblem`, because a constrained stationary point need not be a root. Setting
+`gtol` explicitly enables the check and reports such a point as `ReturnCode.Stalled` unless
+the residual has already converged.
+
+### Keyword Arguments
+
+  - `max_trust_radius`: the maximum trust-region radius. A value of zero selects `Inf`.
+  - `initial_trust_radius`: the initial radius. A value of zero selects
+    `max(norm(u0), one(T))`.
+  - `step_threshold`: minimum actual-to-predicted reduction ratio for accepting a step.
+  - `shrink_threshold`, `expand_threshold`: reduction-ratio thresholds for changing the
+    radius.
+  - `shrink_factor`, `expand_factor`: factors used to change the radius.
+  - `gtol`: projected-gradient tolerance for constrained stationarity.
+"""
+function BoundedTrustRegion(;
+        concrete_jac = nothing, linsolve = nothing,
+        max_trust_radius::Real = 0 // 1, initial_trust_radius::Real = 0 // 1,
+        step_threshold::Real = 1 // 10000, shrink_threshold::Real = 1 // 4,
+        expand_threshold::Real = 3 // 4, shrink_factor::Real = 1 // 4,
+        expand_factor::Real = 2 // 1, max_shrink_times::Int = 32,
+        gtol = nothing, autodiff = nothing, vjp_autodiff = nothing,
+        jvp_autodiff = nothing,
+    )
+    descent = Dogleg(; linsolve)
+    trustregion = BoundedTrustRegionScheme(;
+        max_trust_radius, initial_trust_radius, step_threshold, shrink_threshold,
+        expand_threshold, shrink_factor, expand_factor, gtol
+    )
+    return GeneralizedFirstOrderAlgorithm(;
+        trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
+        concrete_jac, name = :BoundedTrustRegion
     )
 end
 
@@ -65,7 +215,7 @@ Simply put the desired scheme as follows:
 module RadiusUpdateSchemes
     # The weird definitions here are needed to main compatibility with the older enum variants
 
-    export Bastin, Fan, Hei, NLsolve, NocedalWright, Simple, Yuan
+    export Bastin, Fan, Hei, More, NLsolve, NocedalWright, Simple, Yuan
 
     abstract type AbstractRadiusUpdateScheme end
 
@@ -125,6 +275,19 @@ module RadiusUpdateSchemes
     the radius depend on the gradient.
     """
     const Yuan = __Yuan()
+
+    struct __More <: AbstractRadiusUpdateScheme end
+    """
+        RadiusUpdateSchemes.More
+
+    The radius update of Moré (MINPACK `lmder`), which follows the step that was tried
+    rather than the previous radius: if `ρ < shrink_threshold` the radius becomes
+    `shrink_factor * min(Δ, 10 ‖D δu‖)`; if `ρ ≥ expand_threshold` or the step was a
+    Gauss-Newton step (`λ = 0`), the radius becomes `expand_factor * ‖D δu‖`. This is the
+    natural pairing for `MoreTrustRegionDescent`, which reports `λ` and `‖D δu‖` through
+    the descent extras.
+    """
+    const More = __More()
 
     struct __Bastin <: AbstractRadiusUpdateScheme end
     """
@@ -351,6 +514,7 @@ function initial_trust_radius(
         ::Nothing, ::Type{T}, method, max_tr, u0_norm, fu_norm
     ) where {T}
     method isa RUS.__NLsolve && return T(ifelse(u0_norm > 0, u0_norm, 1))
+    method isa RUS.__More && return T(ifelse(u0_norm > T(1.0e-4), u0_norm, 1))
     (method isa RUS.__Hei || method isa RUS.__Bastin) && return T(1)
     method isa RUS.__Fan && return T((fu_norm^0.99) / 10)
     return T(max_tr / 11)
@@ -358,7 +522,7 @@ end
 
 function step_threshold(::Nothing, ::Type{T}, method) where {T}
     method isa RUS.__Hei && return T(0)
-    method isa RUS.__Yuan && return T(1 // 1000)
+    (method isa RUS.__Yuan || method isa RUS.__More) && return T(1 // 1000)
     method isa RUS.__Bastin && return T(1 // 20)
     return T(1 // 10000)
 end
@@ -412,26 +576,35 @@ function InternalAPI.solve!(
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.stats.nf += 1
 
-    if hasfield(typeof(descent_stats), :δuJᵀJδu)
-        # `isnan` of a traced value cannot pick a branch, so under Reactant the product is
-        # always formed and selected from.
-        if ReactantCore.within_compile() || isnan(descent_stats.δuJᵀJδu)
-            @bb cache.Jδu_cache = J × vec(δu)
-            computed_δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
-            δuJᵀJδu = ifelse(
-                isnan(descent_stats.δuJᵀJδu), computed_δuJᵀJδu, descent_stats.δuJᵀJδu
-            )
-        else
-            δuJᵀJδu = descent_stats.δuJᵀJδu
-        end
+    if hasfield(typeof(descent_stats), :predicted_reduction) &&
+            !ReactantCore.within_compile() && !isnan(descent_stats.predicted_reduction)
+        # Descents solving the subproblem exactly can report the MINPACK form of the
+        # predicted reduction, which avoids cancellation for ill-conditioned Jacobians
+        denom = -descent_stats.predicted_reduction
     else
-        @bb cache.Jδu_cache = J × vec(δu)
-        δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
+        if hasfield(typeof(descent_stats), :δuJᵀJδu) &&
+                !ReactantCore.within_compile() && !isnan(descent_stats.δuJᵀJδu)
+            δuJᵀJδu = descent_stats.δuJᵀJδu
+        else
+            @bb cache.Jδu_cache = J × vec(δu)
+            δuJᵀJδu = Utils.safe_dot(cache.Jδu_cache, cache.Jδu_cache)
+            if hasfield(typeof(descent_stats), :δuJᵀJδu)
+                δuJᵀJδu = ifelse(isnan(descent_stats.δuJᵀJδu), δuJᵀJδu, descent_stats.δuJᵀJδu)
+            end
+        end
+        @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
+        denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
+        if hasfield(typeof(descent_stats), :predicted_reduction)
+            denom = ifelse(isnan(descent_stats.predicted_reduction), denom, -descent_stats.predicted_reduction)
+        end
     end
-    @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
     num = (cache.internalnorm(cache.fu_cache)^2 - cache.internalnorm(fu)^2) / 2
-    denom = Utils.safe_dot(δu, cache.Jᵀfu_cache) + δuJᵀJδu / 2
-    cache.ρ = num / denom
+    # A nonfinite trial residual must unconditionally reject: comparisons against NaN
+    # fail in every radius-update branch below, leaving the radius frozen on the bad step
+    finite_residual = isfinite(num) & (
+        cache.fu_cache isa Number ? isfinite(cache.fu_cache) : all(isfinite, cache.fu_cache)
+    )
+    cache.ρ = ifelse((denom < 0) & finite_residual, num / denom, -one(num))
 
     cache.last_step_accepted = cache.ρ > cache.step_threshold
 
@@ -463,6 +636,20 @@ function InternalAPI.solve!(
             shrink, cache.shrink_counter + one(cache.shrink_counter),
             zero(cache.shrink_counter)
         )
+    elseif cache.method isa RUS.__More
+        step_norm = hasfield(typeof(descent_stats), :step_norm) ?
+            descent_stats.step_norm : cache.internalnorm(δu)
+        λ = hasfield(typeof(descent_stats), :λ) ? descent_stats.λ : step_norm
+        if cache.ρ < cache.shrink_threshold
+            cache.trust_region = cache.shrink_factor *
+                min(cache.trust_region, 10 * step_norm)
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            if cache.ρ ≥ cache.expand_threshold || iszero(λ)
+                cache.trust_region = cache.expand_factor * step_norm
+            end
+        end
     elseif cache.method isa RUS.__NocedalWright
         shrink = cache.ρ < cache.shrink_threshold
         δu_norm = cache.internalnorm(δu)
@@ -486,30 +673,33 @@ function InternalAPI.solve!(
         )
         cache.trust_region = tr_new
     elseif cache.method isa RUS.__Yuan
-        shrink = cache.ρ < cache.shrink_threshold
-        expand = (cache.ρ ≥ cache.expand_threshold) &
-            (2 * cache.internalnorm(δu) > cache.trust_region)
-        cache.p1 = ifelse(
-            shrink, cache.p2 * cache.p1, ifelse(expand, cache.p3 * cache.p1, cache.p1)
-        )
-        cache.shrink_counter = ifelse(
-            shrink, cache.shrink_counter + one(cache.shrink_counter),
-            zero(cache.shrink_counter)
-        )
-        operator = StatefulJacobianOperator(cache.vjp_operator, cache.u_cache, cache.p)
-        @bb cache.Jᵀfu_cache = operator × vec(cache.fu_cache)
+        if cache.ρ < cache.shrink_threshold
+            cache.p1 = cache.p2 * cache.p1
+            cache.shrink_counter += 1
+        else
+            if cache.ρ ≥ cache.expand_threshold &&
+                    2 * cache.internalnorm(δu) > cache.trust_region
+                cache.p1 = cache.p3 * cache.p1
+            end
+            cache.shrink_counter = 0
+        end
+        # A rejected step with a nonfinite trial residual has no valid trial-point
+        # gradient: evaluate `Jᵀfu` at the retained iterate `(u, fu)` instead
+        u_tr, fu_tr = finite_residual ? (cache.u_cache, cache.fu_cache) : (u, fu)
+        operator = StatefulJacobianOperator(cache.vjp_operator, u_tr, cache.p)
+        @bb cache.Jᵀfu_cache = operator × vec(fu_tr)
         cache.trust_region = cache.p1 * cache.internalnorm(cache.Jᵀfu_cache)
     elseif cache.method isa RUS.__Fan
-        shrink = cache.ρ < cache.shrink_threshold
-        cache.p1 = ifelse(
-            shrink, cache.p1 * cache.p2,
-            ifelse(cache.ρ > cache.expand_threshold, min(cache.p1 * cache.p3, cache.p4), cache.p1)
-        )
-        cache.shrink_counter = ifelse(
-            shrink, cache.shrink_counter + one(cache.shrink_counter),
-            zero(cache.shrink_counter)
-        )
-        cache.trust_region = cache.p1 * (cache.internalnorm(cache.fu_cache)^T(0.99))
+        if cache.ρ < cache.shrink_threshold
+            cache.p1 *= cache.p2
+            cache.shrink_counter += 1
+        else
+            cache.shrink_counter = 0
+            cache.ρ > cache.expand_threshold &&
+                (cache.p1 = min(cache.p1 * cache.p3, cache.p4))
+        end
+        fu_tr = finite_residual ? cache.fu_cache : fu
+        cache.trust_region = cache.p1 * (cache.internalnorm(fu_tr)^T(0.99))
     elseif cache.method isa RUS.__Bastin
         accepted = cache.ρ > cache.step_threshold
         # The operator products are only needed for an accepted step; under Reactant they
@@ -536,6 +726,190 @@ function InternalAPI.solve!(
     end
 
     cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
+
+    return cache.last_step_accepted, cache.u_cache, cache.fu_cache
+end
+
+@kwdef @concrete struct BoundedTrustRegionScheme <: AbstractTrustRegionMethod
+    step_threshold = 1 // 10000
+    shrink_threshold = 1 // 4
+    expand_threshold = 3 // 4
+    shrink_factor = 1 // 4
+    expand_factor = 2 // 1
+    max_trust_radius = 0 // 1
+    initial_trust_radius = 0 // 1
+    gtol = nothing
+end
+
+SciMLBase.allowsbounds(alg::GeneralizedFirstOrderAlgorithm) =
+    alg.trustregion isa BoundedTrustRegionScheme
+
+function InternalAPI.init(
+        prob::AbstractNonlinearProblem, alg::BoundedTrustRegionScheme, f, fu, u, p,
+        args...; stats, internalnorm::F = L2_NORM, abstol = nothing, reltol = nothing,
+        kwargs...
+    ) where {F}
+    T = promote_type(eltype(u), eltype(fu))
+    lb = _box_bound(hasproperty(prob, :lb) ? prob.lb : nothing, -Inf, u)
+    ub = _box_bound(hasproperty(prob, :ub) ? prob.ub : nothing, Inf, u)
+    max_radius = iszero(alg.max_trust_radius) ? T(Inf) : T(alg.max_trust_radius)
+    initial_radius = if iszero(alg.initial_trust_radius)
+        max(T(internalnorm(u)), one(T))
+    else
+        T(alg.initial_trust_radius)
+    end
+    initial_radius = min(initial_radius, max_radius)
+    least_squares = prob isa NonlinearLeastSquaresProblem
+    gtol = if alg.gtol === nothing
+        least_squares ? sqrt(eps(T)) : nothing
+    else
+        T(alg.gtol)
+    end
+
+    @bb gradient = similar(u)
+    @bb dogleg_step = similar(u)
+    @bb cauchy_direction = similar(u)
+    @bb cauchy_step = similar(u)
+    @bb Jdogleg = similar(fu)
+    @bb Jcauchy = similar(fu)
+    @bb u_cache = similar(u)
+    @bb fu_cache = similar(fu)
+
+    return BoundedTrustRegionSchemeCache(
+        f, p, lb, ub, max_radius, initial_radius, initial_radius,
+        T(alg.step_threshold), T(alg.shrink_threshold), T(alg.expand_threshold),
+        T(alg.shrink_factor), T(alg.expand_factor), gtol, internalnorm,
+        gradient, dogleg_step, cauchy_direction, cauchy_step, Jdogleg, Jcauchy,
+        u_cache, fu_cache, false, 0, stats, alg,
+        least_squares
+    )
+end
+
+@concrete mutable struct BoundedTrustRegionSchemeCache <: AbstractTrustRegionMethodCache
+    f
+    p
+    lb
+    ub
+    max_trust_radius
+    initial_trust_radius
+    trust_region
+    step_threshold
+    shrink_threshold
+    expand_threshold
+    shrink_factor
+    expand_factor
+    gtol
+    internalnorm
+    gradient
+    dogleg_step
+    cauchy_direction
+    cauchy_step
+    Jdogleg
+    Jcauchy
+    u_cache
+    fu_cache
+    last_step_accepted::Bool
+    shrink_counter::Int
+    stats::NLStats
+    alg
+    least_squares::Bool
+end
+
+function InternalAPI.reinit!(
+        cache::BoundedTrustRegionSchemeCache; p = cache.p, u0 = nothing, kwargs...
+    )
+    cache.p = p
+    if u0 !== nothing
+        T = promote_type(eltype(u0), eltype(cache.fu_cache))
+        cache.initial_trust_radius = if iszero(cache.alg.initial_trust_radius)
+            min(max(T(cache.internalnorm(u0)), one(T)), cache.max_trust_radius)
+        else
+            min(T(cache.alg.initial_trust_radius), cache.max_trust_radius)
+        end
+    end
+    cache.trust_region = cache.initial_trust_radius
+    cache.last_step_accepted = false
+    cache.shrink_counter = 0
+    return nothing
+end
+
+function _projected_gradient!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
+    cache.gradient = _box_mul!(cache.gradient, transpose(J), fu)
+    @bb @. cache.cauchy_step = -_box_projected_gradient(u, cache.gradient, cache.lb, cache.ub)
+    return _bounded_tr_linf(cache.cauchy_step)
+end
+
+_bounded_tr_linf(x::Number) = abs(x)
+_bounded_tr_linf(x) = maximum(abs, x)
+
+function _trust_region_retcode!(cache::BoundedTrustRegionSchemeCache, J, fu, u)
+    cache.gtol === nothing && return ReturnCode.Default
+    _projected_gradient!(cache, J, fu, u) <= cache.gtol || return ReturnCode.Default
+    return cache.least_squares ? ReturnCode.Success : ReturnCode.Stalled
+end
+
+function InternalAPI.solve!(
+        cache::BoundedTrustRegionSchemeCache, J, fu, u, δu, descent_stats
+    )
+    _projected_gradient!(cache, J, fu, u)
+
+    @bb @. cache.dogleg_step = clamp(u + δu, cache.lb, cache.ub) - u
+    cache.Jdogleg = _box_mul!(cache.Jdogleg, J, cache.dogleg_step)
+    dogleg_model = _box_model_value(
+        cache.Jdogleg, cache.dogleg_step, cache.gradient
+    )
+
+    @bb @. cache.cauchy_direction = ifelse(
+        _box_is_active(u, cache.gradient, cache.lb, cache.ub),
+        zero(eltype(cache.cauchy_direction)), -cache.gradient
+    )
+    direction_norm = cache.internalnorm(cache.cauchy_direction)
+    if iszero(direction_norm)
+        @bb @. cache.cauchy_step = zero(eltype(cache.cauchy_step))
+        @bb @. cache.Jcauchy = zero(eltype(cache.Jcauchy))
+        cauchy_model = zero(dogleg_model)
+    else
+        cache.Jcauchy = _box_mul!(cache.Jcauchy, J, cache.cauchy_direction)
+        curvature = Utils.safe_dot(cache.Jcauchy, cache.Jcauchy)
+        slope = Utils.safe_dot(cache.cauchy_direction, cache.gradient)
+        radius_scale = cache.trust_region / direction_norm
+        α = _box_cauchy_length(slope, curvature, radius_scale)
+        @bb @. cache.cauchy_step =
+            clamp(u + α * cache.cauchy_direction, cache.lb, cache.ub) - u
+        cache.Jcauchy = _box_mul!(cache.Jcauchy, J, cache.cauchy_step)
+        cauchy_model = _box_model_value(
+            cache.Jcauchy, cache.cauchy_step, cache.gradient
+        )
+    end
+
+    if cauchy_model < dogleg_model
+        @bb copyto!(cache.dogleg_step, cache.cauchy_step)
+        @bb copyto!(cache.Jdogleg, cache.Jcauchy)
+        predicted_reduction = -cauchy_model
+    else
+        predicted_reduction = -dogleg_model
+    end
+
+    @bb @. cache.u_cache = u + cache.dogleg_step
+    cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
+    cache.stats.nf += 1
+
+    actual_reduction = (
+        cache.internalnorm(fu)^2 - cache.internalnorm(cache.fu_cache)^2
+    ) / 2
+    finite_residual = cache.fu_cache isa Number ? isfinite(cache.fu_cache) :
+        all(isfinite, cache.fu_cache)
+    ρ = predicted_reduction > 0 && finite_residual ?
+        actual_reduction / predicted_reduction : -one(predicted_reduction)
+    cache.last_step_accepted = ρ > cache.step_threshold && actual_reduction > 0
+
+    cache.trust_region, shrunk = _box_update_radius(
+        cache.trust_region, ρ, cache.internalnorm(cache.dogleg_step), cache.max_trust_radius;
+        shrink_threshold = cache.shrink_threshold, expand_threshold = cache.expand_threshold,
+        shrink_radius = cache.trust_region * cache.shrink_factor,
+        expand_factor = cache.expand_factor
+    )
+    cache.shrink_counter = shrunk ? cache.shrink_counter + 1 : 0
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end

@@ -44,8 +44,9 @@ get_precondition(prob, kwargs) = _conditioning_option(prob, kwargs, :preconditio
     PostconditionSpace
 
 Enum declaring which coordinates a `postcondition` corrector is written in when the
-problem also carries `lb`/`ub` bounds. Bounds are handled by reparameterizing the
-iterate to an unconstrained variable, so the two coordinate systems differ.
+problem also carries `lb`/`ub` bounds. When the algorithm handles bounds by reparameterizing
+the iterate, the original and unconstrained coordinates differ. With native bound handling,
+both choices refer to the original coordinates.
 
   - `PostconditionSpace.Original` (the default, and what a bare corrector gets): `H`
     sees the original bounded variable. The iterate is mapped back through the bounds

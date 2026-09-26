@@ -29,6 +29,18 @@ function _from_unbounded(t, lb, ub)
     end
 end
 
+function _from_unbounded_derivative(t, lb, ub)
+    if isfinite(lb) && isfinite(ub)
+        return (ub - lb) * logistic(t) * logistic(-t)
+    elseif isfinite(lb)
+        return exp(t)
+    elseif isfinite(ub)
+        return -exp(t)
+    else
+        return one(t)
+    end
+end
+
 # Clamp a value into the strict interior of [lb, ub] so that _to_unbounded (logit)
 # doesn't receive 0 or 1, which would give ±Inf. Only applied once to u0 before
 # the initial transform — it's a no-op if u0 is already in the interval.
@@ -67,6 +79,10 @@ function _normalize_bound(bound, fill_value, u0)
     end
 end
 
+function _normalize_bound(bound, fill_value, u0::Number)
+    return convert(typeof(u0), isnothing(bound) ? fill_value : bound)
+end
+
 function _normalize_bounds(lb, ub, u0)
     new_lb = _normalize_bound(lb, -Inf, u0)
     new_ub = _normalize_bound(ub, Inf, u0)
@@ -95,6 +111,55 @@ function _transform_u(w::BoundedWrapper, u)
     return tmp
 end
 
+function _transform_u(w::BoundedWrapper, u::Number)
+    return _from_unbounded(u, w.lb, w.ub)
+end
+
+@concrete struct BoundedDerivative{kind}
+    f
+    wrapper
+end
+
+function _transform_derivative(w, u)
+    return _from_unbounded_derivative.(u, w.lb, w.ub)
+end
+
+function (d::BoundedDerivative{:jac})(u, p)
+    J = d.f(_transform_u(d.wrapper, u), p)
+    scale = _transform_derivative(d.wrapper, u)
+    return scale isa Number ? J * scale : J * Diagonal(vec(scale))
+end
+
+function (d::BoundedDerivative{:jac})(J, u, p)
+    d.f(J, _transform_u(d.wrapper, u), p)
+    scale = _transform_derivative(d.wrapper, u)
+    # Preserve structural zeros when the transform derivative vanishes.
+    LinearAlgebra.rmul!(J, Diagonal(vec(scale)))
+    return J
+end
+
+function (d::BoundedDerivative{:jvp})(v, u, p)
+    scale = _transform_derivative(d.wrapper, u)
+    return d.f(scale .* v, _transform_u(d.wrapper, u), p)
+end
+
+function (d::BoundedDerivative{:jvp})(Jv, v, u, p)
+    scale = _transform_derivative(d.wrapper, u)
+    d.f(Jv, scale .* v, _transform_u(d.wrapper, u), p)
+    return Jv
+end
+
+function (d::BoundedDerivative{:vjp})(v, u, p)
+    Jv = d.f(v, _transform_u(d.wrapper, u), p)
+    return _transform_derivative(d.wrapper, u) .* Jv
+end
+
+function (d::BoundedDerivative{:vjp})(Jv, v, u, p)
+    d.f(Jv, v, _transform_u(d.wrapper, u), p)
+    Jv .*= _transform_derivative(d.wrapper, u)
+    return Jv
+end
+
 function (w::BoundedWrapper{false})(u, p)
     transformed_u = _transform_u(w, u)
     return w.f(transformed_u, p)
@@ -117,15 +182,22 @@ SciMLBase.isinplace(w::BoundedWrapper{iip}) where {iip} = iip
     return wrapped ? cache.prob.f.f : nothing
 end
 
-# Check if bounds transform is needed for a given problem and algorithm.
-function needs_bounds_transform(_prob, alg)
-    return (
-        _prob isa SciMLBase.NonlinearProblem ||
-            _prob isa SciMLBase.NonlinearLeastSquaresProblem
-    ) &&
-        (hasfield(typeof(_prob), :lb) && hasfield(typeof(_prob), :ub)) &&
-        (_prob.lb !== nothing || _prob.ub !== nothing) &&
-        (isnothing(alg) || !SciMLBase.allowsbounds(alg))
+function has_box_bounds(prob)
+    return prob isa Union{SciMLBase.NonlinearProblem, SciMLBase.NonlinearLeastSquaresProblem} &&
+        (prob.lb !== nothing || prob.ub !== nothing)
+end
+
+function prepare_default_bounds(prob, alg)
+    (alg === nothing && has_box_bounds(prob)) || return prob
+    lb = prob.lb === nothing ? -Inf : prob.lb
+    ub = prob.ub === nothing ? Inf : prob.ub
+    u0 = oftype(prob.u0, clamp.(prob.u0, lb, ub))
+    return u0 == prob.u0 ? prob : remake(prob; u0)
+end
+
+# Default algorithm selection needs the original bounds before choosing a transform.
+function needs_bounds_transform(prob, alg)
+    return has_box_bounds(prob) && alg !== nothing && !SciMLBase.allowsbounds(alg)
 end
 
 # Wrap a problem function with bounds into a BoundedWrapper with no bounds. In a
@@ -151,7 +223,9 @@ function transform_bounded_problem(prob, alg)
     # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
     # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
     alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
-    make_u_cache = if alg_ad === nothing || alg_ad isa AutoForwardDiff
+    make_u_cache = if prob.u0 isa Number
+        () -> prob.u0
+    elseif alg_ad === nothing || alg_ad isa AutoForwardDiff
         () -> FixedSizeDiffCache(prob.u0)
     else
         () -> similar(prob.u0)
@@ -172,7 +246,22 @@ function transform_bounded_problem(prob, alg)
     )
 
     new_f = if orig_f isa NonlinearFunction
-        @set orig_f.f = wrapped
+        nf = @set orig_f.f = wrapped
+        if SciMLBase.has_jac(orig_f)
+            nf = @set nf.jac = BoundedDerivative{:jac}(orig_f.jac, wrapped)
+        end
+        if SciMLBase.has_jvp(orig_f)
+            nf = @set nf.jvp = BoundedDerivative{:jvp}(orig_f.jvp, wrapped)
+        end
+        if SciMLBase.has_vjp(orig_f)
+            nf = @set nf.vjp = BoundedDerivative{:vjp}(orig_f.vjp, wrapped)
+        end
+        if SciMLBase.has_paramjac(orig_f)
+            nf = @set nf.paramjac = BoundedWrapper{SciMLBase.isinplace(prob)}(
+                orig_f.paramjac, lb, ub, u_cache, u_prev_cache
+            )
+        end
+        nf
     else
         wrapped
     end

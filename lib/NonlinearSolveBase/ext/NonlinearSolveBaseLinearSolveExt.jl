@@ -57,6 +57,8 @@ function NonlinearSolveBase.default_spd_linsolve(::Symmetric{<:Real})
     return LinearSolve.CholeskyFactorization()
 end
 
+_robust_sparse_qr() = LinearSolve.SparseColumnPivotedQRFactorization()
+
 function NonlinearSolveBase.needs_concrete_A(linsolve::SciMLLinearSolveAlgorithm)
     return LinearSolve.needs_concrete_A(linsolve)
 end

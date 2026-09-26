@@ -50,6 +50,14 @@ end
 
 SciMLBase.unwrapped_f(f::ParameterDespecializationWrapper) = SciMLBase.unwrapped_f(f.f)
 
+# Both wrappers forward through a single `(args...)` method, which `SciMLBase.numargs`
+# would report as arity 1. Reporting the wrapped function's arity keeps
+# `SciMLBase.isinplace` on its arity fast path instead of the method-table introspection
+# fallback, which Enzyme cannot differentiate through when a wrapped problem is `remake`d
+# inside reverse-mode AD.
+SciMLBase.numargs(f::ParameterDespecializationWrapper) = SciMLBase.numargs(f.f)
+SciMLBase.numargs(f::AutoSpecializeCallable) = SciMLBase.numargs(f.orig)
+
 _wrap_parameter_callback(::Nothing) = nothing
 _wrap_parameter_callback(f::ParameterDespecializationWrapper) = f
 _wrap_parameter_callback(f) = ParameterDespecializationWrapper(f)
@@ -62,22 +70,22 @@ function _map_parameter_callbacks(transform, f, residual = f.f)
         SciMLBase.isinplace(f), SciMLBase.specialization(f),
     }(
         residual;
-        mass_matrix = f.mass_matrix,
+        f.mass_matrix,
         analytic = transform(f.analytic),
         tgrad = transform(f.tgrad),
         jac = transform(f.jac),
         jvp = transform(f.jvp),
         vjp = transform(f.vjp),
-        jac_prototype = f.jac_prototype,
-        sparsity = f.sparsity,
+        f.jac_prototype,
+        f.sparsity,
         Wfact = transform(f.Wfact),
         Wfact_t = transform(f.Wfact_t),
         paramjac = transform(f.paramjac),
         observed = transform(f.observed),
-        colorvec = f.colorvec,
-        sys = f.sys,
-        resid_prototype = f.resid_prototype,
-        initialization_data = f.initialization_data
+        f.colorvec,
+        f.sys,
+        f.resid_prototype,
+        f.initialization_data
     )
 end
 

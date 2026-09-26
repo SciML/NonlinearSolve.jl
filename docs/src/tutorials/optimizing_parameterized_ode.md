@@ -17,6 +17,7 @@ function lotka_volterra!(du, u, p, t)
     α, β, δ, γ = p
     du[1] = dx = α * x - β * x * y
     du[2] = dy = -δ * y + γ * x * y
+    return
 end
 
 # Initial condition
@@ -55,7 +56,8 @@ Now, we can use any NLLS solver to solve this problem.
 ```@example parameterized_ode
 res = NLS.solve(
     nlls_prob, NLS.LevenbergMarquardt(); maxiters = 1000, show_trace = Val(true),
-    trace_level = NLS.TraceWithJacobianConditionNumber(25))
+    trace_level = NLS.TraceWithJacobianConditionNumber(25)
+)
 nothing # hide
 ```
 
@@ -66,8 +68,10 @@ res
 We can also use Trust Region methods.
 
 ```@example parameterized_ode
-res = NLS.solve(nlls_prob, NLS.TrustRegion(); maxiters = 1000, show_trace = Val(true),
-    trace_level = NLS.TraceWithJacobianConditionNumber(25))
+res = NLS.solve(
+    nlls_prob, NLS.TrustRegion(); maxiters = 1000, show_trace = Val(true),
+    trace_level = NLS.TraceWithJacobianConditionNumber(25)
+)
 nothing # hide
 ```
 

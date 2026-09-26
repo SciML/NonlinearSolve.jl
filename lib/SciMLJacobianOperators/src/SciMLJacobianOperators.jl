@@ -40,8 +40,10 @@ A Jacobian Operator Provides both JVP and VJP without materializing either (if p
 ### Constructor
 
 ```julia
-JacobianOperator(prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
-    vjp_autodiff = nothing, skip_vjp::Val = Val(false), skip_jvp::Val = Val(false))
+JacobianOperator(
+    prob::AbstractNonlinearProblem, fu, u; jvp_autodiff = nothing,
+    vjp_autodiff = nothing, skip_vjp::Val = Val(false), skip_jvp::Val = Val(false)
+)
 ```
 
 By default, the `JacobianOperator` will compute `JVP`. Use `Base.adjoint` or

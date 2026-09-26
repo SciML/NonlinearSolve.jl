@@ -17,7 +17,7 @@ algs = (
 
 for alg in algs
     cache = init(prob, alg; abstol = 0.0)
-    @test reinit!(cache, prob.u0; p = prob.p, abstol = 1.0e-10) === cache
+    @test reinit!(cache, prob.u0; prob.p, abstol = 1.0e-10) === cache
     sol = solve!(cache)
     @test SciMLBase.successful_retcode(sol)
     @test sol.u[1] ≈ 2.0 atol = 1.0e-10

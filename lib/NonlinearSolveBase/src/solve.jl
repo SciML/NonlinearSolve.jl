@@ -5,7 +5,7 @@ end
 
 """
 ```julia
-solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm,Nothing}; kwargs...)
+solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm, Nothing}; kwargs...)
 ```
 
 ## Arguments
@@ -51,9 +51,9 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
-  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
-  reparameterization of `u`, and `H` is applied in the original bounded variable by
-  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  Native bounded algorithms apply `H` in the original coordinates. When an explicitly
+  selected algorithm uses an unconstrained reparameterization for `lb`/`ub`, `H` is
+  still applied in the original bounded variable by default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
   `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
   applies it to the unconstrained iterate instead.
 
@@ -150,10 +150,10 @@ function solve_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         solve_call(_prob, args...; kwargs...)
     else
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # use alg for improved inference
         if length(args) > 1
             solve_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -177,6 +177,8 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     # Compose the nonlinear preconditioning options. Done here (in addition to the
     # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
@@ -276,7 +278,7 @@ function init_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
         tstops = get(kwargs, :tstops, nothing)
@@ -287,7 +289,7 @@ function init_up(
                 !SciMLBase.allows_late_binding_tstops(alg)
             throw(LateBindingTstopsNotSupportedError())
         end
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # alg for improved inference
         if length(args) > 1
             init_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -310,6 +312,8 @@ function init_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     alg = length(args) > 0 ? args[1] : nothing
 
@@ -417,11 +421,13 @@ function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_boun
     # BoundedWrapper, map the solution back from unbounded to bounded space.
     if transform_bounds && _has_bounded_wrapper(cache)
         bw = cache.prob.f.f
-        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+        u, u0 = sol.u, sol.prob.u0
+        @bb @. u = _from_unbounded(u, bw.lb, bw.ub)
+        @bb @. u0 = _from_unbounded(u0, bw.lb, bw.ub)
+        @set! sol.u = u
 
         # Reset the problem to the original fields that were overwritten
-        @set! sol.prob = remake(sol.prob; f = bw.f, lb = bw.lb, ub = bw.ub)
-        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub, u0)
     end
 
     return sol
@@ -497,9 +503,9 @@ end
                 return build_solution_less_specialize(
                     cache.prob, cache.alg, u,
                     $(Utils.evaluate_f)(cache.prob, u)::_fuType;
-                    retcode = cache.retcode, stats = cache.stats,
+                    cache.retcode, cache.stats,
                     trace = (cache.caches[1].trace::_traceType),
-                    store_original = cache.alg.store_original
+                    cache.alg.store_original
                 )
             end
         end
@@ -617,7 +623,7 @@ end
             return build_solution_less_specialize(
                 cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
                 retcode, cache.stats, trace = _trace,
-                store_original = cache.alg.store_original
+                cache.alg.store_original
             )
         end
     )
@@ -759,7 +765,7 @@ end
                 return build_solution_less_specialize(
                     prob, alg, u, $(Utils.evaluate_f)(prob, u);
                     retcode = $(ReturnCode.InitialFailure),
-                    store_original = alg.store_original
+                    alg.store_original
                 )
             end
         end
@@ -785,7 +791,7 @@ end
                     end
                     $(cur_sol) = SciMLBase.__solve(
                         $(prob_syms[i]), alg.algs[$(i)], args...;
-                        stats, alias_u0, verbose, kwargs...
+                        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
                             $(cur_sol).retcode !== ReturnCode.StalledSuccess
@@ -799,7 +805,7 @@ end
                             prob, alg, $(u_result_syms[i]), $(cur_sol).resid;
                             $(cur_sol).retcode, $(cur_sol).stats,
                             $(cur_sol).trace, original = $(cur_sol),
-                            store_original = alg.store_original
+                            alg.store_original
                         )
                     elseif alias_u0
                         # For safety we need to maintain a copy of the solution
@@ -838,7 +844,7 @@ end
                         prob, alg, $(u_result_syms[i]), $(sol_syms[i]).resid;
                         $(sol_syms[i]).retcode, $(sol_syms[i]).stats,
                         $(sol_syms[i]).trace, original = $(sol_syms[i]),
-                        store_original = alg.store_original
+                        alg.store_original
                     )
                 end
             end
@@ -1031,7 +1037,12 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end
-    return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
+    # The initialization pipeline already ran during `init`; the inner solve must
+    # not run it a second time.
+    return CommonSolve.solve(
+        cache.prob, cache.alg, cache.args...;
+        initializealg = SciMLBase.NoInit(), cache.kwargs...
+    )
 end
 
 
@@ -1044,7 +1055,7 @@ function _solve_adjoint(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
     # The inner sensitivity calculation needs the concrete parameter layout to
     # differentiate non-Tunable SciMLStructure fields. The outer AD rules restore
@@ -1082,7 +1093,7 @@ function _solve_forward(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
     if has_kwargs(_prob)
         # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
@@ -1129,7 +1140,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1142,7 +1153,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1150,7 +1161,7 @@ function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, prob.p, nothing)
     p = get_concrete_p(prob, kwargs)
-    prob = remake(prob; u0 = u0, p = p)
+    prob = remake(prob; u0, p)
     return maybe_wrap_f(prob)
 end
 
@@ -1163,7 +1174,7 @@ function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, Inf, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p)
+    return remake(prob; u0, p)
 end
 
 

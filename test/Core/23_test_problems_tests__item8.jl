@@ -11,5 +11,10 @@ broken_tests = Dict(alg => Int[] for alg in alg_ops)
 broken_tests[alg_ops[1]] = [1, 2, 4, 5, 11, 18, 22]
 broken_tests[alg_ops[2]] = [2, 4, 5, 7, 18, 22]
 broken_tests[alg_ops[3]] = [1, 2, 4, 5, 11, 22]
+# Klement(true_jacobian_diagonal) residual ~1.5e-3 on problem 12 under Float64/i686
+# (x64 stays within 1e-4). Mark broken only on 32-bit.
+if Sys.WORD_SIZE != 64
+    push!(broken_tests[alg_ops[2]], 12)
+end
 
 test_on_library(problems, dicts, alg_ops, broken_tests)

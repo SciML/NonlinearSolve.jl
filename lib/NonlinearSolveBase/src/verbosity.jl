@@ -36,7 +36,7 @@ Create a `NonlinearVerbosity` using a preset configuration:
 - `SciMLLogging.Detailed()`: Comprehensive debugging information
 - `SciMLLogging.All()`: Maximum verbosity
 
-    NonlinearVerbosity(; error_control=nothing, numerical=nothing, sensitivity=nothing, linear_verbosity=nothing, kwargs...)
+    NonlinearVerbosity(; error_control = nothing, numerical = nothing, sensitivity = nothing, linear_verbosity = nothing, kwargs...)
 
 Create a `NonlinearVerbosity` with group-level or individual field control.
 

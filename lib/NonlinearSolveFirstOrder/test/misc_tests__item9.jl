@@ -244,8 +244,15 @@ end
     rejection_prob = NonlinearProblem(
         NonlinearFunction((u, p) -> u^3 - p; jac = (u, p) -> 3u^2), 0.5, 2.0
     )
+    # pinned to the Dogleg subproblem: the step-by-step assertions below encode its
+    # accept/accept/reject trajectory (under the Moré default the second step is
+    # already rejected, shifting the whole sequence by one iteration)
     rejection_cache = init(
-        rejection_prob, TrustRegion(jacobian_reuse = REUSE_WHILE_IMPROVING);
+        rejection_prob,
+        TrustRegion(;
+            subproblem = TrustRegionSubproblem.Dogleg,
+            jacobian_reuse = REUSE_WHILE_IMPROVING
+        );
         abstol = 1.0e-14, reltol = 1.0e-14
     )
     step!(rejection_cache)

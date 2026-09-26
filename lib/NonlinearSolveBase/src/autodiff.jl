@@ -207,6 +207,26 @@ is_finite_differences_backend(::ADTypes.AutoFiniteDiff) = true
 is_finite_differences_backend(::ADTypes.AutoFiniteDifferences) = true
 
 function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
+    gradient = nlls_generate_gradient_function(prob, sol, uu)
+    prob.lb === nothing && prob.ub === nothing && return gradient
+    lb = something(prob.lb, -Inf)
+    ub = something(prob.ub, Inf)
+    # The projected stationarity equation includes the active-bound KKT conditions.
+    if SciMLBase.isinplace(prob)
+        return @closure (du, u, p) -> begin
+            gradient(du, u, p)
+            @. du = u - clamp(u - du, lb, ub)
+            return nothing
+        end
+    else
+        return @closure (u, p) -> begin
+            g = gradient(u, p)
+            return @. u - clamp(u - g, lb, ub)
+        end
+    end
+end
+
+function nlls_generate_gradient_function(prob::NonlinearLeastSquaresProblem, sol, uu)
     # First check for custom `vjp` then custom `Jacobian` and if nothing is provided use
     # nested autodiff as the last resort
     return if SciMLBase.has_vjp(prob.f)
@@ -225,7 +245,8 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 u, p,
             ) -> begin
                 resid = prob.f(u, p)
-                return reshape(2 .* prob.f.vjp(resid, u, p), size(u))
+                g = 2 .* prob.f.vjp(resid, u, p)
+                return u isa Number ? g : reshape(g, size(u))
             end
         end
     elseif SciMLBase.has_jac(prob.f)
@@ -245,7 +266,10 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 u,
                 p,
             ) -> begin
-                return reshape(2 .* vec(prob.f(u, p))' * prob.f.jac(u, p), size(u))
+                resid = prob.f(u, p)
+                J = prob.f.jac(u, p)
+                u isa Number && return 2 * LinearAlgebra.dot(J, resid)
+                return reshape(2 .* vec(resid)' * J, size(u))
             end
         end
     else
@@ -278,6 +302,10 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 end
             else
                 return @closure (u, p) -> begin
+                    if u isa Number
+                        J = DI.derivative(Base.Fix2(raw_f, p), autodiff, u)
+                        return 2 * LinearAlgebra.dot(J, raw_f(u, p))
+                    end
                     J = DI.jacobian(Base.Fix2(raw_f, p), autodiff, u)
                     return 2 .* (J' * raw_f(u, p))
                 end
@@ -305,5 +333,99 @@ function nlls_generate_vjp_function(prob::NonlinearLeastSquaresProblem, sol, uu)
                 return res
             end
         end
+    end
+end
+
+implicit_sensitivity_solve(A::Number, B) = A \ B
+
+function implicit_sensitivity_solve(A, B)
+    Utils.is_extension_loaded(Val(:LinearSolve)) || return A \ B
+
+    T = promote_type(typeof(oneunit(eltype(A)) / oneunit(eltype(A))), eltype(B))
+    u = similar(B, T, size(B))
+    lincache = construct_linear_solver(
+        nothing, nothing, A, B, u, nothing;
+        stats = SciMLBase.NLStats(0, 0, 0, 0, 0), verbose = false
+    )
+    linres = lincache()
+    linres.success || error("Linear solve failed while differentiating a nonlinear solve.")
+    return linres.u
+end
+
+"""
+    nlls_solve_adjoint_dp(prob, sol, p, Δu, save_idxs)
+
+Parameter cotangent `dp = -(∂G/∂p)' · (∂G/∂u)⁻ᵀ · Δu` for the solution `u*` of a
+`NonlinearLeastSquaresProblem`, computed by implicit differentiation of the
+(projected) stationarity equation `G(u*, p) = 0` built by
+[`nlls_generate_vjp_function`](@ref). For problems with `lb`/`ub` bounds this
+includes the active-bound KKT conditions: components pinned at a bound have zero
+sensitivity while free components satisfy the constrained stationarity system.
+
+`Δu` is the incoming cotangent of `sol.u`. `save_idxs` restricts the sensitivity to
+a subset of the state components, matching the `save_idxs` solve keyword.
+"""
+function nlls_solve_adjoint_dp(prob::NonlinearLeastSquaresProblem, sol, p, Δu, save_idxs)
+    # Unwrap AutoSpecializeCallable so the generated stationarity function and the
+    # nested differentiation below see the raw callable.
+    ad_prob = is_fw_wrapped(prob.f.f) ? @set(prob.f.f = get_raw_f(prob.f.f)) : prob
+    G = nlls_generate_vjp_function(ad_prob, sol, sol.u)
+    # Prefer ForwardDiff: it composes cleanly with the nested derivative
+    # `nlls_generate_gradient_function` may perform internally.
+    autodiff = DI.check_available(AutoForwardDiff()) ? AutoForwardDiff() :
+        select_jacobian_autodiff(ad_prob, nothing)
+
+    u = sol.u
+    G_u = if SciMLBase.isinplace(ad_prob)
+        @closure u_ -> begin
+            du = Utils.safe_similar(u_, length(u_))
+            G(du, u_, p)
+            return du
+        end
+    else
+        Base.Fix2(G, p)
+    end
+    J_u = u isa Number ? DI.derivative(G_u, autodiff, u) :
+        DI.jacobian(G_u, autodiff, u)
+
+    G_p = if SciMLBase.isinplace(ad_prob)
+        @closure p_ -> begin
+            du = Utils.safe_similar(
+                u, promote_type(eltype(u), eltype(p_)), length(u)
+            )
+            G(du, u, p_)
+            return du
+        end
+    else
+        Base.Fix1(G, u)
+    end
+    J_p = if p isa Number
+        DI.derivative(G_p, autodiff, p)
+    elseif u isa Number
+        DI.gradient(G_p, autodiff, p)
+    else
+        DI.jacobian(G_p, autodiff, p)
+    end
+
+    dseed = if u isa Number
+        Δu isa AbstractArray ? only(Δu) : Δu
+    elseif save_idxs === nothing
+        vec(Δu)
+    else
+        d = zeros(eltype(Δu), length(u))
+        d[save_idxs] = Δu isa AbstractArray ? vec(Δu) : Δu
+        d
+    end
+    λ = implicit_sensitivity_solve(J_u', dseed)
+
+    return if p isa Number
+        λv = λ isa Number ? λ : vec(λ)
+        J_p isa Number ? -(J_p * λv) :
+            -LinearAlgebra.dot(vec(J_p), λv isa Number ? [λv] : λv)
+    elseif u isa Number
+        λs = λ isa Number ? λ : only(λ)
+        Utils.safe_reshape(-(λs .* vec(J_p)), size(p))
+    else
+        Utils.safe_reshape(-(J_p' * vec(λ)), size(p))
     end
 end
