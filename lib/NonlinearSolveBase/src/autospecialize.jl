@@ -101,11 +101,12 @@ end
 function _unwrap_despecialized_problem(prob)
     p = SciMLBase.unwrap_parameters(prob.p)
     residual = _unwrap_parameter_callback(get_raw_f(prob.f.f))
-    # Not `AutoDespecialize`: the unwrapped problem carries the concrete parameters, and
-    # `_despecialize_parameters` must not wrap them again when the sensitivity code
-    # concretizes it a second time.
+    # `FullSpecialize`: the adjoint and Enzyme paths need the raw callables and the
+    # concrete parameters. When the sensitivity code concretizes this problem a second
+    # time, neither `_despecialize_parameters` nor `maybe_wrap_nonlinear_f` may wrap
+    # them again, which `AutoDespecialize` and `AutoSpecialize` would.
     f = _map_parameter_callbacks(
-        _unwrap_parameter_callback, prob.f, residual, SciMLBase.AutoSpecialize
+        _unwrap_parameter_callback, prob.f, residual, SciMLBase.FullSpecialize
     )
     return SciMLBase.remake(prob; f, p)
 end

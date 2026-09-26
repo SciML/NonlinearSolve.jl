@@ -125,16 +125,30 @@ end
     end
 end
 
-@testset "unwrapped problem keeps concrete parameters" begin
-    prob = NonlinearSolveBase.get_concrete_problem(dynamic_problem(DynamicParameters(2.0)))
-    unwrapped = NonlinearSolveBase._unwrap_despecialized_problem(prob)
-    @test unwrapped.p isa DynamicParameters
-    @test unwrapped.f.f === dynamic_residual!
-    @test unwrapped.f.jac === dynamic_jacobian!
-    # The adjoint path concretizes the unwrapped problem again.
-    reconcretized = NonlinearSolveBase.get_concrete_problem(unwrapped)
-    @test reconcretized.p isa DynamicParameters
-    @test reconcretized.f.jac === dynamic_jacobian!
+function vector_residual!(resid, u, p)
+    resid[1] = u[1]^2 - p[1]
+    return nothing
+end
+
+@testset "unwrapped problem keeps concrete parameters and raw callables" begin
+    # Under `AutoSpecialize`, concretization would wrap the residual again for either
+    # parameter type; `AutoDespecialize` would also wrap the parameters.
+    for (residual, jac, p) in (
+            (dynamic_residual!, dynamic_jacobian!, DynamicParameters(2.0)),
+            (vector_residual!, nothing, [2.0]),
+        )
+        f = NonlinearFunction{true, SciMLBase.AutoDespecialize}(residual; jac)
+        prob = NonlinearSolveBase.get_concrete_problem(NonlinearProblem(f, [1.0], p))
+        unwrapped = NonlinearSolveBase._unwrap_despecialized_problem(prob)
+        @test unwrapped.p isa typeof(p)
+        @test unwrapped.f.f === residual
+        @test unwrapped.f.jac === jac
+        # The adjoint path concretizes the unwrapped problem again.
+        reconcretized = NonlinearSolveBase.get_concrete_problem(unwrapped)
+        @test reconcretized.p isa typeof(p)
+        @test reconcretized.f.f === residual
+        @test reconcretized.f.jac === jac
+    end
 end
 
 @testset "other specialization policies retain concrete parameters" begin
