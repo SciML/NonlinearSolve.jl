@@ -1559,8 +1559,8 @@ function InternalAPI.solve!(
     # Moré's safeguarded Newton iteration on the damping parameter (MINPACK `lmpar`):
     # λ* ∈ (0, u₀] with u₀ = ‖D⁻¹ Jᵀfu‖ / Δ, since ‖D δu(λ)‖ ≤ ‖D⁻¹ Jᵀfu‖ / λ.
     # Both loops leave λ* in `cache.λ` and return whether a step was produced.
-    @static_timeit cache.timer "more iteration" begin
-        got_step = if (lincache = cache.lincache) isa _MoreLmparWorkspace
+    got_step = @static_timeit cache.timer "more iteration" begin
+        if (lincache = cache.lincache) isa _MoreLmparWorkspace
             if lincache.gram
                 _more_gram_λloop!(cache, lincache, Jᵀfu, fu, dtd, trust_region)
             else
@@ -1574,18 +1574,11 @@ function InternalAPI.solve!(
         end
     end
 
-    # Host path matches master (early returns, concrete Bool success). Branchless
-    # select/ifelse fallthrough is compile-only so Trim/JET does not see it.
-    if ReactantCore.within_compile()
-        λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
-        got_step = ifelse(got_step, true, accept_gn)
-        p = select(accept_gn, gn_step, cache.p)
-        δu = select(got_step, Utils.restructure(δu, p), δu)
-        set_du!(cache, δu, idx)
-        extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
-        extras = map((x, empty) -> ifelse(got_step, x, empty), extras, empty_extras)
-        return DescentResult(δu, missing, got_step, got_step, extras)
-    end
+    # Host path matches master. Compile fallthrough is a helper so Trim/JET does
+    # not see select/ifelse or boxed locals from that branch.
+    ReactantCore.within_compile() && return _more_solve_traced_finalize!(
+        cache, J_, gn_step, δu, dtd, idx, T, empty_extras, accept_gn, got_step
+    )
 
     λ_of_p = cache.λ
     if !got_step
@@ -1596,6 +1589,19 @@ function InternalAPI.solve!(
     set_du!(cache, δu, idx)
     extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
     return DescentResult(δu, missing, true, true, extras)
+end
+
+function _more_solve_traced_finalize!(
+        cache, J_, gn_step, δu, dtd, idx, T, empty_extras, accept_gn, got_step
+    )
+    λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
+    got_step = ifelse(got_step, true, accept_gn)
+    p = select(accept_gn, gn_step, cache.p)
+    δu = select(got_step, Utils.restructure(δu, p), δu)
+    set_du!(cache, δu, idx)
+    extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
+    extras = map((x, empty) -> ifelse(got_step, x, empty), extras, empty_extras)
+    return DescentResult(δu, missing, got_step, got_step, extras)
 end
 
 # Undamped `min ‖Jp + fu‖` — the `λ = 0` augmented system. Normal form instead

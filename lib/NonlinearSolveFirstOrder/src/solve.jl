@@ -464,13 +464,20 @@ function InternalAPI.step!(
 
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-    α = NonlinearSolveBase.maybe_traced(false)
-    ReactantCore.@trace track_numbers = false if descent_result.success
-        α = _perform_first_order_step!(
+    # `@trace if` expands to closures that box locals; keep it off the host path so
+    # Trim/JET see ordinary branching. Under compile, success is a traced Bool.
+    α = if ReactantCore.within_compile()
+        _step_after_descent_traced!(
+            cache, J, δu, descent_intermediates, descent_result.success,
+            has_forcing, defer_residual, policy_driven
+        )
+    elseif descent_result.success
+        _perform_first_order_step!(
             cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
         )
     else
         _reject_first_order_descent!(cache)
+        false
     end
     # The line search asked for a retry on a fresh Jacobian; that step already finished.
     α === nothing && return
@@ -481,6 +488,21 @@ function InternalAPI.step!(
     NonlinearSolveBase.callback_into_cache!(cache)
 
     return nothing
+end
+
+function _step_after_descent_traced!(
+        cache, J, δu, descent_intermediates, success,
+        has_forcing, defer_residual, policy_driven
+    )
+    α = NonlinearSolveBase.maybe_traced(false)
+    ReactantCore.@trace track_numbers = false if success
+        α = _perform_first_order_step!(
+            cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
+        )
+    else
+        _reject_first_order_descent!(cache)
+    end
+    return α
 end
 
 function _reject_first_order_descent!(cache)
