@@ -310,8 +310,10 @@ function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
 end
 function initial_jacobian_scaling_alpha(::Nothing, u, fu, internalnorm::F) where {F}
     fu_norm = internalnorm(fu)
-    fu_norm < 1.0e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
-    return (2 * fu_norm) / max(L2_NORM(u), true)
+    α_small = initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
+    α_large = (2 * fu_norm) / max(L2_NORM(u), true)
+    # `ifelse` keeps a single path when `fu_norm` is a traced Bool predicate.
+    return ifelse(fu_norm < 1.0e-5, α_small, α_large)
 end
 
 make_identity!!(::T, α) where {T <: Number} = T(α)

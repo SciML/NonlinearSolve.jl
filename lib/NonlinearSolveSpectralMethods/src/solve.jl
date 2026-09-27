@@ -167,11 +167,12 @@ function SciMLBase.__init(
 
         if alg.σ_1 === nothing
             σ_n = Utils.safe_dot(u, u) / Utils.safe_dot(u, fu)
-            # Spectral parameter bounds check
-            if !(alg.σ_min ≤ abs(σ_n) ≤ alg.σ_max)
-                test_norm = NonlinearSolveBase.L2_NORM(fu)
-                σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
-            end
+            # Spectral parameter bounds check (`&` / `ifelse`: σ_n may be traced)
+            abs_σ = abs(σ_n)
+            in_bounds = (alg.σ_min ≤ abs_σ) & (abs_σ ≤ alg.σ_max)
+            test_norm = NonlinearSolveBase.L2_NORM(fu)
+            σ_clamped = clamp(inv(test_norm), T(1), T(1.0e5))
+            σ_n = ifelse(in_bounds, σ_n, σ_clamped)
         else
             σ_n = T(alg.σ_1)
         end
