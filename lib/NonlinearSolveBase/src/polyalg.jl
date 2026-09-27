@@ -426,13 +426,19 @@ function build_solution_less_specialize(
         right = nothing, stats = nothing, trace = nothing,
         store_original::Val = Val(false), kwargs...
     )
+    # Reactant cannot rebuild `Base.Pairs` keyword bags on the problem.
+    stored_prob = ReactantCore.within_compile() ? nothing : prob
+    stored_stats = ReactantCore.within_compile() ? nothing : stats
+    stored_trace = ReactantCore.within_compile() ? nothing : trace
     if store_original isa Val{true}
         return less_specialized_solution(
-            Any, u, resid, prob, alg, retcode, original, left, right, stats, trace
+            Any, u, resid, stored_prob, alg, retcode, original, left, right,
+            stored_stats, stored_trace
         )
     end
     return less_specialized_solution(
-        Nothing, u, resid, prob, alg, retcode, nothing, left, right, stats, trace
+        Nothing, u, resid, stored_prob, alg, retcode, nothing, left, right,
+        stored_stats, stored_trace
     )
 end
 

@@ -639,49 +639,7 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm,
         args...; kwargs...
     )
-    ReactantCore.within_compile() && return _traced_polysolve(prob, alg, args...; kwargs...)
     return __generated_polysolve(prob, alg, args...; kwargs...)
-end
-
-# Under Reactant every algorithm of the polyalgorithm is compiled; at run time a later one
-# only executes when none of the earlier ones succeeded, and the smallest residual seen is
-# kept as the fallback, mirroring `__generated_polysolve`. The splat is not called `args`:
-# `ReactantCore.@trace if` binds its captured variables through a parameter of that name.
-function _traced_polysolve(
-        prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, solve_args...;
-        initializealg = NonlinearSolveDefaultInit(), kwargs...
-    ) where {N}
-    prob, success = run_initialization!(prob, initializealg, prob)
-    if !success
-        u = SII.state_values(prob)
-        return SciMLBase.build_solution(
-            prob, alg, u, Utils.evaluate_f(prob, u); retcode = ReturnCode.InitialFailure
-        )
-    end
-    sol = SciMLBase.__solve(prob, alg.algs[alg.start_index], solve_args...; kwargs...)
-    u, resid, retcode = sol.u, sol.resid, sol.retcode
-    best_norm = _poly_resid_norm(prob, resid)
-    done = _poly_success(retcode)
-    for i in (alg.start_index + 1):N
-        alg_i = alg.algs[i]
-        # The branch assigns only the loop state: a solution object as branch output would
-        # have to be materialized for the untaken side as well.
-        ReactantCore.@trace track_numbers = false if !done
-            u, resid, retcode, best_norm, done = _traced_polysolve_member(
-                prob, alg_i, solve_args, kwargs, u, resid, retcode, best_norm
-            )
-        end
-    end
-    return build_nonlinear_solution(prob, alg, u, resid; retcode)
-end
-
-function _traced_polysolve_member(prob, alg, solve_args, kwargs, u, resid, retcode, best_norm)
-    sol = SciMLBase.__solve(prob, alg, solve_args...; kwargs...)
-    success = _poly_success(sol.retcode)
-    resid_norm = _poly_resid_norm(prob, sol.resid)
-    better = success | (resid_norm < best_norm)
-    return select(better, sol.u, u), select(better, sol.resid, resid),
-        ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm), success
 end
 
 function _poly_success(retcode)
@@ -694,6 +652,92 @@ function _poly_resid_norm(prob::AbstractNonlinearProblem, resid)
     fx = prob isa NonlinearLeastSquaresProblem ? sqrt(sum(abs2, resid)) :
         maximum(abs, resid)
     return ifelse(isnan(fx), oftype(fx, Inf), fx)
+end
+
+# Compile fallthrough for `__generated_polysolve`: same member chain and
+# `store_original` handling as the host early-return path. Entered only through
+# `within_compile()` inside that generated driver (not a separate `__solve`).
+function _polysolve_compile_path(
+        prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}},
+        solve_args...;
+        stats = NLStats(0, 0, 0, 0, 0),
+        alias = NonlinearAliasSpecifier(alias_u0 = false),
+        verbose = NonlinearVerbosity(),
+        initializealg = NonlinearSolveDefaultInit(),
+        kwargs...
+    ) where {N}
+    alias_u0 = alias isa NonlinearAliasSpecifier ? alias.alias_u0 : false
+    if alias_u0 && !ArrayInterface.ismutable(prob.u0)
+        alias_u0 = false
+    end
+    # Heterogeneous member `NonlinearSolution` types cannot be `select`ed under
+    # Reactant when `store_original=Val(true)` needs the winning member payload.
+    if alg.store_original isa Val{true} && N > 1
+        throw(
+            ArgumentError(
+                "NonlinearSolvePolyAlgorithm with store_original=Val(true) and more \
+                 than one member is not supported under Reactant compilation; use a \
+                 single-member polyalgorithm or store_original=Val(false)."
+            )
+        )
+    end
+
+    prob, success = run_initialization!(prob, initializealg, prob)
+    if !success
+        u = SII.state_values(prob)
+        return build_solution_less_specialize(
+            prob, alg, u, Utils.evaluate_f(prob, u);
+            retcode = ReturnCode.InitialFailure, alg.store_original
+        )
+    end
+
+    u0 = prob.u0
+    u0_aliased = alias_u0 ? zero(u0) : u0
+    member_prob = if alias_u0
+        copyto!(u0_aliased, u0)
+        SciMLBase.remake(prob; u0 = u0_aliased)
+    else
+        prob
+    end
+    best_sol = SciMLBase.__solve(
+        member_prob, alg.algs[alg.start_index], solve_args...;
+        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+    )
+    u, resid, retcode = best_sol.u, best_sol.resid, best_sol.retcode
+    best_norm = _poly_resid_norm(prob, resid)
+    done = _poly_success(retcode)
+    # The splat is not called `args`: `@trace if` captures that name as a parameter.
+    for i in (alg.start_index + 1):N
+        alg_i = alg.algs[i]
+        ReactantCore.@trace track_numbers = false if !done
+            member_prob_i = if alias_u0
+                copyto!(u0_aliased, u0)
+                SciMLBase.remake(prob; u0 = u0_aliased)
+            else
+                prob
+            end
+            sol_i = SciMLBase.__solve(
+                member_prob_i, alg_i, solve_args...;
+                stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+            )
+            success_i = _poly_success(sol_i.retcode)
+            resid_norm = _poly_resid_norm(prob, sol_i.resid)
+            better = success_i | (resid_norm < best_norm)
+            u = select(better, sol_i.u, u)
+            resid = select(better, sol_i.resid, resid)
+            retcode = ifelse(better, sol_i.retcode, retcode)
+            best_norm = ifelse(better, resid_norm, best_norm)
+            done = success_i
+        end
+    end
+    if alias_u0
+        copyto!(u0, u)
+        u = u0
+    end
+    return build_solution_less_specialize(
+        prob, alg, u, resid;
+        retcode, original = best_sol, alg.store_original
+    )
 end
 
 function SciMLBase.__solve(
@@ -746,6 +790,11 @@ end
     u_result_syms = [gensym("u_result") for _ in 1:N]
     calls = [
         quote
+            # One `__solve` entry: host early-returns below; compile uses the
+            # same options/`store_original` via `_polysolve_compile_path`.
+            ReactantCore.within_compile() && return _polysolve_compile_path(
+                prob, alg, args...; stats, alias, verbose, initializealg, kwargs...
+            )
             alias_u0 = alias.alias_u0
             current = alg.start_index
             if alias_u0 && !ArrayInterface.ismutable(prob.u0)
