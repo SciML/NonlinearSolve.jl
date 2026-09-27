@@ -93,9 +93,6 @@ end
 # `u_cache` is the residual-evaluation temporary (and the postcondition `u` buffer);
 # `u_prev_cache` is a second temporary so the original-space postcondition path can map
 # both the proposed and previous iterates without allocating.
-# Enzyme backends set both to `nothing` so residual evaluations allocate a fresh mapped
-# state (writes into a Const-captured buffer are invisible to Enzyme); `_bounds_tmp`
-# then allocates for the in-place postcondition path as well.
 @concrete struct BoundedWrapper{isinplace}
     f
     lb
@@ -226,9 +223,7 @@ function transform_bounded_problem(prob, alg)
     # PreallocationTools is only supported by ForwardDiff so we only use
     # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
     # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
-    # Enzyme must not reuse a mapped-state buffer: ADTypes marks the residual
-    # closure Const, so in-place writes into a captured array vanish from the
-    # Jacobian (issue #1288). A `nothing` cache forces a fresh allocation per call.
+    # Enzyme gets no cache: the residual closure is Const, so writes into a captured buffer are invisible to Enzyme.
     alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
     make_u_cache = if prob.u0 isa Number
         () -> prob.u0

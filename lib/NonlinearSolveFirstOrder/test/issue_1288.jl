@@ -15,8 +15,6 @@ const exact_u = [sqrt(2), 0.25]
         problem, LevenbergMarquardt(; autodiff = enzyme, disable_geodesic = Val(true))
     )
 
-    # Exact root; do not compare only against ForwardDiff (same transform) or rely on
-    # `successful_retcode`, which StalledSuccess already satisfies on the broken path.
     @test enzyme_sol.u ≈ exact_u atol = 1.0e-6
     @test LinearAlgebra.norm(enzyme_sol.resid) < 1.0e-6
 end
