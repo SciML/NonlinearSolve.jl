@@ -131,7 +131,7 @@ function SciMLBase.__solve(
     @bb δN_δsd = copy(x)
     @bb δN = copy(x)
     @bb Hδ = copy(x)
-    @bb Jg = copy(fx)
+    @bb Jg = copy(NLBUtils.safe_vec(fx))
     dogleg_cache = (; δsd, δN_δsd, δN, Jg)
 
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
