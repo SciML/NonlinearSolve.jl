@@ -6,3 +6,4 @@
 @safetestset "Flipped Signs and Reversed Tspan" include("rootfind_tests__item6.jl")
 @safetestset "Problem kwargs forwarded to solvers" include("rootfind_tests__item7.jl")
 @safetestset "Function evaluated only inside the bracket" include("rootfind_tests__item8.jl")
+@safetestset "ModAB robustness to overflow, NaN and mixed types" include("rootfind_tests__item9.jl")
