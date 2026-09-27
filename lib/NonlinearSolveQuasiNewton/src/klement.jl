@@ -117,18 +117,29 @@ function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::Diagonal, fu, u, du; kwargs...
     )
     T = eltype(u)
-    # Mutate the diagonal buffer in place and return the same `Diagonal` so
-    # Reactant tracing does not replace the wrapper (its `set_mlir_data!` path
-    # is broken for `Diagonal`).
-    D = Utils.restructure(u, J.diag)
+    # Mutable diagonals (including Reactant arrays): update in place and keep
+    # the same `Diagonal` wrapper so tracing does not replace it
+    # (`set_mlir_data!` is broken for `Diagonal`). Immutable diagonals
+    # (`SVector`, ...) use the allocating reconstruct path.
+    if ArrayInterface.can_setindex(J.diag)
+        D = Utils.restructure(u, J.diag)
+        @bb @. cache.Jdu = (D^2) * (du^2)
+        @bb @. D += (
+            (fu - cache.fu_cache - D * du) /
+                ifelse(iszero(cache.Jdu), T(1.0e-5), cache.Jdu)
+        ) * du * (D^2)
+        D === J.diag || copyto!(J.diag, vec(D))
+        @bb copyto!(cache.fu_cache, fu)
+        return J
+    end
+    D = Utils.restructure(u, diag(J))
     @bb @. cache.Jdu = (D^2) * (du^2)
     @bb @. D += (
         (fu - cache.fu_cache - D * du) /
             ifelse(iszero(cache.Jdu), T(1.0e-5), cache.Jdu)
     ) * du * (D^2)
-    D === J.diag || copyto!(J.diag, vec(D))
     @bb copyto!(cache.fu_cache, fu)
-    return J
+    return Diagonal(vec(D))
 end
 
 function InternalAPI.solve!(

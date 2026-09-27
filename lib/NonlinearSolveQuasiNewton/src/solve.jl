@@ -438,7 +438,8 @@ function InternalAPI.step!(
             )
             # Keep the existing `Diagonal` wrapper under compile when the update
             # returns a fresh one; Reactant cannot `set_mlir_data!` on `Diagonal`.
-            if cache.J isa Diagonal && J_new isa Diagonal && cache.J !== J_new
+            if cache.J isa Diagonal && J_new isa Diagonal && cache.J !== J_new &&
+                    ArrayInterface.can_setindex(cache.J.diag)
                 copyto!(cache.J.diag, J_new.diag)
             else
                 cache.J = J_new
