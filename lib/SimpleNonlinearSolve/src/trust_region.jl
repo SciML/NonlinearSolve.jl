@@ -189,9 +189,9 @@ function SciMLBase.__solve(
 
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             if r > η₃
-                Δ = t₂ * L2_NORM(δ)
+                Δ = min(t₂ * L2_NORM(δ), Δₘₐₓ)
             elseif r > T(0.5)
-                Δ = max(Δ, t₂ * L2_NORM(δ))
+                Δ = min(max(Δ, t₂ * L2_NORM(δ)), Δₘₐₓ)
             end
         end
     end
