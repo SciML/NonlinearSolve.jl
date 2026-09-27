@@ -529,26 +529,48 @@ function _perform_first_order_step!(
                 fu_new = InternalAPI.solve!(
                 cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
             )
-            @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
-            if NonlinearSolveBase.get_postcondition(cache) === nothing
-                @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
-            elseif ReactantCore.within_compile() || tr_accepted
-                cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache
-                )
-                Utils.evaluate_f!(cache, cache.u, cache.p)
+            if ReactantCore.within_compile()
+                @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
+                if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
+                else
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache
+                    )
+                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                end
+                α = tr_accepted
+                # Jacobian reuse is disabled under compile; treat the step as accepted.
+                accepted_step = true
+                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                        cache.max_shrink_times < typemax(Int)
+                    exceeded = cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                    cache.retcode = ifelse(
+                        exceeded, ReturnCode.ShrinkThresholdExceeded, cache.retcode
+                    )
+                    cache.force_stop = exceeded | cache.force_stop
+                end
+            elseif tr_accepted
+                @bb copyto!(cache.u, u_new)
+                if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb copyto!(cache.fu, fu_new)
+                else
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache
+                    )
+                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                end
+                α = true
+                accepted_step = true
+            else
+                α = false
+                cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
             end
-            α = tr_accepted
-            accepted_step = ReactantCore.within_compile() || tr_accepted
-            accepted_step ||
-                (cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache))
-            if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                    cache.max_shrink_times < typemax(Int)
-                exceeded = cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                cache.retcode = ifelse(
-                    exceeded, ReturnCode.ShrinkThresholdExceeded, cache.retcode
-                )
-                cache.force_stop = exceeded | cache.force_stop
+            if !ReactantCore.within_compile() &&
+                    hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                    cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                cache.force_stop = true
             end
         end
     elseif cache.globalization isa Val{:None}

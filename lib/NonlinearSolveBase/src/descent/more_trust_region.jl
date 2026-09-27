@@ -1514,7 +1514,7 @@ function InternalAPI.solve!(
             (linres.u, linres.success)
         end
         gn_ok = linres_ok & _all_finite(linres_u)
-        if ReactantCore.within_compile() || gn_ok
+        if gn_ok || ReactantCore.within_compile()
             if gn_buf isa AbstractArray && ArrayInterface.can_setindex(gn_buf)
                 if normal_form(cache)
                     @bb @. gn_buf = -linres_u
@@ -1533,8 +1533,13 @@ function InternalAPI.solve!(
             if ReactantCore.within_compile()
                 gn = select(stationary, zero(gn), gn)
                 idx1 && (cache.gn_step = gn)
+                gn_norm = ifelse(
+                    stationary, zero(T),
+                    ifelse(gn_ok, _more_scaled_norm(cache, dtd, gn), T(Inf))
+                )
+            else
+                gn_norm = _more_scaled_norm(cache, dtd, gn)
             end
-            gn_norm = ifelse(stationary, zero(T), ifelse(gn_ok, _more_scaled_norm(cache, dtd, gn), T(Inf)))
         else
             gn = nothing
             gn_norm = T(Inf)
@@ -1568,20 +1573,29 @@ function InternalAPI.solve!(
             )
         end
     end
-    λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
-    got_step = ifelse(got_step, true, accept_gn)
 
-    if !ReactantCore.within_compile() && !got_step
+    # Host path matches master (early returns, concrete Bool success). Branchless
+    # select/ifelse fallthrough is compile-only so Trim/JET does not see it.
+    if ReactantCore.within_compile()
+        λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
+        got_step = ifelse(got_step, true, accept_gn)
+        p = select(accept_gn, gn_step, cache.p)
+        δu = select(got_step, Utils.restructure(δu, p), δu)
+        set_du!(cache, δu, idx)
+        extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
+        extras = map((x, empty) -> ifelse(got_step, x, empty), extras, empty_extras)
+        return DescentResult(δu, missing, got_step, got_step, extras)
+    end
+
+    λ_of_p = cache.λ
+    if !got_step
         set_du!(cache, δu, idx)
         return DescentResult(δu, missing, false, false, empty_extras)
     end
-
-    p = select(accept_gn, gn_step, cache.p)
-    δu = select(got_step, Utils.restructure(δu, p), δu)
+    δu = Utils.restructure(δu, cache.p)
     set_du!(cache, δu, idx)
     extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
-    extras = map((x, empty) -> ifelse(got_step, x, empty), extras, empty_extras)
-    return DescentResult(δu, missing, got_step, got_step, extras)
+    return DescentResult(δu, missing, true, true, extras)
 end
 
 # Undamped `min ‖Jp + fu‖` — the `λ = 0` augmented system. Normal form instead
