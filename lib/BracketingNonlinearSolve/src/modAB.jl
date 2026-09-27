@@ -2,7 +2,7 @@
 
 @inline safe_midpoint(x1, x2) = x1 / 2 + x2 / 2
 
-@inline function safe_secant(x1::T, y1, x2::T, y2) where {T <: AbstractFloat}
+@inline function safe_secant(x1, y1, x2, y2)
     a, b = abs(y1), abs(y2)
     den = a + b
     if isinf(den) # fast path
@@ -14,7 +14,7 @@
     return clamp((b / den) * x1 + (a / den) * x2, x1, x2)
 end
 
-@inline function get_ab_factor(y3::T, y::T) where {T <: AbstractFloat}
+@inline function get_ab_factor(y3, y)
     m = 1 - y3 / y
     return m > 0 ? m : inv(2 * one(m))
 end
@@ -36,6 +36,8 @@ Ganchovski, N.; Smith, O.; Rackauckas, C.; Tomov, L.; Traykov, A.
 Improvements to the Modified Anderson–Björck (modAB) Root-Finding Algorithm. Algorithms 2026, 19, 332.
 (https://doi.org/10.3390/a19050332) and additional fixes by L.Tomov
 
+If `f` evaluates to `NaN` at an iterate, the solver stops and returns
+`ReturnCode.Failure` with that iterate and the current bracket.
 """
 struct ModAB <: AbstractBracketingAlgorithm
 end
@@ -53,6 +55,12 @@ function SciMLBase.__solve(
     abstol = NonlinearSolveBase.get_tolerance(
         x1, abstol, promote_type(eltype(x1), eltype(x2))
     )
+
+    # The secant step mixes abscissae with residual ratios, so promote the bracket to that
+    # type once (e.g. Float32 tspan with Float64 residuals, or Dual residuals from a
+    # closure-captured Dual) to keep x1 and x2 the same type throughout the iterations.
+    T = typeof(abs(y1) / (abs(y1) + abs(y2)) * x1)
+    x1, x2 = convert(T, x1), convert(T, x2)
 
     if iszero(y1)
         return build_exact_solution(prob, alg, x1, y1, ReturnCode.ExactSolutionLeft)
