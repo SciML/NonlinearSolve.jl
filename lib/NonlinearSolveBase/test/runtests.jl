@@ -372,6 +372,10 @@ run_tests(;
 
         @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
 
+        @safetestset "DescentResult parameter prefix dispatch" include(
+            "descent_result_dispatch.jl"
+        )
+
         @safetestset "Jacobian and restructure allocation fast paths" include(
             "allocation_fastpaths.jl"
         )

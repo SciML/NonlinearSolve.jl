@@ -16,13 +16,16 @@ Construct a `DescentResult` object.
   - `extras`: A named tuple containing intermediates computed during the solve.
     For example, [`GeodesicAcceleration`](@ref) returns `NamedTuple{(:v, :a)}` containing
     the "velocity" and "acceleration" terms.
+
+Type parameters keep the historical `{DU,U,Extras}` prefix; traced Bool carriers for
+`success` / `linsolve_success` append after `Extras`.
 """
-@concrete struct DescentResult
-    δu
-    u
-    success
-    linsolve_success
-    extras
+struct DescentResult{DU, U, Extras, Success, LinearSuccess}
+    δu::DU
+    u::U
+    success::Success
+    linsolve_success::LinearSuccess
+    extras::Extras
 end
 
 function DescentResult(;
