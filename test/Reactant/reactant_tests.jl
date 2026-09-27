@@ -182,3 +182,42 @@ end
         @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
     end
 end
+
+# Quasi-Newton / spectral families with runtime (non-constant) inputs, compared to host.
+runtime_quasi_spectral_cases = (
+    (:Broyden, Broyden()),
+    (:Klement, Klement()),
+    (:DFSane, DFSane()),
+)
+
+@testset "Runtime inputs: $name" for (name, alg) in runtime_quasi_spectral_cases
+    function dosolve(u, p)
+        return solve(NonlinearProblem(f, u, p), alg; maxiters = 50, abstol = 1.0f-5)
+    end
+    u_host = Float32[1, 1]
+    p_host = Float32[2]
+    sol_host = dosolve(u_host, p_host)
+    sol = Reactant.@jit dosolve(Reactant.to_rarray(u_host), Reactant.to_rarray(p_host))
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == ReturnCode.Success
+    @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-3
+    @test maximum(abs, Array(sol.resid)) ≤ 1.0f-4
+end
+
+@testset "Polyalgorithm store_original under compile" begin
+    function polyrun(u, p)
+        return solve(
+            NonlinearProblem(nonlinear_function, u, p),
+            NonlinearSolvePolyAlgorithm((NewtonRaphson(),); store_original = Val(true));
+            maxiters = 50,
+            alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = true)
+        )
+    end
+    sol_host = polyrun(Float32[1, 1], Float32[2])
+    @test !isnothing(sol_host.original)
+    sol = Reactant.@jit polyrun(
+        Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
+    )
+    @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-4
+    @test !isnothing(sol.original)
+end
