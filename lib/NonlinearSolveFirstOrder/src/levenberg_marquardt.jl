@@ -115,7 +115,7 @@ function InternalAPI.reinit!(cache::LevenbergMarquardtDampingCache, args...; kwa
             cache.DᵀD = Diagonal(ones(typeof(cache.DᵀD.diag)) * cache.min_damping)
         end
     end
-    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
+    _scale_levenberg_marquardt_damping!(cache)
     return
 end
 
@@ -156,7 +156,7 @@ function InternalAPI.solve!(
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(
         cache.DᵀD, Utils.safe_vec(cache.J_diag_cache)
     )
-    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
+    _scale_levenberg_marquardt_damping!(cache)
     return cache.J_damped
 end
 
@@ -164,7 +164,7 @@ function InternalAPI.solve!(
         cache::LevenbergMarquardtDampingCache, JᵀJ, fu, ::Val{true}; kwargs...
     )
     cache.DᵀD = update_levenberg_marquardt_diagonal!!(cache.DᵀD, JᵀJ)
-    cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
+    _scale_levenberg_marquardt_damping!(cache)
     return cache.J_damped
 end
 
@@ -307,4 +307,17 @@ end
 scale_levenberg_marquardt_diagonal(λ, DᵀD::Number) = λ * DᵀD
 function scale_levenberg_marquardt_diagonal(λ, DᵀD::Diagonal)
     return Diagonal(λ .* DᵀD.diag)
+end
+
+# Host reuses `J_damped` (master `@bb @.` path). Under Reactant compilation the
+# allocating scale is used so traced buffers are not mutated through aliases.
+function _scale_levenberg_marquardt_damping!(cache::LevenbergMarquardtDampingCache)
+    if ReactantCore.within_compile() || cache.J_damped isa Number ||
+            !(cache.J_damped isa Diagonal) ||
+            !ArrayInterface.can_setindex(cache.J_damped.diag)
+        cache.J_damped = scale_levenberg_marquardt_diagonal(cache.λ, cache.DᵀD)
+        return cache.J_damped
+    end
+    @bb @. cache.J_damped = cache.λ * cache.DᵀD
+    return cache.J_damped
 end
