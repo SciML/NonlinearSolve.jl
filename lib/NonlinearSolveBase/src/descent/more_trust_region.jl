@@ -1514,7 +1514,8 @@ function InternalAPI.solve!(
             (linres.u, linres.success)
         end
         gn_ok = linres_ok & _all_finite(linres_u)
-        if gn_ok || ReactantCore.within_compile()
+        # within_compile() first so short-circuit never bool-tests traced gn_ok
+        if ReactantCore.within_compile() || gn_ok
             if gn_buf isa AbstractArray && ArrayInterface.can_setindex(gn_buf)
                 if normal_form(cache)
                     @bb @. gn_buf = -linres_u
