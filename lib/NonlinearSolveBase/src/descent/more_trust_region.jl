@@ -819,7 +819,7 @@ function _more_generic_λloop!(
         λ, l, uλ, ϕ_prev, λ_prev = dealias_traced!((λ, l, uλ, ϕ_prev, λ_prev))
         dealias_traced!(cache)
     end
-    return got_step
+    return ifelse(got_step, true, false)
 end
 
 function _more_generic_iteration!(
@@ -841,7 +841,7 @@ function _more_generic_iteration!(
     else
         cache.p = select(valid, Utils.restructure(cache.p, linres.u), cache.p)
     end
-    got_step = got_step | valid
+    got_step = ifelse(got_step, true, valid)
     cache.λ = ifelse(valid, λ, cache.λ)
     Dp = _more_Dp!(cache, dtd, cache.p)
     dpnorm = cache.internalnorm(Dp)
@@ -849,17 +849,18 @@ function _more_generic_iteration!(
     if idx1
         cache.λ_bound = ifelse(valid, λ, cache.λ_bound)
         cache.λ_bound_dpnorm = ifelse(valid, dpnorm, cache.λ_bound_dpnorm)
-        cache.λ_bound_valid = cache.λ_bound_valid | valid
+        cache.λ_bound_valid = ifelse(cache.λ_bound_valid, true, valid)
     end
-    done = valid & (
-        (abs(ϕ) <= cache.θ * Δ) | (i == cache.maxiters) |
-            (!pos_bound & (ϕ_prev < zero(ϕ)) & (ϕ <= ϕ_prev + cache.θ * Δ) & (λ <= λ_prev))
-    )
+    at_bound = abs(ϕ) <= cache.θ * Δ
+    at_maxiter = i == cache.maxiters
+    parl0_exit = !pos_bound & (ϕ_prev < zero(ϕ)) & (ϕ <= ϕ_prev + cache.θ * Δ) &
+        (λ <= λ_prev)
+    done = valid & ifelse(at_bound, true, ifelse(at_maxiter, true, parl0_exit))
     if !ReactantCore.within_compile() && done
         return λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, done
     end
     do_q = valid & !done
-    pos_bound = pos_bound | (do_q & (ϕ > zero(ϕ)))
+    pos_bound = ifelse(pos_bound, true, do_q & (ϕ > zero(ϕ)))
     ϕ_prev, λ_prev = ifelse(do_q, ϕ, ϕ_prev), ifelse(do_q, λ, λ_prev)
     D²p = _more_D2p!(cache, dtd, cache.p)
     qres = _more_q_solve(cache, cache.lincache, D²p, Dp, λ, u, kwargs)
@@ -871,7 +872,7 @@ function _more_generic_iteration!(
         λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, qres.u), l, uλ
     )
     advance = do_q & qvalid
-    retry = !valid | (do_q & !qvalid)
+    retry = ifelse(valid, do_q & !qvalid, true)
     return ifelse(advance, next_λ, ifelse(retry, λ * 10, λ)),
         ifelse(advance, next_l, ifelse(retry, max(l, λ), l)),
         ifelse(advance, next_uλ, ifelse(retry, max(uλ, λ * 10), uλ)),
@@ -1568,7 +1569,7 @@ function InternalAPI.solve!(
         end
     end
     λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
-    got_step = got_step | accept_gn
+    got_step = ifelse(got_step, true, accept_gn)
 
     if !ReactantCore.within_compile() && !got_step
         set_du!(cache, δu, idx)
