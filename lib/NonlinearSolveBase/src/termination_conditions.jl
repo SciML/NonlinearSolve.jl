@@ -233,10 +233,22 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
     )
-    converged = check_convergence(mode, du, u, uprev, abstol, reltol)
-    cache.retcode = ifelse(converged, ReturnCode.Success, cache.retcode)
+    # Reactant's `maximum`/`norm` reductions drop NaN, so a residual of all-NaN can
+    # look like `-Inf ≤ abstol`. Require a finite residual before declaring Success;
+    # non-finite residuals stop with `Unstable`, matching the SafeBest protective break.
+    finite = _residual_finite(du)
+    converged_raw = check_convergence(mode, du, u, uprev, abstol, reltol)
+    converged = ifelse(finite, converged_raw, true)
+    cache.retcode = ifelse(
+        finite,
+        ifelse(converged_raw, ReturnCode.Success, cache.retcode),
+        ReturnCode.Unstable
+    )
     return converged
 end
+
+_residual_finite(du::Number) = isfinite(du)
+_residual_finite(du) = mapreduce(isfinite, &, du; init = true)
 
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractSafeNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...

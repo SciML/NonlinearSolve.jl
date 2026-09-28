@@ -183,15 +183,15 @@ end
     end
 end
 
-# Quasi-Newton / spectral families with runtime (non-constant) inputs, compared to host.
-runtime_quasi_spectral_cases = (
+# Quasi-Newton families with runtime (non-constant) inputs, compared to host.
+# DFSane is rejected under compile (see dedicated test below).
+runtime_quasi_newton_cases = (
     (:Broyden, Broyden()),
     (:Klement, Klement()),
-    (:DFSane, DFSane()),
     (:LimitedMemoryBroyden, LimitedMemoryBroyden(; threshold = 2)),
 )
 
-@testset "Runtime inputs: $name" for (name, alg) in runtime_quasi_spectral_cases
+@testset "Runtime inputs: $name" for (name, alg) in runtime_quasi_newton_cases
     function dosolve(u, p)
         return solve(NonlinearProblem(f, u, p), alg; maxiters = 50, abstol = 1.0f-5)
     end
@@ -203,6 +203,82 @@ runtime_quasi_spectral_cases = (
     @test sol.retcode == ReturnCode.Success
     @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-3
     @test maximum(abs, Array(sol.resid)) ≤ 1.0f-4
+end
+
+@testset "DFSane is rejected under compile" begin
+    function dosolve_dfsane(u, p)
+        return solve(NonlinearProblem(f, u, p), DFSane(); maxiters = 50, abstol = 1.0f-5)
+    end
+    err = try
+        Reactant.@jit dosolve_dfsane(
+            Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
+        )
+        nothing
+    catch e
+        e
+    end
+    @test err isa Exception
+    @test occursin("DFSane", sprint(showerror, err))
+    @test occursin("line search", sprint(showerror, err))
+end
+
+# Non-finite residual must not report Success (Reactant `maximum` drops NaN).
+@testset "NaN residual retcode: $name" for (name, alg) in (
+        (:NewtonRaphson, NewtonRaphson()),
+        (:Broyden, Broyden()),
+        (:LimitedMemoryBroyden, LimitedMemoryBroyden(; threshold = 2)),
+    )
+    function dosolve_nan(u, p)
+        return solve(NonlinearProblem(f, u, p), alg; maxiters = 50, abstol = 1.0f-5)
+    end
+    u_host = Float32[1, 1]
+    p_host = Float32[NaN]
+    sol_host = dosolve_nan(u_host, p_host)
+    sol = Reactant.@jit dosolve_nan(Reactant.to_rarray(u_host), Reactant.to_rarray(p_host))
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == sol_host.retcode
+    @test sol.retcode == ReturnCode.Unstable
+end
+
+@testset "LimitedMemoryBroyden cube retcode matches host" begin
+    fcube(u, p) = u .^ 3 .- p
+    function dosolve_cube(u, p)
+        return solve(
+            NonlinearProblem(fcube, u, p), LimitedMemoryBroyden(; threshold = 2);
+            maxiters = 50, abstol = 1.0f-5
+        )
+    end
+    u_host = Float32[3, -2]
+    p_host = Float32[2]
+    sol_host = dosolve_cube(u_host, p_host)
+    sol = Reactant.@jit dosolve_cube(Reactant.to_rarray(u_host), Reactant.to_rarray(p_host))
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == sol_host.retcode
+end
+
+@testset "Quasi-Newton max_resets under compile: $name" for (name, f, u0, alg) in (
+        (
+            :LimitedMemoryBroyden,
+            (u, p) -> exp.(u) .- p,
+            Float32[3, 4],
+            LimitedMemoryBroyden(; max_resets = 1),
+        ),
+        (
+            :Klement,
+            (u, p) -> u .^ 3 .- p,
+            Float32[3, -2],
+            Klement(; max_resets = 1),
+        ),
+    )
+    function dosolve_reset(u, p)
+        return solve(NonlinearProblem(f, u, p), alg; maxiters = 50, abstol = 1.0f-5)
+    end
+    p_host = Float32[2]
+    sol_host = dosolve_reset(u0, p_host)
+    sol = Reactant.@jit dosolve_reset(Reactant.to_rarray(u0), Reactant.to_rarray(p_host))
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == sol_host.retcode
+    @test sol.retcode == ReturnCode.ConvergenceFailure
 end
 
 @testset "Polyalgorithm store_original under compile" begin

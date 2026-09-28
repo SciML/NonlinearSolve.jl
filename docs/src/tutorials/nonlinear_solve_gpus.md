@@ -102,6 +102,16 @@ methods and polyalgorithms with out-of-place nonlinear and least-squares problem
 Jacobian-based algorithms depend on Reactant support in their configured differentiation
 backend; automatic backend selection prefers forward-mode `AutoEnzyme` under compilation.
 
+Under compilation the default termination mode is plain
+`AbsNormTerminationMode` rather than the host's `AbsNormSafeBestTerminationMode`: there is
+no best-iterate rollback and no stall detection. Convergence still requires a finite
+residual; a non-finite residual stops with `ReturnCode.Unstable`. Quasi-Newton Jacobian
+reset rules and `max_resets` are evaluated under compile. `DFSane` is not supported under
+`@jit`/`@compile` yet (its non-monotone line search is not Reactant-traceable; that work
+belongs in LineSearch.jl) and throws an explicit `ArgumentError`. Broyden configured with
+an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also
+fails loudly under compile, because dual numbers cannot wrap traced values.
+
 The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
 arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
 compared against `ReturnCode` values or converted with `ReturnCode.T(sol.retcode)`;

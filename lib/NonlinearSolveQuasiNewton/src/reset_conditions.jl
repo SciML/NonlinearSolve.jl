@@ -33,26 +33,31 @@ function InternalAPI.init(
     T = real(eltype(u))
     tol = condition.reset_tolerance === nothing ? eps(T)^(3 // 4) :
         T(condition.reset_tolerance)
-    return NoChangeInStateResetCache(dfu, tol, condition, 0, 0)
+    return NoChangeInStateResetCache(
+        dfu, tol, condition,
+        NonlinearSolveBase.maybe_traced(0), NonlinearSolveBase.maybe_traced(0)
+    )
 end
 
 @concrete mutable struct NoChangeInStateResetCache <: AbstractResetConditionCache
     dfu
     reset_tolerance
     condition <: NoChangeInStateReset
-    steps_since_change_du::Int
-    steps_since_change_dfu::Int
+    steps_since_change_du
+    steps_since_change_dfu
 end
 
 function InternalAPI.reinit!(cache::NoChangeInStateResetCache; u0 = nothing, kwargs...)
     if u0 !== nothing && cache.condition.reset_tolerance === nothing
         cache.reset_tolerance = eps(real(eltype(u0)))^(3 // 4)
     end
-    cache.steps_since_change_dfu = 0
-    return cache.steps_since_change_du = 0
+    cache.steps_since_change_dfu = NonlinearSolveBase.maybe_traced(0)
+    return cache.steps_since_change_du = NonlinearSolveBase.maybe_traced(0)
 end
 
 function InternalAPI.solve!(cache::NoChangeInStateResetCache, J, fu, u, du; kwargs...)
+    ReactantCore.within_compile() && return _no_change_reset_traced!(cache, fu, du)
+
     cond = ≤(cache.reset_tolerance) ∘ abs
     if cache.condition.check_du
         if all(cond, du)
@@ -86,6 +91,39 @@ function InternalAPI.solve!(cache::NoChangeInStateResetCache, J, fu, u, du; kwar
     return false
 end
 
+function _no_change_reset_traced!(cache::NoChangeInStateResetCache, fu, du)
+    cond = ≤(cache.reset_tolerance) ∘ abs
+    reset = NonlinearSolveBase.maybe_traced(false)
+    nsteps = cache.condition.nsteps
+
+    if cache.condition.check_du
+        du_stalled = all(cond, du)
+        steps_du = ifelse(du_stalled, cache.steps_since_change_du + 1, 0)
+        reset_du = du_stalled & (steps_du ≥ nsteps)
+        cache.steps_since_change_du = ifelse(reset_du, 0, steps_du)
+        cache.steps_since_change_dfu = ifelse(
+            du_stalled & !reset_du, cache.steps_since_change_dfu, 0
+        )
+        reset = reset | reset_du
+    end
+
+    if cache.condition.check_dfu
+        @bb @. cache.dfu = fu - cache.dfu
+        dfu_stalled = all(cond, cache.dfu)
+        steps_dfu = ifelse(dfu_stalled, cache.steps_since_change_dfu + 1, 0)
+        reset_dfu = (!reset) & dfu_stalled & (steps_dfu ≥ nsteps)
+        cache.steps_since_change_dfu = ifelse(
+            reset, 0, ifelse(reset_dfu, 0, ifelse(dfu_stalled, steps_dfu, 0))
+        )
+        cache.steps_since_change_du = ifelse(
+            reset | reset_dfu | !dfu_stalled, 0, cache.steps_since_change_du
+        )
+        reset = reset | reset_dfu
+        @bb copyto!(cache.dfu, fu)
+    end
+    return reset
+end
+
 """
     IllConditionedJacobianReset()
 
@@ -112,7 +150,19 @@ function InternalAPI.solve!(
         cache::IllConditionedJacobianResetCache, J, fu, u, du; kwargs...
     )
     J isa Number && return iszero(J)
-    J isa Diagonal && return any(iszero, diag(J))
+    if J isa Diagonal
+        # Exact zeros (host) or a huge diagonal condition number (compiled
+        # paths may land on tiny non-zeros instead of exact `0`).
+        exact_zero = any(iszero, J.diag)
+        if cache.condition_number_threshold === nothing
+            return exact_zero
+        end
+        dmin = minimum(abs, J.diag)
+        dmax = maximum(abs, J.diag)
+        illcond = dmax ≥
+            cache.condition_number_threshold * max(dmin, eps(real(eltype(J.diag))))
+        return exact_zero | illcond
+    end
     J isa AbstractVector && return any(iszero, J)
     J isa AbstractMatrix &&
         return Utils.condition_number(J) ≥ cache.condition_number_threshold

@@ -209,30 +209,29 @@ function InternalAPI.step!(
               `recompute_jacobian`"
     end
 
+    if ReactantCore.within_compile()
+        throw(
+            ArgumentError(
+                "DFSane's non-monotone line search is not Reactant-traceable yet. \
+             Use a first-order or quasi-Newton method under `@jit`/`@compile`, \
+             or wait for a traceable line search in LineSearch.jl."
+            )
+        )
+    end
+
     @static_timeit cache.timer "descent" begin
         @bb @. cache.du = -cache.σ_n * cache.fu
     end
 
-    # RobustNonMonotoneLineSearch short-circuits on traced Bools; under Reactant
-    # compilation take a unit spectral step (same as NoLineSearch) instead.
-    α, linesearch_failed = if ReactantCore.within_compile()
-        (one(eltype(cache.du)), NonlinearSolveBase.maybe_traced(false))
-    else
-        @static_timeit cache.timer "linesearch" begin
-            linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, cache.du)
-            (
-                linesearch_sol.step_size,
-                !SciMLBase.successful_retcode(linesearch_sol.retcode),
-            )
-        end
+    @static_timeit cache.timer "linesearch" begin
+        linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, cache.du)
+        α, linesearch_failed = (
+            linesearch_sol.step_size,
+            !SciMLBase.successful_retcode(linesearch_sol.retcode),
+        )
     end
 
-    if ReactantCore.within_compile()
-        cache.retcode = ifelse(
-            linesearch_failed, ReturnCode.InternalLineSearchFailed, cache.retcode
-        )
-        cache.force_stop = cache.force_stop | linesearch_failed
-    elseif linesearch_failed
+    if linesearch_failed
         cache.retcode = ReturnCode.InternalLineSearchFailed
         cache.force_stop = true
         return
@@ -256,22 +255,18 @@ function InternalAPI.step!(
         cache.σ_n = Utils.safe_dot(cache.u_cache, cache.u_cache) /
             Utils.safe_dot(cache.u_cache, cache.fu_cache)
 
-        abs_σ = abs(cache.σ_n)
-        in_bounds = (cache.σ_min ≤ abs_σ) & (abs_σ ≤ cache.σ_max)
-        test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
-        T = eltype(cache.σ_n)
-        σ_clamped = clamp(inv(test_norm), T(1), T(1.0e5))
-        cache.σ_n = ifelse(in_bounds, cache.σ_n, σ_clamped)
+        if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)
+            test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
+            T = eltype(cache.σ_n)
+            cache.σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
+        end
     end
 
     # Take step
     @bb copyto!(cache.u_cache, cache.u)
     @bb copyto!(cache.fu_cache, cache.fu)
 
-    # LineSearch history update scalar-indexes traced arrays; skip under compile
-    # (unit step path above does not use the monotone history).
-    ReactantCore.within_compile() ||
-        NonlinearSolveBase.callback_into_cache!(cache, cache.linesearch_cache)
+    NonlinearSolveBase.callback_into_cache!(cache, cache.linesearch_cache)
 
     return
 end
