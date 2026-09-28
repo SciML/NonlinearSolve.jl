@@ -706,25 +706,16 @@ function _polysolve_compile_path(
     u, resid, retcode = best_sol.u, best_sol.resid, best_sol.retcode
     best_norm = _poly_resid_norm(prob, resid)
     done = _poly_success(retcode)
-    # Keep `@trace if` for early-exit, but never `remake` / host-branch the
-    # problem inside it (Reactant forwarded `Nothing` into `__solve`). Reset
-    # aliased `u0` on the shared `member_prob` outside the traced branch.
+    # Branch assigns only loop state (u/resid/retcode/…): a `NonlinearSolution`
+    # as `@trace if` output StackOverflows in Reactant `set_mlir_data!`.
     for i in (alg.start_index + 1):N
         alg_i = alg.algs[i]
         alias_u0 && copyto!(member_prob.u0, u0)
         ReactantCore.@trace track_numbers = false if !done
-            sol_i = SciMLBase.__solve(
-                member_prob, alg_i, solve_args...;
-                stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+            u, resid, retcode, best_norm, done = _polysolve_compile_member(
+                member_prob, alg_i, solve_args, stats, alias_u0, verbose, kwargs,
+                u, resid, retcode, best_norm
             )
-            success_i = _poly_success(sol_i.retcode)
-            resid_norm = _poly_resid_norm(prob, sol_i.resid)
-            better = success_i | (resid_norm < best_norm)
-            u = select(better, sol_i.u, u)
-            resid = select(better, sol_i.resid, resid)
-            retcode = ifelse(better, sol_i.retcode, retcode)
-            best_norm = ifelse(better, resid_norm, best_norm)
-            done = success_i
         end
     end
     if alias_u0
@@ -735,6 +726,22 @@ function _polysolve_compile_path(
         prob, alg, u, resid;
         retcode, original = best_sol, alg.store_original
     )
+end
+
+function _polysolve_compile_member(
+        prob, alg, solve_args, stats, alias_u0, verbose, kwargs,
+        u, resid, retcode, best_norm
+    )
+    sol = SciMLBase.__solve(
+        prob, alg, solve_args...;
+        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+    )
+    success = _poly_success(sol.retcode)
+    resid_norm = _poly_resid_norm(prob, sol.resid)
+    better = success | (resid_norm < best_norm)
+    return select(better, sol.u, u), select(better, sol.resid, resid),
+        ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm),
+        success
 end
 
 function SciMLBase.__solve(
