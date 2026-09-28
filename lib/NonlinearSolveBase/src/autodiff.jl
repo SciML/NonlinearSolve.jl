@@ -26,7 +26,8 @@ Choose a forward-mode-compatible automatic differentiation backend for `prob`.
 If `ad` is an `AbstractADType`, the backend is returned when it is available and compatible
 with the problem. If `ad === nothing`, NonlinearSolveBase selects the first available
 compatible backend from its preferred forward-mode list. During Reactant compilation,
-forward-mode `AutoEnzyme` is preferred when available.
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` is
+preferred when available.
 
 ### Arguments
 
@@ -78,7 +79,10 @@ function select_forward_mode_autodiff(
         warn_check_mode::Bool = true
     )
     if ReactantCore.within_compile()
-        ad = ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward)
+        # Enzyme's Jacobian path is not Reactant-traceable as a raw AutoEnzyme
+        # backend; wrap through DI's AutoForwardFromPrimitive (maintainer guidance
+        # after JuliaDiff/DifferentiationInterface.jl#1067 closed unmerged).
+        ad = AutoForwardFromPrimitive(ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward))
         !incompatible_backend_and_problem(prob, ad) && return ad
     end
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
@@ -147,8 +151,9 @@ Choose an automatic differentiation backend for constructing Jacobians for `prob
 
 If `ad === nothing`, NonlinearSolveBase prefers a compatible forward-mode backend that is
 not finite differencing, then falls back to compatible reverse-mode or finite-difference
-backends. During Reactant compilation, forward-mode `AutoEnzyme` is preferred when
-available.
+backends. During Reactant compilation,
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` is
+preferred when available.
 
 ### Arguments
 
@@ -173,7 +178,9 @@ end
 
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
     if ReactantCore.within_compile()
-        ad = ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward)
+        # Prefer AutoForwardFromPrimitive(AutoEnzyme) under Reactant: raw
+        # AutoEnzyme Jacobians are not traceable (see JuliaDiff/DI#1067).
+        ad = AutoForwardFromPrimitive(ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward))
         !incompatible_backend_and_problem(prob, ad) && return ad
     end
     idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)

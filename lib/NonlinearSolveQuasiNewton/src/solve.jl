@@ -516,17 +516,27 @@ function _quasi_newton_jacobian_traced!(cache, recompute_jacobian)
     cache.force_stop = cache.force_stop | exceeded
 
     do_reinit = should_reinit & !exceeded
-    _quasi_newton_maybe_reinit_traced!(cache, do_reinit)
+    # First step must install (and invert) the initialized Jacobian: store-inverse
+    # descent treats `J` as J⁻¹, so leaving `αI` / `J(u0)` uninverted scales δu wrong.
+    # Later-step reinit is gated by `do_reinit` (already false when `is_first`).
+    _quasi_newton_maybe_reinit_traced!(cache, is_first, do_reinit)
     return cache.J
 end
 
-function _quasi_newton_maybe_reinit_traced!(cache, do_reinit)
+function _quasi_newton_maybe_reinit_traced!(cache, is_first, do_reinit)
     if cache.J isa BroydenLowRankJacobian
-        _quasi_newton_reinit_lbroyden_traced!(cache, do_reinit)
+        _quasi_newton_reinit_lbroyden_traced!(cache, is_first, do_reinit)
     elseif cache.J isa Diagonal
-        _quasi_newton_reinit_diagonal_traced!(cache, do_reinit)
+        _quasi_newton_reinit_diagonal_traced!(cache, is_first, do_reinit)
     else
-        ReactantCore.@trace track_numbers = false if do_reinit
+        ReactantCore.@trace track_numbers = false if is_first
+            J_init = InternalAPI.solve!(
+                cache.initialization_cache, cache.fu, cache.u, Val(false)
+            )
+            J_set = _quasi_newton_prepared_jacobian(cache, J_init)
+            _quasi_newton_install_jacobian!(cache, J_set)
+            cache.steps_since_last_reset = cache.steps_since_last_reset + 1
+        elseif do_reinit
             J_init = InternalAPI.solve!(
                 cache.initialization_cache, cache.fu, cache.u, Val(true)
             )
@@ -540,28 +550,34 @@ function _quasi_newton_maybe_reinit_traced!(cache, do_reinit)
     return nothing
 end
 
-function _quasi_newton_reinit_lbroyden_traced!(cache, do_reinit)
+function _quasi_newton_reinit_lbroyden_traced!(cache, is_first, do_reinit)
     J = cache.J
     α = Utils.initial_jacobian_scaling_alpha(
         cache.initialization_cache.alg.alpha, cache.u, cache.fu,
         cache.initialization_cache.internalnorm
     )
     inv_α = oftype(J.alpha, inv(α))
+    # Low-rank caches seed the inverse scaling at construction; first-step install
+    # would be a no-op via `_quasi_newton_install_jacobian!`.
     zero_idx = zero(J.idx)
-    J.idx = ifelse(do_reinit, zero_idx, J.idx)
-    J.alpha = ifelse(do_reinit, inv_α, J.alpha)
+    do_reset = (!is_first) & do_reinit
+    J.idx = ifelse(do_reset, zero_idx, J.idx)
+    J.alpha = ifelse(do_reset, inv_α, J.alpha)
     zU = zero(eltype(J.U))
     zV = zero(eltype(J.Vᵀ))
-    @. J.U = ifelse(do_reinit, zU, J.U)
-    @. J.Vᵀ = ifelse(do_reinit, zV, J.Vᵀ)
+    @. J.U = ifelse(do_reset, zU, J.U)
+    @. J.Vᵀ = ifelse(do_reset, zV, J.Vᵀ)
     cache.steps_since_last_reset = ifelse(
-        do_reinit, zero(cache.steps_since_last_reset), cache.steps_since_last_reset + 1
+        do_reset, zero(cache.steps_since_last_reset), cache.steps_since_last_reset + 1
     )
     return nothing
 end
 
-function _quasi_newton_reinit_diagonal_traced!(cache, do_reinit)
-    # Compute seed outside `@trace if` to avoid MissingTracedValue from Bool branches.
+function _quasi_newton_reinit_diagonal_traced!(cache, is_first, do_reinit)
+    # Seed outside traced branches: installing a fresh `Diagonal` through `@trace if`
+    # leaves `MissingTracedValue` when the inactive arm never materializes `J_set`.
+    # Identity / diagonal-Broyden init already stores `α` on `cache.J.diag`; store-inverse
+    # descent needs `inv(α)` on the first step and after a reinit.
     α = Utils.initial_jacobian_scaling_alpha(
         cache.initialization_cache.alg.alpha, cache.u, cache.fu,
         cache.initialization_cache.internalnorm
@@ -574,12 +590,13 @@ function _quasi_newton_reinit_diagonal_traced!(cache, do_reinit)
     )
     α_val = (store_inv && !preinverted) ? inv(α) : α
     α_diag = convert(eltype(cache.J.diag), α_val)
-    ReactantCore.@trace track_numbers = false if do_reinit
-        @. cache.J.diag = α_diag
-        cache.steps_since_last_reset = 0
-    else
-        cache.steps_since_last_reset = cache.steps_since_last_reset + 1
-    end
+    do_seed = is_first | do_reinit
+    @. cache.J.diag = ifelse(do_seed, α_diag, cache.J.diag)
+    cache.steps_since_last_reset = ifelse(
+        (!is_first) & do_reinit,
+        zero(cache.steps_since_last_reset),
+        cache.steps_since_last_reset + 1
+    )
     return nothing
 end
 

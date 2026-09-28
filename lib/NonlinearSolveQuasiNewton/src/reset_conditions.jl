@@ -151,10 +151,11 @@ function InternalAPI.solve!(
     )
     J isa Number && return iszero(J)
     if J isa Diagonal
-        # Exact zeros (host) or a huge diagonal condition number (compiled
-        # paths may land on tiny non-zeros instead of exact `0`).
+        # Host: exact zeros only (master). Under compile, also treat a huge
+        # diagonal condition number as ill-conditioned — compiled paths may
+        # land on tiny non-zeros instead of exact `0`.
         exact_zero = any(iszero, J.diag)
-        if cache.condition_number_threshold === nothing
+        if !ReactantCore.within_compile() || cache.condition_number_threshold === nothing
             return exact_zero
         end
         dmin = minimum(abs, J.diag)

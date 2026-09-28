@@ -100,13 +100,20 @@ separate allowlist or fallback algorithm: unsupported operations report their er
 Reactant or the package that implements them. The Reactant test group covers first-order
 methods and polyalgorithms with out-of-place nonlinear and least-squares problems.
 Jacobian-based algorithms depend on Reactant support in their configured differentiation
-backend; automatic backend selection prefers forward-mode `AutoEnzyme` under compilation.
+backend; automatic backend selection prefers
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` under
+compilation (raw `AutoEnzyme` Jacobians are not Reactant-traceable). Until DifferentiationInterface
+ships a Reactant-safe Jacobian prepare path, prefer an analytic `jac` (or
+`jac_prototype`) for compiled Jacobian-based solves.
 
 Under compilation the default termination mode is plain
 `AbsNormTerminationMode` rather than the host's `AbsNormSafeBestTerminationMode`: there is
 no best-iterate rollback and no stall detection. Convergence still requires a finite
 residual; a non-finite residual stops with `ReturnCode.Unstable`. Quasi-Newton Jacobian
-reset rules and `max_resets` are evaluated under compile. `DFSane` is not supported under
+reset rules and `max_resets` are evaluated under compile. Compiled reset-rule bookkeeping
+can differ from the host: the `dfu` baseline after a du-stall reset, and rules that still
+run while `force_reinit` is set. A failed linear solve under compile retries on the next
+step rather than recursively inside the same step. `DFSane` is not supported under
 `@jit`/`@compile` yet (its non-monotone line search is not Reactant-traceable; that work
 belongs in LineSearch.jl) and throws an explicit `ArgumentError`. Broyden configured with
 an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also

@@ -14,14 +14,13 @@ SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-DifferentiationInterface = {url = "https://github.com/ChrisRackauckas-Claude/DifferentiationInterface.jl", rev = "571fc1780c49d00addbeb31b491ab6e2b3273ee0", subdir = "DifferentiationInterface"}
-SciMLBase = {url = "https://github.com/ChrisRackauckas-Claude/SciMLBase.jl", rev = "agent/1619-nonlinear-retcode-param"}
-NonlinearSolve = {path = "../.."}
 BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = "../.."}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
 NonlinearSolveSpectralMethods = {path = "../../lib/NonlinearSolveSpectralMethods"}
+SciMLBase = {rev = "agent/1619-nonlinear-retcode-param", url = "https://github.com/ChrisRackauckas-Claude/SciMLBase.jl"}
 SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
 
 [compat]

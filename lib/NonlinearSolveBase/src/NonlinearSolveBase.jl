@@ -30,7 +30,8 @@ using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityD
     KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
-using DifferentiationInterface: DifferentiationInterface, Constant
+using DifferentiationInterface: DifferentiationInterface, Constant,
+    AutoForwardFromPrimitive
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 import RespecializeParams

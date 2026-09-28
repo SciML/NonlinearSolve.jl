@@ -1,5 +1,7 @@
 using NonlinearSolve
+using DifferentiationInterface
 using Enzyme
+using LinearAlgebra
 using Reactant
 using SciMLBase
 using Test
@@ -56,12 +58,8 @@ compiled_newton = Reactant.@compile solve_newton(u0, p0)
 compiled_trust_region = Reactant.@compile solve_trust_region(u0, p0)
 compiled_default = Reactant.@compile solve_default(u0, p0)
 compiled_gauss_newton = Reactant.@compile solve_gauss_newton(u0, p0)
-compiled_autodiff_newton = Reactant.@compile solve_autodiff_newton(u0, p0)
-compiled_autodiff_trust_region = Reactant.@compile solve_autodiff_trust_region(u0, p0)
-compiled_autodiff_default = Reactant.@compile solve_autodiff_default(u0, p0)
-compiled_autodiff_gauss_newton = Reactant.@compile solve_autodiff_gauss_newton(u0, p0)
 
-
+# Analytical-Jacobian compiles (no DifferentiationInterface Jacobian path).
 # A polyalgorithm's members keep `autodiff = nothing`; the backend is chosen when each
 # member is solved, so the choice is only visible on a directly solved algorithm.
 for (compiled, name, uses_enzyme) in (
@@ -69,10 +67,6 @@ for (compiled, name, uses_enzyme) in (
         (compiled_trust_region, :TrustRegion, false),
         (compiled_default, nothing, false),
         (compiled_gauss_newton, :GaussNewton, false),
-        (compiled_autodiff_newton, :NewtonRaphson, true),
-        (compiled_autodiff_trust_region, :TrustRegion, true),
-        (compiled_autodiff_default, nothing, false),
-        (compiled_autodiff_gauss_newton, :GaussNewton, true),
     )
     sol = compiled(
         Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
@@ -88,7 +82,36 @@ for (compiled, name, uses_enzyme) in (
     else
         @test sol.alg.name === name
     end
-    uses_enzyme && @test sol.alg.autodiff isa AutoEnzyme
+    @test sol.prob === nothing
+    @test sol.stats === nothing
+end
+
+# Autodiff compiles need a Reactant-traceable DI Jacobian. Registry DifferentiationInterface
+# still scalar-indexes in `basis` under `AutoForwardFromPrimitive(AutoEnzyme())` (and the
+# closed JuliaDiff/DI#1067 fork is not allowed). See BLOCKED.md.
+@testset "Autodiff Jacobian under compile: $name" for (solve_fn, name) in (
+        (solve_autodiff_newton, :NewtonRaphson),
+        (solve_autodiff_trust_region, :TrustRegion),
+        (solve_autodiff_default, nothing),
+        (solve_autodiff_gauss_newton, :GaussNewton),
+    )
+    compiled = Reactant.@compile solve_fn(u0, p0)
+    sol = compiled(
+        Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
+    )
+    @test sol.u isa Reactant.ConcreteRArray
+    @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
+    @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == ReturnCode.Success
+    @test SciMLBase.successful_retcode(sol)
+    if name === nothing
+        @test sol.alg isa NonlinearSolvePolyAlgorithm
+    else
+        @test sol.alg.name === name
+        @test sol.alg.autodiff isa DifferentiationInterface.AutoForwardFromPrimitive
+        @test sol.alg.autodiff.backend isa AutoEnzyme
+    end
     @test sol.prob === nothing
     @test sol.stats === nothing
 end
@@ -279,6 +302,60 @@ end
     @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
     @test sol.retcode == sol_host.retcode
     @test sol.retcode == ReturnCode.ConvergenceFailure
+end
+
+# Store-inverse Broyden must invert the initial Jacobian on the first compiled step
+# (regression guard vs 55d417e5). true_jacobian cases supply an analytic `jac` so the
+# init path does not require DifferentiationInterface's Enzyme Jacobian (registry DI
+# still scalar-indexes in `basis` under Reactant; see JuliaDiff/DI#1067 / BLOCKED.md).
+# Diagonal Broyden on these problems diverges to NaN: host AbsNorm stays MaxIters while
+# compile's finite-residual guard returns Unstable, so diagonal cases assert at
+# maxiters=1 (first-step match) only.
+@testset "Broyden first-step inverse under compile: $pname $aname" for (
+        pname, f, jac, u0, aname, alg,
+    ) in (
+        (
+            :cube, (u, p) -> u .^ 3 .- p, (u, p) -> diagm(0 => 3 .* u .^ 2),
+            Float32[3, -2], :dense, Broyden(),
+        ),
+        (
+            :cube, (u, p) -> u .^ 3 .- p, (u, p) -> diagm(0 => 3 .* u .^ 2),
+            Float32[3, -2], :diagonal, Broyden(; update_rule = Val(:diagonal)),
+        ),
+        (
+            :cube, (u, p) -> u .^ 3 .- p, (u, p) -> diagm(0 => 3 .* u .^ 2),
+            Float32[3, -2], :true_jacobian,
+            Broyden(; init_jacobian = Val(:true_jacobian)),
+        ),
+        (
+            :exp, (u, p) -> exp.(u) .- p, (u, p) -> diagm(0 => exp.(u)),
+            Float32[3, 4], :dense, Broyden(),
+        ),
+        (
+            :exp, (u, p) -> exp.(u) .- p, (u, p) -> diagm(0 => exp.(u)),
+            Float32[3, 4], :diagonal, Broyden(; update_rule = Val(:diagonal)),
+        ),
+        (
+            :exp, (u, p) -> exp.(u) .- p, (u, p) -> diagm(0 => exp.(u)),
+            Float32[3, 4], :true_jacobian,
+            Broyden(; init_jacobian = Val(:true_jacobian)),
+        ),
+    )
+    nf = aname === :true_jacobian ? NonlinearFunction(f; jac) : NonlinearFunction(f)
+    maxiters = aname === :diagonal ? 1 : 50
+    function dosolve_broyden(u, p)
+        return solve(
+            NonlinearProblem(nf, u, p), alg;
+            maxiters = maxiters, abstol = 1.0f-5,
+            termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)),
+        )
+    end
+    p_host = Float32[2]
+    sol_host = dosolve_broyden(u0, p_host)
+    sol = Reactant.@jit dosolve_broyden(Reactant.to_rarray(u0), Reactant.to_rarray(p_host))
+    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+    @test sol.retcode == sol_host.retcode
+    @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-3
 end
 
 @testset "Polyalgorithm store_original under compile" begin
