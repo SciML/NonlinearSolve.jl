@@ -706,30 +706,26 @@ function _polysolve_compile_path(
     u, resid, retcode = best_sol.u, best_sol.resid, best_sol.retcode
     best_norm = _poly_resid_norm(prob, resid)
     done = _poly_success(retcode)
-    # Do not wrap member `__solve` in `@trace if`: Reactant then forwards a
-    # `Nothing` problem / mangled kwargs into `__solve`. Under compile, try every
-    # remaining member and `select` the best the same way the host early-exit
-    # ladder would have (unused members are still compiled, but the result matches).
+    # Keep `@trace if` for early-exit, but never `remake` / host-branch the
+    # problem inside it (Reactant forwarded `Nothing` into `__solve`). Reset
+    # aliased `u0` on the shared `member_prob` outside the traced branch.
     for i in (alg.start_index + 1):N
         alg_i = alg.algs[i]
-        member_prob_i = if alias_u0
-            copyto!(u0_aliased, u0)
-            SciMLBase.remake(prob; u0 = u0_aliased)
-        else
-            prob
+        alias_u0 && copyto!(member_prob.u0, u0)
+        ReactantCore.@trace track_numbers = false if !done
+            sol_i = SciMLBase.__solve(
+                member_prob, alg_i, solve_args...;
+                stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+            )
+            success_i = _poly_success(sol_i.retcode)
+            resid_norm = _poly_resid_norm(prob, sol_i.resid)
+            better = success_i | (resid_norm < best_norm)
+            u = select(better, sol_i.u, u)
+            resid = select(better, sol_i.resid, resid)
+            retcode = ifelse(better, sol_i.retcode, retcode)
+            best_norm = ifelse(better, resid_norm, best_norm)
+            done = success_i
         end
-        sol_i = SciMLBase.__solve(
-            member_prob_i, alg_i, solve_args...;
-            stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
-        )
-        success_i = _poly_success(sol_i.retcode)
-        resid_norm = _poly_resid_norm(prob, sol_i.resid)
-        better = (!done) & (success_i | (resid_norm < best_norm))
-        u = select(better, sol_i.u, u)
-        resid = select(better, sol_i.resid, resid)
-        retcode = ifelse(better, sol_i.retcode, retcode)
-        best_norm = ifelse(better, resid_norm, best_norm)
-        done = done | success_i
     end
     if alias_u0
         copyto!(u0, u)
