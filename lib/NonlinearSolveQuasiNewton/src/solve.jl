@@ -498,10 +498,10 @@ end
 
 function _quasi_newton_jacobian_traced!(cache, recompute_jacobian)
     # Reactant cannot `@trace if` over `Diagonal` (`set_mlir_data!` calls
-    # `diag` on a 0-d value). For `DiagonalStructure` (Klement) the identity
-    # approximate Jacobian is already installed at cache construction and no
-    # invert is required — skip the first-step branch entirely.
-    if cache.J isa Diagonal
+    # `diag` on a 0-d value) or `BroydenLowRankJacobian` (no `set_mlir_data!`
+    # method). Both already install the approximate inverse Jacobian at cache
+    # construction — skip the first-step branch entirely.
+    if cache.J isa Diagonal || cache.J isa BroydenLowRankJacobian
         cache.steps_since_last_reset += 1
         return cache.J
     end

@@ -193,8 +193,10 @@ function (cache::InitializedApproximateJacobianCache)(
         alg::BroydenLowRankInitialization, fu, u
     )
     α = Utils.initial_jacobian_scaling_alpha(alg.alpha, u, fu, cache.internalnorm)
-    cache.J.idx = 0
-    cache.J.alpha = inv(α)
+    cache.J.idx = NonlinearSolveBase.maybe_traced(0)
+    cache.J.alpha = NonlinearSolveBase.maybe_traced(inv(α))
+    fill!(cache.J.U, false)
+    fill!(cache.J.Vᵀ, false)
     return
 end
 
@@ -209,7 +211,7 @@ Low Rank Approximation of the inverse Jacobian. Currently only used for
 @concrete mutable struct BroydenLowRankJacobian{T} <: AbstractSciMLOperator{T}
     U
     Vᵀ
-    idx::Int
+    idx
     cache
     alpha
 end
@@ -217,7 +219,11 @@ end
 Utils.linsolve_identity!!(workspace, A::BroydenLowRankJacobian) = A  # Already Inverted form
 
 function get_components(op::BroydenLowRankJacobian)
-    op.idx ≥ size(op.U, 2) && return op.cache, op.U, transpose(op.Vᵀ)
+    # Under Reactant, unused columns stay zero so the full factors are exact and
+    # avoid dynamic `view(..., 1:idx)` with a traced counter.
+    if ReactantCore.within_compile() || op.idx ≥ size(op.U, 2)
+        return op.cache, op.U, transpose(op.Vᵀ)
+    end
     cache = op.cache === nothing ? op.cache : view(op.cache, 1:(op.idx))
     return cache, view(op.U, :, 1:(op.idx)), transpose(view(op.Vᵀ, :, 1:(op.idx)))
 end
@@ -236,7 +242,12 @@ function BroydenLowRankJacobian(
     T = promote_type(eltype(u), eltype(fu))
     U = MArray{Tuple{prod(Size(fu)), Utils.unwrap_val(threshold)}, T}(undef)
     Vᵀ = MArray{Tuple{prod(Size(u)), Utils.unwrap_val(threshold)}, T}(undef)
-    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, nothing, T(alpha))
+    fill!(U, false)
+    fill!(Vᵀ, false)
+    return BroydenLowRankJacobian{T}(
+        U, Vᵀ, NonlinearSolveBase.maybe_traced(0), nothing,
+        NonlinearSolveBase.maybe_traced(T(alpha))
+    )
 end
 
 function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
@@ -244,17 +255,24 @@ function BroydenLowRankJacobian(fu, u; threshold::Int = 10, alpha = true)
     U = Utils.safe_similar(fu, T, length(fu), threshold)
     Vᵀ = Utils.safe_similar(u, T, length(u), threshold)
     cache = Utils.safe_similar(u, T, threshold)
-    return BroydenLowRankJacobian{T}(U, Vᵀ, 0, cache, T(alpha))
+    fill!(U, false)
+    fill!(Vᵀ, false)
+    return BroydenLowRankJacobian{T}(
+        U, Vᵀ, NonlinearSolveBase.maybe_traced(0), cache,
+        NonlinearSolveBase.maybe_traced(T(alpha))
+    )
 end
 
 function Base.:*(J::BroydenLowRankJacobian, x::AbstractVector)
-    J.idx == 0 && return J.alpha .* x
+    if !ReactantCore.within_compile() && J.idx == 0
+        return J.alpha .* x
+    end
     _, U, Vᵀ = get_components(J)
     return U * (Vᵀ * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::AbstractVector)
-    if J.idx == 0
+    if !ReactantCore.within_compile() && J.idx == 0
         @. y = J.alpha * x
         return y
     end
@@ -266,13 +284,15 @@ function LinearAlgebra.mul!(y::AbstractVector, J::BroydenLowRankJacobian, x::Abs
 end
 
 function Base.:*(x::AbstractVector, J::BroydenLowRankJacobian)
-    J.idx == 0 && return J.alpha .* x
+    if !ReactantCore.within_compile() && J.idx == 0
+        return J.alpha .* x
+    end
     _, U, Vᵀ = get_components(J)
     return Vᵀ' * (U' * x) .+ J.alpha .* x
 end
 
 function LinearAlgebra.mul!(y::AbstractVector, x::AbstractVector, J::BroydenLowRankJacobian)
-    if J.idx == 0
+    if !ReactantCore.within_compile() && J.idx == 0
         @. y = J.alpha * x
         return y
     end
@@ -289,9 +309,20 @@ function LinearAlgebra.mul!(
     )
     @assert α & β
     idx_update = mod1(J.idx + 1, size(J.U, 2))
-    copyto!(@view(J.U[:, idx_update]), Utils.safe_vec(u))
-    copyto!(@view(J.Vᵀ[:, idx_update]), Utils.safe_vec(vᵀ))
-    J.idx += 1
+    u_vec = Utils.safe_vec(u)
+    v_vec = Utils.safe_vec(vᵀ)
+    if ReactantCore.within_compile()
+        # Traced column index: select per concrete column rather than `@view`.
+        for j in 1:size(J.U, 2)
+            mask = j == idx_update
+            @. J.U[:, j] = ifelse(mask, u_vec, J.U[:, j])
+            @. J.Vᵀ[:, j] = ifelse(mask, v_vec, J.Vᵀ[:, j])
+        end
+    else
+        copyto!(@view(J.U[:, idx_update]), u_vec)
+        copyto!(@view(J.Vᵀ[:, idx_update]), v_vec)
+    end
+    J.idx = J.idx + 1
     return J
 end
 

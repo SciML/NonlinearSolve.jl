@@ -188,6 +188,7 @@ runtime_quasi_spectral_cases = (
     (:Broyden, Broyden()),
     (:Klement, Klement()),
     (:DFSane, DFSane()),
+    (:LimitedMemoryBroyden, LimitedMemoryBroyden(; threshold = 2)),
 )
 
 @testset "Runtime inputs: $name" for (name, alg) in runtime_quasi_spectral_cases
