@@ -25,6 +25,19 @@ using LinearSolve, SciMLOperators, LinearAlgebra, ForwardDiff
     end
 end
 
+@testset "Bounded defaults with mixed scalar and array shapes" begin
+    problems = (
+        NonlinearLeastSquaresProblem((u, p) -> [u - p, 1.0], 0.5, 2.0; lb = 0.0, ub = 1.0),
+        NonlinearLeastSquaresProblem((u, p) -> sum(u) - p, [0.25, 0.25], 1.0; lb = 0.0, ub = 1.0),
+    )
+    for prob in problems, cached in (false, true)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ (prob.u0 isa Number ? 1.0 : [0.5, 0.5])
+        @test typeof(sol.u) == typeof(prob.u0)
+    end
+end
+
 @testset "Boundary stationarity and root failure" begin
     for bounds in ((; lb = 0.0), (; ub = 1.0), (; lb = 0.0, ub = 1.0), (; lb = 1.0, ub = 1.0))
         target = haskey(bounds, :ub) ? 2.0 : -1.0

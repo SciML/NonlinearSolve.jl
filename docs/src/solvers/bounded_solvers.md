@@ -4,7 +4,10 @@ Use `solve(prob)` for a problem with `lb` or `ub`. The bounded default is
 [`SobolMultistart`](@ref) wrapping [`FastShortcutBoundedPolyalg`](@ref): each start
 works in the original coordinates, trying `BoundedTrustRegion()` and then
 `BoundedGaussNewton()` with projected backtracking if needed, and a stalled local
-solve triggers deterministic restarts. Passing `FastShortcutBoundedPolyalg()`
+solve triggers deterministic restarts. For an out-of-place least-squares problem with a
+scalar state and an array residual, or the reverse, each start runs
+`BoundedGaussNewton()` alone, because `BoundedTrustRegion()` requires the state and the
+residual to be both scalars or both arrays. Passing `FastShortcutBoundedPolyalg()`
 explicitly selects the purely local sequence without restarts. The
 [bound-constraints tutorial](../tutorials/bound_constraints.md) shows how to construct root and least-squares problems.
 
