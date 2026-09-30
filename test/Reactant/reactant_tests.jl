@@ -86,34 +86,42 @@ for (compiled, name, uses_enzyme) in (
     @test sol.stats === nothing
 end
 
-# Autodiff compiles need a Reactant-traceable DI Jacobian. Registry DifferentiationInterface
-# still scalar-indexes in `basis` under `AutoForwardFromPrimitive(AutoEnzyme())` (and the
-# closed JuliaDiff/DI#1067 fork is not allowed). See BLOCKED.md.
-@testset "Autodiff Jacobian under compile: $name" for (solve_fn, name) in (
+# Autodiff Jacobians under `@compile` require an analytic `jac`: registered
+# DifferentiationInterface cannot yet build Jacobians on traced arrays
+# (JuliaDiff/DifferentiationInterface.jl#1067). Throw before DI prepare so
+# `@compile` fails loudly instead of hanging on scalar indexing.
+@testset "Autodiff Jacobian under compile requires analytic jac: $name" for (solve_fn, name) in (
         (solve_autodiff_newton, :NewtonRaphson),
         (solve_autodiff_trust_region, :TrustRegion),
         (solve_autodiff_default, nothing),
         (solve_autodiff_gauss_newton, :GaussNewton),
     )
-    compiled = Reactant.@compile solve_fn(u0, p0)
-    sol = compiled(
-        Reactant.to_rarray(Float32[1, 1]), Reactant.to_rarray(Float32[2])
-    )
-    @test sol.u isa Reactant.ConcreteRArray
-    @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
-    @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
-    @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
-    @test sol.retcode == ReturnCode.Success
-    @test SciMLBase.successful_retcode(sol)
-    if name === nothing
-        @test sol.alg isa NonlinearSolvePolyAlgorithm
-    else
-        @test sol.alg.name === name
-        @test sol.alg.autodiff isa DifferentiationInterface.AutoForwardFromPrimitive
-        @test sol.alg.autodiff.backend isa AutoEnzyme
+    err = try
+        Reactant.@compile solve_fn(u0, p0)
+        nothing
+    catch e
+        e
     end
-    @test sol.prob === nothing
-    @test sol.stats === nothing
+    @test err isa ArgumentError
+    @test occursin("analytic", sprint(showerror, err))
+    @test occursin("DifferentiationInterface", sprint(showerror, err))
+end
+
+@testset "Broyden true_jacobian without analytic jac under compile" begin
+    function solve_broyden_true_jac_no_analytic(u, p)
+        return solve(
+            NonlinearProblem(NonlinearFunction(f), u, p),
+            Broyden(; init_jacobian = Val(:true_jacobian))
+        )
+    end
+    err = try
+        Reactant.@compile solve_broyden_true_jac_no_analytic(u0, p0)
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("analytic", sprint(showerror, err))
 end
 
 
@@ -305,9 +313,8 @@ end
 end
 
 # Store-inverse Broyden must invert the initial Jacobian on the first compiled step
-# (regression guard vs 55d417e5). true_jacobian cases supply an analytic `jac` so the
-# init path does not require DifferentiationInterface's Enzyme Jacobian (registry DI
-# still scalar-indexes in `basis` under Reactant; see JuliaDiff/DI#1067 / BLOCKED.md).
+# (regression guard vs 55d417e5). true_jacobian cases supply an analytic `jac` because
+# AD Jacobians under compile throw (JuliaDiff/DifferentiationInterface.jl#1067).
 # Diagonal Broyden on these problems diverges to NaN: host AbsNorm stays MaxIters while
 # compile's finite-residual guard returns Unstable, so diagonal cases assert at
 # maxiters=1 (first-step match) only.

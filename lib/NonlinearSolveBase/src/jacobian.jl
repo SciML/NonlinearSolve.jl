@@ -49,6 +49,21 @@ function construct_jacobian_cache(
     fu_cache = Utils.safe_similar(fu)
 
     if op_jac === nothing && !has_analytic_jac && needs_jac
+        # Registered DifferentiationInterface cannot build Jacobians under Reactant
+        # `@jit`/`@compile` yet (JuliaDiff/DifferentiationInterface.jl#1067). Throw
+        # before `DI.prepare_jacobian` so tracing never hangs on scalar indexing.
+        if ReactantCore.within_compile()
+            throw(
+                ArgumentError(
+                    "Compiled nonlinear solves that need an automatic-differentiation \
+Jacobian require an analytic `jac` (or a SciMLOperator `jac_prototype`). \
+Registered DifferentiationInterface cannot yet build Jacobians under Reactant \
+`@jit`/`@compile` (see JuliaDiff/DifferentiationInterface.jl#1067). Supply \
+`NonlinearFunction(...; jac = ...)` or use a Jacobian-free / quasi-Newton method \
+that does not initialize from a true Jacobian."
+                )
+            )
+        end
         if autodiff === nothing
             throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
                                  specified and cannot be `nothing`. Use \
@@ -136,6 +151,17 @@ function construct_jacobian_cache(
     )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
         return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing)
+    end
+    if ReactantCore.within_compile()
+        throw(
+            ArgumentError(
+                "Compiled nonlinear solves that need an automatic-differentiation \
+Jacobian require an analytic `jac` (or `vjp`/`jvp`). Registered DifferentiationInterface \
+cannot yet build Jacobians under Reactant `@jit`/`@compile` (see \
+JuliaDiff/DifferentiationInterface.jl#1067). Supply `NonlinearFunction(...; jac = ...)` \
+or use a Jacobian-free / quasi-Newton method that does not initialize from a true Jacobian."
+            )
+        )
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
