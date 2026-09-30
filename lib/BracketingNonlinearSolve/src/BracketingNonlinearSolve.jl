@@ -67,6 +67,8 @@ end
 function bracketingnonlinear_solve_up(
         prob::IntervalNonlinearProblem, sensealg, p, alg, args...; kwargs...
     )
+    sol = NonlinearSolveBase.InternalAPI.forwarddiff_solve(prob, alg, args...; kwargs...)
+    sol === nothing || return sol
     return SciMLBase.__solve(prob, alg, args...; kwargs...)
 end
 
