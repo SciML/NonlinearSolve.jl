@@ -99,15 +99,15 @@ Algorithms follow their normal `solve` dispatch during Reactant compilation. The
 separate allowlist or fallback algorithm: unsupported operations report their errors from
 Reactant or the package that implements them. The Reactant test group covers first-order
 methods and polyalgorithms with out-of-place nonlinear and least-squares problems.
-Compiled solves that need an automatic-differentiation Jacobian require an analytic `jac`
-(or a SciMLOperator `jac_prototype`): registered DifferentiationInterface cannot yet build
-Jacobians under `@jit`/`@compile`
+Compiled array solves that need a concrete automatic-differentiation Jacobian require an
+analytic `jac`: registered DifferentiationInterface cannot yet build array Jacobians under
+`@jit`/`@compile`
 (see [JuliaDiff/DifferentiationInterface.jl#1067](https://github.com/JuliaDiff/DifferentiationInterface.jl/pull/1067)).
-Jacobian-free and quasi-Newton methods that do not initialize from a true Jacobian remain
-usable without an analytic Jacobian. When an AD Jacobian path is available again, automatic
-backend selection prefers
-`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` under
-compilation (raw `AutoEnzyme` Jacobians are not Reactant-traceable).
+Quasi-Newton methods with identity or diagonal initialization work without an analytic
+Jacobian. Krylov / Jacobian-operator linear solves are not supported under compile. Scalar
+problems may use AD derivatives under compile; automatic backend selection prefers
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`
+(raw `AutoEnzyme` is not Reactant-traceable for those paths).
 
 Under compilation the default termination mode is plain
 `AbsNormTerminationMode` rather than the host's `AbsNormSafeBestTerminationMode`: there is

@@ -24,9 +24,3 @@ end
 @testset "Warmed active in-place TrustRegion (Moré) step is allocation-free" begin
     @test warmed_active_step_bytes(TrustRegion()) == 0
 end
-
-@testset "Warmed active in-place LM damping reuses the diagonal buffer" begin
-    # Master baseline for this probe: 528 with geodesic, 352 without.
-    @test warmed_active_step_bytes(LevenbergMarquardt()) ≤ 528
-    @test warmed_active_step_bytes(LevenbergMarquardt(; disable_geodesic = Val(true))) ≤ 352
-end

@@ -86,8 +86,8 @@ for (compiled, name, uses_enzyme) in (
     @test sol.stats === nothing
 end
 
-# Autodiff Jacobians under `@compile` require an analytic `jac`: registered
-# DifferentiationInterface cannot yet build Jacobians on traced arrays
+# Autodiff array Jacobians under `@compile` require an analytic `jac`: registered
+# DifferentiationInterface cannot yet build array Jacobians on traced arrays
 # (JuliaDiff/DifferentiationInterface.jl#1067). Throw before DI prepare so
 # `@compile` fails loudly instead of hanging on scalar indexing.
 @testset "Autodiff Jacobian under compile requires analytic jac: $name" for (solve_fn, name) in (
@@ -105,6 +105,7 @@ end
     @test err isa ArgumentError
     @test occursin("analytic", sprint(showerror, err))
     @test occursin("DifferentiationInterface", sprint(showerror, err))
+    @test occursin("Krylov", sprint(showerror, err))
 end
 
 @testset "Broyden true_jacobian without analytic jac under compile" begin
@@ -122,6 +123,38 @@ end
     end
     @test err isa ArgumentError
     @test occursin("analytic", sprint(showerror, err))
+end
+
+# Scalar AD derivatives under Reactant compile use DI.derivative (not the array
+# Jacobian path) and select AutoForwardFromPrimitive(AutoEnzyme Forward).
+fs(u, p) = u * u - p
+function solve_scalar_newton(u, p)
+    return solve(NonlinearProblem(NonlinearFunction(fs), u, p), NewtonRaphson())
+end
+function solve_scalar_default(u, p)
+    return solve(NonlinearProblem(NonlinearFunction(fs), u, p))
+end
+
+@testset "Scalar autodiff Newton / default under compile match host" begin
+    u_host = 1.0f0
+    p_host = 2.0f0
+    ru = Reactant.ConcreteRNumber(u_host)
+    rp = Reactant.ConcreteRNumber(p_host)
+    for (solve_fn, check_backend) in (
+            (solve_scalar_newton, true),
+            (solve_scalar_default, false),
+        )
+        sol_host = solve_fn(u_host, p_host)
+        compiled = Reactant.@compile solve_fn(ru, rp)
+        sol = compiled(Reactant.ConcreteRNumber(u_host), Reactant.ConcreteRNumber(p_host))
+        @test sol.retcode isa Reactant.ConcreteEnum{ReturnCode.T}
+        @test sol.retcode == ReturnCode.Success
+        @test sol.retcode == sol_host.retcode
+        @test Float32(sol.u) ≈ Float32(sol_host.u) rtol = 1.0f-5
+        if check_backend
+            @test sol.alg.autodiff isa DifferentiationInterface.AutoForwardFromPrimitive
+        end
+    end
 end
 
 
@@ -313,12 +346,12 @@ end
     @test sol.retcode == ReturnCode.ConvergenceFailure
 end
 
-# Store-inverse Broyden must invert the initial Jacobian on the first compiled step
-# (regression guard vs 55d417e5). true_jacobian cases supply an analytic `jac` because
-# AD Jacobians under compile throw (JuliaDiff/DifferentiationInterface.jl#1067).
-# Diagonal Broyden on these problems diverges to NaN: host AbsNorm stays MaxIters while
-# compile's finite-residual guard returns Unstable, so diagonal cases assert at
-# maxiters=1 (first-step match) only.
+# Store-inverse Broyden inverts the initial Jacobian on the first compiled step.
+# true_jacobian cases supply an analytic `jac` because AD array Jacobians under
+# compile throw (JuliaDiff/DifferentiationInterface.jl#1067). Diagonal Broyden on
+# these problems diverges to NaN: host AbsNorm stays MaxIters while compile's
+# finite-residual guard returns Unstable, so diagonal cases assert at maxiters=1
+# (first-step match) only.
 @testset "Broyden first-step inverse under compile: $pname $aname" for (
         pname, f, jac, u0, aname, alg,
     ) in (

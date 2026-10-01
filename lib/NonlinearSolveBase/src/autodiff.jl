@@ -27,7 +27,7 @@ If `ad` is an `AbstractADType`, the backend is returned when it is available and
 with the problem. If `ad === nothing`, NonlinearSolveBase selects the first available
 compatible backend from its preferred forward-mode list. During Reactant compilation,
 `DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` is
-preferred when available.
+preferred when available so scalar derivatives stay traceable.
 
 ### Arguments
 
@@ -79,9 +79,9 @@ function select_forward_mode_autodiff(
         warn_check_mode::Bool = true
     )
     if ReactantCore.within_compile()
-        # Enzyme's Jacobian path is not Reactant-traceable as a raw AutoEnzyme
-        # backend; wrap through DI's AutoForwardFromPrimitive (maintainer guidance
-        # after JuliaDiff/DifferentiationInterface.jl#1067 closed unmerged).
+        # Under Reactant compile, wrap Enzyme through DI's AutoForwardFromPrimitive
+        # so scalar derivatives (and other DI prepare/value paths that use it) stay
+        # traceable. Raw `AutoEnzyme` is not Reactant-traceable for those paths.
         ad = AutoForwardFromPrimitive(ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward))
         !incompatible_backend_and_problem(prob, ad) && return ad
     end
@@ -153,7 +153,8 @@ If `ad === nothing`, NonlinearSolveBase prefers a compatible forward-mode backen
 not finite differencing, then falls back to compatible reverse-mode or finite-difference
 backends. During Reactant compilation,
 `DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))` is
-preferred when available.
+preferred when available (used by scalar AD derivatives under compile; array AD Jacobians
+still require an analytic `jac`).
 
 ### Arguments
 
@@ -178,8 +179,9 @@ end
 
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
     if ReactantCore.within_compile()
-        # Prefer AutoForwardFromPrimitive(AutoEnzyme) under Reactant: raw
-        # AutoEnzyme Jacobians are not traceable (see JuliaDiff/DI#1067).
+        # Prefer AutoForwardFromPrimitive(AutoEnzyme) under Reactant compile so
+        # scalar `DI.derivative` paths stay traceable. Array AD Jacobians still
+        # require an analytic `jac` (see JuliaDiff/DifferentiationInterface.jl#1067).
         ad = AutoForwardFromPrimitive(ADTypes.AutoEnzyme(; mode = EnzymeCore.Forward))
         !incompatible_backend_and_problem(prob, ad) && return ad
     end
