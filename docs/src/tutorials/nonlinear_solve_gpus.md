@@ -72,16 +72,19 @@ and thus the tolerances are adjusted accordingly.
 
 ## Whole-solve compilation with Reactant.jl
 
-Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs:
+Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs.
+Array Newton-family solves that need a concrete Jacobian require an analytic `jac`:
 
 ```julia
 import NonlinearSolve as NLS
 import Reactant
+import LinearAlgebra: diagm
 
 f(u, p) = u .* u .- p
+jac(u, p) = diagm(0 => 2 .* u)
 
 function reactant_solve(u0, p)
-    prob = NLS.NonlinearProblem(f, u0, p)
+    prob = NLS.NonlinearProblem(NLS.NonlinearFunction(f; jac), u0, p)
     return NLS.solve(prob, NLS.NewtonRaphson())
 end
 
@@ -106,8 +109,8 @@ analytic `jac`: registered DifferentiationInterface cannot yet build array Jacob
 Quasi-Newton methods with identity or diagonal initialization work without an analytic
 Jacobian. Krylov / Jacobian-operator linear solves are not supported under compile. Scalar
 problems may use AD derivatives under compile; automatic backend selection prefers
-`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`
-(raw `AutoEnzyme` is not Reactant-traceable for those paths).
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`.
+An explicit `autodiff = AutoEnzyme(; mode = Forward)` also works for some scalar solves.
 
 Under compilation the default termination mode is plain
 `AbsNormTerminationMode` rather than the host's `AbsNormSafeBestTerminationMode`: there is

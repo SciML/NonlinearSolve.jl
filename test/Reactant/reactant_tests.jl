@@ -6,6 +6,28 @@ using Reactant
 using SciMLBase
 using Test
 
+# Verbatim tutorial example from docs/src/tutorials/nonlinear_solve_gpus.md
+# ("Whole-solve compilation with Reactant.jl").
+@testset "docs/tutorials/nonlinear_solve_gpus.md Reactant NewtonRaphson example" begin
+    import NonlinearSolve as NLS
+    import Reactant
+    import LinearAlgebra: diagm
+
+    f(u, p) = u .* u .- p
+    jac(u, p) = diagm(0 => 2 .* u)
+
+    function reactant_solve(u0, p)
+        prob = NLS.NonlinearProblem(NLS.NonlinearFunction(f; jac), u0, p)
+        return NLS.solve(prob, NLS.NewtonRaphson())
+    end
+
+    u0 = Reactant.to_rarray(Float32[1, 1])
+    p = Reactant.to_rarray(Float32[2])
+    sol = Reactant.@jit reactant_solve(u0, p)
+    @test sol.retcode == ReturnCode.Success
+    @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
+end
+
 f(u, p) = u .* u .- p
 jac(u, p) = reshape(2 .* u, :, 1) .* Float32[1 0; 0 1]
 nonlinear_function = NonlinearFunction(f; jac)
