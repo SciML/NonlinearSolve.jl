@@ -28,8 +28,9 @@ This gives a robust and fast method, which therefore enjoys considerable popular
 
 [`NewtonBisection`](@ref) is Newton's method safeguarded by bisection. It needs the
 derivative of `f`, given as `IntervalNonlinearFunction(f; jac)`, and usually fewer
-evaluations of `f` than the methods above. It pays off when the derivative is cheap
-compared with `f`.
+evaluations of `f` than the methods above. It evaluates the derivative about as often as
+`f`, though, so it is faster only when the derivative costs a small fraction of `f`: for
+example when `f` is an integral and the derivative its integrand.
 
 ## Full List of Methods
 
