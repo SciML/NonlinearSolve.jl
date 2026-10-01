@@ -37,6 +37,20 @@ end
     @test sol.u == sol.left == sol.right == 0.0
 end
 
+@testset "Derivative right after f, at the same point" begin
+    @testset for (tspan, abstol) in (((1.0, 20.0), 0.0), ((20.0, 1.0), 0.0), ((1.0, 20.0), 1.0e-6))
+        calls = Tuple{Symbol, Float64}[]
+        f = IntervalNonlinearFunction(
+            (u, p) -> (push!(calls, (:f, u)); u^2 - p); jac = (u, p) -> (push!(calls, (:jac, u)); 2u)
+        )
+        solve(IntervalNonlinearProblem(f, tspan, 2.0), NewtonBisection(); abstol)
+        jacs = findall(call -> first(call) == :jac, calls)
+        @test all(i -> calls[i - 1] == (:f, last(calls[i])), jacs)
+        # No derivative after the last evaluation of `f`
+        @test length(jacs) == length(calls) - length(jacs) - 1
+    end
+end
+
 @testset "Flipped signs and reversed tspan" begin
     f1 = IntervalNonlinearFunction((u, p) -> u * u - p; jac = (u, p) -> 2u)
     f2 = IntervalNonlinearFunction((u, p) -> p - u * u; jac = (u, p) -> -2u)
