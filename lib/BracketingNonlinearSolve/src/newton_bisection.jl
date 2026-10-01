@@ -65,7 +65,7 @@ function SciMLBase.__solve(
     dfl, dfr = df(left), df(right)
     x, fx, dfx = abs(fl / dfl) <= abs(fr / dfr) ? (left, fl, dfl) : (right, fr, dfr)
     last_step = older_step = oftype(right - left, Inf)
-    k = 1   # distance beyond the Newton point, in tolerances, once Newton has converged
+    k = one(right - left)   # distance beyond the Newton point, in tolerances, once Newton has converged
     for _ in 1:maxiters
         if nextfloat(left) == right
             return newton_bisection_solution(prob, alg, left, right, fl, fr, ReturnCode.FloatingPointLimit)
@@ -98,7 +98,7 @@ function SciMLBase.__solve(
         else
             right, fr = t, ft
         end
-        (t == left) == was_left || (k = 1)
+        (t == left) == was_left || (k = one(k))
         x, fx, dfx = t, ft, df(t)
     end
 
