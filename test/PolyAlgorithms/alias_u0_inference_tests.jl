@@ -26,10 +26,9 @@ nlf = NonlinearFunction{true}(f!; sys = UninferableRemakeSys())
 prob = NonlinearProblem(nlf, [1.0, 1.0], [2.0, 3.0])
 alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = true)
 
+remake_u0(prob, u0) = SciMLBase.remake(prob; u0)
 @test !isconcretetype(
-    Base.infer_return_type(
-        (prob, u0) -> SciMLBase.remake(prob; u0), (typeof(prob), Vector{Float64})
-    )
+    Core.Compiler.return_type(remake_u0, Tuple{typeof(prob), Vector{Float64}})
 )
 
 for alg in (
