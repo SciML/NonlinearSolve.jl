@@ -184,7 +184,7 @@ end
     p           # current trial step
     gn_step     # Gauss-Newton step, reused while `J` and `fu` are unchanged
     gn_norm     # scaled norm `‖D δu_gn‖`; `Inf` when the GN solve failed
-    gn_valid::Bool
+    gn_valid
     dtd         # `Jacobian`/`Auto`-scaling diagonal of `D²`, else `nothing`
     Dp
     D²p
@@ -195,7 +195,7 @@ end
     # (J, D, fu) subproblem is retried at a new Δ, so it seeds the next bracket
     λ_bound
     λ_bound_dpnorm
-    λ_bound_valid::Bool
+    λ_bound_valid
     θ
     maxiters::Int
     min_damping_D
@@ -773,7 +773,8 @@ end
 # (and the scalar setup) behind a barrier narrows `dtd` to its runtime type, which
 # keeps `λ_of_p` (and so the `extras` NamedTuple fields) concretely inferred.
 function _more_generic_λloop!(
-        cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs
+        cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs;
+        required = true
     )
     T = promote_type(eltype(u), eltype(fu))
     Δ = T(trust_region)
@@ -785,86 +786,97 @@ function _more_generic_λloop!(
         @bb @. cache.q = Jᵀfu / sqrt(dtd)
         u_bound = cache.internalnorm(cache.q) / Δ
     end
-    λ = iszero(cache.λ) ? T(1.0e-3) * u_bound : min(T(cache.λ), u_bound)
+    λ = ifelse(iszero(cache.λ), T(1.0e-3) * u_bound, min(T(cache.λ), u_bound))
     l, uλ = zero(λ), u_bound
-    # Same warm start as `_more_lmpar_λloop!`: the last solve's (λ, ‖Dp‖) still
-    # measures the current (J, D, fu) subproblem when only Δ changed
-    if idx1 && cache.λ_bound_valid
-        if cache.λ_bound_dpnorm >= Δ
-            l = max(l, cache.λ_bound)
-            λ = min(cache.λ_bound * (cache.λ_bound_dpnorm / Δ), u_bound)
-        else
-            uλ = min(uλ, cache.λ_bound)
-            λ = min(λ, uλ)
-        end
-    end
-    # Below ~eps·maxdiag(JᵀJ)/min(diag DᵀD) the normal-equations factorization cannot
-    # succeed; the augmented system stays full rank but still clamps λ off 0 to keep
-    # the `Dp/√λ` right-hand side of the q-solve finite
+    warm = idx1 & cache.λ_bound_valid
+    outside = cache.λ_bound_dpnorm >= Δ
+    l = ifelse(warm & outside, max(l, cache.λ_bound), l)
+    uλ = ifelse(warm & !outside, min(uλ, cache.λ_bound), uλ)
+    λ = ifelse(
+        warm,
+        ifelse(outside, min(cache.λ_bound * (cache.λ_bound_dpnorm / Δ), u_bound), min(λ, uλ)),
+        λ
+    )
     λ = if normal_form(cache)
         max(λ, eps(T) * _more_maxdiag(cache.JᵀJ) / _more_mindtd(dtd))
     else
         max(λ, eps(T))
     end
     uλ = max(uλ, λ)
-    cache.λ = λ
-    got_step = false
+    cache.λ = ifelse(required, λ, cache.λ)
+    got_step = maybe_traced(false)
     pos_bound = l > zero(l)
     ϕ_prev, λ_prev = zero(λ), λ
-    for i in 1:cache.maxiters
-        linres = _more_damped_solve(cache, lincache, J_, Jᵀfu, fu, λ, u, kwargs)
-        if !linres.success || !_all_finite(linres.u)
-            # λ is numerically too small to regularize the system; the analytic
-            # bound u₀ assumes exact arithmetic, so λ is allowed to outgrow it
-            l = max(l, λ)
-            λ *= 10
-            uλ = max(uλ, λ)
-            continue
-        end
-        p = linres.u
-        if normal_form(cache)
-            if p isa Number
-                cache.p = -p
-            else
-                @bb @. cache.p = -p
-            end
-        else
-            cache.p = Utils.restructure(cache.p, p)
-        end
-        p = cache.p
-        got_step = true
-        cache.λ = λ
-
-        Dp = _more_Dp!(cache, dtd, p)
-        dpnorm = cache.internalnorm(Dp)
-        ϕ = dpnorm - Δ
-        if idx1
-            cache.λ_bound = λ
-            cache.λ_bound_dpnorm = dpnorm
-            cache.λ_bound_valid = true
-        end
-        (abs(ϕ) <= cache.θ * Δ || i == cache.maxiters) && break
-        # Same `parl == 0` stagnation exit as `_more_lmpar_λloop!`
-        (
-            !pos_bound && ϕ_prev < zero(ϕ) && ϕ <= ϕ_prev + cache.θ * Δ &&
-                λ <= λ_prev
-        ) && break
-        ϕ > zero(ϕ) && (pos_bound = true)
-        ϕ_prev, λ_prev = ϕ, λ
-
-        D²p = _more_D2p!(cache, dtd, p)
-        qres = _more_q_solve(cache, lincache, D²p, Dp, λ, u, kwargs)
-        if !qres.success || !_all_finite(qres.u)
-            l = max(l, λ)
-            λ *= 10
-            uλ = max(uλ, λ)
-            continue
-        end
-        λ, l, uλ = _more_update_λ(
-            λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, qres.u), l, uλ
+    i, done = maybe_traced(0), maybe_traced(false)
+    λ, l, uλ, ϕ_prev, λ_prev = dealias_traced!((λ, l, uλ, ϕ_prev, λ_prev))
+    dealias_traced!(cache)
+    ReactantCore.@trace track_numbers = false while required & !done & (i < cache.maxiters)
+        i += 1
+        λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, done = _more_generic_iteration!(
+            cache, J_, Jᵀfu, fu, u, dtd, idx1, Δ, kwargs,
+            λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, i
         )
+        λ, l, uλ, ϕ_prev, λ_prev = dealias_traced!((λ, l, uλ, ϕ_prev, λ_prev))
+        dealias_traced!(cache)
     end
-    return got_step
+    return ifelse(got_step, true, false)
+end
+
+function _more_generic_iteration!(
+        cache, J_, Jᵀfu, fu, u, dtd, idx1, Δ, kwargs,
+        λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, i
+    )
+    linres = _more_damped_solve(cache, cache.lincache, J_, Jᵀfu, fu, λ, u, kwargs)
+    valid = linres.success & _all_finite(linres.u)
+    if !ReactantCore.within_compile() && !valid
+        return λ * 10, max(l, λ), max(uλ, λ * 10), got_step, pos_bound, ϕ_prev, λ_prev, false
+    end
+    if normal_form(cache)
+        p = linres.u
+        if p isa Number
+            cache.p = ifelse(valid, -p, cache.p)
+        else
+            @bb @. cache.p = ifelse(valid, -p, cache.p)
+        end
+    else
+        cache.p = select(valid, Utils.restructure(cache.p, linres.u), cache.p)
+    end
+    got_step = ifelse(got_step, true, valid)
+    cache.λ = ifelse(valid, λ, cache.λ)
+    Dp = _more_Dp!(cache, dtd, cache.p)
+    dpnorm = cache.internalnorm(Dp)
+    ϕ = dpnorm - Δ
+    if idx1
+        cache.λ_bound = ifelse(valid, λ, cache.λ_bound)
+        cache.λ_bound_dpnorm = ifelse(valid, dpnorm, cache.λ_bound_dpnorm)
+        cache.λ_bound_valid = ifelse(cache.λ_bound_valid, true, valid)
+    end
+    at_bound = abs(ϕ) <= cache.θ * Δ
+    at_maxiter = i == cache.maxiters
+    parl0_exit = !pos_bound & (ϕ_prev < zero(ϕ)) & (ϕ <= ϕ_prev + cache.θ * Δ) &
+        (λ <= λ_prev)
+    done = valid & ifelse(at_bound, true, ifelse(at_maxiter, true, parl0_exit))
+    if !ReactantCore.within_compile() && done
+        return λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, done
+    end
+    do_q = valid & !done
+    pos_bound = ifelse(pos_bound, true, do_q & (ϕ > zero(ϕ)))
+    ϕ_prev, λ_prev = ifelse(do_q, ϕ, ϕ_prev), ifelse(do_q, λ, λ_prev)
+    D²p = _more_D2p!(cache, dtd, cache.p)
+    qres = _more_q_solve(cache, cache.lincache, D²p, Dp, λ, u, kwargs)
+    qvalid = qres.success & _all_finite(qres.u)
+    if !ReactantCore.within_compile() && !qvalid
+        return λ * 10, max(l, λ), max(uλ, λ * 10), got_step, pos_bound, ϕ_prev, λ_prev, done
+    end
+    next_λ, next_l, next_uλ = _more_update_λ(
+        λ, ϕ, Δ, Utils.safe_dot(Dp, Dp), Utils.safe_dot(D²p, qres.u), l, uλ
+    )
+    advance = do_q & qvalid
+    retry = ifelse(valid, do_q & !qvalid, true)
+    return ifelse(advance, next_λ, ifelse(retry, λ * 10, λ)),
+        ifelse(advance, next_l, ifelse(retry, max(l, λ), l)),
+        ifelse(advance, next_uλ, ifelse(retry, max(uλ, λ * 10), uλ)),
+        got_step, pos_bound, ϕ_prev, λ_prev, done
 end
 
 InternalAPI.reinit!(::_MoreLmparWorkspace, args...; kwargs...) = nothing
@@ -1067,8 +1079,8 @@ function InternalAPI.init(
 
     return MoreTrustRegionDescentCache(
         δu, δus, lincache, Jᵀfu, JᵀJ, damped, augmented, rhs, qrhs,
-        p, gn_step, T(Inf), false, dtd, Dp, D²p, q, Jδu, zero(T),
-        zero(T), zero(T), false, T(1.0e-4), 10, T(alg.min_damping_D),
+        p, gn_step, T(Inf), maybe_traced(false), dtd, Dp, D²p, q, Jδu, zero(T),
+        zero(T), zero(T), maybe_traced(false), T(1.0e-4), 10, T(alg.min_damping_D),
         internalnorm, timer, pre_inverted,
         Val(normal_form), Val(jac_convert), op_state,
         auto_scaling, !auto_scaling, has_scaling && !auto_scaling
@@ -1099,9 +1111,10 @@ function NonlinearSolveBase.callback_into_cache!(
     # An accepted step changed `fu`, so the cached Gauss-Newton step, `Jᵀfu`, and the
     # λ bound are stale even when the Jacobian was reused
     tr_cache = Utils.safe_getproperty(topcache, Val(:trustregion_cache))
-    if tr_cache isa AbstractTrustRegionMethodCache &&
-            NonlinearSolveBase.last_step_accepted(tr_cache)
-        cache.gn_valid = cache.λ_bound_valid = false
+    if tr_cache isa AbstractTrustRegionMethodCache
+        accepted = NonlinearSolveBase.last_step_accepted(tr_cache)
+        cache.gn_valid = cache.gn_valid & !accepted
+        cache.λ_bound_valid = cache.λ_bound_valid & !accepted
     end
     return NonlinearSolveBase.callback_into_cache!(cache, cache.lincache)
 end
@@ -1394,9 +1407,9 @@ _more_mindtd(dtd::Number) = dtd
 # Moré's safeguarded Newton update on φ(λ) = ‖D δu‖ - Δ: tighten the bracket [l, u] on
 # λ* and fall back to a guarded step if the Newton iterate leaves it
 function _more_update_λ(λ, ϕ, Δ, pᵀD²p, pᵀD²q, l, u)
-    ϕ < 0 ? (u = λ) : (l = λ)
+    u, l = ifelse(ϕ < 0, λ, u), ifelse(ϕ < 0, l, λ)
     λ += ϕ / Δ * pᵀD²p / pᵀD²q
-    l <= λ <= u || (λ = max(l + 0.01 * (u - l), sqrt(l * u)))
+    λ = ifelse((l <= λ) & (λ <= u), λ, max(l + 0.01 * (u - l), sqrt(l * u)))
     return λ, l, u
 end
 
@@ -1466,7 +1479,7 @@ function InternalAPI.solve!(
     # the cached step is reused without an extra factorization. Secondary directions
     # (`idx > 1`, e.g. under `GeodesicAcceleration`) evaluate at a perturbed `fu`, so
     # they recompute `Jᵀfu` and the GN step into scratch without touching the cache.
-    Jᵀfu, gn_step, gn_norm = if idx1 && cache.gn_valid
+    Jᵀfu, gn_step, gn_norm = if !ReactantCore.within_compile() && idx1 && cache.gn_valid
         (cache.Jᵀfu, cache.gn_step, cache.gn_norm)
     else
         Jᵀfu = if idx1
@@ -1480,7 +1493,8 @@ function InternalAPI.solve!(
         end
         # Jᵀfu = 0 is a stationary point of the model: p = 0 solves the subproblem for
         # every Δ, and the λ bracket below degenerates to the empty interval (0, 0].
-        if iszero(cache.internalnorm(Jᵀfu))
+        stationary = iszero(cache.internalnorm(Jᵀfu))
+        if !ReactantCore.within_compile() && stationary
             δu = Utils.restructure(δu, zero(cache.p))
             set_du!(cache, δu, idx)
             extras = _more_extras(cache, J_, δu, zero(T), dtd)
@@ -1499,7 +1513,9 @@ function InternalAPI.solve!(
             )
             (linres.u, linres.success)
         end
-        if linres_ok && _all_finite(linres_u)
+        gn_ok = linres_ok & _all_finite(linres_u)
+        # within_compile() first so short-circuit never bool-tests traced gn_ok
+        if ReactantCore.within_compile() || gn_ok
             if gn_buf isa AbstractArray && ArrayInterface.can_setindex(gn_buf)
                 if normal_form(cache)
                     @bb @. gn_buf = -linres_u
@@ -1515,7 +1531,16 @@ function InternalAPI.solve!(
                 gn = Utils.restructure(gn_buf, gn)
             end
             idx1 && (cache.gn_step = gn)
-            gn_norm = _more_scaled_norm(cache, dtd, gn)
+            if ReactantCore.within_compile()
+                gn = select(stationary, zero(gn), gn)
+                idx1 && (cache.gn_step = gn)
+                gn_norm = ifelse(
+                    stationary, zero(T),
+                    ifelse(gn_ok, _more_scaled_norm(cache, dtd, gn), T(Inf))
+                )
+            else
+                gn_norm = _more_scaled_norm(cache, dtd, gn)
+            end
         else
             gn = nothing
             gn_norm = T(Inf)
@@ -1524,7 +1549,8 @@ function InternalAPI.solve!(
         (Jᵀfu, gn, gn_norm)
     end
 
-    if gn_norm <= Δ
+    accept_gn = gn_norm <= Δ
+    if !ReactantCore.within_compile() && accept_gn
         δu = Utils.restructure(δu, gn_step)
         set_du!(cache, δu, idx)
         extras = _more_extras(cache, J_, δu, zero(T), dtd)
@@ -1534,8 +1560,8 @@ function InternalAPI.solve!(
     # Moré's safeguarded Newton iteration on the damping parameter (MINPACK `lmpar`):
     # λ* ∈ (0, u₀] with u₀ = ‖D⁻¹ Jᵀfu‖ / Δ, since ‖D δu(λ)‖ ≤ ‖D⁻¹ Jᵀfu‖ / λ.
     # Both loops leave λ* in `cache.λ` and return whether a step was produced.
-    @static_timeit cache.timer "more iteration" begin
-        got_step = if (lincache = cache.lincache) isa _MoreLmparWorkspace
+    got_step = @static_timeit cache.timer "more iteration" begin
+        if (lincache = cache.lincache) isa _MoreLmparWorkspace
             if lincache.gram
                 _more_gram_λloop!(cache, lincache, Jᵀfu, fu, dtd, trust_region)
             else
@@ -1543,21 +1569,40 @@ function InternalAPI.solve!(
             end
         else
             _more_generic_λloop!(
-                cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs
+                cache, lincache, J_, Jᵀfu, fu, u, dtd, idx1, trust_region, kwargs;
+                required = !accept_gn
             )
         end
     end
-    λ_of_p = cache.λ
 
+    # Host path matches master. Compile fallthrough is a helper so Trim/JET does
+    # not see select/ifelse or boxed locals from that branch.
+    ReactantCore.within_compile() && return _more_solve_traced_finalize!(
+        cache, J_, gn_step, δu, dtd, idx, T, empty_extras, accept_gn, got_step
+    )
+
+    λ_of_p = cache.λ
     if !got_step
         set_du!(cache, δu, idx)
         return DescentResult(δu, missing, false, false, empty_extras)
     end
-
     δu = Utils.restructure(δu, cache.p)
     set_du!(cache, δu, idx)
     extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
     return DescentResult(δu, missing, true, true, extras)
+end
+
+function _more_solve_traced_finalize!(
+        cache, J_, gn_step, δu, dtd, idx, T, empty_extras, accept_gn, got_step
+    )
+    λ_of_p = ifelse(accept_gn, zero(T), cache.λ)
+    got_step = ifelse(got_step, true, accept_gn)
+    p = select(accept_gn, gn_step, cache.p)
+    δu = select(got_step, Utils.restructure(δu, p), δu)
+    set_du!(cache, δu, idx)
+    extras = _more_extras(cache, J_, δu, λ_of_p, dtd)
+    extras = map((x, empty) -> ifelse(got_step, x, empty), extras, empty_extras)
+    return DescentResult(δu, missing, got_step, got_step, extras)
 end
 
 # Undamped `min ‖Jp + fu‖` — the `λ = 0` augmented system. Normal form instead

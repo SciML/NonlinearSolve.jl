@@ -179,6 +179,12 @@ else
                     return @time @safetestset "Termination Conditions: Allocations" include("gpu/cuda_tests__item2.jl")
                 end,
             ),
+            "Reactant" => (;
+                env = joinpath(@__DIR__, "Reactant"),
+                body = function ()
+                    return @time @safetestset "Reactant Integration" include("Reactant/reactant_tests.jl")
+                end,
+            ),
         ),
         # QA (Aqua/ExplicitImports via SciMLTesting.run_qa) lives in an isolated sub-env
         # under test/qa so its compat bounds don't constrain the base resolve. Excluded

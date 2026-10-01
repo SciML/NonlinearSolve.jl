@@ -75,13 +75,13 @@ end
 
     # Counters
     stats::NLStats
-    nsteps::Int
-    nresets::Int
+    nsteps
+    nresets
     max_resets::Int
     maxiters::Int
     maxtime
     max_shrink_times::Int
-    steps_since_last_reset::Int
+    steps_since_last_reset
 
     # Timer
     timer
@@ -90,9 +90,9 @@ end
     # Termination & Tracking
     termination_cache
     trace
-    retcode::ReturnCode.T
-    force_stop::Bool
-    force_reinit::Bool
+    retcode
+    force_stop
+    force_reinit
     kwargs
 
     # Initialization
@@ -128,15 +128,15 @@ function InternalAPI.reinit_self!(
     )
 
     InternalAPI.reinit!(cache.stats)
-    cache.nsteps = 0
-    cache.nresets = 0
-    cache.steps_since_last_reset = 0
+    cache.nsteps = NonlinearSolveBase.maybe_traced(0)
+    cache.nresets = NonlinearSolveBase.maybe_traced(0)
+    cache.steps_since_last_reset = NonlinearSolveBase.maybe_traced(0)
     cache.maxiters = maxiters
     cache.maxtime = maxtime
     cache.total_time = 0.0
-    cache.force_stop = false
-    cache.force_reinit = false
-    cache.retcode = ReturnCode.Default
+    cache.force_stop = NonlinearSolveBase.maybe_traced(false)
+    cache.force_reinit = NonlinearSolveBase.maybe_traced(false)
+    cache.retcode = NonlinearSolveBase.maybe_traced(ReturnCode.Default)
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(
@@ -283,9 +283,13 @@ function SciMLBase.__init(
             fu, u, u_cache, prob.p, J, alg, prob, globalization,
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
-            linsolve_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
-            alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs, initializealg, verbose
+            linsolve_workspace, stats, NonlinearSolveBase.maybe_traced(0),
+            NonlinearSolveBase.maybe_traced(0),
+            alg.max_resets, maxiters, maxtime, alg.max_shrink_times,
+            NonlinearSolveBase.maybe_traced(0), timer, 0.0,
+            termination_cache, trace, NonlinearSolveBase.maybe_traced(ReturnCode.Default),
+            NonlinearSolveBase.maybe_traced(false), NonlinearSolveBase.maybe_traced(false),
+            kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -298,7 +302,11 @@ function InternalAPI.step!(
     )
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
-        if cache.nsteps == 0  # First Step is special ignore kwargs
+        # `nsteps` is traced under Reactant; keep host early-returns and isolate
+        # the compile path so Trim/JET does not see `@trace if` boxing.
+        J = if ReactantCore.within_compile()
+            _quasi_newton_jacobian_traced!(cache, recompute_jacobian)
+        elseif cache.nsteps == 0  # First Step is special ignore kwargs
             J_init = InternalAPI.solve!(
                 cache.initialization_cache, cache.fu, cache.u, Val(false)
             )
@@ -319,8 +327,8 @@ function InternalAPI.step!(
                     cache.J = J_init
                 end
             end
-            J = cache.J
             cache.steps_since_last_reset += 1
+            cache.J
         else
             countable_reinit = false
             if cache.force_reinit
@@ -354,13 +362,20 @@ function InternalAPI.step!(
                 )
                 cache.J = Utils.unwrap_val(NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache)) ?
                     Utils.linsolve_identity!!(cache.linsolve_workspace, J_init) : J_init
-                J = cache.J
                 cache.steps_since_last_reset = 0
+                cache.J
             else
-                J = cache.J
                 cache.steps_since_last_reset += 1
+                cache.J
             end
         end
+    end
+
+    if ReactantCore.within_compile()
+        # Do not wrap descent/update in `@trace if`: Reactant would try to
+        # `set_mlir_data!` on `Diagonal` / `BroydenLowRankJacobian` wrappers.
+        _quasi_newton_descent_and_update_traced!(cache, J, new_jacobian)
+        return nothing
     end
 
     @static_timeit cache.timer "descent" begin
@@ -399,66 +414,13 @@ function InternalAPI.step!(
 
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-    if descent_result.success
-        if cache.globalization isa Val{:LineSearch}
-            @static_timeit cache.timer "linesearch" begin
-                linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
-                needs_reset = !SciMLBase.successful_retcode(linesearch_sol.retcode)
-                α = linesearch_sol.step_size
-            end
-            if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
-                cache.force_reinit = true
-            else
-                @static_timeit cache.timer "step" begin
-                    @bb axpy!(α, δu, cache.u)
-                    cache.u = NonlinearSolveBase.apply_postcondition!!(
-                        cache.u, cache.u_cache, cache
-                    )
-                    Utils.evaluate_f!(cache, cache.u, cache.p)
-                end
-            end
-        elseif cache.globalization isa Val{:TrustRegion}
-            @static_timeit cache.timer "trustregion" begin
-                tr_accepted, u_new,
-                    fu_new = InternalAPI.solve!(
-                    cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
-                )
-                if tr_accepted
-                    @bb copyto!(cache.u, u_new)
-                    if NonlinearSolveBase.get_postcondition(cache) === nothing
-                        @bb copyto!(cache.fu, fu_new)
-                    else
-                        cache.u = NonlinearSolveBase.apply_postcondition!!(
-                            cache.u, cache.u_cache, cache
-                        )
-                        Utils.evaluate_f!(cache, cache.u, cache.p)
-                    end
-                end
-                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                        cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                    cache.retcode = ReturnCode.ShrinkThresholdExceeded
-                    cache.force_stop = true
-                end
-            end
-            α = true
-        elseif cache.globalization isa Val{:None}
-            @static_timeit cache.timer "step" begin
-                @bb axpy!(1, δu, cache.u)
-                cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache
-                )
-                Utils.evaluate_f!(cache, cache.u, cache.p)
-            end
-            α = true
-        else
-            error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
-                   are (:LineSearch, :TrustRegion, :None)")
-        end
-
+    α = if descent_result.success
+        α_host = _quasi_newton_apply_descent!(cache, J, δu, descent_intermediates)
         NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+        α_host
     else
-        α = false
         cache.force_reinit = true
+        false
     end
 
     update_trace!(
@@ -483,4 +445,297 @@ function InternalAPI.step!(
     end
 
     return nothing
+end
+
+function _quasi_newton_prepared_jacobian(cache, J_init)
+    return if Utils.unwrap_val(NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache))
+        if NonlinearSolveBase.jacobian_initialized_preinverted(
+                cache.initialization_cache.alg
+            )
+            return J_init
+        else
+            return Utils.linsolve_identity!!(cache.linsolve_workspace, J_init)
+        end
+    else
+        if NonlinearSolveBase.jacobian_initialized_preinverted(
+                cache.initialization_cache.alg
+            )
+            return Utils.linsolve_identity!!(cache.linsolve_workspace, J_init)
+        else
+            return J_init
+        end
+    end
+end
+
+function _quasi_newton_set_initialized_jacobian!(cache, J_init)
+    cache.J = _quasi_newton_prepared_jacobian(cache, J_init)
+    return cache.J
+end
+
+function _quasi_newton_unwrap_diag_jacobian(J)
+    return J isa Diagonal ? J.diag : J
+end
+
+function _quasi_newton_install_jacobian!(cache, J_set)
+    if cache.J isa Diagonal && J_set isa Diagonal && cache.J !== J_set &&
+            ArrayInterface.can_setindex(cache.J.diag)
+        copyto!(cache.J.diag, J_set.diag)
+    elseif cache.J isa BroydenLowRankJacobian
+        nothing  # Low-rank reinit mutates cache.J in place via initialization
+    elseif cache.J === J_set
+        nothing
+    elseif ArrayInterface.can_setindex(cache.J)
+        copyto!(cache.J, J_set)
+    else
+        cache.J = J_set
+    end
+    return cache.J
+end
+
+function _quasi_newton_jacobian_traced!(cache, recompute_jacobian)
+    is_first = cache.nsteps == 0
+    force = cache.force_reinit
+    cache.force_reinit = NonlinearSolveBase.select(force, false, force)
+
+    rule_reinit = NonlinearSolveBase.maybe_traced(false)
+    ReactantCore.@trace track_numbers = false if !is_first
+        rule_reinit = InternalAPI.solve!(
+            cache.reinit_rule_cache, cache.J, cache.fu, cache.u, SciMLBase.get_du(cache)
+        )
+    end
+    forced_recompute = recompute_jacobian === true
+    countable = (!is_first) & (force | rule_reinit)
+    should_reinit = (!is_first) & (force | rule_reinit | forced_recompute)
+
+    nresets_next = cache.nresets + 1
+    exceeded = countable & (nresets_next ≥ cache.max_resets)
+    cache.nresets = NonlinearSolveBase.select(countable, nresets_next, cache.nresets)
+    cache.retcode = NonlinearSolveBase.select(
+        exceeded, ReturnCode.ConvergenceFailure, cache.retcode
+    )
+    cache.force_stop = cache.force_stop | exceeded
+
+    do_reinit = should_reinit & !exceeded
+    # First step must install (and invert) the initialized Jacobian: store-inverse
+    # descent treats `J` as J⁻¹, so leaving `αI` / `J(u0)` uninverted scales δu wrong.
+    # Later-step reinit is gated by `do_reinit` (already false when `is_first`).
+    _quasi_newton_maybe_reinit_traced!(cache, is_first, do_reinit)
+    return cache.J
+end
+
+function _quasi_newton_maybe_reinit_traced!(cache, is_first, do_reinit)
+    if cache.J isa BroydenLowRankJacobian
+        _quasi_newton_reinit_lbroyden_traced!(cache, is_first, do_reinit)
+    elseif cache.J isa Diagonal
+        _quasi_newton_reinit_diagonal_traced!(cache, is_first, do_reinit)
+    else
+        ReactantCore.@trace track_numbers = false if is_first
+            J_init = InternalAPI.solve!(
+                cache.initialization_cache, cache.fu, cache.u, Val(false)
+            )
+            J_set = _quasi_newton_prepared_jacobian(cache, J_init)
+            _quasi_newton_install_jacobian!(cache, J_set)
+            cache.steps_since_last_reset = cache.steps_since_last_reset + 1
+        elseif do_reinit
+            J_init = InternalAPI.solve!(
+                cache.initialization_cache, cache.fu, cache.u, Val(true)
+            )
+            J_set = _quasi_newton_prepared_jacobian(cache, J_init)
+            _quasi_newton_install_jacobian!(cache, J_set)
+            cache.steps_since_last_reset = 0
+        else
+            cache.steps_since_last_reset = cache.steps_since_last_reset + 1
+        end
+    end
+    return nothing
+end
+
+function _quasi_newton_reinit_lbroyden_traced!(cache, is_first, do_reinit)
+    J = cache.J
+    α = Utils.initial_jacobian_scaling_alpha(
+        cache.initialization_cache.alg.alpha, cache.u, cache.fu,
+        cache.initialization_cache.internalnorm
+    )
+    inv_α = oftype(J.alpha, inv(α))
+    # Low-rank caches seed the inverse scaling at construction; first-step install
+    # would be a no-op via `_quasi_newton_install_jacobian!`.
+    zero_idx = zero(J.idx)
+    do_reset = (!is_first) & do_reinit
+    J.idx = ifelse(do_reset, zero_idx, J.idx)
+    J.alpha = ifelse(do_reset, inv_α, J.alpha)
+    zU = zero(eltype(J.U))
+    zV = zero(eltype(J.Vᵀ))
+    @. J.U = ifelse(do_reset, zU, J.U)
+    @. J.Vᵀ = ifelse(do_reset, zV, J.Vᵀ)
+    cache.steps_since_last_reset = ifelse(
+        do_reset, zero(cache.steps_since_last_reset), cache.steps_since_last_reset + 1
+    )
+    return nothing
+end
+
+function _quasi_newton_reinit_diagonal_traced!(cache, is_first, do_reinit)
+    # Seed outside traced branches: installing a fresh `Diagonal` through `@trace if`
+    # leaves `MissingTracedValue` when the inactive arm never materializes `J_set`.
+    # Identity / diagonal-Broyden init already stores `α` on `cache.J.diag`; store-inverse
+    # descent needs `inv(α)` on the first step and after a reinit.
+    α = Utils.initial_jacobian_scaling_alpha(
+        cache.initialization_cache.alg.alpha, cache.u, cache.fu,
+        cache.initialization_cache.internalnorm
+    )
+    store_inv = Utils.unwrap_val(
+        NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache)
+    )
+    preinverted = NonlinearSolveBase.jacobian_initialized_preinverted(
+        cache.initialization_cache.alg
+    )
+    α_val = (store_inv && !preinverted) ? inv(α) : α
+    α_diag = convert(eltype(cache.J.diag), α_val)
+    do_seed = is_first | do_reinit
+    @. cache.J.diag = ifelse(do_seed, α_diag, cache.J.diag)
+    cache.steps_since_last_reset = ifelse(
+        (!is_first) & do_reinit,
+        zero(cache.steps_since_last_reset),
+        cache.steps_since_last_reset + 1
+    )
+    return nothing
+end
+
+function _quasi_newton_descent_and_update_traced!(cache, J, new_jacobian)
+    already_stopped = cache.force_stop
+    @static_timeit cache.timer "descent" begin
+        if cache.trustregion_cache !== nothing &&
+                hasfield(typeof(cache.trustregion_cache), :trust_region)
+            descent_result = InternalAPI.solve!(
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian,
+                cache.trustregion_cache.trust_region, cache.kwargs...
+            )
+        else
+            descent_result = InternalAPI.solve!(
+                cache.descent_cache, J, cache.fu, cache.u; new_jacobian, cache.kwargs...
+            )
+        end
+    end
+    linsolve_fail = !descent_result.linsolve_success
+    pathology = (!already_stopped) & linsolve_fail & new_jacobian &
+        (cache.steps_since_last_reset == 0)
+    cache.retcode = NonlinearSolveBase.select(
+        pathology, ReturnCode.InternalLinearSolveFailed, cache.retcode
+    )
+    cache.force_stop = cache.force_stop | pathology
+    cache.force_reinit = cache.force_reinit |
+        NonlinearSolveBase.select(
+        (!already_stopped) & linsolve_fail & !pathology, true, false
+    )
+    δu, descent_intermediates = descent_result.δu, descent_result.extras
+    can_apply = (!cache.force_stop) & descent_result.success & !linsolve_fail
+    α = _quasi_newton_after_descent_traced!(
+        cache, J, δu, descent_intermediates, can_apply
+    )
+    cache.force_reinit = cache.force_reinit |
+        NonlinearSolveBase.select(
+        !can_apply & !cache.force_stop & !linsolve_fail, true, false
+    )
+    update_trace!(
+        cache, α;
+        uses_jac_inverse = NonlinearSolveBase.store_inverse_jacobian(cache.update_rule_cache)
+    )
+    @bb copyto!(cache.u_cache, cache.u)
+    NonlinearSolveBase.callback_into_cache!(cache)
+    @static_timeit cache.timer "jacobian update" begin
+        J_new = InternalAPI.solve!(
+            cache.update_rule_cache, cache.J, cache.fu, cache.u, δu
+        )
+        _quasi_newton_install_jacobian!(cache, J_new)
+        NonlinearSolveBase.callback_into_cache!(cache)
+    end
+    return nothing
+end
+
+function _quasi_newton_apply_descent!(cache, J, δu, descent_intermediates)
+    if cache.globalization isa Val{:LineSearch}
+        @static_timeit cache.timer "linesearch" begin
+            linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, δu)
+            needs_reset = !SciMLBase.successful_retcode(linesearch_sol.retcode)
+            α = linesearch_sol.step_size
+        end
+        if needs_reset && cache.steps_since_last_reset > 5 # Reset after a burn-in period
+            cache.force_reinit = true
+        else
+            @static_timeit cache.timer "step" begin
+                @bb axpy!(α, δu, cache.u)
+                cache.u = NonlinearSolveBase.apply_postcondition!!(
+                    cache.u, cache.u_cache, cache
+                )
+                Utils.evaluate_f!(cache, cache.u, cache.p)
+            end
+        end
+        return α
+    elseif cache.globalization isa Val{:TrustRegion}
+        @static_timeit cache.timer "trustregion" begin
+            tr_accepted, u_new,
+                fu_new = InternalAPI.solve!(
+                cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
+            )
+            if tr_accepted
+                @bb copyto!(cache.u, u_new)
+                if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb copyto!(cache.fu, fu_new)
+                else
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache
+                    )
+                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                end
+            end
+            if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                    cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                cache.force_stop = true
+            end
+        end
+        return true
+    elseif cache.globalization isa Val{:None}
+        @static_timeit cache.timer "step" begin
+            @bb axpy!(1, δu, cache.u)
+            cache.u = NonlinearSolveBase.apply_postcondition!!(
+                cache.u, cache.u_cache, cache
+            )
+            Utils.evaluate_f!(cache, cache.u, cache.p)
+        end
+        return true
+    else
+        error("Unknown Globalization Strategy: $(cache.globalization). Allowed values \
+               are (:LineSearch, :TrustRegion, :None)")
+    end
+end
+
+function _quasi_newton_after_descent_traced!(cache, J, δu, descent_intermediates, success)
+    # Val{:None}: gate unit step with ifelse (no nested isa inside @trace if).
+    if cache.globalization isa Val{:None}
+        T = eltype(δu)
+        α_step = ifelse(success, one(T), zero(T))
+        @bb axpy!(α_step, δu, cache.u)
+        cache.u = NonlinearSolveBase.apply_postcondition!!(
+            cache.u, cache.u_cache, cache
+        )
+        Utils.evaluate_f!(cache, cache.u, cache.p)
+        ReactantCore.@trace track_numbers = false if success
+            NonlinearSolveBase.check_and_update!(
+                cache, cache.fu, cache.u, cache.u_cache
+            )
+        end
+        return NonlinearSolveBase.select(
+            success,
+            NonlinearSolveBase.maybe_traced(true),
+            NonlinearSolveBase.maybe_traced(false)
+        )
+    end
+    α = NonlinearSolveBase.maybe_traced(false)
+    ReactantCore.@trace track_numbers = false if success
+        α = _quasi_newton_apply_descent!(cache, J, δu, descent_intermediates)
+        NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
+    else
+        α = NonlinearSolveBase.maybe_traced(false)
+    end
+    return α
 end
