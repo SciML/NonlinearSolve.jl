@@ -603,7 +603,7 @@ end
     push!(
         calls,
         quote
-            retcode = cache.caches[idx].retcode
+            retcode = cache.caches[idx].retcode::ReturnCode.T
             if cache.alias_u0
                 copyto!(cache.u0, u)
                 u = cache.u0
