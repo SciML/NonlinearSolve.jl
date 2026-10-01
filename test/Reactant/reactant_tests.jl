@@ -254,13 +254,14 @@ end
 end
 
 # Non-finite residual must not report Success (Reactant `maximum` drops NaN).
-@testset "NaN residual retcode: $name" for (name, alg) in (
-        (:NewtonRaphson, NewtonRaphson()),
-        (:Broyden, Broyden()),
-        (:LimitedMemoryBroyden, LimitedMemoryBroyden(; threshold = 2)),
+# Newton needs an analytic `jac` under compile (AD Jacobians throw; see DI#1067).
+@testset "NaN residual retcode: $name" for (name, alg, nf) in (
+        (:NewtonRaphson, NewtonRaphson(), nonlinear_function),
+        (:Broyden, Broyden(), NonlinearFunction(f)),
+        (:LimitedMemoryBroyden, LimitedMemoryBroyden(; threshold = 2), NonlinearFunction(f)),
     )
     function dosolve_nan(u, p)
-        return solve(NonlinearProblem(f, u, p), alg; maxiters = 50, abstol = 1.0f-5)
+        return solve(NonlinearProblem(nf, u, p), alg; maxiters = 50, abstol = 1.0f-5)
     end
     u_host = Float32[1, 1]
     p_host = Float32[NaN]
