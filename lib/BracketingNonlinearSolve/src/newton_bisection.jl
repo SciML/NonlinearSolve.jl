@@ -19,8 +19,11 @@ Recipes does. Once the Newton step is within the tolerance, the next point is pl
 beyond the Newton point, on the other side of the root, so that both ends of the bracket
 converge.
 
-Near a simple root the convergence is quadratic. The method pays off when the derivative
-is cheap compared with `f`, for example when both reuse the same expensive computation.
+Near a simple root the convergence is quadratic, and the method usually needs fewer
+evaluations of `f` than the derivative-free methods. It evaluates the derivative about as
+often as `f`, though, so it is faster only when the derivative costs a small fraction of
+`f`: for example when `f` is an integral and the derivative its integrand, or when both
+reuse the same expensive computation.
 """
 struct NewtonBisection <: AbstractBracketingAlgorithm end
 
