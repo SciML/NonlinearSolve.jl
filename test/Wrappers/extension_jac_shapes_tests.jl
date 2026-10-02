@@ -6,7 +6,8 @@ import MINPACK, NLsolve
 
 f(u, p) = @. u^2 - p
 
-scalar = NonlinearProblem(f, 2.0, 4.0)
+# Non-root scalar guess so Newton actually steps (root of u²−4 is ±2).
+scalar = NonlinearProblem(f, 1.0, 4.0)
 matrix = NonlinearProblem(f, ones(2, 2), [2.0 1.0; 3.0 4.0])
 vector = NonlinearProblem(f, ones(2), [2.0, 1.0])
 
@@ -32,7 +33,7 @@ end
 
 # NLsolveJL short-circuits `construct_extension_jac` unless a Jacobian is supplied.
 nlsolve_scalar = NonlinearProblem(
-    NonlinearFunction{false}(f; jac_prototype = zeros(1, 1)), 2.0, 4.0
+    NonlinearFunction{false}(f; jac_prototype = zeros(1, 1)), 1.0, 4.0
 )
 nlsolve_matrix = NonlinearProblem(
     NonlinearFunction{false}(f; jac_prototype = zeros(4, 4)),
