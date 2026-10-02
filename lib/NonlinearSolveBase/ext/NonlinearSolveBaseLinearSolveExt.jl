@@ -76,8 +76,9 @@ function update_A!(cache::LinearSolveJLCache, A, reuse)
 end
 
 function update_A!(cache::LinearSolveJLCache, alg, A, reuse)
-    # Not a Factorization Algorithm so don't update `nfactors`
-    set_lincache_A!(cache.lincache, A)
+    # Not a Factorization Algorithm so don't update `nfactors`. `A` is always rebound
+    # (a matrix-free `A` follows the iterate); a reuse request keeps the preconditioner.
+    set_lincache_A!(cache.lincache, A; reuse_precs = reuse)
     return cache
 end
 function update_A!(cache::LinearSolveJLCache, ::LinearSolve.AbstractFactorization, A, reuse)
@@ -92,7 +93,7 @@ function update_A!(
     if alg ==
             LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)
         # Force a reset of the cache. This is not properly handled in LinearSolve.jl
-        set_lincache_A!(cache.lincache, A)
+        set_lincache_A!(cache.lincache, A; reuse_precs = reuse)
         return cache
     end
     reuse && return cache
@@ -101,14 +102,18 @@ function update_A!(
     return cache
 end
 
-function set_lincache_A!(lincache, new_A)
+function set_lincache_A!(lincache, new_A; reuse_precs::Bool = false)
     if !LinearSolve.default_alias_A(lincache.alg, new_A, lincache.b) &&
             ArrayInterface.can_setindex(lincache.A)
         copyto!(lincache.A, new_A)
-        lincache.A = lincache.A # important!! triggers special code in `setproperty!`
-        return
+        new_A = lincache.A
     end
-    lincache.A = new_A
+    if reuse_precs
+        # `reinit!` rebinds `A` without marking `Pl`, `Pr` stale.
+        SciMLBase.reinit!(lincache; A = new_A, reuse_precs = true)
+    else
+        lincache.A = new_A # important!! triggers special code in `setproperty!`
+    end
     return
 end
 

@@ -332,7 +332,7 @@ function SciMLBase.__init(
         end
 
         jacobian_reuse_cache = init_jacobian_reuse_cache(
-            resolve_jacobian_reuse(alg.jacobian_reuse, u), J, fu, internalnorm
+            alg.jacobian_reuse, u, J, linsolve, fu, internalnorm
         )
 
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(

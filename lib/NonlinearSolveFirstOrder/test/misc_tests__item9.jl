@@ -185,14 +185,69 @@ end
     @test jacobian_calls[] == 2
 end
 
-@testset "matrix-free Jacobians disable the policy" begin
-    prob = NonlinearProblem((u, p) -> u .* u .- p, ones(2), 2.0)
-    cache = init(
-        prob, NewtonRaphson(linsolve = KrylovJL_GMRES(), jacobian_reuse = true);
+@testset "matrix-free Jacobians keep the preconditioner between refreshes" begin
+    n = JACOBIAN_REUSE_SIZE_CUTOFF
+    precs_calls = Ref(0)
+    function counting_precs(A, p)
+        precs_calls[] += 1
+        return Diagonal(ones(n)), I
+    end
+    prob = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
+    linsolve = KrylovJL_GMRES(precs = counting_precs)
+    function precs_calls_of(alg)
+        precs_calls[] = 0
+        sol = solve(prob, alg; abstol = 1.0e-10, reltol = 1.0e-10)
+        @test SciMLBase.successful_retcode(sol)
+        @test maximum(abs, sol.resid) ≤ 1.0e-10
+        return precs_calls[], sol
+    end
+
+    # The size-based default has no preconditioner to keep for a matrix-free operator.
+    auto_cache = init(prob, NewtonRaphson(; linsolve); abstol = 1.0e-10)
+    @test !reuses_jacobian(auto_cache.jacobian_reuse_cache.policy)
+    exact_calls, exact_sol = precs_calls_of(NewtonRaphson(; linsolve))
+    off_calls, _ = precs_calls_of(NewtonRaphson(; linsolve, jacobian_reuse = false))
+    @test exact_calls == off_calls
+
+    # Without a preconditioner builder there is nothing to retain, so even an explicit
+    # policy leaves a matrix-free solve as it was.
+    bare_cache = init(
+        prob,
+        NewtonRaphson(; linsolve = KrylovJL_GMRES(), jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-10
     )
-    @test !reuses_jacobian(cache.jacobian_reuse_cache.policy)
-    @test SciMLBase.successful_retcode(solve!(cache))
+    @test !reuses_jacobian(bare_cache.jacobian_reuse_cache.policy)
+
+    # An explicit policy rebinds the operator to the current iterate on every step (the
+    # steps stay exact Newton steps) but rebuilds the preconditioner only on a refresh.
+    cache = init(
+        prob, NewtonRaphson(; linsolve, jacobian_reuse = REUSE_WHILE_IMPROVING);
+        abstol = 1.0e-10
+    )
+    @test reuses_jacobian(cache.jacobian_reuse_cache.policy)
+    reuse_calls, reuse_sol = precs_calls_of(
+        NewtonRaphson(; linsolve, jacobian_reuse = REUSE_WHILE_IMPROVING)
+    )
+    @test reuse_calls < exact_calls
+    @test reuse_sol.u ≈ exact_sol.u rtol = 1.0e-8
+    @test reuse_sol.stats.nsteps == exact_sol.stats.nsteps
+
+    # A line search that fails on a retained preconditioner is retried with a fresh one.
+    precs_calls[] = 0
+    retry_cache = init(
+        prob,
+        NewtonRaphson(;
+            linsolve, linesearch = FailAfterFirstLineSearch(),
+            jacobian_reuse = REUSE_WHILE_IMPROVING
+        );
+        abstol = 1.0e-14, reltol = 1.0e-14, verbose = false
+    )
+    step!(retry_cache)
+    calls_after_first_step = precs_calls[]
+    step!(retry_cache)
+    @test retry_cache.linesearch_cache.calls == 3
+    @test precs_calls[] == calls_after_first_step + 1
+    @test retry_cache.retcode == ReturnCode.InternalLineSearchFailed
 end
 
 @testset "manual override and reinit" begin

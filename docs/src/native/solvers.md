@@ -142,11 +142,15 @@ of a Jacobian relative to the cost of a nonlinear step; see
 
 The same policy works with `TrustRegion`, `GaussNewton`, `LevenbergMarquardt`, and
 `PseudoTransient`. Damped descents (`LevenbergMarquardt`, `PseudoTransient`) rebuild their
-damped system every step, so reuse saves only the Jacobian evaluation there. Matrix-free
-Jacobian operators are rebound to the current iterate on every step, so the policy has no
-effect on them. Rejected trust-region steps keep a fresh Jacobian because the nonlinear
-state did not change; a rejected step based on stale Jacobian information requests a
-refresh.
+damped system every step, so reuse saves only the Jacobian evaluation there. Rejected
+trust-region steps keep a fresh Jacobian because the nonlinear state did not change; a
+rejected step based on stale Jacobian information requests a refresh.
+
+A matrix-free Jacobian operator is rebound to the current iterate on every step, so each
+step stays an exact Newton step. What an explicit policy retains there is the
+preconditioner (the `precs` of a `KrylovJL` solver), which is rebuilt only when the policy
+refreshes. The size-based default and a matrix-free solve without `precs` leave the solve
+untouched.
 
 The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An explicit
 `step!(cache; recompute_jacobian = true/false)` always takes precedence, so an outer solver

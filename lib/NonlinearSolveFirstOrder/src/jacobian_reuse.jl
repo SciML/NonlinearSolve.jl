@@ -31,8 +31,8 @@ const JACOBIAN_REUSE_AUTO = -1
 Reuse a Jacobian across accepted nonlinear iterations. This turns a first-order method into
 an adaptive modified-Newton method: the current Jacobian is reused while the residual norm
 keeps contracting fast enough, subject to a maximum Jacobian age. Solvers of an unchanged
-concrete linear system also reuse its factorization; damped and matrix-free systems retain
-their own linear-solver update behavior.
+concrete linear system also reuse its factorization, and an iterative linear solver keeps
+its preconditioner; damped systems retain their own linear-solver update behavior.
 
 `max_age` is the number of accepted steps a single Jacobian may serve. The Jacobian is
 refreshed when any of these conditions holds:
@@ -51,9 +51,12 @@ refreshed when any of these conditions holds:
 Pass `jacobian_reuse = JacobianReuse()` to [`NewtonRaphson`](@ref), [`TrustRegion`](@ref),
 or another first-order solver to force the policy on, and `jacobian_reuse = false` to force
 it off. The default, `jacobian_reuse = nothing`, decides from the problem size: reuse is
-enabled when `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)` and disabled below it. A
-matrix-free Jacobian operator is bound to the current iterate on every step, so there is
-nothing to reuse and reuse is switched off for it.
+enabled when `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)` and disabled below it, and it
+stays off for a matrix-free Jacobian operator. A matrix-free operator is bound to the
+current iterate on every step, so every step remains an exact Newton step and the only
+thing an explicit policy can retain is the preconditioner built by the `precs` of a
+`KrylovJL` solver, which is rebuilt only on a refresh. A matrix-free solve without `precs`
+has nothing to retain and ignores the policy.
 """
 struct JacobianReuse{R <: Real}
     max_age::Int
@@ -113,11 +116,26 @@ function resolve_jacobian_reuse(policy::JacobianReuse, u)
     return JacobianReuse(max_age, policy.max_residual_ratio)
 end
 
-# A matrix-free operator is rebound to the current iterate on every step, so there is never
-# anything stale to recover from.
-applicable_jacobian_reuse(policy::JacobianReuse, J) = policy
-function applicable_jacobian_reuse(policy::JacobianReuse, ::StatefulJacobianOperator)
-    return without_jacobian_reuse(policy)
+# A matrix-free operator is bound to the current iterate on every step, so the only thing a
+# policy can retain is the preconditioner built by the linear solver's `precs`. Without
+# one (or under the automatic policy) a matrix-free solve has nothing to reuse.
+function builds_preconditioner(linsolve)
+    if !hasproperty(linsolve, :precs)
+        return false
+    end
+    return linsolve.precs !== nothing && linsolve.precs !== LinearSolve.DEFAULT_PRECS
+end
+
+function applicable_jacobian_reuse(policy::JacobianReuse, u, J, linsolve)
+    return resolve_jacobian_reuse(policy, u)
+end
+function applicable_jacobian_reuse(
+        policy::JacobianReuse, u, ::StatefulJacobianOperator, linsolve
+    )
+    if is_automatic(policy) || !builds_preconditioner(linsolve)
+        return without_jacobian_reuse(policy)
+    end
+    return policy
 end
 
 @concrete mutable struct JacobianReuseCache
@@ -127,9 +145,9 @@ end
     internalnorm
 end
 
-function init_jacobian_reuse_cache(policy::JacobianReuse, J, fu, internalnorm)
+function init_jacobian_reuse_cache(policy::JacobianReuse, u, J, linsolve, fu, internalnorm)
     return JacobianReuseCache(
-        applicable_jacobian_reuse(policy, J), internalnorm(fu), 0, internalnorm
+        applicable_jacobian_reuse(policy, u, J, linsolve), internalnorm(fu), 0, internalnorm
     )
 end
 
