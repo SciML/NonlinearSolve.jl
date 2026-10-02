@@ -482,8 +482,16 @@ end
     end
     return nothing
 end
-@inline function _polyalg_coerce_trace(trace, prototype)
-    return trace isa typeof(prototype) ? trace : prototype
+# Stepping-only ladders keep a concrete trace type for Julia 1.10 inference.
+# A NoInit sibling may return `nothing`, so widen only then — never substitute
+# another cache's history for the selected sub-solution's actual trace.
+@inline function _polyalg_solve_trace_type(cache::NonlinearSolvePolyAlgorithmCache)
+    proto = _polyalg_solve_trace_prototype(cache)
+    T = typeof(proto)
+    for subcache in cache.caches
+        hasfield(typeof(subcache), :trace) || return Union{Nothing, T}
+    end
+    return T
 end
 
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
@@ -494,7 +502,7 @@ end
             _uType = typeof(cache.u0)
             _fuType = typeof(_polyalg_solve_fu_prototype(cache))
             _trace_proto = _polyalg_solve_trace_prototype(cache)
-            _traceType = typeof(_trace_proto)
+            _traceType = _polyalg_solve_trace_type(cache)
         end,
     ]
 
@@ -545,7 +553,7 @@ end
                 cache.prob, cache.alg, $(u_result_syms[i]), fu;
                 retcode = $(sol_syms[i]).retcode::ReturnCode.T, stats,
                 original = $(sol_syms[i]),
-                trace = (_polyalg_coerce_trace($(sol_syms[i]).trace, _trace_proto)::_traceType),
+                trace = ($(sol_syms[i]).trace::_traceType),
                 store_original = cache.alg.store_original
             )
         elseif cache.alias_u0
@@ -613,7 +621,7 @@ end
                 if idx == $(i)
                     u = cache.alias_u0 ? $(u_result_syms[i]) : $(sol_syms[i]).u
                     retcode = $(sol_syms[i]).retcode::ReturnCode.T
-                    _trace = _polyalg_coerce_trace($(sol_syms[i]).trace, _trace_proto)::_traceType
+                    _trace = $(sol_syms[i]).trace::_traceType
                 end
             end
         )
