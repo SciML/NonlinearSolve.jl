@@ -62,5 +62,23 @@ end
             J = eval_extension_jac(prob, u0, resid; autodiff = ad)
             @test J ≈ fill(4.0, 1, 1)
         end
+
+        @testset "initial Jacobian uses supplied u0, not prob.u0" begin
+            prob = NonlinearProblem((u, p) -> u .^ 2, [1.0, 2.0])
+            _, J0 = NonlinearSolveBase.construct_extension_jac(
+                prob, nothing, [3.0, 4.0], [9.0, 16.0];
+                autodiff = ad, initial_jacobian = Val(true)
+            )
+            @test J0 ≈ Diagonal([6.0, 8.0])
+
+            # Stored guess is out of domain; the supplied state must be used instead.
+            prob_domain = NonlinearProblem((u, p) -> sqrt.(u), [-1.0, -4.0])
+            J! = NonlinearSolveBase.construct_extension_jac(
+                prob_domain, nothing, [1.0, 4.0], [1.0, 2.0]; autodiff = ad
+            )
+            Jout = zeros(2, 2)
+            J!(Jout, [1.0, 4.0])
+            @test Jout ≈ [0.5 0.0; 0.0 0.25]
+        end
     end
 end
