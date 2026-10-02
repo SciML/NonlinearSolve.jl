@@ -2,7 +2,7 @@
     Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), project_bounds = false
     )
 
 An implementation of `Broyden`'s Method [broyden1965class](@cite) with resetting and line
@@ -30,17 +30,21 @@ search.
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
         problem
+  - `project_bounds`: handle the problem's `lb`/`ub` by clamping every iterate into the box
+    instead of the change of variables applied to algorithms without native bounds. The
+    secant update uses the clamped step. Not combined with a trust region. Defaults to
+    `false`.
 """
 function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), project_bounds::Bool = false
     )
     return QuasiNewtonAlgorithm(;
         linesearch,
         descent = NewtonDescent(),
         update_rule = broyden_update_rule(update_rule),
-        max_resets,
+        max_resets, project_bounds,
         initialization = broyden_init(init_jacobian, update_rule, autodiff, alpha),
         reinit_rule = NoChangeInStateReset(; reset_tolerance),
         concrete_jac = Val(init_jacobian isa Val{:true_jacobian}),

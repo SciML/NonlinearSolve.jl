@@ -12,3 +12,4 @@
 @safetestset "reinit! resets the update rule state" include("core_tests__item12.jl")
 @safetestset "No-change reset requires every component to stall" include("core_tests__item13.jl")
 @safetestset "reinit! with reuse_jacobian carries the Jacobian" include("core_tests__item14.jl")
+@safetestset "Projection bounds" include("core_tests__item15.jl")

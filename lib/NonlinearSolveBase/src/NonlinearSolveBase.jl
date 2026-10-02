@@ -103,6 +103,7 @@ include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
 include("bounds_transform.jl")
+include("bounds_projection.jl")
 include("conditioning.jl")
 include("solve.jl")
 
@@ -145,6 +146,10 @@ include("forward_diff.jl")
         needs_conditioning, transform_conditioned_problem, apply_postcondition!!,
         get_precondition, get_postcondition, supports_postcondition,
     )
+)
+@compat(
+    public,
+    (projection_bounds, project_to_bounds, project_to_bounds!!, projected_problem)
 )
 @compat(public, (get_u, get_fu, get_nsteps, get_termination_cache, get_trace))
 @compat(public, (supports_deferred_residual, refresh_residual!))

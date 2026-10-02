@@ -34,6 +34,9 @@ for large-scale and numerically-difficult nonlinear systems.
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
     Jacobian reuses that Jacobian at the unchanged state.
+  - `project_bounds`: handle `lb`/`ub` by clamping every trial point into the box instead
+    of the change of variables. The ratio of actual to predicted reduction is measured on
+    the clamped step. Defaults to `false`.
 
 For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref)
 documentation.
@@ -47,7 +50,7 @@ function TrustRegion(;
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
-        jacobian_reuse = nothing,
+        jacobian_reuse = nothing, project_bounds::Bool = false,
     )
     descent, default_scheme = if subproblem isa AbstractDescentDirection
         (subproblem, subproblem isa MoreTrustRegionDescent ? RUS.More : RUS.Simple)
@@ -70,7 +73,7 @@ function TrustRegion(;
     )
     return GeneralizedFirstOrderAlgorithm(;
         trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
-        concrete_jac, jacobian_reuse, name = :TrustRegion
+        concrete_jac, jacobian_reuse, project_bounds, name = :TrustRegion
     )
 end
 
@@ -373,7 +376,7 @@ end
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f, fu, u, p,
         args...; stats, internalnorm::F = L2_NORM, vjp_autodiff = nothing,
-        jvp_autodiff = nothing, kwargs...
+        jvp_autodiff = nothing, bounds = nothing, kwargs...
     ) where {F}
     T = promote_type(eltype(u), eltype(fu))
     u0_norm = internalnorm(u)
@@ -422,7 +425,7 @@ function InternalAPI.init(
     return GenericTrustRegionSchemeCache(
         alg.method, f, p, mtr, itr, itr, stt, sht, et, shf, ef,
         p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache,
-        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg
+        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg, bounds
     )
 end
 
@@ -456,6 +459,7 @@ end
     shrink_counter::Int
     stats::NLStats
     alg
+    bounds
 end
 
 function InternalAPI.reinit!(
@@ -569,7 +573,16 @@ function InternalAPI.solve!(
         cache::GenericTrustRegionSchemeCache, J, fu, u, δu, descent_stats
     )
     T = promote_type(eltype(u), eltype(fu))
-    @bb @. cache.u_cache = u + δu
+    if cache.bounds === nothing
+        @bb @. cache.u_cache = u + δu
+    else
+        # The ratio is measured on the projected step, so the descent's own predicted
+        # reduction (for the unprojected step) does not apply.
+        lb, ub = cache.bounds
+        @bb @. cache.u_cache = clamp(u + δu, lb, ub)
+        δu = cache.u_cache - u
+        descent_stats = nothing
+    end
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     cache.stats.nf += 1
 
@@ -727,7 +740,7 @@ end
 end
 
 SciMLBase.allowsbounds(alg::GeneralizedFirstOrderAlgorithm) =
-    alg.trustregion isa BoundedTrustRegionScheme
+    alg.trustregion isa BoundedTrustRegionScheme || alg.project_bounds
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BoundedTrustRegionScheme, f, fu, u, p,

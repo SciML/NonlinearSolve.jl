@@ -2,7 +2,7 @@
     Klement(;
         max_resets = 100, linsolve = nothing, linesearch = nothing,
         alpha = nothing, init_jacobian::Val = Val(:identity),
-        autodiff = nothing
+        autodiff = nothing, project_bounds = false
     )
 
 An implementation of `Klement` [klement2014using](@citep) with line search, preconditioning
@@ -25,11 +25,14 @@ over this.
         reliable convergence.
       + `Val(:true_jacobian_diagonal)`: Diagonal of True Jacobian. This is a good choice for
         differentiable problems.
+  - `project_bounds`: handle the problem's `lb`/`ub` by clamping every iterate into the box
+    instead of the change of variables applied to algorithms without native bounds. Not
+    combined with a trust region. Defaults to `false`.
 """
 function Klement(;
         max_resets = 100, linsolve = nothing, linesearch = nothing,
         alpha = nothing, init_jacobian::Val = Val(:identity),
-        autodiff = nothing
+        autodiff = nothing, project_bounds::Bool = false
     )
     concrete_jac = Val(
         init_jacobian isa Val{:true_jacobian} ||
@@ -40,7 +43,7 @@ function Klement(;
         descent = NewtonDescent(; linsolve),
         update_rule = KlementUpdateRule(),
         reinit_rule = IllConditionedJacobianReset(),
-        max_resets,
+        max_resets, project_bounds,
         initialization = klement_init(init_jacobian, autodiff, alpha),
         concrete_jac,
         name = :Klement
