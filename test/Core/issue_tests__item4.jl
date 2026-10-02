@@ -88,7 +88,7 @@ sol_fb = solve!(fallback_cache)
 @test sol_fb.retcode == fallback_expected.retcode
 
 # Parameter-changing retain_best reinit must not return the previous solve's stepping
-# history when a no-init method wins again (review probe: stale Newton history with p=2).
+# history when a no-init method wins again.
 retain_alg = NonlinearSolvePolyAlgorithm(
     (NewtonRaphson(), SimpleBroyden()); store_original = Val(true)
 )
@@ -108,3 +108,38 @@ sol_retain_second = solve!(retain_cache)
 @test sol_retain_second.trace === nothing
 @test !(sol_retain_second.trace === retain_cache.caches[1].trace)
 @test !(sol_retain_second.trace !== nothing && sol_retain_second.trace.history == old_history)
+
+# Warmed IIP polyalgorithm solve! allocations must match master on ordinary
+# (non-Simple) ladders. Values for Julia 1.10 are the minima from round-2
+# `probe.jl` on master `06b12295` (12 warmed `@allocated solve!` calls with
+# `reinit!` outside the measurement). Julia 1.12 master is allocation-free.
+function _polyalg_warmed_iip_allocs(alg; n::Int = 12)
+    f_iip!(du, u, p) = (du .= u .* u .- p)
+    prob_iip = NonlinearProblem(f_iip!, [1.0, 1.0], 2.0)
+    cache = alg === nothing ? init(prob_iip) : init(prob_iip, alg)
+    solve!(cache)
+    bytes = Vector{Int}(undef, n)
+    for i in 1:n
+        reinit!(cache, copy(prob_iip.u0); p = prob_iip.p)
+        bytes[i] = @allocated solve!(cache)
+    end
+    return minimum(bytes)
+end
+
+@testset "ordinary IIP polyalgorithm solve! allocations" begin
+    # master `06b12295` Julia 1.10.12 IIP success minima from round-2 probe.jl
+    cases = (
+        (nothing, 624),
+        (FastShortcutNonlinearPolyalg(), 704),
+        (RobustMultiNewton(), 896),
+        (NonlinearSolvePolyAlgorithm((NewtonRaphson(), Broyden())), 160),
+    )
+    for (alg, master_bytes_1_10) in cases
+        alloc = _polyalg_warmed_iip_allocs(alg)
+        if VERSION ≥ v"1.12"
+            @test alloc == 0
+        else
+            @test alloc ≤ master_bytes_1_10
+        end
+    end
+end

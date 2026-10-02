@@ -476,33 +476,32 @@ end
     return Utils.evaluate_f(prob, u0)
 end
 
-@inline function _polyalg_solve_trace_prototype(cache::NonlinearSolvePolyAlgorithmCache)
-    for subcache in cache.caches
-        hasfield(typeof(subcache), :trace) && return getfield(subcache, :trace)
-    end
-    return nothing
-end
-# Stepping-only ladders keep a concrete trace type for Julia 1.10 inference.
-# A NoInit sibling may return `nothing`, so widen only then — never substitute
-# another cache's history for the selected sub-solution's actual trace.
-@inline function _polyalg_solve_trace_type(cache::NonlinearSolvePolyAlgorithmCache)
-    proto = _polyalg_solve_trace_prototype(cache)
-    T = typeof(proto)
-    for subcache in cache.caches
-        hasfield(typeof(subcache), :trace) || return Union{Nothing, T}
-    end
-    return T
+# Per-subcache trace sample for InitialFailure / type asserts. Prefer a single
+# typed `caches[i]` access over scanning the heterogeneous tuple (that allocates).
+@inline function _polyalg_solve_subcache_trace(subcache)
+    return hasfield(typeof(subcache), :trace) ? getfield(subcache, :trace) : nothing
 end
 
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
+    # Select `_traceType` from the concrete subcache types at generate time. A NoInit
+    # sibling contributes `Nothing` so the winner's actual `sol.trace` (including
+    # `nothing`) type-checks; stepping-only ladders keep a single concrete type.
+    # Do not iterate `cache.caches` at runtime — heterogeneous tuple iteration allocates.
+    caches_type = fieldtype(cache, :caches)
+    trace_type = Nothing
+    for i in 1:N
+        sub_T = fieldtype(caches_type, i)
+        t_i = hasfield(sub_T, :trace) ? fieldtype(sub_T, :trace) : Nothing
+        trace_type = i == 1 ? t_i : Union{trace_type, t_i}
+    end
     calls = [
         quote
             1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
             # Concrete types for Julia 1.10 inference across generated branches.
             _uType = typeof(cache.u0)
             _fuType = typeof(_polyalg_solve_fu_prototype(cache))
-            _trace_proto = _polyalg_solve_trace_prototype(cache)
-            _traceType = _polyalg_solve_trace_type(cache)
+            _trace_proto = _polyalg_solve_subcache_trace(cache.caches[1])
+            _traceType = $(trace_type)
         end,
     ]
 
