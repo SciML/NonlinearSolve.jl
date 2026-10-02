@@ -167,11 +167,18 @@ The Jacobian's age continues counting across the `reinit!`, so `max_age` still b
 many accepted steps it serves in total, and the contraction of the first step is measured
 against the new initial residual. A stale Jacobian that fails a linear solve or line
 search is refreshed as usual. The keyword needs a policy that reuses (it is a no-op for
-exact Newton) and is forwarded to every sub-cache of a polyalgorithm. Solvers without a
-reuse policy, such as the quasi-Newton and spectral methods, ignore it. An explicit
+exact Newton) and is forwarded to every sub-cache of a polyalgorithm. An explicit
 `step!(cache; recompute_jacobian = true/false)` always takes precedence, so an outer solver
 that manages its own Jacobian lifecycle (such as OrdinaryDiffEq's nonlinear solvers) is
 unaffected.
+
+Quasi-Newton methods (`Broyden`, `Klement`, `LimitedMemoryBroyden`) have no reuse policy;
+their Jacobian (or inverse, or low-rank history) is updated by secant steps instead.
+`reinit!(cache, u0; reuse_jacobian = true)` keeps that updated approximation, so the first
+step of the next solve skips the initialization (no new Jacobian evaluation for
+`init_jacobian = Val(:true_jacobian)`). Refreshes then follow the method's own reset
+rule (`NoChangeInStateReset`, `IllConditionedJacobianReset`), `max_resets`, and a failed
+linear solve. Spectral methods keep no Jacobian and ignore the keyword.
 
 ## [Forcing Term Strategies](@id forcing_strategies)
 
