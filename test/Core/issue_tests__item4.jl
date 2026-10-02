@@ -86,3 +86,25 @@ sol_fb = solve!(fallback_cache)
 @test sol_fb.u ≈ fallback_expected.u
 @test sol_fb.resid ≈ hard_problem(sol_fb.u, hard.p)
 @test sol_fb.retcode == fallback_expected.retcode
+
+# Parameter-changing retain_best reinit must not return the previous solve's stepping
+# history when a no-init method wins again (review probe: stale Newton history with p=2).
+retain_alg = NonlinearSolvePolyAlgorithm(
+    (NewtonRaphson(), SimpleBroyden()); store_original = Val(true)
+)
+retain_cache = init(
+    NonlinearProblem(cubic, [0.0], 2.0), retain_alg; store_trace = Val(true)
+)
+sol_retain_first = solve!(retain_cache)
+@test SciMLBase.successful_retcode(sol_retain_first)
+@test retain_cache.best == 2
+old_history = copy(retain_cache.caches[1].trace.history)
+reinit!(retain_cache, [2.5]; p = 27.0, retain_best = true)
+sol_retain_second = solve!(retain_cache)
+@test SciMLBase.successful_retcode(sol_retain_second)
+@test retain_cache.best == 2
+@test sol_retain_second.u ≈ [cbrt(27)] atol = 1.0e-8
+@test sol_retain_second.trace === sol_retain_second.original.trace
+@test sol_retain_second.trace === nothing
+@test !(sol_retain_second.trace === retain_cache.caches[1].trace)
+@test !(sol_retain_second.trace !== nothing && sol_retain_second.trace.history == old_history)
