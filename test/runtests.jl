@@ -169,7 +169,8 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
                     @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
-                    return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
+                    @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
+                    return @time @safetestset "PETScSNES converged reason" include("Wrappers/petsc_retcode_tests__item1.jl")
                 end,
             ),
             "CUDA" => (;
