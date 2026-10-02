@@ -197,14 +197,22 @@ function construct_extension_jac(
     else
         size(u0) == u_size ? u0 : reshape(u0, u_size)
     end
+    # Residual shape is independent of state shape; honour `resid_prototype` when set.
     fu_native = if prob.u0 isa Number
         fu isa Number ? fu : fu[1]
-    elseif size(fu) == u_size
-        fu
-    elseif length(fu) == length(prob.u0)
-        reshape(fu, u_size)
     else
-        Utils.evaluate_f(prob, u_native)
+        rp = prob.f.resid_prototype
+        if rp !== nothing
+            size(fu) == size(rp) ? fu :
+                (
+                    length(fu) == length(rp) ? reshape(fu, size(rp)) :
+                    Utils.evaluate_f(prob, u_native)
+                )
+        elseif size(fu) == u_size
+            fu
+        else
+            Utils.evaluate_f(prob, u_native)
+        end
     end
     Jₚ = construct_jacobian_cache(
         prob, alg, prob.f, fu_native, u_native, prob.p;

@@ -56,3 +56,29 @@ nlsolve_vector = NonlinearProblem(
         @test maximum(abs, sol.resid) < 1.0e-10
     end
 end
+
+# Matrix state with an independent vector residual (resid_prototype ≠ size(u0)).
+function matrix_vector_resid!(r, u, p)
+    r .= vec(u) .^ 2 .- vec(p)
+    return nothing
+end
+matrix_vector_p = [2.0 3.0; 4.0 5.0]
+matrix_vector_expected = sqrt.(matrix_vector_p)
+
+@testset "matrix state / vector residual: $name" for (name, alg) in (
+        ("CMINPACK", CMINPACK),
+        ("NLsolveJL", NLsolveJL),
+    )
+    name == "CMINPACK" && Sys.isapple() && continue
+    @testset "$ad" for ad in ads
+        nf = NonlinearFunction{true}(
+            matrix_vector_resid!;
+            resid_prototype = zeros(4), jac_prototype = zeros(4, 4)
+        )
+        prob = NonlinearProblem(nf, ones(2, 2), matrix_vector_p)
+        sol = solve(prob, alg(autodiff = ad))
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ matrix_vector_expected atol = 1.0e-8
+        @test maximum(abs, sol.resid) < 1.0e-10
+    end
+end

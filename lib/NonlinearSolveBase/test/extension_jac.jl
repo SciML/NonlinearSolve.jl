@@ -80,5 +80,17 @@ end
             J!(Jout, [1.0, 4.0])
             @test Jout ≈ [0.5 0.0; 0.0 0.25]
         end
+
+        @testset "matrix state with vector residual prototype" begin
+            f!(r, u, p) = (r .= vec(u) .^ 2 .- vec(p); nothing)
+            nf = NonlinearFunction{true}(
+                f!; resid_prototype = zeros(4), jac_prototype = zeros(4, 4)
+            )
+            prob = NonlinearProblem(nf, ones(2, 2), [2.0 3.0; 4.0 5.0])
+            _, u0, resid = NonlinearSolveBase.construct_extension_function_wrapper(prob)
+            @test size(resid) == (4,)
+            J = eval_extension_jac(prob, u0, resid; autodiff = ad)
+            @test J ≈ 2 * I(4)
+        end
     end
 end
