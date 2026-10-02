@@ -4,10 +4,10 @@ Use `solve(prob)` for a problem with `lb` or `ub`. The bounded default is
 [`SobolMultistart`](@ref) wrapping [`FastShortcutBoundedPolyalg`](@ref): each start
 works in the original coordinates, trying `BoundedTrustRegion()` and then
 `BoundedGaussNewton()` with projected backtracking if needed, and a stalled local
-solve triggers deterministic restarts. For an out-of-place least-squares problem with a
-scalar state and an array residual, or the reverse, each start runs
-`BoundedGaussNewton()` alone, because `BoundedTrustRegion()` requires the state and the
-residual to be both scalars or both arrays. Passing `FastShortcutBoundedPolyalg()`
+solve triggers deterministic restarts. `BoundedTrustRegion()` requires the state and
+the residual to be both scalars or both arrays; for an out-of-place problem with a scalar
+state and an array residual, or the reverse, the restarts run `BoundedGaussNewton()`
+alone. Passing `FastShortcutBoundedPolyalg()`
 explicitly selects the purely local sequence without restarts. The
 [bound-constraints tutorial](../tutorials/bound_constraints.md) shows how to construct root and least-squares problems.
 
@@ -118,9 +118,11 @@ needed. `KrylovJL_LSMR()` solves the rectangular least-squares models; linear so
 requiring square systems use normal equations. A successful minimum-norm linear solve
 does not by itself ensure fast nonlinear convergence.
 
-For a scalar state with an array residual, or an array state with a scalar residual,
-select `BoundedGaussNewton()` explicitly. The generalized dogleg stage used by the
-default currently requires matching scalar/array categories.
+When selecting `BoundedTrustRegion()` or `FastShortcutBoundedPolyalg()` explicitly for a
+scalar state with an array residual, or an array state with a scalar residual, use
+`BoundedGaussNewton()` instead. The generalized dogleg stage requires matching
+scalar/array categories. The same applies to the default when a `postcondition` is
+supplied, since it then keeps only `BoundedTrustRegion()`.
 
 Analytic Jacobians and AD backends follow the usual solver interface. Native finite
 differences stay inside finite bounds and do not perturb fixed coordinates.

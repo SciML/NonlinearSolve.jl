@@ -547,28 +547,12 @@ function InternalAPI.step!(
     return nothing
 end
 
-# `BoundedTrustRegion` uses the generalized Jacobian and descent caches, which need the
-# state and the residual to be both scalars or both arrays. The native bounded methods
-# vectorize both, so they handle a scalar state with an array residual and vice versa.
-# The residual may only be evaluated once initialization has run, so problems with
-# initialization data are not probed here.
-function _mixed_state_residual_shapes(prob)
-    SciMLBase.isinplace(prob) && return false
-    SciMLBase.has_initialization_data(prob.f) && return false
-    fu = if prob.f.resid_prototype === nothing
-        Utils.evaluate_f(prob, NonlinearSolveBase.prepare_default_bounds(prob, nothing).u0)
-    else
-        prob.f.resid_prototype
-    end
-    return (prob.u0 isa Number) != (fu isa Number)
-end
-
 function _default_bounded_alg(prob, kwargs)
-    must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
-    if !must_support_postcondition && _mixed_state_residual_shapes(prob)
-        return SobolMultistart(BoundedGaussNewton())
-    end
-    return SobolMultistart(FastShortcutBoundedPolyalg(; must_support_postcondition))
+    return SobolMultistart(
+        FastShortcutBoundedPolyalg(;
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+        )
+    )
 end
 
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)

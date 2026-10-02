@@ -38,6 +38,17 @@ end
     end
 end
 
+@testset "Bounded defaults restart after a throwing first start" begin
+    prob = NonlinearLeastSquaresProblem(
+        (u, p) -> [sqrt(u[1] - 0.25) - 0.5], [0.0]; lb = 0.0, ub = 1.0
+    )
+    for cached in (false, true)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.5]
+    end
+end
+
 @testset "Boundary stationarity and root failure" begin
     for bounds in ((; lb = 0.0), (; ub = 1.0), (; lb = 0.0, ub = 1.0), (; lb = 1.0, ub = 1.0))
         target = haskey(bounds, :ub) ? 2.0 : -1.0
