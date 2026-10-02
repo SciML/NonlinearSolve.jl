@@ -93,6 +93,7 @@ end
     retcode::ReturnCode.T
     force_stop::Bool
     force_reinit::Bool
+    carry_jacobian::Bool
     kwargs
 
     # Initialization
@@ -119,7 +120,8 @@ function InternalAPI.reinit_self!(
         cache::QuasiNewtonCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
-        maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
+        maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing,
+        reuse_jacobian::Bool = false, kwargs...
     )
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
@@ -128,9 +130,14 @@ function InternalAPI.reinit_self!(
     )
 
     InternalAPI.reinit!(cache.stats)
+    # A carried Jacobian keeps its age; refreshes follow the reset rule and `max_resets`.
+    carry = reuse_jacobian && (cache.nsteps > 0 || cache.carry_jacobian) && !cache.force_reinit
+    cache.carry_jacobian = carry
     cache.nsteps = 0
     cache.nresets = 0
-    cache.steps_since_last_reset = 0
+    if !carry
+        cache.steps_since_last_reset = 0
+    end
     cache.maxiters = maxiters
     cache.maxtime = maxtime
     cache.total_time = 0.0
@@ -285,7 +292,7 @@ function SciMLBase.__init(
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             linsolve_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
             alg.max_shrink_times, 0, timer, 0.0, termination_cache, trace,
-            ReturnCode.Default, false, false, kwargs, initializealg, verbose
+            ReturnCode.Default, false, false, false, kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -298,7 +305,7 @@ function InternalAPI.step!(
     )
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
-        if cache.nsteps == 0  # First Step is special ignore kwargs
+        if cache.nsteps == 0 && !cache.carry_jacobian  # First Step is special ignore kwargs
             J_init = InternalAPI.solve!(
                 cache.initialization_cache, cache.fu, cache.u, Val(false)
             )

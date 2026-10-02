@@ -185,14 +185,69 @@ end
     @test jacobian_calls[] == 2
 end
 
-@testset "matrix-free Jacobians disable the policy" begin
-    prob = NonlinearProblem((u, p) -> u .* u .- p, ones(2), 2.0)
-    cache = init(
-        prob, NewtonRaphson(linsolve = KrylovJL_GMRES(), jacobian_reuse = true);
+@testset "matrix-free Jacobians keep the preconditioner between refreshes" begin
+    n = JACOBIAN_REUSE_SIZE_CUTOFF
+    precs_calls = Ref(0)
+    function counting_precs(A, p)
+        precs_calls[] += 1
+        return Diagonal(ones(n)), I
+    end
+    prob = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
+    linsolve = KrylovJL_GMRES(precs = counting_precs)
+    function precs_calls_of(alg)
+        precs_calls[] = 0
+        sol = solve(prob, alg; abstol = 1.0e-10, reltol = 1.0e-10)
+        @test SciMLBase.successful_retcode(sol)
+        @test maximum(abs, sol.resid) ≤ 1.0e-10
+        return precs_calls[], sol
+    end
+
+    # The size-based default has no preconditioner to keep for a matrix-free operator.
+    auto_cache = init(prob, NewtonRaphson(; linsolve); abstol = 1.0e-10)
+    @test !reuses_jacobian(auto_cache.jacobian_reuse_cache.policy)
+    exact_calls, exact_sol = precs_calls_of(NewtonRaphson(; linsolve))
+    off_calls, _ = precs_calls_of(NewtonRaphson(; linsolve, jacobian_reuse = false))
+    @test exact_calls == off_calls
+
+    # Without a preconditioner builder there is nothing to retain, so even an explicit
+    # policy leaves a matrix-free solve as it was.
+    bare_cache = init(
+        prob,
+        NewtonRaphson(; linsolve = KrylovJL_GMRES(), jacobian_reuse = REUSE_WHILE_IMPROVING);
         abstol = 1.0e-10
     )
-    @test !reuses_jacobian(cache.jacobian_reuse_cache.policy)
-    @test SciMLBase.successful_retcode(solve!(cache))
+    @test !reuses_jacobian(bare_cache.jacobian_reuse_cache.policy)
+
+    # An explicit policy rebinds the operator to the current iterate on every step (the
+    # steps stay exact Newton steps) but rebuilds the preconditioner only on a refresh.
+    cache = init(
+        prob, NewtonRaphson(; linsolve, jacobian_reuse = REUSE_WHILE_IMPROVING);
+        abstol = 1.0e-10
+    )
+    @test reuses_jacobian(cache.jacobian_reuse_cache.policy)
+    reuse_calls, reuse_sol = precs_calls_of(
+        NewtonRaphson(; linsolve, jacobian_reuse = REUSE_WHILE_IMPROVING)
+    )
+    @test reuse_calls < exact_calls
+    @test reuse_sol.u ≈ exact_sol.u rtol = 1.0e-8
+    @test reuse_sol.stats.nsteps == exact_sol.stats.nsteps
+
+    # A line search that fails on a retained preconditioner is retried with a fresh one.
+    precs_calls[] = 0
+    retry_cache = init(
+        prob,
+        NewtonRaphson(;
+            linsolve, linesearch = FailAfterFirstLineSearch(),
+            jacobian_reuse = REUSE_WHILE_IMPROVING
+        );
+        abstol = 1.0e-14, reltol = 1.0e-14, verbose = false
+    )
+    step!(retry_cache)
+    calls_after_first_step = precs_calls[]
+    step!(retry_cache)
+    @test retry_cache.linesearch_cache.calls == 3
+    @test precs_calls[] == calls_after_first_step + 1
+    @test retry_cache.retcode == ReturnCode.InternalLineSearchFailed
 end
 
 @testset "manual override and reinit" begin
@@ -227,6 +282,109 @@ end
     step!(exact_cache; recompute_jacobian = false)
     @test jacobian_calls[] == 1
     @test exact_cache.make_new_jacobian
+end
+
+@testset "reuse_jacobian carries the Jacobian across reinit!" begin
+    jacobian_calls = Ref(0)
+    prob = counted_problem(jacobian_calls)
+    policy = JacobianReuse(max_age = 4, max_residual_ratio = 1)
+    cache = init(
+        prob, NewtonRaphson(jacobian_reuse = policy); abstol = 1.0e-14, reltol = 1.0e-14
+    )
+    step!(cache)
+    step!(cache)
+    @test jacobian_calls[] == 1
+    @test cache.jacobian_reuse_cache.age == 2
+
+    # The Jacobian from `ones(2)` serves the new problem: the step is the stale Newton step.
+    u0 = [1.2, 1.3]
+    reinit!(cache, u0; reuse_jacobian = true)
+    @test !cache.make_new_jacobian
+    @test cache.jacobian_reuse_cache.age == 2
+    step!(cache)
+    @test jacobian_calls[] == 1
+    @test cache.stats.njacs == 0
+    @test cache.stats.nfactors == 0
+    @test cache.u ≈ u0 .- (u0 .^ 2 .- 2) ./ 2
+
+    # The age keeps counting across the reinit, so `max_age` bounds the total.
+    @test !cache.make_new_jacobian
+    step!(cache)
+    @test cache.make_new_jacobian
+    step!(cache)
+    @test jacobian_calls[] == 2
+
+    # Without the keyword the Jacobian is dropped, as before.
+    reinit!(cache, u0)
+    @test cache.make_new_jacobian
+    @test cache.jacobian_reuse_cache.age == 0
+    step!(cache)
+    @test jacobian_calls[] == 3
+
+    # A cache that never formed a Jacobian has nothing to carry.
+    fresh = init(prob, NewtonRaphson(jacobian_reuse = policy); abstol = 1.0e-14)
+    reinit!(fresh, u0; reuse_jacobian = true)
+    @test fresh.make_new_jacobian
+
+    # Exact Newton has no Jacobian to carry either.
+    exact = init(prob, NewtonRaphson(jacobian_reuse = false); abstol = 1.0e-14)
+    step!(exact)
+    reinit!(exact, u0; reuse_jacobian = true)
+    @test exact.make_new_jacobian
+end
+
+@testset "a carried Jacobian is retried when the line search fails on it" begin
+    jacobian_calls = Ref(0)
+    prob = counted_problem(jacobian_calls)
+    cache = init(
+        prob,
+        NewtonRaphson(linesearch = FailAfterFirstLineSearch(), jacobian_reuse = REUSE_WHILE_IMPROVING);
+        abstol = 1.0e-14, reltol = 1.0e-14, verbose = false
+    )
+    step!(cache)
+    @test cache.linesearch_cache.calls == 1
+    reinit!(cache, [1.5, 1.5]; reuse_jacobian = true)
+    step!(cache)
+    @test cache.linesearch_cache.calls == 3
+    @test jacobian_calls[] == 2
+    @test cache.retcode == ReturnCode.InternalLineSearchFailed
+end
+
+@testset "reuse_jacobian across a sequence of solves" begin
+    n = JACOBIAN_REUSE_SIZE_CUTOFF + 4
+    prob = NonlinearProblem((u, p) -> u .* u .- p, fill(1.5, n), 2.0)
+    for alg in (NewtonRaphson, TrustRegion)
+        carried = init(
+            prob, alg(jacobian_reuse = JacobianReuse(max_age = 50, max_residual_ratio = 1));
+            abstol = 1.0e-10, reltol = 1.0e-10
+        )
+        dropped = init(
+            prob, alg(jacobian_reuse = JacobianReuse(max_age = 50, max_residual_ratio = 1));
+            abstol = 1.0e-10, reltol = 1.0e-10
+        )
+        carried_njacs = dropped_njacs = 0
+        solve!(carried)
+        solve!(dropped)
+        for p in (2.1, 2.2, 2.3)
+            reinit!(carried, fill(1.5, n); p, reuse_jacobian = true)
+            reinit!(dropped, fill(1.5, n); p)
+            carried_sol = solve!(carried)
+            dropped_sol = solve!(dropped)
+            @test SciMLBase.successful_retcode(carried_sol)
+            @test maximum(abs, carried_sol.u .^ 2 .- p) ≤ 1.0e-10
+            @test carried_sol.u ≈ dropped_sol.u rtol = 1.0e-8
+            carried_njacs += carried_sol.stats.njacs
+            dropped_njacs += dropped_sol.stats.njacs
+        end
+        @test carried_njacs < dropped_njacs
+    end
+
+    # Polyalgorithms forward the keyword to every subcache.
+    cache = init(prob, RobustMultiNewton(jacobian_reuse = REUSE_WHILE_IMPROVING); abstol = 1.0e-10)
+    solve!(cache)
+    reinit!(cache, fill(1.5, n); p = 2.1, reuse_jacobian = true)
+    @test !cache.caches[cache.current].make_new_jacobian
+    @test SciMLBase.successful_retcode(solve!(cache))
 end
 
 @testset "TrustRegion reuse" begin
