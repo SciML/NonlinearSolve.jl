@@ -110,9 +110,9 @@ sol_retain_second = solve!(retain_cache)
 @test !(sol_retain_second.trace !== nothing && sol_retain_second.trace.history == old_history)
 
 # Warmed IIP polyalgorithm solve! allocations must match master on ordinary
-# (non-Simple) ladders. Values for Julia 1.10 are the minima from round-2
-# `probe.jl` on master `06b12295` (12 warmed `@allocated solve!` calls with
-# `reinit!` outside the measurement). Julia 1.12 master is allocation-free.
+# (non-Simple) ladders. The Julia 1.10 budgets below are measured master
+# minima (12 warmed `@allocated solve!` calls with `reinit!` outside the
+# measurement on master `06b12295`). Julia 1.12 master is allocation-free.
 function _polyalg_warmed_iip_allocs(alg; n::Int = 12)
     f_iip!(du, u, p) = (du .= u .* u .- p)
     prob_iip = NonlinearProblem(f_iip!, [1.0, 1.0], 2.0)
@@ -127,7 +127,7 @@ function _polyalg_warmed_iip_allocs(alg; n::Int = 12)
 end
 
 @testset "ordinary IIP polyalgorithm solve! allocations" begin
-    # master `06b12295` Julia 1.10.12 IIP success minima from round-2 probe.jl
+    # Measured master `06b12295` Julia 1.10.12 IIP success allocation budgets
     cases = (
         (nothing, 624),
         (FastShortcutNonlinearPolyalg(), 704),
