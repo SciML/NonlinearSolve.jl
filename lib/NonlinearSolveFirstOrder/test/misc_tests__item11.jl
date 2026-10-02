@@ -21,22 +21,22 @@ p = [4.0, 9.0]    # the first root, 2, is exactly on the upper bound
 u0 = [1.0, 1.0]
 
 algs = (
-    "NewtonRaphson" => NewtonRaphson(; project_bounds = true),
+    "NewtonRaphson" => NewtonRaphson(; bounds_handling = BoundsProjection()),
     "NewtonRaphson, BackTracking" => NewtonRaphson(;
-        project_bounds = true, linesearch = BackTracking()
+        bounds_handling = BoundsProjection(), linesearch = BackTracking()
     ),
     "NewtonRaphson, jacobian_reuse" => NewtonRaphson(;
-        project_bounds = true, jacobian_reuse = true
+        bounds_handling = BoundsProjection(), jacobian_reuse = true
     ),
-    "TrustRegion" => TrustRegion(; project_bounds = true),
-    "TrustRegionDogleg" => TrustRegionDogleg(; project_bounds = true),
+    "TrustRegion" => TrustRegion(; bounds_handling = BoundsProjection()),
+    "TrustRegionDogleg" => TrustRegionDogleg(; bounds_handling = BoundsProjection()),
 )
 
 @testset "the transform stays the default" begin
     @test !SciMLBase.allowsbounds(NewtonRaphson())
     @test !SciMLBase.allowsbounds(TrustRegion())
-    @test SciMLBase.allowsbounds(NewtonRaphson(; project_bounds = true))
-    @test SciMLBase.allowsbounds(TrustRegion(; project_bounds = true))
+    @test SciMLBase.allowsbounds(NewtonRaphson(; bounds_handling = BoundsProjection()))
+    @test SciMLBase.allowsbounds(TrustRegion(; bounds_handling = BoundsProjection()))
 
     interior = NonlinearProblem(
         (u, p) -> u .^ 2 .- p, [1.5, 1.5], [1.0, 4.0]; lb, ub
@@ -93,7 +93,7 @@ end
 
 @testset "reinit! with a carried Jacobian keeps the iterate in the box" begin
     f = (u, p) -> box_residual(u, p, lb, ub)
-    alg = NewtonRaphson(; project_bounds = true, jacobian_reuse = true)
+    alg = NewtonRaphson(; bounds_handling = BoundsProjection(), jacobian_reuse = true)
     cache = init(NonlinearProblem(f, u0, [1.0, 4.0]; lb, ub), alg; abstol = 1.0e-10)
     solve!(cache)
     for p_next in ([2.0, 6.0], [4.0, 9.0], [3.0, 4.0])
@@ -103,4 +103,22 @@ end
         @test sol.u ≈ reference.u
         @test all(lb .<= sol.u .<= ub)
     end
+end
+
+@testset "a clamped trust-region step is judged on the clamped step" begin
+    # With a radius that does not limit the step, the Newton step from [1.5, 2] overshoots the
+    # upper bound of the first coordinate, whose root lies on that bound. The clamped step
+    # reduces the residual, so it is accepted and does not shrink the radius.
+    f = (u, p) -> box_residual(u, p, lb, ub)
+    alg = TrustRegion(;
+        bounds_handling = BoundsProjection(), initial_trust_radius = 10.0,
+        max_trust_radius = 100.0
+    )
+    cache = init(NonlinearProblem(f, [1.5, 2.0], p; lb, ub), alg; abstol = 1.0e-10)
+    scheme = cache.trustregion_cache
+    step!(cache)
+    @test cache.u[1] == ub[1]
+    @test scheme.last_step_accepted
+    @test scheme.ρ > scheme.step_threshold
+    @test scheme.shrink_counter == 0
 end

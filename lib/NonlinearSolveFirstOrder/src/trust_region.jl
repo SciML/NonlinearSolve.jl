@@ -34,9 +34,10 @@ for large-scale and numerically-difficult nonlinear systems.
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
     Jacobian reuses that Jacobian at the unchanged state.
-  - `project_bounds`: handle `lb`/`ub` by clamping every trial point into the box instead
-    of the change of variables. The ratio of actual to predicted reduction is measured on
-    the clamped step. Defaults to `false`.
+  - `bounds_handling`: an [`AbstractBoundsHandling`](@ref), [`BoundsTransform`](@ref) (the
+    default) or [`BoundsProjection`](@ref). With projection every trial point is clamped
+    into the box and the ratio of actual to predicted reduction is measured on the clamped
+    step.
 
 For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref)
 documentation.
@@ -50,7 +51,7 @@ function TrustRegion(;
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
         max_shrink_times::Int = 32,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
-        jacobian_reuse = nothing, project_bounds::Bool = false,
+        jacobian_reuse = nothing, bounds_handling::AbstractBoundsHandling = BoundsTransform(),
     )
     descent, default_scheme = if subproblem isa AbstractDescentDirection
         (subproblem, subproblem isa MoreTrustRegionDescent ? RUS.More : RUS.Simple)
@@ -73,7 +74,7 @@ function TrustRegion(;
     )
     return GeneralizedFirstOrderAlgorithm(;
         trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
-        concrete_jac, jacobian_reuse, project_bounds, name = :TrustRegion
+        concrete_jac, jacobian_reuse, bounds_handling, name = :TrustRegion
     )
 end
 
@@ -421,11 +422,15 @@ function InternalAPI.init(
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
+    step_cache = nothing
+    if bounds !== nothing
+        @bb step_cache = similar(u)
+    end
 
     return GenericTrustRegionSchemeCache(
         alg.method, f, p, mtr, itr, itr, stt, sht, et, shf, ef,
         p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache,
-        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg, bounds
+        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg, bounds, step_cache
     )
 end
 
@@ -460,6 +465,7 @@ end
     stats::NLStats
     alg
     bounds
+    step_cache
 end
 
 function InternalAPI.reinit!(
@@ -580,7 +586,8 @@ function InternalAPI.solve!(
         # reduction (for the unprojected step) does not apply.
         lb, ub = cache.bounds
         @bb @. cache.u_cache = clamp(u + δu, lb, ub)
-        δu = cache.u_cache - u
+        @bb @. cache.step_cache = cache.u_cache - u
+        δu = cache.step_cache
         descent_stats = nothing
     end
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
@@ -740,7 +747,8 @@ end
 end
 
 SciMLBase.allowsbounds(alg::GeneralizedFirstOrderAlgorithm) =
-    alg.trustregion isa BoundedTrustRegionScheme || alg.project_bounds
+    alg.trustregion isa BoundedTrustRegionScheme ||
+    NonlinearSolveBase.handles_bounds_natively(alg.bounds_handling)
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::BoundedTrustRegionScheme, f, fu, u, p,

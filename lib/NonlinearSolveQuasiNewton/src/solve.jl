@@ -34,7 +34,7 @@ examples include [`Broyden`](@ref)'s Method.
 
     max_resets::Int
     max_shrink_times::Int
-    project_bounds::Bool
+    bounds_handling
 
     concrete_jac <: Union{Val{false}, Val{true}}
     name::Symbol
@@ -42,24 +42,19 @@ end
 
 NonlinearSolveBase.supports_postcondition(::QuasiNewtonAlgorithm) = true
 
-SciMLBase.allowsbounds(alg::QuasiNewtonAlgorithm) = alg.project_bounds
-
-function project_iterate!!(cache, u)
-    if cache.lb === nothing
-        return u
-    end
-    return NonlinearSolveBase.project_to_bounds!!(u, cache.lb, cache.ub)
+function SciMLBase.allowsbounds(alg::QuasiNewtonAlgorithm)
+    return NonlinearSolveBase.handles_bounds_natively(alg.bounds_handling)
 end
 
 function QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,
         max_shrink_times::Int = typemax(Int), concrete_jac = Val(false),
-        project_bounds::Bool = false
+        bounds_handling::AbstractBoundsHandling = BoundsTransform()
     )
     return QuasiNewtonAlgorithm(
         linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
-        max_resets, max_shrink_times, project_bounds, concrete_jac, name
+        max_resets, max_shrink_times, bounds_handling, concrete_jac, name
     )
 end
 
@@ -93,9 +88,11 @@ end
     maxtime
     max_shrink_times::Int
 
-    # Box bounds the iterates are clamped to, or `nothing`
+    # Box bounds the iterates are clamped to, or `nothing`, and the buffer for the
+    # clamped step
     lb
     ub
+    step_buffer
     steps_since_last_reset::Int
 
     # Timer
@@ -230,7 +227,8 @@ function SciMLBase.__init(
 
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
         project_lb, project_ub = nothing, nothing
-        if alg.project_bounds && NonlinearSolveBase.has_box_bounds(prob)
+        if NonlinearSolveBase.projects_iterates(alg.bounds_handling) &&
+                NonlinearSolveBase.has_box_bounds(prob)
             project_lb, project_ub = NonlinearSolveBase.projection_bounds(prob, u)
             u = NonlinearSolveBase.project_to_bounds(u, project_lb, project_ub)
         end
@@ -278,8 +276,8 @@ function SciMLBase.__init(
         linesearch_cache = nothing
         trustregion_cache = nothing
 
-        if has_trustregion && alg.project_bounds
-            throw(ArgumentError("`project_bounds` is not supported with a trust region in a quasi-Newton method."))
+        if has_trustregion && NonlinearSolveBase.projects_iterates(alg.bounds_handling)
+            throw(ArgumentError("`BoundsProjection` is not supported with a trust region in a quasi-Newton method."))
         end
         if has_trustregion
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
@@ -311,6 +309,11 @@ function SciMLBase.__init(
             prob, alg.update_rule, J, fu, u, du; stats, internalnorm
         )
 
+        step_buffer = nothing
+        if project_lb !== nothing
+            @bb step_buffer = similar(u)
+        end
+
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
             prob, alg, u, fu, J, du;
             uses_jacobian_inverse = inverted_jac, kwargs...
@@ -321,7 +324,7 @@ function SciMLBase.__init(
             initialization_cache, descent_cache, linesearch_cache,
             trustregion_cache, update_rule_cache, reinit_rule_cache,
             linsolve_workspace, stats, 0, 0, alg.max_resets, maxiters, maxtime,
-            alg.max_shrink_times, project_lb, project_ub,
+            alg.max_shrink_times, project_lb, project_ub, step_buffer,
             0, timer, 0.0, termination_cache, trace,
             ReturnCode.Default, false, false, false, kwargs, initializealg, verbose
         )
@@ -455,7 +458,7 @@ function InternalAPI.step!(
                     cache.u = NonlinearSolveBase.apply_postcondition!!(
                         cache.u, cache.u_cache, cache
                     )
-                    cache.u = project_iterate!!(cache, cache.u)
+                    cache.u = NonlinearSolveBase.project_iterate!!(cache, cache.u)
                     Utils.evaluate_f!(cache, cache.u, cache.p)
                 end
             end
@@ -489,7 +492,7 @@ function InternalAPI.step!(
                 cache.u = NonlinearSolveBase.apply_postcondition!!(
                     cache.u, cache.u_cache, cache
                 )
-                cache.u = project_iterate!!(cache, cache.u)
+                cache.u = NonlinearSolveBase.project_iterate!!(cache, cache.u)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
@@ -513,14 +516,14 @@ function InternalAPI.step!(
     # means that Jacobian points out of the box: rebuild it.
     clamped_to_nothing = false
     if cache.lb !== nothing
-        step_taken = cache.u - cache.u_cache
-        if iszero(step_taken)
+        if cache.u == cache.u_cache
             clamped_to_nothing = true
             if !fresh_jacobian
                 cache.force_reinit = true
             end
         else
-            δu = step_taken
+            @bb @. cache.step_buffer = cache.u - cache.u_cache
+            δu = cache.step_buffer
         end
     end
     @bb copyto!(cache.u_cache, cache.u)

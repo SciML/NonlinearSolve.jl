@@ -23,24 +23,24 @@ p = [4.0, 9.0]    # the first root, 2, is exactly on the upper bound
 u0 = [1.0, 1.0]
 
 algs = (
-    "Broyden" => Broyden(; project_bounds = true),
+    "Broyden" => Broyden(; bounds_handling = BoundsProjection()),
     "Broyden, BackTracking" => Broyden(;
-        project_bounds = true, linesearch = BackTracking(; autodiff = AutoForwardDiff())
+        bounds_handling = BoundsProjection(), linesearch = BackTracking(; autodiff = AutoForwardDiff())
     ),
     "Broyden (true jacobian)" => Broyden(;
-        project_bounds = true, init_jacobian = Val(:true_jacobian)
+        bounds_handling = BoundsProjection(), init_jacobian = Val(:true_jacobian)
     ),
-    "Klement" => Klement(; project_bounds = true),
-    "LimitedMemoryBroyden" => LimitedMemoryBroyden(; project_bounds = true),
+    "Klement" => Klement(; bounds_handling = BoundsProjection()),
+    "LimitedMemoryBroyden" => LimitedMemoryBroyden(; bounds_handling = BoundsProjection()),
 )
 
 @testset "the transform stays the default" begin
     @test !SciMLBase.allowsbounds(Broyden())
     @test !SciMLBase.allowsbounds(Klement())
     @test !SciMLBase.allowsbounds(LimitedMemoryBroyden())
-    @test SciMLBase.allowsbounds(Broyden(; project_bounds = true))
-    @test SciMLBase.allowsbounds(Klement(; project_bounds = true))
-    @test SciMLBase.allowsbounds(LimitedMemoryBroyden(; project_bounds = true))
+    @test SciMLBase.allowsbounds(Broyden(; bounds_handling = BoundsProjection()))
+    @test SciMLBase.allowsbounds(Klement(; bounds_handling = BoundsProjection()))
+    @test SciMLBase.allowsbounds(LimitedMemoryBroyden(; bounds_handling = BoundsProjection()))
 end
 
 @testset "$(name)" for (name, alg) in algs
@@ -80,7 +80,7 @@ end
 
 @testset "reinit! with a carried Jacobian keeps the iterate in the box" begin
     f = (u, p) -> box_residual(u, p, lb, ub)
-    alg = Broyden(; project_bounds = true, init_jacobian = Val(:true_jacobian))
+    alg = Broyden(; bounds_handling = BoundsProjection(), init_jacobian = Val(:true_jacobian))
     cache = init(
         NonlinearProblem(f, u0, [1.0, 4.0]; lb, ub), alg; abstol = 1.0e-10, maxiters = 1000
     )

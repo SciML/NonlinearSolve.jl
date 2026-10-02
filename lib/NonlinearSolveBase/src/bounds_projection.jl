@@ -47,6 +47,19 @@ function project_to_bounds!!(u, lb, ub)
     return clamp.(u, lb, ub)
 end
 
+"""
+    project_iterate!!(cache, u)
+
+Clamp `u` into the box a solver cache stores in `cache.lb`/`cache.ub`; `u` itself when
+the cache has no box.
+"""
+function project_iterate!!(cache, u)
+    if cache.lb === nothing
+        return u
+    end
+    return project_to_bounds!!(u, cache.lb, cache.ub)
+end
+
 # The residual composed with the projection onto the box. A line search that evaluates
 # this function never sees a point outside the box, and automatic differentiation through
 # it gives the derivative of the projected path.

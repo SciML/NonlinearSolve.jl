@@ -85,17 +85,16 @@ sol_ip.u
 [`LimitedMemoryBroyden`](@ref) have no native bound handling, so a bounded problem is
 solved through a change of variables that maps the box to the real line. A root on a
 bound is then only reached in the limit, and the residual is evaluated at transformed
-points. With `project_bounds = true` the solver instead works in the original
+points. With `bounds_handling = BoundsProjection()` the solver instead works in the original
 coordinates and clamps each trial point into the box before the residual is evaluated, so
 the residual is never called outside `[lb, ub]` and a root exactly on a bound is reached
 exactly:
 
 ```@example bounds
-using NonlinearSolve: NewtonRaphson
 prob_bound = NLS.NonlinearProblem(
     (u, p) -> u .^ 2 .- p, [1.0, 1.0], [4.0, 9.0]; lb = [0.0, 0.0], ub = [2.0, 5.0]
 )
-sol_bound = NLS.solve(prob_bound, NewtonRaphson(; project_bounds = true))
+sol_bound = NLS.solve(prob_bound, NLS.NewtonRaphson(; bounds_handling = NLS.BoundsProjection()))
 @assert sol_bound.u == [2.0, 3.0]
 sol_bound.u
 ```

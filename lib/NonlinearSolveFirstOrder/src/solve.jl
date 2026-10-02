@@ -3,8 +3,8 @@
         descent, linesearch = missing,
         trustregion = missing, autodiff = nothing, vjp_autodiff = nothing,
         jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
-        concrete_jac = Val(false), jacobian_reuse = nothing, project_bounds::Bool = false,
-        name::Symbol = :unknown
+        concrete_jac = Val(false), jacobian_reuse = nothing,
+        bounds_handling::AbstractBoundsHandling = BoundsTransform(), name::Symbol = :unknown
     )
 
 This is a Generalization of First-Order (uses Jacobian) Nonlinear Solve Algorithms. The most
@@ -24,8 +24,9 @@ order of convergence.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy for reusing the Jacobian across
     accepted steps. `true` forces the default policy on and `false` forces it off. Defaults
     to `nothing`, which resolves against `length(u0)` when the cache is built.
-  - `project_bounds`: handle `lb`/`ub` by clamping every iterate into the box instead of
-    the change of variables used for algorithms without native bounds. Defaults to `false`.
+  - `bounds_handling`: an [`AbstractBoundsHandling`](@ref) choosing how `lb`/`ub` are handled
+    when the algorithm has no bound-constrained method of its own: [`BoundsTransform`](@ref)
+    (the default, a change of variables) or [`BoundsProjection`](@ref) (clamp every iterate).
 """
 @concrete struct GeneralizedFirstOrderAlgorithm <: AbstractNonlinearSolveAlgorithm
     linesearch
@@ -34,7 +35,7 @@ order of convergence.
     forcing
     jacobian_reuse
     max_shrink_times::Int
-    project_bounds::Bool
+    bounds_handling
 
     autodiff
     vjp_autodiff
@@ -48,14 +49,14 @@ function GeneralizedFirstOrderAlgorithm(;
         descent, linesearch = missing, trustregion = missing, autodiff = nothing,
         vjp_autodiff = nothing, jvp_autodiff = nothing, max_shrink_times::Int = typemax(Int),
         concrete_jac = Val(false), forcing = nothing, jacobian_reuse = nothing,
-        project_bounds::Bool = false, name::Symbol = :unknown
+        bounds_handling::AbstractBoundsHandling = BoundsTransform(), name::Symbol = :unknown
     )
     concrete_jac = concrete_jac isa Bool ? Val(concrete_jac) :
         (concrete_jac isa Val ? concrete_jac : Val(concrete_jac !== nothing))
     jacobian_reuse = normalize_jacobian_reuse(jacobian_reuse)
     return GeneralizedFirstOrderAlgorithm(
         linesearch, trustregion, descent, forcing, jacobian_reuse, max_shrink_times,
-        project_bounds,
+        bounds_handling,
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac, name
     )
@@ -119,13 +120,6 @@ _trust_region_retcode!(cache, J, fu, u) = ReturnCode.Default
 # Native bounded methods handle `lb`/`ub` themselves; the projection mode only clamps.
 uses_native_bounds(alg) = SciMLBase.allowsbounds(alg)
 uses_native_bounds(alg::GeneralizedFirstOrderAlgorithm) = alg.trustregion isa BoundedTrustRegionScheme
-
-function project_iterate!!(cache, u)
-    if cache.lb === nothing
-        return u
-    end
-    return NonlinearSolveBase.project_to_bounds!!(u, cache.lb, cache.ub)
-end
 
 function _validate_native_bounds(prob, alg, u)
     if !uses_native_bounds(alg)
@@ -251,7 +245,8 @@ function SciMLBase.__init(
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
         _validate_native_bounds(prob, alg, u)
         project_lb, project_ub, project_pair = nothing, nothing, nothing
-        if alg.project_bounds && NonlinearSolveBase.has_box_bounds(prob)
+        if NonlinearSolveBase.projects_iterates(alg.bounds_handling) &&
+                NonlinearSolveBase.has_box_bounds(prob)
             project_lb, project_ub = NonlinearSolveBase.projection_bounds(prob, u)
             project_pair = (project_lb, project_ub)
             u = NonlinearSolveBase.project_to_bounds(u, project_lb, project_ub)
@@ -523,7 +518,7 @@ function InternalAPI.step!(
                 cache.u = NonlinearSolveBase.apply_postcondition!!(
                     cache.u, cache.u_cache, cache
                 )
-                cache.u = project_iterate!!(cache, cache.u)
+                cache.u = NonlinearSolveBase.project_iterate!!(cache, cache.u)
                 Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             accepted_step = !linesearch_failed
@@ -541,7 +536,7 @@ function InternalAPI.step!(
                         cache.u = NonlinearSolveBase.apply_postcondition!!(
                             cache.u, cache.u_cache, cache
                         )
-                        cache.u = project_iterate!!(cache, cache.u)
+                        cache.u = NonlinearSolveBase.project_iterate!!(cache, cache.u)
                         Utils.evaluate_f!(cache, cache.u, cache.p)
                     end
                     α = true
@@ -563,7 +558,7 @@ function InternalAPI.step!(
                 cache.u = NonlinearSolveBase.apply_postcondition!!(
                     cache.u, cache.u_cache, cache
                 )
-                cache.u = project_iterate!!(cache, cache.u)
+                cache.u = NonlinearSolveBase.project_iterate!!(cache, cache.u)
                 defer_residual || Utils.evaluate_f!(cache, cache.u, cache.p)
             end
             α = true
