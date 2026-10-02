@@ -103,6 +103,8 @@ include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
 include("bounds_transform.jl")
+include("bounds_handling.jl")
+include("bounds_projection.jl")
 include("conditioning.jl")
 include("solve.jl")
 
@@ -146,6 +148,13 @@ include("forward_diff.jl")
         get_precondition, get_postcondition, supports_postcondition,
     )
 )
+@compat(
+    public,
+    (
+        handles_bounds_natively, projects_iterates, projection_bounds, project_to_bounds, project_to_bounds!!, project_iterate!!,
+        projected_problem,
+    )
+)
 @compat(public, (get_u, get_fu, get_nsteps, get_termination_cache, get_trace))
 @compat(public, (supports_deferred_residual, refresh_residual!))
 @compat(public, (residual_only_termination_mode, trace_is_active))
@@ -182,6 +191,8 @@ export HomotopySweep, KantorovichHomotopy, ArcLengthContinuation, HomotopyPolyAl
 export NonlinearVerbosity
 
 export PostconditionSpecifier, PostconditionSpace
+
+export AbstractBoundsHandling, BoundsTransform, BoundsProjection
 
 export pickchunksize
 

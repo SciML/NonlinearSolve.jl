@@ -37,7 +37,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     AbstractApproximateJacobianUpdateRule, AbstractDescentDirection,
     AbstractApproximateJacobianUpdateRuleCache,
     Utils, InternalAPI, get_timer_output, @static_timeit,
-    update_trace!, L2_NORM, NewtonDescent, NonlinearVerbosity, reused_jacobian
+    update_trace!, L2_NORM, NewtonDescent, NonlinearVerbosity, reused_jacobian,
+    AbstractBoundsHandling, BoundsTransform
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
     NonlinearProblem, NonlinearFunction, NoSpecialize
 using SciMLLogging: @SciMLMessage, None, AbstractVerbosityPreset

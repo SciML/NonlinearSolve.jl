@@ -76,8 +76,9 @@ function update_A!(cache::LinearSolveJLCache, A, reuse)
 end
 
 function update_A!(cache::LinearSolveJLCache, alg, A, reuse)
-    # Not a Factorization Algorithm so don't update `nfactors`
-    set_lincache_A!(cache.lincache, A)
+    # Not a Factorization Algorithm so don't update `nfactors`. `A` is always rebound
+    # (a matrix-free `A` follows the iterate); a reuse request keeps the preconditioner.
+    set_lincache_A!(cache.lincache, A; reuse_precs = reuse)
     return cache
 end
 function update_A!(cache::LinearSolveJLCache, ::LinearSolve.AbstractFactorization, A, reuse)
@@ -92,7 +93,7 @@ function update_A!(
     if alg ==
             LinearSolve.DefaultLinearSolver(LinearSolve.DefaultAlgorithmChoice.KrylovJL_GMRES)
         # Force a reset of the cache. This is not properly handled in LinearSolve.jl
-        set_lincache_A!(cache.lincache, A)
+        set_lincache_A!(cache.lincache, A; reuse_precs = reuse)
         return cache
     end
     reuse && return cache
@@ -101,14 +102,18 @@ function update_A!(
     return cache
 end
 
-function set_lincache_A!(lincache, new_A)
+function set_lincache_A!(lincache, new_A; reuse_precs::Bool = false)
     if !LinearSolve.default_alias_A(lincache.alg, new_A, lincache.b) &&
             ArrayInterface.can_setindex(lincache.A)
         copyto!(lincache.A, new_A)
-        lincache.A = lincache.A # important!! triggers special code in `setproperty!`
-        return
+        new_A = lincache.A
     end
-    lincache.A = new_A
+    if reuse_precs
+        # `reinit!` rebinds `A` without marking `Pl`, `Pr` stale.
+        SciMLBase.reinit!(lincache; A = new_A, reuse_precs = true)
+    else
+        lincache.A = new_A # important!! triggers special code in `setproperty!`
+    end
     return
 end
 
@@ -116,7 +121,10 @@ function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
     return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
 end
 
-function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p = missing, kwargs...)
+function InternalAPI.reinit!(
+        cache::LinearSolveJLCache, args...; u = missing, p = missing,
+        reuse_jacobian::Bool = false, kwargs...
+    )
     # `u`/`p` left as `missing` mean "unchanged" — preserve the current values rather than
     # overwriting them with `missing`. Otherwise a `reinit!` that only updates `u` (the
     # usual case in a continuation loop, parameters fixed) would rebuild the parameters as
@@ -132,7 +140,10 @@ function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p 
         cur.u
     end
     p_new = p === missing ? cur.p : p
-    return SciMLBase.reinit!(cache.lincache; p = LinearSolveParameters(u_fixed, p_new))
+    return SciMLBase.reinit!(
+        cache.lincache; p = LinearSolveParameters(u_fixed, p_new),
+        reuse_precs = reuse_jacobian
+    )
 end
 
 end
