@@ -66,6 +66,7 @@ else
             @time @safetestset "Correct Best Solution: #565" include("Core/issue_tests__item1.jl")
             @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
             @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
+            @time @safetestset "Polyalgorithm Simple* init+solve!: Issue #1348" include("Core/issue_tests__item4.jl")
             @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
             @time @safetestset "Bounds: implicit sensitivities" include("Core/bounds_sensitivity_tests.jl")
             @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
