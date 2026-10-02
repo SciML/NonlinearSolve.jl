@@ -134,7 +134,8 @@ function InternalAPI.reinit_self!(
         cache::GeneralizedFirstOrderAlgorithmCache, args...; p = cache.p, u0 = cache.u,
         alias_u0::Bool = hasproperty(cache, :alias_u0) ? cache.alias_u0 : false,
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
-        maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
+        maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing,
+        reuse_jacobian::Bool = false, kwargs...
     )
     _validate_native_bounds(cache.prob, cache.alg, u0)
     Utils.reinit_common!(cache, u0, p, alias_u0)
@@ -146,9 +147,13 @@ function InternalAPI.reinit_self!(
     cache.total_time = 0.0
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
-    cache.make_new_jacobian = true
+    if reuse_jacobian
+        carry_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
+    else
+        cache.make_new_jacobian = true
+        reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
+    end
     cache.fu_deferred = false
-    reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
     NonlinearSolveBase.reset!(cache.trace)
     SciMLBase.reinit!(

@@ -121,7 +121,10 @@ function LinearSolve.update_tolerances!(cache::LinearSolveJLCache; kwargs...)
     return LinearSolve.update_tolerances!(cache.lincache; kwargs...)
 end
 
-function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p = missing, kwargs...)
+function InternalAPI.reinit!(
+        cache::LinearSolveJLCache, args...; u = missing, p = missing,
+        reuse_jacobian::Bool = false, kwargs...
+    )
     # `u`/`p` left as `missing` mean "unchanged" — preserve the current values rather than
     # overwriting them with `missing`. Otherwise a `reinit!` that only updates `u` (the
     # usual case in a continuation loop, parameters fixed) would rebuild the parameters as
@@ -137,7 +140,10 @@ function InternalAPI.reinit!(cache::LinearSolveJLCache, args...; u = missing, p 
         cur.u
     end
     p_new = p === missing ? cur.p : p
-    return SciMLBase.reinit!(cache.lincache; p = LinearSolveParameters(u_fixed, p_new))
+    return SciMLBase.reinit!(
+        cache.lincache; p = LinearSolveParameters(u_fixed, p_new),
+        reuse_precs = reuse_jacobian
+    )
 end
 
 end

@@ -44,9 +44,11 @@ refreshed when any of these conditions holds:
 
 `max_age = 0` disables reuse and recovers exact Newton steps; it is how
 `jacobian_reuse = false` is spelled, and `max_age = 1` means the same thing. Setting
-`max_residual_ratio = Inf` selects purely periodic refreshes. The reuse state is reset by
-`reinit!`; retaining a Jacobian across separate nonlinear solves requires the manual
-`step!(cache; recompute_jacobian = false)` interface.
+`max_residual_ratio = Inf` selects purely periodic refreshes. `reinit!` resets the reuse
+state; `reinit!(cache, u0; reuse_jacobian = true)` keeps it instead, so a sequence of
+solves through one cache continues with the same Jacobian, factorization and
+preconditioner. The age keeps counting, and the contraction of the first step is measured
+against the new initial residual.
 
 Pass `jacobian_reuse = JacobianReuse()` to [`NewtonRaphson`](@ref), [`TrustRegion`](@ref),
 or another first-order solver to force the policy on, and `jacobian_reuse = false` to force
@@ -151,11 +153,18 @@ function init_jacobian_reuse_cache(policy::JacobianReuse, u, J, linsolve, fu, in
     )
 end
 
+# Starts a new solve from the Jacobian the previous one ended on: the age keeps counting,
+# and the first step's contraction is measured against the new initial residual.
+function carry_jacobian_reuse!(cache::JacobianReuseCache, fu)
+    if reuses_jacobian(cache.policy)
+        cache.residual_norm = cache.internalnorm(fu)
+    end
+    return nothing
+end
+
 function reset_jacobian_reuse!(cache::JacobianReuseCache, fu)
     cache.age = 0
-    reuses_jacobian(cache.policy) || return nothing
-    cache.residual_norm = cache.internalnorm(fu)
-    return nothing
+    return carry_jacobian_reuse!(cache, fu)
 end
 
 function jacobian_is_stale(cache::JacobianReuseCache)

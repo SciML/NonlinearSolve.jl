@@ -152,7 +152,23 @@ preconditioner (the `precs` of a `KrylovJL` solver), which is rebuilt only when 
 refreshes. The size-based default and a matrix-free solve without `precs` leave the solve
 untouched.
 
-The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An explicit
+By default the policy is local to one solve and `reinit!` resets it. A sequence of related
+solves, such as the correctors of a continuation, can instead keep the Jacobian, its
+factorization and the preconditioner:
+
+```julia
+cache = init(prob, NewtonRaphson(jacobian_reuse = true))
+solve!(cache)
+reinit!(cache, u0_next; p = p_next, reuse_jacobian = true)
+solve!(cache)
+```
+
+The Jacobian's age continues counting across the `reinit!`, so `max_age` still bounds how
+many accepted steps it serves in total, and the contraction of the first step is measured
+against the new initial residual. A stale Jacobian that fails a linear solve or line
+search is refreshed as usual. The keyword needs a policy that reuses (it is a no-op for
+exact Newton) and is forwarded to every sub-cache of a polyalgorithm. Solvers without a
+reuse policy, such as the quasi-Newton and spectral methods, ignore it. An explicit
 `step!(cache; recompute_jacobian = true/false)` always takes precedence, so an outer solver
 that manages its own Jacobian lifecycle (such as OrdinaryDiffEq's nonlinear solvers) is
 unaffected.
