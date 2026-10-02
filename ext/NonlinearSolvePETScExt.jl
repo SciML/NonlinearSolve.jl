@@ -166,7 +166,7 @@ function SciMLBase.__solve(
     retcode = if Int(reason) > 0
         ReturnCode.Success
     elseif reason == PETSc.LibPETSc.SNES_DIVERGED_MAX_IT ||
-           reason == PETSc.LibPETSc.SNES_DIVERGED_FUNCTION_COUNT
+            reason == PETSc.LibPETSc.SNES_DIVERGED_FUNCTION_COUNT
         ReturnCode.MaxIters
     else
         ReturnCode.ConvergenceFailure
