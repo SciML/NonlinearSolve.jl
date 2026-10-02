@@ -190,18 +190,29 @@ function construct_extension_jac(
     )
     autodiff = select_jacobian_autodiff(prob, autodiff)
 
+    # Wrapper solvers flatten `u`; differentiate at `prob.u0`'s native shape.
+    u_native = prob.u0
+    fu_native = Utils.evaluate_f(prob, u_native)
     Jₚ = construct_jacobian_cache(
-        prob, alg, prob.f, fu, u0, prob.p;
+        prob, alg, prob.f, fu_native, u_native, prob.p;
         stats = NLStats(0, 0, 0, 0, 0), autodiff, kwargs...
     )
 
-    J_no_scalar = can_handle_scalar isa Val{false} && prob.u0 isa Number ?
-        @closure(u -> [Jₚ(u[1])]) : Jₚ
+    J_adapted = if u_native isa Number
+        if can_handle_scalar isa Val{true}
+            Jₚ
+        else
+            @closure u -> [Jₚ(u isa Number ? u : u[1])]
+        end
+    else
+        u_size = size(u_native)
+        @closure u -> Jₚ(size(u) == u_size ? u : reshape(u, u_size))
+    end
 
-    J_final(J, u) = copyto!(J, J_no_scalar(u))
-    J_final(u) = J_no_scalar(u)
+    J_final(J, u) = copyto!(J, J_adapted(u))
+    J_final(u) = J_adapted(u)
 
     initial_jacobian isa Val{false} && return J_final
 
-    return J_final, reused_jacobian(Jₚ, u0)
+    return J_final, reused_jacobian(Jₚ, u_native)
 end
