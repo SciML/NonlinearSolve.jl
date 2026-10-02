@@ -160,9 +160,17 @@ function SciMLBase.__solve(
     u_res = prob.u0 isa Number ? res[1] : res
     resid_res = prob.u0 isa Number ? resid[1] : resid
 
-    objective = maximum(abs, resid)
-    # XXX: Return Code from PETSc
-    retcode = ifelse(objective ≤ abstol, ReturnCode.Success, ReturnCode.Failure)
+    # SNES reports a positive reason when it converged, a negative reason when it
+    # diverged, and SNES_CONVERGED_ITERATING (0) if it never finished iterating.
+    reason = PETSc.LibPETSc.SNESGetConvergedReason(petsclib, snes)
+    retcode = if Int(reason) > 0
+        ReturnCode.Success
+    elseif reason == PETSc.LibPETSc.SNES_DIVERGED_MAX_IT ||
+           reason == PETSc.LibPETSc.SNES_DIVERGED_FUNCTION_COUNT
+        ReturnCode.MaxIters
+    else
+        ReturnCode.ConvergenceFailure
+    end
     return SciMLBase.build_solution(
         prob, alg, u_res, resid_res;
         retcode, original = snes,
