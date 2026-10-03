@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl · NonlinearSolve.jl</title><meta name="title" content="Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl · NonlinearSolve.jl"/><meta property="og:title" content="Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl · NonlinearSolve.jl"/><meta property="twitter:title" content="Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl · NonlinearSolve.jl"/><meta name="description" content="Documentation for NonlinearSolve.jl."/><meta property="og:description" content="Documentation for NonlinearSolve.jl."/><meta property="twitter:description" content="Documentation for NonlinearSolve.jl."/><meta property="og:url" content="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/advanced/"/><meta property="twitter:url" content="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/advanced/"/><link rel="canonical" href="https://docs.sciml.ai/NonlinearSolve/stable/tutorials/advanced/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NonlinearSolve.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NonlinearSolve.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NonlinearSolve.jl: High-Performance Unified Nonlinear Solvers</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../nonlinear/">Solving Nonlinear Systems</a></li><li class="is-active"><a class="tocitem" href>Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl</a><ul class="internal"><li><a class="tocitem" href="#Definition-of-the-Brusselator-Equation"><span>Definition of the Brusselator Equation</span></a></li><li><a class="tocitem" href="#Choosing-Jacobian-Types"><span>Choosing Jacobian Types</span></a></li><li><a class="tocitem" href="#Declaring-a-Sparse-Jacobian-with-Automatic-Sparsity-Detection"><span>Declaring a Sparse Jacobian with Automatic Sparsity Detection</span></a></li><li><a class="tocitem" href="#Using-Jacobian-Free-Newton-Krylov"><span>Using Jacobian-Free Newton-Krylov</span></a></li><li><a class="tocitem" href="#Adding-a-Preconditioner"><span>Adding a Preconditioner</span></a></li></ul></li><li><a class="tocitem" href="../iterator_interface/">Nonlinear Solver Iterator Interface</a></li></ul></li><li><span class="tocitem">Basics</span><ul><li><a class="tocitem" href="../../basics/NonlinearProblem/">Nonlinear Problems</a></li><li><a class="tocitem" href="../../basics/NonlinearFunctions/">NonlinearFunctions and Jacobian Types</a></li><li><a class="tocitem" href="../../basics/solve/">Common Solver Options (Solve Keyword Arguments)</a></li><li><a class="tocitem" href="../../basics/NonlinearSolution/">Nonlinear Solutions</a></li><li><a class="tocitem" href="../../basics/TerminationCondition/">Termination Conditions</a></li><li><a class="tocitem" href="../../basics/FAQ/">Frequently Asked Questions</a></li></ul></li><li><span class="tocitem">Solver Summaries and Recommendations</span><ul><li><a class="tocitem" href="../../solvers/NonlinearSystemSolvers/">Nonlinear System Solvers</a></li><li><a class="tocitem" href="../../solvers/BracketingSolvers/">Interval Rootfinding Methods (Bracketing Solvers)</a></li><li><a class="tocitem" href="../../solvers/SteadyStateSolvers/">Steady State Solvers</a></li></ul></li><li><span class="tocitem">Detailed Solver APIs</span><ul><li><a class="tocitem" href="../../api/nonlinearsolve/">NonlinearSolve.jl Native Solvers</a></li><li><a class="tocitem" href="../../api/simplenonlinearsolve/">SimpleNonlinearSolve.jl</a></li><li><a class="tocitem" href="../../api/minpack/">MINPACK.jl</a></li><li><a class="tocitem" href="../../api/nlsolve/">NLsolve.jl</a></li><li><a class="tocitem" href="../../api/sundials/">Sundials.jl</a></li><li><a class="tocitem" href="../../api/steadystatediffeq/">SteadyStateDiffEq.jl</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NonlinearSolve.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NonlinearSolve.jl/blob/master/docs/src/tutorials/advanced.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Solving-Large-Ill-Conditioned-Nonlinear-Systems-with-NonlinearSolve.jl"><a class="docs-heading-anchor" href="#Solving-Large-Ill-Conditioned-Nonlinear-Systems-with-NonlinearSolve.jl">Solving Large Ill-Conditioned Nonlinear Systems with NonlinearSolve.jl</a><a id="Solving-Large-Ill-Conditioned-Nonlinear-Systems-with-NonlinearSolve.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-Large-Ill-Conditioned-Nonlinear-Systems-with-NonlinearSolve.jl" title="Permalink"></a></h1><p>This tutorial is for getting into the extra features of using NonlinearSolve.jl. Solving ill-conditioned nonlinear systems requires specializing the linear solver on properties of the Jacobian in order to cut down on the <span>$\mathcal{O}(n^3)$</span> linear solve and the <span>$\mathcal{O}(n^2)$</span> back-solves. This tutorial is designed to explain the advanced usage of NonlinearSolve.jl by solving the steady state stiff Brusselator partial differential equation (BRUSS) using NonlinearSolve.jl.</p><h2 id="Definition-of-the-Brusselator-Equation"><a class="docs-heading-anchor" href="#Definition-of-the-Brusselator-Equation">Definition of the Brusselator Equation</a><a id="Definition-of-the-Brusselator-Equation-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-Brusselator-Equation" title="Permalink"></a></h2><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Feel free to skip this section: it simply defines the example problem.</p></div></div><p>The Brusselator PDE is defined as follows:</p><p class="math-container">\[\begin{align}
+0 &amp;= 1 + u^2v - 4.4u + \alpha(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}) + f(x, y, t)\\
+0 &amp;= 3.4u - u^2v + \alpha(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2})
+\end{align}\]</p><p>where</p><p class="math-container">\[f(x, y, t) = \begin{cases}
+5 &amp; \quad \text{if } (x-0.3)^2+(y-0.6)^2 ≤ 0.1^2 \text{ and } t ≥ 1.1 \\
+0 &amp; \quad \text{else}
+\end{cases}\]</p><p>and the initial conditions are</p><p class="math-container">\[\begin{align}
+u(x, y, 0) &amp;= 22\cdot (y(1-y))^{3/2} \\
+v(x, y, 0) &amp;= 27\cdot (x(1-x))^{3/2}
+\end{align}\]</p><p>with the periodic boundary condition</p><p class="math-container">\[\begin{align}
+u(x+1,y,t) &amp;= u(x,y,t) \\
+u(x,y+1,t) &amp;= u(x,y,t)
+\end{align}\]</p><p>To solve this PDE, we will discretize it into a system of ODEs with the finite difference method. We discretize <code>u</code> and <code>v</code> into arrays of the values at each time point: <code>u[i,j] = u(i*dx,j*dy)</code> for some choice of <code>dx</code>/<code>dy</code>, and same for <code>v</code>. Then our ODE is defined with <code>U[i,j,k] = [u v]</code>. The second derivative operator, the Laplacian, discretizes to become a tridiagonal matrix with <code>[1 -2 1]</code> and a <code>1</code> in the top right and bottom left corners. The nonlinear functions are then applied at each point in space (they are broadcast). Use <code>dx=dy=1/32</code>.</p><p>The resulting <code>NonlinearProblem</code> definition is:</p><pre><code class="language-julia hljs">using NonlinearSolve, LinearAlgebra, SparseArrays, LinearSolve
+
+const N = 32
+const xyd_brusselator = range(0, stop = 1, length = N)
+brusselator_f(x, y) = (((x - 0.3)^2 + (y - 0.6)^2) &lt;= 0.1^2) * 5.0
+limit(a, N) = a == N + 1 ? 1 : a == 0 ? N : a
+function brusselator_2d_loop(du, u, p)
+    A, B, alpha, dx = p
+    alpha = alpha / dx^2
+    @inbounds for I in CartesianIndices((N, N))
+        i, j = Tuple(I)
+        x, y = xyd_brusselator[I[1]], xyd_brusselator[I[2]]
+        ip1, im1, jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N),
+        limit(j - 1, N)
+        du[i, j, 1] = alpha * (u[im1, j, 1] + u[ip1, j, 1] + u[i, jp1, 1] + u[i, jm1, 1] -
+                       4u[i, j, 1]) +
+                      B + u[i, j, 1]^2 * u[i, j, 2] - (A + 1) * u[i, j, 1] +
+                      brusselator_f(x, y)
+        du[i, j, 2] = alpha * (u[im1, j, 2] + u[ip1, j, 2] + u[i, jp1, 2] + u[i, jm1, 2] -
+                       4u[i, j, 2]) +
+                      A * u[i, j, 1] - u[i, j, 1]^2 * u[i, j, 2]
+    end
+end
+p = (3.4, 1.0, 10.0, step(xyd_brusselator))
+
+function init_brusselator_2d(xyd)
+    N = length(xyd)
+    u = zeros(N, N, 2)
+    for I in CartesianIndices((N, N))
+        x = xyd[I[1]]
+        y = xyd[I[2]]
+        u[I, 1] = 22 * (y * (1 - y))^(3 / 2)
+        u[I, 2] = 27 * (x * (1 - x))^(3 / 2)
+    end
+    u
+end
+u0 = init_brusselator_2d(xyd_brusselator)
+prob_brusselator_2d = NonlinearProblem(brusselator_2d_loop, u0, p)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_2" style="color:#56b6c2">NonlinearProblem</span> with uType <span class="sgr38_2" style="color:#56b6c2">Array{Float64, 3}</span>. In-place: <span class="sgr38_2" style="color:#56b6c2">true</span>
+u0: 32×32×2 Array{Float64, 3}:
+[:, :, 1] =
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ ⋮                                  ⋱                      ⋮         
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+
+[:, :, 2] =
+ 0.0       0.0       0.0       0.0       …  0.0       0.0       0.0
+ 0.148923  0.148923  0.148923  0.148923     0.148923  0.148923  0.148923
+ 0.400332  0.400332  0.400332  0.400332     0.400332  0.400332  0.400332
+ 0.697746  0.697746  0.697746  0.697746     0.697746  0.697746  0.697746
+ 1.01722   1.01722   1.01722   1.01722      1.01722   1.01722   1.01722
+ 1.34336   1.34336   1.34336   1.34336   …  1.34336   1.34336   1.34336
+ 1.66501   1.66501   1.66501   1.66501      1.66501   1.66501   1.66501
+ 1.97352   1.97352   1.97352   1.97352      1.97352   1.97352   1.97352
+ 2.26207   2.26207   2.26207   2.26207      2.26207   2.26207   2.26207
+ 2.52509   2.52509   2.52509   2.52509      2.52509   2.52509   2.52509
+ ⋮                                       ⋱            ⋮         
+ 2.26207   2.26207   2.26207   2.26207      2.26207   2.26207   2.26207
+ 1.97352   1.97352   1.97352   1.97352      1.97352   1.97352   1.97352
+ 1.66501   1.66501   1.66501   1.66501   …  1.66501   1.66501   1.66501
+ 1.34336   1.34336   1.34336   1.34336      1.34336   1.34336   1.34336
+ 1.01722   1.01722   1.01722   1.01722      1.01722   1.01722   1.01722
+ 0.697746  0.697746  0.697746  0.697746     0.697746  0.697746  0.697746
+ 0.400332  0.400332  0.400332  0.400332     0.400332  0.400332  0.400332
+ 0.148923  0.148923  0.148923  0.148923  …  0.148923  0.148923  0.148923
+ 0.0       0.0       0.0       0.0          0.0       0.0       0.0</code></pre><h2 id="Choosing-Jacobian-Types"><a class="docs-heading-anchor" href="#Choosing-Jacobian-Types">Choosing Jacobian Types</a><a id="Choosing-Jacobian-Types-1"></a><a class="docs-heading-anchor-permalink" href="#Choosing-Jacobian-Types" title="Permalink"></a></h2><p>When we are solving this nonlinear problem, the Jacobian must be built at many iterations, and this can be one of the most expensive steps. There are two pieces that must be optimized in order to reach maximal efficiency when solving stiff equations: the sparsity pattern and the construction of the Jacobian. The construction is filling the matrix <code>J</code> with values, while the sparsity pattern is what <code>J</code> to use.</p><p>The sparsity pattern is given by a prototype matrix, the <code>jac_prototype</code>, which will be copied to be used as <code>J</code>. The default is for <code>J</code> to be a <code>Matrix</code>, i.e. a dense matrix. However, if you know the sparsity of your problem, then you can pass a different matrix type. For example, a <code>SparseMatrixCSC</code> will give a sparse matrix. Other sparse matrix types include:</p><ul><li>Bidiagonal</li><li>Tridiagonal</li><li>SymTridiagonal</li><li>BandedMatrix (<a href="https://github.com/JuliaLinearAlgebra/BandedMatrices.jl">BandedMatrices.jl</a>)</li><li>BlockBandedMatrix (<a href="https://github.com/JuliaLinearAlgebra/BlockBandedMatrices.jl">BlockBandedMatrices.jl</a>)</li></ul><h2 id="Declaring-a-Sparse-Jacobian-with-Automatic-Sparsity-Detection"><a class="docs-heading-anchor" href="#Declaring-a-Sparse-Jacobian-with-Automatic-Sparsity-Detection">Declaring a Sparse Jacobian with Automatic Sparsity Detection</a><a id="Declaring-a-Sparse-Jacobian-with-Automatic-Sparsity-Detection-1"></a><a class="docs-heading-anchor-permalink" href="#Declaring-a-Sparse-Jacobian-with-Automatic-Sparsity-Detection" title="Permalink"></a></h2><p>Jacobian sparsity is declared by the <code>jac_prototype</code> argument in the <code>NonlinearFunction</code>. Note that you should only do this if the sparsity is high, for example, 0.1% of the matrix is non-zeros, otherwise the overhead of sparse matrices can be higher than the gains from sparse differentiation!</p><p>One of the useful companion tools for NonlinearSolve.jl is <a href="https://github.com/JuliaSymbolics/Symbolics.jl">Symbolics.jl</a>. This allows for automatic declaration of Jacobian sparsity types. To see this in action, we can give an example <code>du</code> and <code>u</code> and call <code>jacobian_sparsity</code> on our function with the example arguments, and it will kick out a sparse matrix with our pattern, that we can turn into our <code>jac_prototype</code>.</p><pre><code class="language-julia hljs">using Symbolics
+du0 = copy(u0)
+jac_sparsity = Symbolics.jacobian_sparsity((du, u) -&gt; brusselator_2d_loop(du, u, p),
+    du0, u0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2048×2048 SparseArrays.SparseMatrixCSC{Bool, Int64} with 12288 stored entries:
+⎡⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎤
+⎢⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⠀⎥
+⎢⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⣄⎥
+⎢⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⎥
+⎢⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⎥
+⎢⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⣄⠀⎥
+⎣⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣷⎦</code></pre><p>Notice that Julia gives a nice print out of the sparsity pattern. That&#39;s neat, and would be tedious to build by hand! Now we just pass it to the <code>NonlinearFunction</code> like as before:</p><pre><code class="language-julia hljs">ff = NonlinearFunction(brusselator_2d_loop; jac_prototype = float.(jac_sparsity))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(::NonlinearFunction{true, SciMLBase.FullSpecialize, typeof(Main.brusselator_2d_loop), LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, SparseArrays.SparseMatrixCSC{Float64, Int64}, SparseArrays.SparseMatrixCSC{Float64, Int64}, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing}) (generic function with 1 method)</code></pre><p>Build the <code>NonlinearProblem</code>:</p><pre><code class="language-julia hljs">prob_brusselator_2d_sparse = NonlinearProblem(ff, u0, p)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_2" style="color:#56b6c2">NonlinearProblem</span> with uType <span class="sgr38_2" style="color:#56b6c2">Array{Float64, 3}</span>. In-place: <span class="sgr38_2" style="color:#56b6c2">true</span>
+u0: 32×32×2 Array{Float64, 3}:
+[:, :, 1] =
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ ⋮                                  ⋱                      ⋮         
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534  …  0.568534  0.326197  0.121344  0.0
+ 0.0  0.121344  0.326197  0.568534     0.568534  0.326197  0.121344  0.0
+
+[:, :, 2] =
+ 0.0       0.0       0.0       0.0       …  0.0       0.0       0.0
+ 0.148923  0.148923  0.148923  0.148923     0.148923  0.148923  0.148923
+ 0.400332  0.400332  0.400332  0.400332     0.400332  0.400332  0.400332
+ 0.697746  0.697746  0.697746  0.697746     0.697746  0.697746  0.697746
+ 1.01722   1.01722   1.01722   1.01722      1.01722   1.01722   1.01722
+ 1.34336   1.34336   1.34336   1.34336   …  1.34336   1.34336   1.34336
+ 1.66501   1.66501   1.66501   1.66501      1.66501   1.66501   1.66501
+ 1.97352   1.97352   1.97352   1.97352      1.97352   1.97352   1.97352
+ 2.26207   2.26207   2.26207   2.26207      2.26207   2.26207   2.26207
+ 2.52509   2.52509   2.52509   2.52509      2.52509   2.52509   2.52509
+ ⋮                                       ⋱            ⋮         
+ 2.26207   2.26207   2.26207   2.26207      2.26207   2.26207   2.26207
+ 1.97352   1.97352   1.97352   1.97352      1.97352   1.97352   1.97352
+ 1.66501   1.66501   1.66501   1.66501   …  1.66501   1.66501   1.66501
+ 1.34336   1.34336   1.34336   1.34336      1.34336   1.34336   1.34336
+ 1.01722   1.01722   1.01722   1.01722      1.01722   1.01722   1.01722
+ 0.697746  0.697746  0.697746  0.697746     0.697746  0.697746  0.697746
+ 0.400332  0.400332  0.400332  0.400332     0.400332  0.400332  0.400332
+ 0.148923  0.148923  0.148923  0.148923  …  0.148923  0.148923  0.148923
+ 0.0       0.0       0.0       0.0          0.0       0.0       0.0</code></pre><p>Now let&#39;s see how the version with sparsity compares to the version without:</p><pre><code class="language-julia hljs">using BenchmarkTools # for @btime
+@btime solve(prob_brusselator_2d, NewtonRaphson());
+@btime solve(prob_brusselator_2d_sparse, NewtonRaphson());
+@btime solve(prob_brusselator_2d_sparse, NewtonRaphson(linsolve = KLUFactorization()));</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  462.387 ms (5223 allocations: 32.72 MiB)
+  392.471 ms (5611 allocations: 13.61 MiB)
+  399.259 ms (5233 allocations: 4.53 MiB)</code></pre><p>Note that depending on the properties of the sparsity pattern, one may want to try alternative linear solvers such as <code>NewtonRaphson(linsolve = KLUFactorization())</code> or <code>NewtonRaphson(linsolve = UMFPACKFactorization())</code></p><h2 id="Using-Jacobian-Free-Newton-Krylov"><a class="docs-heading-anchor" href="#Using-Jacobian-Free-Newton-Krylov">Using Jacobian-Free Newton-Krylov</a><a id="Using-Jacobian-Free-Newton-Krylov-1"></a><a class="docs-heading-anchor-permalink" href="#Using-Jacobian-Free-Newton-Krylov" title="Permalink"></a></h2><p>A completely different way to optimize the linear solvers for large sparse matrices is to use a Krylov subspace method. This requires choosing a linear solver for changing to a Krylov method. To swap the linear solver out, we use the <code>linsolve</code> command and choose the GMRES linear solver.</p><pre><code class="language-julia hljs">@btime solve(prob_brusselator_2d, NewtonRaphson(linsolve = KrylovJL_GMRES()));</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  97.850 ms (8980 allocations: 7.58 MiB)</code></pre><p>Notice that this acceleration does not require the definition of a sparsity pattern, and can thus be an easier way to scale for large problems. For more information on linear solver choices, see the <a href="https://docs.sciml.ai/DiffEqDocs/stable/features/linear_nonlinear/#linear_nonlinear">linear solver documentation</a>. <code>linsolve</code> choices are any valid <a href="https://linearsolve.sciml.ai/dev/">LinearSolve.jl</a> solver.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Switching to a Krylov linear solver will automatically change the nonlinear problem solver into Jacobian-free mode, dramatically reducing the memory required. This can be overridden by adding <code>concrete_jac=true</code> to the algorithm.</p></div></div><h2 id="Adding-a-Preconditioner"><a class="docs-heading-anchor" href="#Adding-a-Preconditioner">Adding a Preconditioner</a><a id="Adding-a-Preconditioner-1"></a><a class="docs-heading-anchor-permalink" href="#Adding-a-Preconditioner" title="Permalink"></a></h2><p>Any <a href="https://docs.sciml.ai/LinearSolve/stable/basics/Preconditioners/">LinearSolve.jl-compatible preconditioner</a> can be used as a preconditioner in the linear solver interface. To define preconditioners, one must define a <code>precs</code> function in compatible with nonlinear solvers which returns the left and right preconditioners, matrices which approximate the inverse of <code>W = I - gamma*J</code> used in the solution of the ODE. An example of this with using <a href="https://github.com/haampie/IncompleteLU.jl">IncompleteLU.jl</a> is as follows:</p><pre><code class="language-julia hljs">using IncompleteLU
+function incompletelu(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
+    if newW === nothing || newW
+        Pl = ilu(W, τ = 50.0)
+    else
+        Pl = Plprev
+    end
+    Pl, nothing
+end
+
+@btime solve(prob_brusselator_2d_sparse,
+    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = incompletelu,
+        concrete_jac = true));</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  416.787 ms (5557 allocations: 15.62 MiB)</code></pre><p>Notice a few things about this preconditioner. This preconditioner uses the sparse Jacobian, and thus we set <code>concrete_jac=true</code> to tell the algorithm to generate the Jacobian (otherwise, a Jacobian-free algorithm is used with GMRES by default). Then <code>newW = true</code> whenever a new <code>W</code> matrix is computed, and <code>newW=nothing</code> during the startup phase of the solver. Thus, we do a check <code>newW === nothing || newW</code> and when true, it&#39;s only at these points when we update the preconditioner, otherwise we just pass on the previous version. We use <code>convert(AbstractMatrix,W)</code> to get the concrete <code>W</code> matrix (matching <code>jac_prototype</code>, thus <code>SpraseMatrixCSC</code>) which we can use in the preconditioner&#39;s definition. Then we use <code>IncompleteLU.ilu</code> on that sparse matrix to generate the preconditioner. We return <code>Pl,nothing</code> to say that our preconditioner is a left preconditioner, and that there is no right preconditioning.</p><p>This method thus uses both the Krylov solver and the sparse Jacobian. Not only that, it is faster than both implementations! IncompleteLU is fussy in that it requires a well-tuned <code>τ</code> parameter. Another option is to use <a href="https://github.com/JuliaLinearAlgebra/AlgebraicMultigrid.jl">AlgebraicMultigrid.jl</a> which is more automatic. The setup is very similar to before:</p><pre><code class="language-julia hljs">using AlgebraicMultigrid
+function algebraicmultigrid(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
+    if newW === nothing || newW
+        Pl = aspreconditioner(ruge_stuben(convert(AbstractMatrix, W)))
+    else
+        Pl = Plprev
+    end
+    Pl, nothing
+end
+
+@btime solve(prob_brusselator_2d_sparse,
+    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid,
+        concrete_jac = true));</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  435.947 ms (6811 allocations: 23.85 MiB)</code></pre><p>or with a Jacobi smoother:</p><pre><code class="language-julia hljs">function algebraicmultigrid2(W, du, u, p, t, newW, Plprev, Prprev, solverdata)
+    if newW === nothing || newW
+        A = convert(AbstractMatrix, W)
+        Pl = AlgebraicMultigrid.aspreconditioner(AlgebraicMultigrid.ruge_stuben(A,
+            presmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
+                1))),
+            postsmoother = AlgebraicMultigrid.Jacobi(rand(size(A,
+                1)))))
+    else
+        Pl = Plprev
+    end
+    Pl, nothing
+end
+
+@btime solve(prob_brusselator_2d_sparse,
+    NewtonRaphson(linsolve = KrylovJL_GMRES(), precs = algebraicmultigrid2,
+        concrete_jac = true));</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  427.693 ms (6837 allocations: 24.23 MiB)</code></pre><p>For more information on the preconditioner interface, see the <a href="https://docs.sciml.ai/LinearSolve/stable/basics/Preconditioners/">linear solver documentation</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear/">« Solving Nonlinear Systems</a><a class="docs-footer-nextpage" href="../iterator_interface/">Nonlinear Solver Iterator Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Sunday 8 October 2023 14:33">Sunday 8 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
