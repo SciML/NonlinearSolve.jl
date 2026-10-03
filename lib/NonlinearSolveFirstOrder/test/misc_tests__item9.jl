@@ -152,7 +152,7 @@ end
         reltol = 1.0e-14,
         verbose = false,
         # Retained in `cache.kwargs`, so the retry must not splat them into `step!`.
-        alias_u0 = false
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false)
     )
 
     step!(cache)
