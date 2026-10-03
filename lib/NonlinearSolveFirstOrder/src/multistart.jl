@@ -19,8 +19,9 @@ ordinary `solve`/`init` path, so `linsolve`, `concrete_jac`, sparse
 `abstol`, `reltol`, and `maxiters` apply to each sub-solve exactly as they
 would to a direct `solve(prob, alg; kwargs...)` call. If a start throws for an
 out-of-place problem whose state and residual are not both scalars or both arrays, and
-`alg` is a polyalgorithm containing native bounded stages such as
-[`BoundedGaussNewton`](@ref), that start and the remaining ones run only those stages.
+`alg` is a polyalgorithm whose stages from `start_index` on include native bounded
+methods such as [`BoundedGaussNewton`](@ref), all starts are rerun with only those
+stages.
 
 ### Arguments
 
@@ -112,12 +113,14 @@ end
 _multistart_fatal(err) =
     err isa InterruptException || err isa OutOfMemoryError || err isa StackOverflowError
 
+# Each finite bound gets its own slack: scaling by an infinite opposite bound would make
+# the slack infinite and accept any point on a one-sided box.
 function _multistart_feasible(x, lb, ub)
     T = eltype(x)
     tol = eps(T)^(3 // 4)
     for i in eachindex(x)
-        slack = tol * max(one(T), abs(lb[i]), abs(ub[i]), abs(x[i]))
-        (x[i] < lb[i] - slack || x[i] > ub[i] + slack) && return false
+        isfinite(lb[i]) && x[i] < lb[i] - tol * max(one(T), abs(lb[i])) && return false
+        isfinite(ub[i]) && x[i] > ub[i] + tol * max(one(T), abs(ub[i])) && return false
     end
     return true
 end
@@ -153,23 +156,31 @@ function _multistart_restoration(prob, u_stalled, alg, args...; kwargs...)
     end
 end
 
-function _multistart_try_solve(prob, alg, args...; kwargs...)
-    return try
-        SciMLBase.__solve(prob, alg, args...; kwargs...), nothing
-    catch err
-        _multistart_fatal(err) && rethrow()
-        nothing, err
-    end
-end
-
 # `BoundedTrustRegion` uses the generalized Jacobian and descent caches, which need the
 # state and the residual to be both scalars or both arrays. The native bounded stages
 # vectorize both, so a start that throws on a mixed-shape problem is rerun with them.
 _multistart_native_stages(alg) = nothing
 function _multistart_native_stages(alg::NonlinearSolvePolyAlgorithm)
-    stages = filter(stage -> stage isa NativeBoundedAlgorithm, alg.algs)
-    (isempty(stages) || length(stages) == length(alg.algs)) && return nothing
-    return NonlinearSolvePolyAlgorithm(stages)
+    eligible = alg.algs[alg.start_index:end]
+    stages = filter(stage -> stage isa NativeBoundedAlgorithm, eligible)
+    (isempty(stages) || length(stages) == length(eligible)) && return nothing
+    return NonlinearSolvePolyAlgorithm(stages; alg.store_original)
+end
+
+# Returns the multistart to rerun with only the native stages, and whether the residual
+# shape is now known. Every start of a mixed-shape problem throws in the trust-region
+# stage, so rerunning all starts with the native stages loses no successful result.
+function _multistart_shape_fallback(alg::SobolMultistart, prob)
+    native = _multistart_native_stages(alg.alg)
+    native === nothing && return nothing, true
+    mixed = _multistart_mixed_shapes(prob)
+    mixed === missing && return nothing, false
+    mixed || return nothing, true
+    restoration = something(_multistart_native_stages(alg.restoration_alg), alg.restoration_alg)
+    fallback = SobolMultistart(
+        native, restoration, alg.nstarts, alg.search_scale, alg.early_exit, alg.restoration
+    )
+    return fallback, true
 end
 
 function _multistart_mixed_shapes(prob)
@@ -214,33 +225,33 @@ function SciMLBase.__solve(
     best_norm = Inf
     first_error = nothing
     warned = false
-    local_alg, restoration_alg = alg.alg, alg.restoration_alg
     shapes_checked = false
 
     for x in starts
         sub_prob = SciMLBase.remake(prob; u0 = _box_state(prob.u0, x))
-        sol, err = _multistart_try_solve(sub_prob, local_alg, args...; sub_kwargs...)
-        if sol === nothing
+        sol = try
+            SciMLBase.__solve(sub_prob, alg.alg, args...; sub_kwargs...)
+        catch err
+            _multistart_fatal(err) && rethrow()
             first_error === nothing && (first_error = err)
-            native = shapes_checked ? nothing : _multistart_native_stages(local_alg)
-            native === nothing && continue
-            mixed = _multistart_mixed_shapes(sub_prob)
-            mixed === missing && continue
-            shapes_checked = true
-            mixed || continue
-            local_alg = native
-            restoration_alg = something(
-                _multistart_native_stages(restoration_alg), restoration_alg
-            )
-            sol, _ = _multistart_try_solve(sub_prob, local_alg, args...; sub_kwargs...)
-            sol === nothing && continue
+            if !shapes_checked
+                fallback, shapes_checked = _multistart_shape_fallback(alg, sub_prob)
+                if fallback !== nothing
+                    native_sol = SciMLBase.__solve(prob, fallback, args...; sub_kwargs...)
+                    return SciMLBase.build_solution(
+                        prob, alg, native_sol.u, native_sol.resid;
+                        native_sol.retcode, native_sol.original, native_sol.stats
+                    )
+                end
+            end
+            continue
         end
         sol.stats !== nothing && (stats = Base.merge(stats, sol.stats))
 
         if alg.restoration && sol.retcode === ReturnCode.Stalled &&
                 sol.resid !== nothing && !iszero(internalnorm(sol.resid))
             probe = _multistart_restoration(
-                prob, sol.u, restoration_alg, args...; sub_kwargs...
+                prob, sol.u, alg.restoration_alg, args...; sub_kwargs...
             )
             if probe !== nothing
                 probe.stats !== nothing && (stats = Base.merge(stats, probe.stats))
