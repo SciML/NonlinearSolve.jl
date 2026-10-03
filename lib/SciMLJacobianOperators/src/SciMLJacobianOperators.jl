@@ -14,6 +14,15 @@ const DI = DifferentiationInterface
 const True = Val(true)
 const False = Val(false)
 
+# Krylov workspaces are dense `Vector`s even when `u`/`fu` are `SArray`s. Enzyme reverse
+# (and DI's Enzyme extension) compile the pullback/pushforward against the primal type, so
+# a `Vector` seed into an `SVector` thunk throws
+# `TypeError: ccall argument … expected SVector, got Vector`. Match the template's type.
+function _shaped_like(template, values)
+    return convert(typeof(template), reshape(values, size(template)))
+end
+_shaped_like(template::Number, values) = convert(typeof(template), values)
+
 abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
 
 ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
@@ -341,7 +350,7 @@ function prepare_vjp(
         ) -> begin
             DI.pullback!(
                 f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
-                u, (reshape(v, size(fu_cache)),), Constant(p)
+                u, (_shaped_like(fu_cache, v),), Constant(p)
             )
             return
         end
@@ -356,7 +365,7 @@ function prepare_vjp(
         ) -> begin
             return only(
                 DI.pullback(
-                    f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)
+                    f, di_extras, autodiff, u, (_shaped_like(fu, v),), Constant(p)
                 )
             )
         end
@@ -410,7 +419,7 @@ function prepare_jvp(
         ) -> begin
             DI.pushforward!(
                 f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
-                autodiff, u, (reshape(v, size(u)),), Constant(p)
+                autodiff, u, (_shaped_like(u, v),), Constant(p)
             )
             return
         end
@@ -425,7 +434,7 @@ function prepare_jvp(
         ) -> begin
             return only(
                 DI.pushforward(
-                    f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)
+                    f, di_extras, autodiff, u, (_shaped_like(u, v),), Constant(p)
                 )
             )
         end
