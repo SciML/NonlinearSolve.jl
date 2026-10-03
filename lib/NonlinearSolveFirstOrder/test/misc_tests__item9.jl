@@ -151,8 +151,8 @@ end
         abstol = 1.0e-14,
         reltol = 1.0e-14,
         verbose = false,
-        # Retained in `cache.kwargs`, so the retry must not splat them into `step!`.
-        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false)
+        # `dense` is accepted by SciMLBase and must not be forwarded to `step!` on retry.
+        alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), dense = false
     )
 
     step!(cache)
