@@ -3,7 +3,8 @@ using SciMLJacobianOperators
 using ADTypes, SciMLBase, LinearAlgebra
 using ForwardDiff
 using RecursiveArrayTools: ArrayPartition
-using StaticArrays: @SVector, @MVector
+using StaticArrays: @SVector, @MVector, SVector
+using Zygote
 
 # Conditionally import Enzyme only if not on Julia prerelease / < 1.12
 enzyme_ok = isempty(VERSION.prerelease) && VERSION < v"1.12"
@@ -85,4 +86,36 @@ end
     @test shaped isa Vector{Float64}
     # Hot path: reshape shares data with the input Vector (no convert / copy).
     @test pointer(shaped) == pointer(v)
+end
+
+@testset "Preserve seed scalar type (ForwardDiff/Zygote)" begin
+    # Coercion must not convert seeds to eltype(u): Float32 static state plus a
+    # large/precise Float64 seed, and nested ForwardDiff through `sop * v`.
+    f_sq(u, p) = u .* u
+    u32 = SVector(1.0f0, 2.0f0)
+    fu32 = f_sq(u32, nothing)
+    sop32 = StatefulJacobianOperator(
+        JacobianOperator(
+            NonlinearProblem{false}(f_sq, u32), fu32, u32;
+            jvp_autodiff = AutoForwardDiff(), vjp_autodiff = AutoZygote()
+        ),
+        u32,
+        nothing
+    )
+    for v in ([1.0 + 2.0^-30, 2.0 + 2.0^-30], [1.0e40, 2.0e40])
+        expected = 2 .* Float64.(u32) .* v
+        @test sop32 * v == expected
+        @test sop32' * v == expected
+    end
+    u64 = SVector(1.0, 2.0)
+    fu64 = f_sq(u64, nothing)
+    sop64 = StatefulJacobianOperator(
+        JacobianOperator(
+            NonlinearProblem{false}(f_sq, u64), fu64, u64;
+            jvp_autodiff = AutoForwardDiff(), vjp_autodiff = AutoZygote()
+        ),
+        u64,
+        nothing
+    )
+    @test ForwardDiff.jacobian(v -> sop64 * v, [0.3, 0.7]) == [2.0 0.0; 0.0 4.0]
 end
