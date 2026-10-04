@@ -49,8 +49,8 @@ run_qa(
         #   NonlinearSolveBase: @static_timeit, AbstractDampingFunction,
         #     AbstractDampingFunctionCache, AbstractNonlinearSolveAlgorithm,
         #     AbstractNonlinearSolveCache, AbstractTrustRegionMethod,
-        #     AbstractTrustRegionMethodCache, NonlinearSolveForwardDiffCache, Utils,
-        #     get_timer_output, update_trace!
+        #     AbstractTrustRegionMethodCache, NonlinearSolveForwardDiffCache,
+        #     RobustTrustRegionLinsolve, Utils, get_timer_output, update_trace!
         #   SciMLBase: NoSpecialize;  ForwardDiff: Dual
         all_explicit_imports_are_public = (;
             ignore = (
@@ -58,7 +58,8 @@ run_qa(
                 :AbstractDampingFunctionCache, :AbstractNonlinearSolveAlgorithm,
                 :AbstractNonlinearSolveCache, :AbstractTrustRegionMethod,
                 :AbstractTrustRegionMethodCache, :Dual,
-                :NoSpecialize, :NonlinearSolveForwardDiffCache, :Utils,
+                :NoSpecialize, :NonlinearSolveForwardDiffCache,
+                :RobustTrustRegionLinsolve, :Utils,
                 :get_timer_output, :update_trace!,
             ),
         ),

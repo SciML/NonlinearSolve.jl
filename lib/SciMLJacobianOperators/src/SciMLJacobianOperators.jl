@@ -14,14 +14,43 @@ const DI = DifferentiationInterface
 const True = Val(true)
 const False = Val(false)
 
-# Krylov workspaces are dense `Vector`s even when `u`/`fu` are `SArray`s. Enzyme reverse
-# (and DI's Enzyme extension) compile the pullback/pushforward against the primal type, so
-# a `Vector` seed into an `SVector` thunk throws
-# `TypeError: ccall argument … expected SVector, got Vector`. Match the template's type.
+# Krylov workspaces are dense `Vector`s even when `u`/`fu` are static arrays. Enzyme
+# reverse (and DI's Enzyme extension) compile the pullback/pushforward against the primal
+# type, so a `Vector` seed into an `SVector` thunk TypeErrors. Coerce only when the
+# concrete type differs; plain `Vector`←`Vector` stays a shared reshape (no alloc).
 function _shaped_like(template, values)
-    return convert(typeof(template), reshape(values, size(template)))
+    shaped = reshape(values, size(template))
+    shaped isa typeof(template) && return shaped
+    return _coerce_like(template, shaped)
 end
-_shaped_like(template::Number, values) = convert(typeof(template), values)
+
+function _coerce_like(template, shaped)
+    if ArrayInterface.ismutable(template)
+        out = similar(template)
+        copyto!(out, shaped)
+        return out
+    end
+    # Immutable static arrays: construct/convert to the primal type for Enzyme.
+    # Arrays without `convert(T, ::AbstractArray)` (and non-mutable templates) keep the
+    # reshaped seed — the historical behavior ForwardDiff/Zygote/etc. already accepted.
+    try
+        return convert(typeof(template), shaped)
+    catch
+        return shaped
+    end
+end
+
+# In-place DI pullback!/pushforward! write into an output tangent that must match the
+# primal type (Enzyme `Duplicated`). When the caller buffer is a dense `Vector` but the
+# primal is not, use a typed temp and `copyto!` the result back.
+function _output_tangent_buffer(template, buffer)
+    shaped = reshape(buffer, size(template))
+    shaped isa typeof(template) && return shaped, false
+    if ArrayInterface.ismutable(template)
+        return similar(template), true
+    end
+    return shaped, false
+end
 
 abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
 
@@ -348,10 +377,12 @@ function prepare_vjp(
             u,
             p,
         ) -> begin
+            dx, copy_back = _output_tangent_buffer(u, vJ)
             DI.pullback!(
-                f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
+                f, fu_cache, (dx,), di_extras, autodiff,
                 u, (_shaped_like(fu_cache, v),), Constant(p)
             )
+            copy_back && copyto!(vJ, dx)
             return
         end
     else
@@ -417,10 +448,12 @@ function prepare_jvp(
             u,
             p,
         ) -> begin
+            dy, copy_back = _output_tangent_buffer(fu_cache, Jv)
             DI.pushforward!(
-                f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
+                f, fu_cache, (dy,), di_extras,
                 autodiff, u, (_shaped_like(u, v),), Constant(p)
             )
+            copy_back && copyto!(Jv, dy)
             return
         end
     else
