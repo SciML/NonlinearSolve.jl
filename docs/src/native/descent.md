@@ -19,6 +19,7 @@ DampedNewtonDescent
 ```@docs
 Dogleg
 NonlinearSolveBase.MoreTrustRegionDescent
+NonlinearSolveBase.RobustTrustRegionLinsolve
 NonlinearSolveBase.TrustRegionSubproblem
 NonlinearSolveBase.TrustRegionScaling
 ```
