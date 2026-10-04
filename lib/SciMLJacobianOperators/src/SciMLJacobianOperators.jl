@@ -33,11 +33,8 @@ function _coerce_like(template, shaped)
     # Immutable static arrays: construct/convert to the primal type for Enzyme.
     # Arrays without `convert(T, ::AbstractArray)` (and non-mutable templates) keep the
     # reshaped seed — the historical behavior ForwardDiff/Zygote/etc. already accepted.
-    try
-        return convert(typeof(template), shaped)
-    catch
-        return shaped
-    end
+    T = typeof(template)
+    return applicable(convert, T, shaped) ? convert(T, shaped) : shaped
 end
 
 # In-place DI pullback!/pushforward! write into an output tangent that must match the
