@@ -14,6 +14,51 @@ const DI = DifferentiationInterface
 const True = Val(true)
 const False = Val(false)
 
+# Krylov workspaces are dense `Vector`s even when `u`/`fu` are static arrays. Enzyme
+# reverse (and DI's Enzyme extension) compile the pullback/pushforward against the primal
+# container type, so a `Vector` seed into an `SVector` thunk TypeErrors. Only Enzyme
+# needs that container match; ForwardDiff/Zygote/etc. keep a reshape so they can
+# promote seed eltypes (Float32 state + Float64/Dual seeds).
+_is_enzyme_ad(::Nothing) = false
+_is_enzyme_ad(ad::AutoSparse) = _is_enzyme_ad(ADTypes.dense_ad(ad))
+_is_enzyme_ad(ad) = ad isa ADTypes.AutoEnzyme
+
+function _shaped_like(template, values)
+    return reshape(values, size(template))
+end
+function _shaped_like(template, values, autodiff)
+    shaped = reshape(values, size(template))
+    _is_enzyme_ad(autodiff) || return shaped
+    shaped isa typeof(template) && return shaped
+    return _coerce_container_like(template, shaped)
+end
+
+# Enzyme: match the primal *container*, never the primal *eltype*. A missing
+# `convert` (e.g. ArrayPartition) or an eltype mismatch keeps `shaped`.
+function _coerce_container_like(template, shaped)
+    ET = eltype(shaped)
+    if ArrayInterface.ismutable(template)
+        out = similar(template, ET)
+        copyto!(out, shaped)
+        return out
+    end
+    T = typeof(template)
+    eltype(T) === ET || return shaped
+    return applicable(convert, T, shaped) ? convert(T, shaped) : shaped
+end
+
+# Enzyme `Duplicated` needs an output tangent with the primal container. Other
+# backends write into the reshaped caller buffer. Never narrow the buffer eltype.
+function _output_tangent_buffer(template, buffer, autodiff)
+    shaped = reshape(buffer, size(template))
+    _is_enzyme_ad(autodiff) || return shaped, false
+    shaped isa typeof(template) && return shaped, false
+    if ArrayInterface.ismutable(template)
+        return similar(template, eltype(buffer)), true
+    end
+    return shaped, false
+end
+
 abstract type AbstractJacobianOperator{T} <: AbstractSciMLOperator{T} end
 
 ArrayInterface.can_setindex(::AbstractJacobianOperator) = false
@@ -339,10 +384,12 @@ function prepare_vjp(
             u,
             p,
         ) -> begin
+            dx, copy_back = _output_tangent_buffer(u, vJ, autodiff)
             DI.pullback!(
-                f, fu_cache, (reshape(vJ, size(u)),), di_extras, autodiff,
-                u, (reshape(v, size(fu_cache)),), Constant(p)
+                f, fu_cache, (dx,), di_extras, autodiff,
+                u, (_shaped_like(fu_cache, v, autodiff),), Constant(p)
             )
+            copy_back && copyto!(vJ, dx)
             return
         end
     else
@@ -356,7 +403,7 @@ function prepare_vjp(
         ) -> begin
             return only(
                 DI.pullback(
-                    f, di_extras, autodiff, u, (reshape(v, size(fu)),), Constant(p)
+                    f, di_extras, autodiff, u, (_shaped_like(fu, v, autodiff),), Constant(p)
                 )
             )
         end
@@ -408,10 +455,12 @@ function prepare_jvp(
             u,
             p,
         ) -> begin
+            dy, copy_back = _output_tangent_buffer(fu_cache, Jv, autodiff)
             DI.pushforward!(
-                f, fu_cache, (reshape(Jv, size(fu_cache)),), di_extras,
-                autodiff, u, (reshape(v, size(u)),), Constant(p)
+                f, fu_cache, (dy,), di_extras,
+                autodiff, u, (_shaped_like(u, v, autodiff),), Constant(p)
             )
+            copy_back && copyto!(Jv, dy)
             return
         end
     else
@@ -425,7 +474,7 @@ function prepare_jvp(
         ) -> begin
             return only(
                 DI.pushforward(
-                    f, di_extras, autodiff, u, (reshape(v, size(u)),), Constant(p)
+                    f, di_extras, autodiff, u, (_shaped_like(u, v, autodiff),), Constant(p)
                 )
             )
         end
