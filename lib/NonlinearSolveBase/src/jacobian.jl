@@ -126,7 +126,11 @@ function construct_jacobian_cache(
     end
 
     J_destination = jacobian_destination(J, autodiff)
-    return JacobianCache(J, J_destination, f, fu_cache, p, stats, autodiff, di_extras)
+    computed_at_construction = op_jac === nothing && needs_jac &&
+        f.jac_prototype === nothing && !has_analytic_jac
+    return JacobianCache(
+        J, J_destination, f, fu_cache, p, stats, autodiff, di_extras, computed_at_construction
+    )
 end
 
 function construct_jacobian_cache(
@@ -135,7 +139,7 @@ function construct_jacobian_cache(
         linsolve = missing
     )
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
-        return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing)
+        return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing, false)
     end
     if autodiff === nothing
         throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
@@ -146,7 +150,7 @@ function construct_jacobian_cache(
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))
-    return JacobianCache(u, u, f, fu, p, stats, autodiff, di_extras)
+    return JacobianCache(u, u, f, fu, p, stats, autodiff, di_extras, false)
 end
 
 struct FixedShapeJacobianDestination{T, A <: Matrix{T}} <: AbstractMatrix{T}
@@ -179,6 +183,7 @@ jacobian_destination(J, autodiff) = J
     stats::NLStats
     autodiff
     di_extras
+    computed_at_construction::Bool
 end
 
 function InternalAPI.reinit!(cache::JacobianCache; p = cache.p, kwargs...)
@@ -212,6 +217,9 @@ initialization.
 """
 reused_jacobian(cache::JacobianCache, u) = cache.J
 reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
+function InternalAPI.jacobian_computed_at_construction(cache::JacobianCache)
+    return cache.computed_at_construction
+end
 # A reused operator Jacobian is returned as-is (the generic `reused_jacobian` returns
 # `cache.J`); no special method is needed.
 

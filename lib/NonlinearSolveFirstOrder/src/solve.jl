@@ -87,6 +87,9 @@ end
 
     # State Affect
     make_new_jacobian::Bool
+    # Whether `jac_cache` still holds the Jacobian it evaluated during construction, which
+    # is valid at `u_cache` (the state at construction) until the first step or `reinit!`.
+    initial_jacobian_valid::Bool
     # Whether `fu` still belongs to the iterate before the last step, because that step was
     # taken with `evaluate_residual = false`.
     fu_deferred::Bool
@@ -147,6 +150,7 @@ function InternalAPI.reinit_self!(
     cache.force_stop = false
     cache.retcode = ReturnCode.Default
     cache.make_new_jacobian = true
+    cache.initial_jacobian_valid = false
     cache.fu_deferred = false
     reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
@@ -344,7 +348,9 @@ function SciMLBase.__init(
             jac_cache, descent_cache, forcing_cache, jacobian_reuse_cache,
             linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
-            0.0, true, false, termination_cache, trace, ReturnCode.Default, false, kwargs,
+            0.0, true,
+            InternalAPI.jacobian_computed_at_construction(jac_cache), false,
+            termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
@@ -399,11 +405,14 @@ function InternalAPI.step!(
     policy_driven = recompute_jacobian === nothing
     @static_timeit cache.timer "jacobian" begin
         new_jacobian = policy_driven ? cache.make_new_jacobian : recompute_jacobian
-        if new_jacobian
+        # `u_cache` is compared because a polyalgorithm with `alias_u0 = true` shares `u`
+        # between its subcaches, so an earlier subalgorithm may have moved it.
+        if new_jacobian && !(cache.initial_jacobian_valid && cache.u == cache.u_cache)
             J = cache.jac_cache(cache.u)
         else
             J = reused_jacobian(cache.jac_cache, cache.u)
         end
+        cache.initial_jacobian_valid = false
     end
     new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 

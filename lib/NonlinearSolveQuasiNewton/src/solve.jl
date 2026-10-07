@@ -299,6 +299,9 @@ function InternalAPI.step!(
     new_jacobian = true
     @static_timeit cache.timer "jacobian init/reinit" begin
         if cache.nsteps == 0  # First Step is special ignore kwargs
+            # A polyalgorithm with `alias_u0 = true` shares `u` between its subcaches.
+            cache.u == cache.u_cache ||
+                invalidate_initial_jacobian!(cache.initialization_cache)
             J_init = InternalAPI.solve!(
                 cache.initialization_cache, cache.fu, cache.u, Val(false)
             )
