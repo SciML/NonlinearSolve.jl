@@ -174,6 +174,21 @@ _uses_ad_sparsity_detector(ad::AutoSparse) = ADTypes.sparsity_detector(ad) isa D
 _uses_ad_sparsity_detector(_) = false
 
 """
+    _uses_forwarddiff_chunk1_wrapper(ad) -> Bool
+
+Return `true` if `ad` is a ForwardDiff-based AD backend (possibly wrapped in
+`AutoSparse`). `AutoSpecializeCallable`'s `FunctionWrappersWrapper` only has Dual
+signatures for chunk size 1 (baking in the chunk ForwardDiff would otherwise pick,
+`pickchunksize(length(u))`, is a *runtime* quantity for a plain `AbstractArray` and
+cannot be made part of the wrapper's type without making the whole solver cache
+type-unstable). Unwrapping and handing DI the raw user function instead lets
+ForwardDiff pick its normal, usually much wider, chunk size.
+"""
+_uses_forwarddiff_chunk1_wrapper(::Union{ADTypes.AutoForwardDiff, ADTypes.AutoPolyesterForwardDiff}) = true
+_uses_forwarddiff_chunk1_wrapper(ad::AutoSparse) = _uses_forwarddiff_chunk1_wrapper(ADTypes.dense_ad(ad))
+_uses_forwarddiff_chunk1_wrapper(_) = false
+
+"""
     maybe_unwrap_prob_for_enzyme(prob, autodiffs...)
 
 If the problem function is wrapped by AutoSpecialize and any of the given AD backends

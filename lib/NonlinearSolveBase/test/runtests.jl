@@ -261,6 +261,47 @@ run_tests(;
             @test outp === adp
         end
 
+        @safetestset "construct_jacobian_cache unwraps AutoSpecialize for ForwardDiff's own chunk size" begin
+            # `construct_jacobian_cache` used to stamp the wrapper's fixed chunk size 1
+            # onto `autodiff` unconditionally (4x slower `init` on a 100-dim dense
+            # problem than the unwrapped path). It now unwraps for ForwardDiff/
+            # PolyesterForwardDiff instead, same as the Enzyme/sparsity-detector cases
+            # just above — see `_uses_forwarddiff_chunk1_wrapper`'s docstring for why.
+            using NonlinearSolveBase, SciMLBase, ADTypes, ForwardDiff
+
+            resid!(du, u, p) = (du .= u .^ 2 .- p; nothing)
+
+            # The chunk size ForwardDiff actually configured is a type parameter of the
+            # `ForwardDiff.JacobianConfig` nested inside the DI prep object's `config`
+            # field, for both the one- and two-arg (in-place) DI/ForwardDiff preps.
+            _forwarddiff_chunksize(prep) = typeof(prep.config).parameters[3]
+
+            for N in (2, 5, 10, 100)
+                f = NonlinearFunction{true, SciMLBase.AutoSpecialize}(resid!)
+                prob = NonlinearProblem(f, fill(0.5, N), fill(2.0, N))
+                wrapped = NonlinearSolveBase.get_concrete_problem(prob)
+                @test NonlinearSolveBase.is_fw_wrapped(wrapped.f.f)
+
+                fu = similar(wrapped.u0)
+                stats = NonlinearSolveBase.NLStats(0, 0, 0, 0, 0)
+                cache = NonlinearSolveBase.construct_jacobian_cache(
+                    wrapped, nothing, wrapped.f, fu, wrapped.u0, wrapped.p;
+                    stats, autodiff = AutoForwardDiff()
+                )
+
+                # Unwrapped: the Jacobian cache's residual is no longer the chunk-1
+                # `FunctionWrapper` — that's what let ForwardDiff pick a wider chunk.
+                @test !NonlinearSolveBase.is_fw_wrapped(cache.f.f)
+
+                cs = _forwarddiff_chunksize(cache.di_extras)
+                expected = ForwardDiff.pickchunksize(N)
+                @test cs == expected
+                # `N == 1` would trivially satisfy `cs == 1`; make sure the check is
+                # actually discriminating for the sizes that matter (`N >= 2`).
+                N >= 2 && @test cs > 1
+            end
+        end
+
         @safetestset "AutoDePSpecialize opaque-p" include("autodepspecialize.jl")
 
         @safetestset "AutoDespecialize dynamic-p" include("autodespecialize.jl")
