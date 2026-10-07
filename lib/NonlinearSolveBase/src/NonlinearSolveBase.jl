@@ -176,6 +176,8 @@ export RelTerminationMode, AbsTerminationMode,
     RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
     RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
+@compat(public, (RobustTrustRegionLinsolve,))
+
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
     GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem,
     TrustRegionScaling
