@@ -55,14 +55,7 @@ function construct_jacobian_cache(
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
-        # Unwrap before stamping a tag: see `_uses_forwarddiff_chunk1_wrapper`'s
-        # docstring for why ForwardDiff/PolyesterForwardDiff get the raw function
-        # instead of a tag matching the wrapper's fixed chunk size.
-        if is_fw_wrapped(f.f) && _uses_forwarddiff_chunk1_wrapper(autodiff)
-            f = @set f.f = get_raw_f(f.f)
-        else
-            autodiff = standardize_forwarddiff_tag(autodiff, prob)
-        end
+        autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
         # Enzyme cannot differentiate through FunctionWrappers' llvmcall, and AD-based
         # sparsity detection (DenseSparsityDetector) differentiates with a foreign tag the
