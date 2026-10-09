@@ -159,6 +159,25 @@ maybe_symmetric(x::Number) = x
 maybe_symmetric(x::StaticArray) = x # XXX: Can we remove this?
 maybe_symmetric(x::AbstractSciMLOperator) = x
 
+"""
+    normal_form_workspace(J)
+
+Workspace that lets `normal_form_jacobian!!` form `transpose(J) * J` without
+allocating, or `nothing` if `J` has no specialized method.
+"""
+normal_form_workspace(::Any) = nothing
+
+"""
+    normal_form_jacobian!!(JᵀJ, J, workspace)
+
+Compute `transpose(J) * J`, writing into `JᵀJ` when it is mutable. `workspace` comes from
+`normal_form_workspace`.
+"""
+function normal_form_jacobian!!(JᵀJ, J, ::Any)
+    @bb JᵀJ = transpose(J) × J
+    return JᵀJ
+end
+
 # Define special concatenation for certain Array combinations
 faster_vcat(x, y) = vcat(x, y)
 

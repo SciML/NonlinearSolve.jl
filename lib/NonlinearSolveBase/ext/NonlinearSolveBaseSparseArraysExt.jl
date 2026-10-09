@@ -1,8 +1,9 @@
 module NonlinearSolveBaseSparseArraysExt
 
 using ArrayInterface: ArrayInterface
+using LinearAlgebra: transpose!
 using SparseArrays: AbstractSparseArray, AbstractSparseMatrix, AbstractSparseMatrixCSC,
-    nonzeros, sparse
+    SparseMatrixCSC, nonzeros, nzrange, rowvals, sparse
 
 using NonlinearSolveBase: NonlinearSolveBase, Utils
 
@@ -104,6 +105,78 @@ function Utils.linsolve_workspace(A::AbstractSparseMatrix)
     dense_A = Matrix(A)
     workspace, _ = Utils.linsolve_workspace(dense_A)
     return workspace, dense_A
+end
+
+struct SparseNormalFormWorkspace{Tv, Ti}
+    Jᵀ::SparseMatrixCSC{Tv, Ti}
+    accumulator::Vector{Tv}
+    filled::Vector{Bool}
+end
+
+function Utils.normal_form_workspace(J::SparseMatrixCSC)
+    return SparseNormalFormWorkspace(
+        copy(transpose(J)), zeros(eltype(J), size(J, 2)), fill(false, size(J, 2))
+    )
+end
+
+"""
+    normal_form_jacobian!!(JᵀJ::SparseMatrixCSC, J::SparseMatrixCSC, workspace)
+
+Overwrite the stored values of `JᵀJ` with those of `transpose(J) * J`. The column products
+are accumulated in the same order as SparseArrays' Gustavson `spmatmul`, so the values are
+bitwise identical to the allocating product. If the sparsity pattern of `JᵀJ` is not the
+structural pattern of `transpose(J) * J` (e.g. `J` changed pattern), this falls back to the
+allocating product.
+"""
+function Utils.normal_form_jacobian!!(
+        JᵀJ::SparseMatrixCSC{Tv, Ti}, J::SparseMatrixCSC{Tv, Ti},
+        workspace::SparseNormalFormWorkspace{Tv, Ti}
+    ) where {Tv, Ti}
+    n = size(J, 2)
+    if size(JᵀJ) == (n, n) && size(workspace.Jᵀ) == (n, size(J, 1))
+        transpose!(workspace.Jᵀ, J)
+        sparse_normal_form_values!(JᵀJ, J, workspace) && return JᵀJ
+    end
+    return Utils.normal_form_jacobian!!(JᵀJ, J, nothing)
+end
+
+function sparse_normal_form_values!(C, J, workspace)
+    (; Jᵀ, accumulator, filled) = workspace
+    rows_J, vals_J = rowvals(J), nonzeros(J)
+    rows_Jᵀ, vals_Jᵀ = rowvals(Jᵀ), nonzeros(Jᵀ)
+    rows_C, vals_C = rowvals(C), nonzeros(C)
+    @inbounds for i in axes(J, 2)
+        nfilled = 0
+        for jp in nzrange(J, i)
+            j, Jji = rows_J[jp], vals_J[jp]
+            for kp in nzrange(Jᵀ, j)
+                k = rows_Jᵀ[kp]
+                v = vals_Jᵀ[kp] * Jji
+                if filled[k]
+                    accumulator[k] += v
+                else
+                    accumulator[k] = v
+                    filled[k] = true
+                    nfilled += 1
+                end
+            end
+        end
+        matched = nfilled == length(nzrange(C, i))
+        for p in nzrange(C, i)
+            k = rows_C[p]
+            if filled[k]
+                vals_C[p] = accumulator[k]
+                filled[k] = false
+            else
+                matched = false
+            end
+        end
+        if !matched
+            fill!(filled, false)
+            return false
+        end
+    end
+    return true
 end
 
 end
