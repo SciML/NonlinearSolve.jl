@@ -3,6 +3,7 @@
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         forcing = nothing, jacobian_reuse = nothing,
+        bounds_handling = BoundsTransform(),
     )
 
 An advanced NewtonRaphson implementation with support for efficient handling of sparse
@@ -29,11 +30,17 @@ for large-scale and numerically-difficult nonlinear systems.
   - `jacobian_reuse`: a [`JacobianReuse`](@ref) policy, `true` to force the default policy
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`.
+  - `bounds_handling`: an [`AbstractBoundsHandling`](@ref) choosing how the problem's
+    `lb`/`ub` are handled: [`BoundsTransform`](@ref) (the default, a change of variables) or
+    [`BoundsProjection`](@ref), a projected Newton method that clamps every iterate, line-search
+    trial point included, so the residual and Jacobian are never evaluated outside the box and
+    an iterate can sit exactly on a bound.
 """
 function NewtonRaphson(;
         concrete_jac = nothing, linsolve = nothing, linesearch = missing,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         forcing = nothing, jacobian_reuse = nothing,
+        bounds_handling::AbstractBoundsHandling = BoundsTransform(),
     )
     return GeneralizedFirstOrderAlgorithm(;
         linesearch,
@@ -41,7 +48,7 @@ function NewtonRaphson(;
         autodiff, vjp_autodiff, jvp_autodiff,
         concrete_jac,
         forcing,
-        jacobian_reuse,
+        jacobian_reuse, bounds_handling,
         name = :NewtonRaphson
     )
 end
