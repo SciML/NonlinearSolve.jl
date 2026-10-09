@@ -126,7 +126,7 @@ function construct_jacobian_cache(
     end
 
     J_destination = jacobian_destination(J, autodiff)
-    return JacobianCache(J, J_destination, f, fu, p, stats, autodiff, di_extras)
+    return JacobianCache(J, J_destination, f, fu_cache, p, stats, autodiff, di_extras)
 end
 
 function construct_jacobian_cache(
