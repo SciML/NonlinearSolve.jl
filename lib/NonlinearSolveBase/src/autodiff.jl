@@ -76,11 +76,12 @@ function select_forward_mode_autodiff(
         prob::AbstractNonlinearProblem, ::Nothing;
         warn_check_mode::Bool = true
     )
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
-    idx !== nothing && return ForwardADs[idx]
+    candidates = _autodiff_candidates(prob, ForwardADs)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && return candidates[idx]
     throw(ArgumentError("No forward mode AD backend is compatible with the chosen problem. \
                          This could be because no forward mode autodiff backend is loaded \
-                         or the loaded backends don't support the problem."))
+                         or the loaded backends don't support the problem.$(_nonscalar_state_hint(prob))"))
 end
 
 """
@@ -128,11 +129,12 @@ function select_reverse_mode_autodiff(
         prob::AbstractNonlinearProblem, ::Nothing;
         warn_check_mode::Bool = true
     )
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ReverseADs)
-    idx !== nothing && return ReverseADs[idx]
+    candidates = _autodiff_candidates(prob, ReverseADs)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && return candidates[idx]
     throw(ArgumentError("No reverse mode AD backend is compatible with the chosen problem. \
                          This could be because no reverse mode autodiff backend is loaded \
-                         or the loaded backends don't support the problem."))
+                         or the loaded backends don't support the problem.$(_nonscalar_state_hint(prob))"))
 end
 
 """
@@ -166,14 +168,36 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractAD
 end
 
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
-    idx !== nothing && !is_finite_differences_backend(ForwardADs[idx]) &&
-        return ForwardADs[idx]
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ReverseADs)
-    idx !== nothing && return ReverseADs[idx]
+    candidates = _autodiff_candidates(prob, ForwardADs)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && !is_finite_differences_backend(candidates[idx]) &&
+        return candidates[idx]
+    candidates = _autodiff_candidates(prob, ReverseADs)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && return candidates[idx]
     throw(ArgumentError("No jacobian AD backend is compatible with the chosen problem. \
                          This could be because no jacobian autodiff backend is loaded \
-                         or the loaded backends don't support the problem."))
+                         or the loaded backends don't support the problem.$(_nonscalar_state_hint(prob))"))
+end
+
+# Differentiating through a state that cannot be scalar-indexed (e.g. GPU arrays
+# under `allowscalar(false)`) is only attempted through finite differencing.
+function _autodiff_candidates(prob::AbstractNonlinearProblem, ads)
+    u0 = prob.u0
+    if u0 isa AbstractArray && !ArrayInterface.fast_scalar_indexing(u0)
+        return filter(is_finite_differences_backend, ads)
+    end
+    return ads
+end
+
+function _nonscalar_state_hint(prob::AbstractNonlinearProblem)
+    u0 = prob.u0
+    if u0 isa AbstractArray && !ArrayInterface.fast_scalar_indexing(u0)
+        return " The state `$(typeof(u0))` does not support fast scalar indexing, which \
+                ForwardDiff-style backends require. Load FiniteDiff (or another \
+                GPU-compatible backend) and retry, or pass `autodiff = AutoFiniteDiff()` explicitly."
+    end
+    return ""
 end
 
 function incompatible_backend_and_problem(

@@ -143,7 +143,9 @@ const DualAbstractNonlinearProblem = Union{
 function NonlinearSolveBase.additional_incompatible_backend_check(
         prob::AbstractNonlinearProblem, ::Union{AutoForwardDiff, AutoPolyesterForwardDiff}
     )
-    return !ForwardDiff.can_dual(eltype(prob.u0))
+    !ForwardDiff.can_dual(eltype(prob.u0)) && return true
+    u0 = prob.u0
+    return u0 isa AbstractArray && !ArrayInterface.fast_scalar_indexing(u0)
 end
 
 Utils.value(::Type{Dual{T, V, N}}) where {T, V, N} = V
