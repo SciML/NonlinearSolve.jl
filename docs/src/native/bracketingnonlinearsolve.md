@@ -20,5 +20,6 @@ Falsi
 ITP
 ModAB
 Muller
+NewtonBisection
 Ridder
 ```
