@@ -25,6 +25,72 @@ using LinearSolve, SciMLOperators, LinearAlgebra, ForwardDiff
     end
 end
 
+@testset "Bounded defaults with mixed scalar and array shapes" begin
+    problems = (
+        NonlinearLeastSquaresProblem((u, p) -> [u - p, 1.0], 0.5, 2.0; lb = 0.0, ub = 1.0),
+        NonlinearLeastSquaresProblem((u, p) -> sum(u) - p, [0.25, 0.25], 1.0; lb = 0.0, ub = 1.0),
+    )
+    for prob in problems, cached in (false, true)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ (prob.u0 isa Number ? 1.0 : [0.5, 0.5])
+        @test typeof(sol.u) == typeof(prob.u0)
+    end
+end
+
+@testset "Bounded defaults restart after a throwing first start" begin
+    prob = NonlinearLeastSquaresProblem(
+        (u, p) -> [sqrt(u[1] - 0.25) - 0.5], [0.0]; lb = 0.0, ub = 1.0
+    )
+    for cached in (false, true)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [0.5]
+    end
+end
+
+@testset "One-sided bounds never accept infeasible restoration roots" begin
+    residuals = (
+        matching = ((u, p) -> u .- p, [0.5]),
+        scalar_state = ((u, p) -> [u - p], 0.5),
+        scalar_residual = ((u, p) -> sum(u) - p, [0.5]),
+    )
+    for (bounds, target, bound) in (((; ub = 1.0), 2.0, 1.0), ((; lb = 0.0), -1.0, 0.0)),
+            (f, u0) in residuals,
+            constructor in (NonlinearProblem, NonlinearLeastSquaresProblem),
+            cached in (false, true)
+
+        prob = constructor(f, u0, target; bounds...)
+        sol = cached ? solve!(init(prob)) : solve(prob)
+        @test SciMLBase.successful_retcode(sol) == (constructor === NonlinearLeastSquaresProblem)
+        @test all(sol.u .≈ bound)
+        @test typeof(sol.u) == typeof(u0)
+    end
+end
+
+@testset "Mixed-shape fallback keeps polyalgorithm options" begin
+    prob = NonlinearLeastSquaresProblem((u, p) -> [u - p, 1.0], 0.5, 2.0; lb = 0.0, ub = 1.0)
+    for cached in (false, true)
+        excluded = SobolMultistart(
+            NonlinearSolvePolyAlgorithm(
+                (BoundedGaussNewton(), BoundedTrustRegion()); start_index = 2
+            );
+            nstarts = 1
+        )
+        @test_throws MethodError cached ? solve!(init(prob, excluded)) : solve(prob, excluded)
+        stored = SobolMultistart(
+            NonlinearSolvePolyAlgorithm(
+                (BoundedTrustRegion(), BoundedGaussNewton()); store_original = Val(true)
+            );
+            nstarts = 1
+        )
+        sol = cached ? solve!(init(prob, stored)) : solve(prob, stored)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ 1.0
+        @test sol.original.original !== nothing
+    end
+end
+
 @testset "Boundary stationarity and root failure" begin
     for bounds in ((; lb = 0.0), (; ub = 1.0), (; lb = 0.0, ub = 1.0), (; lb = 1.0, ub = 1.0))
         target = haskey(bounds, :ub) ? 2.0 : -1.0
