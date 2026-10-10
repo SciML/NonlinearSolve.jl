@@ -163,7 +163,7 @@ function CommonSolve.init(
         objectives_trace = nothing
         u0_norm = nothing
         step_norm_trace = nothing
-        best_value = Utils.convert_real(T, Inf)
+        best_value = Utils.convert_real(T, Inf32)
         max_stalled_steps = nothing
         u_diff_cache = nothing
     end
@@ -210,7 +210,7 @@ function SciMLBase.reinit!(
         end
         cache.best_objective_value = cache.initial_objective
     else
-        cache.best_objective_value = Utils.convert_real(T, Inf)
+        cache.best_objective_value = Utils.convert_real(T, Inf32)
     end
 end
 
