@@ -426,20 +426,35 @@ function build_solution_less_specialize(
         right = nothing, stats = nothing, trace = nothing,
         store_original::Val = Val(false), kwargs...
     )
+    # Reactant cannot rebuild `Base.Pairs` keyword bags on the problem.
+    stored_prob = ReactantCore.within_compile() ? nothing : prob
+    stored_stats = ReactantCore.within_compile() ? nothing : stats
+    stored_trace = ReactantCore.within_compile() ? nothing : trace
     if store_original isa Val{true}
+        return less_specialized_solution(
+            Any, u, resid, stored_prob, alg, retcode, original, left, right,
+            stored_stats, stored_trace
+        )
+    end
+    return less_specialized_solution(
+        Nothing, u, resid, stored_prob, alg, retcode, nothing, left, right,
+        stored_stats, stored_trace
+    )
+end
+
+# SciMLBase ≥ 3.51 appends the return code type to `NonlinearSolution`'s parameters.
+let retcode_param = fieldtype(SciMLBase.NonlinearSolution, :retcode) === ReturnCode.T ?
+        () : (:(typeof(retcode)),)
+    @eval function less_specialized_solution(
+            ::Type{O}, u, resid, prob, alg, retcode, original, left, right, stats, trace
+        ) where {O}
         return SciMLBase.NonlinearSolution{
             eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-            typeof(alg), Any, typeof(left), typeof(stats), typeof(trace),
+            typeof(alg), O, typeof(left), typeof(stats), typeof(trace), $(retcode_param...),
         }(
             u, resid, prob, alg, retcode, original, left, right, stats, trace
         )
     end
-    return SciMLBase.NonlinearSolution{
-        eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Nothing, typeof(left), typeof(stats), typeof(trace),
-    }(
-        u, resid, prob, alg, retcode, nothing, left, right, stats, trace
-    )
 end
 
 function findmin_caches(prob::AbstractNonlinearProblem, caches)

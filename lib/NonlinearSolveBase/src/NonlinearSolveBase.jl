@@ -30,16 +30,19 @@ using ADTypes: ADTypes, AbstractADType, AutoSparse, AutoForwardDiff, NoSparsityD
     KnownJacobianSparsityDetector
 using Adapt: WrappedArray
 using ArrayInterface: ArrayInterface
-using DifferentiationInterface: DifferentiationInterface, Constant
+using DifferentiationInterface: DifferentiationInterface, Constant,
+    AutoForwardFromPrimitive
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 import RespecializeParams
 using StaticArraysCore: StaticArray, SMatrix, SArray, MArray, SVector
 
 using CommonSolve: CommonSolve, init
+using ConstructionBase: ConstructionBase
 using EnzymeCore: EnzymeCore
 using MaybeInplace: @bb
 using RecursiveArrayTools: RecursiveArrayTools, AbstractVectorOfArray, ArrayPartition
+using ReactantCore: ReactantCore
 using SciMLBase: SciMLBase, ReturnCode, AbstractODEIntegrator, AbstractNonlinearProblem,
     AbstractNonlinearAlgorithm, _concrete_solve_adjoint, _concrete_solve_forward,
     NonlinearProblem, NonlinearLeastSquaresProblem,
@@ -77,6 +80,7 @@ include("utils.jl")
 include("verbosity.jl")
 
 include("abstract_types.jl")
+include("reactant.jl")
 include("common_defaults.jl")
 include("termination_conditions.jl")
 
@@ -115,6 +119,7 @@ include("forward_diff.jl")
 )
 
 @compat(public, (get_abstol, get_reltol))
+@compat(public, (maybe_traced, dealias_traced!, select, build_nonlinear_solution))
 @compat(public, (AbstractNonlinearTerminationMode, AbstractSafeNonlinearTerminationMode))
 @compat(public, (nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution))
 @compat(
