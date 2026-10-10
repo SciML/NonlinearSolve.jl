@@ -173,6 +173,7 @@ end
     lincache
     Jᵀfu        # `Jᵀ fu` for the primary direction
     JᵀJ         # normal-form only
+    JᵀJ_workspace  # sparse in-place Gramian workspace, else `nothing`
     damped      # normal-form in-place buffer for `JᵀJ + λD²`, else `nothing`
     # These fields stay plain typevars: their allocation gates are compile-time
     # inferable (`normal_form`/`isop`/the `could_lmpar` subset, `alg.has_scaling`),
@@ -1000,12 +1001,14 @@ function InternalAPI.init(
 
     op_state = isop ?
         _MoreOpState(J_, zero(T), similar(Utils.safe_vec(u), T, length(u))) : nothing
+    JᵀJ_workspace = nothing
     if normal_form
         JᵀJ = if isop
             nothing
         elseif J_ isa Number
             abs2(J_)
         else
+            JᵀJ_workspace = Utils.normal_form_workspace(J_)
             transpose(J_) * J_
         end
         dtd = if has_scaling
@@ -1066,7 +1069,7 @@ function InternalAPI.init(
     end
 
     return MoreTrustRegionDescentCache(
-        δu, δus, lincache, Jᵀfu, JᵀJ, damped, augmented, rhs, qrhs,
+        δu, δus, lincache, Jᵀfu, JᵀJ, JᵀJ_workspace, damped, augmented, rhs, qrhs,
         p, gn_step, T(Inf), false, dtd, Dp, D²p, q, Jδu, zero(T),
         zero(T), zero(T), false, T(1.0e-4), 10, T(alg.min_damping_D),
         internalnorm, timer, pre_inverted,
@@ -1435,7 +1438,9 @@ function InternalAPI.solve!(
             if J_ isa Number
                 cache.JᵀJ = abs2(J_)
             else
-                @bb cache.JᵀJ = transpose(J_) × J_
+                cache.JᵀJ = Utils.normal_form_jacobian!!(
+                    cache.JᵀJ, J_, cache.JᵀJ_workspace
+                )
             end
             _more_update_scaling!(cache, cache.JᵀJ)
         else
