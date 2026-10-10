@@ -19,6 +19,12 @@ problem and solution objects.
     for a new solve.
   - `InternalAPI.reinit_self!(cache, args...; kwargs...)`: reset only the fields owned by
     `cache`; callers use this from generated nested-cache reset implementations.
+  - `InternalAPI.jacobian_computed_at_construction(cache)`: whether constructing the
+    Jacobian cache `cache` evaluated the Jacobian, so that `reused_jacobian(cache, u)` holds
+    the Jacobian at the `u` and `p` it was constructed with. It is `false` when construction
+    only allocated the Jacobian (an analytic `jac`, a `jac_prototype`, an operator Jacobian,
+    scalar problems) and for other cache types. It describes construction only: once `u` or
+    `p` change, or after `reinit!`, the solver must evaluate the Jacobian itself.
 """
 module InternalAPI
 
@@ -30,6 +36,8 @@ module InternalAPI
 
     function reinit! end
     function reinit_self! end
+    function jacobian_computed_at_construction end
+    jacobian_computed_at_construction(cache) = false
 
     function reinit!(x::Any; kwargs...)
         #@debug "`InternalAPI.reinit!` is not implemented for $(typeof(x))."

@@ -190,8 +190,11 @@ function InternalAPI.init(
         # into a corrupted pattern.
         J_cache = Utils.maybe_unaliased(J, alias_J && !(D isa AbstractMatrix))
 
-        J_damped = dampen_jacobian!!(J_cache, J, D)
-        J_cache = J_damped
+        # An aliased `J` is the Jacobian cache's storage, which the first step may reuse
+        # undamped, so the linear solver is built from a damped copy instead.
+        mutates_J = J_cache === J && J isa AbstractMatrix && ArrayInterface.can_setindex(J)
+        J_damped = dampen_jacobian!!(mutates_J ? copy(J) : J_cache, J, D)
+        mutates_J || (J_cache = J_damped)
         A, b = J_damped, Utils.safe_vec(fu)
         JᵀJ, Jᵀfu, rhs_cache = nothing, nothing, nothing
     elseif mode === :normal_form

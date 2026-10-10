@@ -126,9 +126,17 @@ function InternalAPI.init(
         prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve
     )
     J = alg.structure(reused_jacobian(jac_cache, u))
+    initialized = InternalAPI.jacobian_computed_at_construction(jac_cache)
     return InitializedApproximateJacobianCache(
-        J, alg.structure, alg, jac_cache, false, internalnorm
+        J, alg.structure, alg, jac_cache, initialized, internalnorm
     )
+end
+
+# The true Jacobian evaluated at construction is valid only at the construction state.
+invalidate_initial_jacobian!(cache) = nothing
+function invalidate_initial_jacobian!(cache::InitializedApproximateJacobianCache)
+    cache.alg isa TrueJacobianInitialization && (cache.initialized = false)
+    return nothing
 end
 
 function (cache::InitializedApproximateJacobianCache)(::TrueJacobianInitialization, fu, u)
