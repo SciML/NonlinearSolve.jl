@@ -68,6 +68,11 @@ function scc_solve_up(
         kwargs...
     )
     probs = map(_concrete_scc_problem, prob.probs)
+    # Keep the caller's container eltype so homogeneous and heterogeneous
+    # block vectors share one `_scc_solve` instance.
+    if probs isa AbstractVector && all(Base.Fix2(isa, eltype(prob.probs)), probs)
+        probs = copyto!(similar(prob.probs), probs)
+    end
     concrete_prob = SciMLBase.remake(prob; probs)
     return _scc_solve(concrete_prob, alg; kwargs...)
 end
@@ -78,7 +83,7 @@ function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquar
 end
 _concrete_scc_problem(prob) = prob
 
-probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
+probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SciMLBase.HomotopyProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
