@@ -41,10 +41,10 @@ run_qa(
         #   NonlinearSolveBase(.Utils/.InternalAPI): additional_incompatible_backend_check,
         #     condition_number, get_raw_f, get_u, linsolve_workspace,
         #     is_extension_loaded, make_sparse, maybe_symmetric, init_similar_array!!,
-        #     nlls_generate_vjp_function, nodual_value, nonlinearsolve_∂f_∂p,
-        #     nonlinearsolve_∂f_∂u, reinit!, restructure, safe_reshape, safe_similar,
-        #     sparse_or_structured_prototype, structural_sparse,
-        #     implicit_sensitivity_solve, forwarddiff_init, forwarddiff_solve
+        #     implicit_sensitivity_solve, nlls_generate_vjp_function, nodual_value,
+        #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, reinit!, restructure,
+        #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse,
+        #     forwarddiff_init, forwarddiff_solve
         #   SciMLBase: anyeltypedual
         all_qualified_accesses_are_public = (;
             ignore = (
@@ -57,12 +57,12 @@ run_qa(
                 :FunctionWrapper, :additional_incompatible_backend_check, :condition_number,
                 :get_raw_f, :get_u, :linsolve_workspace, :is_extension_loaded,
                 :make_sparse, :init_similar_array!!,
-                :maybe_symmetric, :nlls_generate_vjp_function, :nodual_value,
+                :maybe_symmetric, :implicit_sensitivity_solve, :nlls_generate_vjp_function,
+                :nodual_value,
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
                 :sparse_or_structured_prototype, :structural_sparse,
                 :anyeltypedual, :forwarddiff_init, :forwarddiff_solve,
-                :implicit_sensitivity_solve,
             ),
         ),
         # Still non-public in their owning packages. AbstractODEIntegrator / __init /
