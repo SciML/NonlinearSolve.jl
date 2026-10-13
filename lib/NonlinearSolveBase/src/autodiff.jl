@@ -348,7 +348,7 @@ end
 Parameter cotangent `dp = -(∂G/∂p)' · (∂G/∂u)⁻ᵀ · Δu` for the solution `u*` of a
 `NonlinearLeastSquaresProblem`, computed by implicit differentiation of the
 (projected) stationarity equation `G(u*, p) = 0` built by
-[`nlls_generate_vjp_function`](@ref). For problems with `lb`/`ub` bounds this
+`nlls_generate_vjp_function`. For problems with `lb`/`ub` bounds this
 includes the active-bound KKT conditions: components pinned at a bound have zero
 sensitivity while free components satisfy the constrained stationarity system.
 
