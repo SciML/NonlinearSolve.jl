@@ -126,7 +126,7 @@ function InternalAPI.init(
         prob, solver, prob.f, fu, u, p; stats, autodiff, linsolve
     )
     J = alg.structure(reused_jacobian(jac_cache, u))
-    initialized = InternalAPI.jacobian_computed_at_construction(jac_cache)
+    initialized = jacobian_computed_at_construction(jac_cache)
     return InitializedApproximateJacobianCache(
         J, alg.structure, alg, jac_cache, initialized, internalnorm
     )

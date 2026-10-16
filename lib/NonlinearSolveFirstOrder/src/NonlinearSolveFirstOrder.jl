@@ -42,7 +42,8 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
     Dogleg, MoreTrustRegionDescent, AbstractDescentDirection, TrustRegionSubproblem,
     RobustTrustRegionLinsolve,
-    NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
+    NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian,
+    jacobian_computed_at_construction
 using SciMLOperators: SciMLOperators
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
     NonlinearFunction,

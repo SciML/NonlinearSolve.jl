@@ -349,7 +349,7 @@ function SciMLBase.__init(
             linesearch_cache, trustregion_cache,
             stats, 0, maxiters, maxtime, alg.max_shrink_times, timer,
             0.0, true,
-            InternalAPI.jacobian_computed_at_construction(jac_cache), false,
+            jacobian_computed_at_construction(jac_cache), false,
             termination_cache, trace, ReturnCode.Default, false, kwargs,
             initializealg, verbose
         )

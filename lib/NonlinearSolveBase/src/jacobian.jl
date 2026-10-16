@@ -217,11 +217,23 @@ initialization.
 """
 reused_jacobian(cache::JacobianCache, u) = cache.J
 reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianOperator(cache.J, u, cache.p)
-function InternalAPI.jacobian_computed_at_construction(cache::JacobianCache)
-    return cache.computed_at_construction
-end
 # A reused operator Jacobian is returned as-is (the generic `reused_jacobian` returns
 # `cache.J`); no special method is needed.
+
+"""
+    jacobian_computed_at_construction(cache)
+
+Whether constructing the Jacobian cache `cache` evaluated the Jacobian, so that
+[`reused_jacobian`](@ref)`(cache, u0)` already holds the Jacobian at the `u0` and `p` it was
+constructed with and a solver may use it in its first step instead of evaluating it again.
+
+This is `false` when construction only allocated the Jacobian (an analytic `jac`, a
+`jac_prototype`, a matrix-free operator Jacobian, or a scalar problem) and for any `cache`
+that is not from [`construct_jacobian_cache`](@ref). It describes construction only: once
+`u` or `p` change, or after `reinit!`, the solver must evaluate the Jacobian itself.
+"""
+jacobian_computed_at_construction(cache) = false
+jacobian_computed_at_construction(cache::JacobianCache) = cache.computed_at_construction
 
 # Core Computation
 ## Numbers

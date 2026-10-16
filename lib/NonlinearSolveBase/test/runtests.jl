@@ -398,6 +398,9 @@ run_tests(;
         @safetestset "Jacobian evaluation leaves the residual untouched" include(
             "jacobian_private_fu.jl"
         )
+        @safetestset "jacobian_computed_at_construction" include(
+            "jacobian_computed_at_construction.jl"
+        )
         @safetestset "Non-finite objective protective break" include(
             "nonfinite_objective.jl"
         )
