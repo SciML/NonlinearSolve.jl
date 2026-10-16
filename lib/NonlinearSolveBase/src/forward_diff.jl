@@ -12,15 +12,20 @@
     # initial-guess partials of a converged root. Always a `Vector{<:Dual}`,
     # empty when absent, so `reinit!` can keep the field concrete.
     u0duals
+    # Whether the current `p` carries Duals. `p` is concretely typed, so a Dual-free
+    # `p` passed to `reinit!` is stored converted to zero-partial Duals.
+    p_has_duals
 end
 
-# Empty dual vector matching `p`'s dual leaf type, for pre-2.52 callers that
-# predate `u0duals` (`p` is `Dual`/`AbstractArray{<:Dual}` on that path).
+# `p` is a `Dual` or an `AbstractArray{<:Dual}` and `u0` is Dual-free; the empty
+# `u0duals` takes `p`'s Dual leaf type.
 _empty_u0duals(p::AbstractArray) = similar(p, 0)
 _empty_u0duals(p) = typeof(p)[]
 
 NonlinearSolveForwardDiffCache(cache, prob, alg, p, values_p, partials_p) =
-    NonlinearSolveForwardDiffCache(cache, prob, alg, p, values_p, partials_p, _empty_u0duals(p))
+    NonlinearSolveForwardDiffCache(
+    cache, prob, alg, p, values_p, partials_p, _empty_u0duals(p), true
+)
 
 get_u(cache::NonlinearSolveForwardDiffCache) = get_u(cache.cache)
 get_fu(cache::NonlinearSolveForwardDiffCache) = get_fu(cache.cache)

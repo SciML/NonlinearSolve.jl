@@ -1,5 +1,5 @@
 using NonlinearSolve, SciMLBase, SciMLStructures
-using ForwardDiff, LinearAlgebra
+using ForwardDiff, LinearAlgebra, StaticArrays
 using Test
 
 # ForwardDiff Duals nested inside a structured `p` (NamedTuple, Tuple, or a
@@ -196,6 +196,48 @@ end
     sol = SciMLBase.solve!(cache)
     @test sol.retcode == ReturnCode.Success
     @test extract(sol) ≈ E2[:, 1] rtol = PARTIAL_TOL
+end
+
+@testset "reinit! to a Dual-free p returns the primal solution ($name)" for (name, p_of) in (
+        ("NamedTuple", θ -> (; tunable = [θ])), ("Vector", θ -> [θ]),
+    )
+    f(u, p) = u .^ 3 .+ u .- (p isa NamedTuple ? p.tunable : p)
+    # u^3 + u = 4: u ≈ 1.3787967, du/dp = 1/(3u²+1) ≈ 0.1491816
+    u4 = 1.378796700129551
+    cache = SciMLBase.init(
+        NonlinearProblem(f, [1.0], p_of(ForwardDiff.Dual{:testtag}(3.0, 1.0))), Broyden()
+    )
+    SciMLBase.reinit!(cache, [1.0]; p = p_of(4.0))
+    sol = SciMLBase.solve!(cache)
+    @test sol.retcode == ReturnCode.Success
+    @test eltype(sol.u) == Float64
+    @test sol.u[1] ≈ u4
+    SciMLBase.reinit!(cache, [2.0])
+    sol = SciMLBase.solve!(cache)
+    @test eltype(sol.u) == Float64
+    @test sol.u[1] ≈ u4
+    SciMLBase.reinit!(cache, [1.0]; p = p_of(ForwardDiff.Dual{:testtag}(4.0, 1.0)))
+    sol = SciMLBase.solve!(cache)
+    @test ForwardDiff.value(sol.u[1]) ≈ u4
+    @test ForwardDiff.partials(sol.u[1])[1] ≈ 1 / (3u4^2 + 1) rtol = PARTIAL_TOL
+end
+
+@testset "Duals inside arrays of containers ($name)" for (name, p, getp) in (
+        ("Vector{NamedTuple}", [(; a = ForwardDiff.Dual{:testtag}(3.0, 1.0))], p -> p[1].a),
+        (
+            "Vector{SVector}",
+            [SVector(ForwardDiff.Dual{:testtag}(3.0, 1.0), ForwardDiff.Dual{:testtag}(0.0, 0.0))],
+            p -> p[1][1],
+        ),
+        ("Matrix{Any}", Any[ForwardDiff.Dual{:testtag}(3.0, 1.0) 1.0; 2.0 3.0], p -> p[1, 1]),
+    )
+    f(u, p) = u .^ 3 .+ u .- getp(p)
+    @testset "$(nameof(typeof(alg)))" for alg in (Broyden(), NewtonRaphson())
+        sol = solve(NonlinearProblem(f, [1.0], p), alg)
+        @test sol.retcode == ReturnCode.Success
+        @test ForwardDiff.value(sol.u[1]) ≈ 1.2134116627622296 rtol = 1.0e-8
+        @test ForwardDiff.partials(sol.u[1])[1] ≈ 0.18460049422892552 rtol = PARTIAL_TOL
+    end
 end
 
 @testset "polyalgorithm and default solve with structured p" begin

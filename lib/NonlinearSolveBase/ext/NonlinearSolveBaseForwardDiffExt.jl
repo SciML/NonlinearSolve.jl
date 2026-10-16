@@ -211,9 +211,17 @@ function _join_dual_views(items::Vector, subs::Vector, assemble)
 end
 
 function _dual_view(x::AbstractArray)
-    isconcretetype(eltype(x)) && return nothing
-    subs = Any[_dual_view(v) for v in x]
-    return _join_dual_views(collect(x), subs, v -> Utils.restructure(x, v))
+    concrete = isconcretetype(eltype(x))
+    concrete && SciMLBase.anyeltypedual(eltype(x)) === Any && return nothing
+    items = vec(collect(x))
+    subs = Any[_dual_view(v) for v in items]
+    # A concrete Dual-carrying eltype cannot hold the rebuilt items, so narrow.
+    assemble = if concrete
+        v -> Utils.restructure(x, map(identity, v))
+    else
+        v -> Utils.restructure(x, v)
+    end
+    return _join_dual_views(items, subs, assemble)
 end
 
 function _dual_view(x::Tuple)
@@ -587,11 +595,13 @@ function InternalAPI.reinit!(
     stripped_u0 = u0view === nothing ? u0 : u0view.rebuild(u0view.values)
     _check_stripped(pview, stripped_p, "parameters")
     _check_stripped(u0view, stripped_u0, "u0")
+    p_has_duals = p === cache.p ? cache.p_has_duals : pview !== nothing
     InternalAPI.reinit!(
         cache.cache; p = stripped_p, u0 = stripped_u0, kwargs...
     )
     cache.p = p
     cache.values_p = stripped_p
+    cache.p_has_duals = p_has_duals
     partials_p = pview === nothing ? nothing : ForwardDiff.partials.(pview.duals)
     # `partials_p` is concretely typed by the constructor under `@concrete`;
     # it is never read, so keep the stale value rather than throw when a
@@ -635,7 +645,7 @@ function CommonSolve.solve!(cache::NonlinearSolveForwardDiffCache)
     fn = ad_prob isa NonlinearLeastSquaresProblem ?
         NonlinearSolveBase.nlls_generate_vjp_function(ad_prob, sol, uu) : ad_prob.f
 
-    pview = _dual_view(cache.p)
+    pview = cache.p_has_duals ? _dual_view(cache.p) : nothing
     if pview === nothing
         # Duals only in `u0`: sensitivity to the guess is structurally zero.
         # `reinit!` with fully primal inputs leaves no Dual source at all —
@@ -729,7 +739,7 @@ function InternalAPI.forwarddiff_init(prob::AbstractNonlinearProblem, args...; k
         partials_p = ForwardDiff.partials.(pview.duals)
     end
     return NonlinearSolveForwardDiffCache(
-        cache, newprob, alg, prob.p, newprob.p, partials_p, u0duals
+        cache, newprob, alg, prob.p, newprob.p, partials_p, u0duals, pview !== nothing
     )
 end
 

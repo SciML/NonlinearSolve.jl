@@ -186,4 +186,6 @@ Aqua.test_deps_compat(SimpleNonlinearSolve; ignore = [:SciMLJacobianOperators])
     SciMLBase.reinit!(cache, [1.0]; p = (; tunable = [4.0]))
     @test all(isconcretetype, fieldtypes(typeof(cache)))
     @test isempty(cache.u0duals)
+    @test !cache.p_has_duals
+    @test eltype(solve!(cache).u) == Float64
 end
