@@ -433,13 +433,22 @@ function gradient_stationarity_measure(J, fu)
     fu_scale = _max_abs(fu)
     iszero(fu_scale) && return nothing
     # The cosine is invariant under `F -> cF`, and dividing by the largest entry first keeps
-    # `‖F‖` and `JᵀF` from overflowing or underflowing however large or small `F` is.
-    f̂ = fu ./ fu_scale
-    return _gradient_stationarity_measure(J, f̂, L2_NORM(f̂))
+    # `‖F‖` and `JᵀF` from overflowing or underflowing however large or small `F` is. Below
+    # single precision the sums in `‖f̂‖` and `JᵀF` still overflow or stall at modest
+    # lengths, so the measure is formed in at least `Float32`.
+    f̂ = fu ./ _at_least_single(fu_scale)
+    return _gradient_stationarity_measure(_at_least_single(J), f̂, norm(f̂))
 end
 
 _max_abs(x::Number) = abs(x)
 _max_abs(x) = maximum(abs, x)
+
+_at_least_single(x::Number) = convert(promote_type(typeof(x), Float32), x)
+function _at_least_single(J::AbstractMatrix)
+    T = promote_type(eltype(J), Float32)
+    return T === eltype(J) ? J : T.(J)
+end
+_at_least_single(J) = J
 
 function _gradient_stationarity_measure(J::Number, f̂, f̂_norm)
     iszero(J) && return nothing
@@ -473,6 +482,8 @@ gradient_stationarity_retcode(leastsq::Bool) = ifelse(
 
 # The objective a mode ranks iterates by. `Rel*` modes rank on a relative quantity, so
 # comparing a bare residual norm against their `best_objective_value` mixes two scales.
+# This is the per-step expression; `init` seeds the value with `eps(TT)` instead, which can
+# only make `at_best_iterate` reject the first iterate, never accept a worse one.
 mode_objective(mode, fu, u, reltol) = Utils.apply_norm(mode.internalnorm, fu)
 function mode_objective(
         mode::Union{
@@ -480,7 +491,7 @@ function mode_objective(
         }, fu, u, reltol
     )
     return Utils.apply_norm(mode.internalnorm, fu) /
-        (Utils.apply_norm(mode.internalnorm, fu, u) + eps(typeof(reltol)))
+        (Utils.apply_norm(mode.internalnorm, fu, u) + eps(reltol))
 end
 
 # A `Best` mode reports the lowest-objective iterate, which need not be the one the

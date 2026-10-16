@@ -468,7 +468,8 @@ The measure, or `nothing` when it is not defined: `‖F‖ = 0` (the residual te
 covers that case, and the ratio is `0/0`), a non-finite residual, or a Jacobian with no
 nonzero column (every column's ratio is `0/0`). Zero columns of an otherwise nonzero `J` are
 skipped. `F` is rescaled by its largest entry before any product is formed, so a finite
-residual of any magnitude gives the same measure. `NaN` is returned when a column of `J` is
+residual of any magnitude gives the same measure. The measure is formed in at least
+`Float32`, so for `Float16` inputs it is a `Float32`. `NaN` is returned when a column of `J` is
 non-finite or its norm is outside the floating-point range; callers must treat `NaN` as
 not stationary.
 

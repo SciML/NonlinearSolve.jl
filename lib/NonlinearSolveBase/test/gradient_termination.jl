@@ -87,6 +87,14 @@ end
     @test isnan(gradient_stationarity_measure([5.0e-324; 0.0;;], [1.0, -0.6]))
 end
 
+@testset "half precision is measured in at least single precision" begin
+    # `‖f̂‖² = m` exceeds `floatmax(Float16)`, and a Float16 `JᵀF` stalls at 2048.
+    m, k = 70_000, 17_500
+    J = zeros(Float16, m, 1)
+    J[1:k, 1] .= 1
+    @test gradient_stationarity_measure(J, ones(Float16, m)) ≈ sqrt(k / m)
+end
+
 @testset "gradient_measure_supported" begin
     @test gradient_measure_supported([1.0 0.0; 0.0 1.0])
     @test gradient_measure_supported(Diagonal([1.0, 2.0]))
@@ -256,6 +264,23 @@ end
     @test !c.force_stop
     # At the retained best it fires.
     @test check_gradient_and_update!(c, [1.0; 0.0;;], du_best, u)
+end
+
+@testset "a Rel mode ranks iterates by its own objective" begin
+    # `‖F + u‖` far below `eps(Float64)` is where `eps(reltol)` and `eps(typeof(reltol))`
+    # give different objectives.
+    mode = RelNormSafeBestTerminationMode(Base.Fix2(norm, 2); gtol = 1.0e-8)
+    u = [1.0e-18, 1.0e-18]
+    du_best = [1.0e-20, -1.0e-20]
+    c = fake_cache(NonlinearLeastSquaresProblem((x, p) -> du_best, u), mode, [1.0, 0.0], [1.0, 1.0])
+    tc = c.termination_cache
+    @test !tc(du_best, u, u)
+    @test NonlinearSolveBase.mode_objective(mode, du_best, u, tc.reltol) ==
+        tc.best_objective_value
+
+    du_worse = [2.0e-20, -2.0e-20]   # stationary for `J = [1; 1]`, but ranked worse
+    @test !gradient_stationarity_reached(c, [1.0; 1.0;;], du_worse, u)
+    @test gradient_stationarity_reached(c, [1.0; 1.0;;], du_best, u)
 end
 
 @testset "a user-defined mode keeps working and never reaches the gradient path" begin

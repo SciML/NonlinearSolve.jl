@@ -1,4 +1,5 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, LinearAlgebra, Test
+using LinearSolve: NormalCholeskyFactorization
 using NonlinearSolveBase: AbsNormSafeBestTerminationMode, default_gradient_tolerance
 
 # A data fit whose residual is nonzero at the optimum: `‖F‖ ≤ abstol` is unreachable no
@@ -148,4 +149,21 @@ end
     r₁ = 1 + big(a) * big(sol.u[1])
     true_cosine = abs(r₁) / sqrt(r₁^2 + 1)
     @test !SciMLBase.successful_retcode(sol) || true_cosine ≤ default_gradient_tolerance(T)
+end
+
+@testset "a half-precision residual longer than floatmax(Float16) is measured correctly" begin
+    m, k = 70_000, 17_500
+    J = zeros(Float16, m, 1)
+    J[1:k, 1] .= 1
+    f = NonlinearFunction{false}(
+        (u, p) -> vcat(ones(Float16, k) .+ u[1], ones(Float16, m - k));
+        jac = (u, p) -> J, resid_prototype = zeros(Float16, m)
+    )
+    # The default QR path cannot factorize a Float16 matrix, independently of termination.
+    alg = GaussNewton(; linsolve = NormalCholeskyFactorization())
+    sol = solve(NonlinearLeastSquaresProblem(f, Float16[0], nothing), alg)
+    r = 1 + big(sol.u[1])
+    true_cosine = sqrt(big(k)) * abs(r) / sqrt(k * r^2 + (m - k))
+    @test !SciMLBase.successful_retcode(sol) ||
+        true_cosine ≤ default_gradient_tolerance(Float16)
 end
