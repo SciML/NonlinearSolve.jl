@@ -437,9 +437,6 @@ function gradient_stationarity_measure(J, fu)
     return _gradient_stationarity_measure(J, fu, fu_norm)
 end
 
-_all_finite(x::Number) = isfinite(x)
-_all_finite(x) = all(isfinite, x)
-
 function _gradient_stationarity_measure(J::Number, fu, fu_norm)
     iszero(J) && return nothing
     return abs(J' * fu) / (abs(J) * fu_norm)

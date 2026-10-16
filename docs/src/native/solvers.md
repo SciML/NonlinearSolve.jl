@@ -78,9 +78,13 @@ These solvers can be used for both nonlinear and nonlinear least squares problem
 
 ```@docs
 TrustRegion
+TrustRegionDogleg
+TrustRegionRobust
 LevenbergMarquardt
 PseudoTransient
 ```
+
+Box-constrained algorithms are documented on the [Bounded Solvers](@ref bounded-solvers) page.
 
 ## Polyalgorithms
 
@@ -176,6 +180,7 @@ function f!(F, u, p)
     end
     F[1] = u[1] - 1.0
     F[end] = u[end]
+    return
 end
 
 n = 1000
@@ -183,8 +188,11 @@ u0 = zeros(n)
 prob = NonlinearProblem(f!, u0)
 
 # Use Newton-Raphson with GMRES and Eisenstat-Walker forcing
-sol = solve(prob, NewtonRaphson(
-    linsolve = KrylovJL_GMRES(),
-    forcing = EisenstatWalkerForcing2()
-))
+sol = solve(
+    prob,
+    NewtonRaphson(
+        linsolve = KrylovJL_GMRES(),
+        forcing = EisenstatWalkerForcing2()
+    )
+)
 ```

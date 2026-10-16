@@ -1,10 +1,12 @@
 """
-    ArcLengthContinuation(; inner = nothing, initial_step_factor = 0.1,
+    ArcLengthContinuation(;
+        inner = nothing, initial_step_factor = 0.1,
         adaptive = true, min_ds = nothing, max_step_factor = 1.0,
         expand_factor = 2.0, expand_threshold = 2, max_angle = π / 6,
         predictor = :secant, autodiff = nothing, linsolve = nothing,
         tracking_maxiters = 10, maxsteps = 10000, theta = 0.5,
-        store_original = Val(false))
+        store_original = Val(false)
+    )
 
 Pseudo-arclength continuation solver for a `SciMLBase.HomotopyProblem`. Unlike
 [`HomotopySweep`](@ref), which marches the scalar parameter ``λ`` monotonically, this
@@ -562,7 +564,7 @@ function _arclength_jac_cache(
     end
     autodiff = select_jacobian_autodiff(gprob, alg.autodiff)
     return construct_jacobian_cache(
-        gprob, alg, gf, fu, x, prob.p; stats, autodiff, linsolve = alg.linsolve
+        gprob, alg, gf, fu, x, prob.p; stats, autodiff, alg.linsolve
     )
 end
 

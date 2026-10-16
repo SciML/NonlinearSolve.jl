@@ -34,7 +34,7 @@ using DifferentiationInterface: DifferentiationInterface, Constant
 using FunctionWrappers: FunctionWrappers
 import FunctionWrappersWrappers
 import RespecializeParams
-using StaticArraysCore: StaticArray, SMatrix, SArray, MArray
+using StaticArraysCore: StaticArray, SMatrix, SArray, MArray, SVector
 
 using CommonSolve: CommonSolve, init
 using EnzymeCore: EnzymeCore
@@ -52,7 +52,7 @@ import SciMLBase: solve, init, __init, __solve, wrap_sol, get_root_indp, isinpla
 
 using SciMLJacobianOperators: JacobianOperator, StatefulJacobianOperator
 using SciMLOperators: AbstractSciMLOperator, IdentityOperator, isconvertible,
-    update_coefficients!
+    update_coefficients!, FunctionOperator
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier,
     AbstractVerbositySpecifier, AbstractVerbosityPreset, MessageLevel,
     None, Minimal, Standard, Detailed, All, Silent, InfoLevel, WarnLevel, ErrorLevel
@@ -63,7 +63,8 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface
 import SciMLStructures
 using Setfield: @set!, @set
 
-using LinearAlgebra: LinearAlgebra, Diagonal, norm, ldiv!, diagind, mul!
+using LinearAlgebra: LinearAlgebra, BLAS, Diagonal, Symmetric, norm, ldiv!, diag,
+    diagind, mul!
 using LogExpFunctions: logistic, logit
 using Markdown: @doc_str
 using Printf: @printf
@@ -97,6 +98,7 @@ include("descent/newton.jl")
 include("descent/steepest.jl")
 include("descent/damped_newton.jl")
 include("descent/dogleg.jl")
+include("descent/more_trust_region.jl")
 include("descent/geodesic_acceleration.jl")
 
 include("initialization.jl")
@@ -121,7 +123,13 @@ include("forward_diff.jl")
 )
 
 # public for NonlinearSolve.jl and subpackages to use
-@compat(public, (InternalAPI, supports_line_search, supports_trust_region, set_du!))
+@compat(
+    public,
+    (
+        InternalAPI, supports_line_search, supports_trust_region, set_du!,
+        AbstractDescentDirection,
+    )
+)
 @compat(
     public,
     (
@@ -149,7 +157,9 @@ include("forward_diff.jl")
     )
 )
 @compat(public, (NonlinearSolveNoInitCache,))
-@compat(public, (get_concrete_problem,))
+@compat(public, (get_concrete_problem, initialization_alg))
+@compat(public, (solve_call,))
+@compat(public, (nlls_solve_adjoint_dp,))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
 @compat(public, (construct_jacobian_cache, reused_jacobian))
 @compat(public, (reset_update_rule_state!,))
@@ -168,8 +178,11 @@ export RelTerminationMode, AbsTerminationMode,
     RelNormSafeTerminationMode, AbsNormSafeTerminationMode,
     RelNormSafeBestTerminationMode, AbsNormSafeBestTerminationMode
 
+@compat(public, (RobustTrustRegionLinsolve,))
+
 export DescentResult, SteepestDescent, NewtonDescent, DampedNewtonDescent, Dogleg,
-    GeodesicAcceleration
+    GeodesicAcceleration, MoreTrustRegionDescent, TrustRegionSubproblem,
+    TrustRegionScaling
 
 export NonlinearSolvePolyAlgorithm
 

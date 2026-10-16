@@ -33,7 +33,7 @@ function nlfunc(resid, u0, p)
     resid[1] = u0[1] * u0[1] - p
     resid[2] = u0[2] * u0[2] - p
     resid[3] = u0[3] * u0[3] - p
-    nothing
+    return nothing
 end
 
 prob = NLS.NonlinearProblem(nlfunc, [1.0, 3.0, 5.0], 2.0)

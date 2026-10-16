@@ -88,12 +88,12 @@ run_qa(
         # Still non-public in their owning packages, across the main module and the solver
         # extensions. AbstractSteadyStateProblem / __init / __solve dropped: now public in
         # SciMLBase.
-        #   NonlinearSolveBase(.Utils): Utils, evaluate_f, initialization_alg, nodual_value,
+        #   NonlinearSolveBase(.Utils): Utils, evaluate_f, nodual_value,
         #     safe_vec
         #   ForwardDiff: partials;  LeastSquaresOptim: Cholesky, LSMR, QR
         all_qualified_accesses_are_public = (;
             ignore = (
-                :Utils, :evaluate_f, :initialization_alg, :nodual_value, :safe_vec,
+                :Utils, :evaluate_f, :nodual_value, :safe_vec,
                 :partials, :Cholesky, :LSMR, :QR,
             ),
         ),

@@ -49,7 +49,7 @@ function nlprob_iterator_interface(f, p_range, isinplace, solver)
     cache = init(probN, solver; maxiters = 100, abstol = 1.0e-10)
     sols = zeros(length(p_range))
     for (i, p) in enumerate(p_range)
-        reinit!(cache, isinplace ? [cache.u[1]] : cache.u; p = p)
+        reinit!(cache, isinplace ? [cache.u[1]] : cache.u; p)
         sol = solve!(cache)
         sols[i] = isinplace ? sol.u[1] : sol.u
     end

@@ -7,10 +7,12 @@ solve(prob::NonlinearProblem, alg; kwargs...)
 Solves for ``f(u) = 0`` in the problem defined by `prob` using the algorithm `alg`. If no
 algorithm is given, a default algorithm will be chosen.
 
+For problems with `lb` or `ub`, see [Bounded Solvers](@ref bounded-solvers).
+
 ## Recommended Methods
 
-The default method [`FastShortcutNonlinearPolyalg`](@ref) is a good choice for most
-problems. It is a polyalgorithm that attempts to use a fast algorithm ([`Klement`](@ref),
+For unbounded problems, the default method [`FastShortcutNonlinearPolyalg`](@ref) is a
+good choice. It is a polyalgorithm that attempts to use a fast algorithm ([`Klement`](@ref),
 [`Broyden`](@ref)) and if that fails it falls back to a more robust algorithm
 ([`NewtonRaphson`](@ref)) before falling back the most robust variant of
 [`TrustRegion`](@ref). For basic problems this will be very fast, for harder problems it
@@ -62,8 +64,12 @@ features, but have a bit of overhead on very small problems.
   - [`NewtonRaphson()`](@ref): A Newton-Raphson method with swappable nonlinear solvers and
     autodiff methods for high performance on large and sparse systems. Supports Newton-Krylov
     methods with adaptive forcing via [`EisenstatWalkerForcing2`](@ref).
-  - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
+  - [`TrustRegion()`](@ref): A Newton trust-region method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+    The default `TrustRegionSubproblem.More` solves the trust-region subproblem nearly
+    exactly (MINPACK `lmpar`-style); [`TrustRegionDogleg()`](@ref) selects the
+    classical polygonal dogleg approximation for a cheaper step on well-conditioned
+    problems.
   - [`LevenbergMarquardt()`](@ref): An advanced Levenberg-Marquardt implementation with the
     improvements suggested in the [transtrum2012improvements](@citet). Designed for
     large-scale and numerically-difficult nonlinear systems.
@@ -74,7 +80,7 @@ features, but have a bit of overhead on very small problems.
     searches and trust regions) in order to be as robust as possible for difficult problems.
     If this method fails to converge, then one can be pretty certain that most (all?) other
     choices would likely fail.
-  - [`FastShortcutNonlinearPolyalg()`](@ref): The default method. A polyalgorithm that mixes
+  - [`FastShortcutNonlinearPolyalg()`](@ref): The unbounded default. A polyalgorithm that mixes
     fast methods with fallbacks to robust methods to allow for solving easy problems quickly
     without sacrificing robustness on the hard problems.
   - [`Broyden()`](@ref): Generalization of Broyden's Quasi-Newton Method with Line Search

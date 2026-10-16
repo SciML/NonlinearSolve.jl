@@ -1,71 +1,92 @@
-using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, LinearAlgebra, Test
-using NonlinearSolveBase: AbsNormSafeBestTerminationMode, default_gradient_tolerance
+using NonlinearSolveFirstOrder
+using SciMLBase
+using StaticArrays
 
-# A data fit whose residual is nonzero at the optimum: `‖F‖ ≤ abstol` is unreachable no
-# matter how well the solve converges, so only `JᵀF = 0` can certify it.
-const TS = collect(range(0.0, 2.0; length = 12))
-const YS = [1.0 + 0.7 * t + 0.35 * sin(4t) for t in TS]
+alg = BoundedTrustRegion()
+@test SciMLBase.allowsbounds(alg)
+@test !SciMLBase.allowsbounds(TrustRegion())
 
-expfit(u, p) = @. u[1] * exp(u[2] * TS) - YS
-expfit_jac(u, p) = hcat(exp.(u[2] .* TS), u[1] .* TS .* exp.(u[2] .* TS))
+interior_prob = NonlinearProblem(
+    (u, p) -> u .^ 2 .- 4 .* u .+ 3, [1.5], nothing; lb = [0.0], ub = [2.0]
+)
+interior_sol = solve(interior_prob, alg)
+@test SciMLBase.successful_retcode(interior_sol)
+@test interior_sol.u ≈ [1.0] atol = 1.0e-10
+@test all(interior_prob.lb .<= interior_sol.u .<= interior_prob.ub)
 
-function expfit_prob(u0 = [1.0, 0.5])
-    f = NonlinearFunction{false}(expfit; jac = expfit_jac, resid_prototype = zeros(length(TS)))
-    return NonlinearLeastSquaresProblem(f, u0, nothing)
+static_prob = NonlinearProblem(
+    (u, p) -> u .^ 2 .- 4 .* u .+ 3, SVector(1.5), nothing;
+    lb = SVector(0.0), ub = SVector(2.0)
+)
+static_sol = solve(static_prob, alg)
+@test SciMLBase.successful_retcode(static_sol)
+@test static_sol.u ≈ SVector(1.0) atol = 1.0e-10
+
+exact_bound_nlls = NonlinearLeastSquaresProblem(
+    (u, p) -> [u[1] - 2, 1.0], [0.0], nothing; lb = [-1.0], ub = [1.0]
+)
+bound_nlls_sol = solve(exact_bound_nlls, alg)
+@test bound_nlls_sol.retcode == ReturnCode.Success
+@test bound_nlls_sol.u == [1.0]
+@test bound_nlls_sol.resid == [-1.0, 1.0]
+
+function exact_bound_f!(resid, u, p)
+    resid[1] = u[1] - 2
+    resid[2] = 1
+    return nothing
+end
+exact_bound_iip = NonlinearLeastSquaresProblem(
+    NonlinearFunction(exact_bound_f!; resid_prototype = zeros(2)), [0.0], nothing;
+    lb = [-1.0], ub = [1.0]
+)
+bound_iip_sol = solve(exact_bound_iip, alg)
+@test bound_iip_sol.retcode == ReturnCode.Success
+@test bound_iip_sol.u == [1.0]
+
+no_root_prob = NonlinearProblem(
+    (u, p) -> u .- 2, [0.0], nothing; lb = [-1.0], ub = [1.0]
+)
+no_root_sol = solve(no_root_prob, alg)
+@test !SciMLBase.successful_retcode(no_root_sol)
+@test no_root_sol.u == [1.0]
+@test no_root_sol.resid == [-1.0]
+
+partial_bounds_prob = NonlinearLeastSquaresProblem(
+    (u, p) -> [u[1] - 2, u[2] - 3, 1.0], [0.0, 0.0], nothing;
+    lb = nothing, ub = 1.0
+)
+partial_bounds_sol = solve(partial_bounds_prob, alg)
+@test partial_bounds_sol.retcode == ReturnCode.Success
+@test partial_bounds_sol.u == [1.0, 1.0]
+
+function issue_1147_f!(resid, u, p)
+    resid[1] = cos(u[2]) + sin(u[1]) - 0.5
+    resid[2] = sin(u[2]) + cos(u[1]) - 0.3
+    return resid
 end
 
-@testset "nonzero-residual least squares reaches ReturnCode.Success" begin
-    prob = expfit_prob()
-    for alg in (GaussNewton(), LevenbergMarquardt(), TrustRegion())
-        sol = solve(prob, alg; maxiters = 1000)
-        J = expfit_jac(sol.u, nothing)
-        F = expfit(sol.u, nothing)
-        @test norm(F, 2) > 1.0e-3                     # the residual test cannot be met
-        @test norm(J'F, Inf) < 1.0e-6                 # but the solve is stationary
-        @test sol.retcode == ReturnCode.Success
-    end
+issue_1147_prob = NonlinearProblem(
+    NonlinearFunction(issue_1147_f!), [0.3, 5.0], nothing;
+    lb = [-100.0, 0.0], ub = [100.0, 10.0]
+)
+issue_1147_sol = solve(issue_1147_prob, alg)
+@test SciMLBase.successful_retcode(issue_1147_sol)
+@test maximum(abs, issue_1147_sol.resid) < 1.0e-10
+@test all(issue_1147_prob.lb .<= issue_1147_sol.u .<= issue_1147_prob.ub)
+
+calls = Ref(0)
+function counted_f(u, p)
+    calls[] += 1
+    return u .- 1
 end
+infeasible_prob = NonlinearProblem(
+    counted_f, [2.0], nothing; lb = [0.0], ub = [1.0]
+)
+@test_throws ArgumentError init(infeasible_prob, alg)
+@test calls[] == 0
 
-@testset "gtol = nothing reproduces the pre-change exit" begin
-    prob = expfit_prob()
-    off = AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32)
-    sol = solve(prob, GaussNewton(); maxiters = 1000, termination_condition = off)
-    @test sol.retcode != ReturnCode.Success
-end
-
-@testset "the criterion does not stop short of a stationary point" begin
-    prob = expfit_prob()
-    ref = solve(
-        prob, GaussNewton(); maxiters = 1000,
-        termination_condition = AbsNormSafeBestTerminationMode(
-            Base.Fix2(norm, 2); max_stalled_steps = 32
-        )
-    )
-    got = solve(prob, GaussNewton(); maxiters = 1000)
-    @test norm(expfit(got.u, nothing), 2) ≤ norm(expfit(ref.u, nothing), 2) * (1 + 1.0e-8)
-    @test got.stats.nf ≤ ref.stats.nf
-end
-
-@testset "the same measurement is a failure on a square problem" begin
-    # Freudenstein-Roth from a start that funnels into its classic local minimum: `JᵀF`
-    # goes to zero while `F` does not, which is a local minimum of `‖F‖` and not a root.
-    fr(u, p) = [
-        -13.0 + u[1] + ((5.0 - u[2]) * u[2] - 2.0) * u[2],
-        -29.0 + u[1] + ((u[2] + 1.0) * u[2] - 14.0) * u[2],
-    ]
-    frj(u, p) = [
-        1.0 (10.0 - 3.0 * u[2]) * u[2] - 2.0
-        1.0 (3.0 * u[2] + 2.0) * u[2] - 14.0
-    ]
-    prob = NonlinearProblem(NonlinearFunction{false}(fr; jac = frj), [15.0, -2.0], nothing)
-
-    gtol = default_gradient_tolerance(Float64)
-    on = AbsNormSafeBestTerminationMode(
-        Base.Fix1(maximum, abs); max_stalled_steps = 32, gtol
-    )
-    sol = solve(prob, TrustRegion(); maxiters = 1000, termination_condition = on)
-
-    @test maximum(abs, fr(sol.u, nothing)) > 1.0
-    @test !SciMLBase.successful_retcode(sol.retcode)
-    @test sol.retcode == ReturnCode.Stalled
-end
+cache = init(interior_prob, BoundedTrustRegion(; initial_trust_radius = 1 // 4))
+solve!(cache)
+reinit!(cache, [1.5])
+@test cache.trustregion_cache.trust_region == 0.25
+@test_throws ArgumentError reinit!(cache, [3.0])

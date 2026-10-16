@@ -100,7 +100,8 @@ function SciMLBase.__solve(
         snes_atol = abstol, snes_max_it = maxiters
     )
 
-    PETSc.setfunction!(snes, f!, PETSc.VecSeq(petsclib, MPI.COMM_SELF, zero(u0)))
+    # PETSc-owned storage remains valid when a callback triggers Julia garbage collection.
+    PETSc.setfunction!(snes, f!, PETSc.VecSeq(petsclib, length(u0)))
 
     njac = Ref{Int}(-1)
     if alg.autodiff !== missing || prob.f.jac !== nothing
@@ -143,7 +144,10 @@ function SciMLBase.__solve(
     end
 
     # Create PETSc vector for solution and solve
-    x_petsc = PETSc.VecSeq(petsclib, MPI.COMM_SELF, copy(u0))
+    x_petsc = PETSc.VecSeq(petsclib, length(u0))
+    PETSc.withlocalarray!(x_petsc; read = false, write = true) do x_arr
+        copyto!(x_arr, u0)
+    end
     PETSc.solve!(x_petsc, snes)
 
     # Copy solution back to Julia array
