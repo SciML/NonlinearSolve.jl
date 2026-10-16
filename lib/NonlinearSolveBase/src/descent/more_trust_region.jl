@@ -1008,7 +1008,7 @@ function InternalAPI.init(
         elseif J_ isa Number
             abs2(J_)
         else
-            JᵀJ_workspace = Utils.normal_form_workspace(J_)
+            JᵀJ_workspace = normal_form_workspace(J_)
             transpose(J_) * J_
         end
         dtd = if has_scaling
@@ -1438,7 +1438,7 @@ function InternalAPI.solve!(
             if J_ isa Number
                 cache.JᵀJ = abs2(J_)
             else
-                cache.JᵀJ = Utils.normal_form_jacobian!!(
+                cache.JᵀJ = normal_form_jacobian!!(
                     cache.JᵀJ, J_, cache.JᵀJ_workspace
                 )
             end

@@ -158,7 +158,7 @@ function InternalAPI.init(
     elseif mode === :least_squares
         if requires_normal_form_jacobian(alg.damping_fn)
             JᵀJ = transpose(J) * J  # Needed to compute the damping factor
-            JᵀJ_workspace = Utils.normal_form_workspace(J)
+            JᵀJ_workspace = normal_form_workspace(J)
             jac_damp = JᵀJ
         else
             JᵀJ = nothing
@@ -199,7 +199,7 @@ function InternalAPI.init(
         JᵀJ, Jᵀfu, rhs_cache = nothing, nothing, nothing
     elseif mode === :normal_form
         JᵀJ = transpose(J) * J
-        JᵀJ_workspace = Utils.normal_form_workspace(J)
+        JᵀJ_workspace = normal_form_workspace(J)
         Jᵀfu = transpose(J) * Utils.safe_vec(fu)
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
@@ -264,7 +264,7 @@ function InternalAPI.solve!(
             if (J !== nothing || new_jacobian) && recompute_A
                 preinverted_jacobian(cache) && (J = inv(J))
                 if requires_normal_form_jacobian(cache.damping_fn_cache)
-                    cache.JᵀJ_cache = Utils.normal_form_jacobian!!(
+                    cache.JᵀJ_cache = normal_form_jacobian!!(
                         cache.JᵀJ_cache, J, cache.JᵀJ_workspace
                     )
                     jac_damp = cache.JᵀJ_cache
@@ -305,7 +305,7 @@ function InternalAPI.solve!(
         elseif cache.mode isa Val{:normal_form}
             if (J !== nothing || new_jacobian) && recompute_A
                 preinverted_jacobian(cache) && (J = inv(J))
-                cache.JᵀJ_cache = Utils.normal_form_jacobian!!(
+                cache.JᵀJ_cache = normal_form_jacobian!!(
                     cache.JᵀJ_cache, J, cache.JᵀJ_workspace
                 )
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)

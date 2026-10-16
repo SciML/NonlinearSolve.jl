@@ -1,8 +1,8 @@
-using NonlinearSolveFirstOrder
+using NonlinearSolveFirstOrder, LinearSolve
 using LinearAlgebra, SparseArrays, SparseMatrixColorings, Test
 
-# TrustRegion Moré normal-form path: warmed `step!` must not rebuild sparse `JᵀJ`
-# through MaybeInplace's allocating CSC product on a fixed `jac_prototype`.
+# Moré normal-form path on a fixed sparse `jac_prototype`: warmed `step!`s that form a
+# new Jacobian update `JᵀJ` in place.
 
 function bratu!(r, u, p)
     n = length(u)
@@ -38,11 +38,34 @@ end
         step!(cache)
     end
 
+    njacs = cache.stats.njacs
     allocs = ntuple(_ -> (@allocated step!(cache)), 5)
-    @test maximum(allocs) < 40_000
+    @test cache.stats.njacs > njacs
+    @test maximum(allocs) < 1000
 
     sol = solve(prob, alg; maxiters = 100)
     @test norm(sol.resid) < 1.0e-8
+end
+
+@testset "TrustRegion sparse reinit! with new p (linsolve = $(linsolve))" for linsolve in (
+        nothing, KLUFactorization(),
+    )
+    prob = make_sparse_bratu(200)
+    alg = TrustRegion(; linsolve)
+    p₂ = (; prob.p..., λ = 3.0)
+
+    cache = init(prob, alg; maxiters = 100)
+    solve!(cache)
+    reinit!(cache, prob.u0; p = p₂)
+    sol₂ = solve!(cache)
+    fresh = solve(remake(prob; p = p₂), alg; maxiters = 100)
+
+    @test norm(sol₂.resid) < 1.0e-8
+    @test sol₂.retcode == fresh.retcode
+    @test sol₂.u == fresh.u
+    @test cache.jac_cache.J isa SparseMatrixCSC
+    @test cache.descent_cache.JᵀJ isa SparseMatrixCSC
+    @test cache.descent_cache.JᵀJ == transpose(cache.jac_cache.J) * cache.jac_cache.J
 end
 
 # In-place `jac!` that inserts new structural entries into `jac_prototype` must
