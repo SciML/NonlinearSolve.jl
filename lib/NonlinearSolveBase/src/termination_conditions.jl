@@ -460,7 +460,9 @@ function _gradient_stationarity_measure(J::AbstractMatrix, f̂, f̂_norm)
         (isfinite(gⱼ) && isfinite(col_norm) && col_norm ≥ floatmin(col_norm)) ||
             return oftype(measure, NaN)
         any_nonzero_column = true
-        measure = max(measure, abs(gⱼ) / (col_norm * f̂_norm))
+        # `|gⱼ| / ‖Jⱼ‖ ≤ ‖f̂‖`, so dividing in this order never overflows, while the
+        # product `‖Jⱼ‖ ‖f̂‖` can exceed `floatmax` and turn the ratio into a false zero.
+        measure = max(measure, abs(gⱼ) / col_norm / f̂_norm)
     end
     return any_nonzero_column ? measure : nothing
 end

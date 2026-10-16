@@ -172,9 +172,10 @@ NonlinearSolveBase.AbstractSafeNonlinearTerminationMode
 
 ## Gradient Stationarity
 
-A least-squares solution is defined by ``J^\top F = 0``, not by ``F = 0``, so a residual
+A local least-squares minimizer satisfies ``J^\top F = 0``, not ``F = 0``, so a residual
 test alone cannot certify convergence on a problem whose residual is nonzero at the
-optimum. These implement the scale-free stationarity criterion that can, and the hook a
+optimum. The condition is first order, so saddle points and maxima of ``\|F\|^2`` satisfy
+it too. These implement the scale-free stationarity criterion that can, and the hook a
 solver package calls to apply it. The criterion is reached through the `gtol` option on the
 safe termination modes: it is set by default for `NonlinearLeastSquaresProblem` and left
 unset for `NonlinearProblem`.

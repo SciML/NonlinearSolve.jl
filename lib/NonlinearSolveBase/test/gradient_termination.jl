@@ -77,7 +77,7 @@ end
 
 @testset "measure is independent of the magnitude of finite F and J" begin
     for T in (Float32, Float64), s in (floatmin(T), one(T), sqrt(floatmax(T)), floatmax(T) / 4)
-        for c in (sqrt(floatmin(T)), one(T), sqrt(floatmax(T)))
+        for c in (sqrt(floatmin(T)), one(T), sqrt(floatmax(T)), floatmax(T) * T(0.85))
             @test gradient_stationarity_measure(reshape(T[c, 0], 2, 1), T[s, s]) ≈
                 inv(sqrt(T(2)))
         end

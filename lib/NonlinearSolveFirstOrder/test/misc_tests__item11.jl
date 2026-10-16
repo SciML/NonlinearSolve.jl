@@ -136,3 +136,16 @@ end
     )
     @test sol.retcode == ReturnCode.Success
 end
+
+@testset "a Jacobian column near floatmax does not certify stationarity: $T" for T in
+    (Float32, Float64)
+    a = floatmax(T) * T(0.85)
+    f = NonlinearFunction{false}(
+        (u, p) -> T[1 + a * u[1], 1]; jac = (u, p) -> reshape(T[a, 0], 2, 1),
+        resid_prototype = zeros(T, 2)
+    )
+    sol = solve(NonlinearLeastSquaresProblem(f, T[0], nothing), GaussNewton())
+    r₁ = 1 + big(a) * big(sol.u[1])
+    true_cosine = abs(r₁) / sqrt(r₁^2 + 1)
+    @test !SciMLBase.successful_retcode(sol) || true_cosine ≤ default_gradient_tolerance(T)
+end

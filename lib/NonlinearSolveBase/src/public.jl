@@ -448,8 +448,9 @@ where ``J_j`` is the `j`-th column of `J`. This is the cosine of the angle betwe
 residual and that column, so it is the criterion MINPACK exposes as `gtol` and the one
 Ceres and `scipy.optimize.least_squares` use.
 
-A least-squares solution satisfies ``J^\\top F = 0``, not ``F = 0``, so a residual test
-alone cannot certify convergence on a problem whose residual is nonzero at the optimum.
+A local least-squares minimizer satisfies ``J^\\top F = 0``, not ``F = 0``, so a residual
+test alone cannot certify convergence on a problem whose residual is nonzero at the optimum.
+The condition is first order: saddle points and maxima of `‖F‖²` satisfy it too.
 Testing ``\\|J^\\top F\\|`` directly would not do either: it carries units of residual per
 unit of `u` and therefore moves under a rescaling of either. Dividing by
 ``\\|J_j\\| \\|F\\|`` removes both, leaving a dimensionless quantity invariant under
@@ -579,8 +580,12 @@ things:
 | `NonlinearLeastSquaresProblem` | `ReturnCode.Success` | `ReturnCode.Success` |
 | `NonlinearProblem` | `ReturnCode.Success` | `ReturnCode.Stalled` |
 
-For a least-squares problem a stationary point *is* the solution. For a square root-find
-it is a local minimum of `‖F‖` that is not a root, which is a failure — and reporting it
+For a least-squares problem ``J^\\top F = 0`` is the first-order optimality condition,
+which every local minimizer of `‖F‖²` satisfies. It does not separate a minimizer from a
+saddle point or a maximum: the descent steps of the solver are what make a minimizer the
+usual outcome, and a solve started exactly at a saddle point or a maximum stops there with
+`ReturnCode.Success`. For a square root-find the same measurement marks a stationary point
+of `‖F‖` that is not a root, usually a local minimum, which is a failure — and reporting it
 as `ReturnCode.Stalled` turns a solve that would otherwise exhaust `maxiters` into a
 statement about what went wrong.
 
