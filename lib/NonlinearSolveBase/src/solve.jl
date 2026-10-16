@@ -483,6 +483,9 @@ end
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
+    attempted_syms = [gensym("attempted") for i in 1:N]
+
+    push!(calls, :($(Expr(:block, (:($(s) = false) for s in attempted_syms)...))))
 
     push!(
         calls,
@@ -512,6 +515,7 @@ end
         end
         cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
         $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
+        $(attempted_syms[i]) = true
         if SciMLBase.successful_retcode($(sol_syms[i])) &&
                 $(sol_syms[i]).retcode != ReturnCode.StalledSuccess
             stats = $(sol_syms[i]).stats
@@ -577,10 +581,12 @@ end
         )
     end
 
+    # Only subcaches attempted in this call are fallback candidates: the others hold
+    # residuals from `init`/`reinit!` (or a previous solve) and, with `alias_u0`, have
+    # no saved iterate.
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
-    for (sym, resid) in zip(cache_syms, resids)
-        # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
-        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
+    for (sym, attempted, resid) in zip(cache_syms, attempted_syms, resids)
+        push!(calls, :($(resid) = $(attempted) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
     end
     push!(
         calls, quote
