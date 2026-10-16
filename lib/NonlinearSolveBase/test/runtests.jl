@@ -402,6 +402,7 @@ run_tests(;
         @safetestset "Non-finite objective protective break" include(
             "nonfinite_objective.jl"
         )
+        @safetestset "Moré λ update keeps its type" include("more_update_lambda.jl")
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"

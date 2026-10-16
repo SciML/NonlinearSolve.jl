@@ -298,13 +298,15 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     if workspace === nothing
         workspace, workspace_A = linsolve_workspace(A)
         if workspace === nothing
-            # Reactant backends often report `!fast_scalar_indexing`, so no workspace
-            # is built. `pinv` is not traceable there; for the scaled-identity
-            # Jacobians from `IdentityInitialization` (`αI`), elementwise `safe_inv`
-            # yields `(1/α)I` (zeros stay zero). Mutate in place so `@trace if`
-            # callers can keep the existing buffer (no MissingTracedValue replace).
+            # Traced arrays report `!fast_scalar_indexing` and `pinv` is not traceable.
+            # LinearSolve's Reactant overlay runs the default host algorithm on the
+            # matrix RHS, so the singular rescue matches the workspace path. Writing
+            # into `workspace_A` keeps the buffer that `@trace if` callers carry.
             if ReactantCore.within_compile()
-                @. workspace_A = safe_inv(workspace_A)
+                rhs = similar(workspace_A)
+                rhs .= axes(workspace_A, 1) .== axes(workspace_A, 2)'
+                X = SciMLBase.solve(SciMLBase.LinearProblem(workspace_A, rhs)).u
+                workspace_A .= X
                 return workspace_A
             end
             return pinv(workspace_A)

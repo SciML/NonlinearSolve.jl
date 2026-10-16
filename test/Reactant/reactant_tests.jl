@@ -421,6 +421,27 @@ end
     @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-3
 end
 
+# Coupled analytic Jacobian: elementwise reciprocals of J are not J⁻¹, so the first
+# store-inverse Broyden step under compile has to come from a real matrix solve.
+@testset "Broyden true_jacobian coupled Jacobian under compile: maxiters = $maxiters" for maxiters in (1, 50)
+    A = Float32[2 1; 1 3]
+    f(u, p) = A * u .+ u .^ 3 ./ 10 .- p
+    jac(u, p) = A .+ diagm(0 => 3 .* u .^ 2 ./ 10)
+    nf = NonlinearFunction(f; jac)
+    function dosolve_coupled(u, p)
+        return solve(
+            NonlinearProblem(nf, u, p), Broyden(; init_jacobian = Val(:true_jacobian));
+            maxiters = maxiters, abstol = 1.0f-5,
+            termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)),
+        )
+    end
+    u0, p = Float32[1, 1], Float32[1, 2]
+    sol_host = dosolve_coupled(u0, p)
+    sol = Reactant.@jit dosolve_coupled(Reactant.to_rarray(u0), Reactant.to_rarray(p))
+    @test sol.retcode == sol_host.retcode
+    @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-3
+end
+
 @testset "Polyalgorithm store_original under compile" begin
     function polyrun(u, p)
         return solve(

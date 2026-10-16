@@ -1405,11 +1405,12 @@ _more_mindtd(dtd::AbstractVector) = minimum(dtd)
 _more_mindtd(dtd::Number) = dtd
 
 # Moré's safeguarded Newton update on φ(λ) = ‖D δu‖ - Δ: tighten the bracket [l, u] on
-# λ* and fall back to a guarded step if the Newton iterate leaves it
+# λ* and fall back to a guarded step if the Newton iterate leaves it. The fallback keeps
+# λ's type: under Reactant λ is loop-carried and must not be promoted to `Float64`.
 function _more_update_λ(λ, ϕ, Δ, pᵀD²p, pᵀD²q, l, u)
     u, l = ifelse(ϕ < 0, λ, u), ifelse(ϕ < 0, l, λ)
     λ += ϕ / Δ * pᵀD²p / pᵀD²q
-    λ = ifelse((l <= λ) & (λ <= u), λ, max(l + 0.01 * (u - l), sqrt(l * u)))
+    λ = ifelse((l <= λ) & (λ <= u), λ, max(l + oftype(λ, 0.01) * (u - l), sqrt(l * u)))
     return λ, l, u
 end
 
