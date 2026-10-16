@@ -133,7 +133,8 @@ function SciMLBase.__solve(
     @bb δN_δsd = copy(x)
     @bb δN = copy(x)
     @bb Hδ = copy(x)
-    dogleg_cache = (; δsd, δN_δsd, δN)
+    @bb Jg = copy(NLBUtils.safe_vec(fx))
+    dogleg_cache = (; δsd, δN_δsd, δN, Jg)
 
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
@@ -190,9 +191,9 @@ function SciMLBase.__solve(
 
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             if r > η₃
-                Δ = t₂ * L2_NORM(δ)
+                Δ = min(t₂ * L2_NORM(δ), Δₘₐₓ)
             elseif r > T(0.5)
-                Δ = max(Δ, t₂ * L2_NORM(δ))
+                Δ = min(max(Δ, t₂ * L2_NORM(δ)), Δₘₐₓ)
             end
         end
     end
@@ -201,7 +202,7 @@ function SciMLBase.__solve(
 end
 
 function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
-    (; δsd, δN_δsd, δN) = cache
+    (; δsd, δN_δsd, δN, Jg) = cache
 
     # Compute the Newton step
     @bb δN .= NLBUtils.restructure(δN, J \ NLBUtils.safe_vec(f))
@@ -210,8 +211,9 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     (L2_NORM(δN) ≤ Δ) && return δN
 
     # Calculate Cauchy point, optimum along the steepest descent direction
-    @bb δsd .= g
-    @bb @. δsd *= -1
+    @bb Jg = J × NLBUtils.safe_vec(g)
+    cauchy_scale = (L2_NORM(g) / L2_NORM(Jg))^2
+    @bb @. δsd = -cauchy_scale * g
     norm_δsd = L2_NORM(δsd)
 
     if (norm_δsd ≥ Δ)
