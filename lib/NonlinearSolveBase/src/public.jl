@@ -466,7 +466,10 @@ orthogonal transformation of the residual.
 The measure, or `nothing` when it is not defined: `‖F‖ = 0` (the residual test already
 covers that case, and the ratio is `0/0`), a non-finite residual, or a Jacobian with no
 nonzero column (every column's ratio is `0/0`). Zero columns of an otherwise nonzero `J` are
-skipped.
+skipped. `F` is rescaled by its largest entry before any product is formed, so a finite
+residual of any magnitude gives the same measure. `NaN` is returned when a column of `J` is
+non-finite or its norm is outside the floating-point range; callers must treat `NaN` as
+not stationary.
 
 # Examples
 
@@ -510,6 +513,44 @@ NonlinearSolveBase.gradient_measure_supported([1.0 0.0; 0.0 1.0]) # true
 function gradient_measure_supported end
 
 """
+    gradient_stationarity_reached(cache, J, fu, u) -> Bool
+
+Return whether [`check_gradient_and_update!`](@ref) would stop the solve for these
+arguments, without modifying `cache`.
+
+This is a developer API for solver packages that reuse Jacobians across iterates. A
+retained Jacobian describes an earlier iterate, so a stationarity verdict computed from it
+is only a hint: when this returns `true`, form a Jacobian at `u` and call
+`check_gradient_and_update!` with that one.
+
+# Arguments
+
+  - `cache`: A solver cache carrying `termination_cache`.
+  - `J`: Jacobian to test.
+  - `fu`: Residual at `u`.
+  - `u`: Current iterate.
+
+# Returns
+
+`true` when the termination mode has a `gtol`, `J` supports the measure, the mode's
+residual test does not already hold at `u`, `u` is the iterate a `Best` mode would report,
+and [`gradient_stationarity_measure`](@ref) is at most `gtol`. `false` otherwise.
+
+# Examples
+
+```julia
+using NonlinearSolve, NonlinearSolveBase
+
+prob = NonlinearLeastSquaresProblem((u, p) -> [u[1] - 1.0, 2.0], [0.0])
+cache = init(prob, LevenbergMarquardt())
+NonlinearSolveBase.gradient_stationarity_reached(
+    cache, [1.0; 0.0;;], get_fu(cache), get_u(cache)
+)
+```
+"""
+function gradient_stationarity_reached end
+
+"""
     check_gradient_and_update!(cache, J, fu, u) -> Bool
 
 Apply the gradient-stationarity criterion of [`gradient_stationarity_measure`](@ref) to a
@@ -523,7 +564,12 @@ previous iterate would test stationarity at a point the solver has already left.
 The criterion is a disjunction with, not a replacement for, the residual test the
 termination mode already performs: the residual arm is cheap and it covers the
 zero-residual case, where the measure is a ratio of two quantities going to zero and
-carries no information.
+carries no information. When the mode's residual test already holds at `u`, this returns
+`false` and leaves the verdict to that test.
+
+A solver that may hold a Jacobian from an earlier iterate should test it with
+[`gradient_stationarity_reached`](@ref) first and, when that returns `true`, form a fresh
+Jacobian at `u` and pass that one here.
 
 The verdict depends on the problem type, because the same measurement means different
 things:

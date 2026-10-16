@@ -403,13 +403,22 @@ function InternalAPI.step!(
             J = cache.jac_cache(cache.u)
         else
             J = reused_jacobian(cache.jac_cache, cache.u)
+            # A retained Jacobian belongs to an earlier iterate, so a stationarity verdict
+            # from it is only confirmed by a Jacobian formed at `cache.u`.
+            if policy_driven && NonlinearSolveBase.gradient_stationarity_reached(
+                    cache, J, cache.fu, cache.u
+                )
+                J = cache.jac_cache(cache.u)
+                new_jacobian = true
+            end
         end
     end
     new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
-    # `J`, `cache.fu` and `cache.u` describe the same iterate only here: the step below
-    # moves `u` and refreshes the residual while `J` stays behind.
-    NonlinearSolveBase.check_gradient_and_update!(cache, J, cache.fu, cache.u) &&
+    # Only a Jacobian formed at `cache.u` may certify stationarity, and only here do `J`,
+    # `cache.fu` and `cache.u` describe the same iterate: the step below moves `u`.
+    new_jacobian &&
+        NonlinearSolveBase.check_gradient_and_update!(cache, J, cache.fu, cache.u) &&
         return nothing
 
     trust_region_retcode = _trust_region_retcode!(

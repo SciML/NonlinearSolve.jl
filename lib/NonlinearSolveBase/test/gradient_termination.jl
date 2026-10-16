@@ -2,7 +2,7 @@ using NonlinearSolveBase, SciMLBase, LinearAlgebra, Test
 using NonlinearSolveBase: AbsNormSafeBestTerminationMode, AbsNormSafeTerminationMode,
     AbsNormTerminationMode, RelNormSafeBestTerminationMode, RelNormSafeTerminationMode,
     check_gradient_and_update!, default_gradient_tolerance, gradient_measure_supported,
-    gradient_stationarity_measure
+    gradient_stationarity_measure, gradient_stationarity_reached
 using SciMLBase: NonlinearLeastSquaresProblem, NonlinearProblem, ReturnCode
 using StaticArrays: SA
 
@@ -11,6 +11,7 @@ using StaticArrays: SA
         for name in (
                 :check_gradient_and_update!, :default_gradient_tolerance,
                 :gradient_measure_supported, :gradient_stationarity_measure,
+                :gradient_stationarity_reached,
             )
             @test Base.ispublic(NonlinearSolveBase, name)
         end
@@ -72,6 +73,18 @@ end
     @test isnan(gradient_stationarity_measure([NaN 0.0; 0.0 1.0], [1.0, 2.0]))
     # Shape mismatch is not a silent zero.
     @test gradient_stationarity_measure(J, [1.0, 2.0, 3.0]) === nothing
+end
+
+@testset "measure is independent of the magnitude of finite F and J" begin
+    for T in (Float32, Float64), s in (floatmin(T), one(T), sqrt(floatmax(T)), floatmax(T) / 4)
+        for c in (sqrt(floatmin(T)), one(T), sqrt(floatmax(T)))
+            @test gradient_stationarity_measure(reshape(T[c, 0], 2, 1), T[s, s]) ≈
+                inv(sqrt(T(2)))
+        end
+    end
+    # A column whose norm leaves the floating-point range cannot give a meaningful ratio.
+    @test isnan(gradient_stationarity_measure(fill(1.0e308, 4, 1), ones(4)))
+    @test isnan(gradient_stationarity_measure([5.0e-324; 0.0;;], [1.0, -0.6]))
 end
 
 @testset "gradient_measure_supported" begin
@@ -197,6 +210,37 @@ end
     c = fake_cache(prob(du), mode(), du, u)
     @test !check_gradient_and_update!(c, [1.0; 0.0;;], du, u)
     @test !c.force_stop
+end
+
+@testset "the residual arm decides whenever it holds" begin
+    # Stationary and inside `abstol`: the residual test reports `Success`, and the gradient
+    # arm must not overrule it with `Stalled` on a square problem.
+    du = [0.0, 1.0e-10]
+    u = [1.0]
+    J = [1.0; 0.0;;]
+    mode = AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); gtol = 1.0e-8)
+    for prob in (
+            NonlinearProblem((x, p) -> du, u), NonlinearLeastSquaresProblem((x, p) -> du, u),
+        )
+        c = fake_cache(prob, mode, du, u)
+        @test !gradient_stationarity_reached(c, J, du, u)
+        @test !check_gradient_and_update!(c, J, du, u)
+        @test !c.force_stop
+        @test c.termination_cache(du, u, u)
+        @test c.termination_cache.retcode == ReturnCode.Success
+    end
+end
+
+@testset "gradient_stationarity_reached does not touch the cache" begin
+    du = [0.0, 3.0]
+    u = [1.0]
+    J = [1.0; 0.0;;]
+    mode = AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); gtol = 1.0e-8)
+    c = fake_cache(NonlinearLeastSquaresProblem((x, p) -> du, u), mode, du, u)
+    @test gradient_stationarity_reached(c, J, du, u)
+    @test !c.force_stop
+    @test c.retcode == ReturnCode.Default
+    @test !gradient_stationarity_reached(c, [1.0; 1.0;;], du, u)
 end
 
 @testset "a Best mode fires only at the iterate it reports" begin

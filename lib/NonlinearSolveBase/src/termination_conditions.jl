@@ -429,30 +429,38 @@ gradient_measure_supported(::AbstractMatrix) = true
 gradient_measure_supported(::Number) = true
 
 function gradient_stationarity_measure(J, fu)
-    fu_norm = L2_NORM(fu)
-    # `L2_NORM` is `@fastmath`, which lets LLVM assume its result is finite and fold an
-    # `isfinite` test on it away. Non-finiteness has to be caught on the raw residual, and
-    # every consumer of the measure must additionally fail closed.
-    (iszero(fu_norm) || !_all_finite(fu)) && return nothing
-    return _gradient_stationarity_measure(J, fu, fu_norm)
+    _all_finite(fu) || return nothing
+    fu_scale = _max_abs(fu)
+    iszero(fu_scale) && return nothing
+    # The cosine is invariant under `F -> cF`, and dividing by the largest entry first keeps
+    # `‖F‖` and `JᵀF` from overflowing or underflowing however large or small `F` is.
+    f̂ = fu ./ fu_scale
+    return _gradient_stationarity_measure(J, f̂, L2_NORM(f̂))
 end
 
-function _gradient_stationarity_measure(J::Number, fu, fu_norm)
+_max_abs(x::Number) = abs(x)
+_max_abs(x) = maximum(abs, x)
+
+function _gradient_stationarity_measure(J::Number, f̂, f̂_norm)
     iszero(J) && return nothing
-    return abs(J' * fu) / (abs(J) * fu_norm)
+    return abs(J' * f̂) / (abs(J) * f̂_norm)
 end
 
-function _gradient_stationarity_measure(J::AbstractMatrix, fu, fu_norm)
-    fu_vec = Utils.safe_vec(fu)
-    size(J, 1) == length(fu_vec) || return nothing
-    g = J' * fu_vec
-    measure = zero(fu_norm)
+function _gradient_stationarity_measure(J::AbstractMatrix, f̂, f̂_norm)
+    f̂_vec = Utils.safe_vec(f̂)
+    size(J, 1) == length(f̂_vec) || return nothing
+    g = J' * f̂_vec
+    measure = zero(f̂_norm)
     any_nonzero_column = false
     for (j, gⱼ) in zip(axes(J, 2), g)
-        col_norm = L2_NORM(@view(J[:, j]))
+        col_norm = norm(@view(J[:, j]))
         iszero(col_norm) && continue
+        # `norm` rescales internally, so a column norm that is still out of range, or a
+        # non-finite `gⱼ`, means the ratio would be meaningless: fail closed with `NaN`.
+        (isfinite(gⱼ) && isfinite(col_norm) && col_norm ≥ floatmin(col_norm)) ||
+            return oftype(measure, NaN)
         any_nonzero_column = true
-        measure = max(measure, abs(gⱼ) / (col_norm * fu_norm))
+        measure = max(measure, abs(gⱼ) / (col_norm * f̂_norm))
     end
     return any_nonzero_column ? measure : nothing
 end
@@ -482,16 +490,32 @@ function at_best_iterate(
     return mode_objective(mode, fu, u, reltol) ≤ tc_cache.best_objective_value
 end
 
-function check_gradient_and_update!(cache, J, fu, u)
+residual_tolerance(tc_cache, ::Union{RelNormSafeTerminationMode, RelNormSafeBestTerminationMode}) = tc_cache.reltol
+residual_tolerance(tc_cache, _) = tc_cache.abstol
+
+function residual_converged(tc_cache, mode, fu, u)
+    return mode_objective(mode, fu, u, tc_cache.reltol) ≤ residual_tolerance(tc_cache, mode)
+end
+
+function gradient_stationarity_reached(cache, J, fu, u)
     tc_cache = cache.termination_cache
-    gtol = gradient_tolerance(tc_cache.mode)
+    mode = tc_cache.mode
+    gtol = gradient_tolerance(mode)
     gtol === nothing && return false
     gradient_measure_supported(J) || return false
-    at_best_iterate(tc_cache, tc_cache.mode, fu, u, tc_cache.reltol) || return false
+    # The residual arm decides whenever it holds; on a square problem the gradient arm
+    # would otherwise turn a converged solve into `Stalled`.
+    residual_converged(tc_cache, mode, fu, u) && return false
+    at_best_iterate(tc_cache, mode, fu, u, tc_cache.reltol) || return false
     measure = gradient_stationarity_measure(J, fu)
     # Written as `≤` rather than `> ... && return`: a non-finite Jacobian makes the measure
     # `NaN`, and only this direction refuses to terminate on it.
-    (measure === nothing || !(measure ≤ gtol)) && return false
+    return measure !== nothing && measure ≤ gtol
+end
+
+function check_gradient_and_update!(cache, J, fu, u)
+    gradient_stationarity_reached(cache, J, fu, u) || return false
+    tc_cache = cache.termination_cache
     tc_cache.retcode = gradient_stationarity_retcode(tc_cache.leastsq)
     cache.retcode = tc_cache.retcode
     # The retained best is only replaced on a strict improvement, so on a tie it still holds

@@ -154,6 +154,7 @@ include("forward_diff.jl")
     (
         check_gradient_and_update!, default_gradient_tolerance,
         gradient_measure_supported, gradient_stationarity_measure,
+        gradient_stationarity_reached,
     )
 )
 @compat(public, (NonlinearSolveNoInitCache,))

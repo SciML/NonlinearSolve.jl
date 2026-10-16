@@ -182,6 +182,7 @@ unset for `NonlinearProblem`.
 ```@docs
 NonlinearSolveBase.gradient_stationarity_measure
 NonlinearSolveBase.gradient_measure_supported
+NonlinearSolveBase.gradient_stationarity_reached
 NonlinearSolveBase.check_gradient_and_update!
 NonlinearSolveBase.default_gradient_tolerance
 ```

@@ -69,3 +69,70 @@ end
     @test !SciMLBase.successful_retcode(sol.retcode)
     @test sol.retcode == ReturnCode.Stalled
 end
+
+# The first step lands at `u[1] = -1`, where the Jacobian from `u = 0` has a column
+# orthogonal to the residual but the true Jacobian does not (its cosine is ≈ 0.0995).
+reuse_f(u, p) = vcat(u[1] + 1, 0.05 + 0.05 * u[1]^2, u[2:end])
+function reuse_jac(u, p)
+    J = zeros(length(u) + 1, length(u))
+    J[1, 1] = 1.0
+    J[2, 1] = 0.1 * u[1]
+    for i in 2:length(u)
+        J[i + 1, i] = 1.0
+    end
+    return J
+end
+function reuse_prob(n)
+    f = NonlinearFunction{false}(reuse_f; jac = reuse_jac, resid_prototype = zeros(n + 1))
+    return NonlinearLeastSquaresProblem(f, zeros(n), nothing)
+end
+true_measure(u) = NonlinearSolveBase.gradient_stationarity_measure(
+    reuse_jac(u, nothing), reuse_f(u, nothing)
+)
+
+@testset "a reused Jacobian does not certify stationarity: n = $n, reuse = $r" for (n, r) in
+    ((16, nothing), (1, true))
+    gtol = default_gradient_tolerance(Float64)
+    ref = solve(reuse_prob(n), GaussNewton(; jacobian_reuse = false))
+    sol = solve(reuse_prob(n), GaussNewton(; jacobian_reuse = r))
+    @test ref.retcode == ReturnCode.Success
+    @test true_measure(ref.u) ≤ gtol
+    @test sol.retcode == ReturnCode.Success
+    @test true_measure(sol.u) ≤ gtol
+    @test sol.u ≈ ref.u
+end
+
+@testset "a Jacobian pinned by the caller does not certify stationarity" begin
+    cache = init(reuse_prob(1), GaussNewton(; jacobian_reuse = true))
+    step!(cache; recompute_jacobian = true)
+    @test cache.u[1] ≈ -1.0
+    @test true_measure(cache.u) > 0.09
+    step!(cache; recompute_jacobian = false)
+    @test cache.retcode != ReturnCode.Success
+end
+
+@testset "a finite residual too large to square does not certify stationarity: $s" for s in
+    (1.0f20, 1.0e200, 1.0e150)
+    T = typeof(s)
+    f = NonlinearFunction{false}(
+        (u, p) -> [u[1] + s, s]; jac = (u, p) -> reshape(T[1, 0], 2, 1),
+        resid_prototype = zeros(T, 2)
+    )
+    sol = solve(NonlinearLeastSquaresProblem(f, T[0], nothing), GaussNewton())
+    r₁ = big(sol.u[1]) + big(s)
+    true_cosine = abs(r₁) / sqrt(r₁^2 + big(s)^2)
+    @test !SciMLBase.successful_retcode(sol) || true_cosine ≤ default_gradient_tolerance(T)
+end
+
+@testset "a square solve that meets abstol is not reported as Stalled" begin
+    f = NonlinearFunction{false}(
+        (u, p) -> [u[1] + u[2], 1.0e-10 * (u[1] - u[2] + 1)];
+        jac = (u, p) -> [1.0 1.0; 1.0e-10 -1.0e-10]
+    )
+    on = AbsNormSafeBestTerminationMode(norm; gtol = default_gradient_tolerance(Float64))
+    sol = solve(
+        NonlinearProblem(f, [0.0, 0.0], nothing), NewtonRaphson();
+        abstol = 1.0e-8, termination_condition = on
+    )
+    @test sol.retcode == ReturnCode.Success
+end
