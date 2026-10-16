@@ -47,6 +47,8 @@ BracketingNonlinearSolve.jl directly to decrease the dependencies and improve lo
   - [`ITP`](@ref): A non-allocating ITP (Interpolate, Truncate & Project) method
   - [`ModAB`](@ref): A non-allocating Modified Anderson-Bjork's method
   - [`Muller`](@ref): A non-allocating Muller's method
+  - [`ModABNewton`](@ref): A non-allocating ModAB bisection phase followed by Newton's
+    method safeguarded by bisection, for problems that give the derivative of `f`
   - [`NewtonBisection`](@ref): A non-allocating Newton's method safeguarded by bisection,
     for problems that give the derivative of `f`
   - [`Ridder`](@ref): A non-allocating Ridder method
