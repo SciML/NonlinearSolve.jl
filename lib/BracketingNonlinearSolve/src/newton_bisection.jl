@@ -15,7 +15,10 @@ Each iteration evaluates `f` once and then its derivative at the same point, so 
 can share work, for example through a cache of the last point. It takes the Newton step
 from the last point, and bisects the bracket instead when that step leaves the bracket or
 is not shorter than half the step before the previous one, as `rtsafe` of Numerical
-Recipes does. Once the Newton step is within the tolerance, the next point is placed just
+Recipes does. Near a root of multiplicity `m`, where Newton's method converges only
+linearly, successive steps from the same end shrink by a ratio `ρ ≈ (m - 1)/m`; when
+`ρ > 1/2`, the step is multiplied by `m ≈ 1/(1 - ρ)` (at most 16) if that stays inside the
+bracket. Once the Newton step is within the tolerance, the next point is placed just
 beyond the Newton point, on the other side of the root, so that both ends of the bracket
 converge.
 
@@ -73,6 +76,8 @@ function SciMLBase.__solve(
     # an end of the bracket.
     x, fx, dfx = abs(fl / dfl) <= abs(fr / dfr) ? (left, fl, dfl) : (right, fr, dfr)
     last_step = older_step = oftype(right - left, Inf)
+    base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
+    base_left = x == left
     k = one(right - left)   # distance beyond the Newton point, in tolerances, once Newton has converged
     for _ in 1:maxiters
         if newton_bisection_done(left, right, abstol)
@@ -80,7 +85,18 @@ function SciMLBase.__solve(
             return newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
         end
 
-        newton = x - fx / dfx
+        step = fx / dfx
+        newton = x - step
+        if (x == left) == base_left && abs(step) < base_step
+            ρ = abs(step) / base_step
+            if 2ρ > 1
+                # Newton shrinks the step by (m - 1)/m near a root of multiplicity m
+                m = min(round(inv(1 - ρ)), oftype(ρ, 16))
+                accelerated = x - m * step
+                left < accelerated < right && (newton = accelerated)
+            end
+        end
+        base_left, base_step = x == left, abs(step)
         δ = abs(newton - x)
         if isfinite(newton) && δ <= max(abstol, 16 * eps(x))
             # `x` is at the root up to the tolerance: close the other end of the bracket,
