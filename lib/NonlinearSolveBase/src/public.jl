@@ -464,7 +464,9 @@ orthogonal transformation of the residual.
 # Returns
 
 The measure, or `nothing` when it is not defined: `‖F‖ = 0` (the residual test already
-covers that case, and the ratio is `0/0`) or a non-finite residual.
+covers that case, and the ratio is `0/0`), a non-finite residual, or a Jacobian with no
+nonzero column (every column's ratio is `0/0`). Zero columns of an otherwise nonzero `J` are
+skipped.
 
 # Examples
 

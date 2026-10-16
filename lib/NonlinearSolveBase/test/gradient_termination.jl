@@ -63,6 +63,11 @@ end
     @test gradient_stationarity_measure(J, [NaN, 1.0]) === nothing
     @test gradient_stationarity_measure(J, [Inf, 1.0]) === nothing
     @test gradient_stationarity_measure(0.0, 1.0) === nothing
+    @test gradient_stationarity_measure(zeros(1, 1), [1.0]) === nothing
+    @test gradient_stationarity_measure(zeros(3, 2), [1.0, 2.0, 3.0]) === nothing
+    # A zero column carries no direction and is skipped; the others still decide.
+    @test gradient_stationarity_measure([1.0 0.0; 0.0 0.0], [0.0, 1.0]) == 0.0
+    @test gradient_stationarity_measure([1.0 0.0; 0.0 0.0], [1.0, 0.0]) == 1.0
     # A non-finite Jacobian leaves a `NaN` that every caller must treat as "do not fire".
     @test isnan(gradient_stationarity_measure([NaN 0.0; 0.0 1.0], [1.0, 2.0]))
     # Shape mismatch is not a silent zero.

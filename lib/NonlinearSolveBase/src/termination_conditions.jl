@@ -447,12 +447,14 @@ function _gradient_stationarity_measure(J::AbstractMatrix, fu, fu_norm)
     size(J, 1) == length(fu_vec) || return nothing
     g = J' * fu_vec
     measure = zero(fu_norm)
+    any_nonzero_column = false
     for (j, gⱼ) in zip(axes(J, 2), g)
         col_norm = L2_NORM(@view(J[:, j]))
         iszero(col_norm) && continue
+        any_nonzero_column = true
         measure = max(measure, abs(gⱼ) / (col_norm * fu_norm))
     end
-    return measure
+    return any_nonzero_column ? measure : nothing
 end
 
 gradient_stationarity_retcode(leastsq::Bool) = ifelse(
