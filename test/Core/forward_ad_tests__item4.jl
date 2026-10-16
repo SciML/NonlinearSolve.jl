@@ -241,6 +241,24 @@ end
         @test ForwardDiff.value(sol.u) ≈ 1.2134116627622296 rtol = 1.0e-8
         @test ForwardDiff.partials(sol.u)[1] ≈ 0.18460049422892552 rtol = PARTIAL_TOL
     end
+
+    g(u, p) = u^3 + u - p.k
+    pbits = (; k = ForwardDiff.Dual{:testtag}(3.0, 1.0))
+    @test isbits(pbits)
+    for alg in (SimpleNewtonRaphson(), SimpleBroyden()),
+            prob in (
+                NonlinearProblem{false}(g, 1.0, pbits),
+                convert(
+                    SciMLBase.ImmutableNonlinearProblem,
+                    NonlinearProblem{false}(g, 1.0, pbits)
+                ),
+            )
+
+        sol = solve(prob, alg)
+        @test sol.retcode == ReturnCode.Success
+        @test ForwardDiff.value(sol.u) ≈ 1.2134116627622296 rtol = 1.0e-8
+        @test ForwardDiff.partials(sol.u)[1] ≈ 0.18460049422892552 rtol = PARTIAL_TOL
+    end
 end
 
 @testset "Dict parameters" begin

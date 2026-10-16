@@ -347,13 +347,22 @@ function NonlinearSolveBase.nodual_value(x)
     return _strip_duals(x)
 end
 
+_type_has_dual(::Type{<:Dual}) = true
+_type_has_dual(::Type{T}) where {T} = any(_type_has_dual, fieldtypes(T))
+
+# An isbits value's type determines whether it holds Duals. Deciding that in a
+# generator keeps `SciMLBase.anyeltypedual`, which only folds through concrete
+# evaluation, out of GPU kernels compiled with an overlay method table.
+@generated _isbits_dual_free(x) = isbitstype(x) && !_type_has_dual(x)
+
+_has_duals(x) = !_isbits_dual_free(x) && SciMLBase.anyeltypedual(x) !== Any
+
 # Cheap type-level gate mirroring SciMLBase's `promote_u0` detection so that the
 # flattening machinery only runs when duals are actually present.
 function _problem_has_duals(prob)
-    hasproperty(prob, :p) && SciMLBase.anyeltypedual(prob.p) !== Any && return true
-    hasproperty(prob, :u0) && SciMLBase.anyeltypedual(prob.u0) !== Any && return true
-    hasproperty(prob, :tspan) && SciMLBase.anyeltypedual(prob.tspan) !== Any &&
-        return true
+    hasproperty(prob, :p) && _has_duals(prob.p) && return true
+    hasproperty(prob, :u0) && _has_duals(prob.u0) && return true
+    hasproperty(prob, :tspan) && _has_duals(prob.tspan) && return true
     return false
 end
 
