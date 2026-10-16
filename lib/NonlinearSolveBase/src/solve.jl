@@ -468,15 +468,40 @@ end
     return SciMLBase.successful_retcode(_solve_result_retcode(result))
 end
 
+@inline function _polyalg_solve_fu_prototype(cache::NonlinearSolvePolyAlgorithmCache)
+    return _polyalg_solve_fu_prototype(first(cache.caches), cache.prob, cache.u0)
+end
+@inline function _polyalg_solve_fu_prototype(subcache, prob, u0)
+    hasfield(typeof(subcache), :fu) && return get_fu(subcache)
+    return Utils.evaluate_f(prob, u0)
+end
+
+# Per-subcache trace sample for InitialFailure / type asserts. Prefer a single
+# typed `caches[i]` access over scanning the heterogeneous tuple (that allocates).
+@inline function _polyalg_solve_subcache_trace(subcache)
+    return hasfield(typeof(subcache), :trace) ? getfield(subcache, :trace) : nothing
+end
+
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
+    # Select `_traceType` from the concrete subcache types at generate time. A NoInit
+    # sibling contributes `Nothing` so the winner's actual `sol.trace` (including
+    # `nothing`) type-checks; stepping-only ladders keep a single concrete type.
+    # Do not iterate `cache.caches` at runtime — heterogeneous tuple iteration allocates.
+    caches_type = fieldtype(cache, :caches)
+    trace_type = Nothing
+    for i in 1:N
+        sub_T = fieldtype(caches_type, i)
+        t_i = hasfield(sub_T, :trace) ? fieldtype(sub_T, :trace) : Nothing
+        trace_type = i == 1 ? t_i : Union{trace_type, t_i}
+    end
     calls = [
         quote
             1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
-            # Compute concrete types from the cache to help inference on Julia 1.10
-            # where the compiler can't track them across branches.
+            # Concrete types for Julia 1.10 inference across generated branches.
             _uType = typeof(cache.u0)
-            _fuType = typeof(NonlinearSolveBase.get_fu(cache.caches[1]))
-            _traceType = typeof(cache.caches[1].trace)
+            _fuType = typeof(_polyalg_solve_fu_prototype(cache))
+            _trace_proto = _polyalg_solve_subcache_trace(cache.caches[1])
+            _traceType = $(trace_type)
         end,
     ]
 
@@ -493,7 +518,7 @@ end
                     cache.prob, cache.alg, u,
                     $(Utils.evaluate_f)(cache.prob, u)::_fuType;
                     cache.retcode, cache.stats,
-                    trace = (cache.caches[1].trace::_traceType),
+                    trace = (_trace_proto::_traceType),
                     cache.alg.store_original
                 )
             end
@@ -522,11 +547,12 @@ end
             else
                 $(u_result_syms[i]) = $(sol_syms[i]).u::_uType
             end
-            fu = NonlinearSolveBase.get_fu($(cache_syms[i]))::_fuType
+            fu = $(sol_syms[i]).resid::_fuType
             return build_solution_less_specialize(
                 cache.prob, cache.alg, $(u_result_syms[i]), fu;
-                retcode = $(sol_syms[i]).retcode, stats,
-                original = $(sol_syms[i]), trace = ($(sol_syms[i]).trace::_traceType),
+                retcode = $(sol_syms[i]).retcode::ReturnCode.T, stats,
+                original = $(sol_syms[i]),
+                trace = ($(sol_syms[i]).trace::_traceType),
                 store_original = cache.alg.store_original
             )
         elseif cache.alias_u0
@@ -577,15 +603,13 @@ end
         )
     end
 
-    resids = map(Base.Fix2(Symbol, :resid), cache_syms)
-    for (sym, resid) in zip(cache_syms, resids)
-        # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
-        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
+    resids = map(Base.Fix2(Symbol, :resid), sol_syms)
+    for (sym, resid) in zip(sol_syms, resids)
+        push!(calls, :($(resid) = @isdefined($(sym)) ? $(sym).resid : nothing))
     end
     push!(
         calls, quote
             fus = Base.tuple($(Tuple(resids)...))
-            # Use findmin_resids directly since fus already contains residual vectors from get_fu
             minfu, idx = findmin_resids(cache.prob, fus)
         end
     )
@@ -594,8 +618,9 @@ end
             calls,
             quote
                 if idx == $(i)
-                    u = cache.alias_u0 ? $(u_result_syms[i]) :
-                        NonlinearSolveBase.get_u(cache.caches[$(i)])
+                    u = cache.alias_u0 ? $(u_result_syms[i]) : $(sol_syms[i]).u
+                    retcode = $(sol_syms[i]).retcode::ReturnCode.T
+                    _trace = $(sol_syms[i]).trace::_traceType
                 end
             end
         )
@@ -603,12 +628,10 @@ end
     push!(
         calls,
         quote
-            retcode = cache.caches[idx].retcode
             if cache.alias_u0
                 copyto!(cache.u0, u)
                 u = cache.u0
             end
-            _trace = cache.caches[idx].trace::_traceType
             return build_solution_less_specialize(
                 cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
                 retcode, cache.stats, trace = _trace,
@@ -947,6 +970,13 @@ function SciMLBase.reinit!(
     cache.prob = SciMLBase.remake(cache.prob; u0, p)
     cache.kwargs = merge(cache.kwargs, kwargs)
     return cache
+end
+
+function InternalAPI.reinit!(
+        cache::NonlinearSolveNoInitCache, args...;
+        u0 = cache.prob.u0, p = cache.prob.p, u = nothing, kwargs...
+    )
+    return SciMLBase.reinit!(cache, u0; p, kwargs...)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolveNoInitCache)
