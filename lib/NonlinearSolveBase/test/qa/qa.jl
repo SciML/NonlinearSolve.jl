@@ -31,7 +31,8 @@ run_qa(
         # API; the main module reaches Base/Core/LinearAlgebra/FunctionWrappers internals).
         # __init / __solve / has_initialization_data dropped here: now public in SciMLBase.
         #   SciMLBase: ChainRulesOriginator, DAEInitializationAlgorithm, EnzymeOriginator,
-        #     NonNumberEltypeError, OverrideInitData, Void, get_root_indp, has_colorvec,
+        #     NonConcreteEltypeError, NonNumberEltypeError, OverrideInitData, Void,
+        #     get_root_indp, has_colorvec,
         #     isdualtype, set_mooncakeoriginator_if_mooncake, specialization
         #   ForwardDiff: Dual, Partials, Tag, can_dual, derivative, gradient, jacobian,
         #     partials, pickchunksize, value
@@ -43,11 +44,13 @@ run_qa(
         #     implicit_sensitivity_solve, nlls_generate_vjp_function, nodual_value,
         #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, normal_form_jacobian!!,
         #     normal_form_workspace, reinit!, restructure,
-        #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse
+        #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse,
+        #     forwarddiff_init, forwarddiff_solve
+        #   SciMLBase: anyeltypedual
         all_qualified_accesses_are_public = (;
             ignore = (
                 :ChainRulesOriginator, :DAEInitializationAlgorithm, :EnzymeOriginator,
-                :NonNumberEltypeError, :OverrideInitData, :Void,
+                :NonConcreteEltypeError, :NonNumberEltypeError, :OverrideInitData, :Void,
                 :get_root_indp, :has_colorvec, :isdualtype,
                 :set_mooncakeoriginator_if_mooncake, :specialization,
                 :Dual, :Partials, :Tag, :can_dual, :derivative, :gradient, :jacobian,
@@ -60,6 +63,7 @@ run_qa(
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
                 :sparse_or_structured_prototype, :structural_sparse,
+                :anyeltypedual, :forwarddiff_init, :forwarddiff_solve,
             ),
         ),
         # Still non-public in their owning packages. AbstractODEIntegrator / __init /
