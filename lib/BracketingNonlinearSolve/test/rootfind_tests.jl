@@ -10,3 +10,4 @@
 @safetestset "Brent: one evaluation per point, and the minimum step" include("rootfind_tests__item10.jl")
 @safetestset "NewtonBisection" include("rootfind_tests__item11.jl")
 @safetestset "NewtonBisection at multiple roots" include("rootfind_tests__item12.jl")
+@safetestset "NewtonBisection with automatic differentiation" include("rootfind_tests__item13.jl")

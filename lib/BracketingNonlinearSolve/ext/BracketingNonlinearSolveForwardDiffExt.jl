@@ -1,6 +1,7 @@
 module BracketingNonlinearSolveForwardDiffExt
 
 using CommonSolve: CommonSolve
+using DifferentiationInterface: DifferentiationInterface as DI
 using ForwardDiff: ForwardDiff, Dual, Partials
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearFunction, IntervalNonlinearProblem
@@ -76,6 +77,15 @@ end
 # Using the same Dual tag T as the tspan avoids introducing a foreign tag that would
 # conflict with the caller's type system (e.g. ODE interpolant buffers typed for T).
 
+# Differentiating `f_stripped` itself would nest the new tag inside the Duals that `f`
+# closes over, which `ForwardDiff.value` then strips in the wrong order; so the derivative
+# is taken of `f` and stripped afterwards.
+autodiff_jac(alg, f) = nothing
+function autodiff_jac(alg::NewtonBisection, f)
+    alg.autodiff === nothing && return nothing
+    return (t, p) -> ForwardDiff.value(DI.derivative(s -> f(s, p), alg.autodiff, t))
+end
+
 const DualTspanIntervalNonlinearProblem{
     T,
     V,
@@ -94,7 +104,7 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisecti
         f_orig = prob.f
         f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
         jac_stripped = SciMLBase.has_jac(f_orig) ?
-            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : nothing
+            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : autodiff_jac(alg, f_orig)
         newf = IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped)
         newprob = IntervalNonlinearProblem{false}(newf, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
