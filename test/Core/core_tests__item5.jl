@@ -52,3 +52,19 @@ for alias_u0 in (false, true), presolve in (false, true)
     @test sol.u ≈ ref.u
     @test sol.resid ≈ ref.resid
 end
+
+# Without aliasing, an unattempted subcache's `init` residual can be the smallest one and
+# win the fallback, returning its stale `u` instead of the attempted cache's iterate.
+let
+    alg = NonlinearSolvePolyAlgorithm((Broyden(), NewtonRaphson()); start_index = 2)
+    kw = (;
+        maxiters = 1, abstol = 1.0e-14, reltol = 1.0e-14,
+        termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)),
+    )
+    cache = init(NonlinearProblem(sq_resid!, [0.2], 1.0), alg; kw...)
+    reinit!(cache, [0.1])
+    sol = solve!(cache)
+    ref = solve(NonlinearProblem(sq_resid!, [0.1], 1.0), alg; kw...)
+    @test sol.u ≈ ref.u
+    @test sol.resid ≈ ref.resid
+end
