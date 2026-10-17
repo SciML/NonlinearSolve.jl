@@ -22,7 +22,10 @@ problem and solution objects.
 """
 module InternalAPI
 
+    using Compat: @compat
     using SciMLBase: NLStats
+
+    @compat(public, (forwarddiff_solve, forwarddiff_init))
 
     function init end
     function solve! end

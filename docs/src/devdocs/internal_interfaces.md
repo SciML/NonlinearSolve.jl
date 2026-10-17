@@ -11,6 +11,16 @@ NonlinearSolveBase
 NonlinearSolveBase.InternalAPI
 ```
 
+### ForwardDiff Interception
+
+Solver entry points use these hooks to handle problems carrying ForwardDiff duals before
+dispatching to an algorithm implementation.
+
+```@docs
+NonlinearSolveBase.InternalAPI.forwarddiff_solve
+NonlinearSolveBase.InternalAPI.forwarddiff_init
+```
+
 ## Problem Concretization
 
 ```@docs

@@ -2,6 +2,18 @@ using SciMLTesting, NonlinearSolveBase, Test
 using NonlinearSolveBase: AbstractNonlinearProblem, NonlinearProblem, SciMLBase
 import ForwardDiff, SparseArrays
 
+@testset "ForwardDiff interception API" begin
+    @static if VERSION >= v"1.11"
+        for name in (:forwarddiff_solve, :forwarddiff_init)
+            @test Base.ispublic(NonlinearSolveBase.InternalAPI, name)
+        end
+    end
+    run_api_docs(
+        NonlinearSolveBase.InternalAPI;
+        docs_src = joinpath(@__DIR__, "../../../../docs/src"),
+    )
+end
+
 
 run_qa(
     NonlinearSolveBase;
@@ -45,7 +57,6 @@ run_qa(
         #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, normal_form_jacobian!!,
         #     normal_form_workspace, reinit!, restructure,
         #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse,
-        #     forwarddiff_init, forwarddiff_solve
         #   SciMLBase: anyeltypedual
         all_qualified_accesses_are_public = (;
             ignore = (
@@ -63,7 +74,7 @@ run_qa(
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
                 :sparse_or_structured_prototype, :structural_sparse,
-                :anyeltypedual, :forwarddiff_init, :forwarddiff_solve,
+                :anyeltypedual,
             ),
         ),
         # Still non-public in their owning packages. AbstractODEIntegrator / __init /
