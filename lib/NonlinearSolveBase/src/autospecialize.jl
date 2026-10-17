@@ -160,6 +160,7 @@ Enzyme cannot differentiate through FunctionWrappers' `llvmcall`, so
 """
 _uses_enzyme_ad(::ADTypes.AutoEnzyme) = true
 _uses_enzyme_ad(ad::AutoSparse) = _uses_enzyme_ad(ADTypes.dense_ad(ad))
+_uses_enzyme_ad(ad::AutoForwardFromPrimitive) = _uses_enzyme_ad(ad.backend)
 _uses_enzyme_ad(_) = false
 
 """

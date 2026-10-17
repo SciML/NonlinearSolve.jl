@@ -372,6 +372,10 @@ run_tests(;
 
         @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
 
+        @safetestset "DescentResult parameter prefix dispatch" include(
+            "descent_result_dispatch.jl"
+        )
+
         @safetestset "Jacobian and restructure allocation fast paths" include(
             "allocation_fastpaths.jl"
         )
@@ -398,6 +402,7 @@ run_tests(;
         @safetestset "Non-finite objective protective break" include(
             "nonfinite_objective.jl"
         )
+        @safetestset "Moré λ update keeps its type" include("more_update_lambda.jl")
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"

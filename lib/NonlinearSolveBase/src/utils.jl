@@ -5,6 +5,7 @@ using ConcreteStructs: @concrete
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, Diagonal, Symmetric, norm, dot, cond, diagind, pinv
 using MaybeInplace: @bb
+using ReactantCore: ReactantCore
 using RecursiveArrayTools: AbstractVectorOfArray, ArrayPartition, recursivecopy!
 using SciMLOperators: AbstractSciMLOperator
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NonlinearFunction
@@ -217,7 +218,7 @@ function evaluate_f(prob::AbstractNonlinearProblem{<:Any, true}, u)
 end
 
 function evaluate_f!(cache, u, p)
-    cache.stats.nf += 1
+    ReactantCore.within_compile() || (cache.stats.nf += 1)
     return if SciMLBase.isinplace(cache)
         cache.prob.f(NonlinearSolveBase.get_fu(cache), u, p)
     else
@@ -282,8 +283,11 @@ function linsolve_workspace(A::AbstractMatrix)
 end
 
 # scalar analog of the default solver's least-squares rescue: a singular (zero) entry
-# inverts to zero instead of Inf
-safe_inv(x::Number) = iszero(x) ? zero(inv(x)) : inv(x)
+# inverts to zero instead of Inf. `ifelse` keeps a single path when `iszero(x)` is traced.
+function safe_inv(x::Number)
+    x_safe = ifelse(iszero(x), one(x), x)
+    return ifelse(iszero(x), zero(one(x) / one(x)), one(x) / x_safe)
+end
 
 linsolve_identity!!(workspace, x::Number) = safe_inv(x)
 function linsolve_identity!!(workspace, A::Diagonal)
@@ -312,7 +316,20 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     # arrays that cannot use the cached matrix-RHS solve stay on their native `pinv`.
     if workspace === nothing
         workspace, workspace_A = linsolve_workspace(A)
-        workspace === nothing && return pinv(workspace_A)
+        if workspace === nothing
+            # Traced arrays report `!fast_scalar_indexing` and `pinv` is not traceable.
+            # LinearSolve's Reactant overlay runs the default host algorithm on the
+            # matrix RHS, so the singular rescue matches the workspace path. Writing
+            # into `workspace_A` keeps the buffer that `@trace if` callers carry.
+            if ReactantCore.within_compile()
+                rhs = similar(workspace_A)
+                rhs .= axes(workspace_A, 1) .== axes(workspace_A, 2)'
+                X = SciMLBase.solve(SciMLBase.LinearProblem(workspace_A, rhs)).u
+                workspace_A .= X
+                return workspace_A
+            end
+            return pinv(workspace_A)
+        end
     end
     # the previous solve may have consumed the RHS buffer, so refill it with I. The
     # lincache call copies A into its internal buffer before overwriting the solution
@@ -328,8 +345,10 @@ function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
 end
 function initial_jacobian_scaling_alpha(::Nothing, u, fu, internalnorm::F) where {F}
     fu_norm = internalnorm(fu)
-    fu_norm < 1.0e-5 && return initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
-    return (2 * fu_norm) / max(L2_NORM(u), true)
+    α_small = initial_jacobian_scaling_alpha(true, u, fu, internalnorm)
+    α_large = (2 * fu_norm) / max(L2_NORM(u), true)
+    # `ifelse` keeps a single path when `fu_norm` is a traced Bool predicate.
+    return ifelse(fu_norm < 1.0e-5, α_small, α_large)
 end
 
 make_identity!!(::T, α) where {T <: Number} = T(α)
