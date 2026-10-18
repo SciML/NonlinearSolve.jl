@@ -83,6 +83,7 @@ end
 autodiff_jac(alg, f) = nothing
 function autodiff_jac(alg::NewtonBisection, f)
     alg.autodiff === nothing && return nothing
+    DI.check_available(alg.autodiff) || return nothing
     return (t, p) -> ForwardDiff.value(DI.derivative(s -> f(s, p), alg.autodiff, t))
 end
 
