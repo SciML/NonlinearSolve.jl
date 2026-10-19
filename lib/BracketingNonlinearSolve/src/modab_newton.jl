@@ -21,11 +21,6 @@ function ModABNewton(; autodiff::Union{Nothing, ADTypes.AbstractADType} = nothin
     return ModABNewton(autodiff)
 end
 
-function newton_bisection_midpoint(::ModABNewton, left, right)
-    mid = (left + right) / 2
-    return isinf(mid) ? safe_midpoint(left, right) : mid
-end
-
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::ModABNewton, args...;
         maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
@@ -35,6 +30,8 @@ function SciMLBase.__solve(
     left, right = minmax(promote(prob.tspan...)...)
     fun = interval_derivative(prob, alg, left)
     fl, fr = value(fun, left), value(fun, right)
+    isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
+    isnan(fr) && return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.Failure)
 
     abstol = NonlinearSolveBase.get_tolerance(
         left, abstol, promote_type(eltype(left), eltype(right))
@@ -62,8 +59,9 @@ function SciMLBase.__solve(
             retcode = nextfloat(left) == right ? ReturnCode.FloatingPointLimit : ReturnCode.Success
             return newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
         end
-        mid = newton_bisection_midpoint(alg, left, right)
+        mid = newton_bisection_midpoint(left, right)
         fm = value(fun, mid)
+        isnan(fm) && return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Failure)
         iszero(fm) && return build_exact_solution(prob, alg, mid, fm, ReturnCode.Success)
         # ModAB's test: f at the midpoint is close to the chord
         chord = (fl + fr) / 2

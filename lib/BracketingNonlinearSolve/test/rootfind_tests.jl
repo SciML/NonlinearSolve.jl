@@ -13,3 +13,5 @@
 @safetestset "NewtonBisection with automatic differentiation" include("rootfind_tests__item13.jl")
 @safetestset "ModABNewton" include("rootfind_tests__item14.jl")
 @safetestset "ModABNewton finite brackets across scales" include("rootfind_tests__item15.jl")
+@safetestset "Newton safeguards and undefined residuals" include("rootfind_tests__item16.jl")
+@safetestset "Interval wrapper inference and allocations" include("rootfind_tests__item17.jl")

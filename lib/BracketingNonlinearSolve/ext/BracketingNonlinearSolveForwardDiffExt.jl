@@ -77,13 +77,28 @@ end
 # Using the same Dual tag T as the tspan avoids introducing a foreign tag that would
 # conflict with the caller's type system (e.g. ODE interpolant buffers typed for T).
 
+struct StrippedJacobian{F}
+    f::F
+end
+(jac::StrippedJacobian)(t, p) = ForwardDiff.value(jac.f(t, p))
+SciMLBase.isinplace(::StrippedJacobian, args...; kwargs...) = false
+
 # Differentiating `f_stripped` itself would nest the new tag inside the Duals that `f`
 # closes over, which `ForwardDiff.value` then strips in the wrong order; so the derivative
 # is taken of `f` and stripped afterwards.
-autodiff_jac(alg, f) = nothing
-function autodiff_jac(alg::Union{NewtonBisection, ModABNewton}, f)
+function autodiff_jac(alg, f)
     alg.autodiff === nothing && return nothing
-    return (t, p) -> ForwardDiff.value(DI.derivative(s -> f(s, p), alg.autodiff, t))
+    DI.check_available(alg.autodiff) || throw(
+        ArgumentError("The automatic differentiation backend $(alg.autodiff) is not available. Load its package, for example `using ForwardDiff`.")
+    )
+    return StrippedJacobian((t, p) -> DI.derivative(s -> f(s, p), alg.autodiff, t))
+end
+
+stripped_function(alg, f) = (t, p) -> ForwardDiff.value(f(t, p))
+function stripped_function(alg::Union{NewtonBisection, ModABNewton}, f)
+    f_stripped(t, p) = ForwardDiff.value(f(t, p))
+    jac = SciMLBase.has_jac(f) ? StrippedJacobian(f.jac) : autodiff_jac(alg, f)
+    return IntervalNonlinearFunction{false}(f_stripped; jac)
 end
 
 const DualTspanIntervalNonlinearProblem{
@@ -102,10 +117,7 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisecti
         # Strip Duals from tspan and f returns (and its derivative) for the solver
         tspan = (ForwardDiff.value(prob.tspan[1]), ForwardDiff.value(prob.tspan[2]))
         f_orig = prob.f
-        f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
-        jac_stripped = SciMLBase.has_jac(f_orig) ?
-            (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : autodiff_jac(alg, f_orig)
-        newf = IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped)
+        newf = stripped_function(alg, f_orig)
         newprob = IntervalNonlinearProblem{false}(newf, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
 

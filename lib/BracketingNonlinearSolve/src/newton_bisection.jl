@@ -42,7 +42,10 @@ function NewtonBisection(; autodiff::Union{Nothing, ADTypes.AbstractADType} = no
     return NewtonBisection(autodiff)
 end
 
-newton_bisection_midpoint(::NewtonBisection, left, right) = (left + right) / 2
+function newton_bisection_midpoint(left, right)
+    mid = (left + right) / 2
+    return isinf(mid) ? safe_midpoint(left, right) : mid
+end
 
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::NewtonBisection, args...;
@@ -65,12 +68,14 @@ function newton_bisection(prob, alg, fun, left, right; maxiters, abstol, verbose
 
     # The derivative is always evaluated right after `f`, at the same point.
     fl, dfl = value_then_derivative(fun, left)
+    isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
     if iszero(fl)
         return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
     dfl = derivative_after(fun, left, dfl)
 
     fr, dfr = value_then_derivative(fun, right)
+    isnan(fr) && return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.Failure)
     if iszero(fr)
         return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
@@ -127,11 +132,12 @@ function newton_bisection_steps(prob, alg, fun, left, right, fl, fr, x, fx, dfx,
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
-            t = newton_bisection_midpoint(alg, left, right)
+            t = newton_bisection_midpoint(left, right)
         end
         older_step, last_step = last_step, abs(t - x)
 
         ft, dft = value_then_derivative(fun, t)
+        isnan(ft) && return build_bracketing_solution(prob, alg, t, ft, left, right, ReturnCode.Failure)
         iszero(ft) && return build_exact_solution(prob, alg, t, ft, ReturnCode.Success)
         was_left = x == left
         if sign(ft) == sign(fl)

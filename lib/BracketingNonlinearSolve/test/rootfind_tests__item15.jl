@@ -2,7 +2,7 @@ using BracketingNonlinearSolve
 using ADTypes: AutoForwardDiff
 using ForwardDiff
 
-@testset "ModABNewton finite brackets across scales" begin
+@testset "$constructor finite brackets across scales" for constructor in (ModABNewton, NewtonBisection)
     @testset "$T, $bounds, sign=$s, reverse=$reversed, mode=$mode" for T in (Float32, Float64),
             (bounds, root) in (
                 ((T(1.0e0), T(1.7e0)), T(1.5e0)),
@@ -14,12 +14,13 @@ using ForwardDiff
             ), s in (-one(T), one(T)), reversed in (false, true), mode in (:jac, :ad, :zero_jac)
         inside = Ref(true)
         f = function (x, p)
-            inside[] &= isfinite(x) && bounds[1] <= x <= bounds[2]
+            # Dual comparisons also order the derivative seed at equal primal values.
+            inside[] &= isfinite(x) && bounds[1] <= ForwardDiff.value(x) <= bounds[2]
             return bounds[1] < 0 < bounds[2] ? s * (x / 2 - root / 2) : s * (x - root)
         end
         df = (x, p) -> mode === :zero_jac ? zero(x) : (bounds[1] < 0 < bounds[2] ? s / 2 : s)
         fun = mode === :ad ? IntervalNonlinearFunction(f) : IntervalNonlinearFunction(f; jac = df)
-        alg = mode === :ad ? ModABNewton(; autodiff = AutoForwardDiff()) : ModABNewton()
+        alg = mode === :ad ? constructor(; autodiff = AutoForwardDiff()) : constructor()
         prob = IntervalNonlinearProblem(fun, reversed ? reverse(bounds) : bounds)
         sol = solve(prob, alg; abstol = zero(T))
         @test inside[]
@@ -32,7 +33,7 @@ using ForwardDiff
     @testset "Large decimal endpoints, mode=$mode" for mode in (:jac, :ad)
         f = (x, p) -> x - 1.5e308
         fun = mode === :jac ? IntervalNonlinearFunction(f; jac = (x, p) -> 1.0) : IntervalNonlinearFunction(f)
-        alg = mode === :jac ? ModABNewton() : ModABNewton(; autodiff = AutoForwardDiff())
+        alg = mode === :jac ? constructor() : constructor(; autodiff = AutoForwardDiff())
         sol = solve(IntervalNonlinearProblem(fun, (1.0e308, 1.7e308)), alg; abstol = 0.0)
         @test sol.retcode == ReturnCode.Success
         @test sol.u == 1.5e308
