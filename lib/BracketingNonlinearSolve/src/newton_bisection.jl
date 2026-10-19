@@ -42,6 +42,8 @@ function NewtonBisection(; autodiff::Union{Nothing, ADTypes.AbstractADType} = no
     return NewtonBisection(autodiff)
 end
 
+newton_bisection_midpoint(::NewtonBisection, left, right) = (left + right) / 2
+
 function SciMLBase.__solve(
         prob::IntervalNonlinearProblem, alg::NewtonBisection, args...;
         maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
@@ -125,7 +127,7 @@ function newton_bisection_steps(prob, alg, fun, left, right, fl, fr, x, fx, dfx,
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
-            t = (left + right) / 2
+            t = newton_bisection_midpoint(alg, left, right)
         end
         older_step, last_step = last_step, abs(t - x)
 
