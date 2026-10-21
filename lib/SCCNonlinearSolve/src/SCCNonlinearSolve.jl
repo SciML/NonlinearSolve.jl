@@ -5,6 +5,7 @@ import CommonSolve
 import NonlinearSolveBase
 import SymbolicIndexingInterface
 import SciMLBase: NonlinearProblem, NonlinearLeastSquaresProblem, LinearProblem
+using SciMLPublic: @public
 
 """
     SCCAlg(; nlalg = nothing, linalg = nothing, store_original = Val(false))
@@ -90,8 +91,17 @@ function CommonSolve.init(
         probs = copyto!(similar(prob.probs), probs)
     end
     concrete_prob = SciMLBase.remake(prob; probs)
-    return SCCNonlinearCache(concrete_prob, alg, kwargs, Any[], 1)
+    return SCCNonlinearCache(concrete_prob, alg, kwargs, __scc_fresh_sols(concrete_prob.probs), 1)
 end
+
+# An empty, per-block solution container in exactly the representation the driver
+# builds up to: a growing `Tuple` for tuple-form blocks, or a concretely-`Vector{ST}`-
+# typed vector (via `__scc_vector_sol_type`) for vector-form blocks. `view`s of the
+# latter, even with zero elements so far, type-match what `solve_single_scc` passes a
+# block's `explicitfuns!` during a full `solve`, which matters for e.g. tuple-typed or
+# `FunctionWrappers`-typed `explicitfuns!`.
+__scc_fresh_sols(probs::Tuple) = ()
+__scc_fresh_sols(probs::AbstractVector) = Vector{__scc_vector_sol_type(probs)}()
 
 """
 Internal solve function that can be hooked by ChainRulesCore for AD.
@@ -161,18 +171,25 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
-function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
-    # Compute the stripped solution type deterministically from the first problem.
-    # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+# The stripped solution type produced by solving any block of `probs`, deterministic
+# from the first problem: after `strip_solution`, all `NonlinearSolution`s have a
+# predictable concrete type regardless of the original problem/algorithm types. Shared
+# by the vector-form driver below and `SCCNonlinearCache` (`init`/`step!`/`reinit!`), so
+# both always agree with each other and with however many type parameters
+# `SciMLBase.NonlinearSolution` currently has.
+function __scc_vector_sol_type(probs::AbstractVector)
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
+    return SciMLBase.NonlinearSolution{
         T, 1, uType, rType,
         NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
     }
+end
+
+function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
+    ST = __scc_vector_sol_type(probs)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
@@ -265,34 +282,44 @@ Cache returned by `init(prob::SCCNonlinearProblem, alg)`. An `SCCNonlinearProble
 solves as an ordered sequence of block solves rather than through a single mutable
 nonlinear solver state, so this cache tracks progress through that sequence
 (which blocks are solved, and their solutions so far) instead of wrapping one
-solver's internal iterate.
+solver's internal iterate. `cache.sols` holds the per-block solutions recorded so
+far, in the *same* container representation `solve` itself builds up internally
+(a growing `Tuple` for tuple-form blocks; a concretely-typed, growing `Vector` for
+vector-form blocks) — `length(cache.sols)` is the number of blocks solved so far,
+and `cache.sols[i]`/indexing into it works exactly as the `sols` argument that a
+block's own `explicitfuns!` receives.
 
 ### Interface
 
   - `step!(cache)` solves the next unsolved block: it applies that block's
-    `explicitfuns!` against the solutions of every previously solved block
-    (exactly as `solve` does) and records the result. Calling `step!` on a
-    cache with no remaining blocks is a no-op.
+    `explicitfuns!` against the solutions of every previously solved block, in
+    the exact representation (tuple, or typed vector view) that `solve` itself
+    passes, and records the result. Calling `step!` on a cache with no
+    remaining blocks is a no-op.
   - `solve!(cache)` solves every remaining block and returns the same
     `NonlinearSolution` that `solve(prob, alg)` returns: identical `u`, `resid`,
-    and `retcode`. This holds whether `solve!` is called right after `init`
-    (no blocks solved yet), after some number of `step!` calls, or after
-    stepping to completion — `solve!` never redoes a block `step!` already
-    solved.
-  - `SciMLBase.reinit!(cache)` discards every block's recorded solution and
-    rewinds `step!`/`solve!` progress back to the first block, so the same
-    cache can be solved again from scratch. It does not accept new `u0`/`p`;
-    `init` a new cache for a different `SCCNonlinearProblem`.
+    `retcode`, and (with `store_original = Val(true)`) `original` container
+    type. This holds whether `solve!` is called right after `init` (no blocks
+    solved yet), after some number of `step!` calls, after stepping to
+    completion, or repeated again afterward — `solve!` never redoes a block
+    `step!`/a prior `solve!` already solved, and repeated calls keep returning
+    the same completed solution.
+  - `SciMLBase.reinit!(cache, u0 = missing; p = missing)` discards every
+    block's recorded solution and rewinds `step!`/`solve!` progress back to the
+    first block. If `u0`/`p` are given, the underlying `SCCNonlinearProblem` is
+    first `remake`d with them (see that method's docstring for how `u0`/`p`
+    are chunked and distributed across blocks, and the `parameters_alias`
+    requirement on `p`) before resetting progress on the updated problem.
 
 Does not support symbolic indexing or state access mid-solve (consistent with
 `SteadyStateDiffEq.jl`'s analogous `SteadyStateSCCCache`, which has the same
 block-sequential structure and the same limitation).
 """
 mutable struct SCCNonlinearCache{P, A, K}
-    const prob::P
+    prob::P
     const alg::A
     const kwargs::K
-    const sols::Vector{Any}
+    sols
     idx::Int
 end
 
@@ -300,44 +327,71 @@ function SciMLBase.step!(cache::SCCNonlinearCache, args...; kwargs...)
     probs = cache.prob.probs
     cache.idx > length(probs) && return cache
     i = cache.idx
+    sols_so_far = probs isa Tuple ? cache.sols : view(cache.sols, 1:(i - 1))
     _sol = solve_single_scc(
-        cache.alg, probs[i], cache.prob.explicitfuns![i], cache.sols;
+        cache.alg, probs[i], cache.prob.explicitfuns![i], sols_so_far;
         cache.kwargs..., kwargs...
     )
-    push!(cache.sols, _sol)
+    if probs isa Tuple
+        cache.sols = (cache.sols..., _sol)
+    else
+        push!(cache.sols, _sol)
+    end
     cache.idx += 1
     return cache
 end
 
 function CommonSolve.solve!(cache::SCCNonlinearCache)
+    probs = cache.prob.probs
     if cache.idx == 1 && isempty(cache.sols)
-        # No stepping has happened yet: delegate to the same driver `solve(prob,
-        # alg)` uses (the `@generated` Cartesian unrolling for a `Tuple` of
-        # blocks, in particular, is more specialized than looping `step!`), so
-        # performance and results are identical to a direct `solve`.
-        sol = _scc_solve(cache.prob, cache.alg; cache.kwargs...)
-        cache.idx = length(cache.prob.probs) + 1
-        return sol
+        # No stepping has happened yet: build the per-block solutions with the same
+        # driver `solve(prob, alg)` uses (the `@generated` Cartesian unrolling for a
+        # `Tuple` of blocks, in particular, is more specialized than looping `step!`),
+        # so performance and results are identical to a direct `solve`. Retained on
+        # the cache so a *second* `solve!` (or a completion no-op `step!` followed by
+        # `solve!`) recombines the real solutions instead of an empty history.
+        sols = if probs isa Tuple
+            iteratively_build_sols(cache.alg, probs, Tuple(cache.prob.explicitfuns!), Val(length(probs)); cache.kwargs...)
+        else
+            iteratively_build_sols(cache.alg, probs, cache.prob.explicitfuns!; cache.kwargs...)
+        end
+        cache.sols = sols
+        cache.idx = length(probs) + 1
+        return __scc_combine_sols(cache.prob, cache.alg, sols)
     end
-    while cache.idx <= length(cache.prob.probs)
+    while cache.idx <= length(probs)
         SciMLBase.step!(cache)
     end
-    return __scc_combine_sols(cache.prob, cache.alg, Tuple(cache.sols))
+    return __scc_combine_sols(cache.prob, cache.alg, cache.sols)
 end
 
 """
-    SciMLBase.reinit!(cache::SCCNonlinearCache)
+    SciMLBase.reinit!(cache::SCCNonlinearCache, u0 = missing; p = missing)
 
-Reset `cache` to its freshly-`init`ialized state: discards every block's
-recorded solution and rewinds `step!`/`solve!` progress back to the first
-block. See [`SCCNonlinearCache`](@ref).
+Reset `cache` to an `init`-fresh state: discards every block's recorded
+solution and rewinds `step!`/`solve!` progress back to the first block.
+
+If `u0` and/or `p` are given (anything other than the default `missing`), the
+underlying `SCCNonlinearProblem` is first replaced with
+`SciMLBase.remake(cache.prob; u0, p)` — `u0` is the whole-problem state vector,
+chunked and distributed across blocks; `p` updates every block's parameters,
+and requires the problem's `parameters_alias` to be `true` (see
+`remake(::SCCNonlinearProblem)`'s docstring) — before progress is reset on the
+updated problem. Omitting both resets progress on the current problem
+unchanged.
 """
-function SciMLBase.reinit!(cache::SCCNonlinearCache)
-    empty!(cache.sols)
+function SciMLBase.reinit!(
+        cache::SCCNonlinearCache, u0 = missing; p = missing
+    )
+    if u0 !== missing || p !== missing
+        cache.prob = SciMLBase.remake(cache.prob; u0, p)
+    end
+    cache.sols = __scc_fresh_sols(cache.prob.probs)
     cache.idx = 1
     return cache
 end
 
 export scc_solve_up
+@public SCCNonlinearCache
 
 end
