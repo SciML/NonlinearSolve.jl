@@ -42,6 +42,19 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, ::Nothing; kwarg
     return CommonSolve.solve(prob; kwargs...)
 end
 
+# `SCCNonlinearProblem` solves as an ordered sequence of block solves, not through a
+# single mutable cache, so there is nothing to `init` and `step!` partway through;
+# only `solve` is supported. Without this, `init` falls through to
+# `NonlinearSolveBase`'s generic pipeline, which assumes a `kwargs` field that
+# `SCCNonlinearProblem` does not have and raises an opaque `FieldError`.
+function CommonSolve.init(prob::SciMLBase.SCCNonlinearProblem, args...; kwargs...)
+    throw(
+        ArgumentError(
+            "init is not supported for SCCNonlinearProblem; use solve instead."
+        )
+    )
+end
+
 function CommonSolve.solve(
         prob::SciMLBase.SCCNonlinearProblem,
         alg::SciMLBase.AbstractNonlinearAlgorithm;
