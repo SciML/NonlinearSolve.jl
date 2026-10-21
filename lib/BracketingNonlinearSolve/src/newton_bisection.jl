@@ -30,6 +30,8 @@ reuse the same expensive computation.
 """
 struct NewtonBisection <: AbstractBracketingAlgorithm end
 
+floating_bracket(tspan) = minmax(float.(promote(tspan...))...)
+
 function newton_bisection_midpoint(left, right)
     mid = (left + right) / 2
     return isinf(mid) ? safe_midpoint(left, right) : mid
@@ -49,7 +51,7 @@ function SciMLBase.__solve(
 
     f = Base.Fix2(prob.f, prob.p)
     df = Base.Fix2(prob.f.jac, prob.p)
-    left, right = minmax(promote(prob.tspan...)...)
+    left, right = floating_bracket(prob.tspan)
 
     abstol = NonlinearSolveBase.get_tolerance(
         left, abstol, promote_type(eltype(left), eltype(right))
