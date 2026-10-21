@@ -42,6 +42,8 @@ function NewtonBisection(; autodiff::Union{Nothing, ADTypes.AbstractADType} = no
     return NewtonBisection(autodiff)
 end
 
+floating_bracket(tspan) = minmax(float.(promote(tspan...))...)
+
 function newton_bisection_midpoint(left, right)
     mid = (left + right) / 2
     return isinf(mid) ? safe_midpoint(left, right) : mid
@@ -53,7 +55,7 @@ function SciMLBase.__solve(
     )
     @assert !SciMLBase.isinplace(prob) "`NewtonBisection` only supports out-of-place problems."
 
-    left, right = minmax(promote(prob.tspan...)...)
+    left, right = floating_bracket(prob.tspan)
     return newton_bisection(
         prob, alg, interval_derivative(prob, alg, left), left, right;
         maxiters, abstol, verbose
