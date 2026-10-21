@@ -27,7 +27,7 @@ function SciMLBase.__solve(
     )
     @assert !SciMLBase.isinplace(prob) "`ModABNewton` only supports out-of-place problems."
 
-    left, right = minmax(promote(prob.tspan...)...)
+    left, right = floating_bracket(prob.tspan)
     fun = interval_derivative(prob, alg, left)
     fl, fr = value(fun, left), value(fun, right)
     isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
