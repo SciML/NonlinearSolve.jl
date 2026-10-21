@@ -19,8 +19,21 @@ NonlinearSolveBase.get_concrete_problem
 
 ## SCC Interface
 
+`init(prob::SCCNonlinearProblem, alg)`/`init(prob::SCCNonlinearProblem)` return an
+`SCCNonlinearCache` instead of eagerly solving. `step!` solves one block at a time
+(applying its `explicitfuns!` against every previously solved block's solution,
+exactly as `solve` does); `solve!` solves every remaining block and returns the same
+`NonlinearSolution` that `solve(prob, alg)` returns, whether called right after
+`init`, after some number of `step!` calls, or after stepping to completion.
+`SciMLBase.reinit!` discards every block's recorded solution and rewinds back to the
+first block. This mirrors `SteadyStateDiffEq.jl`'s `SteadyStateSCCCache` for the
+analogous case of a `SteadyStateProblem` whose `lowered_problem` is an
+`SCCNonlinearProblem`.
+
 ```@docs
 SCCNonlinearSolve.scc_solve_up
+SCCNonlinearSolve.SCCNonlinearCache
+SciMLBase.reinit!(::SCCNonlinearSolve.SCCNonlinearCache)
 ```
 
 ## Solvers

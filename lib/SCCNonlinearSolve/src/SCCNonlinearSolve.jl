@@ -42,19 +42,6 @@ function CommonSolve.solve(prob::SciMLBase.SCCNonlinearProblem, ::Nothing; kwarg
     return CommonSolve.solve(prob; kwargs...)
 end
 
-# `SCCNonlinearProblem` solves as an ordered sequence of block solves, not through a
-# single mutable cache, so there is nothing to `init` and `step!` partway through;
-# only `solve` is supported. Without this, `init` falls through to
-# `NonlinearSolveBase`'s generic pipeline, which assumes a `kwargs` field that
-# `SCCNonlinearProblem` does not have and raises an opaque `FieldError`.
-function CommonSolve.init(prob::SciMLBase.SCCNonlinearProblem, args...; kwargs...)
-    throw(
-        ArgumentError(
-            "init is not supported for SCCNonlinearProblem; use solve instead."
-        )
-    )
-end
-
 function CommonSolve.solve(
         prob::SciMLBase.SCCNonlinearProblem,
         alg::SciMLBase.AbstractNonlinearAlgorithm;
@@ -71,6 +58,39 @@ function CommonSolve.solve(
     # The u0 parameter here is only used for AD hooks, not for actual solving.
     p = p !== nothing ? p : prob.p
     return scc_solve_up(prob, sensealg, u0, p, alg; kwargs...)
+end
+
+function CommonSolve.init(
+        prob::SciMLBase.SCCNonlinearProblem; sensealg = nothing, u0 = nothing,
+        p = nothing, kwargs...
+    )
+    return CommonSolve.init(prob, SCCAlg(); sensealg, u0, p, kwargs...)
+end
+
+function CommonSolve.init(prob::SciMLBase.SCCNonlinearProblem, ::Nothing; kwargs...)
+    return CommonSolve.init(prob; kwargs...)
+end
+
+function CommonSolve.init(
+        prob::SciMLBase.SCCNonlinearProblem,
+        alg::SciMLBase.AbstractNonlinearAlgorithm;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
+    return CommonSolve.init(prob, SCCAlg(; nlalg = alg); sensealg, u0, p, kwargs...)
+end
+
+function CommonSolve.init(
+        prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg;
+        sensealg = nothing, u0 = nothing, p = nothing, kwargs...
+    )
+    probs = map(_concrete_scc_problem, prob.probs)
+    # Keep the caller's container eltype so homogeneous and heterogeneous
+    # block vectors share one `_scc_solve`/`step!` instance, matching `scc_solve_up`.
+    if probs isa AbstractVector && all(Base.Fix2(isa, eltype(prob.probs)), probs)
+        probs = copyto!(similar(prob.probs), probs)
+    end
+    concrete_prob = SciMLBase.remake(prob; probs)
+    return SCCNonlinearCache(concrete_prob, alg, kwargs, Any[], 1)
 end
 
 """
@@ -197,18 +217,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
     return iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)
 end
 
-"""
-Internal solve implementation for SCCNonlinearProblem.
-This is called by scc_solve_up and should NOT be hooked by ChainRulesCore.
-"""
-function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
-    numscc = length(prob.probs)
-    if prob.probs isa Tuple
-        sols = iteratively_build_sols(alg, prob.probs, Tuple(prob.explicitfuns!), Val(numscc); kwargs...)
-    else
-        sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!; kwargs...)
-    end
-
+# Combines the per-block solutions `sols` (in SCC order) into the single
+# `NonlinearSolution` that `solve`/`solve!` return. Shared by `_scc_solve` (the
+# all-at-once path) and `SCCNonlinearCache`'s `solve!` (the stepped path), so the
+# two can only disagree if `solve_single_scc` itself is nondeterministic.
+function __scc_combine_sols(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg, sols)
     # Use splatted vcat instead of reduce (reduce over tuples infers Any,
     # which exceeds Enzyme's type analysis limits).
     u = vcat(map(s -> s.u, sols)...)
@@ -229,6 +242,100 @@ function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     # Enzyme's type analysis depth, so it's off by default.
     original = alg.store_original isa Val{true} ? sols : nothing
     return SciMLBase.build_solution(prob, alg, u, resid; retcode, original)
+end
+
+"""
+Internal solve implementation for SCCNonlinearProblem.
+This is called by scc_solve_up and should NOT be hooked by ChainRulesCore.
+"""
+function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
+    numscc = length(prob.probs)
+    if prob.probs isa Tuple
+        sols = iteratively_build_sols(alg, prob.probs, Tuple(prob.explicitfuns!), Val(numscc); kwargs...)
+    else
+        sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!; kwargs...)
+    end
+    return __scc_combine_sols(prob, alg, sols)
+end
+
+"""
+    SCCNonlinearCache
+
+Cache returned by `init(prob::SCCNonlinearProblem, alg)`. An `SCCNonlinearProblem`
+solves as an ordered sequence of block solves rather than through a single mutable
+nonlinear solver state, so this cache tracks progress through that sequence
+(which blocks are solved, and their solutions so far) instead of wrapping one
+solver's internal iterate.
+
+### Interface
+
+  - `step!(cache)` solves the next unsolved block: it applies that block's
+    `explicitfuns!` against the solutions of every previously solved block
+    (exactly as `solve` does) and records the result. Calling `step!` on a
+    cache with no remaining blocks is a no-op.
+  - `solve!(cache)` solves every remaining block and returns the same
+    `NonlinearSolution` that `solve(prob, alg)` returns: identical `u`, `resid`,
+    and `retcode`. This holds whether `solve!` is called right after `init`
+    (no blocks solved yet), after some number of `step!` calls, or after
+    stepping to completion — `solve!` never redoes a block `step!` already
+    solved.
+  - `SciMLBase.reinit!(cache)` discards every block's recorded solution and
+    rewinds `step!`/`solve!` progress back to the first block, so the same
+    cache can be solved again from scratch. It does not accept new `u0`/`p`;
+    `init` a new cache for a different `SCCNonlinearProblem`.
+
+Does not support symbolic indexing or state access mid-solve (consistent with
+`SteadyStateDiffEq.jl`'s analogous `SteadyStateSCCCache`, which has the same
+block-sequential structure and the same limitation).
+"""
+mutable struct SCCNonlinearCache{P, A, K}
+    const prob::P
+    const alg::A
+    const kwargs::K
+    const sols::Vector{Any}
+    idx::Int
+end
+
+function SciMLBase.step!(cache::SCCNonlinearCache, args...; kwargs...)
+    probs = cache.prob.probs
+    cache.idx > length(probs) && return cache
+    i = cache.idx
+    _sol = solve_single_scc(
+        cache.alg, probs[i], cache.prob.explicitfuns![i], cache.sols;
+        cache.kwargs..., kwargs...
+    )
+    push!(cache.sols, _sol)
+    cache.idx += 1
+    return cache
+end
+
+function CommonSolve.solve!(cache::SCCNonlinearCache)
+    if cache.idx == 1 && isempty(cache.sols)
+        # No stepping has happened yet: delegate to the same driver `solve(prob,
+        # alg)` uses (the `@generated` Cartesian unrolling for a `Tuple` of
+        # blocks, in particular, is more specialized than looping `step!`), so
+        # performance and results are identical to a direct `solve`.
+        sol = _scc_solve(cache.prob, cache.alg; cache.kwargs...)
+        cache.idx = length(cache.prob.probs) + 1
+        return sol
+    end
+    while cache.idx <= length(cache.prob.probs)
+        SciMLBase.step!(cache)
+    end
+    return __scc_combine_sols(cache.prob, cache.alg, Tuple(cache.sols))
+end
+
+"""
+    SciMLBase.reinit!(cache::SCCNonlinearCache)
+
+Reset `cache` to its freshly-`init`ialized state: discards every block's
+recorded solution and rewinds `step!`/`solve!` progress back to the first
+block. See [`SCCNonlinearCache`](@ref).
+"""
+function SciMLBase.reinit!(cache::SCCNonlinearCache)
+    empty!(cache.sols)
+    cache.idx = 1
+    return cache
 end
 
 export scc_solve_up
