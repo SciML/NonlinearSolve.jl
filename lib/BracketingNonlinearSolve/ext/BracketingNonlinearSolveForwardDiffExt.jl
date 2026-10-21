@@ -7,7 +7,7 @@ using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_
 using SciMLBase: SciMLBase, IntervalNonlinearFunction, IntervalNonlinearProblem
 
 using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB,
-    NewtonBisection
+    NewtonBisection, ModABNewton
 
 const DualIntervalNonlinearProblem{
     T,
@@ -17,7 +17,7 @@ const DualIntervalNonlinearProblem{
     uType, iip, <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {uType, iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection, ModABNewton)
     @eval function CommonSolve.solve(
             prob::DualIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
@@ -45,7 +45,7 @@ const DualBothIntervalNonlinearProblem{
     <:Union{<:Dual{T, V, P}, <:AbstractArray{<:Dual{T, V, P}}},
 } where {iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection, ModABNewton)
     @eval function CommonSolve.solve(
             prob::DualBothIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...
@@ -95,7 +95,7 @@ function autodiff_jac(alg, f)
 end
 
 stripped_function(alg, f) = (t, p) -> ForwardDiff.value(f(t, p))
-function stripped_function(alg::NewtonBisection, f)
+function stripped_function(alg::Union{NewtonBisection, ModABNewton}, f)
     f_stripped(t, p) = ForwardDiff.value(f(t, p))
     jac = SciMLBase.has_jac(f) ? StrippedJacobian(f.jac) : autodiff_jac(alg, f)
     return IntervalNonlinearFunction{false}(f_stripped; jac)
@@ -109,7 +109,7 @@ const DualTspanIntervalNonlinearProblem{
     iip, <:Tuple{Dual{T, V, P}, Dual{T, V, P}},
 } where {iip}
 
-for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection)
+for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisection, ModABNewton)
     @eval function CommonSolve.solve(
             prob::DualTspanIntervalNonlinearProblem{T, V, P}, alg::$(algT), args...;
             kwargs...

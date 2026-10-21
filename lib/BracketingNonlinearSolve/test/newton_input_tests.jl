@@ -2,7 +2,7 @@ using BracketingNonlinearSolve, ForwardDiff
 using ADTypes: AutoForwardDiff
 
 @testset "Integer brackets" begin
-    @testset "$constructor, bounds=$bounds, abstol=$tol, mode=$mode" for constructor in (NewtonBisection,),
+    @testset "$constructor, bounds=$bounds, abstol=$tol, mode=$mode" for constructor in (NewtonBisection, ModABNewton),
             bounds in ((1, 20), (20, 1), (-20, -1), (-1, -20)), tol in (nothing, 0.0), mode in (:jac, :ad)
         fun = mode === :jac ? IntervalNonlinearFunction((x, p) -> x * x - p; jac = (x, p) -> 2x) : IntervalNonlinearFunction((x, p) -> x * x - p)
         alg = mode === :jac ? constructor() : constructor(; autodiff = AutoForwardDiff())
