@@ -22,9 +22,12 @@ Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is dis
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED
-        return Expr(
-            :macrocall, GlobalRef(TimerOutputs, Symbol("@timeit")), __source__,
-            esc(to), esc(name), esc(expr)
+        expr = expr isa Expr ? expr : Expr(:block, expr)
+        return esc(
+            Expr(
+                :macrocall, GlobalRef(TimerOutputs, Symbol("@timeit")), __source__,
+                to, name, expr
+            )
         )
     else
         return esc(expr)
