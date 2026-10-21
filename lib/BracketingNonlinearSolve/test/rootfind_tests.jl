@@ -12,3 +12,4 @@
 @safetestset "NewtonBisection at multiple roots" include("rootfind_tests__item12.jl")
 @safetestset "Newton safeguards and undefined residuals" include("newton_safeguard_tests.jl")
 @safetestset "NewtonBisection finite brackets across scales" include("newton_scale_tests.jl")
+@safetestset "Interval wrapper inference and allocations" include("interval_wrapper_tests.jl")

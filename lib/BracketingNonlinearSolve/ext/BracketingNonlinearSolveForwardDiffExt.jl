@@ -95,7 +95,8 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisecti
         f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
         jac_stripped = SciMLBase.has_jac(f_orig) ?
             (t, p) -> ForwardDiff.value(f_orig.jac(t, p)) : nothing
-        newf = IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped)
+        newf = alg isa NewtonBisection ?
+            IntervalNonlinearFunction{false}(f_stripped; jac = jac_stripped) : f_stripped
         newprob = IntervalNonlinearProblem{false}(newf, tspan, prob.p; prob.kwargs...)
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
 
