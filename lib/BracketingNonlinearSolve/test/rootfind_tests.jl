@@ -11,3 +11,5 @@
 @safetestset "NewtonBisection" include("rootfind_tests__item11.jl")
 @safetestset "NewtonBisection at multiple roots" include("rootfind_tests__item12.jl")
 @safetestset "NewtonBisection with automatic differentiation" include("rootfind_tests__item13.jl")
+@safetestset "Newton safeguards and undefined residuals" include("newton_safeguard_tests.jl")
+@safetestset "NewtonBisection finite brackets across scales" include("newton_scale_tests.jl")
