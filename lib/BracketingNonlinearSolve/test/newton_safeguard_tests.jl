@@ -55,7 +55,7 @@ end
 end
 
 @testset "Undefined residual preserves the enclosing bracket" begin
-    @testset "$alg, reverse=$rev, point=$bad" for alg in (NewtonBisection(),),
+    @testset "$alg, reverse=$rev, point=$bad" for alg in (NewtonBisection(), ModABNewton()),
             rev in (false, true), bad in (0.0, 1.0, 0.5, 0.75)
         root = 0.875
         f(x, p) = x == bad ? NaN : x - root
@@ -71,8 +71,25 @@ end
         @test (sol.left, sol.right) == (rev ? reverse(expected) : expected)
         @test min(sol.left, sol.right) <= root <= max(sol.left, sol.right)
     end
+    @testset "ModAB bisection before handoff" begin
+        calls = Float64[]
+        derivatives = Float64[]
+        f(x, p) = (push!(calls, x); x == 0.75 ? NaN : (x - 0.875)^3)
+        df(x, p) = (push!(derivatives, x); 0.0)
+        sol = solve(
+            IntervalNonlinearProblem(IntervalNonlinearFunction(f; jac = df), (0.0, 1.0)),
+            ModABNewton(); abstol = 0.0
+        )
+        @test calls == [0.0, 1.0, 0.5, 0.75]
+        @test isempty(derivatives)
+        @test sol.retcode == ReturnCode.Failure
+        @test sol.u == 0.75
+        @test isnan(sol.resid)
+        @test (sol.left, sol.right) == (0.5, 1.0)
+        @test sol.left <= 0.875 <= sol.right
+    end
     @testset "AD residual, $alg" for alg in (
-            NewtonBisection(; autodiff = AutoForwardDiff()),
+            NewtonBisection(; autodiff = AutoForwardDiff()), ModABNewton(; autodiff = AutoForwardDiff()),
         )
         f(x, p) = ForwardDiff.value(x) == 0.5 ? oftype(x, NaN) : 3x^2 - 2x^3 - 0.84375
         sol = solve(IntervalNonlinearProblem(f, (0.0, 1.0)), alg; abstol = 0.0)
@@ -83,7 +100,7 @@ end
 end
 
 @testset "Unavailable derivative backend, $alg, dual=$dual" for alg in (
-            NewtonBisection(; autodiff = AutoEnzyme()),
+            NewtonBisection(; autodiff = AutoEnzyme()), ModABNewton(; autodiff = AutoEnzyme()),
         ), dual in (false, true)
     bounds = dual ? (ForwardDiff.Dual(1.0, 0.0), ForwardDiff.Dual(2.0, 0.0)) : (1.0, 2.0)
     @test_throws ArgumentError solve(IntervalNonlinearProblem((x, p) -> x^2 - 2, bounds), alg)

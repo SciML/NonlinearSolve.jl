@@ -7,7 +7,7 @@ The method bisects, without derivatives, until `f` looks linear on the bracket b
 test, then switches to Newton's method safeguarded by bisection. The derivative is the `jac`
 of the `IntervalNonlinearFunction` when it has one, otherwise it comes from automatic
 differentiation with the `autodiff` backend, for example `AutoForwardDiff()` after
-`using ForwardDiff`. Without either it is an error.
+`using ADTypes: AutoForwardDiff` and `using ForwardDiff`. Without either it is an error.
 
 Derivatives are only used near the root, where Newton's method converges quadratically, so
 the method needs fewer evaluations of `f'` than `NewtonBisection`, and falls back to plain

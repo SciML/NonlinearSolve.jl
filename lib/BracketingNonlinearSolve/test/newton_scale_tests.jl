@@ -2,7 +2,7 @@ using BracketingNonlinearSolve
 using ADTypes: AutoForwardDiff
 using ForwardDiff
 
-@testset "$constructor finite brackets across scales" for constructor in (NewtonBisection,)
+@testset "$constructor finite brackets across scales" for constructor in (ModABNewton, NewtonBisection)
     @testset "$T, $bounds, sign=$s, reverse=$reversed, mode=$mode" for T in (Float32, Float64),
             (bounds, root) in (
                 ((T(1.0e0), T(1.7e0)), T(1.5e0)),
