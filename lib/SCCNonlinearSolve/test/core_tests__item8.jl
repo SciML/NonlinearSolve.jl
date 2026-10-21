@@ -4,12 +4,6 @@ include("setup_corerootfindtesting.jl")
 using NonlinearSolveFirstOrder
 using FunctionWrappers: FunctionWrapper
 
-# `SCCNonlinearProblem` has no `u0`/`kwargs` field, so `init` previously fell through to
-# `NonlinearSolveBase`'s generic pipeline and raised an opaque `FieldError` (see
-# core_tests__item8.jl history / SciML/NonlinearSolve.jl#1382 for the error-only version
-# this replaces). `init` now returns an `SCCNonlinearCache` instead, mirroring
-# `SteadyStateDiffEq.jl`'s `SteadyStateSCCCache` for the analogous SCC-lowered
-# `SteadyStateProblem` case.
 function manual_scc_problem()
     function f1(du, u, p)
         du[1] = cos(u[2]) - u[1]
@@ -121,8 +115,6 @@ end
     @test isempty(cache.sols)
     @test solve!(cache).u == sol_direct.u
 
-    # `reinit!` after a full `solve!` (which internally advances the cache to
-    # completion) also resets cleanly.
     @test solve!(cache).u == sol_direct.u
     SciMLBase.reinit!(cache)
     @test isempty(cache.sols)
@@ -152,7 +144,7 @@ end
         step!(cache2)
     end
     stepped_sol = solve!(cache2)
-    step!(cache2) # no-op: already past the last block
+    step!(cache2)
     @test solve!(cache2).u == stepped_sol.u == sol_direct.u
 end
 
