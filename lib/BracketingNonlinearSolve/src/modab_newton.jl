@@ -74,6 +74,10 @@ function SciMLBase.__solve(
         end
         if linear && !newton_bisection_done(left, right, abstol)
             x, fx = abs(fl) <= abs(fr) ? (left, fl) : (right, fr)
+            # A user Jacobian may reuse work from the preceding residual evaluation.
+            if fun isa UserDerivative && x != mid
+                value(fun, x)
+            end
             return newton_bisection_steps(
                 prob, alg, fun, left, right, fl, fr, x, fx, derivative(fun, x), abstol,
                 maxiters - i

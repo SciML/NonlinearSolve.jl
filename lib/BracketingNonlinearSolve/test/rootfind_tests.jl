@@ -15,3 +15,4 @@
 @safetestset "Safeguarded Newton finite brackets across scales" include("newton_scale_tests.jl")
 @safetestset "Interval wrapper inference and allocations" include("interval_wrapper_tests.jl")
 @safetestset "ModABNewton" include("rootfind_tests__item14.jl")
+@safetestset "ModABNewton cached Jacobian handoff" include("modab_newton_cache_tests.jl")
