@@ -1,8 +1,9 @@
 using BracketingNonlinearSolve, ForwardDiff
+using ADTypes: AutoForwardDiff, AutoEnzyme
 
 @testset "Safeguarded Newton brackets across scales" begin
     @testset "$T, sign=$sgn, reverse=$rev, mode=$mode" for T in (Float32, Float64),
-            sgn in (-one(T), one(T)), rev in (false, true), mode in (:jac, :zero_jac)
+            sgn in (-one(T), one(T)), rev in (false, true), mode in (:jac, :ad, :zero_jac)
         a = ldexp(T(1.25), exponent(floatmax(T)))
         b = ldexp(T(1.75), exponent(floatmax(T)))
         r = T(3) / 8
@@ -21,8 +22,8 @@ using BracketingNonlinearSolve, ForwardDiff
         reference = setprecision(256) do
             sgn * (BigFloat(a) + BigFloat(r) * (BigFloat(b) - BigFloat(a)))
         end
-        fun = IntervalNonlinearFunction(f; jac = df)
-        alg = NewtonBisection()
+        fun = mode === :ad ? IntervalNonlinearFunction(f) : IntervalNonlinearFunction(f; jac = df)
+        alg = mode === :ad ? NewtonBisection(; autodiff = AutoForwardDiff()) : NewtonBisection()
         sol = solve(IntervalNonlinearProblem(fun, rev ? (hi, lo) : (lo, hi)), alg; abstol = zero(T))
         left, right = minmax(sol.left, sol.right)
         @test inside[]
@@ -70,4 +71,20 @@ end
         @test (sol.left, sol.right) == (rev ? reverse(expected) : expected)
         @test min(sol.left, sol.right) <= root <= max(sol.left, sol.right)
     end
+    @testset "AD residual, $alg" for alg in (
+            NewtonBisection(; autodiff = AutoForwardDiff()),
+        )
+        f(x, p) = ForwardDiff.value(x) == 0.5 ? oftype(x, NaN) : 3x^2 - 2x^3 - 0.84375
+        sol = solve(IntervalNonlinearProblem(f, (0.0, 1.0)), alg; abstol = 0.0)
+        @test sol.retcode == ReturnCode.Failure
+        @test (sol.left, sol.right) == (0.0, 1.0)
+        @test sol.left <= 0.75 <= sol.right
+    end
+end
+
+@testset "Unavailable derivative backend, $alg, dual=$dual" for alg in (
+            NewtonBisection(; autodiff = AutoEnzyme()),
+        ), dual in (false, true)
+    bounds = dual ? (ForwardDiff.Dual(1.0, 0.0), ForwardDiff.Dual(2.0, 0.0)) : (1.0, 2.0)
+    @test_throws ArgumentError solve(IntervalNonlinearProblem((x, p) -> x^2 - 2, bounds), alg)
 end

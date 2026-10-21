@@ -12,7 +12,7 @@ sol = solve(prob, NewtonBisection())
 ```
 
 Otherwise it comes from automatic differentiation with the `autodiff` backend, for example
-`NewtonBisection(; autodiff = AutoForwardDiff())` after `using ForwardDiff`, which gives `f`
+`NewtonBisection(; autodiff = AutoForwardDiff())` after `using ADTypes: AutoForwardDiff` and `using ForwardDiff`, which gives `f`
 and its derivative together in one evaluation. Without `jac` and without `autodiff` it is
 an error: with automatic differentiation the method is often slower than [`ModAB`](@ref),
 see below.
