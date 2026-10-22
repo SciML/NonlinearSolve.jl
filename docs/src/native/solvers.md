@@ -142,16 +142,43 @@ of a Jacobian relative to the cost of a nonlinear step; see
 
 The same policy works with `TrustRegion`, `GaussNewton`, `LevenbergMarquardt`, and
 `PseudoTransient`. Damped descents (`LevenbergMarquardt`, `PseudoTransient`) rebuild their
-damped system every step, so reuse saves only the Jacobian evaluation there. Matrix-free
-Jacobian operators are rebound to the current iterate on every step, so the policy has no
-effect on them. Rejected trust-region steps keep a fresh Jacobian because the nonlinear
-state did not change; a rejected step based on stale Jacobian information requests a
-refresh.
+damped system every step, so reuse saves only the Jacobian evaluation there. Rejected
+trust-region steps keep a fresh Jacobian because the nonlinear state did not change; a
+rejected step based on stale Jacobian information requests a refresh.
 
-The policy is local to one nonlinear cache lifecycle and is reset by `reinit!`. An explicit
+A matrix-free Jacobian operator is rebound to the current iterate on every step, so each
+step stays an exact Newton step. What an explicit policy retains there is the
+preconditioner (the `precs` of a `KrylovJL` solver), which is rebuilt only when the policy
+refreshes. The size-based default and a matrix-free solve without `precs` leave the solve
+untouched.
+
+By default the policy is local to one solve and `reinit!` resets it. A sequence of related
+solves, such as the correctors of a continuation, can instead keep the Jacobian, its
+factorization and the preconditioner:
+
+```julia
+cache = init(prob, NewtonRaphson(jacobian_reuse = true))
+solve!(cache)
+reinit!(cache, u0_next; p = p_next, reuse_jacobian = true)
+solve!(cache)
+```
+
+The Jacobian's age continues counting across the `reinit!`, so `max_age` still bounds how
+many accepted steps it serves in total, and the contraction of the first step is measured
+against the new initial residual. A stale Jacobian that fails a linear solve or line
+search is refreshed as usual. The keyword needs a policy that reuses (it is a no-op for
+exact Newton) and is forwarded to every sub-cache of a polyalgorithm. An explicit
 `step!(cache; recompute_jacobian = true/false)` always takes precedence, so an outer solver
 that manages its own Jacobian lifecycle (such as OrdinaryDiffEq's nonlinear solvers) is
 unaffected.
+
+Quasi-Newton methods (`Broyden`, `Klement`, `LimitedMemoryBroyden`) have no reuse policy;
+their Jacobian (or inverse, or low-rank history) is updated by secant steps instead.
+`reinit!(cache, u0; reuse_jacobian = true)` keeps that updated approximation, so the first
+step of the next solve skips the initialization (no new Jacobian evaluation for
+`init_jacobian = Val(:true_jacobian)`). Refreshes then follow the method's own reset
+rule (`NoChangeInStateReset`, `IllConditionedJacobianReset`), `max_resets`, and a failed
+linear solve. Spectral methods keep no Jacobian and ignore the keyword.
 
 ## [Forcing Term Strategies](@id forcing_strategies)
 
