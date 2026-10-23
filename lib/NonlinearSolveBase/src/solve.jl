@@ -603,7 +603,7 @@ end
     push!(
         calls,
         quote
-            retcode = cache.caches[idx].retcode
+            retcode = cache.caches[idx].retcode::ReturnCode.T
             if cache.alias_u0
                 copyto!(cache.u0, u)
                 u = cache.u0
@@ -720,7 +720,7 @@ end
                 if current == $(i)
                     if alias_u0
                         copyto!(u0_aliased, u0)
-                        $(prob_syms[i]) = SciMLBase.remake(prob; u0 = u0_aliased)
+                        $(prob_syms[i]) = @set prob.u0 = u0_aliased
                     else
                         $(prob_syms[i]) = prob
                     end

@@ -41,7 +41,8 @@ run_qa(
         #     condition_number, get_raw_f, get_u, linsolve_workspace,
         #     is_extension_loaded, make_sparse, maybe_symmetric, init_similar_array!!,
         #     implicit_sensitivity_solve, nlls_generate_vjp_function, nodual_value,
-        #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, reinit!, restructure,
+        #     nonlinearsolve_∂f_∂p, nonlinearsolve_∂f_∂u, normal_form_jacobian!!,
+        #     normal_form_workspace, reinit!, restructure,
         #     safe_reshape, safe_similar, sparse_or_structured_prototype, structural_sparse
         all_qualified_accesses_are_public = (;
             ignore = (
@@ -55,7 +56,7 @@ run_qa(
                 :get_raw_f, :get_u, :linsolve_workspace, :is_extension_loaded,
                 :make_sparse, :init_similar_array!!,
                 :maybe_symmetric, :implicit_sensitivity_solve, :nlls_generate_vjp_function,
-                :nodual_value,
+                :nodual_value, :normal_form_jacobian!!, :normal_form_workspace,
                 Symbol("nonlinearsolve_∂f_∂p"), Symbol("nonlinearsolve_∂f_∂u"),
                 :reinit!, :restructure, :safe_reshape, :safe_similar,
                 :sparse_or_structured_prototype, :structural_sparse,
