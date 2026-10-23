@@ -169,3 +169,21 @@ NonlinearSolveBase.get_reltol
 NonlinearSolveBase.AbstractNonlinearTerminationMode
 NonlinearSolveBase.AbstractSafeNonlinearTerminationMode
 ```
+
+## Gradient Stationarity
+
+A local least-squares minimizer satisfies ``J^\top F = 0``, not ``F = 0``, so a residual
+test alone cannot certify convergence on a problem whose residual is nonzero at the
+optimum. The condition is first order, so saddle points and maxima of ``\|F\|^2`` satisfy
+it too. These implement the scale-free stationarity criterion that can, and the hook a
+solver package calls to apply it. The criterion is reached through the `gtol` option on the
+safe termination modes: it is set by default for `NonlinearLeastSquaresProblem` and left
+unset for `NonlinearProblem`.
+
+```@docs
+NonlinearSolveBase.gradient_stationarity_measure
+NonlinearSolveBase.gradient_measure_supported
+NonlinearSolveBase.gradient_stationarity_reached
+NonlinearSolveBase.check_gradient_and_update!
+NonlinearSolveBase.default_gradient_tolerance
+```
