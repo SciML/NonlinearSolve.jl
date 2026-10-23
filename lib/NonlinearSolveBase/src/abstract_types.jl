@@ -22,7 +22,10 @@ problem and solution objects.
 """
 module InternalAPI
 
+    using Compat: @compat
     using SciMLBase: NLStats
+
+    @compat(public, (forwarddiff_solve, forwarddiff_init))
 
     function init end
     function solve! end
@@ -47,6 +50,27 @@ module InternalAPI
         stats.njacs = 0
         return stats.nsolve = 0
     end
+
+    """
+        forwarddiff_solve(prob, args...; kwargs...) -> Union{NonlinearSolution, Nothing}
+
+    Intercept hook invoked from `solve_call` before `__solve` dispatch. AD extensions
+    specialize this to handle problems carrying their number type (e.g.
+    `ForwardDiff.Dual`) in `u0`, `p`, or `tspan` when the type-based
+    `DualAbstractNonlinearProblem` dispatch does not apply — for example duals nested
+    inside a structured parameter object. Returns `nothing` to fall through to the
+    standard solve path.
+    """
+    forwarddiff_solve(args...; kwargs...) = nothing
+
+    """
+        forwarddiff_init(prob, args...; kwargs...) -> Union{AbstractNonlinearSolveCache, Nothing}
+
+    `init`-path counterpart of [`forwarddiff_solve`](@ref). Extensions return a stepping
+    cache wrapping the primal solve (e.g. `NonlinearSolveForwardDiffCache`), or `nothing`
+    to fall through to standard dispatch.
+    """
+    forwarddiff_init(args...; kwargs...) = nothing
 
 end
 
