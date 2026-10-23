@@ -21,6 +21,7 @@ module NonlinearSolveSpectralMethods
 using ConcreteStructs: @concrete
 using Reexport: @reexport
 using PrecompileTools: @compile_workload, @setup_workload
+using ReactantCore: ReactantCore
 
 using CommonSolve: CommonSolve
 using LineSearch: RobustNonMonotoneLineSearch

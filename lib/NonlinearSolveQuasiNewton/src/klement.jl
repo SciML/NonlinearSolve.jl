@@ -117,6 +117,20 @@ function InternalAPI.solve!(
         cache::KlementUpdateRuleCache, J::Diagonal, fu, u, du; kwargs...
     )
     T = eltype(u)
+    # Under Reactant, mutate the diagonal in place and keep the same `Diagonal`
+    # wrapper (`set_mlir_data!` on a replaced `Diagonal` is broken). Host path
+    # reconstructs `Diagonal` as before so StaticArrays stay allocation-compatible.
+    if ReactantCore.within_compile() && ArrayInterface.can_setindex(J.diag)
+        D = Utils.restructure(u, J.diag)
+        @bb @. cache.Jdu = (D^2) * (du^2)
+        @bb @. D += (
+            (fu - cache.fu_cache - D * du) /
+                ifelse(iszero(cache.Jdu), T(1.0e-5), cache.Jdu)
+        ) * du * (D^2)
+        D === J.diag || copyto!(J.diag, vec(D))
+        @bb copyto!(cache.fu_cache, fu)
+        return J
+    end
     J = Utils.restructure(u, diag(J))
     @bb @. cache.Jdu = (J^2) * (du^2)
     @bb @. J += (
