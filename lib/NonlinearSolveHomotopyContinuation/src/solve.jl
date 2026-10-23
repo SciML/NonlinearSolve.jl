@@ -57,9 +57,9 @@ function homotopy_continuation_preprocessing(
 end
 
 function CommonSolve.solve(
-        prob::NonlinearProblem, alg::HomotopyContinuationJL{true};
+        prob::NonlinearProblem, alg::HomotopyContinuationJL{true, ComplexRoots};
         denominator_abstol = 1.0e-7, kwargs...
-    )
+    ) where {ComplexRoots}
     f, hcsys = homotopy_continuation_preprocessing(prob, alg)
 
     u0 = state_values(prob)
@@ -67,28 +67,34 @@ function CommonSolve.solve(
     isscalar = u0 isa Number
 
     orig_sol = HC.solve(hcsys; alg.kwargs..., kwargs...)
-    realsols = HC.results(orig_sol; only_real = true)
-    # no real solutions
+    only_real_roots = ComplexRoots === Val{false}
+    realsols = HC.results(orig_sol; only_real = only_real_roots)
+    # no solutions
     if isempty(realsols)
         retcode = SciMLBase.ReturnCode.ConvergenceFailure
         resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
         nlsol = SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
         return SciMLBase.EnsembleSolution([nlsol], 0.0, false, nothing)
     end
-    T = eltype(u0)
+    T = if ComplexRoots === Val{false}
+        eltype(u0)
+    else
+        promote_type(eltype(u0), Complex{real(eltype(u0))})
+    end
     validsols = isscalar ? T[] : Vector{T}[]
     for result in realsols
         # ignore ones which make the denominator zero
-        real_u = real.(result.solution)
+        test_u = ComplexRoots === Val{false} ? real.(result.solution) : result.solution
         if isscalar
-            real_u = only(real_u)
+            test_u = only(test_u)
         end
-        if any(<=(denominator_abstol) ∘ abs, f.denominator(real_u, p))
+        if any(<=(denominator_abstol) ∘ abs, f.denominator(test_u, p))
             continue
         end
-        # unpack solutions and make them real
+        # unpack solutions
         u = isscalar ? only(result.solution) : result.solution
-        unpolysols = f.unpolynomialize(real.(u), p)
+        u_for_unpolynom = ComplexRoots === Val{false} ? real.(u) : u
+        unpolysols = f.unpolynomialize(u_for_unpolynom, p)
         for sol in unpolysols
             any(isnan, sol) && continue
             push!(validsols, sol)
@@ -112,9 +118,9 @@ function CommonSolve.solve(
 end
 
 function CommonSolve.solve(
-        prob::NonlinearProblem, alg::HomotopyContinuationJL{false};
+        prob::NonlinearProblem, alg::HomotopyContinuationJL{false, ComplexRoots};
         denominator_abstol = 1.0e-7, kwargs...
-    )
+    ) where {ComplexRoots}
     f, hcsys = homotopy_continuation_preprocessing(prob, alg)
 
     u0 = state_values(prob)
@@ -127,14 +133,21 @@ function CommonSolve.solve(
     orig_sol = HC.solve(
         homotopy, u0_p isa Number ? [[u0_p]] : [u0_p]; alg.kwargs..., kwargs...
     )
-    realsols = map(res -> res.solution, HC.results(orig_sol; only_real = true))
+    only_real_roots = ComplexRoots === Val{false}
+    realsols = map(res -> res.solution, HC.results(orig_sol; only_real = only_real_roots))
     if u0 isa Number
         realsols = map(only, realsols)
     end
 
-    # no real solutions or infeasible solution
+    # no solutions or infeasible solution
     if isempty(realsols) ||
-            any(<=(denominator_abstol), map(abs, f.denominator(real.(only(realsols)), p)))
+            any(
+            <=(denominator_abstol), map(
+                abs, f.denominator(
+                    ComplexRoots === Val{false} ? real.(only(realsols)) : only(realsols), p
+                )
+            )
+        )
         retcode = if isempty(realsols)
             SciMLBase.ReturnCode.ConvergenceFailure
         else
@@ -144,14 +157,14 @@ function CommonSolve.solve(
         return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
     end
 
-    realsol = real(only(realsols))
+    realsol = ComplexRoots === Val{false} ? real(only(realsols)) : only(realsols)
     T = eltype(u0)
     validsols = f.unpolynomialize(realsol, p)
     _, idx = findmin(validsols) do sol
         any(isnan, sol) ? Inf : norm(sol - u0_p)
     end
 
-    u = map(real, validsols[idx])
+    u = ComplexRoots === Val{false} ? map(real, validsols[idx]) : validsols[idx]
 
     if any(isnan, u)
         retcode = SciMLBase.ReturnCode.Infeasible
