@@ -395,6 +395,12 @@ run_tests(;
         )
         @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
         @safetestset "construct_extension_jac scalar and matrix u0" include("extension_jac.jl")
+        @safetestset "Jacobian evaluation leaves the residual untouched" include(
+            "jacobian_private_fu.jl"
+        )
+        @safetestset "jacobian_computed_at_construction" include(
+            "jacobian_computed_at_construction.jl"
+        )
         @safetestset "Non-finite objective protective break" include(
             "nonfinite_objective.jl"
         )

@@ -154,7 +154,9 @@ include("forward_diff.jl")
 @compat(public, (solve_call,))
 @compat(public, (nlls_solve_adjoint_dp,))
 @compat(public, (construct_linear_solver, needs_square_A, needs_concrete_A, get_linear_cache))
-@compat(public, (construct_jacobian_cache, reused_jacobian))
+@compat(
+    public, (construct_jacobian_cache, reused_jacobian, jacobian_computed_at_construction)
+)
 @compat(public, (reset_update_rule_state!,))
 @compat(
     public,
