@@ -2,7 +2,7 @@
     Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), linsolve = nothing
     )
 
 An implementation of `Broyden`'s Method [broyden1965class](@cite) with resetting and line
@@ -30,15 +30,18 @@ search.
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
         problem
+  - `linsolve`: the linear solver used for the step when the Jacobian is not stored in
+    inverted form (e.g. with `init_jacobian = Val(:true_jacobian)`). Defaults to `nothing`,
+    which selects LinearSolve's default algorithm.
 """
 function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), linsolve = nothing
     )
     return QuasiNewtonAlgorithm(;
         linesearch,
-        descent = NewtonDescent(),
+        descent = NewtonDescent(; linsolve),
         update_rule = broyden_update_rule(update_rule),
         max_resets,
         initialization = broyden_init(init_jacobian, update_rule, autodiff, alpha),
