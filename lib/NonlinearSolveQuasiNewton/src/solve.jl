@@ -226,7 +226,7 @@ function SciMLBase.__init(
 
         linsolve_workspace,
             J = Utils.unwrap_val(inverted_jac) ?
-            Utils.linsolve_workspace(J) : (nothing, J)
+            Utils.linsolve_workspace(J, linsolve) : (nothing, J)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u;

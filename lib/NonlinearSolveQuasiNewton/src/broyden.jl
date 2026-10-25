@@ -30,9 +30,9 @@ search.
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
         problem
-  - `linsolve`: the linear solver used for the step when the Jacobian is not stored in
-    inverted form (e.g. with `init_jacobian = Val(:true_jacobian)`). Defaults to `nothing`,
-    which selects LinearSolve's default algorithm.
+  - `linsolve`: the linear solver that inverts the Jacobian when the inverse is (re)built,
+    at initialization and at resets. Defaults to `nothing`, which selects LinearSolve's
+    default algorithm (whose rescue also handles a singular Jacobian).
 """
 function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
