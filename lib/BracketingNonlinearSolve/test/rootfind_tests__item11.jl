@@ -16,7 +16,8 @@ for alg in (ModAB(), Bisection(), ITP(), Ridder(), Falsi(), Brent(), Alefeld())
     sol = solve(remake(prob; kwargs = (; verbose = None())), alg)
     @test sol.u === ref.u
 end
-# a non-enclosing bracket with logging off is a quiet failure
+# a non-enclosing bracket warns at the default verbosity and is a quiet failure with logging off
 bad = IntervalNonlinearProblem{false}(f, (2.0, 3.0), 2.0)
-@test_nowarn solve(bad, ModAB(); verbose = None())
+@test_logs (:warn,) match_mode = :any solve(bad, ModAB(); verbose = Standard())
+@test_logs solve(bad, ModAB(); verbose = None())
 @test solve(bad, ModAB(); verbose = None()).retcode == ReturnCode.InitialFailure
