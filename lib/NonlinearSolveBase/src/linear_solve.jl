@@ -58,7 +58,8 @@ matrices.
 
   - `reuse_A_if_factorization`: If `true`, then the factorization of `A` is reused if
     possible. This is useful when solving the same system with different `b` values.
-    If the algorithm is an iterative solver, then we reset the internal linear solve cache.
+    If the algorithm is an iterative solver, then we reset the internal linear solve cache
+    but keep its preconditioner, which is built for the `A` of the last non-reusing call.
 
   - `alias`: A `LinearAliasSpecifier` forwarded to the LinearSolve cache construction, or
     `nothing` (the default) to let the `alias_A_for_refactorization` trait decide:
