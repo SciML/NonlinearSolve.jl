@@ -30,11 +30,13 @@ static_powell(x, p) = SVector{2}(powell(x, p))
 sol_static = solve(NonlinearProblem(static_powell, SVector{2}(x0)), autoscaled(); abstol = 1.0e-10)
 @test sol_static.u ≈ sol_x.u rtol = 1.0e-10
 
-# `autoscale` is a type parameter, so the cache, scaling buffers included, infers concretely
+# `autoscale` is a type parameter, so the scheme's cache, scaling buffers included, infers concretely
+scheme_cache(problem, algorithm) = NonlinearSolveBase.InternalAPI.init(
+    problem, algorithm.trustregion, problem.f, problem.f(problem.u0, problem.p), problem.u0, problem.p;
+    stats = SciMLBase.NLStats(0, 0, 0, 0, 0)
+)
 for scaled in (true, false)
-    algorithm = autoscaled(; autoscale = scaled)
-    problem = NonlinearProblem(powell, x0)
-    @test isconcretetype(Core.Compiler.return_type(SciMLBase.init, Tuple{typeof(problem), typeof(algorithm)}))
+    @inferred scheme_cache(NonlinearProblem(powell, x0), autoscaled(; autoscale = scaled))
 end
 
 # NLsolve's iterates on `x² - 9` from `1`, by hand: `d = 2` and radius `‖d x₀‖ = 2` cut the
