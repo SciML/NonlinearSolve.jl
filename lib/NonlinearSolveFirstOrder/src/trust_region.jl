@@ -70,7 +70,8 @@ function TrustRegion(;
     radius_update_scheme === nothing && (radius_update_scheme = default_scheme)
     trustregion = GenericTrustRegionScheme(;
         method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
-        shrink_factor, expand_factor, initial_trust_radius, max_trust_radius, autoscale
+        shrink_factor, expand_factor, initial_trust_radius, max_trust_radius,
+        autoscale = Val(autoscale)
     )
     return GeneralizedFirstOrderAlgorithm(;
         trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
@@ -326,7 +327,7 @@ const RUS = RadiusUpdateSchemes
         method = RadiusUpdateSchemes.Simple,
         max_trust_radius = nothing, initial_trust_radius = nothing,
         step_threshold = nothing, shrink_threshold = nothing, expand_threshold = nothing,
-        shrink_factor = nothing, expand_factor = nothing, autoscale = false
+        shrink_factor = nothing, expand_factor = nothing, autoscale = Val(false)
     )
 
 Trust Region Method that updates and stores the current trust region radius in
@@ -362,7 +363,7 @@ the value used in the respective paper.
     `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
   - `expand_factor`: the factor to expand the trust region radius with if
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
-  - `autoscale`: measure the trust region and the steps in it as `‖d .* δu‖`, as NLsolve's
+  - `autoscale`: `Val(true)` measures the trust region and the steps in it as `‖d .* δu‖`, as NLsolve's
     `trust_region` does with `autoscale = true`. `d` holds the column norms of the first
     Jacobian (a zero column norm becomes `1`), and each later Jacobian sets
     `dⱼ = max(dⱼ / 10, ‖J[:, j]‖)`. With the default `initial_trust_radius`,
@@ -372,7 +373,7 @@ the value used in the respective paper.
     measure the step with the scaling it was taken under, as MINPACK does. Needs a concrete
     Jacobian and a descent for which
     [`NonlinearSolveBase.supports_trust_region_scaling`](@ref) holds, such as `Dogleg`.
-    Defaults to `false`.
+    A `Val`, so the cache's scaling buffers are part of its type. Defaults to `Val(false)`.
 """
 @kwdef @concrete struct GenericTrustRegionScheme <: AbstractTrustRegionMethod
     method <: RUS.AbstractRadiusUpdateScheme = RUS.Simple
@@ -383,10 +384,12 @@ the value used in the respective paper.
     expand_threshold = nothing
     max_trust_radius = nothing
     initial_trust_radius = nothing
-    autoscale::Bool = false
+    autoscale = Val(false)
 end
 
-requires_trust_region_scaling(alg::GenericTrustRegionScheme) = alg.autoscale
+requires_trust_region_scaling(alg::GenericTrustRegionScheme) = autoscales(alg.autoscale)
+
+autoscales(::Val{A}) where {A} = A::Bool
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f, fu, u, p,
@@ -437,7 +440,7 @@ function InternalAPI.init(
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
 
-    if alg.autoscale
+    if requires_trust_region_scaling(alg)
         @bb scaling = similar(u)
         @bb scaled_cache = similar(u)
         @bb pending_step = similar(u)

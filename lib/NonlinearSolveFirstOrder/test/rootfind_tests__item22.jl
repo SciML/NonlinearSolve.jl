@@ -30,6 +30,13 @@ static_powell(x, p) = SVector{2}(powell(x, p))
 sol_static = solve(NonlinearProblem(static_powell, SVector{2}(x0)), autoscaled(); abstol = 1.0e-10)
 @test sol_static.u ≈ sol_x.u rtol = 1.0e-10
 
+# `autoscale` is a type parameter, so the cache, scaling buffers included, infers concretely
+for scaled in (true, false)
+    algorithm = autoscaled(; autoscale = scaled)
+    problem = NonlinearProblem(powell, x0)
+    @test isconcretetype(Core.Compiler.return_type(SciMLBase.init, Tuple{typeof(problem), typeof(algorithm)}))
+end
+
 # NLsolve's iterates on `x² - 9` from `1`, by hand: `d = 2` and radius `‖d x₀‖ = 2` cut the
 # Newton step `4` to the Cauchy step `1`; at `x = 2` the accepted step rescales to `d = 4`
 # before the radius expands to `2‖d δu‖ = 8`, so the Newton step `1.25` fits and lands on `3.25`
