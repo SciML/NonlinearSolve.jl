@@ -6,7 +6,7 @@
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
-        max_shrink_times::Int = 32,
+        max_shrink_times::Int = 32, autoscale::Bool = false,
         vjp_autodiff = nothing, autodiff = nothing, jvp_autodiff = nothing,
         jacobian_reuse = nothing,
     )
@@ -34,6 +34,10 @@ for large-scale and numerically-difficult nonlinear systems.
     on, or `false` to force it off. Defaults to `nothing`, which reuses the Jacobian when
     `length(u0) ≥ $(JACOBIAN_REUSE_SIZE_CUTOFF)`. A rejected step computed from a fresh
     Jacobian reuses that Jacobian at the unchanged state.
+  - `autoscale`: measure the trust region as `‖d .* δu‖` with `d` the Jacobian's column
+    norms, as NLsolve's `trust_region` does with `autoscale = true`. See
+    [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref). Requires
+    `subproblem = TrustRegionSubproblem.Dogleg`. Defaults to `false`.
 
 For the remaining arguments, see [`NonlinearSolveFirstOrder.GenericTrustRegionScheme`](@ref)
 documentation.
@@ -45,7 +49,7 @@ function TrustRegion(;
         initial_trust_radius::Real = 0 // 1, step_threshold::Real = 1 // 10000,
         shrink_threshold::Real = 1 // 4, expand_threshold::Real = 3 // 4,
         shrink_factor::Real = 1 // 4, expand_factor::Real = 2 // 1,
-        max_shrink_times::Int = 32,
+        max_shrink_times::Int = 32, autoscale::Bool = false,
         autodiff = nothing, vjp_autodiff = nothing, jvp_autodiff = nothing,
         jacobian_reuse = nothing,
     )
@@ -66,7 +70,7 @@ function TrustRegion(;
     radius_update_scheme === nothing && (radius_update_scheme = default_scheme)
     trustregion = GenericTrustRegionScheme(;
         method = radius_update_scheme, step_threshold, shrink_threshold, expand_threshold,
-        shrink_factor, expand_factor, initial_trust_radius, max_trust_radius
+        shrink_factor, expand_factor, initial_trust_radius, max_trust_radius, autoscale
     )
     return GeneralizedFirstOrderAlgorithm(;
         trustregion, descent, autodiff, vjp_autodiff, jvp_autodiff, max_shrink_times,
@@ -322,7 +326,7 @@ const RUS = RadiusUpdateSchemes
         method = RadiusUpdateSchemes.Simple,
         max_trust_radius = nothing, initial_trust_radius = nothing,
         step_threshold = nothing, shrink_threshold = nothing, expand_threshold = nothing,
-        shrink_factor = nothing, expand_factor = nothing
+        shrink_factor = nothing, expand_factor = nothing, autoscale = false
     )
 
 Trust Region Method that updates and stores the current trust region radius in
@@ -358,6 +362,14 @@ the value used in the respective paper.
     `shrink_threshold > r` (with `r` defined in `shrink_threshold`). Defaults to `0.25`.
   - `expand_factor`: the factor to expand the trust region radius with if
     `expand_threshold < r` (with `r` defined in `shrink_threshold`). Defaults to `2.0`.
+  - `autoscale`: measure the trust region and the steps in it as `‖d .* δu‖`, as NLsolve's
+    `trust_region` does with `autoscale = true`. `d` holds the column norms of the first
+    Jacobian (a zero column norm becomes `1`), and each later Jacobian sets
+    `dⱼ = max(dⱼ / 10, ‖J[:, j]‖)`. With the default `initial_trust_radius`,
+    `RadiusUpdateSchemes.NLsolve` and `RadiusUpdateSchemes.More` start from `‖d .* u0‖`
+    (`1` if zero). Needs a concrete Jacobian and a descent for which
+    [`NonlinearSolveBase.supports_trust_region_scaling`](@ref) holds, such as `Dogleg`.
+    Defaults to `false`.
 """
 @kwdef @concrete struct GenericTrustRegionScheme <: AbstractTrustRegionMethod
     method <: RUS.AbstractRadiusUpdateScheme = RUS.Simple
@@ -368,7 +380,10 @@ the value used in the respective paper.
     expand_threshold = nothing
     max_trust_radius = nothing
     initial_trust_radius = nothing
+    autoscale::Bool = false
 end
+
+requires_trust_region_scaling(alg::GenericTrustRegionScheme) = alg.autoscale
 
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::GenericTrustRegionScheme, f, fu, u, p,
@@ -419,10 +434,19 @@ function InternalAPI.init(
     @bb fu_cache = similar(fu)
     @bb Jδu_cache = similar(fu)
 
+    if alg.autoscale
+        @bb scaling = similar(u)
+        @bb scaled_cache = similar(u)
+    else
+        scaling = nothing
+        scaled_cache = nothing
+    end
+
     return GenericTrustRegionSchemeCache(
         alg.method, f, p, mtr, itr, itr, stt, sht, et, shf, ef,
         p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache,
-        δu_cache, internalnorm, u_cache, fu_cache, false, 0, stats, alg
+        δu_cache, internalnorm, u_cache, fu_cache, scaling, scaled_cache, false, false, 0,
+        stats, alg
     )
 end
 
@@ -452,6 +476,9 @@ end
     internalnorm
     u_cache
     fu_cache
+    scaling
+    scaled_cache
+    scaling_initialized::Bool
     last_step_accepted::Bool
     shrink_counter::Int
     stats::NLStats
@@ -483,8 +510,74 @@ function InternalAPI.reinit!(
         end
     end
     cache.last_step_accepted = false
+    cache.scaling_initialized = false
     cache.trust_region = cache.initial_trust_radius
     return cache.shrink_counter = 0
+end
+
+# `‖d .* δu‖` under `autoscale`, else `‖δu‖`
+scaled_step_norm(cache::GenericTrustRegionSchemeCache, δu) =
+    scaled_step_norm(cache, cache.scaling, δu)
+scaled_step_norm(cache::GenericTrustRegionSchemeCache, ::Nothing, δu) = cache.internalnorm(δu)
+function scaled_step_norm(cache::GenericTrustRegionSchemeCache, d, δu)
+    @bb @. cache.scaled_cache = d * δu
+    return cache.internalnorm(cache.scaled_cache)
+end
+
+trust_region_descent_kwargs(cache::GenericTrustRegionSchemeCache) =
+    scaled_descent_kwargs(cache.trust_region, cache.scaling)
+scaled_descent_kwargs(trust_region, ::Nothing) = (; trust_region)
+scaled_descent_kwargs(trust_region, d) = (; trust_region, trust_region_scaling = d)
+
+function update_trust_region_scaling!(
+        cache::GenericTrustRegionSchemeCache, J, fu, u, new_jacobian::Bool
+    )
+    if cache.scaling === nothing || (cache.scaling_initialized && !new_jacobian)
+        return nothing
+    end
+    if cache.scaling_initialized
+        cache.scaling = column_norm_scaling!!(cache.scaling, J, true)
+        return nothing
+    end
+    cache.scaling = column_norm_scaling!!(cache.scaling, J, false)
+    cache.scaling_initialized = true
+    alg = cache.alg
+    if (alg.initial_trust_radius === nothing || iszero(alg.initial_trust_radius)) &&
+            (cache.method isa RUS.__NLsolve || cache.method isa RUS.__More)
+        T = promote_type(eltype(u), eltype(fu))
+        cache.initial_trust_radius = initial_trust_radius(
+            nothing, T, cache.method, cache.max_trust_radius,
+            scaled_step_norm(cache, u), cache.internalnorm(fu)
+        )
+        cache.trust_region = cache.initial_trust_radius
+    end
+    return nothing
+end
+
+# NLsolve's `autoscale`: `dⱼ = ‖J[:, j]‖` at the first Jacobian, `max(dⱼ / 10, ‖J[:, j]‖)`
+# at each later one, and `1` where that is zero
+function column_scale(dⱼ, column, decay::Bool)
+    scale = column
+    if decay
+        scale = max(dⱼ / 10, column)
+    end
+    if iszero(scale^2)
+        return one(scale)
+    end
+    return scale
+end
+column_norm_scaling!!(d::Number, J::Number, decay::Bool) = column_scale(d, abs(J), decay)
+function column_norm_scaling!!(d, J::AbstractMatrix, decay::Bool)
+    @bb @. d = column_scale(d, $(vec(LinearAlgebra.norm.(eachcol(J)))), decay)
+    return d
+end
+function column_norm_scaling!!(d, J, decay::Bool)
+    throw(
+        ArgumentError(
+            "`autoscale = true` needs a concrete Jacobian to take column norms of; \
+             got a $(typeof(J))."
+        )
+    )
 end
 
 # Defaults
@@ -619,16 +712,16 @@ function InternalAPI.solve!(
         else
             cache.shrink_counter = 0
             if cache.ρ ≥ cache.expand_threshold
-                cache.trust_region = cache.expand_factor * cache.internalnorm(δu)
+                cache.trust_region = cache.expand_factor * scaled_step_norm(cache, δu)
             elseif cache.ρ ≥ cache.p1
                 cache.trust_region = max(
-                    cache.trust_region, cache.expand_factor * cache.internalnorm(δu)
+                    cache.trust_region, cache.expand_factor * scaled_step_norm(cache, δu)
                 )
             end
         end
     elseif cache.method isa RUS.__More
         step_norm = hasfield(typeof(descent_stats), :step_norm) ?
-            descent_stats.step_norm : cache.internalnorm(δu)
+            descent_stats.step_norm : scaled_step_norm(cache, δu)
         λ = hasfield(typeof(descent_stats), :λ) ? descent_stats.λ : step_norm
         if cache.ρ < cache.shrink_threshold
             cache.trust_region = cache.shrink_factor *
@@ -642,19 +735,19 @@ function InternalAPI.solve!(
         end
     elseif cache.method isa RUS.__NocedalWright
         if cache.ρ < cache.shrink_threshold
-            cache.trust_region = cache.shrink_factor * cache.internalnorm(δu)
+            cache.trust_region = cache.shrink_factor * scaled_step_norm(cache, δu)
             cache.shrink_counter += 1
         else
             cache.shrink_counter = 0
             if cache.ρ > cache.expand_threshold &&
-                    abs(cache.internalnorm(δu) - cache.trust_region) < 1.0e-6 * cache.trust_region
+                    abs(scaled_step_norm(cache, δu) - cache.trust_region) < 1.0e-6 * cache.trust_region
                 cache.trust_region = cache.expand_factor * cache.trust_region
             end
         end
     elseif cache.method isa RUS.__Hei
         tr_new = rfunc_adaptive_trust_region(
             cache.ρ, cache.shrink_threshold, cache.p1, cache.p3, cache.p4, cache.p2
-        ) * cache.internalnorm(δu)
+        ) * scaled_step_norm(cache, δu)
         if tr_new < cache.trust_region
             cache.shrink_counter += 1
         else
@@ -667,7 +760,7 @@ function InternalAPI.solve!(
             cache.shrink_counter += 1
         else
             if cache.ρ ≥ cache.expand_threshold &&
-                    2 * cache.internalnorm(δu) > cache.trust_region
+                    2 * scaled_step_norm(cache, δu) > cache.trust_region
                 cache.p1 = cache.p3 * cache.p1
             end
             cache.shrink_counter = 0

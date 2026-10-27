@@ -106,6 +106,11 @@ end
 NonlinearSolveBase.supports_postcondition(::GeneralizedFirstOrderAlgorithm) = true
 
 _trust_region_retcode!(cache, J, fu, u) = ReturnCode.Default
+# The keywords that hand a trust-region scheme's state to the descent
+trust_region_descent_kwargs(cache) = (; cache.trust_region)
+# Schemes that scale their norm by the Jacobian (`autoscale`) refresh the scaling from `J`
+update_trust_region_scaling!(cache, J, fu, u, new_jacobian::Bool) = nothing
+requires_trust_region_scaling(alg) = false
 
 function _validate_native_bounds(prob, alg, u)
     SciMLBase.allowsbounds(alg) || return nothing
@@ -278,6 +283,10 @@ function SciMLBase.__init(
         if has_trustregion
             NonlinearSolveBase.supports_trust_region(alg.descent) ||
                 error("Trust Region not supported by $(alg.descent).")
+            if requires_trust_region_scaling(alg.trustregion) &&
+                    !NonlinearSolveBase.supports_trust_region_scaling(alg.descent)
+                error("Trust region `autoscale` not supported by $(alg.descent).")
+            end
             # Standardize AD tags so VecJac/JacVec operators use NonlinearSolveTag
             # when the function is wrapped by AutoSpecialize.
             _tr_vjp_ad = NonlinearSolveBase.standardize_forwarddiff_tag(
@@ -415,6 +424,7 @@ function InternalAPI.step!(
         cache.force_stop = true
         return
     end
+    update_trust_region_scaling!(cache.trustregion_cache, J, cache.fu, cache.u, new_jacobian)
 
     has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
 
@@ -427,7 +437,8 @@ function InternalAPI.step!(
                 hasfield(typeof(cache.trustregion_cache), :trust_region)
             descent_result = InternalAPI.solve!(
                 cache.descent_cache, J, cache.fu, cache.u;
-                new_jacobian, cache.trustregion_cache.trust_region, cache.kwargs...
+                new_jacobian, trust_region_descent_kwargs(cache.trustregion_cache)...,
+                cache.kwargs...
             )
         else
             descent_result = InternalAPI.solve!(
