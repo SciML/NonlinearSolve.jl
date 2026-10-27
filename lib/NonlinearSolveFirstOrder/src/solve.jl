@@ -218,7 +218,7 @@ function SciMLBase.__init(
 
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
-        u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        u = Utils.maybe_unaliased(prob.u0, alias_u0, Val(SciMLBase.isinplace(prob)))
         _validate_native_bounds(prob, alg, u)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)

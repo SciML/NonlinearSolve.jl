@@ -188,6 +188,31 @@ function maybe_unaliased(x::AbstractArray, alias::Bool)
 end
 maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 
+# Views of an `Array` that `Base.unaliascopy` copies to an array of only the viewed
+# elements, with the same view type
+const CompactlyCopyableView = SubArray{
+    <:Any, <:Any, <:Array,
+    <:Tuple{
+        Vararg{
+            Union{
+                Int, UnitRange{Int}, StepRange{Int, Int}, Base.OneTo{Int},
+                Base.Slice{Base.OneTo{Int}}, Array{Int},
+            },
+        },
+    },
+}
+
+# The initial iterate of a problem: `maybe_unaliased(u0, alias, Val(isinplace(prob)))`.
+# `copy` of a view is an `Array`, so `alias` would decide the type of `u`, and `alias` is
+# not a constant inside `__init` (it arrives as a keyword argument): the caches built from
+# `u` would be abstract. An in-place solve updates `u` in place, so it can keep the view's
+# type; an out-of-place solve assigns new arrays to it and keeps the `Array` copy.
+maybe_unaliased(x, alias::Bool, ::Val) = maybe_unaliased(x, alias)
+function maybe_unaliased(x::CompactlyCopyableView, alias::Bool, ::Val{true})
+    (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
+    return Base.unaliascopy(x)
+end
+
 can_setindex(x) = ArrayInterface.can_setindex(x)
 can_setindex(::Number) = false
 
