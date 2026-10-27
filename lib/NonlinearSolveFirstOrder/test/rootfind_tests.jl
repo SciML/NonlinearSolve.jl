@@ -19,3 +19,4 @@
 @safetestset "Simple Sparse AutoDiff" include("rootfind_tests__item19.jl")
 @safetestset "Custom JVP" include("rootfind_tests__item20.jl")
 @safetestset "PseudoTransient: Mass Matrix" include("rootfind_tests__item21.jl")
+@safetestset "TrustRegion: autoscale" include("rootfind_tests__item22.jl")

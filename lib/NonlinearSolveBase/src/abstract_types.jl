@@ -97,6 +97,9 @@ the specific algorithm for more information.
     methods. Defaults to `false`.
   - `supports_line_search(alg)`: whether or not the algorithm supports line search
     methods. Defaults to `false`.
+  - `supports_trust_region_scaling(alg)`: whether or not the algorithm measures its
+    trust region in a diagonally scaled norm passed by the trust-region scheme.
+    Defaults to `false`.
 
 See also [`NewtonDescent`](@ref), [`Dogleg`](@ref), [`SteepestDescent`](@ref),
 [`DampedNewtonDescent`](@ref).
@@ -147,6 +150,15 @@ NonlinearSolveBase.supports_trust_region(Dogleg())
 ```
 """
 supports_trust_region(::AbstractDescentDirection) = false
+
+"""
+    supports_trust_region_scaling(alg)::Bool
+
+Return whether the descent direction `alg` accepts the `trust_region_scaling` keyword in
+`InternalAPI.solve!`: a vector `d` such that the trust region is `‖d .* δu‖ ≤ Δ`, as passed
+by a trust-region scheme with `autoscale = true`.
+"""
+supports_trust_region_scaling(::AbstractDescentDirection) = false
 
 function get_linear_solver(alg::AbstractDescentDirection)
     return Utils.safe_getproperty(alg, Val(:linsolve))
