@@ -367,7 +367,10 @@ the value used in the respective paper.
     Jacobian (a zero column norm becomes `1`), and each later Jacobian sets
     `dⱼ = max(dⱼ / 10, ‖J[:, j]‖)`. With the default `initial_trust_radius`,
     `RadiusUpdateSchemes.NLsolve` and `RadiusUpdateSchemes.More` start from `‖d .* u0‖`
-    (`1` if zero). Needs a concrete Jacobian and a descent for which
+    (`1` if zero). `RadiusUpdateSchemes.NLsolve` expands the radius after an accepted step
+    with the scaling of the accepted point's Jacobian, as NLsolve does; the other schemes
+    measure the step with the scaling it was taken under, as MINPACK does. Needs a concrete
+    Jacobian and a descent for which
     [`NonlinearSolveBase.supports_trust_region_scaling`](@ref) holds, such as `Dogleg`.
     Defaults to `false`.
 """
@@ -437,16 +440,18 @@ function InternalAPI.init(
     if alg.autoscale
         @bb scaling = similar(u)
         @bb scaled_cache = similar(u)
+        @bb pending_step = similar(u)
     else
         scaling = nothing
         scaled_cache = nothing
+        pending_step = nothing
     end
 
     return GenericTrustRegionSchemeCache(
         alg.method, f, p, mtr, itr, itr, stt, sht, et, shf, ef,
         p1, p2, p3, p4, ϵ, T(0), vjp_operator, jvp_operator, Jᵀfu_cache, Jδu_cache,
-        δu_cache, internalnorm, u_cache, fu_cache, scaling, scaled_cache, false, false, 0,
-        stats, alg
+        δu_cache, internalnorm, u_cache, fu_cache, scaling, scaled_cache, pending_step,
+        false, false, false, 0, stats, alg
     )
 end
 
@@ -478,7 +483,9 @@ end
     fu_cache
     scaling
     scaled_cache
+    pending_step
     scaling_initialized::Bool
+    expansion_pending::Bool
     last_step_accepted::Bool
     shrink_counter::Int
     stats::NLStats
@@ -511,6 +518,7 @@ function InternalAPI.reinit!(
     end
     cache.last_step_accepted = false
     cache.scaling_initialized = false
+    cache.expansion_pending = false
     cache.trust_region = cache.initial_trust_radius
     return cache.shrink_counter = 0
 end
@@ -532,24 +540,39 @@ scaled_descent_kwargs(trust_region, d) = (; trust_region, trust_region_scaling =
 function update_trust_region_scaling!(
         cache::GenericTrustRegionSchemeCache, J, fu, u, new_jacobian::Bool
     )
-    if cache.scaling === nothing || (cache.scaling_initialized && !new_jacobian)
+    if cache.scaling === nothing
         return nothing
     end
-    if cache.scaling_initialized
+    if !cache.scaling_initialized
+        cache.scaling = column_norm_scaling!!(cache.scaling, J, false)
+        cache.scaling_initialized = true
+        alg = cache.alg
+        if (alg.initial_trust_radius === nothing || iszero(alg.initial_trust_radius)) &&
+                (cache.method isa RUS.__NLsolve || cache.method isa RUS.__More)
+            T = promote_type(eltype(u), eltype(fu))
+            cache.initial_trust_radius = initial_trust_radius(
+                nothing, T, cache.method, cache.max_trust_radius,
+                scaled_step_norm(cache, u), cache.internalnorm(fu)
+            )
+            cache.trust_region = cache.initial_trust_radius
+        end
+    elseif new_jacobian
         cache.scaling = column_norm_scaling!!(cache.scaling, J, true)
-        return nothing
     end
-    cache.scaling = column_norm_scaling!!(cache.scaling, J, false)
-    cache.scaling_initialized = true
-    alg = cache.alg
-    if (alg.initial_trust_radius === nothing || iszero(alg.initial_trust_radius)) &&
-            (cache.method isa RUS.__NLsolve || cache.method isa RUS.__More)
-        T = promote_type(eltype(u), eltype(fu))
-        cache.initial_trust_radius = initial_trust_radius(
-            nothing, T, cache.method, cache.max_trust_radius,
-            scaled_step_norm(cache, u), cache.internalnorm(fu)
-        )
-        cache.trust_region = cache.initial_trust_radius
+    if cache.expansion_pending
+        expand_nlsolve_radius!(cache, scaled_step_norm(cache, cache.pending_step))
+        cache.trust_region = min(cache.trust_region, cache.max_trust_radius)
+        cache.expansion_pending = false
+    end
+    return nothing
+end
+
+# `RadiusUpdateSchemes.NLsolve`'s expansion from a step of scaled norm `step_norm`
+function expand_nlsolve_radius!(cache::GenericTrustRegionSchemeCache, step_norm)
+    if cache.ρ ≥ cache.expand_threshold
+        cache.trust_region = cache.expand_factor * step_norm
+    elseif cache.ρ ≥ cache.p1
+        cache.trust_region = max(cache.trust_region, cache.expand_factor * step_norm)
     end
     return nothing
 end
@@ -711,12 +734,13 @@ function InternalAPI.solve!(
             cache.shrink_counter += 1
         else
             cache.shrink_counter = 0
-            if cache.ρ ≥ cache.expand_threshold
-                cache.trust_region = cache.expand_factor * scaled_step_norm(cache, δu)
-            elseif cache.ρ ≥ cache.p1
-                cache.trust_region = max(
-                    cache.trust_region, cache.expand_factor * scaled_step_norm(cache, δu)
-                )
+            if cache.scaling !== nothing && cache.last_step_accepted
+                # NLsolve rescales at the accepted point before expanding (MINPACK expands
+                # with the old scaling, as the other schemes do): wait for its Jacobian
+                @bb copyto!(cache.pending_step, δu)
+                cache.expansion_pending = true
+            else
+                expand_nlsolve_radius!(cache, scaled_step_norm(cache, δu))
             end
         end
     elseif cache.method isa RUS.__More

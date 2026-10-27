@@ -30,9 +30,13 @@ static_powell(x, p) = SVector{2}(powell(x, p))
 sol_static = solve(NonlinearProblem(static_powell, SVector{2}(x0)), autoscaled(); abstol = 1.0e-10)
 @test sol_static.u ≈ sol_x.u rtol = 1.0e-10
 
-# A scalar problem scales by `|J|`, which leaves the dogleg on the Newton step
-sol_scalar = solve(NonlinearProblem((x, p) -> x^3 - 8, 1.0), autoscaled())
-@test sol_scalar.u ≈ 2
+# NLsolve's iterates on `x² - 9` from `1`, by hand: `d = 2` and radius `‖d x₀‖ = 2` cut the
+# Newton step `4` to the Cauchy step `1`; at `x = 2` the accepted step rescales to `d = 4`
+# before the radius expands to `2‖d δu‖ = 8`, so the Newton step `1.25` fits and lands on `3.25`
+square(x, p) = x^2 - 9
+@test solve(NonlinearProblem(square, 1.0), autoscaled(); maxiters = 1).u ≈ 2
+@test solve(NonlinearProblem(square, 1.0), autoscaled(); maxiters = 2).u ≈ 3.25
+@test solve(NonlinearProblem(square, 1.0), autoscaled()).u ≈ 3
 
 # Only a descent that measures a scaled region can run under `autoscale`
 @test_throws ErrorException solve(
