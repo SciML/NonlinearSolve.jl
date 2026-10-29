@@ -53,7 +53,12 @@ function get_tolerance(::Nothing, ::Type{Float64})
 end
 
 get_tolerance(_, η, ::Type{T}) where {T} = get_tolerance(η, T)
+function get_tolerance(u::Number, η::Number, ::Type{T}) where {T}
+    # A zero tolerance is valid in any units, so it takes the units of `u`
+    return iszero(η) ? Utils.convert_real(T, zero(u)) : get_tolerance(η, T)
+end
 function get_tolerance(::Union{StaticArray, Number}, ::Nothing, ::Type{T}) where {T}
-    # Rational numbers can throw an error if used inside GPU Kernels
-    return T(real(oneunit(T)) * (eps(real(one(T)))^(real(T)(0.8))))
+    # Rational numbers can throw an error if used inside GPU Kernels. The exponent has the
+    # type of `one(T)`, which carries no units (e.g. for Unitful quantities)
+    return T(real(oneunit(T)) * (eps(real(one(T)))^oftype(real(one(T)), 0.8)))
 end

@@ -85,7 +85,7 @@ function SciMLBase.__solve(
             )
         end
 
-        tol1 = 2 * eps(b) + abstol
+        tol1 = 2 * Impl.ulp(b) + abstol
         if abs(xm) <= tol1
             # The bracket is already at the resolution of the minimum step, which
             # only happens with an `abstol` below a few ulps: bisect down to
@@ -104,7 +104,7 @@ function SciMLBase.__solve(
                 p = s * (2 * xm * q * (q - r) - (b - a) * (r - 1))
                 q = (q - 1) * (r - 1) * (s - 1)
             end
-            p > 0 && (q = -q)
+            Impl.ispositive(p) && (q = -q)
             p = abs(p)
             # accept it only if it stays inside the bracket and shrinks faster than
             # the step before last
