@@ -3,7 +3,7 @@ module BracketingNonlinearSolveForwardDiffExt
 using CommonSolve: CommonSolve
 using ForwardDiff: ForwardDiff, Dual, Partials
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
-using SciMLBase: SciMLBase, IntervalNonlinearProblem
+using SciMLBase: SciMLBase, IntervalNonlinearProblem, IntervalNonlinearFunction
 
 using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB
 
@@ -92,7 +92,9 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB)
         tspan = (ForwardDiff.value(prob.tspan[1]), ForwardDiff.value(prob.tspan[2]))
         f_orig = prob.f
         f_stripped(t, p) = ForwardDiff.value(f_orig(t, p))
-        newprob = IntervalNonlinearProblem{false}(f_stripped, tspan, prob.p; prob.kwargs...)
+        newprob = IntervalNonlinearProblem{false}(
+            IntervalNonlinearFunction{false}(f_stripped), tspan, prob.p; prob.kwargs...
+        )
         sol = CommonSolve.solve(newprob, alg, args...; kwargs...)
 
         # Check if f's closure captures Dual-valued state (mixed case).
