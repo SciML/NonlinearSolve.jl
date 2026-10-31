@@ -51,7 +51,7 @@ These are exclusively available for native `NonlinearSolve.jl` solvers.
     stored in the solution object. (Defaults to `Val(false)`)
 
 ## Verbosity Controls
-  - `verbose::NonlinearVerbosity`: Controls the verbosity of the solver. Determines which messages get logged at what logging level. 
+  - `verbose`: Controls the verbosity of the solver. Determines which messages get logged at what logging level. Accepts a `NonlinearVerbosity`, a preset such as `SciMLLogging.None()`, or a `Bool` (`true` is `NonlinearVerbosity()`, `false` is `NonlinearVerbosity(SciMLLogging.None())`), for every solver including the bracketing methods for `IntervalNonlinearProblem`. A `verbose` passed to `solve` overrides one stored in the problem's kwargs.
 ### Quick Start
 
 ```julia
