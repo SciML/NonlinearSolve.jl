@@ -2,7 +2,7 @@
     Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), linsolve = nothing
     )
 
 An implementation of `Broyden`'s Method [broyden1965class](@cite) with resetting and line
@@ -30,11 +30,16 @@ search.
       + `Val(:diagonal)`: Only update the diagonal of the Jacobian. This algorithm may be
         useful for specific problems, but whether it will work may depend strongly on the
         problem
+  - `linsolve`: the linear solver that inverts the Jacobian when the inverse is (re)built,
+    at initialization and at resets. Defaults to `nothing`, which selects LinearSolve's
+    default algorithm (whose rescue also handles a singular Jacobian). Scalars,
+    `Diagonal`s, static matrices and arrays without fast scalar indexing are inverted
+    natively and don't use it; a sparse Jacobian is inverted on a dense copy.
 """
 function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
         init_jacobian::Val = Val(:identity), autodiff = nothing, alpha = nothing,
-        update_rule = Val(:good_broyden)
+        update_rule = Val(:good_broyden), linsolve = nothing
     )
     return QuasiNewtonAlgorithm(;
         linesearch,
@@ -44,7 +49,8 @@ function Broyden(;
         initialization = broyden_init(init_jacobian, update_rule, autodiff, alpha),
         reinit_rule = NoChangeInStateReset(; reset_tolerance),
         concrete_jac = Val(init_jacobian isa Val{:true_jacobian}),
-        name = :Broyden
+        name = :Broyden,
+        inverse_linsolve = linsolve
     )
 end
 
