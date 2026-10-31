@@ -4,3 +4,4 @@
 @safetestset "DFSane: Kwargs" include("core_tests__item4.jl")
 @safetestset "DFSane Termination Conditions" include("core_tests__item5.jl")
 @safetestset "DFSane postcondition iterate correction" include("core_tests__item6.jl")
+@safetestset "View u0" include("core_tests__item7.jl")
