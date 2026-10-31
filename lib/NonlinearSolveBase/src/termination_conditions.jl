@@ -150,7 +150,8 @@ function CommonSolve.init(
         else
             initial_objective = Utils.apply_norm(mode.internalnorm, du) /
                 (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
-            u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
+            u0_norm = mode.max_stalled_steps === nothing ? nothing :
+                Utils.apply_norm(mode.internalnorm, u)
         end
         objectives_trace = Vector{TT}(undef, mode.patience_steps)
         step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
@@ -206,7 +207,8 @@ function SciMLBase.reinit!(
         else
             cache.initial_objective = Utils.apply_norm(mode.internalnorm, du) /
                 (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
-            cache.max_stalled_steps !== nothing && (cache.u0_norm = L2_NORM(u))
+            cache.max_stalled_steps !== nothing &&
+                (cache.u0_norm = Utils.apply_norm(mode.internalnorm, u))
         end
         cache.best_objective_value = cache.initial_objective
     else
@@ -310,7 +312,7 @@ function (cache::NonlinearTerminationModeCache)(
         else
             cache.u_diff_cache = u .- uprev
         end
-        du_norm = L2_NORM(cache.u_diff_cache)
+        du_norm = Utils.apply_norm(mode.internalnorm, cache.u_diff_cache)
         cache.step_norm_trace[mod1(cache.nsteps, length(cache.step_norm_trace))] = du_norm
         if cache.nsteps > mode.max_stalled_steps
             max_step_norm = maximum(cache.step_norm_trace)
