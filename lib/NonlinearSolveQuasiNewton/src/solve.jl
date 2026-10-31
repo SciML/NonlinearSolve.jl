@@ -203,7 +203,7 @@ function SciMLBase.__init(
             verbose = NonlinearVerbosity(verbose)
         end
 
-        u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        u = Utils.maybe_unaliased(prob.u0, alias_u0, Val(SciMLBase.isinplace(prob)))
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
 

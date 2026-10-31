@@ -35,7 +35,8 @@ run_qa(
         #     isdualtype, set_mooncakeoriginator_if_mooncake, specialization
         #   ForwardDiff: Dual, Partials, Tag, can_dual, derivative, gradient, jacobian,
         #     partials, pickchunksize, value
-        #   Base: add_sum;  Core(.Compiler): Compiler, return_type;  LinearAlgebra: inv!
+        #   Base: Slice, add_sum, unaliascopy;  Core(.Compiler): Compiler, return_type;
+        #     LinearAlgebra: inv!
         #   FunctionWrappers: FunctionWrapper
         #   NonlinearSolveBase(.Utils/.InternalAPI): additional_incompatible_backend_check,
         #     condition_number, get_raw_f, get_u, linsolve_workspace,
@@ -51,7 +52,7 @@ run_qa(
                 :get_root_indp, :has_colorvec, :isdualtype,
                 :set_mooncakeoriginator_if_mooncake, :specialization,
                 :Dual, :Partials, :Tag, :can_dual, :derivative, :gradient, :jacobian,
-                :partials, :pickchunksize, :value, :add_sum, :Compiler, :return_type, :inv!,
+                :partials, :pickchunksize, :value, :add_sum, :unaliascopy, :Slice, :Compiler, :return_type, :inv!,
                 :FunctionWrapper, :additional_incompatible_backend_check, :condition_number,
                 :get_raw_f, :get_u, :linsolve_workspace, :is_extension_loaded,
                 :make_sparse, :init_similar_array!!,

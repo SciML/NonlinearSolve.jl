@@ -138,7 +138,7 @@ function SciMLBase.__init(
     timer = get_timer_output()
 
     @static_timeit timer "cache construction" begin
-        u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        u = Utils.maybe_unaliased(prob.u0, alias_u0, Val(SciMLBase.isinplace(prob)))
         T = eltype(u)
 
         @bb du = similar(u)
