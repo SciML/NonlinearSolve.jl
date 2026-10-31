@@ -108,3 +108,41 @@ end
     @test solve!(cache).u ≈ sqrt.(p)
     @test A == fill(3.0, 2, 3)
 end
+
+# `set_u!` with a `Vector` on an in-place cache whose iterate is a view: the values are
+# copied into the iterate
+@testset "View u0, set_u!: $(nameof(alg_ctor)), alias_u0 = $alias_u0" for alg_ctor in (
+            TrustRegion, NewtonRaphson,
+        ), alias_u0 in (false, true)
+
+    parent_u0 = [3.0, 0.0, 3.0]
+    cache = init(
+        NonlinearProblem(f_iip_full, view(parent_u0, [1, 3]), p),
+        alg_ctor(autodiff = AutoFiniteDiff());
+        alias = SciMLBase.NonlinearAliasSpecifier(; alias_u0)
+    )
+    SciMLBase.set_u!(cache, [2.0, 2.0])
+    @test NonlinearSolveBase.get_u(cache) == [2.0, 2.0]
+    sol = solve!(cache)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ sqrt.(p)
+    @test parent_u0[[1, 3]] ≈ (alias_u0 ? sqrt.(p) : [3.0, 3.0])
+    @test parent_u0[2] == 0.0
+end
+
+# In-place best-iterate rollback on a view: one Newton step from 1 on u^3 - 2u + 2 goes to
+# 0, where the residual (2) is larger than at 1 (1), so the solution is the initial value
+@testset "View u0, in-place rollback: $(nameof(alg_ctor))" for alg_ctor in (
+        NewtonRaphson,
+    )
+    f_cubic! = NonlinearFunction{true, SciMLBase.FullSpecialize}(
+        (du, u, p) -> (du .= u .^ 3 .- 2 .* u .+ 2)
+    )
+    parent_u0 = [1.0, 9.0]
+    sol = solve(
+        NonlinearProblem(f_cubic!, view(parent_u0, [1]), nothing),
+        alg_ctor(autodiff = AutoFiniteDiff()); maxiters = 1
+    )
+    @test sol.u == [1.0]
+    @test parent_u0 == [1.0, 9.0]
+end
