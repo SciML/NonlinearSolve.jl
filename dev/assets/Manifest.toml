@@ -284,10 +284,10 @@ version = "1.74.8"
 
 [[deps.ChainRulesCore]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "7dc4359cbda4cbf3e5dbbbf075250a63e7021f69"
+git-tree-sha1 = "295fa9b898db109bc56df62c0fc20bd105cec00e"
 registries = "General"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.26.7"
+version = "1.26.8"
 weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
@@ -499,10 +499,10 @@ version = "1.9.1"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "BracketingNonlinearSolve", "ConcreteStructs", "DocStringExtensions", "FastBroadcast", "FastClosures", "FastPower", "FunctionWrappers", "FunctionWrappersWrappers", "LinearAlgebra", "Logging", "Markdown", "MuladdMacro", "PrecompileTools", "Printf", "RecursiveArrayTools", "Reexport", "RespecializeParams", "SciMLBase", "SciMLLogging", "SciMLOperators", "SciMLStructures", "Setfield", "StaticArraysCore", "SymbolicIndexingInterface", "TruncatedStacktraces"]
-git-tree-sha1 = "87a851d87d4a1ea5dae17f349aad2ade9a587f08"
+git-tree-sha1 = "3af08981a379247735de45c24220867f66384c8c"
 registries = "General"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "7.21.4"
+version = "7.21.5"
 
     [deps.DiffEqBase.extensions]
     DiffEqBaseCUDAExt = "CUDA"
@@ -948,10 +948,10 @@ version = "2.15.0+0"
 
 [[deps.FriBidi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "f3f50c8001bdfa84f312234fa86715b7c9243771"
+git-tree-sha1 = "e894be022a2eba58463939f1bf1f7f7006f27f52"
 registries = "General"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
-version = "1.0.18+0"
+version = "1.0.19+0"
 
 [[deps.FunctionMaps]]
 deps = ["CompositeTypes", "LinearAlgebra", "StaticArrays"]
@@ -1271,10 +1271,10 @@ version = "1.8.0"
 
 [[deps.JSON]]
 deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "69a876face3b7aa9ac03b8dbf0f27d71bc17cf05"
+git-tree-sha1 = "06d90f699285d055e34f0b014636a75a17ff2252"
 registries = "General"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.13.1"
+version = "1.13.4"
 
     [deps.JSON.extensions]
     JSONArrowExt = ["ArrowTypes"]
@@ -1529,10 +1529,10 @@ version = "0.2.11"
 
 [[deps.LinearSolve]]
 deps = ["AMD", "ArrayInterface", "ConcreteStructs", "DocStringExtensions", "EnumX", "GPUArraysCore", "InteractiveUtils", "Krylov", "LHLFactorization", "Libdl", "LinearAlgebra", "MKL_jll", "Markdown", "OpenBLAS_jll", "PrecompileTools", "Preferences", "PureKLU", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLLogging", "SciMLOperators", "SciMLStructures", "Setfield", "SparseArrays", "SparseColumnPivotedQR", "StaticArraysCore"]
-git-tree-sha1 = "308c25a9f0606d5f17770e21dc485fcac7df62cf"
+git-tree-sha1 = "e3e84c5c330ea65568a85aef00031e2b870b0e99"
 registries = "General"
 uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "5.18.2"
+version = "5.18.3"
 
     [deps.LinearSolve.extensions]
     LinearSolveAMDGPUExt = "AMDGPU"
@@ -2091,10 +2091,10 @@ version = "2.0.3"
 
 [[deps.OrdinaryDiffEqCore]]
 deps = ["ADTypes", "Accessors", "Adapt", "ArrayInterface", "BinaryHeaps", "CommonSolve", "ConstructionBase", "DiffEqBase", "DocStringExtensions", "EnumX", "EnzymeCore", "FastBroadcast", "FastClosures", "FastPower", "FindFirstFunctions", "FunctionWrappers", "FunctionWrappersWrappers", "InteractiveUtils", "LinearAlgebra", "Logging", "MacroTools", "MuladdMacro", "PrecompileTools", "Preferences", "Printf", "Random", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLLogging", "SciMLOperators", "SciMLStructures", "SymbolicIndexingInterface", "TruncatedStacktraces"]
-git-tree-sha1 = "5a995982a30ce31999c5504569234ecb91a6e0ef"
+git-tree-sha1 = "5765dd5605c88f1db2b3630df6f291751a96cd16"
 registries = "General"
 uuid = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
-version = "4.19.0"
+version = "4.19.1"
 
     [deps.OrdinaryDiffEqCore.extensions]
     OrdinaryDiffEqCoreMooncakeExt = "Mooncake"
@@ -2108,10 +2108,10 @@ version = "4.19.0"
 
 [[deps.OrdinaryDiffEqDifferentiation]]
 deps = ["ADTypes", "ArrayInterface", "ConcreteStructs", "ConstructionBase", "DiffEqBase", "DifferentiationInterface", "FastBroadcast", "FiniteDiff", "ForwardDiff", "FunctionWrappersWrappers", "LinearAlgebra", "LinearSolve", "OrdinaryDiffEqCore", "SciMLBase", "SciMLOperators", "SparseMatrixColorings", "StaticArraysCore"]
-git-tree-sha1 = "57ebe5c7130f1def087d4ebc01a4959bba8c7689"
+git-tree-sha1 = "7bab95310a175e7b24b419cdc49d234c35a13a22"
 registries = "General"
 uuid = "4302a76b-040a-498a-8c04-15b101fed76b"
-version = "3.12.4"
+version = "3.12.5"
 weakdeps = ["SparseArrays"]
 
     [deps.OrdinaryDiffEqDifferentiation.extensions]
@@ -2196,10 +2196,10 @@ version = "0.13.1"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools"]
-git-tree-sha1 = "610915fdeab587d89d6e9f2768b7268674ceb62b"
+git-tree-sha1 = "91503bbab255aec9374145accd1b09c7e108cd54"
 registries = "General"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "3.0.3"
+version = "3.0.5"
 
 [[deps.Permutations]]
 deps = ["Combinatorics", "LinearAlgebra", "Random"]
@@ -2507,10 +2507,10 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "GPUArraysCore", "LinearAlgebra", "PrecompileTools", "RecipesBase", "SciMLPublic", "SciMLStructures", "StaticArraysCore", "SymbolicIndexingInterface"]
-git-tree-sha1 = "e6391348505df3c9c33008c0fec050862b834bf4"
+git-tree-sha1 = "47fe0f2a25b5e98412c65227f8a649d26bb7f1b9"
 registries = "General"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "4.5.5"
+version = "4.5.6"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsCUDAExt = "CUDA"
@@ -2749,10 +2749,10 @@ version = "2.1.0"
 
 [[deps.SciMLOperators]]
 deps = ["Accessors", "Adapt", "ArrayInterface", "DocStringExtensions", "LinearAlgebra", "PrecompileTools", "SciMLPublic"]
-git-tree-sha1 = "2712b6eeef282b5cd8c38660e68c001a4b9b24e2"
+git-tree-sha1 = "3feb8a7bce88bb3ef051a4eda8106004ad040b6f"
 registries = "General"
 uuid = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
-version = "1.30.3"
+version = "1.30.4"
 weakdeps = ["LoopVectorization", "SparseArrays"]
 
     [deps.SciMLOperators.extensions]
@@ -3096,12 +3096,13 @@ version = "0.7.4"
 
 [[deps.StructUtils]]
 deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "96cf0c4f535157787dc4089eca1cbed62d124d5f"
+git-tree-sha1 = "b04bfab37484defe300b2f9ed64469abab2431ff"
 registries = "General"
 uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.11.2"
+version = "2.12.0"
 
     [deps.StructUtils.extensions]
+    StructUtilsDBInterfaceExt = ["DBInterface", "Tables"]
     StructUtilsDataFramesExt = ["DataFrames"]
     StructUtilsLazilyInitializedFieldsExt = ["LazilyInitializedFields"]
     StructUtilsMeasurementsExt = ["Measurements"]
@@ -3109,6 +3110,7 @@ version = "2.11.2"
     StructUtilsTablesExt = ["Tables"]
 
     [deps.StructUtils.weakdeps]
+    DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     LazilyInitializedFields = "0e77f7df-68c5-4e49-93ce-4cd80f5598bf"
     Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
@@ -3137,10 +3139,10 @@ version = "7.10.1+0"
 
 [[deps.Sundials]]
 deps = ["Accessors", "ArrayInterface", "CEnum", "DataStructures", "DiffEqBase", "Libdl", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolveBase", "PrecompileTools", "SciMLBase", "SciMLLogging", "SciMLOperators", "SparseArrays", "Sundials_jll", "SymbolicIndexingInterface"]
-git-tree-sha1 = "0b34b4c20cc9383316f4075a086d40e463a59519"
+git-tree-sha1 = "83e8185033b459e02950fe13ba25b039eef10afe"
 registries = "General"
 uuid = "c3572dad-4567-51f8-b174-8c6c989267f4"
-version = "6.7.2"
+version = "6.7.3"
 
 [[deps.Sundials_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "OpenBLAS32_jll", "SuiteSparse32_jll"]

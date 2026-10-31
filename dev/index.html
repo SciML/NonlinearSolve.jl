@@ -12,7 +12,7 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[d12716ef] </span>DocumenterInterLinks v1.1.0
   <span class="sgr90">[40713840] </span>IncompleteLU v0.2.1
   <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.19
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.18.2
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.18.3
   <span class="sgr90">[da04e1cc] </span>MPI v0.20.29
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v4.32.0 `~/_work/NonlinearSolve.jl/NonlinearSolve.jl`
   <span class="sgr90">[be0214bd] </span>NonlinearSolveBase v2.55.1 `../lib/NonlinearSolveBase`
@@ -33,7 +33,7 @@ Pkg.add(&quot;NonlinearSolve&quot;)</code></pre><h2 id="Contributing"><a class="
   <span class="sgr90">[0a514795] </span>SparseMatrixColorings v0.4.29
   <span class="sgr90">[90137ffa] </span>StaticArrays v1.9.24
   <span class="sgr90">[9672c7b4] </span>SteadyStateDiffEq v2.18.1
-  <span class="sgr90">[c3572dad] </span>Sundials v6.7.2
+  <span class="sgr90">[c3572dad] </span>Sundials v6.7.3
   <span class="sgr90">[b77e0a4c] </span>InteractiveUtils v1.11.0
   <span class="sgr90">[9a3f8284] </span>Random v1.11.0
   <span class="sgr90">[2f01184e] </span>SparseArrays v1.13.0
@@ -43,7 +43,7 @@ Build Info:
   Official https://julialang.org release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 112 × AMD EPYC 7663 56-Core Processor
+  CPU: 128 × AMD EPYC 7513 32-Core Processor
   WORD_SIZE: 64
   LLVM: libLLVM-20.1.8 (ORCJIT, znver3)
   GC: Built with stock GC
@@ -76,7 +76,7 @@ Environment:
 <span class="sgr33">⌅</span> <span class="sgr90">[fa961155] </span>CEnum v0.5.0
   <span class="sgr90">[2a0fbf3d] </span>CPUSummary v0.2.7
   <span class="sgr90">[082447d4] </span>ChainRules v1.74.8
-  <span class="sgr90">[d360d2e6] </span>ChainRulesCore v1.26.7
+  <span class="sgr90">[d360d2e6] </span>ChainRulesCore v1.26.8
   <span class="sgr90">[1b2cc9da] </span>CheckedSizeProduct v1.0.1
   <span class="sgr90">[fb6a15b2] </span>CloseOpenIntervals v0.1.13
   <span class="sgr90">[944b1d66] </span>CodecZlib v0.7.9
@@ -102,7 +102,7 @@ Environment:
   <span class="sgr90">[864edb3b] </span>DataStructures v0.19.6
   <span class="sgr90">[e2d170a0] </span>DataValueInterfaces v1.0.0
   <span class="sgr90">[8bb1440f] </span>DelimitedFiles v1.9.1
-  <span class="sgr90">[2b5f629d] </span>DiffEqBase v7.21.4
+  <span class="sgr90">[2b5f629d] </span>DiffEqBase v7.21.5
   <span class="sgr90">[459566f4] </span>DiffEqCallbacks v4.19.5
   <span class="sgr90">[163ba53b] </span>DiffResults v1.1.0
   <span class="sgr90">[b552c78f] </span>DiffRules v1.16.0
@@ -157,7 +157,7 @@ Environment:
   <span class="sgr90">[82899510] </span>IteratorInterfaceExtensions v1.0.0
   <span class="sgr90">[1019f520] </span>JLFzf v0.1.11
   <span class="sgr90">[692b3bcd] </span>JLLWrappers v1.8.0
-  <span class="sgr90">[682c06a0] </span>JSON v1.13.1
+  <span class="sgr90">[682c06a0] </span>JSON v1.13.4
   <span class="sgr90">[7d188eb4] </span>JSONSchema v1.6.0
   <span class="sgr90">[ae98c720] </span>Jieko v0.2.1
   <span class="sgr90">[ba0b0d4f] </span>Krylov v0.10.12
@@ -172,7 +172,7 @@ Environment:
   <span class="sgr90">[87fe0de2] </span>LineSearch v0.1.19
   <span class="sgr90">[d3d80556] </span>LineSearches v7.8.2
   <span class="sgr90">[9b3f67b0] </span>LinearAlgebraX v0.2.11
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.18.2
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v5.18.3
   <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v1.0.3
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.2.0
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.175
@@ -205,15 +205,15 @@ Environment:
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.17.0
   <span class="sgr90">[429524aa] </span>Optim v2.3.2
   <span class="sgr90">[bac558e1] </span>OrderedCollections v2.0.3
-  <span class="sgr90">[bbf590c4] </span>OrdinaryDiffEqCore v4.19.0
-  <span class="sgr90">[4302a76b] </span>OrdinaryDiffEqDifferentiation v3.12.4
+  <span class="sgr90">[bbf590c4] </span>OrdinaryDiffEqCore v4.19.1
+  <span class="sgr90">[4302a76b] </span>OrdinaryDiffEqDifferentiation v3.12.5
   <span class="sgr90">[43230ef6] </span>OrdinaryDiffEqRosenbrock v2.7.5
   <span class="sgr90">[b4bd8bb3] </span>OrdinaryDiffEqRosenbrockTableaus v2.4.2
   <span class="sgr90">[b1df2697] </span>OrdinaryDiffEqTsit5 v2.1.5
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.41
 <span class="sgr32">⌃</span> <span class="sgr90">[ace2c81b] </span>PETSc v0.4.14
   <span class="sgr90">[d96e819e] </span>Parameters v0.13.1
-  <span class="sgr90">[69de0a69] </span>Parsers v3.0.3
+  <span class="sgr90">[69de0a69] </span>Parsers v3.0.5
   <span class="sgr90">[2ae35dd2] </span>Permutations v0.4.23
   <span class="sgr90">[eebad327] </span>PkgVersion v0.3.3
   <span class="sgr90">[ccf2f8ad] </span>PlotThemes v3.3.0
@@ -237,7 +237,7 @@ Environment:
   <span class="sgr90">[c1ae055f] </span>RealDot v0.1.0
   <span class="sgr90">[3cdcf5f2] </span>RecipesBase v1.4.0
   <span class="sgr90">[01d81517] </span>RecipesPipeline v0.6.12
-  <span class="sgr90">[731186ca] </span>RecursiveArrayTools v4.5.5
+  <span class="sgr90">[731186ca] </span>RecursiveArrayTools v4.5.6
   <span class="sgr90">[189a3867] </span>Reexport v1.2.2
   <span class="sgr90">[2792f1a3] </span>RegistryInstances v0.1.0
   <span class="sgr90">[05181044] </span>RelocatableFolders v1.0.1
@@ -253,7 +253,7 @@ Environment:
   <span class="sgr90">[0bca4576] </span>SciMLBase v3.58.0
   <span class="sgr90">[19f34311] </span>SciMLJacobianOperators v0.1.20 `../lib/SciMLJacobianOperators`
   <span class="sgr90">[a6db7da4] </span>SciMLLogging v2.1.0
-  <span class="sgr90">[c0aeaf25] </span>SciMLOperators v1.30.3
+  <span class="sgr90">[c0aeaf25] </span>SciMLOperators v1.30.4
   <span class="sgr90">[431bcebd] </span>SciMLPublic v1.3.0
   <span class="sgr90">[53ae85a6] </span>SciMLStructures v1.10.6
   <span class="sgr90">[7e506255] </span>ScopedValues v1.6.2
@@ -287,8 +287,8 @@ Environment:
   <span class="sgr90">[69024149] </span>StringEncodings v0.3.7
   <span class="sgr90">[892a3eda] </span>StringManipulation v0.6.1
   <span class="sgr90">[09ab397b] </span>StructArrays v0.7.4
-  <span class="sgr90">[ec057cc2] </span>StructUtils v2.11.2
-  <span class="sgr90">[c3572dad] </span>Sundials v6.7.2
+  <span class="sgr90">[ec057cc2] </span>StructUtils v2.12.0
+  <span class="sgr90">[c3572dad] </span>Sundials v6.7.3
   <span class="sgr90">[2efcf032] </span>SymbolicIndexingInterface v0.3.55
   <span class="sgr90">[19f23fe9] </span>SymbolicLimits v1.2.2
   <span class="sgr90">[d1185830] </span>SymbolicUtils v4.54.0
@@ -324,7 +324,7 @@ Environment:
   <span class="sgr90">[e134572f] </span>FLINT_jll v301.600.1+0
   <span class="sgr90">[a3f928ae] </span>Fontconfig_jll v2.18.3+0
   <span class="sgr90">[d7e528f0] </span>FreeType2_jll v2.15.0+0
-  <span class="sgr90">[559328eb] </span>FriBidi_jll v1.0.18+0
+  <span class="sgr90">[559328eb] </span>FriBidi_jll v1.0.19+0
   <span class="sgr90">[0656b61e] </span>GLFW_jll v3.5.1+0
   <span class="sgr90">[d2c73de3] </span>GR_jll v0.73.27+0
 <span class="sgr33">⌅</span> <span class="sgr90">[b0724c58] </span>GettextRuntime_jll v0.22.4+0
@@ -493,4 +493,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.15.0+0
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.70.0+0
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.8.3+0
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.32.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.32.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Friday 30 October 2026 11:23">Friday 30 October 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.32.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NonlinearSolve.jl/tree/gh-pages/v4.32.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/getting_started/">Getting Started with Nonlinear Rootfinding in Julia »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Saturday 31 October 2026 11:26">Saturday 31 October 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
