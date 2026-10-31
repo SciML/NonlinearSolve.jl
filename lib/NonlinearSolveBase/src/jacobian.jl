@@ -22,7 +22,9 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
 
   - `autodiff`: Automatic Differentiation or Finite Differencing backend for computing the
     jacobian. By default, selects a backend based on sparsity parameters, type of state,
-    function properties, etc.
+    function properties, etc. When a concrete Jacobian is built for a `u` without fast
+    scalar indexing, `AutoForwardDiff` and `AutoPolyesterForwardDiff` are replaced, with a
+    warning, by `NonlinearSolveBase.select_jacobian_autodiff(prob, nothing)`.
   - `vjp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
     the vector-Jacobian product.
   - `jvp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
@@ -55,6 +57,7 @@ function construct_jacobian_cache(
                                  `NonlinearSolveBase.select_jacobian_autodiff` for \
                                  automatic backend selection."))
         end
+        autodiff = nonscalar_jacobian_autodiff(prob, u, autodiff)
         autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
         # Enzyme cannot differentiate through FunctionWrappers' llvmcall, and AD-based
