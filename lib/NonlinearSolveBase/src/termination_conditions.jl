@@ -4,6 +4,11 @@ const RelNormModes = Union{
 const AbsNormModes = Union{
     AbsNormTerminationMode, AbsNormSafeTerminationMode, AbsNormSafeBestTerminationMode,
 }
+# The four modes carrying a `gtol` field; the plain `*NormTerminationMode`s do not.
+const SafeNormModes = Union{
+    RelNormSafeTerminationMode, RelNormSafeBestTerminationMode,
+    AbsNormSafeTerminationMode, AbsNormSafeBestTerminationMode,
+}
 
 """
     residual_only_termination_mode(mode) -> Bool
@@ -388,8 +393,11 @@ function default_termination_mode(
     return AbsNormSafeBestTerminationMode(Base.Fix1(maximum, abs); max_stalled_steps = 32)
 end
 
-function default_termination_mode(::NonlinearLeastSquaresProblem, ::Val{:regular})
-    return AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32)
+function default_termination_mode(prob::NonlinearLeastSquaresProblem, ::Val{:regular})
+    return AbsNormSafeBestTerminationMode(
+        Base.Fix2(norm, 2); max_stalled_steps = 32,
+        gtol = default_gradient_tolerance(eltype(prob.u0))
+    )
 end
 
 function init_termination_cache(
@@ -409,6 +417,127 @@ function init_termination_cache(
     reltol = get_tolerance(u, reltol, T)
     cache = init(prob, tc, du, u; abstol, reltol)
     return abstol, reltol, cache
+end
+
+default_gradient_tolerance(::Type{T}) where {T} = sqrt(eps(float(real(one(T)))))
+
+gradient_tolerance(::AbstractNonlinearTerminationMode) = nothing
+gradient_tolerance(mode::SafeNormModes) = mode.gtol
+
+gradient_measure_supported(_) = false
+gradient_measure_supported(::AbstractMatrix) = true
+gradient_measure_supported(::Number) = true
+
+function gradient_stationarity_measure(J, fu)
+    _all_finite(fu) || return nothing
+    fu_scale = _max_abs(fu)
+    iszero(fu_scale) && return nothing
+    # The cosine is invariant under `F -> cF`, and dividing by the largest entry first keeps
+    # `‖F‖` and `JᵀF` from overflowing or underflowing however large or small `F` is. Below
+    # single precision the sums in `‖f̂‖` and `JᵀF` still overflow or stall at modest
+    # lengths, so the measure is formed in at least `Float32`.
+    f̂ = fu ./ _at_least_single(fu_scale)
+    return _gradient_stationarity_measure(_at_least_single(J), f̂, norm(f̂))
+end
+
+_max_abs(x::Number) = abs(x)
+_max_abs(x) = maximum(abs, x)
+
+_at_least_single(x::Number) = convert(promote_type(typeof(x), Float32), x)
+function _at_least_single(J::AbstractMatrix)
+    T = promote_type(eltype(J), Float32)
+    return T === eltype(J) ? J : T.(J)
+end
+_at_least_single(J) = J
+
+function _gradient_stationarity_measure(J::Number, f̂, f̂_norm)
+    iszero(J) && return nothing
+    return abs(J' * f̂) / (abs(J) * f̂_norm)
+end
+
+function _gradient_stationarity_measure(J::AbstractMatrix, f̂, f̂_norm)
+    f̂_vec = Utils.safe_vec(f̂)
+    size(J, 1) == length(f̂_vec) || return nothing
+    g = J' * f̂_vec
+    measure = zero(f̂_norm)
+    any_nonzero_column = false
+    for (j, gⱼ) in zip(axes(J, 2), g)
+        col_norm = norm(@view(J[:, j]))
+        iszero(col_norm) && continue
+        # `norm` rescales internally, so a column norm that is still out of range, or a
+        # non-finite `gⱼ`, means the ratio would be meaningless: fail closed with `NaN`.
+        (isfinite(gⱼ) && isfinite(col_norm) && col_norm ≥ floatmin(col_norm)) ||
+            return oftype(measure, NaN)
+        any_nonzero_column = true
+        # `|gⱼ| / ‖Jⱼ‖ ≤ ‖f̂‖`, so dividing in this order never overflows, while the
+        # product `‖Jⱼ‖ ‖f̂‖` can exceed `floatmax` and turn the ratio into a false zero.
+        measure = max(measure, abs(gⱼ) / col_norm / f̂_norm)
+    end
+    return any_nonzero_column ? measure : nothing
+end
+
+gradient_stationarity_retcode(leastsq::Bool) = ifelse(
+    leastsq, ReturnCode.Success, ReturnCode.Stalled
+)
+
+# The objective a mode ranks iterates by. `Rel*` modes rank on a relative quantity, so
+# comparing a bare residual norm against their `best_objective_value` mixes two scales.
+# This is the per-step expression; `init` seeds the value with `eps(TT)` instead, which can
+# only make `at_best_iterate` reject the first iterate, never accept a worse one.
+mode_objective(mode, fu, u, reltol) = Utils.apply_norm(mode.internalnorm, fu)
+function mode_objective(
+        mode::Union{
+            RelNormSafeTerminationMode, RelNormSafeBestTerminationMode,
+        }, fu, u, reltol
+    )
+    return Utils.apply_norm(mode.internalnorm, fu) /
+        (Utils.apply_norm(mode.internalnorm, fu, u) + eps(reltol))
+end
+
+# A `Best` mode reports the lowest-objective iterate, which need not be the one the
+# Jacobian was formed at; firing elsewhere would attach the verdict to an untested point.
+at_best_iterate(_, ::AbstractNonlinearTerminationMode, _, _, _) = true
+function at_best_iterate(
+        tc_cache, mode::AbstractSafeBestNonlinearTerminationMode, fu, u, reltol
+    )
+    return mode_objective(mode, fu, u, reltol) ≤ tc_cache.best_objective_value
+end
+
+residual_tolerance(tc_cache, ::Union{RelNormSafeTerminationMode, RelNormSafeBestTerminationMode}) = tc_cache.reltol
+residual_tolerance(tc_cache, _) = tc_cache.abstol
+
+function residual_converged(tc_cache, mode, fu, u)
+    return mode_objective(mode, fu, u, tc_cache.reltol) ≤ residual_tolerance(tc_cache, mode)
+end
+
+function gradient_stationarity_reached(cache, J, fu, u)
+    tc_cache = cache.termination_cache
+    mode = tc_cache.mode
+    gtol = gradient_tolerance(mode)
+    gtol === nothing && return false
+    gradient_measure_supported(J) || return false
+    # The residual arm decides whenever it holds; on a square problem the gradient arm
+    # would otherwise turn a converged solve into `Stalled`.
+    residual_converged(tc_cache, mode, fu, u) && return false
+    at_best_iterate(tc_cache, mode, fu, u, tc_cache.reltol) || return false
+    measure = gradient_stationarity_measure(J, fu)
+    # Written as `≤` rather than `> ... && return`: a non-finite Jacobian makes the measure
+    # `NaN`, and only this direction refuses to terminate on it.
+    return measure !== nothing && measure ≤ gtol
+end
+
+function check_gradient_and_update!(cache, J, fu, u)
+    gradient_stationarity_reached(cache, J, fu, u) || return false
+    tc_cache = cache.termination_cache
+    tc_cache.retcode = gradient_stationarity_retcode(tc_cache.leastsq)
+    cache.retcode = tc_cache.retcode
+    # The retained best is only replaced on a strict improvement, so on a tie it still holds
+    # an earlier iterate. Report the one the measure was computed at, or the verdict would
+    # describe a point that was never tested.
+    update_u!!(tc_cache, u)
+    update_from_termination_cache!(tc_cache, cache, tc_cache.mode, u)
+    cache.force_stop = true
+    return true
 end
 
 function check_and_update!(cache, fu, u, uprev)
