@@ -32,7 +32,9 @@ search.
         problem
   - `linsolve`: the linear solver that inverts the Jacobian when the inverse is (re)built,
     at initialization and at resets. Defaults to `nothing`, which selects LinearSolve's
-    default algorithm (whose rescue also handles a singular Jacobian).
+    default algorithm (whose rescue also handles a singular Jacobian). Scalars,
+    `Diagonal`s, static matrices and arrays without fast scalar indexing are inverted
+    natively and don't use it; a sparse Jacobian is inverted on a dense copy.
 """
 function Broyden(;
         max_resets::Int = 100, linesearch = nothing, reset_tolerance = nothing,
@@ -41,13 +43,14 @@ function Broyden(;
     )
     return QuasiNewtonAlgorithm(;
         linesearch,
-        descent = NewtonDescent(; linsolve),
+        descent = NewtonDescent(),
         update_rule = broyden_update_rule(update_rule),
         max_resets,
         initialization = broyden_init(init_jacobian, update_rule, autodiff, alpha),
         reinit_rule = NoChangeInStateReset(; reset_tolerance),
         concrete_jac = Val(init_jacobian isa Val{:true_jacobian}),
-        name = :Broyden
+        name = :Broyden,
+        inverse_linsolve = linsolve
     )
 end
 

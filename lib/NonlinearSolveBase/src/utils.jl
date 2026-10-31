@@ -248,9 +248,9 @@ end
 condition_number(::Any) = -1
 
 # Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
-# solve A * X = I with `linsolve` (LinearSolve's default algorithm when `nothing`). Scalars, `Diagonal`s, and static
-# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
-# of the linear-solve cache.
+# solve A * X = I with `linsolve` (LinearSolve's default algorithm when `nothing`).
+# Scalars, `Diagonal`s, and static matrices take native fast paths (mirroring
+# `construct_linear_solver`'s routing) instead of the linear-solve cache.
 linsolve_workspace(A, linsolve = nothing) = nothing, A
 linsolve_workspace(A::Diagonal, linsolve = nothing) = nothing, A
 linsolve_workspace(A::SMatrix, linsolve = nothing) = nothing, A

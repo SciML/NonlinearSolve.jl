@@ -2,7 +2,8 @@
     QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,
-        max_shrink_times::Int = typemax(Int), concrete_jac = Val(false)
+        max_shrink_times::Int = typemax(Int), concrete_jac = Val(false),
+        inverse_linsolve = nothing
     )
 
 Nonlinear Solve Algorithms using an Iterative Approximation of the Jacobian. Most common
@@ -23,6 +24,10 @@ examples include [`Broyden`](@ref)'s Method.
   - `initialization`: The initialization method to use to initialize the Jacobian. This
     needs to follow the [`NonlinearSolveBase.AbstractJacobianInitialization`](@ref)
     interface.
+  - `inverse_linsolve`: the linear solver that builds the inverse Jacobian for update
+    rules that store it, at initialization and at resets. `nothing` (the default)
+    selects LinearSolve's default algorithm. The descent's linear solver is not used for
+    this.
 """
 @concrete struct QuasiNewtonAlgorithm <: AbstractNonlinearSolveAlgorithm
     linesearch
@@ -37,6 +42,18 @@ examples include [`Broyden`](@ref)'s Method.
 
     concrete_jac <: Union{Val{false}, Val{true}}
     name::Symbol
+
+    inverse_linsolve
+end
+
+function QuasiNewtonAlgorithm(
+        linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
+        max_resets, max_shrink_times, concrete_jac, name
+    )
+    return QuasiNewtonAlgorithm(
+        linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
+        max_resets, max_shrink_times, concrete_jac, name, nothing
+    )
 end
 
 NonlinearSolveBase.supports_postcondition(::QuasiNewtonAlgorithm) = true
@@ -44,11 +61,12 @@ NonlinearSolveBase.supports_postcondition(::QuasiNewtonAlgorithm) = true
 function QuasiNewtonAlgorithm(;
         linesearch = missing, trustregion = missing, descent, update_rule, reinit_rule,
         initialization, max_resets::Int = typemax(Int), name::Symbol = :unknown,
-        max_shrink_times::Int = typemax(Int), concrete_jac = Val(false)
+        max_shrink_times::Int = typemax(Int), concrete_jac = Val(false),
+        inverse_linsolve = nothing
     )
     return QuasiNewtonAlgorithm(
         linesearch, trustregion, descent, update_rule, reinit_rule, initialization,
-        max_resets, max_shrink_times, concrete_jac, name
+        max_resets, max_shrink_times, concrete_jac, name, inverse_linsolve
     )
 end
 
@@ -226,7 +244,7 @@ function SciMLBase.__init(
 
         linsolve_workspace,
             J = Utils.unwrap_val(inverted_jac) ?
-            Utils.linsolve_workspace(J, linsolve) : (nothing, J)
+            Utils.linsolve_workspace(J, alg.inverse_linsolve) : (nothing, J)
 
         descent_cache = InternalAPI.init(
             prob, alg.descent, J, fu, u;
