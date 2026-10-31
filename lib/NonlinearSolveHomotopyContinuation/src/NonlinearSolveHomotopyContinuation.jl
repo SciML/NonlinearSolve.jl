@@ -63,7 +63,7 @@ end
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
 function HomotopyContinuationJL(alg::HomotopyContinuationJL{R}; kwargs...) where {R}
-    return HomotopyContinuationJL{R}(; autodiff = alg.autodiff, alg.kwargs..., kwargs...)
+    return HomotopyContinuationJL{R}(; alg.autodiff, alg.kwargs..., kwargs...)
 end
 
 include("interface_types.jl")

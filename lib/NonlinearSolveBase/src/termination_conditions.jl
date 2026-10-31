@@ -5,6 +5,45 @@ const AbsNormModes = Union{
     AbsNormTerminationMode, AbsNormSafeTerminationMode, AbsNormSafeBestTerminationMode,
 }
 
+"""
+    residual_only_termination_mode(mode) -> Bool
+
+Return whether `mode` decides termination from the residual alone, without reading the
+iterate or displacement from the previous iterate and without retaining per-step history.
+
+This developer trait is used by [`supports_deferred_residual`](@ref) to determine whether a
+solver may honor `evaluate_residual = false`. A deferred step reports no displacement and
+reaches the termination check only when the driver requests the residual, so a mode that
+reads displacement or retains step history would observe a step that did not occur.
+
+This is a developer API for packages implementing a
+[`AbstractNonlinearTerminationMode`](@ref), not a user-facing solver option. A custom mode
+may return `true` only when its convergence decision depends on the current residual and
+tolerances, not on the iterate, displacement, or per-step history.
+
+# Arguments
+
+- `mode::AbstractNonlinearTerminationMode`: The termination mode to inspect.
+
+# Returns
+
+`true` for residual-only modes and `false` for modes that inspect displacement or retain
+per-step state. The default implementation returns `false`; solver packages should add a
+method for a new termination mode only when it satisfies the residual-only contract.
+
+# Examples
+
+```julia
+using NonlinearSolveBase
+
+NonlinearSolveBase.residual_only_termination_mode(AbsTerminationMode()) # true
+NonlinearSolveBase.residual_only_termination_mode(RelTerminationMode()) # false
+```
+"""
+residual_only_termination_mode(::AbstractNonlinearTerminationMode) = false
+residual_only_termination_mode(::AbsTerminationMode) = true
+residual_only_termination_mode(::AbsNormTerminationMode) = true
+
 # Core Implementation
 @concrete mutable struct NonlinearTerminationModeCache{uType, T}
     u::uType
@@ -20,7 +59,9 @@ const AbsNormModes = Union{
     u0_norm
     step_norm_trace
     max_stalled_steps
-    u_diff_cache::uType
+    # Scratch for `u - uprev`. It is sized from `u`, whereas `uType` is the type of the
+    # retained best iterate, which is `nothing` for every non-`Best` mode.
+    u_diff_cache
     leastsq::Bool
 end
 
@@ -78,6 +119,18 @@ function update_u!!(cache::NonlinearTerminationModeCache, u)
     end
 end
 
+"""
+    alloc_u_diff_cache(u)
+
+Scratch to hold `u - uprev` for the stall test. Sized from `u`, since the retained best
+iterate a `Best` mode carries is absent from every other mode. When `u` cannot be written
+into in place the difference is rebuilt each step, so this only has to fix the type.
+"""
+function alloc_u_diff_cache(u)
+    (u isa Number || !ArrayInterface.can_setindex(u)) && return u .- u
+    return similar(u)
+end
+
 function CommonSolve.init(
         prob::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
         saved_value_prototype...; abstol = nothing, reltol = nothing, kwargs...
@@ -96,19 +149,13 @@ function CommonSolve.init(
             u0_norm = nothing
         else
             initial_objective = Utils.apply_norm(mode.internalnorm, du) /
-                (Utils.apply_norm(mode.internalnorm, du, u) + eps(reltol))
+                (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
             u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
         end
         objectives_trace = Vector{TT}(undef, mode.patience_steps)
         step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
             Vector{TT}(undef, mode.max_stalled_steps)
-        if step_norm_trace !== nothing &&
-                ArrayInterface.can_setindex(u_unaliased) &&
-                !(u_unaliased isa Number)
-            u_diff_cache = similar(u_unaliased)
-        else
-            u_diff_cache = u_unaliased
-        end
+        u_diff_cache = step_norm_trace === nothing ? nothing : alloc_u_diff_cache(u)
         best_value = initial_objective
         max_stalled_steps = mode.max_stalled_steps
     else
@@ -118,7 +165,7 @@ function CommonSolve.init(
         step_norm_trace = nothing
         best_value = Utils.convert_real(T, Inf)
         max_stalled_steps = nothing
-        u_diff_cache = u_unaliased
+        u_diff_cache = nothing
     end
 
     length(saved_value_prototype) == 0 && (saved_value_prototype = nothing)
@@ -234,7 +281,6 @@ function (cache::NonlinearTerminationModeCache)(
 
     # Terminate if we haven't improved for the last `patience_steps`
     cache.nsteps += 1
-    cache.nsteps == 1 && (cache.initial_objective = objective)
     cache.objectives_trace[mod1(cache.nsteps, length(cache.objectives_trace))] = objective
 
     if objective ≤ mode.patience_objective_multiplier * criteria &&
@@ -258,7 +304,8 @@ function (cache::NonlinearTerminationModeCache)(
 
     # Test for stalling if that is enabled
     if cache.step_norm_trace !== nothing
-        if ArrayInterface.can_setindex(cache.u_diff_cache) && !(u isa Number)
+        if cache.u_diff_cache !== nothing && !(u isa Number) &&
+                ArrayInterface.can_setindex(cache.u_diff_cache)
             @. cache.u_diff_cache = u - uprev
         else
             cache.u_diff_cache = u .- uprev
@@ -385,12 +432,18 @@ end
 function update_from_termination_cache!(
         tc_cache, cache, ::AbstractNonlinearTerminationMode, u = get_u(cache)
     )
-    return Utils.evaluate_f!(cache, u, cache.p)
+    # The residual handed to the termination check is the one at the current iterate, so
+    # `cache.fu` already describes `u` and there is nothing to recompute.
+    return nothing
 end
 
 function update_from_termination_cache!(
         tc_cache, cache, ::AbstractSafeBestNonlinearTerminationMode, u = get_u(cache)
     )
+    # `Best` modes retain the lowest-objective iterate, which is usually the one the solve
+    # ended on; only a genuine rollback needs the residual recomputed.
+    tc_cache.u === nothing && return nothing
+    get_u(cache) == tc_cache.u && return nothing
     if SciMLBase.isinplace(cache)
         copyto!(get_u(cache), tc_cache.u)
     else

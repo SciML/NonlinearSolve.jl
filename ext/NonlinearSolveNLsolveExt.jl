@@ -33,11 +33,14 @@ function SciMLBase.__solve(
     # allocating a dense N×N Jacobian (matches NLsolve.nlsolve's own behavior).
     if alg.method in (:anderson, :broyden)
         df = NonDifferentiable(f!, Utils.safe_vec(u0), Utils.safe_vec(resid); inplace = true)
-    elseif prob.f.jac === nothing && alg.autodiff isa Symbol
+    elseif prob.f.jac === nothing && prob.f.jac_prototype === nothing
+        # NLSolversBase 8 drives DifferentiationInterface with any ADTypes backend, so
+        # `alg.autodiff` goes straight through when there is no Jacobian to respect.
         df = OnceDifferentiable(f!, u0, resid; alg.autodiff)
     else
-        autodiff = alg.autodiff isa Symbol ? nothing : alg.autodiff
-        jac! = NonlinearSolveBase.construct_extension_jac(prob, alg, u0, resid; autodiff)
+        jac! = NonlinearSolveBase.construct_extension_jac(
+            prob, alg, u0, resid; alg.autodiff
+        )
         if prob.f.jac_prototype === nothing
             J = similar(
                 u0, promote_type(eltype(u0), eltype(resid)), length(u0), length(resid)

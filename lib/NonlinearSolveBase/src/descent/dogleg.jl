@@ -63,9 +63,9 @@ function InternalAPI.init(
         pre_inverted, linsolve_kwargs, abstol, reltol, shared, kwargs...
     )
 
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
     @bb δu_cache_1 = similar(u)
     @bb δu_cache_2 = similar(u)

@@ -76,9 +76,9 @@ function InternalAPI.init(
         internalnorm::F = L2_NORM, kwargs...
     ) where {F}
     T = promote_type(eltype(u), eltype(fu))
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
     descent_cache = InternalAPI.init(
         prob, alg.descent, J, fu, u;

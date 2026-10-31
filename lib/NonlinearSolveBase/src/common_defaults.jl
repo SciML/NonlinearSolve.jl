@@ -16,24 +16,29 @@ function NAN_CHECK(x::Union{AbstractVectorOfArray, ArrayPartition})
     return any(NAN_CHECK, Utils.get_internal_array(x))
 end
 
-L2_NORM(u::Union{AbstractFloat, Complex}) = @fastmath abs(u)
-L2_NORM(u::Number) = @fastmath sqrt(UNITLESS_ABS2(u))
+# `@fastmath` must not be used in these norms. Its `nnan`/`ninf` LLVM flags let the
+# optimizer constant-fold `isfinite`/`isnan` guards applied to the result away entirely
+# (`termination_conditions.jl`'s protective break compiled to `ret i8 0`), so a diverged
+# solve was reported as converged. `@simd` already supplies `reassoc`+`contract`, which is
+# what vectorizes the reduction, so dropping `@fastmath` keeps the vectorized loop.
+L2_NORM(u::Union{AbstractFloat, Complex}) = abs(u)
+L2_NORM(u::Number) = sqrt(UNITLESS_ABS2(u))
 function L2_NORM(u::Array{<:Union{AbstractFloat, Complex}})
     if Utils.fast_scalar_indexing(u)
         x = zero(eltype(u))
         @simd for i in eachindex(u)
-            @inbounds @fastmath x += abs2(u[i])
+            @inbounds x += abs2(u[i])
         end
-        return @fastmath sqrt(real(x))
+        return sqrt(real(x))
     end
-    return @fastmath sqrt(UNITLESS_ABS2(u))
+    return sqrt(UNITLESS_ABS2(u))
 end
 function L2_NORM(u::StaticArray{<:Union{AbstractFloat, Complex}})
-    return @fastmath sqrt(real(sum(abs2, u)))
+    return sqrt(real(sum(abs2, u)))
 end
 L2_NORM(u) = norm(u, 2)
 
-Linf_NORM(u::Union{AbstractFloat, Complex}) = @fastmath abs(u)
+Linf_NORM(u::Union{AbstractFloat, Complex}) = abs(u)
 Linf_NORM(u) = maximum(abs, u)
 
 get_tolerance(η, ::Type{T}) where {T} = Utils.convert_real(T, η)

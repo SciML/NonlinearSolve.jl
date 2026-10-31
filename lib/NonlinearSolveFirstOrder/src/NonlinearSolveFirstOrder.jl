@@ -27,7 +27,7 @@ using Setfield: @set!
 using ADTypes: ADTypes
 using ArrayInterface: ArrayInterface
 using LinearAlgebra: LinearAlgebra, Diagonal, dot, diagind
-using LineSearch: BackTracking
+using LineSearch: BackTracking, ProjectedBackTracking, get_trial
 using StaticArraysCore: SArray
 
 using CommonSolve: CommonSolve, init
@@ -40,7 +40,10 @@ using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     Utils, InternalAPI, get_timer_output, @static_timeit,
     update_trace!, L2_NORM, NonlinearSolvePolyAlgorithm,
     NewtonDescent, DampedNewtonDescent, GeodesicAcceleration,
-    Dogleg, NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
+    Dogleg, MoreTrustRegionDescent, AbstractDescentDirection, TrustRegionSubproblem,
+    RobustTrustRegionLinsolve,
+    NonlinearSolveForwardDiffCache, NonlinearVerbosity, reused_jacobian
+using SciMLOperators: SciMLOperators
 using SciMLBase: SciMLBase, AbstractNonlinearProblem, NLStats, ReturnCode,
     NonlinearFunction,
     NonlinearLeastSquaresProblem, NonlinearProblem, NoSpecialize
@@ -49,15 +52,25 @@ using SciMLJacobianOperators: VecJacOperator, JacVecOperator, StatefulJacobianOp
 
 using FiniteDiff: FiniteDiff    # Default Finite Difference Method
 using ForwardDiff: ForwardDiff, Dual  # Default Forward Mode AD
+using Sobol: Sobol
 
+include("jacobian_reuse.jl")
 include("solve.jl")
 include("raphson.jl")
 include("eisenstat_walker.jl")
 include("gauss_newton.jl")
 include("levenberg_marquardt.jl")
+include("box_constraints.jl")
 include("trust_region.jl")
+include("bounded_jacobian.jl")
+include("native_bounded.jl")
+include("trust_region_reflective.jl")
+include("bounded_levenberg_marquardt.jl")
+include("dogbox.jl")
+include("bounded_gauss_newton.jl")
 include("pseudo_transient.jl")
 include("poly_algs.jl")
+include("multistart.jl")
 include("forward_diff.jl")
 
 @setup_workload begin
@@ -121,8 +134,8 @@ include("forward_diff.jl")
         )
     )
 
-    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+    nlp_algs = [NewtonRaphson(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
         @sync begin
@@ -142,15 +155,19 @@ end
 @reexport using SciMLBase, NonlinearSolveBase
 
 export NewtonRaphson, PseudoTransient
-export GaussNewton, LevenbergMarquardt, TrustRegion
+export TrustRegionReflective, BoundedLevenbergMarquardt, Dogbox, BoundedGaussNewton
+export BoundedTrustRegion, GaussNewton, LevenbergMarquardt, TrustRegion, TrustRegionDogleg,
+    TrustRegionRobust
 
 export EisenstatWalkerForcing2
+export JacobianReuse
 
 export RadiusUpdateSchemes
 
 export GeneralizedFirstOrderAlgorithm
 
 # Polyalgorithms
-export RobustMultiNewton, FastShortcutNLLSPolyalg
+export RobustMultiNewton, FastShortcutNLLSPolyalg, FastShortcutBoundedPolyalg
+export SobolMultistart
 
 end

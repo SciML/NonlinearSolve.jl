@@ -47,10 +47,10 @@ original function is.
 
 ## Problem Construction Details
 
-```@docs
-IntervalNonlinearProblem
-NonlinearProblem
-SteadyStateProblem
-NonlinearLeastSquaresProblem
-SciMLBase.HomotopyProblem
-```
+The problem types are defined and documented by SciMLBase:
+
+  - `IntervalNonlinearProblem`
+  - `NonlinearProblem`
+  - `SteadyStateProblem`
+  - `NonlinearLeastSquaresProblem`
+  - `HomotopyProblem`

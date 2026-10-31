@@ -1,7 +1,7 @@
 name = "NonlinearSolveHomotopyContinuation"
 uuid = "2ac3b008-d579-4536-8c91-a1a5998c2f8b"
 authors = ["Aayush Sabharwal <aayush.sabharwal@gmail.com> and contributors"]
-version = "0.1.11"
+version = "0.1.13"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
@@ -38,7 +38,7 @@ NonlinearSolve = "4.21"
 NonlinearSolveBase = "2.1"
 SafeTestsets = "0.1"
 SciMLBase = "3.34"
-SciMLTesting = "2.1"
+SciMLTesting = "2.4"
 SymbolicIndexingInterface = "0.3.43"
 TaylorDiff = "0.3.1"
 TaylorSeries = "0.22.4"

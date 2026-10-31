@@ -38,9 +38,7 @@ sol_G = solve(NonlinearProblem(f_diode, 2.0, p); precondition = (fu, u, p) -> as
     NonlinearProblem(circuit!, zeros(2), cp); postcondtion = H!
 )
 
-# through the polyalgorithm on a bounded problem: bounds are handled by reparameterizing
-# the iterate, but the corrector acts on the original variable by default, so the
-# junction-voltage limiting still limits volts
+# The bounded default must apply the corrector in physical volts.
 prob_b = NonlinearProblem(
     circuit!, zeros(2), cp; lb = [-10.0, -10.0], ub = [10.0, 10.0]
 )

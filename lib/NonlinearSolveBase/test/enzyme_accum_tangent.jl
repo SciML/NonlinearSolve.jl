@@ -3,6 +3,7 @@ module EnzymeAccumTangentTests
 using Test
 using NonlinearSolveBase
 import ChainRulesCore, Enzyme  # triggers NonlinearSolveBaseEnzymeExt
+import SciMLBase
 import SciMLStructures
 import SciMLStructures: Tunable
 
@@ -54,6 +55,28 @@ const EXT = Base.get_extension(NonlinearSolveBase, :NonlinearSolveBaseEnzymeExt)
     EXT._accum_tangent!(dval2, darg3)
     @test dval2.tunable == [1.0, 2.0]
     @test dval2.caches[1] == zeros(3)
+end
+
+@testset "EnzymeExt accumulates nested tangents through DespecializedParameters" begin
+    dval = SciMLBase.DespecializedParameters(MockMTKParams([0.0, 0.0], (zeros(3),)))
+    darg = (;
+        params = (;
+            tunable = [1.0, 2.0],
+            caches = ([10.0, 20.0, 30.0],),
+        ),
+    )
+
+    EXT._accum_tangent!(dval, darg)
+    @test dval.params.tunable == [1.0, 2.0]
+    @test dval.params.caches[1] == [10.0, 20.0, 30.0]
+
+    dval = SciMLBase.DespecializedParameters(MockMTKParams([0.0, 0.0], (zeros(3),)))
+    darg = SciMLBase.DespecializedParameters(
+        MockMTKParams([1.0, 2.0], ([10.0, 20.0, 30.0],))
+    )
+    EXT._accum_tangent!(dval, darg; diff_tunables = false)
+    @test dval.params.tunable == [1.0, 2.0]
+    @test dval.params.caches[1] == [10.0, 20.0, 30.0]
 end
 
 end

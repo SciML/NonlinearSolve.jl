@@ -11,6 +11,12 @@ NonlinearSolveBase
 NonlinearSolveBase.InternalAPI
 ```
 
+## Problem Concretization
+
+```@docs
+NonlinearSolveBase.get_concrete_problem
+```
+
 ## SCC Interface
 
 ```@docs
@@ -49,6 +55,9 @@ NonlinearSolveBase.AbstractDescentCache
 NonlinearSolveBase.supports_line_search
 NonlinearSolveBase.supports_trust_region
 NonlinearSolveBase.set_du!
+NonlinearSolveBase.last_step_accepted
+NonlinearSolveBase.preinverted_jacobian
+NonlinearSolveBase.normal_form
 ```
 
 ### Descent Results
@@ -66,6 +75,10 @@ NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
 NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
 NonlinearSolveBase.reset_update_rule_state!
 NonlinearSolveBase.AbstractResetCondition
+NonlinearSolveBase.stores_full_jacobian
+NonlinearSolveBase.get_full_jacobian
+NonlinearSolveBase.jacobian_initialized_preinverted
+NonlinearSolveBase.store_inverse_jacobian
 ```
 
 ## Damping Algorithms
@@ -73,6 +86,9 @@ NonlinearSolveBase.AbstractResetCondition
 ```@docs
 NonlinearSolveBase.AbstractDampingFunction
 NonlinearSolveBase.AbstractDampingFunctionCache
+NonlinearSolveBase.requires_normal_form_jacobian
+NonlinearSolveBase.requires_normal_form_rhs
+NonlinearSolveBase.returns_norm_form_damping
 ```
 
 ## Trust Region
@@ -91,6 +107,53 @@ Accessors for the state of a running solve. These are the only cache accessors a
 NonlinearSolveBase.get_u
 NonlinearSolveBase.get_fu
 NonlinearSolveBase.get_nsteps
+```
+
+## Cache Drivers
+
+The stepping driver is used for iterative caches. `solve_cache!` is the allocation-sensitive
+completion path; it is not available for `NonlinearSolveNoInitCache`.
+
+The public stepping entry point is `CommonSolve.step!`, while the
+allocation-sensitive completion entry point is `NonlinearSolveBase.solve_cache!`.
+
+```@docs
+NonlinearSolveBase.get_termination_cache
+NonlinearSolveBase.get_trace
+NonlinearSolveBase.solve_cache!
+```
+
+## Deferred Residual Evaluation
+
+A solver whose step ends by evaluating the residual at the iterate it just produced spends
+that evaluation on the *next* step's right-hand side. A driver that stops stepping — an
+implicit ODE integrator taking one Newton iteration per outer iteration, say — throws the
+last one away. These two let it ask for that evaluation to be skipped and take it later only
+if it turns out to want it.
+
+```@docs
+NonlinearSolveBase.NonlinearSolveTrace
+NonlinearSolveBase.supports_deferred_residual
+NonlinearSolveBase.refresh_residual!
+NonlinearSolveBase.residual_only_termination_mode
+NonlinearSolveBase.trace_is_active
+```
+
+## Initialization Algorithm Selection
+
+```@docs
+NonlinearSolveBase.initialization_alg
+```
+
+## Sensitivity Helpers
+
+Developer entry points used by SciMLSensitivity reverse-mode adjoints and by callers that
+already hold a concrete problem and must re-solve without re-running
+`get_concrete_problem`.
+
+```@docs
+NonlinearSolveBase.solve_call
+NonlinearSolveBase.nlls_solve_adjoint_dp
 ```
 
 ## Cache Tolerances

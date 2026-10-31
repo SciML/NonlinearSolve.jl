@@ -67,17 +67,30 @@ function scc_solve_up(
         prob::SciMLBase.SCCNonlinearProblem, sensealg, u0, p, alg::SCCAlg;
         kwargs...
     )
-    return _scc_solve(prob, alg; kwargs...)
+    probs = map(_concrete_scc_problem, prob.probs)
+    # Keep the caller's container eltype so homogeneous and heterogeneous
+    # block vectors share one `_scc_solve` instance.
+    if probs isa AbstractVector && all(Base.Fix2(isa, eltype(prob.probs)), probs)
+        probs = copyto!(similar(prob.probs), probs)
+    end
+    concrete_prob = SciMLBase.remake(prob; probs)
+    return _scc_solve(concrete_prob, alg; kwargs...)
 end
 
-probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
+function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem})
+    SciMLBase.specialization(prob.f) === SciMLBase.AutoDespecialize || return prob
+    return NonlinearSolveBase.get_concrete_problem(prob)
+end
+_concrete_scc_problem(prob) = prob
+
+probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SciMLBase.HomotopyProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
 
 function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
-    explicitfun(
-        prob.p, sols
+    SciMLBase.invoke_with_despecialized_parameters(
+        explicitfun, (prob.p, sols)
     )
 
     _sol = if prob isa SciMLBase.LinearProblem
@@ -90,7 +103,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         nlprob = NonlinearProblem{true}(Returns(nothing), sol.u, prob.p)
         SciMLBase.strip_solution(
-            SciMLBase.build_solution(nlprob, nothing, sol.u, resid, retcode = sol.retcode)
+            SciMLBase.build_solution(nlprob, nothing, sol.u, resid; sol.retcode)
         )
     else
         # A `HomotopyProblem` block (e.g. a Modelica `homotopy` operator block from
@@ -107,7 +120,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         sol = SciMLBase.solve(prob, blockalg; kwargs...)
         SciMLBase.strip_solution(
             SciMLBase.build_solution(
-                prob, nothing, sol.u, sol.resid, retcode = sol.retcode
+                prob, nothing, sol.u, sol.resid; sol.retcode
             )
         )
     end
@@ -147,8 +160,9 @@ end
 end
 
 function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs...)
-    explicitfun(
-        SymbolicIndexingInterface.parameter_values(prob), sols
+    p = SymbolicIndexingInterface.parameter_values(prob)
+    SciMLBase.invoke_with_despecialized_parameters(
+        explicitfun, (p, sols)
     )
 
     _sol = if prob isa SciMLBase.LinearProblem
@@ -160,13 +174,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode
+            alg.linalg, sol.u, resid, nothing; sol.retcode
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
-        SciMLBase.build_solution(
-            prob, nothing, sol.u, sol.resid, retcode = sol.retcode
-        )
+        SciMLBase.build_solution(prob, nothing, sol.u, sol.resid; sol.retcode)
     end
 
     return iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)

@@ -5,7 +5,7 @@ end
 
 """
 ```julia
-solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm,Nothing}; kwargs...)
+solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm, Nothing}; kwargs...)
 ```
 
 ## Arguments
@@ -51,9 +51,9 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
-  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
-  reparameterization of `u`, and `H` is applied in the original bounded variable by
-  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  Native bounded algorithms apply `H` in the original coordinates. When an explicitly
+  selected algorithm uses an unconstrained reparameterization for `lb`/`ub`, `H` is
+  still applied in the original bounded variable by default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
   `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
   applies it to the unconstrained iterate instead.
 
@@ -150,10 +150,10 @@ function solve_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         solve_call(_prob, args...; kwargs...)
     else
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # use alg for improved inference
         if length(args) > 1
             solve_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -177,6 +177,8 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     # Compose the nonlinear preconditioning options. Done here (in addition to the
     # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
@@ -276,7 +278,7 @@ function init_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
         tstops = get(kwargs, :tstops, nothing)
@@ -287,7 +289,7 @@ function init_up(
                 !SciMLBase.allows_late_binding_tstops(alg)
             throw(LateBindingTstopsNotSupportedError())
         end
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # alg for improved inference
         if length(args) > 1
             init_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -310,6 +312,8 @@ function init_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     alg = length(args) > 0 ? args[1] : nothing
 
@@ -373,10 +377,13 @@ function _run_cache_to_completion!(
         )
     end
 
-    update_from_termination_cache!(cache.termination_cache, cache)
+    # A driver may have stepped with `evaluate_residual = false`; the residual has to be
+    # brought forward before it is reported, since nothing downstream re-evaluates it.
+    refresh_residual!(cache)
+    update_from_termination_cache!(get_termination_cache(cache), cache)
 
     update_trace!(
-        cache.trace, cache.nsteps, get_u(cache), get_fu(cache), nothing, nothing, nothing;
+        get_trace(cache), cache.nsteps, get_u(cache), get_fu(cache), nothing, nothing, nothing;
         last = Val(true)
     )
 
@@ -408,11 +415,13 @@ function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_boun
     # BoundedWrapper, map the solution back from unbounded to bounded space.
     if transform_bounds && _has_bounded_wrapper(cache)
         bw = cache.prob.f.f
-        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+        u, u0 = sol.u, sol.prob.u0
+        @bb @. u = _from_unbounded(u, bw.lb, bw.ub)
+        @bb @. u0 = _from_unbounded(u0, bw.lb, bw.ub)
+        @set! sol.u = u
 
         # Reset the problem to the original fields that were overwritten
-        @set! sol.prob = remake(sol.prob; f = bw.f, lb = bw.lb, ub = bw.ub)
-        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub, u0)
     end
 
     return sol
@@ -474,6 +483,9 @@ end
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
+    attempted_syms = [gensym("attempted") for i in 1:N]
+
+    push!(calls, :($(Expr(:block, (:($(s) = false) for s in attempted_syms)...))))
 
     push!(
         calls,
@@ -483,9 +495,9 @@ end
                 return build_solution_less_specialize(
                     cache.prob, cache.alg, u,
                     $(Utils.evaluate_f)(cache.prob, u)::_fuType;
-                    retcode = cache.retcode, stats = cache.stats,
+                    cache.retcode, cache.stats,
                     trace = (cache.caches[1].trace::_traceType),
-                    store_original = cache.alg.store_original
+                    cache.alg.store_original
                 )
             end
         end
@@ -503,7 +515,9 @@ end
         end
         cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
         $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
-        if SciMLBase.successful_retcode($(sol_syms[i]))
+        $(attempted_syms[i]) = true
+        if SciMLBase.successful_retcode($(sol_syms[i])) &&
+                $(sol_syms[i]).retcode != ReturnCode.StalledSuccess
             stats = $(sol_syms[i]).stats
             cache.best = $(i)
             if cache.alias_u0
@@ -567,14 +581,16 @@ end
         )
     end
 
+    # Only subcaches attempted in this call are fallback candidates: the others hold
+    # residuals from `init`/`reinit!` (or a previous solve) and, with `alias_u0`, have
+    # no saved iterate.
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
-    for (sym, resid) in zip(cache_syms, resids)
-        # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
-        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
+    for (sym, attempted, resid) in zip(cache_syms, attempted_syms, resids)
+        push!(calls, :($(resid) = $(attempted) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
     end
     push!(
         calls, quote
-            fus = tuple($(Tuple(resids)...))
+            fus = Base.tuple($(Tuple(resids)...))
             # Use findmin_resids directly since fus already contains residual vectors from get_fu
             minfu, idx = findmin_resids(cache.prob, fus)
         end
@@ -593,7 +609,7 @@ end
     push!(
         calls,
         quote
-            retcode = cache.caches[idx].retcode
+            retcode = cache.caches[idx].retcode::ReturnCode.T
             if cache.alias_u0
                 copyto!(cache.u0, u)
                 u = cache.u0
@@ -602,7 +618,7 @@ end
             return build_solution_less_specialize(
                 cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
                 retcode, cache.stats, trace = _trace,
-                store_original = cache.alg.store_original
+                cache.alg.store_original
             )
         end
     )
@@ -690,7 +706,7 @@ end
                 return build_solution_less_specialize(
                     prob, alg, u, $(Utils.evaluate_f)(prob, u);
                     retcode = $(ReturnCode.InitialFailure),
-                    store_original = alg.store_original
+                    alg.store_original
                 )
             end
         end
@@ -710,13 +726,13 @@ end
                 if current == $(i)
                     if alias_u0
                         copyto!(u0_aliased, u0)
-                        $(prob_syms[i]) = SciMLBase.remake(prob; u0 = u0_aliased)
+                        $(prob_syms[i]) = @set prob.u0 = u0_aliased
                     else
                         $(prob_syms[i]) = prob
                     end
                     $(cur_sol) = SciMLBase.__solve(
                         $(prob_syms[i]), alg.algs[$(i)], args...;
-                        stats, alias_u0, verbose, kwargs...
+                        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
                             $(cur_sol).retcode !== ReturnCode.StalledSuccess
@@ -730,7 +746,7 @@ end
                             prob, alg, $(u_result_syms[i]), $(cur_sol).resid;
                             $(cur_sol).retcode, $(cur_sol).stats,
                             $(cur_sol).trace, original = $(cur_sol),
-                            store_original = alg.store_original
+                            alg.store_original
                         )
                     elseif alias_u0
                         # For safety we need to maintain a copy of the solution
@@ -749,7 +765,7 @@ end
 
     push!(
         calls, quote
-            resids = tuple($(Tuple(resids)...))
+            resids = Base.tuple($(Tuple(resids)...))
             minfu, idx = findmin_resids(prob, resids)
         end
     )
@@ -769,7 +785,7 @@ end
                         prob, alg, $(u_result_syms[i]), $(sol_syms[i]).resid;
                         $(sol_syms[i]).retcode, $(sol_syms[i]).stats,
                         $(sol_syms[i]).trace, original = $(sol_syms[i]),
-                        store_original = alg.store_original
+                        alg.store_original
                     )
                 end
             end
@@ -781,20 +797,53 @@ end
 end
 
 """
-    step!(
-        cache::AbstractNonlinearSolveCache;
-        recompute_jacobian::Union{Nothing, Bool} = nothing
-    )
+    step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
 
-Performs one step of the nonlinear solver.
+Perform one step of a nonlinear solver and mutate `cache` in place.
 
-### Keyword Arguments
+The public wrapper first checks whether the cache is still active, then calls
+`NonlinearSolveBase.InternalAPI.step!`, updates the step counters, and enforces a time
+limit when one is configured. It returns the value produced by the algorithm-specific
+implementation, which is commonly `nothing`.
 
-  - `recompute_jacobian`: allows controlling whether the jacobian is recomputed at the
-    current step. If `nothing`, then the algorithm determines whether to recompute the
-    jacobian. If `true` or `false`, then the jacobian is recomputed or not recomputed,
-    respectively. For algorithms that don't use jacobian information, this keyword is
-    ignored with a one-time warning.
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: the initialized stepping cache to advance.
+- `args...`: positional arguments forwarded to the algorithm-specific implementation.
+
+# Keywords
+
+- `recompute_jacobian::Union{Nothing, Bool} = nothing`: whether to recompute a Jacobian
+  when the algorithm uses one. `nothing` delegates the choice to the algorithm. This
+  keyword is ignored or rejected by algorithms according to their own interface.
+- `evaluate_residual::Bool = true`: a hint that the algorithm may skip the residual
+  evaluation at the newly accepted iterate. It is honored only when
+  [`supports_deferred_residual`](@ref) returns `true`; call [`refresh_residual!`](@ref)
+  before reading a deferred residual.
+- `kwargs...`: additional algorithm-specific keyword arguments.
+
+# Returns
+
+The value returned by `InternalAPI.step!`. The cache is mutated in place. Calling `step!`
+on a terminated cache does nothing and returns `nothing`.
+
+# Extension Rules
+
+Solver packages implement `InternalAPI.step!`, not this `CommonSolve.step!` method. The
+implementation must leave the cache state consistent with [`get_u`](@ref),
+[`get_fu`](@ref), and the termination cache. The wrapper owns the top-level `nsteps` and
+`stats.nsteps` increments, so an implementation should not increment those counters for
+the same step.
+
+# Examples
+
+```julia
+import NonlinearSolve
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.NewtonRaphson())
+NonlinearSolve.step!(cache)
+```
 """
 function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     not_terminated(cache) || return
@@ -824,25 +873,50 @@ end
 """
     NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
 
-The cache `init(prob, alg)` returns for an algorithm that defines no `SciMLBase.__init`
-method — every `SimpleNonlinearSolve` algorithm, for instance. It stores the problem and
-the solve options and does nothing else, so that generic code can call `init` on any
-algorithm.
+Cache returned by `init(prob, alg; kwargs...)` when `alg` has no algorithm-specific
+`SciMLBase.__init` method. Every `SimpleNonlinearSolve` algorithm uses this form, for
+example. It stores the problem and solve options so generic code can call `init` on any
+nonlinear algorithm.
 
-Unlike a stepping cache it holds no iteration state, and it implements only part of the
-[`AbstractNonlinearSolveCache`](@ref) interface:
+Unlike a stepping cache, it holds no iteration state and implements only part of the
+[`AbstractNonlinearSolveCache`](@ref) interface. `solve!(cache)` runs the complete solve
+and returns a `SciMLBase.NonlinearSolution`; that solution is the only record of the
+iterations, and no iteration state is written back into the cache. `get_u(cache)` reads
+the problem's initial state, while `SciMLBase.reinit!`, `get_abstol`, `get_reltol`, and the
+`SymbolicIndexingInterface` accessors operate on the stored problem as usual.
 
-  - `solve!(cache)` runs the *complete* solve and returns its `SciMLBase.NonlinearSolution`.
-    That returned solution is the only record of the solve; nothing about it is written back
-    into the cache.
-  - `get_u(cache)` reads the problem's `u0`, i.e. the *initial* iterate — it does not track
-    a running one.
-  - `SciMLBase.reinit!`, `get_abstol`, `get_reltol` and the `SymbolicIndexingInterface`
-    accessors work as usual.
-  - `CommonSolve.step!`, `get_fu`, `get_nsteps` and `cache.stats` are **not** available.
+`CommonSolve.step!`, `get_fu`, `get_nsteps`, and `cache.stats` are not available for this
+cache. Generic code that drives caches one step at a time must detect this type and call
+`solve!(cache)` instead.
 
-Public so that code driving an `AbstractNonlinearSolveCache` one `step!` at a time can
-detect this cache and run a full `solve!` instead.
+# Fields
+
+- `prob::AbstractNonlinearProblem`: the problem passed to `init`.
+- `alg::AbstractNonlinearSolveAlgorithm`: the algorithm passed to `init`.
+- `args::Tuple`: positional arguments forwarded to the eventual solve.
+- `kwargs::Any`: keyword options forwarded to the eventual solve, including tolerances.
+- `initializealg`: the initialization algorithm used before the solve.
+- `retcode::SciMLBase.ReturnCode.T`: the initialization status, if initialization ran.
+- `verbose`: the verbosity specification forwarded to the solve.
+
+# Extension Rules
+
+This cache is the fallback produced by the package's generic initialization method; solver
+packages should not add `step!` methods to it to imitate a stepping cache. Use `isa
+NonlinearSolveNoInitCache` only to select the complete `solve!` path, and use the generic
+accessors for all other supported operations.
+
+# Examples
+
+```julia
+import NonlinearSolve
+import NonlinearSolveBase
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.SimpleNewtonRaphson())
+cache isa NonlinearSolveBase.NonlinearSolveNoInitCache
+sol = NonlinearSolve.solve!(cache)
+```
 """
 @concrete mutable struct NonlinearSolveNoInitCache <: AbstractNonlinearSolveCache
     prob
@@ -875,6 +949,7 @@ get_u(cache::NonlinearSolveNoInitCache) = SII.state_values(cache.prob)
 function SciMLBase.reinit!(
         cache::NonlinearSolveNoInitCache, u0 = cache.prob.u0; p = cache.prob.p, kwargs...
     )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
     cache.prob = SciMLBase.remake(cache.prob; u0, p)
     cache.kwargs = merge(cache.kwargs, kwargs)
     return cache
@@ -903,7 +978,12 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end
-    return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
+    # The initialization pipeline already ran during `init`; the inner solve must
+    # not run it a second time.
+    return CommonSolve.solve(
+        cache.prob, cache.alg, cache.args...;
+        initializealg = SciMLBase.NoInit(), cache.kwargs...
+    )
 end
 
 
@@ -916,19 +996,20 @@ function _solve_adjoint(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
-    # Enzyme cannot differentiate through FunctionWrappers' `llvmcall`, so its
-    # traced forward solve runs on the unwrapped function (see
-    # `maybe_unwrap_prob_for_enzyme`, #940). That unwrap is keyed off the solver's
-    # own autodiff, which for an MTK DAE initialization is ForwardDiff even when
-    # the *outer* differentiation is Enzyme — so it does not fire here. Key off
-    # the originator instead: the EnzymeOriginator adjoint primal must have the
-    # same (unwrapped) type as Enzyme's traced forward, otherwise the custom
-    # `solve_up` rule's returned primal type mismatches the inferred return type
-    # (`EnzymeRuntimeException: Expected return type of primal to be ...`).
-    if originator isa SciMLBase.EnzymeOriginator && is_fw_wrapped(_prob.f.f)
-        @set! _prob.f.f = get_raw_f(_prob.f.f)
+    # The inner sensitivity calculation needs the concrete parameter layout to
+    # differentiate non-Tunable SciMLStructure fields. The outer AD rules restore
+    # the DespecializedParameters tangent boundary.
+    adjoint_p = p
+    if _prob.p isa SciMLBase.DespecializedParameters
+        _prob = _unwrap_despecialized_problem(_prob)
+        adjoint_p = _prob.p
+    elseif originator isa SciMLBase.EnzymeOriginator
+        # Match the unwrapped callable used by Enzyme's traced forward solve.
+        if is_fw_wrapped(_prob.f.f)
+            @set! _prob.f.f = get_raw_f(_prob.f.f)
+        end
     end
 
     if has_kwargs(_prob)
@@ -938,11 +1019,13 @@ function _solve_adjoint(
 
     return if length(args) > 1
         _concrete_solve_adjoint(
-            _prob, alg, sensealg, u0, p, originator,
+            _prob, alg, sensealg, u0, adjoint_p, originator,
             Base.tail(args)...; kwargs...
         )
     else
-        _concrete_solve_adjoint(_prob, alg, sensealg, u0, p, originator; kwargs...)
+        _concrete_solve_adjoint(
+            _prob, alg, sensealg, u0, adjoint_p, originator; kwargs...
+        )
     end
 end
 
@@ -951,7 +1034,7 @@ function _solve_forward(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
     if has_kwargs(_prob)
         # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
@@ -972,13 +1055,22 @@ function maybe_wrap_f(prob::AbstractNonlinearProblem)
     # AutoDePSpecialize opaque-`p` path (packs `p` + wraps `f` together).
     opaque = maybe_opaque_wrap(prob)
     opaque === nothing || return opaque
+    prob = _despecialize_parameters(prob)
     wrapped_f = maybe_wrap_nonlinear_f(prob)
     wrapped_f === prob.f.f && return prob
-    @set! prob.f.f = wrapped_f
-    return prob
+    f = SciMLBase.unwrapped_f(prob.f, wrapped_f)
+    return SciMLBase.remake(prob; f)
 end
 
 
+"""
+    get_concrete_problem(prob; kwargs...)
+
+Return the concrete nonlinear problem used by solver initialization after applying state
+and parameter overrides, numeric promotion, symbolic updates, and the problem function's
+specialization policy. Solver packages can use this developer API before constructing a
+cache or composing nonlinear subproblems.
+"""
 function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     oldprob = prob
     prob = get_updated_symbolic_problem(get_root_indp(prob), prob; kwargs...)
@@ -988,7 +1080,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1001,7 +1093,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1009,7 +1101,8 @@ function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, prob.p, nothing)
     p = get_concrete_p(prob, kwargs)
-    return remake(prob; u0 = u0, p = p)
+    prob = remake(prob; u0, p)
+    return maybe_wrap_f(prob)
 end
 
 function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
@@ -1021,7 +1114,7 @@ function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, Inf, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p)
+    return remake(prob; u0, p)
 end
 
 

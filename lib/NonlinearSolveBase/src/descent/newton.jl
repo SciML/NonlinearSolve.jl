@@ -31,9 +31,11 @@ function InternalAPI.init(
         abstol = nothing, reltol = nothing,
         timer = get_timer_output(), kwargs...
     )
-    @bb δu = similar(u)
+    # Descent buffers reach LinearSolve as `linu`, which iterative algorithms read as the
+    # initial guess before the first solve writes them, so they must start defined.
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
 
     if Utils.unwrap_val(pre_inverted)
@@ -62,9 +64,9 @@ function InternalAPI.init(
     length(fu) != length(u) &&
         @assert !Utils.unwrap_val(pre_inverted) "Precomputed Inverse for Non-Square Jacobian doesn't make sense."
 
-    @bb δu = similar(u)
+    @bb δu = zero(u)
     δus = Utils.unwrap_val(shared) ≤ 1 ? nothing : map(2:Utils.unwrap_val(shared)) do i
-            @bb δu_ = similar(u)
+            @bb δu_ = zero(u)
     end
     normal_form = needs_square_A(alg.linsolve, u)
     if normal_form

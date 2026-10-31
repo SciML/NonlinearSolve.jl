@@ -27,3 +27,5 @@ docs/src/assets/Project.toml
 .vscode
 wip
 .CondaPkg
+
+.benchmark/

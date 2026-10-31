@@ -55,7 +55,7 @@ end
 function InternalAPI.solve!(cache::NoChangeInStateResetCache, J, fu, u, du; kwargs...)
     cond = ≤(cache.reset_tolerance) ∘ abs
     if cache.condition.check_du
-        if any(cond, du)
+        if all(cond, du)
             cache.steps_since_change_du += 1
             if cache.steps_since_change_du ≥ cache.condition.nsteps
                 cache.steps_since_change_du = 0
@@ -69,7 +69,7 @@ function InternalAPI.solve!(cache::NoChangeInStateResetCache, J, fu, u, du; kwar
     end
     if cache.condition.check_dfu
         @bb @. cache.dfu = fu - cache.dfu
-        if any(cond, cache.dfu)
+        if all(cond, cache.dfu)
             cache.steps_since_change_dfu += 1
             if cache.steps_since_change_dfu ≥ cache.condition.nsteps
                 cache.steps_since_change_dfu = 0

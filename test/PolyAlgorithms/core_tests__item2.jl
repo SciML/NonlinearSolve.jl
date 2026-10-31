@@ -41,3 +41,22 @@ end
         @test SciMLBase.successful_retcode(cache.retcode)
     end
 end
+
+@testset "Jacobian reuse forwarding" begin
+    policy = JacobianReuse(max_age = 3)
+    alg = FastShortcutNonlinearPolyalg(jacobian_reuse = policy)
+    first_order_algs = filter(subalg -> hasproperty(subalg, :jacobian_reuse), alg.algs)
+
+    @test length(first_order_algs) == 4
+    @test all(subalg -> subalg.jacobian_reuse === policy, first_order_algs)
+
+    sol = solve(
+        prob,
+        FastShortcutNonlinearPolyalg(
+            must_use_jacobian = Val(true), jacobian_reuse = policy
+        );
+        abstol = 1.0e-9
+    )
+    @test SciMLBase.successful_retcode(sol)
+    @test maximum(abs, f(sol.u, 2.0)) < 1.0e-9
+end

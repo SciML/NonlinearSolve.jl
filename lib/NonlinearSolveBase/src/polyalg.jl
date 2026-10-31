@@ -6,6 +6,11 @@ A general way to define PolyAlgorithms for `NonlinearProblem` and
 tried in order until one succeeds. If none succeed, then the algorithm with the lowest
 residual is returned.
 
+If every stage natively supports box bounds, the polyalgorithm preserves the original
+bounded coordinates and projects an infeasible initial guess onto the box without
+mutating the supplied state. Otherwise, bound handling uses the variable transformation shared
+by algorithms without native bound support.
+
 ### Arguments
 
   - `algs`: a tuple of algorithms to try in-order! (If this is not a Tuple, then the
@@ -80,6 +85,12 @@ function supports_postcondition(alg::NonlinearSolvePolyAlgorithm)
     return all(supports_postcondition, alg.algs)
 end
 
+SciMLBase.allowsbounds(alg::NonlinearSolvePolyAlgorithm) = all(SciMLBase.allowsbounds, alg.algs)
+
+function prepare_default_bounds(prob, alg::NonlinearSolvePolyAlgorithm)
+    return SciMLBase.allowsbounds(alg) ? prepare_default_bounds(prob, nothing) : prob
+end
+
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
     static_length <: Val
     prob <: AbstractNonlinearProblem
@@ -121,6 +132,17 @@ end
     initializealg
 
     verbose
+end
+
+# A polyalgorithm holds no termination cache of its own; the subsolver it is currently
+# running owns one. Forwarding lets `solve_cache!`, `get_abstol` and `get_reltol` work on a
+# polyalgorithm cache instead of throwing `has no field termination_cache`.
+function get_termination_cache(cache::NonlinearSolvePolyAlgorithmCache)
+    return get_termination_cache(cache.caches[cache.current])
+end
+
+function get_trace(cache::NonlinearSolvePolyAlgorithmCache)
+    return get_trace(cache.caches[cache.current])
 end
 
 function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
@@ -168,11 +190,17 @@ function Base.show(io::IO, ::MIME"text/plain", cache::NonlinearSolvePolyAlgorith
     return NonlinearSolveBase.show_nonlinearsolve_cache(io, cache.caches[cache.current], 4)
 end
 
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache; kwargs...)
-    return InternalAPI.reinit!(cache; kwargs...)
+function SciMLBase.reinit!(
+        cache::NonlinearSolvePolyAlgorithmCache; p = cache.prob.p, kwargs...
+    )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
+    return InternalAPI.reinit!(cache; p, kwargs...)
 end
-function SciMLBase.reinit!(cache::NonlinearSolvePolyAlgorithmCache, u0; kwargs...)
-    return InternalAPI.reinit!(cache; u0, kwargs...)
+function SciMLBase.reinit!(
+        cache::NonlinearSolvePolyAlgorithmCache, u0; p = cache.prob.p, kwargs...
+    )
+    p = _prepare_reinit_parameters(p, cache.prob.p)
+    return InternalAPI.reinit!(cache; u0, p, kwargs...)
 end
 # Every RETAIN_REPROBE_INTERVAL-th retained `reinit!` whose retained subalgorithm sits
 # above `start_index` starts one solve from `start_index` again instead. Without this,
@@ -188,6 +216,8 @@ function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0,
         retain_best::Bool = false, kwargs...
     )
+    # `solve!` seeds every attempt from `cache.u0` when aliasing
+    cache.alias_u0 && u0 !== cache.u0 && copyto!(cache.u0, u0)
     cache.retain_best = retain_best
     cache.retain_count = retain_best ? cache.retain_count + 1 : 0
     retained = retain_best && 1 ≤ cache.best ≤ Utils.unwrap_val(cache.static_length)
@@ -271,6 +301,13 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(verbose)
     end
 
+    # Native child caches evaluate the residual and validate bounds during construction.
+    initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
+    success = true
+    if initialize_before_cache
+        prob, success = run_initialization!(prob, initializealg, prob)
+    end
+
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
@@ -293,7 +330,11 @@ function SciMLBase.__init(
         ReturnCode.Default, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg, verbose
     )
-    run_initialization!(cache)
+    if initialize_before_cache
+        success || (cache.retcode = ReturnCode.InitialFailure)
+    else
+        run_initialization!(cache)
+    end
     return cache
 end
 

@@ -66,21 +66,52 @@ NonlinearSolveBase.L2_NORM([3.0, 4.0])
 function L2_NORM end
 
 """
-    solve_cache!(cache; step_observer = nothing) -> ReturnCode
+    solve_cache!(cache::AbstractNonlinearSolveCache; step_observer = nothing) -> ReturnCode
 
-Drive an initialized nonlinear solver cache to termination without constructing a
-`NonlinearSolution`.
+Drive an initialized stepping cache to termination without constructing a
+`SciMLBase.NonlinearSolution`.
 
 This allocation-sensitive interface is intended for nested solvers that already own a
-cache from `init` and whose algorithm supports the nonlinear solver iterator interface.
-`step_observer`, when provided, is called after every nonlinear iteration as
-`step_observer(u, fu, iteration)`. The state and residual arguments alias the solver
-cache and must not be mutated. The returned `SciMLBase.ReturnCode` reports the final
-solver status; the final state remains available through
+cache from `init`. It is available only when the cache implements the nonlinear solver
+iterator interface. Unlike `solve!(cache)`, it does not transform a bounded problem's
+internal unconstrained state back to bounded coordinates.
+
+# Arguments
+
+- `cache::AbstractNonlinearSolveCache`: an initialized cache with an
+  `InternalAPI.step!` implementation.
+
+# Keywords
+
+- `step_observer = nothing`: an optional callable invoked after each nonlinear step as
+  `step_observer(u, fu, iteration)`. The `u` and `fu` arguments alias the cache and must
+  not be mutated.
+
+# Returns
+
+The final `SciMLBase.ReturnCode`. The final state remains available through
 `SymbolicIndexingInterface.state_values(cache)`.
 
-Unlike `solve!(cache)`, this function does not transform a bounded problem's internal
-unconstrained state back to the bounded coordinates.
+# Throws
+
+`ArgumentError` if `cache` does not support the stepping interface.
+
+# Extension Rules
+
+Implement `NonlinearSolveBase.InternalAPI.step!` on a cache before calling this function.
+Use `solve!(cache)` for [`NonlinearSolveNoInitCache`](@ref), which intentionally has no
+stepping state.
+
+# Examples
+
+```julia
+import NonlinearSolve
+import NonlinearSolveBase
+
+prob = NonlinearSolve.NonlinearProblem((u, p) -> u^2 - p, 1.0, 2.0)
+cache = NonlinearSolve.init(prob, NonlinearSolve.NewtonRaphson())
+retcode = NonlinearSolveBase.solve_cache!(cache)
+```
 """
 function solve_cache! end
 
@@ -138,6 +169,11 @@ with parameter partials.
 This is developer API for solver packages that need to propagate dual-number sensitivities
 through specialized nonlinear solve implementations.
 
+For box-constrained least-squares problems, sensitivities use the projected stationarity
+equation, including active bounds. They assume parameter-independent bounds, a locally
+unchanged active set, and a nonsingular stationarity Jacobian on the free variables.
+A classical derivative need not exist where the active set changes.
+
 ### Arguments
 
   - `prob`: A SciML nonlinear problem whose parameters may carry ForwardDiff dual values.
@@ -172,6 +208,24 @@ function nonlinearsolve_dual_solution end
 function nonlinearsolve_∂f_∂p end
 function nonlinearsolve_∂f_∂u end
 function nlls_generate_vjp_function end
+function nlls_solve_adjoint_dp end
+
+"""
+    solve_call(_prob, args...; kwargs...)
+
+Solve an already-concrete nonlinear problem, bypassing `get_concrete_problem`.
+
+This developer API is used by callers that hold a problem produced by
+[`get_concrete_problem`](@ref) — for example sensitivity analyses that re-solve
+the primal inside an adjoint — where re-running the specialization pipeline
+would re-wrap `prob.f.f` and change the solution type.
+
+### Arguments
+
+  - `_prob`: A concrete `AbstractNonlinearProblem` as returned by `get_concrete_problem`.
+  - `args...`: The algorithm and any positional `solve` arguments.
+"""
+function solve_call end
 function nodual_value end
 
 """
@@ -264,7 +318,7 @@ AbstractSafeNonlinearTerminationMode end
 #! format: off
 const TERM_DOCS = Dict(
     :Norm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|`` or ``\| Δu \| ≤ abstol``",
-    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | u | \right)``",
+    :Rel => doc"``\mathrm{all} \left(| Δu | ≤ reltol × | Δu + u | \right)``",
     :RelNorm => doc"``\| Δu \| ≤ reltol × \| Δu + u \|``",
     :Abs => doc"``\mathrm{all} \left( | Δu | ≤ abstol \right)``",
     :AbsNorm => doc"``\| Δu \| ≤ abstol``"

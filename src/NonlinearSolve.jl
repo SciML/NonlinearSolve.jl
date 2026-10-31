@@ -19,8 +19,8 @@ using SymbolicIndexingInterface: SymbolicIndexingInterface
 using StaticArraysCore: StaticArray
 
 # Default Algorithm
-using NonlinearSolveFirstOrder: NewtonRaphson, TrustRegion, LevenbergMarquardt, GaussNewton,
-    RUS, RobustMultiNewton
+using NonlinearSolveFirstOrder: BoundedTrustRegion, FastShortcutBoundedPolyalg, NewtonRaphson, SobolMultistart,
+    TrustRegion, LevenbergMarquardt, GaussNewton, RUS, RobustMultiNewton
 using NonlinearSolveQuasiNewton: Broyden, Klement
 using SimpleNonlinearSolve: SimpleBroyden, SimpleKlement
 
@@ -143,8 +143,19 @@ include("forward_diff.jl")
         ),
     )
 
-    nlp_algs = [NewtonRaphson(), TrustRegion(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), TrustRegion(), LevenbergMarquardt()]
+    push!(
+        nonlinear_problems,
+        NonlinearProblem(
+            NonlinearFunction{true, SciMLBase.AutoDespecialize}(
+                (du, u, p) -> (du .= u .* u .- p.a)
+            ),
+            [0.1],
+            (a = 2.0,),
+        ),
+    )
+
+    nlp_algs = [NewtonRaphson(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
+    nlls_algs = [GaussNewton(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
 
     @compile_workload begin
         @sync begin

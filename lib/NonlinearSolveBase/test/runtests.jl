@@ -24,6 +24,7 @@ run_tests(;
 
         @safetestset "Termination Conditions" begin
             using NonlinearSolveBase, SciMLBase
+            using StaticArrays: SA
 
             @testset "reinit! with AbsTerminationMode" begin
                 mode = NonlinearSolveBase.AbsTerminationMode()
@@ -69,6 +70,165 @@ run_tests(;
                     safe_best, [2.0], 2.0, ReturnCode.Terminated
                 ) == ([0.5], 3.0, ReturnCode.Success)
             end
+
+            # `max_stalled_steps` is a documented constructor option on every safe mode,
+            # but the non-`Best` ones retain no iterate, so the step scratch cannot be
+            # sized from one.
+            @testset "max_stalled_steps: $modename, u0::$(typeof(u0))" for (
+                        modename, mode,
+                    ) in (
+                        (
+                            "AbsNormSafe", NonlinearSolveBase.AbsNormSafeTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "RelNormSafe", NonlinearSolveBase.RelNormSafeTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "AbsNormSafeBest", NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                        (
+                            "RelNormSafeBest", NonlinearSolveBase.RelNormSafeBestTerminationMode(
+                                Base.Fix1(maximum, abs); max_stalled_steps = 3
+                            ),
+                        ),
+                    ),
+                    u0 in ([1.0, 1.0], 1.0, SA[1.0, 1.0])
+
+                du = u0 isa Number ? 1.0 : (u0 .* 0 .+ 1.0)
+                prob = SciMLBase.NonlinearProblem((u, p) -> du, u0)
+                cache = SciMLBase.init(
+                    prob, mode, du, u0; abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                # The iterate stops moving while the residual stays far above `abstol`:
+                # the stall safeguard is exactly what must fire.
+                terminated = false
+                for _ in 1:5
+                    terminated = cache(du, u0, u0)
+                end
+                @test terminated
+                @test cache.retcode == SciMLBase.ReturnCode.Stalled
+            end
+
+            @testset "protective_threshold measures against the initial residual" begin
+                mode = NonlinearSolveBase.AbsNormSafeTerminationMode(
+                    Base.Fix1(maximum, abs); protective_threshold = 1.0
+                )
+                prob = SciMLBase.NonlinearProblem((u, p) -> [100.0], [1.0])
+                cache = SciMLBase.init(
+                    prob, mode, [100.0], [1.0]; abstol = 1.0e-10, reltol = 1.0e-10
+                )
+                @test cache.initial_objective == 100.0
+
+                @test !cache([1.0e-3], [1.1], [1.0])
+                @test cache.initial_objective == 100.0
+
+                # 5.0 is twenty times *below* the initial residual, so nothing about it
+                # is divergence.
+                @test !cache([5.0], [1.2], [1.1])
+                @test cache.retcode != SciMLBase.ReturnCode.Unstable
+            end
+
+            @testset "deferred residual helper contracts" begin
+                using NonlinearSolveBase: AbstractNonlinearTerminationMode,
+                    AbsTerminationMode, NonlinearSolveTrace, RelTerminationMode, TraceMinimal,
+                    residual_only_termination_mode, trace_is_active
+
+                struct ResidualOnlyTestMode <: AbstractNonlinearTerminationMode end
+                NonlinearSolveBase.residual_only_termination_mode(::ResidualOnlyTestMode) = true
+
+                @static if VERSION ≥ v"1.11"
+                    @test Base.ispublic(
+                        NonlinearSolveBase, :residual_only_termination_mode
+                    )
+                    @test Base.ispublic(NonlinearSolveBase, :trace_is_active)
+                end
+
+                @test residual_only_termination_mode(AbsTerminationMode())
+                @test !residual_only_termination_mode(RelTerminationMode())
+                @test residual_only_termination_mode(ResidualOnlyTestMode())
+                @test !trace_is_active(nothing)
+                @test !trace_is_active(missing)
+                @test !trace_is_active(
+                    NonlinearSolveTrace(Val(false), Val(false), nothing, TraceMinimal(), nothing)
+                )
+                @test trace_is_active(
+                    NonlinearSolveTrace(Val(true), Val(false), nothing, TraceMinimal(), nothing)
+                )
+                @test trace_is_active(
+                    NonlinearSolveTrace(Val(false), Val(true), nothing, TraceMinimal(), nothing)
+                )
+            end
+        end
+
+        @safetestset "Abstract interface trait contracts" begin
+            using NonlinearSolveBase, Test
+
+            mutable struct TraitDescentCache <: NonlinearSolveBase.AbstractDescentCache
+                δu::Vector{Float64}
+                δus::Vector{Vector{Float64}}
+                preinverted_jacobian::Val{false}
+                normal_form::Val{false}
+                last_step_accepted::Bool
+            end
+
+            struct TraitStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+            struct TraitFullStructure <: NonlinearSolveBase.AbstractApproximateJacobianStructure end
+            struct TraitInitialization <: NonlinearSolveBase.AbstractJacobianInitialization end
+            struct TraitUpdateRule <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRule
+                store_inverse_jacobian::Bool
+            end
+            struct TraitUpdateCache <: NonlinearSolveBase.AbstractApproximateJacobianUpdateRuleCache
+                rule::TraitUpdateRule
+            end
+            struct TraitDamping <: NonlinearSolveBase.AbstractDampingFunction end
+
+            NonlinearSolveBase.requires_normal_form_jacobian(::TraitDamping) = true
+            NonlinearSolveBase.requires_normal_form_rhs(::TraitDamping) = false
+            NonlinearSolveBase.stores_full_jacobian(::TraitFullStructure) = true
+
+            cache = TraitDescentCache(
+                [1.0], [[1.0], [2.0]], Val(false), Val(false), false
+            )
+            @test NonlinearSolveBase.last_step_accepted(cache) === false
+            @test NonlinearSolveBase.preinverted_jacobian(cache) === false
+            @test NonlinearSolveBase.normal_form(cache) === false
+
+            @test NonlinearSolveBase.last_step_accepted(
+                TraitDescentCache([1.0], [[1.0]], Val(false), Val(false), true)
+            )
+
+            @test NonlinearSolveBase.stores_full_jacobian(TraitStructure()) === false
+            @test_throws ErrorException NonlinearSolveBase.get_full_jacobian(
+                nothing, TraitStructure(), [1.0]
+            )
+            J = [1.0 0.0; 0.0 1.0]
+            @test NonlinearSolveBase.get_full_jacobian(
+                nothing, TraitFullStructure(), J
+            ) === J
+            @test NonlinearSolveBase.jacobian_initialized_preinverted(TraitInitialization()) ===
+                false
+
+            rule = TraitUpdateRule(true)
+            @test NonlinearSolveBase.store_inverse_jacobian(rule) === true
+            @test NonlinearSolveBase.store_inverse_jacobian(TraitUpdateCache(rule)) === true
+            @test NonlinearSolveBase.returns_norm_form_damping(TraitDamping()) === true
+
+            @static if VERSION ≥ v"1.11"
+                for name in (
+                        :last_step_accepted, :preinverted_jacobian, :normal_form,
+                        :requires_normal_form_jacobian, :requires_normal_form_rhs,
+                        :returns_norm_form_damping, :stores_full_jacobian, :get_full_jacobian,
+                        :jacobian_initialized_preinverted, :store_inverse_jacobian,
+                    )
+                    @test Base.ispublic(NonlinearSolveBase, name)
+                end
+            end
         end
 
         @safetestset "standardize_forwarddiff_tag leaves unwrapped problems alone (#3381)" begin
@@ -102,6 +262,8 @@ run_tests(;
         end
 
         @safetestset "AutoDePSpecialize opaque-p" include("autodepspecialize.jl")
+
+        @safetestset "AutoDespecialize dynamic-p" include("autodespecialize.jl")
 
         @safetestset "maybe_wrap_nonlinear_f wraps non-dual IIP array problems of any eltype or ndims" begin
             # Wrapping is keyed off `eltype(u0)`: the ForwardDiff-aware `wrapfun_iip`
@@ -149,6 +311,51 @@ run_tests(;
             )
         end
 
+        @safetestset "maybe_wrap_nonlinear_f rebuilds a pre-wrapped f whose signatures do not match u0" begin
+            # A problem wrapped at construction (`get_concrete_problem`) carries signatures
+            # for the state/parameter types it was wrapped with. After `remake` with other
+            # types the wrapper must not be reused as-is: it is rebuilt for a new value
+            # eltype, and dropped in favour of the raw callable for an outer-AD Dual eltype.
+            using NonlinearSolveBase, SciMLBase, ForwardDiff
+
+            resid!(du, u, p) = (du .= u .^ 2 .- p.k; nothing)
+            DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 1}
+            dual(v, ∂) = DualF(v, ForwardDiff.Partials((∂,)))
+            for spec in (SciMLBase.AutoSpecialize, SciMLBase.AutoDespecialize)
+                f = NonlinearFunction{true, spec}(resid!)
+                wrapped = NonlinearSolveBase.get_concrete_problem(
+                    NonlinearProblem(f, [1.0, 2.0], (; k = 2.0))
+                )
+                @test NonlinearSolveBase.is_fw_wrapped(wrapped.f.f)
+                @test NonlinearSolveBase.wrapper_accepts(
+                    wrapped.f.f, (wrapped.u0, wrapped.u0, wrapped.p)
+                )
+                @test NonlinearSolveBase.maybe_wrap_f(wrapped) === wrapped
+
+                # Different value eltype: the old wrapper has no signature, a new one is built.
+                u0 = Float32[1, 2]
+                p = (; k = 2.0f0)
+                @test !NonlinearSolveBase.wrapper_accepts(wrapped.f.f, (u0, u0, wrapped.p))
+                f32 = NonlinearSolveBase.get_concrete_problem(SciMLBase.remake(wrapped; u0, p))
+                @test NonlinearSolveBase.is_fw_wrapped(f32.f.f)
+                @test NonlinearSolveBase.wrapper_accepts(f32.f.f, (f32.u0, f32.u0, f32.p))
+                du = similar(f32.u0)
+                f32.f(du, f32.u0, f32.p)
+                @test du == Float32[-1, 2]
+
+                # Outer-AD Dual eltype: no wrapper at all, the raw callable is handed back.
+                u0 = [dual(1.0, 1.0), dual(2.0, 0.0)]
+                p = (; k = dual(2.0, 1.0))
+                dualprob = SciMLBase.remake(wrapped; u0, p)
+                concrete = NonlinearSolveBase.get_concrete_problem(dualprob)
+                @test !NonlinearSolveBase.is_fw_wrapped(concrete.f.f)
+                du = similar(concrete.u0)
+                concrete.f(du, concrete.u0, concrete.p)
+                @test ForwardDiff.value.(du) == [-1.0, 2.0]
+                @test ForwardDiff.partials.(du, 1) == [1.0, -1.0]
+            end
+        end
+
         @safetestset "EnzymeExt _accum_tangent! caches accumulation (#935)" include("enzyme_accum_tangent.jl")
 
         @safetestset "PolyAlgorithm solution type is concrete (#878)" include("polyalg_solution_type.jl")
@@ -162,6 +369,8 @@ run_tests(;
         @safetestset "linsolve_identity!! workspace (#1020)" include("linsolve_workspace.jl")
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
+
+        @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
 
         @safetestset "Jacobian and restructure allocation fast paths" include(
             "allocation_fastpaths.jl"
@@ -183,6 +392,11 @@ run_tests(;
 
         @safetestset "dampen_jacobian!! touches only the diagonal" include(
             "dampen_jacobian.jl"
+        )
+        @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
+        @safetestset "construct_extension_jac scalar and matrix u0" include("extension_jac.jl")
+        @safetestset "Non-finite objective protective break" include(
+            "nonfinite_objective.jl"
         )
 
         return @safetestset "Dense LU refactorization allocations" include(

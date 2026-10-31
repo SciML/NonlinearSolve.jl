@@ -18,6 +18,10 @@ DampedNewtonDescent
 
 ```@docs
 Dogleg
+NonlinearSolveBase.MoreTrustRegionDescent
+NonlinearSolveBase.RobustTrustRegionLinsolve
+NonlinearSolveBase.TrustRegionSubproblem
+NonlinearSolveBase.TrustRegionScaling
 ```
 
 ## Special Levenberg Marquardt Descent Subroutines

@@ -22,7 +22,7 @@ Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is dis
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED
-        return timer_expr(__module__, false, to, name, expr)
+        return timer_expr(__source__, __module__, false, to, name, expr)
     else
         return esc(expr)
     end

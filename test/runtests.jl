@@ -43,6 +43,7 @@ else
             @time @safetestset "Infeasible" include("Core/core_tests__item12.jl")
             @time @safetestset "NoInit Caching" include("Core/core_tests__item13.jl")
             @time @safetestset "Allocation-free cache solve" include("Core/cache_solve_tests__item1.jl")
+            @time @safetestset "AutoDespecialize dynamic parameters" include("Core/autodespecialize_tests__item1.jl")
             @time @safetestset "Singular Systems -- Auto Linear Solve Switching" include("Core/core_tests__item16.jl")
             @time @safetestset "No PolyesterForwardDiff for SArray" include("Core/core_tests__item17.jl")
             @time @safetestset "NonlinearLeastSquares ReturnCode" include("Core/core_tests__item18.jl")
@@ -66,6 +67,7 @@ else
             @time @safetestset "Polyalgorithm Fallback Path: CurveFit.jl#76" include("Core/issue_tests__item2.jl")
             @time @safetestset "Polyalgorithm Cache solve!: Issue #779" include("Core/issue_tests__item3.jl")
             @time @safetestset "Bounds: NonlinearLeastSquaresProblem" include("Core/bounds_tests__item1.jl")
+            @time @safetestset "Bounds: implicit sensitivities" include("Core/bounds_sensitivity_tests.jl")
             @time @safetestset "Bounds: one-sided" include("Core/bounds_tests__item2.jl")
             @time @safetestset "Bounds: polyalgorithm and quasi-Newton algorithms" include("Core/bounds_tests__item4.jl")
             @time @safetestset "HomotopySweep construction + defaults" include("Core/homotopy_sweep_tests__item1.jl")
@@ -107,6 +109,7 @@ else
             @time @safetestset "Homotopy maxsteps guard + effort-band step control" include("Core/homotopy_effort_tests__item2.jl")
             @time @safetestset "Homotopy tracking_abstol loosens interior tracking only" include("Core/homotopy_tolerance_tests__item1.jl")
             @time @safetestset "PolyAlgorithm best-subalgorithm retention (reinit! retain_best)" include("Core/polyalg_retention_tests__item1.jl")
+            @time @safetestset "PolyAlgorithm cache StalledSuccess escalation" include("Core/polyalg_stalled_success_tests__item1.jl")
             @time @safetestset "Homotopy drivers retain the winning inner subalgorithm" include("Core/homotopy_retention_tests__item1.jl")
             @time @safetestset "HomotopyPolyAlgorithm stages, fallback, both-fail" include("Core/homotopy_polyalg_tests__item1.jl")
             @time @safetestset "HomotopyPolyAlgorithm warm sweep→fallback handoff" include("Core/homotopy_polyalg_tests__item2.jl")
@@ -115,6 +118,8 @@ else
         end,
         groups = Dict(
             "PolyAlgorithms" => function ()
+                @time @safetestset "Bounded default polyalgorithm" include("PolyAlgorithms/bounded_defaults_tests.jl")
+                @time @safetestset "SobolMultistart bounded recovery" include("PolyAlgorithms/sobol_multistart_tests.jl")
                 @time @safetestset "Basic PolyAlgorithms" include("PolyAlgorithms/core_tests__item2.jl")
                 @time @safetestset "PolyAlgorithms Autodiff" include("PolyAlgorithms/core_tests__item4.jl")
                 @time @safetestset "Ensemble Nonlinear Problems" include("PolyAlgorithms/core_tests__item6.jl")
@@ -122,6 +127,7 @@ else
                 @time @safetestset "Inplace Matrix Resizing" include("PolyAlgorithms/core_tests__item15.jl")
                 @time @safetestset "Default Algorithm Singular Handling" include("PolyAlgorithms/core_tests__item19.jl")
                 @time @safetestset "Default polyalgs are forward-mode only: Issue #837" include("PolyAlgorithms/core_tests__item20.jl")
+                @time @safetestset "Generated polyalg solve infers with alias_u0" include("PolyAlgorithms/alias_u0_inference_tests.jl")
                 return @time @safetestset "23 Test Problems: PolyAlgorithms" include("PolyAlgorithms/23_test_problems_tests__item1.jl")
             end,
             "Verbosity" => function ()
@@ -146,7 +152,8 @@ else
                 body = function ()
                     @time @safetestset "Adjoint Tests" include("Adjoint/adjoint_tests__item1.jl")
                     @time @safetestset "maybe_wrap_nonlinear_f skips wrapping inside Enzyme.autodiff (#939)" include("Adjoint/adjoint_tests__item2.jl")
-                    return @time @safetestset "Enzyme reverse-mode over IIP NonlinearProblem (#939)" include("Adjoint/adjoint_tests__item3.jl")
+                    @time @safetestset "Enzyme reverse-mode over IIP NonlinearProblem (#939)" include("Adjoint/adjoint_tests__item3.jl")
+                    return @time @safetestset "Structural solution cotangent forwarded to backpass" include("Adjoint/adjoint_tests__item4.jl")
                 end,
             ),
             "Wrappers" => (;
@@ -162,7 +169,9 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + CMINPACK: Jacobian Not Provided" include("Wrappers/least_squares_tests__item3.jl")
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
-                    return @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Extension jac scalar and matrix u0" include("Wrappers/extension_jac_shapes_tests.jl")
+                    return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
                 end,
             ),
             "CUDA" => (;

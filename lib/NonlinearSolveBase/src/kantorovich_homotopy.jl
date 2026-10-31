@@ -7,7 +7,7 @@
         tracking_maxiters = 10, tracking_abstol = nothing, maxsteps = 10000,
         store_original = Val(false))
 
-Natural-parameter continuation for a [`SciMLBase.HomotopyProblem`](@ref), with step
+Natural-parameter continuation for `SciMLBase.HomotopyProblem`, with step
 sizes chosen from the observed contraction of the inner nonlinear corrector. This is
 the Newton--Kantorovich path-following controller described in Section 5.1.3 of
 Deuflhard, *Newton Methods for Nonlinear Problems*.

@@ -9,7 +9,7 @@ Pages = ["bracketingnonlinearsolve.md"]
 ## Interval Methods
 
 These methods are suited for interval (scalar) root-finding problems,
-i.e. [`IntervalNonlinearProblem`](@ref).
+i.e. `IntervalNonlinearProblem`.
 
 ```@docs
 BracketingNonlinearSolve

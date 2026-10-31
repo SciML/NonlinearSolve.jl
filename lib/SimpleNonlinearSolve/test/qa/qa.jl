@@ -1,7 +1,6 @@
 using SciMLTesting, SimpleNonlinearSolve, Test
 import ReverseDiff, Tracker, StaticArrays, Zygote
 
-const NONLINEARSOLVE_DOCS_SRC = joinpath(@__DIR__, "..", "..", "..", "..", "docs", "src")
 
 const SIMPLE_EXTERNAL_REEXPORTS = union(
     public_api_names(SimpleNonlinearSolve.ADTypes),
@@ -24,12 +23,6 @@ run_qa(
             ],
         ),
         ambiguities = (; recursive = false),
-    ),
-    api_docs_kwargs = (;
-        rendered = true,
-        docs_src = NONLINEARSOLVE_DOCS_SRC,
-        ignore = SIMPLE_EXTERNAL_REEXPORTS,
-        rendered_ignore = SIMPLE_EXTERNAL_REEXPORTS,
     ),
     ei_kwargs = (;
         # Still non-public in their owning packages, across the main module and the

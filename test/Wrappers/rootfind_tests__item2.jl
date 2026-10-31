@@ -66,13 +66,19 @@ function f!(fvec, x, p)
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
-sol = solve(prob, NLsolveJL(autodiff = :central))
-@test maximum(abs, sol.resid) < 1.0e-6
-sol = solve(prob, SIAMFANLEquationsJL())
-@test maximum(abs, sol.resid) < 1.0e-6
+@testset "NLsolveJL autodiff = $(autodiff)" for autodiff in (
+        AutoFiniteDiff(; fdtype = Val(:central)), AutoForwardDiff(), :central, :forward,
+    )
+    sol = solve(prob, NLsolveJL(; autodiff))
+    @test maximum(abs, sol.resid) < 1.0e-6
+end
 
-# Test the autodiff technique
-sol = solve(prob, NLsolveJL(autodiff = :forward))
+# The Symbol options are deprecated aliases; NLsolveJL stores the ADTypes backend.
+@test NLsolveJL(autodiff = :central).autodiff === AutoFiniteDiff(; fdtype = Val(:central))
+@test NLsolveJL(autodiff = :forward).autodiff === AutoForwardDiff()
+@test_throws ErrorException NLsolveJL(autodiff = :complex)
+
+sol = solve(prob, SIAMFANLEquationsJL())
 @test maximum(abs, sol.resid) < 1.0e-6
 
 # Custom Jacobian
