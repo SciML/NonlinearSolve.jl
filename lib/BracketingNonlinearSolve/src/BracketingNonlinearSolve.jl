@@ -26,7 +26,7 @@ using CommonSolve: CommonSolve, solve
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     NonlinearVerbosity
 using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
-using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset
+using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset, None
 
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 
@@ -41,6 +41,12 @@ include("itp.jl")
 include("muller.jl")
 include("ridder.jl")
 include("modAB.jl")
+
+# `verbose` as `NonlinearSolveBase.solve` accepts it: a `NonlinearVerbosity`, a preset, or a `Bool`.
+nonlinear_verbosity(verbose::NonlinearVerbosity) = verbose
+nonlinear_verbosity(verbose::AbstractVerbosityPreset) = NonlinearVerbosity(verbose)
+nonlinear_verbosity(verbose::Bool) = verbose ? NonlinearVerbosity() : NonlinearVerbosity(None())
+nonlinear_verbosity(verbose) = verbose
 
 # Default Algorithm
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
@@ -59,6 +65,9 @@ function CommonSolve.solve(
     # here so they bind before __solve defaults (e.g. abstol = nothing). Solve kwargs
     # override problem kwargs, matching NonlinearSolveBase.solve_call.
     kwargs = isempty(prob.kwargs) ? kwargs : merge(values(prob.kwargs)::NamedTuple, kwargs)
+    if haskey(kwargs, :verbose)
+        kwargs = (; kwargs..., verbose = nonlinear_verbosity(kwargs[:verbose]))
+    end
     return bracketingnonlinear_solve_up(
         prob::IntervalNonlinearProblem, sensealg, prob.p, alg, args...; kwargs...
     )
