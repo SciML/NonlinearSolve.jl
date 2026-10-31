@@ -712,7 +712,19 @@ safe when no evaluation is outstanding.
 refresh_residual!(::AbstractNonlinearSolveCache) = nothing
 
 set_fu!(cache::AbstractNonlinearSolveCache, fu) = (cache.fu = fu)
-SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = (cache.u = u)
+SciMLBase.set_u!(cache::AbstractNonlinearSolveCache, u) = _set_u!(cache, cache.u, u)
+
+_set_u!(cache, ::Any, u) = (cache.u = u)
+# An in-place iterate stored as a view (see `Utils.maybe_unaliased`) cannot hold an
+# arbitrary array: one of another type is copied into it
+function _set_u!(cache, cache_u::Utils.CompactlyCopyableView, u)
+    if u isa typeof(cache_u) || !SciMLBase.isinplace(cache)
+        cache.u = u
+    else
+        copyto!(cache_u, u)
+    end
+    return u
+end
 
 function has_time_limit(cache::AbstractNonlinearSolveCache)
     maxtime = Utils.safe_getproperty(cache, Val(:maxtime))
