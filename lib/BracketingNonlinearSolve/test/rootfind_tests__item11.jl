@@ -2,14 +2,14 @@ using BracketingNonlinearSolve, SciMLBase, Test, ForwardDiff
 using BracketingNonlinearSolve: NonlinearVerbosity
 using SciMLLogging: None, Minimal, Standard
 
-# Every bracketing method accepts `verbose` as `NonlinearSolveBase.solve` does (a `NonlinearVerbosity`,
-# a preset or a `Bool`), also from the problem's kwargs.
+# Every bracketing method accepts `verbose` as a `NonlinearVerbosity` or a verbosity preset,
+# also from the problem's kwargs.
 f(u, p) = u^2 - p
 prob = IntervalNonlinearProblem{false}(f, (0.0, 2.0), 2.0)
 const ALGS = (ModAB(), Bisection(), ITP(), Ridder(), Falsi(), Brent(), Alefeld())
 for alg in ALGS
     ref = solve(prob, alg)
-    for v in (NonlinearVerbosity(), NonlinearVerbosity(None()), None(), Minimal(), Standard(), true, false)
+    for v in (NonlinearVerbosity(), NonlinearVerbosity(None()), None(), Minimal(), Standard())
         sol = solve(prob, alg; verbose = v)
         @test sol.retcode == ref.retcode
         @test sol.u === ref.u
@@ -33,6 +33,6 @@ for alg in ALGS
     g(p) = solve(IntervalNonlinearProblem{false}(f, (0.0, 2.0), p), alg; verbose = None()).u
     @test g(2.0) ≈ sqrt(2.0) atol = 1.0e-8
     @test ForwardDiff.derivative(g, 2.0) ≈ inv(2sqrt(2.0)) atol = 1.0e-6
-    h(p) = solve(remake(IntervalNonlinearProblem{false}(f, (0.0, 2.0), p); kwargs = (; verbose = false)), alg).u
+    h(p) = solve(remake(IntervalNonlinearProblem{false}(f, (0.0, 2.0), p); kwargs = (; verbose = None())), alg).u
     @test ForwardDiff.derivative(h, 2.0) ≈ inv(2sqrt(2.0)) atol = 1.0e-6
 end

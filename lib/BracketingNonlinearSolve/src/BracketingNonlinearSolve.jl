@@ -26,7 +26,7 @@ using CommonSolve: CommonSolve, solve
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearSolveAlgorithm,
     NonlinearVerbosity
 using SciMLBase: SciMLBase, IntervalNonlinearProblem, ReturnCode
-using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset, None
+using SciMLLogging: @SciMLMessage, AbstractVerbosityPreset
 
 abstract type AbstractBracketingAlgorithm <: AbstractNonlinearSolveAlgorithm end
 
@@ -42,10 +42,9 @@ include("muller.jl")
 include("ridder.jl")
 include("modAB.jl")
 
-# `verbose` as `NonlinearSolveBase.solve` accepts it: a `NonlinearVerbosity`, a preset, or a `Bool`.
+# A verbosity preset becomes a `NonlinearVerbosity`; any other `verbose` passes through unchanged.
 nonlinear_verbosity(verbose::NonlinearVerbosity) = verbose
 nonlinear_verbosity(verbose::AbstractVerbosityPreset) = NonlinearVerbosity(verbose)
-nonlinear_verbosity(verbose::Bool) = verbose ? NonlinearVerbosity() : NonlinearVerbosity(None())
 nonlinear_verbosity(verbose) = verbose
 
 # Default Algorithm
