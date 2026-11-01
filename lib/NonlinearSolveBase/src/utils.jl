@@ -188,7 +188,6 @@ function maybe_unaliased(x::AbstractArray, alias::Bool)
 end
 maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 
-# The index type of a `:` in a view of an `Array`
 const ColonIndex = typeof(only(parentindices(view(Int[], :))))
 
 # Views of an `Array` that `compact_copy` copies to an array of only the viewed elements,
@@ -219,11 +218,8 @@ compact_index(::Base.OneTo{Int}, ax) = ax
 compact_index(::ColonIndex, ::Any) = Colon()
 compact_index(i::Array{Int}, ax) = reshape(collect(ax), size(i))
 
-# The initial iterate of a problem: `maybe_unaliased(u0, alias, Val(isinplace(prob)))`.
-# `copy` of a view is an `Array`, so `alias` would decide the type of `u`, and `alias` is
-# not a constant inside `__init` (it arrives as a keyword argument): the caches built from
-# `u` would be abstract. An in-place solve updates `u` in place, so it can keep the view's
-# type; an out-of-place solve assigns new arrays to it and keeps the `Array` copy.
+# The initial iterate: an in-place solve keeps a view's type for every `alias`, which is
+# not a constant inside `__init`; an out-of-place solve assigns new arrays to `u`
 maybe_unaliased(x, alias::Bool, ::Val) = maybe_unaliased(x, alias)
 function maybe_unaliased(x::CompactlyCopyableView, alias::Bool, ::Val{true})
     (alias || !ArrayInterface.can_setindex(typeof(x))) && return x

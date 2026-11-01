@@ -94,8 +94,7 @@ end
     @test all(!iszero, x)
 end
 
-# An out-of-place solve assigns new arrays to `u`, so its iterate stays an `Array`:
-# rolling back to the best iterate and `reinit!` with a `Vector` must keep working.
+# An out-of-place solve keeps an `Array` iterate: rollback and `reinit!` with a `Vector`
 @testset "View u0, out-of-place and other views: $(nameof(alg_ctor))" for alg_ctor in (
         TrustRegion, NewtonRaphson,
     )
@@ -126,8 +125,7 @@ end
     @test A == fill(3.0, 2, 3)
 end
 
-# `set_u!` with a `Vector` on an in-place cache whose iterate is a view: the values are
-# copied into the iterate
+# `set_u!` with a `Vector` on an in-place view cache copies the values into the iterate
 @testset "View u0, set_u!: $(nameof(alg_ctor)), alias_u0 = $alias_u0" for alg_ctor in (
             TrustRegion, NewtonRaphson,
         ), alias_u0 in (false, true)
