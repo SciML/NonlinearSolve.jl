@@ -1,0 +1,169 @@
+using NonlinearSolveFirstOrder, NonlinearSolveBase, SciMLBase, LinearAlgebra, Test
+using LinearSolve: NormalCholeskyFactorization
+using NonlinearSolveBase: AbsNormSafeBestTerminationMode, default_gradient_tolerance
+
+# A data fit whose residual is nonzero at the optimum: `‖F‖ ≤ abstol` is unreachable no
+# matter how well the solve converges, so only `JᵀF = 0` can certify it.
+const TS = collect(range(0.0, 2.0; length = 12))
+const YS = [1.0 + 0.7 * t + 0.35 * sin(4t) for t in TS]
+
+expfit(u, p) = @. u[1] * exp(u[2] * TS) - YS
+expfit_jac(u, p) = hcat(exp.(u[2] .* TS), u[1] .* TS .* exp.(u[2] .* TS))
+
+function expfit_prob(u0 = [1.0, 0.5])
+    f = NonlinearFunction{false}(expfit; jac = expfit_jac, resid_prototype = zeros(length(TS)))
+    return NonlinearLeastSquaresProblem(f, u0, nothing)
+end
+
+@testset "nonzero-residual least squares reaches ReturnCode.Success" begin
+    prob = expfit_prob()
+    for alg in (GaussNewton(), LevenbergMarquardt(), TrustRegion())
+        sol = solve(prob, alg; maxiters = 1000)
+        J = expfit_jac(sol.u, nothing)
+        F = expfit(sol.u, nothing)
+        @test norm(F, 2) > 1.0e-3                     # the residual test cannot be met
+        @test norm(J'F, Inf) < 1.0e-6                 # but the solve is stationary
+        @test sol.retcode == ReturnCode.Success
+    end
+end
+
+@testset "gtol = nothing reproduces the pre-change exit" begin
+    prob = expfit_prob()
+    off = AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32)
+    sol = solve(prob, GaussNewton(); maxiters = 1000, termination_condition = off)
+    @test sol.retcode != ReturnCode.Success
+end
+
+@testset "the criterion does not stop short of a stationary point" begin
+    prob = expfit_prob()
+    ref = solve(
+        prob, GaussNewton(); maxiters = 1000,
+        termination_condition = AbsNormSafeBestTerminationMode(
+            Base.Fix2(norm, 2); max_stalled_steps = 32
+        )
+    )
+    got = solve(prob, GaussNewton(); maxiters = 1000)
+    @test norm(expfit(got.u, nothing), 2) ≤ norm(expfit(ref.u, nothing), 2) * (1 + 1.0e-8)
+    @test got.stats.nf ≤ ref.stats.nf
+end
+
+@testset "the same measurement is a failure on a square problem" begin
+    # Freudenstein-Roth from a start that funnels into its classic local minimum: `JᵀF`
+    # goes to zero while `F` does not, which is a local minimum of `‖F‖` and not a root.
+    fr(u, p) = [
+        -13.0 + u[1] + ((5.0 - u[2]) * u[2] - 2.0) * u[2],
+        -29.0 + u[1] + ((u[2] + 1.0) * u[2] - 14.0) * u[2],
+    ]
+    frj(u, p) = [
+        1.0 (10.0 - 3.0 * u[2]) * u[2] - 2.0
+        1.0 (3.0 * u[2] + 2.0) * u[2] - 14.0
+    ]
+    prob = NonlinearProblem(NonlinearFunction{false}(fr; jac = frj), [15.0, -2.0], nothing)
+
+    gtol = default_gradient_tolerance(Float64)
+    on = AbsNormSafeBestTerminationMode(
+        Base.Fix1(maximum, abs); max_stalled_steps = 32, gtol
+    )
+    sol = solve(prob, TrustRegion(); maxiters = 1000, termination_condition = on)
+
+    @test maximum(abs, fr(sol.u, nothing)) > 1.0
+    @test !SciMLBase.successful_retcode(sol.retcode)
+    @test sol.retcode == ReturnCode.Stalled
+end
+
+# The first step lands at `u[1] = -1`, where the Jacobian from `u = 0` has a column
+# orthogonal to the residual but the true Jacobian does not (its cosine is ≈ 0.0995).
+reuse_f(u, p) = vcat(u[1] + 1, 0.05 + 0.05 * u[1]^2, u[2:end])
+function reuse_jac(u, p)
+    J = zeros(length(u) + 1, length(u))
+    J[1, 1] = 1.0
+    J[2, 1] = 0.1 * u[1]
+    for i in 2:length(u)
+        J[i + 1, i] = 1.0
+    end
+    return J
+end
+function reuse_prob(n)
+    f = NonlinearFunction{false}(reuse_f; jac = reuse_jac, resid_prototype = zeros(n + 1))
+    return NonlinearLeastSquaresProblem(f, zeros(n), nothing)
+end
+true_measure(u) = NonlinearSolveBase.gradient_stationarity_measure(
+    reuse_jac(u, nothing), reuse_f(u, nothing)
+)
+
+@testset "a reused Jacobian does not certify stationarity: n = $n, reuse = $r" for (n, r) in
+    ((16, nothing), (1, true))
+    gtol = default_gradient_tolerance(Float64)
+    ref = solve(reuse_prob(n), GaussNewton(; jacobian_reuse = false))
+    sol = solve(reuse_prob(n), GaussNewton(; jacobian_reuse = r))
+    @test ref.retcode == ReturnCode.Success
+    @test true_measure(ref.u) ≤ gtol
+    @test sol.retcode == ReturnCode.Success
+    @test true_measure(sol.u) ≤ gtol
+    @test sol.u ≈ ref.u
+end
+
+@testset "a Jacobian pinned by the caller does not certify stationarity" begin
+    cache = init(reuse_prob(1), GaussNewton(; jacobian_reuse = true))
+    step!(cache; recompute_jacobian = true)
+    @test cache.u[1] ≈ -1.0
+    @test true_measure(cache.u) > 0.09
+    step!(cache; recompute_jacobian = false)
+    @test cache.retcode != ReturnCode.Success
+end
+
+@testset "a finite residual too large to square does not certify stationarity: $s" for s in
+    (1.0f20, 1.0e200, 1.0e150)
+    T = typeof(s)
+    f = NonlinearFunction{false}(
+        (u, p) -> [u[1] + s, s]; jac = (u, p) -> reshape(T[1, 0], 2, 1),
+        resid_prototype = zeros(T, 2)
+    )
+    sol = solve(NonlinearLeastSquaresProblem(f, T[0], nothing), GaussNewton())
+    r₁ = big(sol.u[1]) + big(s)
+    true_cosine = abs(r₁) / sqrt(r₁^2 + big(s)^2)
+    @test !SciMLBase.successful_retcode(sol) || true_cosine ≤ default_gradient_tolerance(T)
+end
+
+@testset "a square solve that meets abstol is not reported as Stalled" begin
+    f = NonlinearFunction{false}(
+        (u, p) -> [u[1] + u[2], 1.0e-10 * (u[1] - u[2] + 1)];
+        jac = (u, p) -> [1.0 1.0; 1.0e-10 -1.0e-10]
+    )
+    on = AbsNormSafeBestTerminationMode(norm; gtol = default_gradient_tolerance(Float64))
+    sol = solve(
+        NonlinearProblem(f, [0.0, 0.0], nothing), NewtonRaphson();
+        abstol = 1.0e-8, termination_condition = on
+    )
+    @test sol.retcode == ReturnCode.Success
+end
+
+@testset "a Jacobian column near floatmax does not certify stationarity: $T" for T in
+    (Float32, Float64)
+    a = floatmax(T) * T(0.85)
+    f = NonlinearFunction{false}(
+        (u, p) -> T[1 + a * u[1], 1]; jac = (u, p) -> reshape(T[a, 0], 2, 1),
+        resid_prototype = zeros(T, 2)
+    )
+    sol = solve(NonlinearLeastSquaresProblem(f, T[0], nothing), GaussNewton())
+    r₁ = 1 + big(a) * big(sol.u[1])
+    true_cosine = abs(r₁) / sqrt(r₁^2 + 1)
+    @test !SciMLBase.successful_retcode(sol) || true_cosine ≤ default_gradient_tolerance(T)
+end
+
+@testset "a half-precision residual longer than floatmax(Float16) is measured correctly" begin
+    m, k = 70_000, 17_500
+    J = zeros(Float16, m, 1)
+    J[1:k, 1] .= 1
+    f = NonlinearFunction{false}(
+        (u, p) -> vcat(ones(Float16, k) .+ u[1], ones(Float16, m - k));
+        jac = (u, p) -> J, resid_prototype = zeros(Float16, m)
+    )
+    # The default QR path cannot factorize a Float16 matrix, independently of termination.
+    alg = GaussNewton(; linsolve = NormalCholeskyFactorization())
+    sol = solve(NonlinearLeastSquaresProblem(f, Float16[0], nothing), alg)
+    r = 1 + big(sol.u[1])
+    true_cosine = sqrt(big(k)) * abs(r) / sqrt(k * r^2 + (m - k))
+    @test !SciMLBase.successful_retcode(sol) ||
+        true_cosine ≤ default_gradient_tolerance(Float16)
+end

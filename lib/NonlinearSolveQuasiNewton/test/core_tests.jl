@@ -11,3 +11,4 @@
 @safetestset "LimitedMemoryBroyden: continuation from a nearby root" include("core_tests__item11.jl")
 @safetestset "reinit! resets the update rule state" include("core_tests__item12.jl")
 @safetestset "No-change reset requires every component to stall" include("core_tests__item13.jl")
+@safetestset "Gradient criterion is inert without a true Jacobian (#1149)" include("core_tests__item14.jl")
