@@ -248,13 +248,13 @@ end
 condition_number(::Any) = -1
 
 # Explicit inverse-Jacobian initialization for quasi-Newton update rules that store J⁻¹:
-# solve A * X = I with the default linear solver. Scalars, `Diagonal`s, and static
-# matrices take native fast paths (mirroring `construct_linear_solver`'s routing) instead
-# of the linear-solve cache.
-linsolve_workspace(A) = nothing, A
-linsolve_workspace(A::Diagonal) = nothing, A
-linsolve_workspace(A::SMatrix) = nothing, A
-function linsolve_workspace(A::AbstractMatrix)
+# solve A * X = I with `linsolve` (LinearSolve's default algorithm when `nothing`).
+# Scalars, `Diagonal`s, and static matrices take native fast paths (mirroring
+# `construct_linear_solver`'s routing) instead of the linear-solve cache.
+linsolve_workspace(A, linsolve = nothing) = nothing, A
+linsolve_workspace(A::Diagonal, linsolve = nothing) = nothing, A
+linsolve_workspace(A::SMatrix, linsolve = nothing) = nothing, A
+function linsolve_workspace(A::AbstractMatrix, linsolve = nothing)
     LinearAlgebra.checksquare(A)
     # Backends without fast scalar indexing may not implement factorization solves with
     # a matrix right-hand side. Leave those arrays on their native `pinv` path.
@@ -274,7 +274,7 @@ function linsolve_workspace(A::AbstractMatrix)
     # to be loaded (as does any use of `construct_linear_solver` without a native fast
     # path).
     lincache = NonlinearSolveBase.construct_linear_solver(
-        nothing, nothing, A_buf, rhs, u, nothing;
+        nothing, linsolve, A_buf, rhs, u, nothing;
         stats = SciMLBase.NLStats(0, 0, 0, 0, 0),
         alias = SciMLBase.LinearAliasSpecifier(alias_A = true, alias_b = true)
     )
