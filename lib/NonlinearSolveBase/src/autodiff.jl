@@ -90,7 +90,9 @@ Choose a reverse-mode-compatible automatic differentiation backend for `prob`.
 
 If `ad === nothing`, NonlinearSolveBase selects the first available compatible backend from
 its preferred reverse-mode list. Finite differencing backends are accepted as explicit
-fallback choices.
+fallback choices. When `prob.u0` does not support fast scalar indexing
+(`ArrayInterface.fast_scalar_indexing(prob.u0) == false`, e.g. GPU arrays), only Zygote and
+finite differencing backends are considered.
 
 ### Arguments
 
@@ -128,11 +130,12 @@ function select_reverse_mode_autodiff(
         prob::AbstractNonlinearProblem, ::Nothing;
         warn_check_mode::Bool = true
     )
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ReverseADs)
-    idx !== nothing && return ReverseADs[idx]
+    candidates = nonscalar_state_candidates(prob, ReverseADs, nonscalar_pullback_backend)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && return candidates[idx]
     throw(ArgumentError("No reverse mode AD backend is compatible with the chosen problem. \
                          This could be because no reverse mode autodiff backend is loaded \
-                         or the loaded backends don't support the problem."))
+                         or the loaded backends don't support the problem.$(_nonscalar_state_hint(prob))"))
 end
 
 """
@@ -142,7 +145,9 @@ Choose an automatic differentiation backend for constructing Jacobians for `prob
 
 If `ad === nothing`, NonlinearSolveBase prefers a compatible forward-mode backend that is
 not finite differencing, then falls back to compatible reverse-mode or finite-difference
-backends.
+backends. When `prob.u0` does not support fast scalar indexing
+(`ArrayInterface.fast_scalar_indexing(prob.u0) == false`, e.g. GPU arrays), only finite
+differencing backends are considered.
 
 ### Arguments
 
@@ -166,14 +171,55 @@ function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ad::AbstractAD
 end
 
 function select_jacobian_autodiff(prob::AbstractNonlinearProblem, ::Nothing)
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ForwardADs)
-    idx !== nothing && !is_finite_differences_backend(ForwardADs[idx]) &&
-        return ForwardADs[idx]
-    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), ReverseADs)
-    idx !== nothing && return ReverseADs[idx]
+    candidates = nonscalar_state_candidates(prob, ForwardADs, nonscalar_jacobian_backend)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && !is_finite_differences_backend(candidates[idx]) &&
+        return candidates[idx]
+    candidates = nonscalar_state_candidates(prob, ReverseADs, nonscalar_jacobian_backend)
+    idx = findfirst(!Base.Fix1(incompatible_backend_and_problem, prob), candidates)
+    idx !== nothing && return candidates[idx]
     throw(ArgumentError("No jacobian AD backend is compatible with the chosen problem. \
                          This could be because no jacobian autodiff backend is loaded \
-                         or the loaded backends don't support the problem."))
+                         or the loaded backends don't support the problem.$(_nonscalar_state_hint(prob))"))
+end
+
+is_nonscalar_state(u) = u isa AbstractArray && !ArrayInterface.fast_scalar_indexing(u)
+
+# Default selection for a state without fast scalar indexing (e.g. a GPU array under
+# `allowscalar(false)`) keeps only backends known to differentiate it without scalar
+# indexing. Pushforwards are unrestricted: ForwardDiff seeds them by broadcasting.
+function nonscalar_state_candidates(prob::AbstractNonlinearProblem, ads, keep)
+    is_nonscalar_state(prob.u0) || return ads
+    return filter(keep, ads)
+end
+
+nonscalar_jacobian_backend(ad::AbstractADType) = is_finite_differences_backend(ad)
+function nonscalar_pullback_backend(ad::AbstractADType)
+    return ad isa ADTypes.AutoZygote || is_finite_differences_backend(ad)
+end
+
+# ForwardDiff-style Jacobians write the dual seeds into the state one element at a time.
+seeds_jacobian_by_scalar_indexing(::AbstractADType) = false
+function seeds_jacobian_by_scalar_indexing(
+        ::Union{ADTypes.AutoForwardDiff, ADTypes.AutoPolyesterForwardDiff}
+    )
+    return true
+end
+
+function nonscalar_jacobian_autodiff(prob::AbstractNonlinearProblem, u, autodiff)
+    (is_nonscalar_state(u) && seeds_jacobian_by_scalar_indexing(autodiff)) ||
+        return autodiff
+    adₙ = select_jacobian_autodiff(prob, nothing)
+    @warn "The chosen AD backend `$(autodiff)` builds Jacobians by scalar indexing, which \
+           the state `$(typeof(u))` does not support. Using `$(adₙ)` to build the Jacobian."
+    return adₙ
+end
+
+function _nonscalar_state_hint(prob::AbstractNonlinearProblem)
+    is_nonscalar_state(prob.u0) || return ""
+    return " The state `$(typeof(prob.u0))` does not support fast scalar indexing, so only \
+            finite differencing (and Zygote for pullbacks) is selected automatically. Load \
+            FiniteDiff and retry, or pass `autodiff = AutoFiniteDiff()` explicitly."
 end
 
 function incompatible_backend_and_problem(

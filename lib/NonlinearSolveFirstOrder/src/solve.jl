@@ -175,9 +175,12 @@ function SciMLBase.__init(
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
+    provided_autodiff = alg.autodiff !== nothing
     @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
-    @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
+    # The default Jacobian backend can be narrowed to finite differencing for states that
+    # cannot be scalar-indexed, which JVPs do not need, so they get their own default.
+    @set! alg.jvp_autodiff = if !provided_jvp_autodiff && provided_autodiff &&
             (
             ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
                 ADTypes.mode(alg.autodiff) isa
