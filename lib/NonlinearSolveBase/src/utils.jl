@@ -188,19 +188,36 @@ function maybe_unaliased(x::AbstractArray, alias::Bool)
 end
 maybe_unaliased(x::AbstractSciMLOperator, ::Bool) = x
 
-# Views of an `Array` that `Base.unaliascopy` copies to an array of only the viewed
-# elements, with the same view type
+# The index type of a `:` in a view of an `Array`
+const ColonIndex = typeof(only(parentindices(view(Int[], :))))
+
+# Views of an `Array` that `compact_copy` copies to an array of only the viewed elements,
+# with the same view type
 const CompactlyCopyableView = SubArray{
     <:Any, <:Any, <:Array,
     <:Tuple{
         Vararg{
             Union{
-                Int, UnitRange{Int}, StepRange{Int, Int}, Base.OneTo{Int},
-                Base.Slice{Base.OneTo{Int}}, Array{Int},
+                Int, UnitRange{Int}, StepRange{Int, Int}, Base.OneTo{Int}, ColonIndex,
+                Array{Int},
             },
         },
     },
 }
+
+function compact_copy(x::CompactlyCopyableView)
+    indices = parentindices(x)
+    dest = Array{eltype(x)}(undef, map(length, indices))
+    y = view(dest, map(compact_index, indices, axes(dest))...)
+    copyto!(y, x)
+    return y::typeof(x)
+end
+compact_index(::Int, ax) = first(ax)
+compact_index(::UnitRange{Int}, ax) = UnitRange{Int}(ax)
+compact_index(::StepRange{Int, Int}, ax) = StepRange{Int, Int}(ax)
+compact_index(::Base.OneTo{Int}, ax) = ax
+compact_index(::ColonIndex, ::Any) = Colon()
+compact_index(i::Array{Int}, ax) = reshape(collect(ax), size(i))
 
 # The initial iterate of a problem: `maybe_unaliased(u0, alias, Val(isinplace(prob)))`.
 # `copy` of a view is an `Array`, so `alias` would decide the type of `u`, and `alias` is
@@ -210,7 +227,7 @@ const CompactlyCopyableView = SubArray{
 maybe_unaliased(x, alias::Bool, ::Val) = maybe_unaliased(x, alias)
 function maybe_unaliased(x::CompactlyCopyableView, alias::Bool, ::Val{true})
     (alias || !ArrayInterface.can_setindex(typeof(x))) && return x
-    return Base.unaliascopy(x)
+    return compact_copy(x)
 end
 
 can_setindex(x) = ArrayInterface.can_setindex(x)

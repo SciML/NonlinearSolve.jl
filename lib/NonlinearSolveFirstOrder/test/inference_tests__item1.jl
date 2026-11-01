@@ -77,6 +77,23 @@ f_iip_full = NonlinearFunction{true, SciMLBase.FullSpecialize}((du, u, p) -> du 
     end
 end
 
+@testset "compact_copy" for x in (
+        view([1.0, 2.0, 3.0, 4.0, 5.0], [5, 1, 3]),
+        view([1.0, 2.0, 3.0, 4.0, 5.0], 2:4),
+        view([1.0, 2.0, 3.0, 4.0, 5.0], 5:-2:1),
+        view([1.0, 2.0, 3.0, 4.0, 5.0], Base.OneTo(3)),
+        view(reshape(collect(1.0:12.0), 3, 4), :, 2),
+        view(reshape(collect(1.0:12.0), 3, 4), 2, 1:2:4),
+        view(reshape(collect(1.0:12.0), 3, 4), [3 1; 2 2], 4),
+    )
+    y = NonlinearSolveBase.Utils.compact_copy(x)
+    @test y isa typeof(x)
+    @test y == collect(x)
+    @test length(parent(y)) == length(x)
+    y .= 0
+    @test all(!iszero, x)
+end
+
 # An out-of-place solve assigns new arrays to `u`, so its iterate stays an `Array`:
 # rolling back to the best iterate and `reinit!` with a `Vector` must keep working.
 @testset "View u0, out-of-place and other views: $(nameof(alg_ctor))" for alg_ctor in (
@@ -95,7 +112,7 @@ end
     sol = solve(NonlinearProblem(f_cubic, view([1.0, 9.0], [1]), nothing), alg; maxiters = 1)
     @test sol.u == [1.0]
 
-    # indices `Base.unaliascopy` cannot copy to the same type: copied as before
+    # indices `compact_copy` does not cover: copied to an `Array`
     for idx in (PermutedDimsArray([1, 3], (1,)), UInt8[1, 3])
         sol = solve(NonlinearProblem(f_iip_full, view([3.0, 0.0, 3.0], idx), p), alg)
         @test sol.u ≈ sqrt.(p)
