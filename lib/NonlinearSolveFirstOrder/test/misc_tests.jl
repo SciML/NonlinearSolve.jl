@@ -4,6 +4,7 @@
 @safetestset "Line search uses forward-mode autodiff: Issue #837" include("misc_tests__item4.jl")
 @safetestset "Default NLLS polyalg is forward-mode only: Issue #837" include("misc_tests__item5.jl")
 @safetestset "Eisenstat-Walker forcing reinit! resets forcing state" include("misc_tests__item6.jl")
+@safetestset "Eisenstat-Walker forcing uses the current residual ratio" include("misc_tests__item11.jl")
 @safetestset "Deferred residual evaluation" include("misc_tests__item7.jl")
 @safetestset "No redundant terminal residual evaluation" include("misc_tests__item8.jl")
 @safetestset "Adaptive Jacobian reuse" include("misc_tests__item9.jl")
