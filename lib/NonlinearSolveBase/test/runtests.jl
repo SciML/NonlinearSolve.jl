@@ -368,6 +368,8 @@ run_tests(;
 
         @safetestset "linsolve_identity!! workspace (#1020)" include("linsolve_workspace.jl")
 
+        @safetestset "oop jac return type error" include("jacobian_return_type.jl")
+
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
         @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
