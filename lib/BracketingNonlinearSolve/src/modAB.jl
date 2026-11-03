@@ -88,8 +88,15 @@ function SciMLBase.__solve(
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
     C = 2 # Safety factor for threshold corresponding to 2 iterations (2^2 * 0.5)
     f1, f2 = y1, y2 # The unmodified function values for correct calculation of symmetry factor after bisection fallback
+    # A switching bisection whose midpoint reduces the residual of the replaced endpoint by less
+    # than 1 % lies on a plateau; the first A&B step is then not rescaled.
+    plateau_ratio = 0.99
+    # Each return from A&B to bisection halves the margin of the switching test, so that
+    # borderline switches are rejected after unsuccessful A&B phases.
+    margin = one(abs(y1) / (abs(y1) + abs(y2)))
     while i < maxiters
         local x3, y3
+        switching = false # This bisection switches to A&B
         dx = x2 - x1 # Bracket width
         if bisecting # Bisection method is used
             x3 = safe_midpoint(x1, x2) # Avoids possible overflow in x1 + x2
@@ -117,8 +124,9 @@ function SciMLBase.__solve(
                 ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
                 r = 1 - abs(ym / dy) # Symmetry factor
                 k = r * r # Deviation factor
-                if abs(ym - y3) < k * abs(y3) + k * abs(ym) # Check if the function is close enough to linear
+                if abs(ym - y3) < (k * abs(y3) + k * abs(ym)) * margin # Check if the function is close enough to linear
                     bisecting = false
+                    switching = true
                     threshold = C * dx # Initialize the bisection fallback threshold
                     y1, y2 = f1, f2  # A&B starts from the true residuals
                 end
@@ -135,19 +143,24 @@ function SciMLBase.__solve(
             if same_signs(f1, y3)
                 if side == 1  # Apply Anderson-Bjork correction on the right side
                     y2 *= get_ab_factor(y3, y1)
+                elseif !switching || abs(y3) <= plateau_ratio * abs(yl)
+                    side = 1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x1, y1, f1, side = x3, y3, y3, 1
+                x1, y1, f1 = x3, y3, y3
             else
                 if side == -1  # Apply Anderson-Bjork correction on the left side
                     y1 *= get_ab_factor(y3, y2)
+                elseif !switching || abs(y3) <= plateau_ratio * abs(yr)
+                    side = -1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x2, y2, f2, side = x3, y3, y3, -1
+                x2, y2, f2 = x3, y3, y3
             end
             # Fallback if AB fails to reduce the bracket width, unless it still shrinks the residual more than 42 times
             # (2^(1074/200) = 41.4: at this rate the residual underflows within 200 steps from |y| = 1)
             if x2 - x1 > threshold && 42abs(y3) >= min(abs(yl), abs(yr))
                 bisecting = true   # reset to bisection
                 side = 0
+                margin /= 2
             end
             threshold /= 2
         end
