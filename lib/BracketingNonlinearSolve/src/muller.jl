@@ -46,6 +46,8 @@ function SciMLBase.__solve(
             xᵢ₋₂, abstol, promote_type(eltype(xᵢ₋₂), eltype(xᵢ))
         )
     )
+    # The termination test is on the residual, so use the value of `abstol` in the units of `f`
+    abstol *= oneunit(abs(fxᵢ)) / oneunit(abstol)
 
     for _ in 1:maxiters
         q = (xᵢ - xᵢ₋₁) / (xᵢ₋₁ - xᵢ₋₂)

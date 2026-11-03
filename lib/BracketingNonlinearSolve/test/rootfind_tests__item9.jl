@@ -1,6 +1,7 @@
 using BracketingNonlinearSolve
 
-using ForwardDiff
+using ForwardDiff, Unitful
+import DynamicQuantities as DQ
 
 @testset "Overflow-safe secant and midpoint" begin
     s = 1.7e308 # |f(x1)| + |f(x2)| overflows to Inf
@@ -41,4 +42,23 @@ end
     # ForwardDiff through a closure-captured Dual with a plain Float64 bracket
     g = θ -> solve(IntervalNonlinearProblem((x, p) -> x^2 - θ, (0.0, 3.0)), ModAB()).u
     @test ForwardDiff.derivative(g, 2.0) ≈ 1 / (2 * sqrt(2.0))
+end
+
+@testset "Residuals and brackets with units" begin
+    # Unitful residual with a plain bracket
+    sol = solve(IntervalNonlinearProblem((x, p) -> (x - 0.3) * u"m", (0.0, 1.0)), ModAB())
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ 0.3
+
+    # Unitful bracket and residual with a tolerance in the units of the bracket
+    f = (x, p) -> (x^2 - 2u"s^2") * u"m/s^2"
+    sol = solve(IntervalNonlinearProblem(f, (0.0u"s", 2.0u"s")), ModAB(); abstol = 1.0e-12u"s")
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ sqrt(2.0) * u"s"
+
+    # DynamicQuantities bracket with a plain zero tolerance
+    tspan = (0.0 * DQ.u"s", 1.0 * DQ.u"s")
+    sol = solve(IntervalNonlinearProblem((x, p) -> DQ.ustrip(x) - 0.3, tspan), ModAB(); abstol = 0.0)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ 0.3 * DQ.u"s"
 end

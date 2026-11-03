@@ -32,6 +32,12 @@ if CUDA.functional()
         TrustRegion(; linsolve = KrylovJL_GMRES(), concrete_jac = true, autodiff = fd_autodiff),  # Needed if Zygote not loaded
     )
 
+    # LinearSolve caps KernelAbstractions below 0.10, which holds CUDA below 6.5. CUDA 6.4
+    # reads the deprecated `GPUCompiler.compile_hook` and the resulting warning is printed
+    # only once, so trigger it here rather than in the first `@test_nowarn` below. This
+    # solve can be removed once CUDA 6.5 resolves in this environment.
+    solve(prob, first(SOLVERS); abstol = 1.0f-5, reltol = 1.0f-5)
+
     @testset "[IIP] GPU Solvers" begin
         @testset "$(nameof(typeof(alg)))" for alg in SOLVERS
             @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)

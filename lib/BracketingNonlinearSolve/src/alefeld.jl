@@ -45,7 +45,7 @@ function SciMLBase.__solve(
                 c = Impl.newton_quadratic(f, a, b, d, 2)
             else
                 c = Impl.ipzero(f, a, b, d, e)
-                if (c - a) * (c - b) ≥ 0
+                if Impl.isnonnegative((c - a) * (c - b))
                     c = Impl.newton_quadratic(f, a, b, d, 2)
                 end
             end
@@ -71,7 +71,7 @@ function SciMLBase.__solve(
             c = Impl.newton_quadratic(f, ā, b̄, d̄, 3)
         else
             c = Impl.ipzero(f, ā, b̄, d̄, ē)
-            if (c - ā) * (c - b̄) ≥ 0
+            if Impl.isnonnegative((c - ā) * (c - b̄))
                 c = Impl.newton_quadratic(f, ā, b̄, d̄, 3)
             end
         end

@@ -1,4 +1,4 @@
-@inline same_signs(x, y) = (x < 0 && y < 0) || (x > 0 && y > 0)
+@inline same_signs(x, y) = (x < zero(x) && y < zero(y)) || (x > zero(x) && y > zero(y))
 
 @inline safe_midpoint(x1, x2) = x1 / 2 + x2 / 2
 
@@ -11,12 +11,12 @@
         b /= 2
         den = a + b
     end
-    return clamp((b / den) * x1 + (a / den) * x2, x1, x2)
+    return (b / den) * x1 + (a / den) * x2 # May round outside [x1, x2]; the caller handles that
 end
 
 @inline function get_ab_factor(y3, y)
     m = 1 - y3 / y
-    return m > 0 ? m : inv(2 * one(m))
+    return m > 0 ? m : inv(2one(m))
 end
 
 """
@@ -81,39 +81,56 @@ function SciMLBase.__solve(
 
     bisecting = true
     side = 0 # tracks the side that has moved at the previous iteration
-    ϵ = abstol
+    # Give ϵ the type of the bracket width; a zero tolerance also takes its units (e.g. a
+    # plain `abstol = 0.0` with a DynamicQuantities bracket)
+    ϵ = iszero(abstol) ? zero(x2 - x1) : oftype(x2 - x1, abstol)
     i = 1
     threshold = x2 - x1  # Threshold to fall back to bisection if AB fails to shrink the interval enough
     C = 2 # Safety factor for threshold corresponding to 2 iterations (2^2 * 0.5)
     f1, f2 = y1, y2 # The unmodified function values for correct calculation of symmetry factor after bisection fallback
-    yMin = zero(y1) # The smallest unmodified residual of the bracket at the previous AB step
+    # A switching bisection whose midpoint reduces the residual of the replaced endpoint by less
+    # than 1 % lies on a plateau; the first A&B step is then not rescaled.
+    plateau_ratio = 0.99
+    # Each return from A&B to bisection halves the margin of the switching test, so that
+    # borderline switches are rejected after unsuccessful A&B phases.
+    margin = one(abs(y1) / (abs(y1) + abs(y2)))
     while i < maxiters
         local x3, y3
+        switching = false # This bisection switches to A&B
+        dx = x2 - x1 # Bracket width
         if bisecting # Bisection method is used
             x3 = safe_midpoint(x1, x2) # Avoids possible overflow in x1 + x2
             y3 = f(x3) # Function value at midpoint
-            if isfinite(f2 - f1)
-                ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
-                r = 1 - abs(ym / (f2 - f1)) # Symmetry factor
-                k = r * r # Deviation factor
-                if abs(ym - y3) < k * abs(y3) + k * abs(ym) # Check if the function is close enough to linear
-                    bisecting = false
-                    threshold = C * (x2 - x1) # Initialize the bisection fallback threshold
-                    y1, y2 = f1, f2  # A&B starts from the true residuals
-                end
-            end
         else # Anderson-Bjork method is used
             x3 = safe_secant(x1, y1, x2, y2)
-            y3 = x3 == x1 ? f1 : x3 == x2 ? f2 : f(x3)
-            threshold /= 2
-            yMin = min(abs(f1), abs(f2))
+            if x3 <= x1 # Rounded onto or past an endpoint: reuse its true residual
+                x3, y3 = x1, f1
+            elseif x3 >= x2
+                x3, y3 = x2, f2
+            else
+                y3 = f(x3)
+            end
         end
         if iszero(y3)
             return build_exact_solution(prob, alg, x3, y3, ReturnCode.Success)
         elseif isnan(y3)
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Failure)
-        elseif (x2 - x1) < 2ϵ
+        elseif dx < 2ϵ
             return build_bracketing_solution(prob, alg, x3, y3, x1, x2, ReturnCode.Success)
+        end
+        if bisecting
+            dy = f2 - f1
+            if isfinite(dy)
+                ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
+                r = 1 - abs(ym / dy) # Symmetry factor
+                k = r * r # Deviation factor
+                if abs(ym - y3) < (k * abs(y3) + k * abs(ym)) * margin # Check if the function is close enough to linear
+                    bisecting = false
+                    switching = true
+                    threshold = C * dx # Initialize the bisection fallback threshold
+                    y1, y2 = f1, f2  # A&B starts from the true residuals
+                end
+            end
         end
         if bisecting
             if same_signs(f1, y3)
@@ -121,25 +138,34 @@ function SciMLBase.__solve(
             else
                 x2, f2 = x3, y3
             end
-        else
+        else # Anderson-Bjork method is used, including the step that switched to it
+            yl, yr = f1, f2 # True residuals of the bracket before the update
             if same_signs(f1, y3)
                 if side == 1  # Apply Anderson-Bjork correction on the right side
                     y2 *= get_ab_factor(y3, y1)
+                elseif !switching || abs(y3) <= plateau_ratio * abs(yl)
+                    side = 1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x1, y1, f1, side = x3, y3, y3, 1
+                x1, y1, f1 = x3, y3, y3
             else
                 if side == -1  # Apply Anderson-Bjork correction on the left side
                     y1 *= get_ab_factor(y3, y2)
+                elseif !switching || abs(y3) <= plateau_ratio * abs(yr)
+                    side = -1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x2, y2, f2, side = x3, y3, y3, -1
+                x2, y2, f2 = x3, y3, y3
             end
-            if x2 - x1 > threshold && abs(y3) > yMin / 2
+            # Fallback if AB fails to reduce the bracket width, unless it still shrinks the residual more than 42 times
+            # (2^(1074/200) = 41.4: at this rate the residual underflows within 200 steps from |y| = 1)
+            if x2 - x1 > threshold && 42abs(y3) >= min(abs(yl), abs(yr))
                 bisecting = true   # reset to bisection
                 side = 0
+                margin /= 2
             end
+            threshold /= 2
         end
         if nextfloat(x1) == x2
-            return build_bracketing_solution(prob, alg, x2, f(x2), x1, x2, ReturnCode.FloatingPointLimit)
+            return build_bracketing_solution(prob, alg, x2, f2, x1, x2, ReturnCode.FloatingPointLimit)
         end
         i += 1
     end

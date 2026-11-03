@@ -4,13 +4,27 @@ prevfloat_tdir(x, x0, x1) = ifelse(x1 > x0, prevfloat(x), nextfloat(x))
 nextfloat_tdir(x, x0, x1) = ifelse(x1 > x0, nextfloat(x), prevfloat(x))
 max_tdir(a, b, x0, x1) = ifelse(x1 > x0, max(a, b), min(a, b))
 
+# `eps(x)` in the units of `x`: DynamicQuantities defines no `eps`, but every number type
+# used here has `nextfloat` and `prevfloat`
+ulp(x::AbstractFloat) = eps(x)
+function ulp(x)
+    y = abs(x)
+    z = nextfloat(y)
+    return isfinite(z) ? z - y : y - prevfloat(y)
+end
+
+# Sign tests against `zero(x)`, so that `x` may carry units
+isnegative(x) = x < zero(x)
+ispositive(x) = x > zero(x)
+isnonnegative(x) = x ≥ zero(x)
+
 function bracket(f::F, a, b, c) where {F}
     if iszero(f(c))
         ā, b̄, d = a, b, c
     else
-        if f(a) * f(c) < 0
+        if isnegative(f(a) * f(c))
             ā, b̄, d = a, c, b
-        elseif f(b) * f(c) < 0
+        elseif isnegative(f(b) * f(c))
             ā, b̄, d = c, b, a
         end
     end
@@ -23,7 +37,7 @@ function newton_quadratic(f::F, a, b, d, k) where {F}
 
     if iszero(A)
         return a - (1 / B) * f(a)
-    elseif A * f(a) > 0
+    elseif ispositive(A * f(a))
         rᵢ₋₁ = a
     else
         rᵢ₋₁ = b

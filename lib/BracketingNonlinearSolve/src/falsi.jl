@@ -69,7 +69,8 @@ function SciMLBase.__solve(
             return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
-        if abs(fm) < abstol
+        # The residual test uses the value of `abstol` in the units of `f`
+        if abs(fm) < abstol * (oneunit(abs(fm)) / oneunit(abstol))
             right = mid
             break
         end
