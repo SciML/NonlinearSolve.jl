@@ -19,13 +19,15 @@ using ConcreteStructs: @concrete
 export HomotopyContinuationJL, TaylorHomotopyContinuationJL, HomotopyNonlinearFunction
 
 """
-    HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...)
+    HomotopyContinuationJL{AllRoots, ComplexRoots}(; autodiff = true, kwargs...)
     HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
 This algorithm is an interface to `HomotopyContinuation.jl`. It is only valid for
 fully determined polynomial systems. The `AllRoots` type parameter can be `true` or
 `false` and controls whether the solver will find all roots of the polynomial
 or a single root close to the initial guess provided to the `NonlinearProblem`.
+The `ComplexRoots` type parameter can be `Val{true}` or `Val{false}` (default) and
+controls whether complex roots are returned or filtered to only real roots.
 The polynomial function must allow complex numbers to be provided as the state.
 
 If `AllRoots` is `true`, the initial guess in the `NonlinearProblem` is ignored.
@@ -38,6 +40,9 @@ depends on the initial guess provided to the `NonlinearProblem` being solved. Th
 does not require that the polynomial function is traceable via HomotopyContinuation.jl's
 symbolic variables.
 
+If `ComplexRoots` is `Val{true}`, complex roots will be returned. If `Val{false}` (default),
+only real roots will be returned.
+
 HomotopyContinuation.jl requires the jacobian of the system. In case a jacobian function
 is provided, it will be used. Otherwise, the `autodiff` keyword argument controls the
 autodiff method used to compute the jacobian. A value of `true` refers to
@@ -47,23 +52,31 @@ specified using ADTypes.jl.
 HomotopyContinuation.jl requires the taylor series of the polynomial system for the single
 root method. This is automatically computed using TaylorSeries.jl.
 """
-@concrete struct HomotopyContinuationJL{AllRoots} <:
+@concrete struct HomotopyContinuationJL{AllRoots, ComplexRoots} <:
     NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
     autodiff
     kwargs
 end
 
-function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {AllRoots}
+function HomotopyContinuationJL{AllRoots, ComplexRoots}(;
+        autodiff = true, kwargs...
+    ) where {AllRoots, ComplexRoots}
     if autodiff isa Bool
         autodiff = autodiff ? AutoForwardDiff() : AutoFiniteDiff()
     end
-    return HomotopyContinuationJL{AllRoots}(autodiff, kwargs)
+    return HomotopyContinuationJL{AllRoots, ComplexRoots}(autodiff, kwargs)
+end
+
+function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {AllRoots}
+    return HomotopyContinuationJL{AllRoots, Val{false}}(; autodiff, kwargs...)
 end
 
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
-function HomotopyContinuationJL(alg::HomotopyContinuationJL{R}; kwargs...) where {R}
-    return HomotopyContinuationJL{R}(; alg.autodiff, alg.kwargs..., kwargs...)
+function HomotopyContinuationJL(
+        alg::HomotopyContinuationJL{R, C}; kwargs...
+    ) where {R, C}
+    return HomotopyContinuationJL{R, C}(; alg.autodiff, alg.kwargs..., kwargs...)
 end
 
 include("interface_types.jl")
