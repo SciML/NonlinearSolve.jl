@@ -14,3 +14,6 @@
 @safetestset "Moré trust-region subproblem on underdetermined NLLS" include(
     "least_squares_tests__item8.jl"
 )
+@safetestset "Analytic sparse Jacobian with a line search" include(
+    "least_squares_tests__item9.jl"
+)

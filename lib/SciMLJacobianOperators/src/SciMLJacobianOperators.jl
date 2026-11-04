@@ -355,7 +355,7 @@ function prepare_vjp(
 
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
-            jac_cache = similar(u, eltype(fu), length(fu), length(u))
+            jac_cache = analytic_jac_cache(f, u, fu)
             return @closure (
                 vJ, v, u, p,
             ) -> begin
@@ -363,7 +363,6 @@ function prepare_vjp(
                 LinearAlgebra.mul!(vec(vJ), jac_cache', vec(v))
                 return
             end
-            return vjp_op, vjp_extras
         else
             return @closure (v, u, p) -> reshape(f.jac(u, p)' * vec(v), size(u))
         end
@@ -427,7 +426,7 @@ function prepare_jvp(
 
     if autodiff === nothing && SciMLBase.has_jac(f)
         if SciMLBase.isinplace(f)
-            jac_cache = similar(u, eltype(fu), length(fu), length(u))
+            jac_cache = analytic_jac_cache(f, u, fu)
             return @closure (
                 Jv, v, u, p,
             ) -> begin
@@ -479,6 +478,21 @@ function prepare_jvp(
             )
         end
     end
+end
+
+# Cache for an in-place analytic `jac`. A matrix `jac_prototype` gives the cache type (for
+# example sparse), so `f.jac` gets the same type of matrix as in the main Jacobian path.
+# The zero fill (as `NonlinearSolveBase.Utils.safe_similar` does) keeps the entries that
+# `f.jac` does not write at zero.
+function analytic_jac_cache(f, u, fu)
+    jp = hasproperty(f, :jac_prototype) ? f.jac_prototype : nothing
+    cache = if jp isa AbstractMatrix
+        eltype(jp) <: Bool ? similar(jp, promote_type(eltype(fu), eltype(u))) : similar(jp)
+    else
+        similar(u, eltype(fu), length(fu), length(u))
+    end
+    ArrayInterface.can_setindex(cache) && fill!(cache, zero(eltype(cache)))
+    return cache
 end
 
 function prepare_scalar_op(
