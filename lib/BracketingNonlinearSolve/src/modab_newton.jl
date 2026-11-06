@@ -9,9 +9,8 @@ of the `IntervalNonlinearFunction` when it has one, otherwise it comes from auto
 differentiation with the `autodiff` backend, for example `AutoForwardDiff()` after
 `using ADTypes: AutoForwardDiff` and `using ForwardDiff`. Without either it is an error.
 
-Derivatives are only used near the root, where Newton's method converges quadratically, so
-the method needs fewer evaluations of `f'` than `NewtonBisection`, and falls back to plain
-bisection (like ModAB) where Newton's method would converge slowly, as at multiple roots.
+Delaying Newton steps can reduce derivative evaluations compared with `NewtonBisection`.
+The evaluation counts depend on the function and initial bracket.
 """
 @concrete struct ModABNewton <: AbstractBracketingAlgorithm
     autodiff
