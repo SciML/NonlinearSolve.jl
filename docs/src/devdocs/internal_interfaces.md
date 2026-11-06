@@ -30,6 +30,22 @@ first block. This mirrors `SteadyStateDiffEq.jl`'s `SteadyStateSCCCache` for the
 analogous case of a `SteadyStateProblem` whose `lowered_problem` is an
 `SCCNonlinearProblem`.
 
+```jldoctest
+julia> using NonlinearSolve, SCCNonlinearSolve, SciMLBase
+
+julia> block = NonlinearProblem((u, p) -> u .- 2, [0.0]);
+
+julia> prob = SciMLBase.SCCNonlinearProblem((block,), ((p, sols) -> nothing,));
+
+julia> cache = init(prob, NewtonRaphson());
+
+julia> cache isa SCCNonlinearSolve.SCCNonlinearCache
+true
+
+julia> solve!(cache).u ≈ [2.0]
+true
+```
+
 ```@docs
 SCCNonlinearSolve.scc_solve_up
 SCCNonlinearSolve.SCCNonlinearCache
