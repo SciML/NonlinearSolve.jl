@@ -149,3 +149,17 @@ end
     Xs_sing = Utils.linsolve_identity!!(nothing, As_sing)
     @test Xs_sing isa SMatrix && all(iszero, Xs_sing)
 end
+
+@testset "an explicit linsolve builds the workspace (dense and sparse)" begin
+    using SparseArrays
+    for A in ([2.0 1.0; 0.0 3.0], sparse([2.0 1.0; 0.0 3.0]))
+        original = copy(A)
+        workspace, _ = Utils.linsolve_workspace(A, LinearSolve.LUFactorization())
+        @test workspace.lincache.lincache.alg isa LinearSolve.LUFactorization
+        # inv([2 1; 0 3]) = [1/2 -1/6; 0 1/3]
+        @test Utils.linsolve_identity!!(workspace, A) ≈ [1 / 2 -1 / 6; 0 1 / 3]
+        @test A == original
+        @test Utils.linsolve_identity!!(workspace, 2A) ≈ [1 / 4 -1 / 12; 0 1 / 6]
+        @test A == original
+    end
+end
