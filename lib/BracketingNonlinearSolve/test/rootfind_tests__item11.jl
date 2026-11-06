@@ -82,6 +82,46 @@ end
     end
 end
 
+@testset "Bracket near floatmax" begin
+    # The Newton step and `left + right` both overflow.
+    s = 1.0e308
+    outside = Float64[]
+    function f(u, p)
+        s ≤ u ≤ 1.5s || push!(outside, u)
+        return atan(100 * (u / s - 1.25))
+    end
+    df(u, p) = (100 / s) / (1 + (100 * (u / s - 1.25))^2)
+    prob = IntervalNonlinearProblem(IntervalNonlinearFunction(f; jac = df), (s, 1.5s))
+    sol = solve(prob, NewtonBisection(); abstol = 0.0)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ 1.25s
+    @test isempty(outside)
+end
+
+@testset "NaN residual" begin
+    df(u, p) = inv(u)
+    # Inside the bracket: the first Newton point is 2.0
+    f = IntervalNonlinearFunction((u, p) -> u == 2.0 ? NaN : log(u) - 1; jac = df)
+    sol = solve(IntervalNonlinearProblem(f, (1.0, 4.0)), NewtonBisection(); abstol = 1.0e-10)
+    @test sol.retcode == ReturnCode.Failure
+    @test sol.u == 2.0
+    @test sol.left ≤ exp(1) ≤ sol.right
+
+    # At an end of the bracket
+    @testset for nan_at in (1.0, 4.0)
+        f = IntervalNonlinearFunction((u, p) -> u == nan_at ? NaN : log(u) - 1; jac = df)
+        sol = solve(IntervalNonlinearProblem(f, (1.0, 4.0)), NewtonBisection())
+        @test sol.retcode == ReturnCode.Failure
+        @test sol.u == nan_at
+    end
+
+    # A NaN derivative only makes it bisect.
+    f = IntervalNonlinearFunction(quadratic_f; jac = (u, p) -> u < 3 ? NaN : 2u)
+    sol = solve(IntervalNonlinearProblem(f, (1.0, 20.0), 2.0), NewtonBisection(); abstol = 0.0)
+    @test sol.retcode == ReturnCode.FloatingPointLimit
+    @test sol.left ≤ sqrt(2) ≤ sol.right
+end
+
 @testset "$T" for T in (Float32, BigFloat)
     sol = solve(IntervalNonlinearProblem(quadratic_fn, T.((1, 20)), T(2)), NewtonBisection(); abstol = zero(T))
     @test sol.retcode == ReturnCode.FloatingPointLimit

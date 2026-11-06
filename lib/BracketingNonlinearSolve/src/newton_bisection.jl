@@ -24,6 +24,10 @@ evaluations of `f` than the derivative-free methods. It evaluates the derivative
 often as `f`, though, so it is faster only when the derivative costs a small fraction of
 `f`: for example when `f` is an integral and the derivative its integrand, or when both
 reuse the same expensive computation.
+
+If `f` evaluates to `NaN`, at an end of the bracket or inside it, the solver stops and
+returns `ReturnCode.Failure` with that point and the current bracket. A derivative that is
+zero, infinite or `NaN` only makes the method bisect.
 """
 struct NewtonBisection <: AbstractBracketingAlgorithm end
 
@@ -48,16 +52,19 @@ function SciMLBase.__solve(
     )
 
     # The derivative is always evaluated right after `f`, at the same point.
+    # A `NaN` residual has no sign, so it can't tell on which side of the root it lies.
     fl = f(left)
     if iszero(fl)
         return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
+    isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
     dfl = df(left)
 
     fr = f(right)
     if iszero(fr)
         return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
+    isnan(fr) && return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.Failure)
     dfr = df(right)
 
     if sign(fl) == sign(fr)
@@ -92,12 +99,13 @@ function SciMLBase.__solve(
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
-            t = (left + right) / 2
+            t = safe_midpoint(left, right)
         end
         older_step, last_step = last_step, abs(t - x)
 
         ft = f(t)
         iszero(ft) && return build_exact_solution(prob, alg, t, ft, ReturnCode.Success)
+        isnan(ft) && return build_bracketing_solution(prob, alg, t, ft, left, right, ReturnCode.Failure)
         was_left = x == left
         if sign(ft) == sign(fl)
             left, fl = t, ft
