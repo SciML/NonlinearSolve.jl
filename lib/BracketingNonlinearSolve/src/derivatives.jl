@@ -1,4 +1,4 @@
-# NewtonBisection gets `f'` from the `jac` of the `IntervalNonlinearFunction`
+# NewtonBisection and ModABNewton get `f'` from the `jac` of the `IntervalNonlinearFunction`
 # (`UserDerivative`) or, without one, by automatic differentiation with the `autodiff`
 # backend of the algorithm (`ADDerivative`), where one pass gives `f` and `f'` together.
 
@@ -38,7 +38,10 @@ function interval_derivative(prob::IntervalNonlinearProblem, alg, x)
 end
 
 value(d::UserDerivative, x) = d.f(x)
+value(d::ADDerivative, x) = d.f(x, d.p)
+
 derivative(d::UserDerivative, x) = d.jac(x)
+derivative(d::ADDerivative, x) = last(value_and_derivative(d, x))
 
 function value_and_derivative(d::ADDerivative, x)
     return DI.value_and_derivative(d.f, d.prep, d.backend, x, DI.Constant(d.p))
