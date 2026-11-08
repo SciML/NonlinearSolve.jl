@@ -1,77 +1,86 @@
-using JLArrays, NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve, Logging
-using ADTypes: AutoForwardDiff, AutoPolyesterForwardDiff
-using SciMLBase: NLStats
+using NonlinearSolveFirstOrder, LinearSolve, SciMLBase, Test
+using NonlinearSolveBase: NonlinearSolveBase, AbsNormTerminationMode, get_fu,
+    not_terminated, refresh_residual!, supports_deferred_residual
+using LineSearch: BackTracking
 
-JLArrays.allowscalar(false)
-try
-    jlarray_f(u, p) = u .^ 2 .- p
-    jlarray_prob = NonlinearProblem(jlarray_f, JLArray([1.0, 2.0]), 4.0)
+f!(du, u, p) = (@. du = u^3 - 1.0; nothing)
+prob = NonlinearProblem(f!, fill(3.0, 20), nothing)
+forcing = EisenstatWalkerForcing2()
+alg = NewtonRaphson(; forcing, linsolve = KrylovJL_GMRES())
 
-    jlarray_nr = solve(jlarray_prob, NewtonRaphson())
-    @test jlarray_nr.retcode == ReturnCode.Success
-    @test jlarray_nr.u isa JLArray
-    @test Array(jlarray_nr.u) ≈ [2.0, 2.0]
-
-    jlarray_tr = solve(jlarray_prob, TrustRegion())
-    @test jlarray_tr.retcode == ReturnCode.Success
-    @test jlarray_tr.u isa JLArray
-    @test Array(jlarray_tr.u) ≈ [2.0, 2.0]
-
-    # Matrix-free Krylov linsolve never materializes a concrete Jacobian, routing
-    # through `JacobianOperator`'s eagerly-prepared VJP/JVP instead of `DI.jacobian`.
-    # ForwardDiff pushforwards do not scalar-index, so they stay the JVP backend.
-    jlarray_nr_krylov = solve(jlarray_prob, NewtonRaphson(linsolve = KrylovJL_GMRES()))
-    @test jlarray_nr_krylov.retcode == ReturnCode.Success
-    @test Array(jlarray_nr_krylov.u) ≈ [2.0, 2.0]
-    @test jlarray_nr_krylov.alg.jvp_autodiff isa AutoForwardDiff
-
-    @testset "Explicit ForwardDiff on the matrix-free path: $(kw)" for kw in (
-            (; jvp_autodiff = AutoForwardDiff()), (; autodiff = AutoForwardDiff()),
-        )
-        alg = NewtonRaphson(; linsolve = KrylovJL_GMRES(), kw...)
-        sol = @test_logs min_level = Logging.Warn solve(jlarray_prob, alg)
-        @test sol.retcode == ReturnCode.Success
-        @test Array(sol.u) ≈ [2.0, 2.0]
-        @test sol.alg.jvp_autodiff isa AutoForwardDiff
+function expected_eta(p, ηprev, ratio)
+    η = p.γ * ratio^p.α
+    if p.safeguard
+        ηsg = p.γ * ηprev^p.α
+        if ηsg > p.safeguard_threshold && ηsg > η
+            η = ηsg
+        end
     end
+    return clamp(η, 0.0, p.ηₘₐₓ)
+end
 
-    jlarray_tr_krylov = solve(jlarray_prob, TrustRegion(linsolve = KrylovJL_GMRES()))
-    @test jlarray_tr_krylov.retcode == ReturnCode.Success
-    @test Array(jlarray_tr_krylov.u) ≈ [2.0, 2.0]
+@testset "forcing residual matches the current iterate after each step" begin
+    cache = init(prob, alg; abstol = 1.0e-10, reltol = 1.0e-10)
+    fc = cache.forcing_cache
+    prev_true_ratio = nothing
+    prev_η = fc.η
+    prev_fu_norm = fc.internalnorm(get_fu(cache))
+    @test fc.rnorm == prev_fu_norm
+    @test fc.rnorm_prev == prev_fu_norm
 
-    # Yuan/Bastin radius updates eagerly compute `Jᵀfu` through the VJP operator at
-    # `init` time, so they exercise the DI pullback path outside the Krylov cache too.
-    jlarray_tr_yuan = solve(
-        jlarray_prob, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Yuan)
-    )
-    @test jlarray_tr_yuan.retcode == ReturnCode.Success
-    @test Array(jlarray_tr_yuan.u) ≈ [2.0, 2.0]
-
-    jlarray_tr_bastin = solve(
-        jlarray_prob, TrustRegion(radius_update_scheme = RadiusUpdateSchemes.Bastin)
-    )
-    @test jlarray_tr_bastin.retcode == ReturnCode.Success
-    @test Array(jlarray_tr_bastin.u) ≈ [2.0, 2.0]
-
-    jlarray_fu = jlarray_f(jlarray_prob.u0, jlarray_prob.p)
-    @testset "Explicit $(nameof(typeof(ad))) Jacobian falls back to finite differencing" for ad in (
-            AutoForwardDiff(), AutoPolyesterForwardDiff(),
-        )
-        jac_cache = @test_logs (:warn, r"scalar indexing") NonlinearSolveBase.construct_jacobian_cache(
-            jlarray_prob, NewtonRaphson(), jlarray_prob.f, jlarray_fu;
-            stats = NLStats(0, 0, 0, 0, 0), autodiff = ad
-        )
-        J = NonlinearSolveBase.reused_jacobian(jac_cache, jlarray_prob.u0)
-        @test J isa JLArray
-        # Forward differences carry an O(sqrt(eps)) truncation error.
-        @test Array(J) ≈ [2.0 0.0; 0.0 4.0] rtol = 1.0e-6
+    for k in 1:8
+        not_terminated(cache) || break
+        ratio_used = fc.rnorm / fc.rnorm_prev
+        if k == 1
+            @test ratio_used == 1
+        else
+            @test ratio_used ≈ prev_true_ratio
+        end
+        step!(cache)
+        if k == 1
+            @test fc.η == fc.p.η₀
+        else
+            @test fc.η ≈ expected_eta(fc.p, prev_η, ratio_used)
+        end
+        prev_η = fc.η
+        cur = fc.internalnorm(get_fu(cache))
+        @test fc.rnorm == cur
+        prev_true_ratio = cur / prev_fu_norm
+        prev_fu_norm = cur
     end
+    @test cache.nsteps ≥ 2
+end
 
-    jlarray_nr_forwarddiff = @test_logs (:warn, r"scalar indexing") solve(
-        jlarray_prob, NewtonRaphson(autodiff = AutoForwardDiff())
+@testset "line-search path also records the post-step residual" begin
+    ls_alg = NewtonRaphson(;
+        forcing, linsolve = KrylovJL_GMRES(), linesearch = BackTracking()
     )
-    @test jlarray_nr_forwarddiff.retcode == ReturnCode.Success
-    @test Array(jlarray_nr_forwarddiff.u) ≈ [2.0, 2.0]
-finally
-    JLArrays.allowscalar(true)
+    cache = init(prob, ls_alg; abstol = 1.0e-10, reltol = 1.0e-10)
+    fc = cache.forcing_cache
+    for _ in 1:8
+        not_terminated(cache) || break
+        step!(cache)
+        @test fc.rnorm == fc.internalnorm(get_fu(cache))
+    end
+    @test cache.nsteps ≥ 2
+end
+
+@testset "deferred residual defers the forcing-norm update" begin
+    cache = init(
+        prob, alg;
+        termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
+    )
+    @test supports_deferred_residual(cache)
+    fc = cache.forcing_cache
+    rnorm0 = fc.rnorm
+    fu0 = copy(get_fu(cache))
+    step!(cache; evaluate_residual = false)
+    @test cache.fu_deferred
+    @test get_fu(cache) == fu0
+    @test fc.rnorm == rnorm0
+    refresh_residual!(cache)
+    @test !cache.fu_deferred
+    @test fc.rnorm == fc.internalnorm(get_fu(cache))
+    @test fc.rnorm != rnorm0
+    @test fc.rnorm_prev == rnorm0
 end

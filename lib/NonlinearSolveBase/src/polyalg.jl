@@ -216,6 +216,8 @@ function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0,
         retain_best::Bool = false, kwargs...
     )
+    # `solve!` seeds every attempt from `cache.u0` when aliasing
+    cache.alias_u0 && u0 !== cache.u0 && copyto!(cache.u0, u0)
     cache.retain_best = retain_best
     cache.retain_count = retain_best ? cache.retain_count + 1 : 0
     retained = retain_best && 1 ≤ cache.best ≤ Utils.unwrap_val(cache.static_length)
