@@ -18,10 +18,11 @@ nlblock = NonlinearProblem((u, p) -> [u[1]^2 - 4], [1.5])   # plain block, root 
 # control: the algorithm applied directly to the block solves the target system -> -1
 @test solve(homblock, NewtonRaphson()).u[1] ≈ -1.0 atol = 1.0e-6
 
-@testset "homotopy SCC block is continued, not target-λ solved" begin
+@testset "homotopy SCC block is continued, not target-λ solved ($label)" for (label, blocks) in (
+        ("tuple", (homblock, nlblock)), ("vector", Any[homblock, nlblock]),
+    )
     sccprob = SciMLBase.SCCNonlinearProblem(
-        (homblock, nlblock),
-        SciMLBase.Void{Any}.([Returns(nothing), Returns(nothing)])
+        blocks, SciMLBase.Void{Any}.([Returns(nothing), Returns(nothing)])
     )
     sol = solve(sccprob, SCCNonlinearSolve.SCCAlg(nlalg = NewtonRaphson(), linalg = nothing))
     @test sol[1] ≈ 1.0 atol = 1.0e-6      # homotopy block continued to the physical root

@@ -127,6 +127,7 @@ else
                 @time @safetestset "Inplace Matrix Resizing" include("PolyAlgorithms/core_tests__item15.jl")
                 @time @safetestset "Default Algorithm Singular Handling" include("PolyAlgorithms/core_tests__item19.jl")
                 @time @safetestset "Default polyalgs are forward-mode only: Issue #837" include("PolyAlgorithms/core_tests__item20.jl")
+                @time @safetestset "Generated polyalg solve infers with alias_u0" include("PolyAlgorithms/alias_u0_inference_tests.jl")
                 return @time @safetestset "23 Test Problems: PolyAlgorithms" include("PolyAlgorithms/23_test_problems_tests__item1.jl")
             end,
             "Verbosity" => function ()
@@ -169,6 +170,7 @@ else
                     @time @safetestset "FastLevenbergMarquardt.jl + StaticArrays" include("Wrappers/least_squares_tests__item4.jl")
                     @time @safetestset "Steady State Problems" include("Wrappers/rootfind_tests__item1.jl")
                     @time @safetestset "Nonlinear Root Finding Problems" include("Wrappers/rootfind_tests__item2.jl")
+                    @time @safetestset "Extension jac scalar and matrix u0" include("Wrappers/extension_jac_shapes_tests.jl")
                     return @time @safetestset "PETSc buffer ownership" include("Wrappers/petsc_gc_tests__item1.jl")
                 end,
             ),

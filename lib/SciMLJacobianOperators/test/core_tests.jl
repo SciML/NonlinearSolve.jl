@@ -2,3 +2,4 @@
 @safetestset "Inplace Problems" include("core_tests__item2.jl")
 @safetestset "Out-of-place Problems" include("core_tests__item3.jl")
 @safetestset "Copy with Tuple parameters (Issue #752)" include("core_tests__item6.jl")
+@safetestset "Static / partitioned seeds with dense Vector workspaces" include("core_tests__item7.jl")
