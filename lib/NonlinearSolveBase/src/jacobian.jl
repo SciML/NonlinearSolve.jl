@@ -233,6 +233,29 @@ function (cache::JacobianCache{<:Number})(u)
     return cache.J
 end
 
+"""
+    checked_jacobian(J_stored, J)
+
+Convert `J` to the stored Jacobian's type (`jac_prototype`, or a dense `Matrix` when it is
+`nothing`), or throw an `ArgumentError` naming the accepted types when that conversion
+has no method.
+"""
+function checked_jacobian(J_stored, J)
+    try
+        return convert(typeof(J_stored), J)
+    catch err
+        err isa MethodError || rethrow()
+        throw(
+            ArgumentError(
+                "`jac(u, p)` returned a `$(typeof(J))` that cannot be converted to the \
+                 stored Jacobian type `$(typeof(J_stored))` (the type of `jac_prototype`, \
+                 a dense `Matrix` if it is `nothing`). Pass a `jac_prototype` that is an \
+                 `AbstractMatrix` or an `AbstractSciMLOperator` of the type `jac` returns."
+            )
+        )
+    end
+end
+
 ## Actually Compute the Jacobian
 function (cache::JacobianCache)(u)
     cache.stats.njacs += 1
@@ -249,7 +272,7 @@ function (cache::JacobianCache)(u)
         return J
     else
         if SciMLBase.has_jac(cache.f)
-            cache.J = f.jac(u, p)
+            cache.J = checked_jacobian(cache.J, f.jac(u, p))
         else
             cache.J = DI.jacobian(f, cache.di_extras, cache.autodiff, u, Constant(p))
         end
