@@ -19,6 +19,43 @@ end
     return m > 0 ? m : inv(2one(m))
 end
 
+# Root of the linear-fractional model  f(x) = (x - r) / (p*x + q)  through the bracket
+# (x1, f1), (x2, f2) and a third point (x3, f3) outside it. The model fits both
+# nearly-quadratic shapes and functions with a pole; for a straight line it gives the
+# secant point. With w = x2 - x1, u = x3 - x1 and the residuals relative to f2,
+# q1 = f1/f2 and q3 = f3/f2 (so the step does not depend on the scale or the units of f),
+# and c = 1 - q1, the root is
+#     r = x1 + t,   t = w*u*q1*(q3 - 1) / (w*(q3 - q1) - u*q3*c),
+# two divisions per step, 1/f2 and this one. The step is used only if it moves the secant
+# point xs = x1 - w*q1/c by at most half the distance to the nearer endpoint (on a plateau
+# the model degenerates towards a step function). Multiplied by c, that test reads
+#     |t*c + w*q1| <= w*min(|q1|, 1)/2,
+# with no division; it also rejects NaN and infinite values. When the step is unusable,
+# it returns the A&B secant point through (x1, y1), (x2, y2) instead.
+@inline function rational_step(x1, f1, x2, f2, x3, f3, y1, y2)
+    k = inv(f2)
+    q1, q3 = f1 * k, f3 * k
+    c = 1 - q1
+    w, u = x2 - x1, x3 - x1
+    t = w * u * q1 * (q3 - 1) / (w * (q3 - q1) - u * q3 * c)
+    x = x1 + t
+    abs(t * c + w * q1) <= w * min(abs(q1), one(q1)) / 2 && x <= x2 && return x
+    return safe_secant(x1, y1, x2, y2)
+end
+
+# True if the second divided differences on the left (xl, x1, x2) and on the right
+# (x1, x2, xr) have opposite signs: an inflection within the bracket, where a model with
+# one-signed curvature does worse than the secant. Scaled by positive factors, they are
+#     pl = (f2 - f1)*(x1 - xl) - (f1 - fl)*(x2 - x1),
+#     pr = (fr - f2)*(x2 - x1) - (f2 - f1)*(xr - x2),
+# so only their signs are compared, with no division or product of the two.
+@inline function curvature_changes_sign(xl, fl, x1, f1, x2, f2, xr, fr)
+    df, w = f2 - f1, x2 - x1
+    pl = df * (x1 - xl) - (f1 - fl) * w
+    pr = (fr - f2) * w - df * (xr - x2)
+    return (pl < zero(pl) && pr > zero(pr)) || (pl > zero(pl) && pr < zero(pr))
+end
+
 """
     ModAB()
 
@@ -35,6 +72,14 @@ This implementation includes the latest improvements made in 2026 by the followi
 Ganchovski, N.; Smith, O.; Rackauckas, C.; Tomov, L.; Traykov, A.
 Improvements to the Modified Anderson–Björck (modAB) Root-Finding Algorithm. Algorithms 2026, 19, 332.
 (https://doi.org/10.3390/a19050332) and additional fixes by L.Tomov
+
+The Anderson-Björck phase adds two changes:
+1. Rational correction: the A&B secant is replaced by the secant through the true residuals,
+   corrected for curvature by a 3-point rational model through the bracket and the endpoint
+   it most recently dropped. The A&B secant remains the fallback when the correction is
+   unusable or the curvature changes sign within the bracket.
+2. Closing step: an A&B point is kept at least half the x-tolerance away from the endpoint
+   that was just evaluated, so that one-sided convergence still closes the bracket.
 
 If `f` evaluates to `NaN` at an iterate, the solver stops and returns
 `ReturnCode.Failure` with that iterate and the current bracket.
@@ -94,6 +139,10 @@ function SciMLBase.__solve(
     # Each return from A&B to bisection halves the margin of the switching test, so that
     # borderline switches are rejected after unsuccessful A&B phases.
     margin = one(abs(y1) / (abs(y1) + abs(y2)))
+    last = 0 # Endpoint set by the last evaluation: 1 = x1, -1 = x2, 0 = none
+    # Last endpoints dropped on the left and on the right, valid once has_l / has_r are set
+    xl, fl, xr, fr = x1, f1, x2, f2
+    has_l = has_r = false
     while i < maxiters
         local x3, y3
         switching = false # This bisection switches to A&B
@@ -102,7 +151,26 @@ function SciMLBase.__solve(
             x3 = safe_midpoint(x1, x2) # Avoids possible overflow in x1 + x2
             y3 = f(x3) # Function value at midpoint
         else # Anderson-Bjork method is used
-            x3 = safe_secant(x1, y1, x2, y2)
+            # Rational correction through the endpoint dropped by the last update, or the A&B
+            # secant when the curvature changes sign within the bracket. has_l and has_r tell
+            # which dropped endpoints exist; the curvature test needs both.
+            if has_l && has_r && curvature_changes_sign(xl, fl, x1, f1, x2, f2, xr, fr)
+                x3 = safe_secant(x1, y1, x2, y2)
+            elseif last == 1 && has_l
+                x3 = rational_step(x1, f1, x2, f2, xl, fl, y1, y2)
+            elseif last == -1 && has_r
+                x3 = rational_step(x1, f1, x2, f2, xr, fr, y1, y2)
+            else
+                x3 = safe_secant(x1, y1, x2, y2)
+            end
+            # Closing step: when A&B converges from one side, its next point lands within half
+            # the x-tolerance (2ϵ) of the endpoint just evaluated and the bracket does not shrink.
+            # A step of ϵ towards the far side then crosses the root and closes the bracket.
+            if last == 1
+                x3 - x1 < ϵ && x1 + ϵ < x2 && (x3 = x1 + ϵ)
+            elseif x2 - x3 < ϵ && x2 - ϵ > x1
+                x3 = x2 - ϵ
+            end
             if x3 <= x1 # Rounded onto or past an endpoint: reuse its true residual
                 x3, y3 = x1, f1
             elseif x3 >= x2
@@ -134,9 +202,11 @@ function SciMLBase.__solve(
         end
         if bisecting
             if same_signs(f1, y3)
-                x1, f1 = x3, y3
+                xl, fl, has_l = x1, f1, true
+                x1, f1, last = x3, y3, 1
             else
-                x2, f2 = x3, y3
+                xr, fr, has_r = x2, f2, true
+                x2, f2, last = x3, y3, -1
             end
         else # Anderson-Bjork method is used, including the step that switched to it
             yl, yr = f1, f2 # True residuals of the bracket before the update
@@ -146,14 +216,16 @@ function SciMLBase.__solve(
                 elseif !switching || abs(y3) <= plateau_ratio * abs(yl)
                     side = 1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x1, y1, f1 = x3, y3, y3
+                x3 != x1 && ((xl, fl, has_l) = (x1, f1, true))
+                x1, y1, f1, last = x3, y3, y3, 1
             else
                 if side == -1  # Apply Anderson-Bjork correction on the left side
                     y1 *= get_ab_factor(y3, y2)
                 elseif !switching || abs(y3) <= plateau_ratio * abs(yr)
                     side = -1 # A switching bisection on a plateau starts the A&B phase afresh
                 end
-                x2, y2, f2 = x3, y3, y3
+                x3 != x2 && ((xr, fr, has_r) = (x2, f2, true))
+                x2, y2, f2, last = x3, y3, y3, -1
             end
             # Fallback if AB fails to reduce the bracket width, unless it still shrinks the residual more than 42 times
             # (2^(1074/200) = 41.4: at this rate the residual underflows within 200 steps from |y| = 1)
