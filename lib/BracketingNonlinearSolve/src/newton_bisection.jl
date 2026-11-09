@@ -95,6 +95,12 @@ function newton_bisection(prob, alg, fun, left, right; maxiters, abstol, verbose
     # Newton steps start from the end with the shorter step. The last point `x` is always
     # an end of the bracket.
     x, fx, dfx = abs(fl / dfl) <= abs(fr / dfr) ? (left, fl, dfl) : (right, fr, dfr)
+    return newton_bisection_steps(prob, alg, fun, left, right, fl, fr, x, fx, dfx, abstol, maxiters)
+end
+
+# Newton steps from `x`, an end of the bracket `[left, right]` with `f(x) = fx` and
+# `f'(x) = dfx`, safeguarded by bisection.
+function newton_bisection_steps(prob, alg, fun, left, right, fl, fr, x, fx, dfx, abstol, maxiters)
     last_step = older_step = oftype(right - left, Inf)
     base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
     base_left = x == left

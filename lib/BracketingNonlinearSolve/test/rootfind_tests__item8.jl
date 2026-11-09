@@ -1,7 +1,7 @@
 using BracketingNonlinearSolve
 
 @testset "$(nameof(typeof(alg))) evaluates f only inside the bracket" for alg in (
-        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder(), ModAB(), NewtonBisection(),
+        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Ridder(), ModAB(), NewtonBisection(), ModABNewton(),
         nothing,
     )
     lo, hi = 0.01, 1.0

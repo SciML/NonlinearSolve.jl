@@ -16,7 +16,7 @@ solve_allocations(prob, alg) = @allocated solve(prob, alg; abstol = 0.0)
         @test sol.left <= sqrt(BigFloat(2)) <= sol.right
         @test solve_allocations(prob, alg) == 0
     end
-    @testset "$constructor, mode=$mode" for constructor in (NewtonBisection,), mode in (:jac, :ad)
+    @testset "$constructor, mode=$mode" for constructor in (NewtonBisection, ModABNewton), mode in (:jac, :ad)
         f = mode === :jac ? IntervalNonlinearFunction(quadratic; jac = quadratic_jac) : IntervalNonlinearFunction(quadratic)
         alg = mode === :jac ? constructor() : constructor(; autodiff = AutoForwardDiff())
         prob = IntervalNonlinearProblem(f, (ForwardDiff.Dual(1.0, 0.0), ForwardDiff.Dual(20.0, 0.0)))

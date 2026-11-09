@@ -19,6 +19,7 @@ Brent
 Falsi
 ITP
 ModAB
+ModABNewton
 Muller
 NewtonBisection
 Ridder

@@ -45,6 +45,7 @@ include("ridder.jl")
 include("modAB.jl")
 include("derivatives.jl")
 include("newton_bisection.jl")
+include("modab_newton.jl")
 
 # Default Algorithm
 function CommonSolve.solve(prob::IntervalNonlinearProblem; kwargs...)
@@ -91,6 +92,7 @@ end
 
 @reexport using SciMLBase, NonlinearSolveBase
 
-export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder, ModAB, NewtonBisection
+export Alefeld, Bisection, Brent, Falsi, ITP, Muller, Ridder, ModAB, NewtonBisection,
+    ModABNewton
 
 end
