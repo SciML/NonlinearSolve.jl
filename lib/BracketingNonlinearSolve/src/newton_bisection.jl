@@ -99,11 +99,13 @@ function newton_bisection(prob, alg, fun, left, right; maxiters, abstol, verbose
     base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
     base_left = x == left
     k = one(right - left)   # distance beyond the Newton point, in tolerances, once Newton has converged
-    for _ in 1:maxiters
+    for iter in 0:maxiters
         if newton_bisection_done(left, right, abstol)
             retcode = nextfloat(left) == right ? ReturnCode.FloatingPointLimit : ReturnCode.Success
             return newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
         end
+
+        iter == maxiters && break
 
         step = fx / dfx
         newton = x - step
@@ -123,13 +125,14 @@ function newton_bisection(prob, alg, fun, left, right; maxiters, abstol, verbose
             # doubling the distance until the sign of `f` changes.
             δx = k * max(abstol, eps(x))
             t = x == left ? max(newton, x) + δx : min(newton, x) - δx
-            t = clamp(t, nextfloat(left), prevfloat(right))
             k *= 2
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
             t = newton_bisection_midpoint(left, right)
         end
+        left, right, t = promote(left, right, t)
+        t = clamp(t, nextfloat(left), prevfloat(right))
         older_step, last_step = last_step, abs(t - x)
 
         ft, dft = value_then_derivative(fun, t)
