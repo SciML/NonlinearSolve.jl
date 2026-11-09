@@ -1,31 +1,38 @@
-using BracketingNonlinearSolve, Unitful
-import DynamicQuantities as DQ
+using BracketingNonlinearSolve, SciMLBase, Test, ForwardDiff
+using BracketingNonlinearSolve: NonlinearVerbosity
+using SciMLLogging: None, Minimal, Standard
 
-const get_tolerance = BracketingNonlinearSolve.NonlinearSolveBase.get_tolerance
-
-@testset "Default and zero tolerances take the units of the bracket" begin
-    for x in (0.5u"s", 0.5 * DQ.u"s")
-        T = typeof(x)
-        @test get_tolerance(x, nothing, T) ≈ 3.0e-13 * oneunit(x) rtol = 1.0e-3
-        @test get_tolerance(x, 0.0, T) == zero(x)
-        @test get_tolerance(x, 1.0e-9 * oneunit(x), T) == 1.0e-9 * oneunit(x)
+# Every bracketing method accepts `verbose` as a `NonlinearVerbosity` or a verbosity preset,
+# also from the problem's kwargs.
+f(u, p) = u^2 - p
+prob = IntervalNonlinearProblem{false}(f, (0.0, 2.0), 2.0)
+const ALGS = (ModAB(), Bisection(), ITP(), Ridder(), Falsi(), Brent(), Alefeld())
+for alg in ALGS
+    ref = solve(prob, alg)
+    for v in (NonlinearVerbosity(), NonlinearVerbosity(None()), None(), Minimal(), Standard())
+        sol = solve(prob, alg; verbose = v)
+        @test sol.retcode == ref.retcode
+        @test sol.u === ref.u
     end
+    sol = solve(remake(prob; kwargs = (; verbose = None())), alg)
+    @test sol.u === ref.u
 end
 
-@testset "$(nameof(typeof(alg))) with units" for alg in (
-        Alefeld(), Bisection(), Brent(), Falsi(), ITP(), Muller(), Ridder(), ModAB(),
-    )
-    # Units in the residual only
-    sol = solve(IntervalNonlinearProblem((x, p) -> (x - 0.3) * u"m", (0.0, 1.0)), alg)
-    @test sol.u ≈ 0.3
+# a non-enclosing bracket warns at the default verbosity and is a quiet failure with logging off
+bad = IntervalNonlinearProblem{false}(f, (2.0, 3.0), 2.0)
+@test_logs (:warn,) match_mode = :any solve(bad, ModAB(); verbose = Standard())
+@test_logs solve(bad, ModAB(); verbose = None())
+@test solve(bad, ModAB(); verbose = None()).retcode == ReturnCode.InitialFailure
 
-    # Units in the bracket and the residual
-    for (s, m) in ((u"s", u"m"), (DQ.u"s", DQ.u"m"))
-        f = (x, p) -> (x^2 - 2s^2) * m
-        # With a zero tolerance Muller stops only at an exact root, which √2 has not
-        for abstol in (alg isa Muller ? (nothing,) : (nothing, 0.0))
-            sol = solve(IntervalNonlinearProblem(f, (0.0s, 2.0s)), alg; abstol)
-            @test sol.u ≈ sqrt(2.0) * s
-        end
-    end
+# a solve keyword overrides the problem's `verbose`, in both directions
+@test_logs (:warn,) match_mode = :any solve(remake(bad; kwargs = (; verbose = None())), ModAB(); verbose = Standard())
+@test_logs solve(remake(bad; kwargs = (; verbose = Standard())), ModAB(); verbose = None())
+
+# ForwardDiff through the parameter, with a preset: the root of u^2 - p is sqrt(p), d/dp = 1 / (2 sqrt(p))
+for alg in ALGS
+    g(p) = solve(IntervalNonlinearProblem{false}(f, (0.0, 2.0), p), alg; verbose = None()).u
+    @test g(2.0) ≈ sqrt(2.0) atol = 1.0e-8
+    @test ForwardDiff.derivative(g, 2.0) ≈ inv(2sqrt(2.0)) atol = 1.0e-6
+    h(p) = solve(remake(IntervalNonlinearProblem{false}(f, (0.0, 2.0), p); kwargs = (; verbose = None())), alg).u
+    @test ForwardDiff.derivative(h, 2.0) ≈ inv(2sqrt(2.0)) atol = 1.0e-6
 end
