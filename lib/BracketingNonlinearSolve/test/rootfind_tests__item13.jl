@@ -53,8 +53,10 @@ solve_allocations(prob, alg) = @allocated solve(prob, alg; abstol = 0.0)
     end
 end
 
-@testset "No jac and no available AD backend" for alg in (NewtonBisection(), NewtonBisection(; autodiff = AutoEnzyme()))
-    @test_throws ArgumentError solve(IntervalNonlinearProblem(quadratic_f, (1.0, 20.0), 2.0), alg)
+@testset "No jac and no available AD backend" for alg in (NewtonBisection(), NewtonBisection(; autodiff = AutoEnzyme())),
+        tspan in ((1.0, 20.0), Dual.((1.0, 20.0), 0.0))
+
+    @test_throws ArgumentError solve(IntervalNonlinearProblem(quadratic_f, tspan, 2.0), alg)
 end
 
 struct NewtonBisectionADTestTag end
