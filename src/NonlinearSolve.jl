@@ -154,33 +154,13 @@ include("forward_diff.jl")
         ),
     )
 
-    nlp_algs = [NewtonRaphson(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
-    nlls_algs = [GaussNewton(), TrustRegion(), BoundedTrustRegion(), LevenbergMarquardt()]
-
+    # The default polyalgorithms (`FastShortcutNonlinearPolyalg`, `FastShortcutNLLSPolyalg`)
+    # through `solve(prob)`, the form most user code writes. The individual first-order
+    # algorithms are precompiled by NonlinearSolveFirstOrder's own workload: every problem
+    # here has its own closure type, so sweeping them again only recompiles the same code
+    # for types no user has.
     @compile_workload begin
         @sync begin
-            for prob in nonlinear_problems, alg in nlp_algs
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = NonlinearVerbosity())
-            end
-
-            for prob in nlls_problems, alg in nlls_algs
-                Threads.@spawn CommonSolve.solve(prob, alg; abstol = 1.0e-2, verbose = NonlinearVerbosity())
-            end
-
-            # Default algorithms — the paths hit by solve(prob) with no algorithm
-            # NonlinearProblem → FastShortcutNonlinearPolyalg
-            # NonlinearLeastSquaresProblem → FastShortcutNLLSPolyalg
-            for prob in nonlinear_problems
-                Threads.@spawn CommonSolve.solve(prob; abstol = 1.0e-2, verbose = NonlinearVerbosity())
-            end
-            for prob in nlls_problems
-                Threads.@spawn CommonSolve.solve(prob; abstol = 1.0e-2, verbose = NonlinearVerbosity())
-            end
-
-            # `solve(prob)` with no keyword arguments is a distinct
-            # specialization from the kwarg-carrying calls above (the keyword
-            # NamedTuple's type participates), and it is the form most user code
-            # writes, so every problem gets a bare sweep too.
             for prob in nonlinear_problems
                 Threads.@spawn CommonSolve.solve(prob)
             end
