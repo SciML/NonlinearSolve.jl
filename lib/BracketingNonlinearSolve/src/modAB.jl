@@ -20,27 +20,42 @@ end
 end
 
 # Root of the linear-fractional model  f(x) = (x - r) / (p*x + q)  through the bracket
-# (x1, f1), (x2, f2) and a third point (x3, f3) outside it. The model fits both
-# nearly-quadratic shapes and functions with a pole; for a straight line it gives the
-# secant point. With w = x2 - x1, u = x3 - x1 and the residuals relative to f2,
-# q1 = f1/f2 and q3 = f3/f2 (so the step does not depend on the scale or the units of f),
-# and c = 1 - q1, the root is
+# (x1, y1), (x2, y2) and a third point (x3, f3) outside it. The bracket ordinates are the
+# A&B-corrected residuals and f3 is the true residual of the dropped endpoint. The model fits
+# both nearly-quadratic shapes and functions with a pole; for a straight line it gives the
+# secant point. With w = x2 - x1, u = x3 - x1 and the residuals relative to y2,
+# q1 = y1/y2 and q3 = f3/y2 (so the step does not depend on the scale or the units of f),
+# and c = 1 - q1 > 1, the root is
 #     r = x1 + t,   t = w*u*q1*(q3 - 1) / (w*(q3 - q1) - u*q3*c),
-# two divisions per step, 1/f2 and this one. The step is used only if it moves the secant
-# point xs = x1 - w*q1/c by at most half the distance to the nearer endpoint (on a plateau
-# the model degenerates towards a step function). Multiplied by c, that test reads
-#     |t*c + w*q1| <= w*min(|q1|, 1)/2,
-# with no division; it also rejects NaN and infinite values. When the step is unusable,
-# it returns the A&B secant point through (x1, y1), (x2, y2) instead.
-@inline function rational_step(x1, f1, x2, f2, x3, f3, y1, y2)
-    k = inv(f2)
-    q1, q3 = f1 * k, f3 * k
+# two divisions per step, 1/y2 and this one. The A&B secant point is xs = x1 - w*q1/c and
+# its distance to the nearer endpoint is d = w*min(|q1|, 1)/c. The step is kept within
+# 0.7*d of xs (on a plateau the model degenerates towards a step function), so it stays
+# at least 0.3*d inside the bracket. Multiplied by c, the test reads
+#     |t*c + w*q1| <= 0.7*w*min(|q1|, 1),
+# with no division. A step outside it is clamped to xs +- 0.7*d on the side the model
+# points to; this did better than the A&B secant in randomized-bracket tests and on
+# 200,000 random functions, where factors 0.6 to 0.9 differed little. The factor is
+# written as 7/10 so that it keeps the type of the bracket (e.g. Float32).
+# A step that rounds onto x2, or a NaN step (from overflow in t), returns x2. Its residual
+# is already stored, so the caller reuses it instead of evaluating f; the closing step may
+# first move the point to x2 - ϵ.
+@inline function rational_step(x1, y1, x2, y2, x3, f3)
+    k = inv(y2)
+    q1, q3 = y1 * k, f3 * k
     c = 1 - q1
     w, u = x2 - x1, x3 - x1
     t = w * u * q1 * (q3 - 1) / (w * (q3 - q1) - u * q3 * c)
+    a = abs(q1)
+    lim = (a < one(a) ? w * a : w) * 7 / 10 # c * 0.7 * d
+    dev = t * c + w * q1                    # c * (x - xs)
+    # Clamp: t = ts +- 0.7*d. False for a NaN dev, which only comes from a NaN t (or q1, and
+    # then t is NaN too), so x is NaN and the test below returns x2.
+    if abs(dev) > lim
+        t = ((dev < zero(dev) ? -lim : lim) - w * q1) / c
+    end
     x = x1 + t
-    abs(t * c + w * q1) <= w * min(abs(q1), one(q1)) / 2 && x <= x2 && return x
-    return safe_secant(x1, y1, x2, y2)
+    # Rounding can put x on x2 when the bracket is a few ulps wide; NaN fails the test too.
+    return x < x2 ? x : x2
 end
 
 # True if the second divided differences on the left (xl, x1, x2) and on the right
@@ -74,10 +89,10 @@ Improvements to the Modified Anderson–Björck (modAB) Root-Finding Algorithm. 
 (https://doi.org/10.3390/a19050332) and additional fixes by L.Tomov
 
 The Anderson-Björck phase adds two changes:
-1. Rational correction: the A&B secant is replaced by the secant through the true residuals,
-   corrected for curvature by a 3-point rational model through the bracket and the endpoint
-   it most recently dropped. The A&B secant remains the fallback when the correction is
-   unusable or the curvature changes sign within the bracket.
+1. Rational correction: the A&B secant is corrected for curvature by a 3-point rational model
+   through the A&B-corrected bracket and the endpoint it most recently dropped, with the step
+   kept within 0.7 of the distance from the A&B secant point to the nearer endpoint. The plain
+   A&B secant is used when the curvature changes sign within the bracket.
 2. Closing step: an A&B point is kept at least half the x-tolerance away from the endpoint
    that was just evaluated, so that one-sided convergence still closes the bracket.
 
@@ -157,9 +172,9 @@ function SciMLBase.__solve(
             if has_l && has_r && curvature_changes_sign(xl, fl, x1, f1, x2, f2, xr, fr)
                 x3 = safe_secant(x1, y1, x2, y2)
             elseif last == 1 && has_l
-                x3 = rational_step(x1, f1, x2, f2, xl, fl, y1, y2)
+                x3 = rational_step(x1, y1, x2, y2, xl, fl)
             elseif last == -1 && has_r
-                x3 = rational_step(x1, f1, x2, f2, xr, fr, y1, y2)
+                x3 = rational_step(x1, y1, x2, y2, xr, fr)
             else
                 x3 = safe_secant(x1, y1, x2, y2)
             end
