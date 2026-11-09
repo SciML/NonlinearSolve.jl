@@ -1,8 +1,8 @@
 """
-    NewtonBisection()
+    NewtonBisection(; autodiff = nothing)
 
-Newton's method safeguarded by bisection, for problems that give the derivative of `f` as
-the `jac` of their `IntervalNonlinearFunction`:
+Newton's method safeguarded by bisection. The derivative of `f` is the `jac` of the
+`IntervalNonlinearFunction` when it has one:
 
 ```julia
 f(u, p) = u^2 - p
@@ -10,6 +10,12 @@ df(u, p) = 2u
 prob = IntervalNonlinearProblem(IntervalNonlinearFunction(f; jac = df), (1.0, 2.0), 2.0)
 sol = solve(prob, NewtonBisection())
 ```
+
+Otherwise it comes from automatic differentiation with the `autodiff` backend, for example
+`NewtonBisection(; autodiff = AutoForwardDiff())` after `using ADTypes: AutoForwardDiff` and `using ForwardDiff`, which gives `f`
+and its derivative together in one evaluation. Without `jac` and without `autodiff` it is
+an error: with automatic differentiation the method is often slower than [`ModAB`](@ref),
+see below.
 
 Each iteration evaluates `f` once and then its derivative at the same point, so the two
 can share work, for example through a cache of the last point. It takes the Newton step
@@ -28,7 +34,13 @@ often as `f`, though, so it is faster only when the derivative costs a small fra
 `f`: for example when `f` is an integral and the derivative its integrand, or when both
 reuse the same expensive computation.
 """
-struct NewtonBisection <: AbstractBracketingAlgorithm end
+@concrete struct NewtonBisection <: AbstractBracketingAlgorithm
+    autodiff
+end
+
+function NewtonBisection(; autodiff::Union{Nothing, ADTypes.AbstractADType} = nothing)
+    return NewtonBisection(autodiff)
+end
 
 floating_bracket(tspan) = minmax(float.(promote(tspan...))...)
 
@@ -42,35 +54,34 @@ function SciMLBase.__solve(
         maxiters = 1000, abstol = nothing, verbose::NonlinearVerbosity = NonlinearVerbosity(), kwargs...
     )
     @assert !SciMLBase.isinplace(prob) "`NewtonBisection` only supports out-of-place problems."
-    SciMLBase.has_jac(prob.f) || throw(
-        ArgumentError(
-            "`NewtonBisection` needs the derivative of `f`, given as \
-            `IntervalNonlinearFunction(f; jac)`."
-        )
-    )
 
-    f = Base.Fix2(prob.f, prob.p)
-    df = Base.Fix2(prob.f.jac, prob.p)
     left, right = floating_bracket(prob.tspan)
+    return newton_bisection(
+        prob, alg, interval_derivative(prob, alg, left), left, right;
+        maxiters, abstol, verbose
+    )
+end
+
+function newton_bisection(prob, alg, fun, left, right; maxiters, abstol, verbose)
 
     abstol = NonlinearSolveBase.get_tolerance(
         left, abstol, promote_type(eltype(left), eltype(right))
     )
 
     # The derivative is always evaluated right after `f`, at the same point.
-    fl = f(left)
+    fl, dfl = value_then_derivative(fun, left)
     isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
     if iszero(fl)
         return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
     end
-    dfl = df(left)
+    dfl = derivative_after(fun, left, dfl)
 
-    fr = f(right)
+    fr, dfr = value_then_derivative(fun, right)
     isnan(fr) && return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.Failure)
     if iszero(fr)
         return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
     end
-    dfr = df(right)
+    dfr = derivative_after(fun, right, dfr)
 
     if sign(fl) == sign(fr)
         @SciMLMessage(
@@ -88,11 +99,13 @@ function SciMLBase.__solve(
     base_step = oftype(right - left, Inf)   # last plain Newton step from the same end
     base_left = x == left
     k = one(right - left)   # distance beyond the Newton point, in tolerances, once Newton has converged
-    for _ in 1:maxiters
+    for iter in 0:maxiters
         if newton_bisection_done(left, right, abstol)
             retcode = nextfloat(left) == right ? ReturnCode.FloatingPointLimit : ReturnCode.Success
             return newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
         end
+
+        iter == maxiters && break
 
         step = fx / dfx
         newton = x - step
@@ -112,16 +125,17 @@ function SciMLBase.__solve(
             # doubling the distance until the sign of `f` changes.
             δx = k * max(abstol, eps(x))
             t = x == left ? max(newton, x) + δx : min(newton, x) - δx
-            t = clamp(t, nextfloat(left), prevfloat(right))
             k *= 2
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
             t = newton_bisection_midpoint(left, right)
         end
+        left, right, t = promote(left, right, t)
+        t = clamp(t, nextfloat(left), prevfloat(right))
         older_step, last_step = last_step, abs(t - x)
 
-        ft = f(t)
+        ft, dft = value_then_derivative(fun, t)
         isnan(ft) && return build_bracketing_solution(prob, alg, t, ft, left, right, ReturnCode.Failure)
         iszero(ft) && return build_exact_solution(prob, alg, t, ft, ReturnCode.Success)
         was_left = x == left
@@ -133,11 +147,18 @@ function SciMLBase.__solve(
         (t == left) == was_left || (k = one(k))
         x, fx = t, ft
         # The next step needs the derivative only if the bracket can still shrink.
-        newton_bisection_done(left, right, abstol) || (dfx = df(t))
+        newton_bisection_done(left, right, abstol) || (dfx = derivative_after(fun, t, dft))
     end
 
     return newton_bisection_solution(prob, alg, left, right, fl, fr, ReturnCode.MaxIters)
 end
+
+# `f` at `x`, and what `derivative_after` needs for `f'` at `x`: with automatic
+# differentiation one pass gives both; a user `jac` is only called once it is needed.
+value_then_derivative(d::UserDerivative, x) = (value(d, x), nothing)
+value_then_derivative(d::ADDerivative, x) = value_and_derivative(d, x)
+derivative_after(d::UserDerivative, x, ::Nothing) = derivative(d, x)
+derivative_after(::ADDerivative, x, dfx) = dfx
 
 # The bracket is within the tolerance, or its ends are adjacent floating-point numbers.
 newton_bisection_done(left, right, abstol) = nextfloat(left) == right || (right - left) / 2 < abstol

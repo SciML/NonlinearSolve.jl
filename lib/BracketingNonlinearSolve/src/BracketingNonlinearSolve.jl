@@ -18,7 +18,9 @@ sol = solve(prob, ITP())
 """
 module BracketingNonlinearSolve
 
+using ADTypes: ADTypes
 using ConcreteStructs: @concrete
+using DifferentiationInterface: DifferentiationInterface as DI
 using PrecompileTools: @compile_workload, @setup_workload
 using Reexport: @reexport
 
@@ -41,6 +43,7 @@ include("itp.jl")
 include("muller.jl")
 include("ridder.jl")
 include("modAB.jl")
+include("derivatives.jl")
 include("newton_bisection.jl")
 
 # Default Algorithm
