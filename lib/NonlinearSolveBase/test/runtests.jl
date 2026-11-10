@@ -351,9 +351,9 @@ run_tests(;
 
             # Vector{Float64} u0 — wraps.
             prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-            @test NonlinearSolveBase.is_fw_wrapped(
-                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
-            )
+            wrapped_f64 = NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
+            @test NonlinearSolveBase.is_fw_wrapped(wrapped_f64)
+            @test SciMLBase.unwrapped_f(wrapped_f64) === resid!
 
             # Vector{Dual} u0 — must NOT wrap.
             DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
@@ -432,6 +432,8 @@ run_tests(;
         @safetestset "Nonlinear preconditioning options (#351)" include("conditioning.jl")
 
         @safetestset "linsolve_identity!! workspace (#1020)" include("linsolve_workspace.jl")
+
+        @safetestset "oop jac return type error" include("jacobian_return_type.jl")
 
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
