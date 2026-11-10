@@ -1,10 +1,24 @@
 using NonlinearSolve
+using NonlinearSolveBase
 using DifferentiationInterface
 using Enzyme
 using LinearAlgebra
 using Reactant
 using SciMLBase
 using Test
+
+function dealias_predicate(u, ::Val{scalar}) where {scalar}
+    predicate = scalar ? sum(u) > 0 : u .> 0
+    return NonlinearSolveBase.dealias_traced!(predicate)::typeof(predicate)
+end
+
+@testset "Dealiasing preserves Boolean types" begin
+    u = Reactant.to_rarray(Float32[2, -1])
+    @testset for scalar in (true, false)
+        result = Reactant.@jit dealias_predicate(u, Val(scalar))
+        @test (scalar ? Bool(result) : Array(result)) == (scalar ? true : [true, false])
+    end
+end
 
 # Verbatim tutorial example from docs/src/tutorials/nonlinear_solve_gpus.md
 # ("Whole-solve compilation with Reactant.jl").

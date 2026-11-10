@@ -33,8 +33,8 @@ function dealias_traced!(x)
     ReactantCore.is_traced(x) || return x
     # Traced arrays are dense; structured wrappers (`Diagonal`, ...) are walked as structs so
     # that they keep their type.
-    x isa DenseArray && return x .+ zero(eltype(x))
-    x isa Number && return x + zero(x)
+    x isa DenseArray && return oftype(x, x .+ zero(eltype(x)))
+    x isa Number && return oftype(x, x + zero(x))
     x isa Union{Tuple, NamedTuple} && return map(dealias_traced!, x)
     T = typeof(x)
     if ismutable(x)

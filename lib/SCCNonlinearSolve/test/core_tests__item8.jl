@@ -104,3 +104,17 @@ mixed_prob = SciMLBase.SCCNonlinearProblem(probs, mixed_explicitfuns)
 mixed_sol = solve(mixed_prob, scc_alg)
 @test SciMLBase.successful_retcode(mixed_sol)
 @test mixed_sol.u ≈ ref_sol.u atol = 1.0e-10
+
+@testset "Legacy callback adapters" begin
+    adapted_explicitfuns = map(f -> (p, sols) -> f(p, sols), explicitfuns)
+    for callbacks in (
+            adapted_explicitfuns,
+            Any[explicitfun1_raw, adapted_explicitfuns[2]],
+        )
+        adapted_prob = SciMLBase.SCCNonlinearProblem(probs, callbacks)
+        adapted_sol = solve(adapted_prob, scc_alg_debug)
+        @test SciMLBase.successful_retcode(adapted_sol)
+        @test adapted_sol.u ≈ ref_sol.u atol = 1.0e-10
+        @test eltype(adapted_sol.original) === SSol
+    end
+end

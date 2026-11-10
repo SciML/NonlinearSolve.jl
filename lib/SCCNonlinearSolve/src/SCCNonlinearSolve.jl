@@ -128,21 +128,9 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
-# `NonlinearSolution` may declare the retcode carrier type in a trailing type
-# parameter; apply it when present so the result is concrete under either
-# declaration arity.
-function stripped_solution_type(T, uType, rType)
-    S = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
-    return isconcretetype(S) ? S : S{SciMLBase.ReturnCode.T}
-end
-
 # Vector-form callers often wrap each `explicitfun` in a `FunctionWrapper` whose
 # second argument is `SubArray{SSol,...}`. Prefer that declared `SSol` for the
 # `sols` buffer so the view converts (SubArray is invariant in its element type).
-# Falls back to the concrete stripped type when the wrapper signature is opaque.
 function _explicitfun_sols_eltype(FW::Type)
     FW isa DataType || return nothing
     nameof(FW) === :FunctionWrapper || return nothing
@@ -156,7 +144,11 @@ function _explicitfun_sols_eltype(FW::Type)
 end
 
 function sols_buffer_eltype(explicitfuns, T, uType, rType)
-    default = stripped_solution_type(T, uType, rType)
+    # Opaque callbacks use views with an unspecialized retcode parameter.
+    default = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
     # Homogeneous FunctionWrapper vectors hit the eltype fast path; otherwise
     # scan every element so a legacy wrapper that is not first still wins
     # (e.g. Any[plain_noop, legacy_FW]).

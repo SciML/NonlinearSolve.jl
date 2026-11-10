@@ -101,6 +101,7 @@ end
     u_prev_cache
 end
 
+@inline _bounds_tmp(::Nothing, u) = similar(u)
 @inline function _bounds_tmp(cache, u)
     return cache isa FixedSizeDiffCache ? get_tmp(cache, u) : cache
 end
@@ -222,9 +223,12 @@ function transform_bounded_problem(prob, alg)
     # PreallocationTools is only supported by ForwardDiff so we only use
     # FixedSizeDiffCache if we're using ForwardDiff. Not every algorithm has an
     # `autodiff` field (e.g. `QuasiNewtonAlgorithm`), so guard the access.
+    # Enzyme gets no cache: the residual closure is Const, so writes into a captured buffer are invisible to Enzyme.
     alg_ad = alg !== nothing && hasproperty(alg, :autodiff) ? alg.autodiff : nothing
     make_u_cache = if prob.u0 isa Number
         () -> prob.u0
+    elseif _uses_enzyme_ad(alg_ad)
+        () -> nothing
     elseif alg_ad === nothing || alg_ad isa AutoForwardDiff
         () -> FixedSizeDiffCache(prob.u0)
     else
