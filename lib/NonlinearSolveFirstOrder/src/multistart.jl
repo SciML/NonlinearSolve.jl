@@ -163,7 +163,10 @@ function SciMLBase.__solve(
     init_alg = get(
         kwargs, :initializealg, NonlinearSolveBase.NonlinearSolveDefaultInit()
     )
-    prob, init_success = NonlinearSolveBase.run_initialization!(prob, init_alg, prob)
+    prob, init_success = NonlinearSolveBase.run_initialization!(
+        prob, init_alg, prob;
+        abstol = get(kwargs, :abstol, nothing), reltol = get(kwargs, :reltol, nothing)
+    )
     if !init_success
         u = _box_state(prob.u0, _box_vector(prob.u0))
         return SciMLBase.build_solution(

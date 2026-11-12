@@ -1,20 +1,39 @@
 struct NonlinearSolveDefaultInit <: SciMLBase.DAEInitializationAlgorithm end
 
-function run_initialization!(cache, initializealg = cache.initializealg, prob = cache.prob)
-    return _run_initialization!(cache, initializealg, prob, SciMLBase.isinplace(cache))
+"""
+    run_initialization!(cache, initializealg = cache.initializealg, prob = cache.prob;
+        abstol = nothing, reltol = nothing)
+
+Run `initializealg` on `prob` and write the initialized values into `cache`.
+
+`cache` may be the problem itself when initialization runs before a solver cache exists
+(polyalgorithm `solve`, multistart, bounds transform). Pass the `abstol`/`reltol` given to
+`solve` in that case: a problem only carries the tolerances stored in `prob.kwargs`, so
+without them initialization falls back to the default tolerances. `nothing` uses
+`get_abstol(cache)`/`get_reltol(cache)`.
+"""
+function run_initialization!(
+        cache, initializealg = cache.initializealg, prob = cache.prob;
+        abstol = nothing, reltol = nothing
+    )
+    return _run_initialization!(
+        cache, initializealg, prob, SciMLBase.isinplace(cache); abstol, reltol
+    )
 end
 
-function _run_initialization!(cache, ::NonlinearSolveDefaultInit, prob, isinplace::Bool)
+function _run_initialization!(
+        cache, ::NonlinearSolveDefaultInit, prob, isinplace::Bool; kwargs...
+    )
     if SciMLBase.has_initialization_data(prob.f) &&
             prob.f.initialization_data isa SciMLBase.OverrideInitData
-        return _run_initialization!(cache, SciMLBase.OverrideInit(), prob, isinplace)
+        return _run_initialization!(cache, SciMLBase.OverrideInit(), prob, isinplace; kwargs...)
     end
     return cache, true
 end
 
 function _run_initialization!(
         cache, initalg::SciMLBase.OverrideInit, prob,
-        isinplace::Bool
+        isinplace::Bool; abstol = nothing, reltol = nothing
     )
     if cache isa AbstractNonlinearSolveCache && isdefined(cache.alg, :autodiff)
         autodiff = cache.alg.autodiff
@@ -27,7 +46,8 @@ function _run_initialization!(
     end
     u0, p, success = SciMLBase.get_initial_values(
         prob, cache, prob.f, initalg, Val(isinplace); nlsolve_alg = alg,
-        abstol = get_abstol(cache), reltol = get_reltol(cache)
+        abstol = abstol === nothing ? get_abstol(cache) : abstol,
+        reltol = reltol === nothing ? get_reltol(cache) : reltol
     )
     cache = update_initial_values!(cache, u0, p)
     if cache isa AbstractNonlinearSolveCache && isdefined(cache, :retcode) && !success
@@ -67,7 +87,8 @@ function update_initial_values!(prob::AbstractNonlinearProblem, u0, p)
 end
 
 function _run_initialization!(
-        cache::Union{AbstractNonlinearSolveCache, AbstractNonlinearProblem}, ::SciMLBase.NoInit, prob, isinplace
+        cache::Union{AbstractNonlinearSolveCache, AbstractNonlinearProblem}, ::SciMLBase.NoInit, prob, isinplace;
+        kwargs...
     )
     return cache, true
 end
