@@ -120,6 +120,7 @@ else
             "PolyAlgorithms" => function ()
                 @time @safetestset "Bounded default polyalgorithm" include("PolyAlgorithms/bounded_defaults_tests.jl")
                 @time @safetestset "SobolMultistart bounded recovery" include("PolyAlgorithms/sobol_multistart_tests.jl")
+                @time @safetestset "Initialization uses the solve tolerances" include("PolyAlgorithms/initialization_tolerance_tests.jl")
                 @time @safetestset "Basic PolyAlgorithms" include("PolyAlgorithms/core_tests__item2.jl")
                 @time @safetestset "PolyAlgorithms Autodiff" include("PolyAlgorithms/core_tests__item4.jl")
                 @time @safetestset "Ensemble Nonlinear Problems" include("PolyAlgorithms/core_tests__item6.jl")

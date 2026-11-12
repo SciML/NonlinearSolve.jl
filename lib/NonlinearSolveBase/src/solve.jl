@@ -326,7 +326,10 @@ function init_call(
     # Forward bounds transform: if the algorithm doesn't natively support bounds,
     # apply a variable transformation so the solver operates in unconstrained space.
     if needs_bounds_transform(_prob, alg)
-        _prob = transform_bounded_problem(_prob, alg)
+        _prob = transform_bounded_problem(
+            _prob, alg;
+            abstol = get(kwargs, :abstol, nothing), reltol = get(kwargs, :reltol, nothing)
+        )
     end
 
     return if hasfield(typeof(_prob), :f) && hasfield(typeof(_prob.f), :f) &&
@@ -346,7 +349,10 @@ function SciMLBase.__solve(
         prob
     end
     _prob = if needs_bounds_transform(_prob, alg)
-        transform_bounded_problem(_prob, alg)
+        transform_bounded_problem(
+            _prob, alg;
+            abstol = get(kwargs, :abstol, nothing), reltol = get(kwargs, :reltol, nothing)
+        )
     else
         _prob
     end
@@ -700,7 +706,10 @@ end
     push!(
         calls,
         quote
-            prob, success = $(run_initialization!)(prob, initializealg, prob)
+            prob, success = $(run_initialization!)(
+                prob, initializealg, prob;
+                abstol = get(kwargs, :abstol, nothing), reltol = get(kwargs, :reltol, nothing)
+            )
             if !success
                 u = $(SII.state_values)(prob)
                 return build_solution_less_specialize(
