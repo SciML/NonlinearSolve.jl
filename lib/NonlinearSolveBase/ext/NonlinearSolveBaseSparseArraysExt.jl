@@ -113,7 +113,7 @@ struct SparseNormalFormWorkspace{Tv, Ti}
     filled::Vector{Bool}
 end
 
-function Utils.normal_form_workspace(J::SparseMatrixCSC)
+function NonlinearSolveBase.normal_form_workspace(J::SparseMatrixCSC)
     return SparseNormalFormWorkspace(
         copy(transpose(J)), zeros(eltype(J), size(J, 2)), fill(false, size(J, 2))
     )
@@ -128,7 +128,7 @@ bitwise identical to the allocating product. If the sparsity pattern of `JᵀJ` 
 structural pattern of `transpose(J) * J` (e.g. `J` changed pattern), this falls back to the
 allocating product.
 """
-function Utils.normal_form_jacobian!!(
+function NonlinearSolveBase.normal_form_jacobian!!(
         JᵀJ::SparseMatrixCSC{Tv, Ti}, J::SparseMatrixCSC{Tv, Ti},
         workspace::SparseNormalFormWorkspace{Tv, Ti}
     ) where {Tv, Ti}
@@ -137,7 +137,7 @@ function Utils.normal_form_jacobian!!(
         transpose!(workspace.Jᵀ, J)
         sparse_normal_form_values!(JᵀJ, J, workspace) && return JᵀJ
     end
-    return Utils.normal_form_jacobian!!(JᵀJ, J, nothing)
+    return NonlinearSolveBase.normal_form_jacobian!!(JᵀJ, J, nothing)
 end
 
 function sparse_normal_form_values!(C, J, workspace)

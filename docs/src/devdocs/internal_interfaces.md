@@ -66,6 +66,16 @@ NonlinearSolveBase.normal_form
 NonlinearSolveBase.DescentResult
 ```
 
+### Normal-Form Jacobian
+
+Descent caches that solve the normal equations form `JᵀJ` through these two functions, so a
+Jacobian type can supply an in-place kernel.
+
+```@docs
+NonlinearSolveBase.normal_form_workspace
+NonlinearSolveBase.normal_form_jacobian!!
+```
+
 ## Approximate Jacobian
 
 ```@docs
