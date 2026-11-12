@@ -56,7 +56,7 @@ NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
 
     # Counters
     stats::NLStats
-    nsteps::Int
+    nsteps
     maxiters::Int
     maxtime
 
@@ -67,8 +67,8 @@ NonlinearSolveBase.supports_postcondition(::GeneralizedDFSane) = true
     # Termination & Tracking
     termination_cache
     trace
-    retcode::ReturnCode.T
-    force_stop::Bool
+    retcode
+    force_stop
     kwargs
 
     initializealg
@@ -94,11 +94,11 @@ function InternalAPI.reinit_self!(
 
     if cache.alg.σ_1 === nothing
         σ_n = Utils.safe_dot(cache.u, cache.u) / Utils.safe_dot(cache.u, cache.fu)
-        # Spectral parameter bounds check
-        if !(cache.alg.σ_min ≤ abs(σ_n) ≤ cache.alg.σ_max)
-            test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
-            σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
-        end
+        abs_σ = abs(σ_n)
+        in_bounds = (cache.alg.σ_min ≤ abs_σ) & (abs_σ ≤ cache.alg.σ_max)
+        test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
+        σ_clamped = clamp(inv(test_norm), T(1), T(1.0e5))
+        σ_n = ifelse(in_bounds, σ_n, σ_clamped)
     else
         σ_n = T(cache.alg.σ_1)
     end
@@ -114,11 +114,11 @@ function InternalAPI.reinit_self!(
     )
 
     InternalAPI.reinit!(cache.stats)
-    cache.nsteps = 0
+    cache.nsteps = NonlinearSolveBase.maybe_traced(0)
     cache.maxiters = maxiters
     cache.maxtime = maxtime
-    cache.force_stop = false
-    cache.retcode = ReturnCode.Default
+    cache.force_stop = NonlinearSolveBase.maybe_traced(false)
+    cache.retcode = NonlinearSolveBase.maybe_traced(ReturnCode.Default)
     return
 end
 
@@ -167,11 +167,12 @@ function SciMLBase.__init(
 
         if alg.σ_1 === nothing
             σ_n = Utils.safe_dot(u, u) / Utils.safe_dot(u, fu)
-            # Spectral parameter bounds check
-            if !(alg.σ_min ≤ abs(σ_n) ≤ alg.σ_max)
-                test_norm = NonlinearSolveBase.L2_NORM(fu)
-                σ_n = clamp(inv(test_norm), T(1), T(1.0e5))
-            end
+            # Spectral parameter bounds check (`&` / `ifelse`: σ_n may be traced)
+            abs_σ = abs(σ_n)
+            in_bounds = (alg.σ_min ≤ abs_σ) & (abs_σ ≤ alg.σ_max)
+            test_norm = NonlinearSolveBase.L2_NORM(fu)
+            σ_clamped = clamp(inv(test_norm), T(1), T(1.0e5))
+            σ_n = ifelse(in_bounds, σ_n, σ_clamped)
         else
             σ_n = T(alg.σ_1)
         end
@@ -189,8 +190,9 @@ function SciMLBase.__init(
         cache = GeneralizedDFSaneCache(
             fu, fu_cache, u, u_cache, prob.p, du, alg, prob,
             σ_n, T(alg.σ_min), T(alg.σ_max),
-            linesearch_cache, stats, 0, maxiters, maxtime, timer, 0.0,
-            tc_cache, trace, ReturnCode.Default, false, kwargs, initializealg, verbose
+            linesearch_cache, stats, NonlinearSolveBase.maybe_traced(0), maxiters, maxtime,
+            timer, 0.0, tc_cache, trace, NonlinearSolveBase.maybe_traced(ReturnCode.Default),
+            NonlinearSolveBase.maybe_traced(false), kwargs, initializealg, verbose
         )
         NonlinearSolveBase.run_initialization!(cache)
     end
@@ -207,14 +209,26 @@ function InternalAPI.step!(
               `recompute_jacobian`"
     end
 
+    if ReactantCore.within_compile()
+        throw(
+            ArgumentError(
+                "DFSane's non-monotone line search is not Reactant-traceable yet. \
+             Use a first-order or quasi-Newton method under `@jit`/`@compile`, \
+             or wait for a traceable line search in LineSearch.jl."
+            )
+        )
+    end
+
     @static_timeit cache.timer "descent" begin
         @bb @. cache.du = -cache.σ_n * cache.fu
     end
 
     @static_timeit cache.timer "linesearch" begin
         linesearch_sol = CommonSolve.solve!(cache.linesearch_cache, cache.u, cache.du)
-        linesearch_failed = !SciMLBase.successful_retcode(linesearch_sol.retcode)
-        α = linesearch_sol.step_size
+        α, linesearch_failed = (
+            linesearch_sol.step_size,
+            !SciMLBase.successful_retcode(linesearch_sol.retcode),
+        )
     end
 
     if linesearch_failed
@@ -241,7 +255,6 @@ function InternalAPI.step!(
         cache.σ_n = Utils.safe_dot(cache.u_cache, cache.u_cache) /
             Utils.safe_dot(cache.u_cache, cache.fu_cache)
 
-        # Spectral parameter bounds check
         if !(cache.σ_min ≤ abs(cache.σ_n) ≤ cache.σ_max)
             test_norm = NonlinearSolveBase.L2_NORM(cache.fu)
             T = eltype(cache.σ_n)

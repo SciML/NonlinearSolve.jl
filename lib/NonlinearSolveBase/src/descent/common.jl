@@ -1,6 +1,6 @@
 """
     DescentResult(;
-        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        δu = missing, u = missing, success = true, linsolve_success = true,
         extras = (;)
     )
 
@@ -16,17 +16,20 @@ Construct a `DescentResult` object.
   - `extras`: A named tuple containing intermediates computed during the solve.
     For example, [`GeodesicAcceleration`](@ref) returns `NamedTuple{(:v, :a)}` containing
     the "velocity" and "acceleration" terms.
+
+Type parameters keep the historical `{DU,U,Extras}` prefix; traced Bool carriers for
+`success` / `linsolve_success` append after `Extras`.
 """
-@concrete struct DescentResult
-    δu
-    u
-    success::Bool
-    linsolve_success::Bool
-    extras
+struct DescentResult{DU, U, Extras, Success, LinearSuccess}
+    δu::DU
+    u::U
+    success::Success
+    linsolve_success::LinearSuccess
+    extras::Extras
 end
 
 function DescentResult(;
-        δu = missing, u = missing, success::Bool = true, linsolve_success::Bool = true,
+        δu = missing, u = missing, success = true, linsolve_success = true,
         extras = (;)
     )
     @assert δu !== missing || u !== missing

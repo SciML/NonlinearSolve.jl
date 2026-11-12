@@ -97,8 +97,11 @@ function InternalAPI.solve!(
         cache.newton_cache, J, fu, u, idx; skip_solve, kwargs...
     ).δu
 
-    # Newton's Step within the trust region
-    if cache.internalnorm(δu_newton) ≤ trust_region
+    # Under Reactant no branch can be taken on the traced norms, so every candidate step is
+    # formed and the result selected at the end; on the ordinary path the early returns
+    # avoid the extra work.
+    newton_step = cache.internalnorm(δu_newton) ≤ trust_region
+    if !ReactantCore.within_compile() && newton_step
         @bb copyto!(δu, δu_newton)
         set_du!(cache, δu, idx)
         return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
@@ -106,27 +109,13 @@ function InternalAPI.solve!(
 
     # Take intersection of steepest descent direction and trust region if Cauchy point
     # lies outside of trust region
-    if normal_form(cache)
-        δu_cauchy = cache.newton_cache.Jᵀfu_cache
-        JᵀJ = cache.newton_cache.JᵀJ_cache
-        @bb @. δu_cauchy *= -1
-
-        l_grad = cache.internalnorm(δu_cauchy)
-        @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.safe_dot(δu_cauchy, cache.δu_cache_mul)
-    else
-        δu_cauchy = InternalAPI.solve!(
-            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...
-        ).δu
-        J_ = preinverted_jacobian(cache) ? inv(J) : J
-        l_grad = cache.internalnorm(δu_cauchy)
-        @bb cache.Jᵀδu_cache = J_ × vec(δu_cauchy)
-        δuJᵀJδu = Utils.safe_dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
-    end
+    δu_cauchy, l_grad, δuJᵀJδu = dogleg_cauchy_step!(
+        cache, J, fu, u, idx; skip_solve, kwargs...
+    )
     d_cauchy = (l_grad^3) / δuJᵀJδu
-
-    if d_cauchy ≥ trust_region
-        λ = trust_region / l_grad
+    cauchy_step = d_cauchy ≥ trust_region
+    λ = trust_region / l_grad
+    if !ReactantCore.within_compile() && cauchy_step
         @bb @. δu = λ * δu_cauchy
         set_du!(cache, δu, idx)
         return DescentResult(; δu, extras = (; δuJᵀJδu = λ^2 * δuJᵀJδu))
@@ -142,10 +131,33 @@ function InternalAPI.solve!(
     a = Utils.safe_dot(cache.δu_cache_2, cache.δu_cache_2)
     b = 2 * Utils.safe_dot(cache.δu_cache_1, cache.δu_cache_2)
     c = d_cauchy^2 - trust_region^2
-    aux = max(0, b^2 - 4 * a * c)
+    aux = max(zero(a), b^2 - 4 * a * c)
     τ = (-b + sqrt(aux)) / (2 * a)
-
-    @bb @. δu = cache.δu_cache_1 + τ * cache.δu_cache_2
+    @bb @. cache.δu_cache_mul = cache.δu_cache_1 + τ * cache.δu_cache_2
+    @bb @. δu = ifelse(
+        newton_step, δu_newton, ifelse(cauchy_step, λ * δu_cauchy, cache.δu_cache_mul)
+    )
     set_du!(cache, δu, idx)
-    return DescentResult(; δu, extras = (; δuJᵀJδu = T(NaN)))
+    δuJᵀJδu_result = ifelse((!newton_step) & cauchy_step, λ^2 * δuJᵀJδu, T(NaN))
+    return DescentResult(; δu, extras = (; δuJᵀJδu = δuJᵀJδu_result))
+end
+
+function dogleg_cauchy_step!(cache::DoglegCache, J, fu, u, idx; skip_solve, kwargs...)
+    if normal_form(cache)
+        δu_cauchy = cache.newton_cache.Jᵀfu_cache
+        JᵀJ = cache.newton_cache.JᵀJ_cache
+        @bb @. δu_cauchy *= -1
+        l_grad = cache.internalnorm(δu_cauchy)
+        @bb cache.δu_cache_mul = JᵀJ × vec(δu_cauchy)
+        δuJᵀJδu = Utils.safe_dot(δu_cauchy, cache.δu_cache_mul)
+    else
+        δu_cauchy = InternalAPI.solve!(
+            cache.cauchy_cache, J, fu, u, idx; skip_solve, kwargs...
+        ).δu
+        J_ = preinverted_jacobian(cache) ? inv(J) : J
+        l_grad = cache.internalnorm(δu_cauchy)
+        @bb cache.Jᵀδu_cache = J_ × vec(δu_cauchy)
+        δuJᵀJδu = Utils.safe_dot(cache.Jᵀδu_cache, cache.Jᵀδu_cache)
+    end
+    return δu_cauchy, l_grad, δuJᵀJδu
 end
