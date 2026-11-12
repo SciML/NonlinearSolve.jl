@@ -9,3 +9,4 @@
 @safetestset "No redundant terminal residual evaluation" include("misc_tests__item8.jl")
 @safetestset "Adaptive Jacobian reuse" include("misc_tests__item9.jl")
 @safetestset "Bounded trust region" include("misc_tests__item10.jl")
+@safetestset "JLArray default AD without scalar indexing" include("jlarray_autodiff_tests.jl")
