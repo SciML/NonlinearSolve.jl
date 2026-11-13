@@ -5,7 +5,19 @@ using ForwardDiff: ForwardDiff, Dual, Partials
 using NonlinearSolveBase: nonlinearsolve_forwarddiff_solve, nonlinearsolve_dual_solution
 using SciMLBase: SciMLBase, IntervalNonlinearProblem, IntervalNonlinearFunction
 
-using BracketingNonlinearSolve: Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB
+using BracketingNonlinearSolve: BracketingNonlinearSolve, Bisection, Brent, Alefeld, Falsi,
+    ITP, Ridder, ModAB
+
+# The value of `x` with the partials of every nesting level removed
+primal(x) = x
+primal(x::Dual) = primal(ForwardDiff.value(x))
+
+# Dividing by the constant `s` scales the partials without squaring `b`, and `b / s` is
+# close to 1, so `a / b` keeps finite partials for any representable `b`
+@inline function BracketingNonlinearSolve.residual_ratio(a, b::Dual)
+    s = primal(b)
+    return (a / s) / (b / s)
+end
 
 const DualIntervalNonlinearProblem{
     T,

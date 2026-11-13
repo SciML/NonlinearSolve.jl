@@ -128,18 +128,20 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
+# The concrete type that `strip_solution` gives a sub-solution with state and residual `u`.
+# SciMLBase builds it, so it follows the type parameters of `NonlinearSolution` across
+# SciMLBase versions instead of listing them here.
+function stripped_solution_type(u)
+    prob = NonlinearProblem{true}(Returns(nothing), u, nothing)
+    sol = SciMLBase.build_solution(prob, nothing, u, u; retcode = SciMLBase.ReturnCode.Default)
+    return typeof(SciMLBase.strip_solution(sol))
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
-    prob1 = first(probs)
-    uType = typeof(probvec(prob1))
-    T = eltype(uType)
-    rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
+    # regardless of the original problem/algorithm types; resid has the type of u.
+    ST = stripped_solution_type(probvec(first(probs)))
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
