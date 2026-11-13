@@ -34,9 +34,14 @@ if CUDA.functional()
 
     # LinearSolve caps KernelAbstractions below 0.10, which holds CUDA below 6.5. CUDA 6.4
     # reads the deprecated `GPUCompiler.compile_hook` and the resulting warning is printed
-    # only once, so trigger it here rather than in the first `@test_nowarn` below. This
-    # solve can be removed once CUDA 6.5 resolves in this environment.
-    solve(prob, first(SOLVERS); abstol = 1.0f-5, reltol = 1.0f-5)
+    # only once, so trigger it here rather than in the first `@test_nowarn` below. The first
+    # solve may print that one warning and nothing else. This solve can be removed once
+    # CUDA 6.5 resolves in this environment.
+    only_compile_hook_warning(s) = isempty(s) ||
+        (occursin("compile_hook", s) && count("Warning:", s) == 1)
+    @test_warn only_compile_hook_warning solve(
+        prob, first(SOLVERS); abstol = 1.0f-5, reltol = 1.0f-5
+    )
 
     @testset "[IIP] GPU Solvers" begin
         @testset "$(nameof(typeof(alg)))" for alg in SOLVERS

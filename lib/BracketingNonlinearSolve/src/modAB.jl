@@ -26,22 +26,22 @@ end
 # secant point. With w = x2 - x1, u = x3 - x1 and the residuals relative to y2,
 # q1 = y1/y2 and q3 = f3/y2 (so the step does not depend on the scale or the units of f),
 # and c = 1 - q1 > 1, the root is
-#     r = x1 + t,   t = w*u*q1*(q3 - 1) / (w*(q3 - q1) - u*q3*c),
-# two divisions per step, 1/y2 and this one. The A&B secant point is xs = x1 - w*q1/c and
+#     r = x1 + t,   t = w*u*q1*(q3 - 1) / (w*(q3 - q1) - u*q3*c).
+# The A&B secant point is xs = x1 - w*q1/c and
 # its distance to the nearer endpoint is d = w*min(|q1|, 1)/c. The step is kept within
 # 0.7*d of xs (on a plateau the model degenerates towards a step function), so it stays
 # at least 0.3*d inside the bracket. Multiplied by c, the test reads
 #     |t*c + w*q1| <= 0.7*w*min(|q1|, 1),
 # with no division. A step outside it is clamped to xs +- 0.7*d on the side the model
-# points to; this did better than the A&B secant in randomized-bracket tests and on
-# 200,000 random functions, where factors 0.6 to 0.9 differed little. The factor is
-# written as 7/10 so that it keeps the type of the bracket (e.g. Float32).
+# points to. The factor is written as 7/10 so that it keeps the type of the bracket
+# (e.g. Float32).
 # A step that rounds onto x2, or a NaN step (from overflow in t), returns x2. Its residual
 # is already stored, so the caller reuses it instead of evaluating f; the closing step may
 # first move the point to x2 - ϵ.
 @inline function rational_step(x1, y1, x2, y2, x3, f3)
-    k = inv(y2)
-    q1, q3 = y1 * k, f3 * k
+    # Divide rather than multiply by inv(y2): the derivative of inv(y2) is 1/y2^2, which
+    # overflows for |y2| < 1e-154 and turns dual-number (AD) partials into NaN
+    q1, q3 = y1 / y2, f3 / y2
     c = 1 - q1
     w, u = x2 - x1, x3 - x1
     t = w * u * q1 * (q3 - 1) / (w * (q3 - q1) - u * q3 * c)

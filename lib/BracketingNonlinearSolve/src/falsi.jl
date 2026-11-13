@@ -69,17 +69,17 @@ function SciMLBase.__solve(
             return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
-        # The residual test uses the value of `abstol` in the units of `f`
-        if abs(fm) < abstol * (oneunit(abs(fm)) / oneunit(abstol))
-            right = mid
-            break
-        end
-
         if sign(fl) == sign(fm)
             fl, left = fm, mid
         else
             fr, right = fm, mid
         end
+
+        # A small residual hands over to bisection, which refines the bracket in x. The
+        # bracket is updated first, so that it still encloses the root (the residual can be
+        # small far from the root when `f` is scaled). The residual test uses the value of
+        # `abstol` in the units of `f`.
+        abs(fm) < abstol * (oneunit(abs(fm)) / oneunit(abstol)) && break
 
         i += 1
     end
