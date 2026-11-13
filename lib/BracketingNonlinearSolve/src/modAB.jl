@@ -2,6 +2,11 @@
 
 @inline safe_midpoint(x1, x2) = x1 / 2 + x2 / 2
 
+# `a / b` for two residuals. ForwardDiff before 1.4.7 differentiates `a / b` through
+# `a / b^2`, which underflows for |b| < 1e-154 and turns the partials into NaN, so the
+# ForwardDiff extension divides a `Dual` `b` by its plain value first.
+@inline residual_ratio(a, b) = a / b
+
 @inline function safe_secant(x1, y1, x2, y2)
     a, b = abs(y1), abs(y2)
     den = a + b
@@ -11,11 +16,12 @@
         b /= 2
         den = a + b
     end
-    return (b / den) * x1 + (a / den) * x2 # May round outside [x1, x2]; the caller handles that
+    # May round outside [x1, x2]; the caller handles that
+    return residual_ratio(b, den) * x1 + residual_ratio(a, den) * x2
 end
 
 @inline function get_ab_factor(y3, y)
-    m = 1 - y3 / y
+    m = 1 - residual_ratio(y3, y)
     return m > 0 ? m : inv(2one(m))
 end
 
@@ -39,9 +45,7 @@ end
 # is already stored, so the caller reuses it instead of evaluating f; the closing step may
 # first move the point to x2 - ϵ.
 @inline function rational_step(x1, y1, x2, y2, x3, f3)
-    # Divide rather than multiply by inv(y2): the derivative of inv(y2) is 1/y2^2, which
-    # overflows for |y2| < 1e-154 and turns dual-number (AD) partials into NaN
-    q1, q3 = y1 / y2, f3 / y2
+    q1, q3 = residual_ratio(y1, y2), residual_ratio(f3, y2)
     c = 1 - q1
     w, u = x2 - x1, x3 - x1
     t = w * u * q1 * (q3 - 1) / (w * (q3 - q1) - u * q3 * c)
@@ -205,7 +209,7 @@ function SciMLBase.__solve(
             dy = f2 - f1
             if isfinite(dy)
                 ym = (f1 + f2) / 2 # Ordinate of chord at midpoint
-                r = 1 - abs(ym / dy) # Symmetry factor
+                r = 1 - abs(residual_ratio(ym, dy)) # Symmetry factor
                 k = r * r # Deviation factor
                 if abs(ym - y3) < (k * abs(y3) + k * abs(ym)) * margin # Check if the function is close enough to linear
                     bisecting = false
