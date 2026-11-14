@@ -41,24 +41,25 @@ end
 # with no division. A step outside it is clamped to xs +- 0.7*d on the side the model
 # points to. The factor is written as 7/10 so that it keeps the type of the bracket
 # (e.g. Float32).
-# A step that rounds onto x2, or a NaN step (from overflow in t), returns x2. Its residual
-# is already stored, so the caller reuses it instead of evaluating f; the closing step may
-# first move the point to x2 - ϵ.
+# A non-finite q1 or q3 (a zero y2, or one far smaller than y1 or f3) or a non-finite t
+# (overflow in its terms) falls back to the A&B secant. A step that rounds onto x2 returns
+# x2. Its residual is already stored, so the caller reuses it instead of evaluating f; the
+# closing step may first move the point to x2 - ϵ.
 @inline function rational_step(x1, y1, x2, y2, x3, f3)
     q1, q3 = residual_ratio(y1, y2), residual_ratio(f3, y2)
+    (isfinite(q1) && isfinite(q3)) || return safe_secant(x1, y1, x2, y2)
     c = 1 - q1
     w, u = x2 - x1, x3 - x1
     t = w * u * q1 * (q3 - 1) / (w * (q3 - q1) - u * q3 * c)
+    isfinite(t) || return safe_secant(x1, y1, x2, y2)
     a = abs(q1)
     lim = (a < one(a) ? w * a : w) * 7 / 10 # c * 0.7 * d
     dev = t * c + w * q1                    # c * (x - xs)
-    # Clamp: t = ts +- 0.7*d. False for a NaN dev, which only comes from a NaN t (or q1, and
-    # then t is NaN too), so x is NaN and the test below returns x2.
-    if abs(dev) > lim
+    if abs(dev) > lim # Clamp: t = ts +- 0.7*d
         t = ((dev < zero(dev) ? -lim : lim) - w * q1) / c
     end
     x = x1 + t
-    # Rounding can put x on x2 when the bracket is a few ulps wide; NaN fails the test too.
+    # Rounding can put x on x2 when the bracket is a few ulps wide.
     return x < x2 ? x : x2
 end
 
