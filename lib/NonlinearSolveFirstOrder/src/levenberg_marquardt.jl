@@ -198,7 +198,7 @@ of specifying a trust region radius.
     between the proposed velocity ``v_{\\text{new}}`` and the velocity of the last accepted
     step ``v_{\\text{old}}``. The idea is to accept uphill moves if the angle is small. To
     specify, uphill moves are accepted if
-    ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} \\le C_i``, where ``C_i`` is the cost at
+    ``(1-\\beta_i)^{b_{\\text{uphill}}} C_{i+1} < C_i``, where ``C_i`` is the cost at
     iteration ``i``. Reasonable choices for `b_uphill` are `1.0` or `2.0`, with
     `b_uphill = 2.0` allowing higher uphill moves than `b_uphill = 1.0`. When
     `b_uphill = 0.0`, no uphill moves will be accepted. Defaults to `1.0`. See Section 4 of
@@ -218,7 +218,7 @@ function InternalAPI.init(
     @bb u_cache = similar(u)
     @bb fu_cache = similar(fu)
     return LevenbergMarquardtTrustRegionCache(
-        f, p, T(Inf), v, T(Inf), internalnorm, T(alg.β_uphill), false,
+        f, p, v, T(Inf), internalnorm, T(alg.β_uphill), false,
         u_cache, fu_cache, stats
     )
 end
@@ -227,7 +227,6 @@ end
     AbstractTrustRegionMethodCache
     f
     p
-    loss_old
     v_cache
     norm_v_old
     internalnorm
@@ -243,7 +242,6 @@ function InternalAPI.reinit!(
     )
     cache.p = p
     @bb copyto!(cache.v_cache, u0)
-    cache.loss_old = oftype(cache.loss_old, Inf)
     cache.norm_v_old = oftype(cache.norm_v_old, Inf)
     return cache.last_step_accepted = false
 end
@@ -261,8 +259,11 @@ function InternalAPI.solve!(
     cache.stats.nf += 1
 
     loss = cache.internalnorm(cache.fu_cache)
+    loss_old = cache.internalnorm(fu)
 
-    if (1 - β)^cache.β_uphill * loss ≤ cache.loss_old  # Accept Step
+    # Capping the factor at 1 accepts every step that lowers the cost. With a factor of 1
+    # the strict comparison rejects a step that leaves the cost unchanged.
+    if min(1 - β, 1)^cache.β_uphill * loss < loss_old  # Accept Step
         cache.last_step_accepted = true
         cache.norm_v_old = norm_v
         @bb copyto!(cache.v_cache, v)
