@@ -14,3 +14,4 @@
 @safetestset "Moré trust-region subproblem on underdetermined NLLS" include(
     "least_squares_tests__item8.jl"
 )
+@safetestset "LevenbergMarquardt step acceptance" include("least_squares_tests__item9.jl")
