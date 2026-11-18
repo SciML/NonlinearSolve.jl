@@ -49,8 +49,7 @@ function SciMLBase.__solve(
     @assert !SciMLBase.isinplace(prob) "`ModAB` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
-    left, right = prob.tspan
-    x1, x2 = minmax(promote(left, right)...)
+    x1, x2 = bracket_endpoints(prob.tspan)
     y1, y2 = f(x1), f(x2)
 
     abstol = NonlinearSolveBase.get_tolerance(

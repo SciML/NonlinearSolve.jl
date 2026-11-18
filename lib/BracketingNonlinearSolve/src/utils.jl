@@ -22,3 +22,17 @@ function build_bracketing_solution(prob, alg, u, resid, bound1, bound2, retcode)
         )
     end
 end
+
+"""
+    bracket_endpoints(tspan)
+
+The two entries of `tspan`, promoted to one type and ordered. Any iterable with exactly two
+entries works; a third entry is an error, raised before the residual is evaluated.
+"""
+function bracket_endpoints(tspan)
+    left, state = Base.indexed_iterate(tspan, 1)
+    right, state = Base.indexed_iterate(tspan, 2, state)
+    iterate(tspan, state) === nothing ||
+        throw(ArgumentError("an interval bracket has exactly two entries"))
+    return minmax(promote(left, right)...)
+end

@@ -63,8 +63,7 @@ function SciMLBase.__solve(
     @assert !SciMLBase.isinplace(prob) "`ITP` only supports out-of-place problems."
 
     f = Base.Fix2(prob.f, prob.p)
-    a, b = prob.tspan
-    left, right = minmax(promote(a, b)...)
+    left, right = bracket_endpoints(prob.tspan)
     fl, fr = f(left), f(right)
 
     abstol = NonlinearSolveBase.get_tolerance(
