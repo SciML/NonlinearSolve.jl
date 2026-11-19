@@ -3,3 +3,4 @@
 @safetestset "Out-of-place Problems" include("core_tests__item3.jl")
 @safetestset "Copy with Tuple parameters (Issue #752)" include("core_tests__item6.jl")
 @safetestset "Static / partitioned seeds with dense Vector workspaces" include("core_tests__item7.jl")
+@safetestset "Analytic jac with sparse jac_prototype" include("core_tests__item8.jl")
