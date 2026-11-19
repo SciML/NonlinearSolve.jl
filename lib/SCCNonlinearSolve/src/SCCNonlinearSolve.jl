@@ -128,18 +128,50 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
+# Vector-form callers often wrap each `explicitfun` in a `FunctionWrapper` whose
+# second argument is `SubArray{SSol,...}`. Prefer that declared `SSol` for the
+# `sols` buffer so the view converts (SubArray is invariant in its element type).
+function _explicitfun_sols_eltype(FW::Type)
+    FW isa DataType || return nothing
+    nameof(FW) === :FunctionWrapper || return nothing
+    length(FW.parameters) < 2 && return nothing
+    ATs = FW.parameters[2]
+    ATs isa DataType && ATs <: Tuple && length(ATs.parameters) >= 2 || return nothing
+    V = ATs.parameters[2]
+    V isa Type && V <: SubArray || return nothing
+    ET = eltype(V)
+    return ET <: SciMLBase.NonlinearSolution ? ET : nothing
+end
+
+function sols_buffer_eltype(explicitfuns, T, uType, rType)
+    # Opaque callbacks use views with an unspecialized retcode parameter.
+    default = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
+    # Homogeneous FunctionWrapper vectors hit the eltype fast path; otherwise
+    # scan every element so a legacy wrapper that is not first still wins
+    # (e.g. Any[plain_noop, legacy_FW]).
+    extracted = _explicitfun_sols_eltype(eltype(explicitfuns))
+    if extracted === nothing
+        for f in explicitfuns
+            extracted = _explicitfun_sols_eltype(typeof(f))
+            extracted === nothing || return extracted
+        end
+    end
+    return extracted === nothing ? default : extracted
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+    # regardless of the original problem/algorithm types. Prefer a FunctionWrapper's
+    # declared SubArray element type when present so legacy signatures keep converting.
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
+    ST = sols_buffer_eltype(explicitfuns, T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
