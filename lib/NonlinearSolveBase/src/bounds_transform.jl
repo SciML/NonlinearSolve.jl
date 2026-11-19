@@ -205,13 +205,13 @@ end
 # nutshell, we transform a parameter `p` with bounds `lb` and `ub` into an
 # unbounded parameter `t` using the logistic function to map all values of `t`
 # into the interval (lb, ub).
-function transform_bounded_problem(prob, alg)
+function transform_bounded_problem(prob, alg; abstol = nothing, reltol = nothing)
     # `initialization_data` (e.g. from ModelingToolkit) is defined in the original,
     # bounded coordinates. It must run *before* the transform so the resulting `u0`/`p`
     # are consistent; running it on the transformed problem would interpret the unbounded
     # iterate `t` as a bounded state and corrupt the solution. We run it here and strip it
     # from the transformed function below so it isn't re-run in `t`-space.
-    prob = run_bounded_initialization(prob, alg)
+    prob = run_bounded_initialization(prob, alg; abstol, reltol)
 
     lb, ub = _normalize_bounds(prob.lb, prob.ub, prob.u0)
 
@@ -280,14 +280,16 @@ end
 
 # Run problem initialization (if any) in the original bounded coordinates so that the
 # resulting `u0`/`p` are consistent before the bounds transform is applied. Returns the
-# problem unchanged when there is no `OverrideInitData` to run.
-function run_bounded_initialization(prob, alg)
+# problem unchanged when there is no `OverrideInitData` to run. `abstol`/`reltol` are the
+# tolerances given to `solve`; `nothing` falls back to `prob.kwargs` or the defaults.
+function run_bounded_initialization(prob, alg; abstol = nothing, reltol = nothing)
     SciMLBase.has_initialization_data(prob.f) || return prob
     prob.f.initialization_data isa SciMLBase.OverrideInitData || return prob
     iip = SciMLBase.isinplace(prob)
     u0, p, _ = SciMLBase.get_initial_values(
         prob, prob, prob.f, SciMLBase.OverrideInit(), Val(iip);
-        nlsolve_alg = alg, abstol = get_abstol(prob), reltol = get_reltol(prob)
+        nlsolve_alg = alg, abstol = abstol === nothing ? get_abstol(prob) : abstol,
+        reltol = reltol === nothing ? get_reltol(prob) : reltol
     )
     return remake(prob; u0, p, build_initializeprob = Val{false})
 end

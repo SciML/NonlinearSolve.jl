@@ -305,7 +305,10 @@ function SciMLBase.__init(
     initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
     success = true
     if initialize_before_cache
-        prob, success = run_initialization!(prob, initializealg, prob)
+        prob, success = run_initialization!(
+            prob, initializealg, prob;
+            abstol = get(kwargs, :abstol, nothing), reltol = get(kwargs, :reltol, nothing)
+        )
     end
 
     u0 = prob.u0
