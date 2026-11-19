@@ -5,7 +5,8 @@ import NLSolvers, NLsolve, SIAMFANLEquations, MINPACK
 
 function f_iip(du, u, p)
     du[1] = 2 - 2u[1]
-    return du[2] = u[1] - 4u[2]
+    du[2] = u[1] - 4u[2]
+    return
 end
 u0 = zeros(2)
 prob_iip = NonlinearProblem{true}(f_iip, u0)
@@ -62,7 +63,8 @@ end
 # Test the finite differencing technique
 function f!(fvec, x, p)
     fvec[1] = (x[1] + 3) * (x[2]^3 - 7) + 18
-    return fvec[2] = sin(x[2] * exp(x[1]) - 1)
+    fvec[2] = sin(x[2] * exp(x[1]) - 1)
+    return
 end
 
 prob = NonlinearProblem{true}(f!, [0.1; 1.2])
