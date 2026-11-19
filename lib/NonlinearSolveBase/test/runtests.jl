@@ -115,6 +115,46 @@ run_tests(;
                 @test cache.retcode == SciMLBase.ReturnCode.Stalled
             end
 
+            @testset "patience stall requires a stagnating objective (#1314)" begin
+                mode = NonlinearSolveBase.AbsNormSafeTerminationMode(
+                    Base.Fix1(maximum, abs); patience_steps = 5,
+                    patience_objective_multiplier = 3, min_max_factor = 1.3
+                )
+                prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
+
+                # The objective halves every step, so it keeps improving through
+                # the whole patience band: the run must converge, not stall.
+                cache = SciMLBase.init(
+                    prob, mode, [1.0], [1.0]; abstol = 1.0e-6, reltol = 1.0e-6
+                )
+                r = 1.0
+                for _ in 1:25
+                    r /= 2
+                    cache([r], [r], [2r]) && break
+                end
+                @test cache.retcode == SciMLBase.ReturnCode.Success
+
+                # A flat objective inside the patience band is a genuine stall.
+                for (flat_prob, flat_retcode) in (
+                        (prob, SciMLBase.ReturnCode.Stalled),
+                        (
+                            SciMLBase.NonlinearLeastSquaresProblem((u, p) -> u, [1.0]),
+                            SciMLBase.ReturnCode.StalledSuccess,
+                        ),
+                    )
+                    cache = SciMLBase.init(
+                        flat_prob, mode, [2.0e-6], [1.0];
+                        abstol = 1.0e-6, reltol = 1.0e-6
+                    )
+                    terminated = false
+                    for _ in 1:10
+                        terminated = cache([2.0e-6], [1.0], [1.0])
+                    end
+                    @test terminated
+                    @test cache.retcode == flat_retcode
+                end
+            end
+
             @testset "protective_threshold measures against the initial residual" begin
                 mode = NonlinearSolveBase.AbsNormSafeTerminationMode(
                     Base.Fix1(maximum, abs); protective_threshold = 1.0
