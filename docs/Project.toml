@@ -60,6 +60,9 @@ path = "../lib/NonlinearSolveSciPy"
 [sources.NonlinearSolveSpectralMethods]
 path = "../lib/NonlinearSolveSpectralMethods"
 
+[sources.SCCNonlinearSolve]
+path = "../lib/SCCNonlinearSolve"
+
 [sources.SciMLJacobianOperators]
 path = "../lib/SciMLJacobianOperators"
 
