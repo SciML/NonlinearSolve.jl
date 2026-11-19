@@ -30,9 +30,12 @@ The two entries of `tspan`, promoted to one type and ordered. Any iterable with 
 entries works; a third entry is an error, raised before the residual is evaluated.
 """
 function bracket_endpoints(tspan)
-    left, state = Base.indexed_iterate(tspan, 1)
-    right, state = Base.indexed_iterate(tspan, 2, state)
-    iterate(tspan, state) === nothing ||
-        throw(ArgumentError("an interval bracket has exactly two entries"))
-    return minmax(promote(left, right)...)
+    next1 = iterate(tspan)
+    next1 === nothing && throw(bracket_arity_error())
+    next2 = iterate(tspan, next1[2])
+    next2 === nothing && throw(bracket_arity_error())
+    iterate(tspan, next2[2]) === nothing || throw(bracket_arity_error())
+    return minmax(promote(next1[1], next2[1])...)
 end
+
+bracket_arity_error() = ArgumentError("an interval bracket has exactly two entries")

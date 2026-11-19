@@ -1,5 +1,4 @@
-using BracketingNonlinearSolve, InteractiveUtils
-using BracketingNonlinearSolve: NonlinearVerbosity
+using BracketingNonlinearSolve
 include("setup_rootfindingtestsnippet.jl")
 
 @testset for alg in (
@@ -28,14 +27,30 @@ include("setup_rootfindingtestsnippet.jl")
     end
 end
 
-# Splatting a `Vector` bracket is a dynamic `Core._apply_iterate` call, which `--trim` rejects.
-# The scan reads the method that `__solve` passes its keyword arguments to.
+# Splatting a `Vector` bracket is a `Core._apply_iterate` call of unknown arity, which `--trim`
+# rejects. The walk follows every call the compiler resolved, so it also finds an array splat in a helper.
+argtype(x::Core.SSAValue, ci) = ci.ssavaluetypes[x.id]
+argtype(x::Core.Argument, ci) = ci.slottypes[x.n]
+argtype(x, ci) = typeof(x)
+function array_splats!(found, seen, @nospecialize(sig))
+    sig in seen && return found
+    push!(seen, sig)
+    for (ci, _) in Base.code_typed_by_type(sig), st in ci.code
+        if Meta.isexpr(st, :invoke)
+            mi = st.args[1]
+            mi isa Core.MethodInstance || (mi = mi.def)  # a `CodeInstance` from Julia 1.12
+            array_splats!(found, seen, mi.specTypes)
+        elseif Meta.isexpr(st, :call) && st.args[1] == GlobalRef(Core, :_apply_iterate) &&
+                any(x -> Core.Compiler.widenconst(argtype(x, ci)) <: AbstractArray, st.args[4:end])
+            push!(found, sig => st)
+        end
+    end
+    return found
+end
+
 @testset "Vector bracket, no splat: $alg" for alg in (ITP(), ModAB())
     prob = IntervalNonlinearProblem((u, p) -> u * u - p, [1.0, 2.0], 2.0)
-    body = Base.bodyfunction(which(SciMLBase.__solve, Tuple{typeof(prob), typeof(alg)}))
-    argtypes = Tuple{Int, Nothing, NonlinearVerbosity, Any, typeof(SciMLBase.__solve), typeof(prob), typeof(alg)}
-    code = only(code_typed(body, argtypes)).first.code
-    @test !any(st -> Meta.isexpr(st, :call) && st.args[1] == GlobalRef(Core, :_apply_iterate), code)
+    @test isempty(array_splats!([], Set{Any}(), Tuple{typeof(solve), typeof(prob), typeof(alg)}))
 end
 
 @testset "Bracket with a third entry: $alg" for alg in (ITP(), ModAB(), nothing)
