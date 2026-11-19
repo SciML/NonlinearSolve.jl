@@ -1,23 +1,21 @@
 using NonlinearSolveFirstOrder, NonlinearSolveBase, LinearSolve
 using LinearAlgebra, SparseArrays, SparseMatrixColorings, StableRNGs
 
-const Utils = NonlinearSolveBase.Utils
-
 @testset "normal_form_jacobian!! matches transpose(J) * J bitwise" begin
     rng = StableRNG(0)
     @testset "size $(m)×$(n)" for (m, n) in ((40, 40), (60, 25), (25, 60))
         J = sprandn(rng, m, n, 0.2)
-        ws = Utils.normal_form_workspace(J)
+        ws = NonlinearSolveBase.normal_form_workspace(J)
         JᵀJ = transpose(J) * J
         nonzeros(J) .= randn(rng, nnz(J))
         expected = transpose(J) * J
-        @test Utils.normal_form_jacobian!!(JᵀJ, J, ws) === JᵀJ
+        @test NonlinearSolveBase.normal_form_jacobian!!(JᵀJ, J, ws) === JᵀJ
         @test JᵀJ.colptr == expected.colptr && JᵀJ.rowval == expected.rowval
         @test reinterpret(UInt64, nonzeros(JᵀJ)) == reinterpret(UInt64, nonzeros(expected))
 
         # A Jacobian whose pattern no longer matches the cache takes the allocating path.
         J₂ = sprandn(rng, m, n, 0.3)
-        JᵀJ₂ = Utils.normal_form_jacobian!!(JᵀJ, J₂, ws)
+        JᵀJ₂ = NonlinearSolveBase.normal_form_jacobian!!(JᵀJ, J₂, ws)
         @test JᵀJ₂ == transpose(J₂) * J₂
     end
 end

@@ -81,3 +81,29 @@ function _more_scaling(s)
                        or `Auto`), got `$(s)`.")
     )
 end
+
+"""
+    normal_form_workspace(J)
+
+Return a workspace that lets [`normal_form_jacobian!!`](@ref) overwrite an existing `JᵀJ`
+with `transpose(J) * J` without allocating, or `nothing` when `J`'s type has no specialized
+in-place kernel. Descent caches build it once at `init` from the initial Jacobian.
+
+`SparseMatrixCSC` Jacobians get a workspace from the SparseArrays extension. A new Jacobian
+type opts in by adding a method of this function together with the matching
+`normal_form_jacobian!!(JᵀJ, J, workspace)` method.
+"""
+normal_form_workspace(::Any) = nothing
+
+"""
+    normal_form_jacobian!!(JᵀJ, J, workspace)
+
+Return `transpose(J) * J`, writing it into `JᵀJ` when `JᵀJ` is mutable, and returning a
+new array otherwise. `workspace` is the result of [`normal_form_workspace`](@ref) on a
+Jacobian of the same type as `J`. Callers must use the returned value: a specialized method
+falls back to the allocating product when `J`'s sparsity pattern no longer matches `JᵀJ`.
+"""
+function normal_form_jacobian!!(JᵀJ, J, ::Any)
+    @bb JᵀJ = transpose(J) × J
+    return JᵀJ
+end
