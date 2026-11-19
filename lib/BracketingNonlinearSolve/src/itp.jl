@@ -92,11 +92,12 @@ function SciMLBase.__solve(
     span = right - left
     k1 = alg.scaled_k1 * span^(1 - k2) # k1 > 0
     n0 = alg.n0
-    if span / 2 > ϵ * floatmax(typeof(span))
+    ratio = span / (2 * ϵ) # Unitless, so no `floatmax` of a type with units is needed
+    if !isfinite(ratio)
         # Workaround for when span / (2 * ϵ) == Inf
         ϵ_s = span / 2 * exp2(n0)
     else
-        n_h = exponent(span / (2 * ϵ))
+        n_h = exponent(ratio)
         ϵ_s = ϵ * exp2(n_h) * exp2(n0)
     end
     T0 = zero(fl)
@@ -109,7 +110,7 @@ function SciMLBase.__solve(
 
         x_f = left + span * (fl / (fl - fr))  # Interpolation Step
 
-        δ = max(k1 * span^k2, eps(x_f))
+        δ = max(k1 * span^k2, Impl.ulp(x_f))
         diff = mid - x_f
 
         xt = ifelse(δ ≤ abs(diff), x_f + copysign(δ, diff), mid)  # Truncation Step

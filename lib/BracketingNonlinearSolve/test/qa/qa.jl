@@ -22,8 +22,10 @@ run_qa(
         # Still non-public in their owning packages. __solve dropped: now public in
         # SciMLBase.
         #   ForwardDiff (ChainRulesCore/ForwardDiff ext): partials, value
+        #   BracketingNonlinearSolve (own internal, extended by the ForwardDiff ext):
+        #     residual_ratio
         all_qualified_accesses_are_public = (;
-            ignore = (:partials, :value),
+            ignore = (:partials, :value, :residual_ratio),
         ),
         # Still non-public in their owning packages. @SciMLMessage / AbstractVerbosityPreset
         # dropped: now imported directly from their owner SciMLLogging (public there).
