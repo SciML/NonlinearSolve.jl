@@ -3,7 +3,7 @@
 const TIMER_OUTPUTS_ENABLED = @load_preference("enable_timer_outputs", false)
 
 @static if TIMER_OUTPUTS_ENABLED
-    using TimerOutputs: TimerOutput, timer_expr, reset_timer!
+    using TimerOutputs: TimerOutputs, TimerOutput, reset_timer!
 end
 
 function get_timer_output()
@@ -22,7 +22,13 @@ Like `TimerOutputs.@timeit_debug` but has zero overhead if `TimerOutputs` is dis
 """
 macro static_timeit(to, name, expr)
     @static if TIMER_OUTPUTS_ENABLED
-        return timer_expr(__source__, __module__, false, to, name, expr)
+        expr = expr isa Expr ? expr : Expr(:block, expr)
+        return esc(
+            Expr(
+                :macrocall, GlobalRef(TimerOutputs, Symbol("@timeit")), __source__,
+                to, name, expr
+            )
+        )
     else
         return esc(expr)
     end

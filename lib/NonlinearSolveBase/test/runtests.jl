@@ -12,6 +12,8 @@ run_tests(;
     env = "NONLINEARSOLVE_TEST_GROUP",
     # All NonlinearSolveBase tests run under the default Core group.
     core = function ()
+        @safetestset "Static timers" include("timer_outputs.jl")
+
         @safetestset "Banded Matrix vcat" begin
             using NonlinearSolveBase
             using BandedMatrices, LinearAlgebra, SparseArrays
