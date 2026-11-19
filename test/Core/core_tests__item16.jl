@@ -4,7 +4,8 @@ using LinearAlgebra
 
 function f!(du, u, p)
     du[1] = 2u[1] - 2
-    return du[2] = (u[1] - 4u[2])^2 + 0.1
+    du[2] = (u[1] - 4u[2])^2 + 0.1
+    return
 end
 
 u0 = [0.0, 0.0] # Singular Jacobian at u0
@@ -17,7 +18,8 @@ sol = solve(prob) # This doesn't have a root so let's just test the switching
 function nlls!(du, u, p)
     du[1] = 2u[1] - 2
     du[2] = (u[1] - 4u[2])^2 + 0.1
-    return du[3] = 0
+    du[3] = 0
+    return
 end
 
 u0 = [0.0, 0.0]

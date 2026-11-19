@@ -111,7 +111,8 @@ function f_full(du, u, p)
     du[2] = sin(u[1] + u[2]) + u[2]
     du[3] = 2u[4] + u[3] + u[1]
     du[4] = u[5]^2 + u[4]
-    return du[5] = u[3]^2 + u[5]
+    du[5] = u[3]^2 + u[5]
+    return
 end
 ref_prob = NonlinearProblem(f_full, zeros(5))
 ref_sol = solve(ref_prob, NewtonRaphson())
