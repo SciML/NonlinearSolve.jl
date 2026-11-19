@@ -54,6 +54,7 @@ NonlinearSolveBase.AbstractDescentDirection
 NonlinearSolveBase.AbstractDescentCache
 NonlinearSolveBase.supports_line_search
 NonlinearSolveBase.supports_trust_region
+NonlinearSolveBase.supports_trust_region_scaling
 NonlinearSolveBase.set_du!
 NonlinearSolveBase.last_step_accepted
 NonlinearSolveBase.preinverted_jacobian
