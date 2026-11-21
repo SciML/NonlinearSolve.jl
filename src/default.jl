@@ -56,16 +56,30 @@ function SciMLBase.__solve(prob::NonlinearProblem, ::Nothing, args...; kwargs...
     )
 end
 
-function SciMLBase.__init(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    # Convert SteadyStateProblem to NonlinearProblem and use its default
+## Not `AbstractSteadyStateProblem`: it aliases `AbstractNonlinearProblem`, so the
+## `SCCNonlinearProblem` returned by `NonlinearProblem(prob)` would re-enter these methods.
+const ConvertibleToNonlinearProblem = Union{
+    SciMLBase.SteadyStateProblem, SciMLBase.ImmutableNonlinearProblem,
+}
+
+function SciMLBase.__init(prob::ConvertibleToNonlinearProblem, ::Nothing, args...; kwargs...)
     nlprob = SciMLBase.NonlinearProblem(prob)
+    # An SCC problem has no single-residual cache, so iterate on the unlowered residual
+    if nlprob isa SciMLBase.SCCNonlinearProblem
+        nlprob = NonlinearProblem{SciMLBase.isinplace(prob)}(prob.f, prob.u0, prob.p)
+    end
     return SciMLBase.__init(nlprob, nothing, args...; kwargs...)
 end
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractSteadyStateProblem, ::Nothing, args...; kwargs...)
-    # Convert SteadyStateProblem to NonlinearProblem and use its default
+function SciMLBase.__solve(
+        prob::ConvertibleToNonlinearProblem, ::Nothing, args...;
+        default_set = false, second_time = false, kwargs...
+    )
     nlprob = SciMLBase.NonlinearProblem(prob)
-    return SciMLBase.__solve(nlprob, nothing, args...; kwargs...)
+    if nlprob isa SciMLBase.SCCNonlinearProblem
+        return SciMLBase.solve(nlprob, nothing, args...; kwargs...)
+    end
+    return SciMLBase.__solve(nlprob, nothing, args...; default_set, second_time, kwargs...)
 end
 
 function NonlinearSolveBase.initialization_alg(prob::AbstractNonlinearProblem, autodiff)
