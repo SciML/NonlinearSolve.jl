@@ -34,6 +34,7 @@ else
         # --- Base-env groups (no extra deps; part of the "All" run) ---
         core = function ()
             @time @safetestset "NLLS Analytic Jacobian" include("Core/core_tests__item1.jl")
+            @time @safetestset "Newton stagnation and accuracy" include("Core/stagnation_tests__item1.jl")
             @time @safetestset "PolyAlgorithm Type Inference" include("Core/core_tests__item3.jl")
             @time @safetestset "PolyAlgorithm Aliasing" include("Core/core_tests__item5.jl")
             @time @safetestset "BigFloat Support" include("Core/core_tests__item7.jl")

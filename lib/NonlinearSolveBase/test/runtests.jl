@@ -134,10 +134,7 @@ run_tests(;
                 @test cache.retcode != SciMLBase.ReturnCode.Unstable
             end
 
-            # Regression for SciML/NonlinearSolve.jl#1310: safe-mode stagnation
-            # must evaluate step norms with `mode.internalnorm`, not a hard-coded
-            # L2_NORM, so MPI-reduced / custom norms stay consistent across ranks.
-            @testset "stagnation uses mode.internalnorm (#1310)" begin
+            @testset "stagnation uses mode.internalnorm" begin
                 calls = Ref(0)
                 counting_norm = function (x)
                     calls[] += 1
@@ -157,10 +154,6 @@ run_tests(;
                 cache([1.0], [3.0], [2.0])
                 @test calls[] == 5
 
-                # Explicit L2_NORM mode still stalls when the iterate stops
-                # moving while the residual stays above tolerance. (Package
-                # default for NonlinearProblem is Linf via
-                # AbsNormSafeBest(maximum∘abs), not L2.)
                 l2_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
                     NonlinearSolveBase.L2_NORM; max_stalled_steps = 3
                 )
@@ -175,28 +168,27 @@ run_tests(;
                 @test l2_cache.retcode == SciMLBase.ReturnCode.Stalled
             end
 
-            # RelNormSafe* stores u0_norm for relative stall comparisons; that
-            # value must also go through mode.internalnorm (#1310).
-            @testset "RelNorm u0_norm uses mode.internalnorm (#1310)" begin
+            @testset "RelNorm u0_norm uses mode.internalnorm" begin
                 calls = Ref(0)
                 counting_norm = function (x)
                     calls[] += 1
-                    return 1.0
+                    return 10 * maximum(abs, x)
                 end
 
                 prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
                 mode = NonlinearSolveBase.RelNormSafeBestTerminationMode(
                     counting_norm; max_stalled_steps = 1
                 )
-                # Init: residual, residual⊕u (relative denom), and u0_norm.
                 cache = SciMLBase.init(
                     prob, mode, [1.0], [1.0]; abstol = 0.0, reltol = 0.0
                 )
                 @test calls[] == 3
+                @test cache.u0_norm == 10.0
 
                 calls[] = 0
-                SciMLBase.reinit!(cache, [1.0], [2.0])
+                SciMLBase.reinit!(cache, [1.0], [3.0])
                 @test calls[] == 3
+                @test cache.u0_norm == 30.0
             end
 
             @testset "deferred residual helper contracts" begin
