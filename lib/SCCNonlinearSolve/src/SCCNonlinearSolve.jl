@@ -130,8 +130,7 @@ end
 
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
-    # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+    # This buffer type is also part of the view passed to each explicit callback.
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
@@ -214,7 +213,13 @@ function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
     # Only store sub-solutions in `original` when requested (Val(true)).
     # The sub-solutions tuple nested in the kwargs NamedTuple exceeds
     # Enzyme's type analysis depth, so it's off by default.
-    original = alg.store_original isa Val{true} ? sols : nothing
+    original = if !(alg.store_original isa Val{true})
+        nothing
+    elseif sols isa Vector && !isconcretetype(eltype(sols))
+        map(identity, sols)
+    else
+        sols
+    end
     return SciMLBase.build_solution(prob, alg, u, resid; retcode, original)
 end
 
