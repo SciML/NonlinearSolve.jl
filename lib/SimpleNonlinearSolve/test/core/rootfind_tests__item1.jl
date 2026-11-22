@@ -79,3 +79,12 @@ end
     alg = SimpleTrustRegion(; initial_trust_radius = 2.0, shrink_threshold = 2.0, max_shrink_times = 0)
     @test solve(prob, alg).retcode == ReturnCode.ShrinkThresholdExceeded
 end
+
+@testset "Converged trust-region trial" begin
+    f(u, p) = u
+    jac(u, p) = iszero(u) ? error("Jacobian requested at the converged trial") : one(u)
+    prob = NonlinearProblem(NonlinearFunction{false}(f; jac), 1.0)
+    sol = solve(prob, SimpleTrustRegion(; initial_trust_radius = 1.0))
+    @test sol.retcode == ReturnCode.Success
+    @test iszero(sol.u)
+end
